@@ -29,6 +29,12 @@ export const DomainEvent = {
   tagUpdated: 'tag.updated@v1',
   tagDeleted: 'tag.deleted@v1',
   tagMerged: 'tag.merged@v1',
+  habitCreated: 'habit.created@v1',
+  habitUpdated: 'habit.updated@v1',
+  habitDeleted: 'habit.deleted@v1',
+  habitCheckin: 'habit.checkin@v1',
+  habitStreakBroken: 'habit.streak_broken@v1',
+  habitGoalMet: 'habit.goal_met@v1',
   noteCreated: 'note.created@v1',
   noteUpdated: 'note.updated@v1',
 } as const;

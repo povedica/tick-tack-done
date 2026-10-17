@@ -1,0 +1,10 @@
+import { Module } from '@nestjs/common';
+import { HabitsController } from './habits.controller';
+import { HabitsService } from './habits.service';
+
+@Module({
+  controllers: [HabitsController],
+  providers: [HabitsService],
+})
+// eslint-disable-next-line @typescript-eslint/no-extraneous-class -- Nest module is decorator-only
+export class HabitsModule {}

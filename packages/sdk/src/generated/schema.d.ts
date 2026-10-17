@@ -92,6 +92,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/habits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List habits (RF-1301) */
+        get: operations["HabitsController_list"];
+        put?: never;
+        /** Create a habit (RF-1301) */
+        post: operations["HabitsController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/habits/{id}/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Habit streaks, completion and heatmaps (RF-1303) */
+        get: operations["HabitsController_stats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/habits/{id}/checkins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record a daily check-in with a counter and an optional note (RF-1302) */
+        post: operations["HabitsController_checkIn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/habits/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a habit (RF-1301) */
+        get: operations["HabitsController_get"];
+        put?: never;
+        post?: never;
+        /** Move a habit to the trash (RF-1301, RF-1304) */
+        delete: operations["HabitsController_remove"];
+        options?: never;
+        head?: never;
+        /** Update a habit (RF-1301) */
+        patch: operations["HabitsController_update"];
+        trace?: never;
+    };
     "/api/v1/folders": {
         parameters: {
             query?: never;
@@ -745,6 +816,98 @@ export interface components {
             /** @enum {string} */
             status: "ok";
         };
+        HabitGoalDto: {
+            times_per_period: number;
+            /** @enum {string} */
+            period: "day" | "week";
+            target_count: number;
+        };
+        HabitTodayDto: {
+            date: string;
+            count: number;
+            note: string | null;
+            met: boolean;
+        };
+        HabitResponseDto: {
+            id: string;
+            name: string;
+            icon: string | null;
+            color: string | null;
+            goal: components["schemas"]["HabitGoalDto"];
+            frequency: ("monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday")[];
+            reminder_time: string | null;
+            motivation_note: string | null;
+            archived: boolean;
+            sort_order: string;
+            today: components["schemas"]["HabitTodayDto"];
+            created_at: string;
+            updated_at: string;
+        };
+        HabitPageDto: {
+            items: components["schemas"]["HabitResponseDto"][];
+            next_cursor: string | null;
+        };
+        CreateHabitDto: {
+            name: string;
+            icon?: string | null;
+            color?: string | null;
+            goal: components["schemas"]["HabitGoalDto"];
+            frequency: ("monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday")[];
+            /** @example 09:00 */
+            reminder_time?: string | null;
+            motivation_note?: string | null;
+            before_id?: string | null;
+            move_to_end?: boolean;
+        };
+        HabitCompletionDto: {
+            week: number;
+            month: number;
+        };
+        HabitHeatCellDto: {
+            date: string;
+            count: number;
+            met: boolean;
+            scheduled: boolean;
+        };
+        AggregateHeatCellDto: {
+            date: string;
+            scheduled: number;
+            met: number;
+        };
+        HabitStatsDto: {
+            streak_current: number;
+            streak_best: number;
+            completion_percent: components["schemas"]["HabitCompletionDto"];
+            heatmap: components["schemas"]["HabitHeatCellDto"][];
+            aggregate_heatmap: components["schemas"]["AggregateHeatCellDto"][];
+        };
+        CheckInDto: {
+            /** @example 2026-10-17 */
+            date: string;
+            count: number;
+            note?: string | null;
+        };
+        CheckInResponseDto: {
+            id: string;
+            habit_id: string;
+            date: string;
+            count: number;
+            note: string | null;
+            goal_met: boolean;
+            streak_broken: boolean;
+        };
+        UpdateHabitDto: {
+            name?: string;
+            icon?: string | null;
+            color?: string | null;
+            goal?: components["schemas"]["HabitGoalDto"];
+            frequency?: ("monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday")[];
+            reminder_time?: string | null;
+            motivation_note?: string | null;
+            archived?: boolean;
+            before_id?: string | null;
+            move_to_end?: boolean;
+        };
         FolderResponseDto: {
             id: string;
             name: string;
@@ -1240,6 +1403,173 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponseDto"];
+                };
+            };
+        };
+    };
+    HabitsController_list: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HabitPageDto"];
+                };
+            };
+        };
+    };
+    HabitsController_create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateHabitDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HabitResponseDto"];
+                };
+            };
+        };
+    };
+    HabitsController_stats: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HabitStatsDto"];
+                };
+            };
+        };
+    };
+    HabitsController_checkIn: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckInDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckInResponseDto"];
+                };
+            };
+        };
+    };
+    HabitsController_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HabitResponseDto"];
+                };
+            };
+        };
+    };
+    HabitsController_remove: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HabitsController_update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateHabitDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HabitResponseDto"];
                 };
             };
         };

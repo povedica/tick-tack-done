@@ -16,6 +16,14 @@ export type FilterCombinator = 'AND' | 'OR';
 export type ReminderType = 'relative' | 'absolute' | 'location' | 'daily_digest';
 export type ReminderChannel = 'push' | 'email' | 'both';
 export type HabitPeriod = 'day' | 'week';
+export type HabitWeekday =
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday'
+  | 'sunday';
 export type FocusSessionType = 'focus' | 'short_break' | 'long_break';
 export type CalendarSyncDirection = 'read' | 'two_way';
 export type ActivityAction =

@@ -241,6 +241,280 @@
         ]
       }
     },
+    "/api/v1/habits": {
+      "get": {
+        "operationId": "HabitsController_list",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HabitPageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List habits (RF-1301)",
+        "tags": [
+          "habits"
+        ]
+      },
+      "post": {
+        "operationId": "HabitsController_create",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateHabitDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HabitResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create a habit (RF-1301)",
+        "tags": [
+          "habits"
+        ]
+      }
+    },
+    "/api/v1/habits/{id}/stats": {
+      "get": {
+        "operationId": "HabitsController_stats",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HabitStatsDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Habit streaks, completion and heatmaps (RF-1303)",
+        "tags": [
+          "habits"
+        ]
+      }
+    },
+    "/api/v1/habits/{id}/checkins": {
+      "post": {
+        "operationId": "HabitsController_checkIn",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckInDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckInResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Record a daily check-in with a counter and an optional note (RF-1302)",
+        "tags": [
+          "habits"
+        ]
+      }
+    },
+    "/api/v1/habits/{id}": {
+      "get": {
+        "operationId": "HabitsController_get",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HabitResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get a habit (RF-1301)",
+        "tags": [
+          "habits"
+        ]
+      },
+      "patch": {
+        "operationId": "HabitsController_update",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateHabitDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HabitResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update a habit (RF-1301)",
+        "tags": [
+          "habits"
+        ]
+      },
+      "delete": {
+        "operationId": "HabitsController_remove",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Move a habit to the trash (RF-1301, RF-1304)",
+        "tags": [
+          "habits"
+        ]
+      }
+    },
     "/api/v1/folders": {
       "get": {
         "operationId": "ListsController_listFolders",
@@ -2493,6 +2767,410 @@
         "required": [
           "status"
         ]
+      },
+      "HabitGoalDto": {
+        "type": "object",
+        "properties": {
+          "times_per_period": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "period": {
+            "type": "string",
+            "enum": [
+              "day",
+              "week"
+            ]
+          },
+          "target_count": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 1000
+          }
+        },
+        "required": [
+          "times_per_period",
+          "period",
+          "target_count"
+        ]
+      },
+      "HabitTodayDto": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "count": {
+            "type": "number"
+          },
+          "note": {
+            "type": "string",
+            "nullable": true
+          },
+          "met": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "date",
+          "count",
+          "note",
+          "met"
+        ]
+      },
+      "HabitResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string",
+            "nullable": true
+          },
+          "color": {
+            "type": "string",
+            "nullable": true
+          },
+          "goal": {
+            "$ref": "#/components/schemas/HabitGoalDto"
+          },
+          "frequency": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "monday",
+                "tuesday",
+                "wednesday",
+                "thursday",
+                "friday",
+                "saturday",
+                "sunday"
+              ]
+            }
+          },
+          "reminder_time": {
+            "type": "string",
+            "nullable": true
+          },
+          "motivation_note": {
+            "type": "string",
+            "nullable": true
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "sort_order": {
+            "type": "string"
+          },
+          "today": {
+            "$ref": "#/components/schemas/HabitTodayDto"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "icon",
+          "color",
+          "goal",
+          "frequency",
+          "reminder_time",
+          "motivation_note",
+          "archived",
+          "sort_order",
+          "today",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "HabitPageDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HabitResponseDto"
+            }
+          },
+          "next_cursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ]
+      },
+      "CreateHabitDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "icon": {
+            "type": "string",
+            "nullable": true
+          },
+          "color": {
+            "type": "string",
+            "nullable": true
+          },
+          "goal": {
+            "$ref": "#/components/schemas/HabitGoalDto"
+          },
+          "frequency": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "monday",
+                "tuesday",
+                "wednesday",
+                "thursday",
+                "friday",
+                "saturday",
+                "sunday"
+              ]
+            }
+          },
+          "reminder_time": {
+            "type": "string",
+            "nullable": true,
+            "example": "09:00"
+          },
+          "motivation_note": {
+            "type": "string",
+            "nullable": true
+          },
+          "before_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "move_to_end": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "goal",
+          "frequency"
+        ]
+      },
+      "HabitCompletionDto": {
+        "type": "object",
+        "properties": {
+          "week": {
+            "type": "number"
+          },
+          "month": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "week",
+          "month"
+        ]
+      },
+      "HabitHeatCellDto": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "count": {
+            "type": "number"
+          },
+          "met": {
+            "type": "boolean"
+          },
+          "scheduled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "date",
+          "count",
+          "met",
+          "scheduled"
+        ]
+      },
+      "AggregateHeatCellDto": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "scheduled": {
+            "type": "number"
+          },
+          "met": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "date",
+          "scheduled",
+          "met"
+        ]
+      },
+      "HabitStatsDto": {
+        "type": "object",
+        "properties": {
+          "streak_current": {
+            "type": "number"
+          },
+          "streak_best": {
+            "type": "number"
+          },
+          "completion_percent": {
+            "$ref": "#/components/schemas/HabitCompletionDto"
+          },
+          "heatmap": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HabitHeatCellDto"
+            }
+          },
+          "aggregate_heatmap": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AggregateHeatCellDto"
+            }
+          }
+        },
+        "required": [
+          "streak_current",
+          "streak_best",
+          "completion_percent",
+          "heatmap",
+          "aggregate_heatmap"
+        ]
+      },
+      "CheckInDto": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "example": "2026-10-17"
+          },
+          "count": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "note": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "date",
+          "count"
+        ]
+      },
+      "CheckInResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "habit_id": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string"
+          },
+          "count": {
+            "type": "number"
+          },
+          "note": {
+            "type": "string",
+            "nullable": true
+          },
+          "goal_met": {
+            "type": "boolean"
+          },
+          "streak_broken": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "habit_id",
+          "date",
+          "count",
+          "note",
+          "goal_met",
+          "streak_broken"
+        ]
+      },
+      "UpdateHabitDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "icon": {
+            "type": "string",
+            "nullable": true
+          },
+          "color": {
+            "type": "string",
+            "nullable": true
+          },
+          "goal": {
+            "$ref": "#/components/schemas/HabitGoalDto"
+          },
+          "frequency": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "monday",
+                "tuesday",
+                "wednesday",
+                "thursday",
+                "friday",
+                "saturday",
+                "sunday"
+              ]
+            }
+          },
+          "reminder_time": {
+            "type": "string",
+            "nullable": true
+          },
+          "motivation_note": {
+            "type": "string",
+            "nullable": true
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "before_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "move_to_end": {
+            "type": "boolean"
+          }
+        }
       },
       "FolderResponseDto": {
         "type": "object",

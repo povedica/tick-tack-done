@@ -666,7 +666,7 @@ project.created project.updated project.archived project.unarchived project.dele
 folder.created folder.updated folder.deleted
 column.created column.updated column.deleted
 tag.created tag.updated tag.deleted tag.merged
-habit.checkin habit.streak_broken habit.goal_met
+habit.created habit.updated habit.deleted habit.checkin habit.streak_broken habit.goal_met
 focus.session_started focus.session_finished focus.session_aborted
 reminder.fired
 note.created note.updated

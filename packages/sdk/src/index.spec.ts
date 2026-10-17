@@ -56,4 +56,25 @@ describe('sdk', () => {
       code: 'empty_title',
     } satisfies Partial<ApiError>);
   });
+
+  it('RF-1301: lists habits from the public collection', async () => {
+    const requests: { url: string; init: RequestInit | undefined }[] = [];
+    const client = createApiClient({
+      baseUrl: 'http://api.test',
+      devUserEmail: 'demo@reflexionia.test',
+      fetchImpl: (url, init) => {
+        requests.push({ url: requestUrl(url), init });
+        return Promise.resolve(
+          new Response(JSON.stringify({ items: [], next_cursor: null }), { status: 200 }),
+        );
+      },
+    });
+
+    const page = await client.listHabits();
+
+    expect(page.items).toEqual([]);
+    expect(requests[0]?.url).toBe('http://api.test/api/v1/habits');
+    const headers = requests[0]?.init?.headers as Record<string, string>;
+    expect(headers['X-Dev-User-Email']).toBe('demo@reflexionia.test');
+  });
 });
