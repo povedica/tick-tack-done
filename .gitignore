@@ -13,3 +13,4 @@ data/
 backups/
 .DS_Store
 *.log
+docker-compose.worktree.local.yml
