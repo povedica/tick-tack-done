@@ -23,6 +23,7 @@ import {
   type ReminderSnoozePreset,
 } from '@reflexionia/domain';
 import { actorOf, type AuthUser } from '../../auth/auth-user';
+import { hashInboundToken, inboundLocalPart } from '../../inbound/email-address';
 import { DomainEvent } from '../../events/domain-events';
 import { EventRecorder } from '../../events/event-recorder';
 import { DomainException } from '../../http/domain.exception';
@@ -32,6 +33,13 @@ import { IdempotencyService } from '../../idempotency/idempotency.service';
 import { placementPlan } from '../../ordering/placement';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { Tx } from '../../prisma/tx';
+import {
+  assertInboundFiles,
+  optionalToken,
+  safeMime,
+  untrustedText,
+  type InboundFile,
+} from './inbound-mail';
 import { resolveQuickAdd, type CaptureWarning } from './quick-add';
 import {
   removeAttachmentFile,
@@ -167,6 +175,78 @@ export class TasksService {
       ),
       next_cursor: hasMore && last !== undefined ? encodeTaskCursor(query.sort, last) : null,
     };
+  }
+
+  async acceptInboundEmail(input: {
+    readonly recipient: unknown;
+    readonly subject: unknown;
+    readonly text: unknown;
+    readonly messageId: unknown;
+    readonly files: readonly InboundFile[];
+  }): Promise<CreatedTask> {
+    const local = typeof input.recipient === 'string' ? inboundLocalPart(input.recipient) : null;
+    if (local === null) {
+      throw new DomainException(HttpStatus.UNAUTHORIZED, 'unauthorized', 'Invalid recipient');
+    }
+    const owner = await this.prisma.user.findFirst({
+      where: { inboundEmailTokenHash: hashInboundToken(local), deletedAt: null },
+      select: { id: true, email: true, timeZone: true, taskCompleteChildren: true },
+    });
+    if (owner === null) {
+      throw new DomainException(HttpStatus.UNAUTHORIZED, 'unauthorized', 'Invalid recipient');
+    }
+    const subject = untrustedText(input.subject, 2_000, 'subject', true);
+    const text = untrustedText(input.text, 100_000, 'text', false);
+    const messageId = optionalToken(input.messageId);
+    if (subject.trim().length === 0) {
+      throw new DomainException(HttpStatus.BAD_REQUEST, 'empty_title', 'title is required');
+    }
+    assertInboundFiles(input.files);
+    const user: AuthUser = {
+      id: owner.id,
+      email: owner.email,
+      timeZone: owner.timeZone,
+      completeChildren: owner.taskCompleteChildren,
+    };
+    const metadata: Record<string, unknown> = { capture: 'email' };
+    if (messageId !== null) {
+      metadata.inbound_message_id = messageId;
+    }
+    const created = await this.prisma.$transaction(async (tx) => {
+      if (messageId !== null) {
+        const existing = await tx.task.findFirst({
+          where: {
+            ownerId: user.id,
+            deletedAt: null,
+            metadata: { path: ['inbound_message_id'], equals: messageId },
+          },
+          select: { id: true },
+        });
+        if (existing !== null) {
+          return { task: await this.load(tx, user.id, existing.id, false), fresh: false };
+        }
+      }
+      return {
+        task: await this.insertTask(
+          tx,
+          user,
+          { raw_text: subject, content: text, metadata },
+          'api',
+        ),
+        fresh: true,
+      };
+    });
+    if (created.fresh) {
+      for (const file of input.files) {
+        await this.addAttachment(user, created.task.id, {
+          originalname: file.originalname,
+          mimetype: safeMime(file.mimetype),
+          size: file.buffer.length,
+          buffer: file.buffer,
+        });
+      }
+    }
+    return created.task;
   }
 
   create(user: AuthUser, dto: CreateTaskDto, keyRaw: string | undefined): Promise<Saved> {

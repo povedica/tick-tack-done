@@ -43,6 +43,19 @@ export class PushSubscriptionDto {
   auth!: string;
 }
 
+export class InboundEmailStatusDto {
+  @ApiProperty()
+  active!: boolean;
+}
+
+export class InboundEmailAddressDto {
+  @ApiProperty({ description: 'Shown once. The secret is not stored in clear text.' })
+  address!: string;
+
+  @ApiProperty()
+  token!: string;
+}
+
 export class MeResponseDto {
   @ApiProperty()
   id!: string;

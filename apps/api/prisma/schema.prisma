@@ -144,24 +144,25 @@ enum CompleteChildrenPolicy {
 }
 
 model User {
-  id                   String    @id @default(uuid()) @db.Uuid
-  email                String    @unique
-  passwordHash         String?   @map("password_hash")
-  displayName          String    @map("display_name")
-  avatar               String?
-  timeZone             String    @default("Europe/Madrid") @map("time_zone")
-  locale               String    @default("es")
-  weekStart            WeekStart @default(monday) @map("week_start")
-  dateFormat           String    @default("dd/MM/yyyy") @map("date_format")
-  theme                Theme     @default(auto)
-  nlpLanguage          String    @default("es") @map("nlp_language")
-  dailyReminderTime    String?   @map("daily_reminder_time")
-  weeklyReportSettings Json      @default("{}") @map("weekly_report_settings")
-  achievementScore     Int                    @default(0) @map("achievement_score")
-  taskCompleteChildren CompleteChildrenPolicy @default(ask) @map("task_complete_children")
-  createdAt            DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt            DateTime? @map("deleted_at") @db.Timestamptz(6)
+  id                    String                 @id @default(uuid()) @db.Uuid
+  email                 String                 @unique
+  passwordHash          String?                @map("password_hash")
+  displayName           String                 @map("display_name")
+  avatar                String?
+  timeZone              String                 @default("Europe/Madrid") @map("time_zone")
+  locale                String                 @default("es")
+  weekStart             WeekStart              @default(monday) @map("week_start")
+  dateFormat            String                 @default("dd/MM/yyyy") @map("date_format")
+  theme                 Theme                  @default(auto)
+  nlpLanguage           String                 @default("es") @map("nlp_language")
+  inboundEmailTokenHash String?                @unique @map("inbound_email_token_hash")
+  dailyReminderTime     String?                @map("daily_reminder_time")
+  weeklyReportSettings  Json                   @default("{}") @map("weekly_report_settings")
+  achievementScore      Int                    @default(0) @map("achievement_score")
+  taskCompleteChildren  CompleteChildrenPolicy @default(ask) @map("task_complete_children")
+  createdAt             DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt             DateTime?              @map("deleted_at") @db.Timestamptz(6)
 
   focusSettings         FocusSettings?
   folders               Folder[]
@@ -333,15 +334,15 @@ model Task {
   updatedAt       DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt       DateTime?                @map("deleted_at") @db.Timestamptz(6)
 
-  tags          TaskTag[]
-  checklist     ChecklistItem[]
-  reminders        Reminder[]
-  deliveries       ReminderDelivery[]
-  seriesAdvances   SeriesAdvance[]          @relation("SeriesAdvanceSource")
-  attachments      Attachment[]
-  comments      Comment[]
-  focusSessions FocusSession[]
-  stickyNotes   StickyNote[]
+  tags           TaskTag[]
+  checklist      ChecklistItem[]
+  reminders      Reminder[]
+  deliveries     ReminderDelivery[]
+  seriesAdvances SeriesAdvance[]    @relation("SeriesAdvanceSource")
+  attachments    Attachment[]
+  comments       Comment[]
+  focusSessions  FocusSession[]
+  stickyNotes    StickyNote[]
 
   @@index([projectId, status, sortOrder], map: "tasks_project_status_sort_idx")
   @@index([dueDate], map: "tasks_due_date_idx")
@@ -417,23 +418,23 @@ model Filter {
 }
 
 model Reminder {
-  id           String          @id @default(uuid()) @db.Uuid
-  ownerId      String          @map("owner_id") @db.Uuid
-  owner        User            @relation(fields: [ownerId], references: [id], onDelete: Restrict)
-  taskId       String          @map("task_id") @db.Uuid
-  task         Task            @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  trigger      String
-  absoluteAt   DateTime?       @map("absolute_at") @db.Timestamptz(6)
-  type         ReminderType
-  location     Json?
-  channel      ReminderChannel @default(push)
-  constant                 Boolean         @default(false)
-  constantIntervalMinutes Int?            @map("constant_interval_minutes")
-  snoozedUntil             DateTime?       @map("snoozed_until") @db.Timestamptz(6)
-  deliveries               ReminderDelivery[]
-  createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt    DateTime?       @map("deleted_at") @db.Timestamptz(6)
+  id                      String             @id @default(uuid()) @db.Uuid
+  ownerId                 String             @map("owner_id") @db.Uuid
+  owner                   User               @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  taskId                  String             @map("task_id") @db.Uuid
+  task                    Task               @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  trigger                 String
+  absoluteAt              DateTime?          @map("absolute_at") @db.Timestamptz(6)
+  type                    ReminderType
+  location                Json?
+  channel                 ReminderChannel    @default(push)
+  constant                Boolean            @default(false)
+  constantIntervalMinutes Int?               @map("constant_interval_minutes")
+  snoozedUntil            DateTime?          @map("snoozed_until") @db.Timestamptz(6)
+  deliveries              ReminderDelivery[]
+  createdAt               DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt               DateTime?          @map("deleted_at") @db.Timestamptz(6)
 
   @@index([taskId])
   @@map("reminders")

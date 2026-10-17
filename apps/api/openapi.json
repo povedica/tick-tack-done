@@ -71,6 +71,88 @@
         ]
       }
     },
+    "/api/v1/me/inbound-email": {
+      "get": {
+        "operationId": "MeController_inboundEmail",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboundEmailStatusDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Whether the email-to-task address is active (RF-105). The token is not returned.",
+        "tags": [
+          "me"
+        ]
+      },
+      "post": {
+        "operationId": "MeController_rotateInboundEmail",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboundEmailAddressDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create or regenerate the email-to-task address (RF-105). The token is shown once.",
+        "tags": [
+          "me"
+        ]
+      },
+      "delete": {
+        "operationId": "MeController_revokeInboundEmail",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Revoke the email-to-task address immediately (RF-105)",
+        "tags": [
+          "me"
+        ]
+      }
+    },
     "/api/v1/me/push-subscriptions": {
       "post": {
         "operationId": "MeController_subscribe",
@@ -2217,6 +2299,56 @@
           "tasks"
         ]
       }
+    },
+    "/api/v1/inbound/email": {
+      "post": {
+        "operationId": "InboundEmailController_receive",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "recipient",
+                  "subject"
+                ],
+                "properties": {
+                  "recipient": {
+                    "type": "string"
+                  },
+                  "subject": {
+                    "type": "string"
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "message_id": {
+                    "type": "string"
+                  },
+                  "file": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Deliver an email-to-task message (RF-105). The recipient token authenticates the call. Content is stored and never executed.",
+        "tags": [
+          "inbound"
+        ]
+      }
     }
   },
   "info": {
@@ -2301,6 +2433,33 @@
             "example": "08:00"
           }
         }
+      },
+      "InboundEmailStatusDto": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "active"
+        ]
+      },
+      "InboundEmailAddressDto": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "type": "string",
+            "description": "Shown once. The secret is not stored in clear text."
+          },
+          "token": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "address",
+          "token"
+        ]
       },
       "PushSubscriptionDto": {
         "type": "object",

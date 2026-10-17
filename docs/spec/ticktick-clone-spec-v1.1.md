@@ -645,6 +645,8 @@ Import/export: `POST /api/v1/import/ticktick` (con credenciales OAuth del usuari
 
 Administración: `GET/PATCH /api/v1/me`, `GET/POST/DELETE /api/v1/me/tokens`, `GET /api/v1/me/activity`, `GET /api/v1/me/tokens/{id}/activity`.
 
+Email-to-task (RF-105): `GET /api/v1/me/inbound-email` dice si hay dirección (sin el token), `POST /api/v1/me/inbound-email` la crea o regenera y muestra el token una sola vez, `DELETE /api/v1/me/inbound-email` la revoca al momento. `POST /api/v1/inbound/email` recibe `multipart/form-data` (`recipient`, `subject`, `text`, `message_id`, `file`). El token del destinatario autentica la entrega. El asunto pasa por el mismo parser que `raw_text`, el cuerpo se guarda como contenido y los adjuntos como Attachment (25 MB). Es entrada no confiable: se valida, se limita el tamaño y no se ejecuta nada. El token no se guarda en claro.
+
 ### 10.4 Compatibilidad TickTick (opcional pero recomendada)
 
 Capa de compatibilidad `GET /open/v1/...` que replica la forma de la Open API de TickTick (mismos nombres de campo: `projectId`, `repeatFlag`, `sortOrder`, `items`...). Permite reutilizar integraciones existentes de terceros (MCP servers, CLIs, atajos) contra nuestro backend cambiando solo la URL base y el token. Implementación: adaptador fino sobre los servicios de dominio. Prioridad V1.

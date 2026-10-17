@@ -1,9 +1,16 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { isIanaTimeZone } from '@reflexionia/domain';
+import { hashInboundToken, inboundAddress, newInboundToken } from '../inbound/email-address';
 import { DomainException } from '../http/domain.exception';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthUser } from './auth-user';
-import type { MeResponseDto, PushSubscriptionDto, UpdateMeDto } from './me.dto';
+import type {
+  InboundEmailAddressDto,
+  InboundEmailStatusDto,
+  MeResponseDto,
+  PushSubscriptionDto,
+  UpdateMeDto,
+} from './me.dto';
 
 @Injectable()
 export class MeService {
@@ -97,6 +104,30 @@ export class MeService {
       update: { p256dh: dto.p256dh, auth: dto.auth, deletedAt: null },
     });
     return { id: row.id };
+  }
+
+  async inboundEmailStatus(user: AuthUser): Promise<InboundEmailStatusDto> {
+    const row = await this.prisma.user.findFirst({
+      where: { id: user.id, deletedAt: null },
+      select: { inboundEmailTokenHash: true },
+    });
+    return { active: typeof row?.inboundEmailTokenHash === 'string' };
+  }
+
+  async rotateInboundEmail(user: AuthUser): Promise<InboundEmailAddressDto> {
+    const token = newInboundToken();
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { inboundEmailTokenHash: hashInboundToken(token) },
+    });
+    return { address: inboundAddress(token), token };
+  }
+
+  async revokeInboundEmail(user: AuthUser): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { inboundEmailTokenHash: null },
+    });
   }
 
   async unsubscribe(user: AuthUser, id: string): Promise<void> {
