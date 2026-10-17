@@ -1,7 +1,8 @@
 // Section 5 of the spec. Column names stay snake_case via @map.
 // Every tenant row hangs from an owner (decision D5).
-// Partial indexes and the generated FTS vector are added in the initial
-// migration SQL because Prisma 6 cannot model them. See migration.sql.
+// search_vector is a generated tsvector (FTS on title + content).
+// The partial due_date index and the one-inbox unique index live in the
+// initial migration because Prisma 6 cannot model their predicates.
 
 generator client {
   provider        = "prisma-client-js"
@@ -299,7 +300,7 @@ model Task {
   completedAt     DateTime?                @map("completed_at") @db.Timestamptz(6)
   source          TaskSource               @default(manual)
   metadata        Json                     @default("{}")
-  searchVector    Unsupported("tsvector")? @map("search_vector")
+  searchVector    Unsupported("tsvector")? @default(dbgenerated("to_tsvector('simple'::regconfig, (((COALESCE(title, ''::character varying))::text || ' '::text) || COALESCE(content, ''::text)))")) @map("search_vector")
   createdAt       DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt       DateTime?                @map("deleted_at") @db.Timestamptz(6)

@@ -12,7 +12,8 @@
     "test:integration": "vitest run --config vitest.config.integration.ts",
     "openapi:generate": "node dist/scripts/generate-openapi.js",
     "seed": "tsx prisma/seed.ts",
-    "prisma": "prisma"
+    "prisma": "prisma",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",

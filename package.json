@@ -20,9 +20,9 @@
     "test": "pnpm -r test",
     "test:integration": "pnpm --filter api test:integration",
     "test:e2e": "pnpm --filter web test:e2e",
-    "db:migrate": "pnpm --filter api prisma migrate dev",
-    "db:deploy": "pnpm --filter api prisma migrate deploy",
-    "db:seed": "pnpm --filter api seed",
+    "db:migrate": "bash scripts/with-env.sh pnpm --filter api exec prisma migrate dev",
+    "db:deploy": "bash scripts/with-env.sh pnpm --filter api exec prisma migrate deploy",
+    "db:seed": "bash scripts/with-env.sh pnpm --filter api seed",
     "backup": "bash scripts/backup.sh",
     "backup:verify": "bash scripts/restore-verify.sh"
   },
