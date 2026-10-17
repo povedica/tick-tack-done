@@ -595,6 +595,8 @@ DELETE /api/v1/tasks/trash                vaciar papelera (RF-306)
 POST   /api/v1/tasks/trash/{id}/restore
 ```
 
+`POST /tasks` con `raw_text` parsea en el servidor (RF-102) y crea la tarea por el mismo camino que el resto del CRUD (idempotencia, outbox, eventos). Los campos explícitos del cuerpo pisan lo parseado. Si el título queda vacío no se crea nada (`empty_title`). Si `^lista` o `~lista` no existe, la tarea se crea en el Inbox y la respuesta incluye `warnings` con `list_not_found`; no se crea la lista. Una etiqueta desconocida no se crea y avisa con `tag_not_found`. El resaltado anterior a confirmar lo hace el cliente con el mismo parser de `packages/domain`; no hay endpoint de preview.
+
 Checklist items: `POST/PATCH/DELETE /api/v1/tasks/{id}/items[/{itemId}]`, `POST .../items/{itemId}/complete`.
 
 Adjuntos (RF-203): `POST/GET /api/v1/tasks/{id}/attachments` (multipart `file`, 25 MB), `GET/DELETE /api/v1/tasks/{id}/attachments/{attachmentId}`. La descarga fuerza `Content-Disposition: attachment`.

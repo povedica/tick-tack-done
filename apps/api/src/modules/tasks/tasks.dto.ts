@@ -13,15 +13,21 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 
 const PRIORITIES = ['none', 'low', 'medium', 'high'] as const;
 const KINDS = ['task', 'note'] as const;
 
 export class CreateTaskDto {
-  @ApiProperty()
+  @ApiProperty({
+    required: false,
+    description:
+      'Required unless raw_text is set. An explicit list overrides a parsed ^list or ~list.',
+  })
+  @ValidateIf((dto: CreateTaskDto) => dto.project_id !== undefined || dto.raw_text === undefined)
   @IsUUID()
-  project_id!: string;
+  project_id?: string;
 
   @ApiProperty({ required: false, nullable: true })
   @IsOptional()
@@ -33,11 +39,28 @@ export class CreateTaskDto {
   @IsUUID()
   column_id?: string | null;
 
-  @ApiProperty({ maxLength: 500 })
+  @ApiProperty({
+    required: false,
+    maxLength: 500,
+    description: 'Required unless raw_text yields a title. An explicit title overrides the parse.',
+  })
+  @ValidateIf((dto: CreateTaskDto) => dto.raw_text === undefined || dto.title !== undefined)
   @IsString()
   @MinLength(1)
   @MaxLength(500)
-  title!: string;
+  title?: string;
+
+  @ApiProperty({
+    required: false,
+    maxLength: 2000,
+    description:
+      'Quick add text. The server parses it (RF-102). Explicit fields in this body override the parse.',
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(2_000)
+  raw_text?: string;
 
   @ApiProperty({ required: false })
   @IsOptional()
@@ -541,4 +564,17 @@ export class TaskPageDto {
 
   @ApiProperty({ nullable: true, type: String })
   next_cursor!: string | null;
+}
+
+export class CaptureWarningDto {
+  @ApiProperty({ enum: ['list_not_found', 'tag_not_found', 'reminder_without_date'] })
+  code!: 'list_not_found' | 'tag_not_found' | 'reminder_without_date';
+
+  @ApiProperty({ required: false })
+  name?: string;
+}
+
+export class CreateTaskResponseDto extends TaskResponseDto {
+  @ApiProperty({ required: false, type: [CaptureWarningDto] })
+  warnings?: CaptureWarningDto[];
 }

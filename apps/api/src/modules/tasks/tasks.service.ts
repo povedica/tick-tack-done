@@ -32,6 +32,7 @@ import { IdempotencyService } from '../../idempotency/idempotency.service';
 import { placementPlan } from '../../ordering/placement';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { Tx } from '../../prisma/tx';
+import { resolveQuickAdd, type CaptureWarning } from './quick-add';
 import {
   removeAttachmentFile,
   resolveAttachment,
@@ -67,6 +68,10 @@ const taskInclude = {
 
 type TaskWithBits = Prisma.TaskGetPayload<{ include: typeof taskInclude }>;
 
+export interface CreatedTask extends TaskDetail {
+  readonly warnings?: readonly CaptureWarning[];
+}
+
 export interface TaskDetail extends TaskSummaryJson {
   items: ChecklistItemJson[];
   subtasks: TaskSummaryJson[];
@@ -98,7 +103,7 @@ export interface TaskListQuery {
 
 interface Saved {
   statusCode: number;
-  body: TaskDetail;
+  body: CreatedTask;
   replayed: boolean;
 }
 
@@ -207,8 +212,7 @@ export class TasksService {
         dto.repeat_rule === undefined
           ? current.repeatRule
           : this.canonicalRule(dto.repeat_rule, due, timeZone);
-      const seriesId =
-        repeatRule === null ? null : (current.seriesId ?? current.id);
+      const seriesId = repeatRule === null ? null : (current.seriesId ?? current.id);
       const reorder = dto.before_id !== undefined || dto.move_to_end === true;
       const plan = reorder
         ? await this.planTaskSort(
@@ -312,7 +316,12 @@ export class TasksService {
       }
       if (current.seriesId !== null) {
         const successor = await tx.task.findFirst({
-          where: { seriesId: current.seriesId, status: 'active', deletedAt: null, ownerId: user.id },
+          where: {
+            seriesId: current.seriesId,
+            status: 'active',
+            deletedAt: null,
+            ownerId: user.id,
+          },
           select: { id: true },
         });
         if (successor !== null) {
@@ -395,7 +404,11 @@ export class TasksService {
   ): Promise<{ occurrences: { due_date: string; start_date: string | null }[] }> {
     const current = await this.require(this.prisma, user.id, id, false);
     if (from === undefined || to === undefined) {
-      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'from and to are required');
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'from and to are required',
+      );
     }
     if (current.repeatRule === null) {
       return { occurrences: [] };
@@ -428,11 +441,19 @@ export class TasksService {
     return this.prisma.$transaction(async (tx) => {
       const current = await this.require(tx, user.id, id, false);
       if (current.repeatRule === null || current.seriesId === null) {
-        throw new DomainException(HttpStatus.CONFLICT, 'not_recurring', 'The task is not repeating');
+        throw new DomainException(
+          HttpStatus.CONFLICT,
+          'not_recurring',
+          'The task is not repeating',
+        );
       }
       const excluded = excludeOccurrence(current.repeatRule, dueDate);
       if (!excluded.ok) {
-        throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'due_date is invalid');
+        throw new DomainException(
+          HttpStatus.BAD_REQUEST,
+          'validation_failed',
+          'due_date is invalid',
+        );
       }
       const target = this.instant(dueDate, 'due_date');
       const currentDue = current.dueDate?.getTime() ?? Number.NaN;
@@ -499,9 +520,9 @@ export class TasksService {
         },
       });
       await tx.taskTag.createMany({
-        data: (
-          await tx.taskTag.findMany({ where: { taskId: id }, select: { tagId: true } })
-        ).map((tag) => ({ taskId: copyId, tagId: tag.tagId })),
+        data: (await tx.taskTag.findMany({ where: { taskId: id }, select: { tagId: true } })).map(
+          (tag) => ({ taskId: copyId, tagId: tag.tagId }),
+        ),
       });
       const created = await this.load(tx, user.id, copyId, false);
       await this.events.record(tx, actorOf(user), {
@@ -1022,7 +1043,9 @@ export class TasksService {
             constantIntervalMinutes:
               dto.constant === true ? (dto.constant_interval_minutes ?? 15) : null,
             location:
-              dto.location === undefined || dto.location === null ? Prisma.DbNull : asJson(dto.location),
+              dto.location === undefined || dto.location === null
+                ? Prisma.DbNull
+                : asJson(dto.location),
           },
         });
         return toReminderJson(row);
@@ -1037,7 +1060,11 @@ export class TasksService {
         where: { id: reminderId, ownerId: user.id, taskId, deletedAt: null },
       });
       if (row === null) {
-        throw new DomainException(HttpStatus.NOT_FOUND, 'reminder_not_found', 'Reminder was not found');
+        throw new DomainException(
+          HttpStatus.NOT_FOUND,
+          'reminder_not_found',
+          'Reminder was not found',
+        );
       }
       await tx.reminder.update({ where: { id: reminderId }, data: { deletedAt: new Date() } });
       await tx.reminderDelivery.deleteMany({ where: { reminderId, status: 'scheduled' } });
@@ -1057,7 +1084,11 @@ export class TasksService {
         where: { id: reminderId, ownerId: user.id, taskId, deletedAt: null },
       });
       if (row === null) {
-        throw new DomainException(HttpStatus.NOT_FOUND, 'reminder_not_found', 'Reminder was not found');
+        throw new DomainException(
+          HttpStatus.NOT_FOUND,
+          'reminder_not_found',
+          'Reminder was not found',
+        );
       }
       const snoozed = snoozeReminder({
         now: new Date().toISOString(),
@@ -1077,19 +1108,23 @@ export class TasksService {
     });
   }
 
-  private assertReminder(
-    dto: CreateReminderDto,
-    due: Date | null,
-    start: Date | null,
-  ): void {
+  private assertReminder(dto: CreateReminderDto, due: Date | null, start: Date | null): void {
     if (dto.type === 'relative' && !parseTrigger(dto.trigger).ok) {
       throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'trigger is invalid');
     }
     if (dto.type === 'absolute' && (dto.absolute_at === undefined || dto.absolute_at === null)) {
-      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'absolute_at is required');
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'absolute_at is required',
+      );
     }
     if (dto.type === 'location' && (dto.location === undefined || dto.location === null)) {
-      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'location is required');
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'location is required',
+      );
     }
     const scheduled = reminderFireAt({
       trigger: dto.trigger,
@@ -1103,8 +1138,25 @@ export class TasksService {
     }
   }
 
-  private async insertTask(tx: Tx, user: AuthUser, dto: CreateTaskDto): Promise<TaskDetail> {
-    const project = await this.requireProject(tx, user.id, dto.project_id);
+  private async insertTask(
+    tx: Tx,
+    user: AuthUser,
+    dto: CreateTaskDto,
+    source: 'manual' | 'api' = 'manual',
+  ): Promise<CreatedTask> {
+    const captured =
+      dto.raw_text === undefined
+        ? null
+        : await resolveQuickAdd(tx, user, dto, new Date().toISOString());
+    const projectId = captured?.projectId ?? dto.project_id;
+    if (projectId === undefined) {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'project_id is required',
+      );
+    }
+    const project = await this.requireProject(tx, user.id, projectId);
     let parentId: string | null = null;
     if (dto.parent_id !== undefined && dto.parent_id !== null) {
       const parent = await this.require(tx, user.id, dto.parent_id, false);
@@ -1131,8 +1183,11 @@ export class TasksService {
     if (dto.column_id !== undefined && dto.column_id !== null) {
       await this.requireColumn(tx, user.id, project.id, dto.column_id);
     }
-    const tagIds = await this.requireTags(tx, user.id, dto.tag_ids ?? []);
-    const title = this.title(dto.title);
+    const tagIds =
+      captured === null || dto.tag_ids !== undefined
+        ? await this.requireTags(tx, user.id, dto.tag_ids ?? [])
+        : [...captured.tagIds];
+    const title = captured === null ? this.title(dto.title ?? '') : captured.title;
     const timeZone = dto.time_zone === undefined ? user.timeZone : this.zone(dto.time_zone);
     let content = dto.content ?? '';
     const extracted = dto.extract_checklist === true ? extractMarkdownChecklist(content) : null;
@@ -1140,7 +1195,11 @@ export class TasksService {
       content = extracted.content;
     }
     const start = this.nextDate(null, dto.start_date, 'start_date');
-    const due = this.nextDate(null, dto.due_date, 'due_date');
+    const due = this.nextDate(
+      null,
+      dto.due_date !== undefined ? dto.due_date : captured?.dueDate,
+      'due_date',
+    );
     const sortOrder = await this.planTaskSort(
       tx,
       user.id,
@@ -1150,7 +1209,11 @@ export class TasksService {
       dto.before_id,
       dto.move_to_end,
     );
-    const repeatRule = this.canonicalRule(dto.repeat_rule ?? null, due, timeZone);
+    const repeatRule = this.canonicalRule(
+      dto.repeat_rule !== undefined ? dto.repeat_rule : (captured?.repeatRule ?? null),
+      due,
+      timeZone,
+    );
     const id = randomUUID();
     const row = await tx.task.create({
       data: {
@@ -1162,8 +1225,8 @@ export class TasksService {
         title,
         content,
         kind: dto.kind ?? 'task',
-        priority: dto.priority ?? 'none',
-        isAllDay: dto.is_all_day ?? false,
+        priority: dto.priority ?? captured?.priority ?? 'none',
+        isAllDay: dto.is_all_day ?? captured?.isAllDay ?? false,
         startDate: start,
         dueDate: due,
         timeZone,
@@ -1174,11 +1237,23 @@ export class TasksService {
         recurrenceOpen: repeatRule !== null,
         sortOrder,
         createdById: user.id,
-        source: 'manual',
+        source,
         metadata: asJson(dto.metadata ?? {}),
       },
     });
     await this.linkTags(tx, row.id, tagIds);
+    const reminderTrigger = captured?.reminderTrigger ?? null;
+    if (reminderTrigger !== null && due !== null) {
+      await tx.reminder.create({
+        data: {
+          ownerId: user.id,
+          taskId: row.id,
+          trigger: reminderTrigger,
+          type: 'relative',
+          channel: 'push',
+        },
+      });
+    }
     if (extracted !== null) {
       await this.materializeExtract(tx, user, row, extracted.items, dto.extract_as ?? 'checklist');
     }
@@ -1191,7 +1266,12 @@ export class TasksService {
       data: { task: asJson(detail) },
       previous: null,
     });
-    return this.load(tx, user.id, row.id, false);
+    const created = await this.load(tx, user.id, row.id, false);
+    const warnings = captured?.warnings ?? [];
+    if (warnings.length === 0) {
+      return created;
+    }
+    return { ...created, warnings };
   }
 
   private async completeIn(

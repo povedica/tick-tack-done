@@ -45,6 +45,7 @@ import {
   CompleteTaskDto,
   CreateReminderDto,
   CreateTaskDto,
+  CreateTaskResponseDto,
   DetachOccurrenceDto,
   MoveTaskDto,
   SnoozeReminderDto,
@@ -184,9 +185,10 @@ export class TasksController {
   @Post()
   @Scopes('tasks:write')
   @ApiOperation({
-    summary: 'Create a task. Checklist lines can be extracted from Markdown (RF-202).',
+    summary:
+      'Create a task. raw_text is parsed on the server (RF-102); explicit fields override it. Checklist lines can be extracted from Markdown (RF-202).',
   })
-  @ApiOkResponse({ type: TaskResponseDto })
+  @ApiOkResponse({ type: CreateTaskResponseDto })
   async create(
     @CurrentUser() user: AuthUser,
     @Body() dto: CreateTaskDto,
@@ -215,7 +217,9 @@ export class TasksController {
 
   @Get(':id/occurrences')
   @Scopes('tasks:read')
-  @ApiOperation({ summary: 'Theoretical occurrences of a repeating task (RF-704). Nothing is stored.' })
+  @ApiOperation({
+    summary: 'Theoretical occurrences of a repeating task (RF-704). Nothing is stored.',
+  })
   async occurrences(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
@@ -252,7 +256,13 @@ export class TasksController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    respondJson(req, res, 200, await this.tasks.snooze(user, id, dto.preset, dto.date ?? null), false);
+    respondJson(
+      req,
+      res,
+      200,
+      await this.tasks.snooze(user, id, dto.preset, dto.date ?? null),
+      false,
+    );
   }
 
   @Get(':id/reminders')
@@ -284,7 +294,9 @@ export class TasksController {
 
   @Post(':id/reminders/:reminderId/snooze')
   @Scopes('reminders:write')
-  @ApiOperation({ summary: 'Snooze a reminder for 10 minutes, 1 hour, tomorrow or a custom time (RF-804)' })
+  @ApiOperation({
+    summary: 'Snooze a reminder for 10 minutes, 1 hour, tomorrow or a custom time (RF-804)',
+  })
   async snoozeReminder(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
