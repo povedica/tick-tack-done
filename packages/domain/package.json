@@ -2,12 +2,25 @@
   "name": "@reflexionia/domain",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./recurrence": "./src/recurrence/index.ts",
-    "./filters": "./src/filters/index.ts",
-    "./nlp": "./src/nlp/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./recurrence": {
+      "types": "./dist/recurrence/index.d.ts",
+      "default": "./dist/recurrence/index.js"
+    },
+    "./filters": {
+      "types": "./dist/filters/index.d.ts",
+      "default": "./dist/filters/index.js"
+    },
+    "./nlp": {
+      "types": "./dist/nlp/index.d.ts",
+      "default": "./dist/nlp/index.js"
+    }
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
