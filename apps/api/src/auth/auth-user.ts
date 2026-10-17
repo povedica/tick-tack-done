@@ -10,7 +10,7 @@ export interface AuthUser {
 export interface EventActor {
   readonly ownerId: string;
   readonly actorId: string;
-  readonly actorKind: 'user';
+  readonly actorKind: 'user' | 'automation';
 }
 
 export function actorOf(user: AuthUser): EventActor {

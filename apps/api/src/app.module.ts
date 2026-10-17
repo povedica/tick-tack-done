@@ -7,6 +7,7 @@ import { ListsModule } from './modules/lists/lists.module';
 import { TagsModule } from './modules/tags/tags.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { SchedulerModule } from './scheduler/scheduler.module';
 
 // Domain modules (tasks, lists, …) register here and do not import each other.
 // They publish events through EventsModule; they do not call each other.
@@ -20,6 +21,7 @@ import { PrismaModule } from './prisma/prisma.module';
     ListsModule,
     TagsModule,
     TasksModule,
+    SchedulerModule,
   ],
 })
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class -- Nest module is decorator-only
