@@ -1,6 +1,6 @@
 # Handoff — captura (fase 1, punto 4)
 
-Punto seguro para retomar. Lint, typecheck y tests unitarios pasan. La integración de la API pasó al cerrar el correo de entrada. Este estado está en la rama `feat/core-tasks` con el tag `phase-1.4`. No está en `main`: la norma del repo impide commits directos a esa rama.
+Punto seguro para retomar. Lint, typecheck y tests unitarios pasan en local; la CI los corre después de compilar `packages/domain`. La integración de la API pasó al cerrar el correo de entrada. Este corte es el tag `phase-1.4` y entra en `main` con el PR #1. La rama `feat/core-tasks` no sigue.
 
 ## Dónde estamos
 
@@ -8,7 +8,9 @@ Cerrado el punto 4 de la fase 1 (`docs/roadmap.md`): captura rápida (RF-101–1
 
 La API pública sigue en `/api/v1`. OpenAPI está en `/api/docs` y el JSON commiteado es `apps/api/openapi.json`. El cliente web llama a la API solo a través de `@reflexionia/sdk`.
 
-Siguiente trabajo: punto 5, hábitos (RF-1301–1305). No adelantar filtros, búsqueda, MCP, PAT ni la cola offline.
+Siguiente producto: punto 5, hábitos (RF-1301–1305), en una rama nueva desde `main`. No adelantar filtros, búsqueda, MCP, PAT ni la cola offline. Una feature o un punto del roadmap es una PR, y se mergea al terminarla.
+
+La web de ahora es un wireframe (`/today` y `/quick-add`). Aún queda la interfaz de la sección 7, parecida a TickTick. Está anotado abajo y no se hace en este corte.
 
 ## Tags
 
@@ -91,3 +93,21 @@ Anotados el 17 oct 2026 a partir de una revisión externa. No cambian la secció
 - Cuando la spec cambie de verdad, publicar `docs/spec/` como v1.2. No seguir editando v1.1 in situ: se pierde el rastro.
 - Abrir PRs revisables. Uno de más de 10.000 líneas es demasiado grande.
 - Orden que sugirió el revisor, y que no aplicamos ahora: arreglar CI y mergear, después PAT y MCP, y después la PWA o la captura rápida. El roadmap del repo mantiene la captura en el punto 4 y los PAT/MCP en el punto 7.
+
+### Segunda pasada (17 oct 2026, tarde)
+
+El revisor volvió a mirar commits y docs, sin correr tests. Los puntos 1 a 4 siguen cerrados en `feat/core-tasks` (tag `phase-1.4`). Esto se anota y no se ejecuta: no se arregla la CI, no hay merge a `main`, no se despliega, no se configura `BACKUP_REMOTE`, no se publica la spec como v1.2, no se adelantan PAT ni MCP, no se limita todavía el correo entrante y no se rediseña la UI. El párrafo de arriba conserva el aviso original; el punto 4 ya está cerrado y no se reabre.
+
+- La CI del PR sigue en rojo. El workflow no ha cambiado: falta compilar `packages/domain` antes del lint.
+- La auth sigue siendo el guard de desarrollo. No desplegar con datos reales hasta los PAT.
+- `BACKUP_REMOTE` sigue sin configurar. Sin destino remoto, el backup se queda en la máquina.
+- La spec v1.1 sigue editada in situ, sin v1.2.
+- Nuevo: `POST /api/v1/inbound/email` es público. Antes de exponerlo hace falta límite de tamaño y de ritmo.
+- `feat/core-tasks` ya ronda las 20.000 líneas. No meter el punto 5 aquí. Cuando se pueda, cerrar esta feat y seguir en ramas más pequeñas. Los hábitos (RF-1301–1305) abren la siguiente. Los PAT conviene hacerlos pronto porque son lo que permite desplegar; siguen en el punto 7 y no se adelantan en esta nota.
+- La UI actual es un wireframe: solo Hoy y captura rápida, con estilos de boceto. Aún queda trabajo. Hay que acercarla a una interfaz similar a TickTick (sección 7: tres paneles en escritorio, barra inferior en móvil, vistas de lista, calendario, hábitos). No forma parte de este corte.
+
+### Cierre de `feat/core-tasks` (17 oct 2026, noche)
+
+Decisión de Pablo: cerrar el PR #1 ahora y no seguir apilando puntos. A partir de aquí, cada feature o punto del roadmap va en su propia PR y se mergea al terminarla.
+
+En este cierre sí se compila `packages/domain` antes del lint y de los tests unitarios. El resto de la segunda pasada sigue sin hacer: no se despliega, no se configura `BACKUP_REMOTE`, no se publica la spec como v1.2, no se adelantan PAT ni MCP, no se limita todavía el correo entrante y no se rediseña la UI. El punto 5 abre otra rama desde `main`.

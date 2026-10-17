@@ -4,7 +4,7 @@ Usa este plan para acotar cada tarea de Cursor: cita la fase y los RF-xx.
 
 ## MVP / fase 1 (4-6 semanas de agente)
 
-Estado al tag `phase-1.4`: puntos 1, 2, 3 y 4 cerrados en la rama `feat/core-tasks`. El siguiente corte es el punto 5.
+Estado al tag `phase-1.4`: puntos 1, 2, 3 y 4 cerrados y mergeados a `main` (PR #1). Cada punto siguiente va en su propia PR y se mergea al terminarlo. El punto 5 abre otra rama desde `main`. La web de captura es un wireframe; la UI similar a TickTick queda anotada en `docs/handoff.md` y sin hacer.
 
 1. **Base**: monorepo, CI, Docker Compose, modelo de datos completo (sección 5), migraciones, seed.
 2. **Tareas núcleo**: CRUD + checklist + subtareas (RF-201–210), listas/carpetas/secciones

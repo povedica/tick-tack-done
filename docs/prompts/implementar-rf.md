@@ -17,4 +17,5 @@ Requisitos de entrega:
 - Tests que citan el RF en su nombre; casos límite de la spec.
 - pnpm lint, typecheck y test en verde.
 - Docs en español, código en inglés.
+- Una feature o un punto del roadmap por PR. Al terminar el corte, se mergea. El siguiente punto abre otra rama desde `main`.
 ```
