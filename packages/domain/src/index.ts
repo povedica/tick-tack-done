@@ -58,8 +58,36 @@ export {
 } from './reminders/trigger';
 export type { ReminderSnoozePreset, TriggerParse } from './reminders/trigger';
 
-export { matchesFilter } from './filters/index';
-export type { FilterSubject } from './filters/index';
+export {
+  arrangeTasks,
+  calendarDateKey,
+  compileRules,
+  isSmartListKey,
+  matchesClause,
+  matchesFilter,
+  matchesSmartList,
+  pageTaskGroups,
+  parseFilterRules,
+  parseSearchQuery,
+  parseTaskView,
+  RECENT_WINDOW_DAYS,
+  savedFilterClause,
+  SMART_LIST_KEYS,
+  smartListClause,
+} from './filters/index';
+export type {
+  ArrangedTask,
+  FilterClause,
+  FilterClock,
+  FilterParse,
+  FilterSubject,
+  ParsedSearch,
+  SmartListInput,
+  TaskGroup,
+  TaskGroupBy,
+  TaskSort,
+  TaskViewOptions,
+} from './filters/index';
 
 export { parseQuickAdd } from './nlp/index';
 export type { QuickAddLanguage } from './nlp/index';
