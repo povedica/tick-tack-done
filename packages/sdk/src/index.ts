@@ -2,4 +2,16 @@
 export const SDK_SOURCE = 'openapi';
 
 export { ApiError, createApiClient } from './client';
-export type { ApiClient, ApiClientOptions, CreateTaskBody, CreatedTask } from './client';
+export type {
+  ApiClient,
+  ApiClientOptions,
+  CheckInBody,
+  CheckInResult,
+  CreateHabitBody,
+  CreateTaskBody,
+  CreatedTask,
+  Habit,
+  HabitPage,
+  HabitStats,
+  UpdateHabitBody,
+} from './client';

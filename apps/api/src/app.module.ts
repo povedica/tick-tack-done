@@ -3,6 +3,7 @@ import { AuthModule } from './auth/auth.module';
 import { EventsModule } from './events/events.module';
 import { HealthModule } from './health/health.module';
 import { IdempotencyModule } from './idempotency/idempotency.module';
+import { HabitsModule } from './modules/habits/habits.module';
 import { ListsModule } from './modules/lists/lists.module';
 import { TagsModule } from './modules/tags/tags.module';
 import { TasksModule } from './modules/tasks/tasks.module';
@@ -18,6 +19,7 @@ import { SchedulerModule } from './scheduler/scheduler.module';
     IdempotencyModule,
     AuthModule,
     HealthModule,
+    HabitsModule,
     ListsModule,
     TagsModule,
     TasksModule,

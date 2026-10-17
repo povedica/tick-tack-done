@@ -6,7 +6,10 @@ import {
   isOverdue,
   nextConstantFire,
   nextDailyReminder,
+  nextHabitReminder,
   nextOccurrence,
+  readStoredHabit,
+  streakBreakOn,
   REMINDER_HORIZON_MS,
   reminderDisposition,
   reminderFireAt,
@@ -68,6 +71,8 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     const materialized = (await this.advanceCompleted()) + (await this.advanceDetached());
     await this.enqueueReminders(now, catchUp);
     await this.enqueueDigests(now, catchUp);
+    await this.enqueueHabitReminders(now, catchUp);
+    await this.recordHabitStreakBreaks(now);
     await this.enqueueSignals(now);
     const fired = await this.fire(now, catchUp);
     return { materialized, fired: fired.fired, late: fired.late };
@@ -373,6 +378,118 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  private async enqueueHabitReminders(now: Date, catchUp: boolean): Promise<void> {
+    const habits = await this.prisma.habit.findMany({
+      where: { deletedAt: null, archived: false, reminderTime: { not: null } },
+      select: {
+        id: true,
+        ownerId: true,
+        name: true,
+        goal: true,
+        frequency: true,
+        reminderTime: true,
+        owner: { select: { email: true, timeZone: true } },
+      },
+    });
+    for (const habit of habits) {
+      if (habit.reminderTime === null) {
+        continue;
+      }
+      const stored = readStoredHabit(habit.goal, habit.frequency, habit.reminderTime);
+      if (stored === null) {
+        continue;
+      }
+      if (stored.reminderTime === null) {
+        continue;
+      }
+      const next = nextHabitReminder({
+        time: stored.reminderTime,
+        days: stored.days,
+        timeZone: habit.owner.timeZone,
+        now: now.toISOString(),
+      });
+      if (!next.ok) {
+        continue;
+      }
+      await this.queue({
+        ownerId: habit.ownerId,
+        reminderId: null,
+        taskId: null,
+        dedupeKey: `habit:${habit.id}:${next.fireAt}`,
+        fireAt: next.fireAt,
+        channel: 'push',
+        kind: 'daily_digest',
+        now,
+        catchUp,
+        payload: {
+          title: habit.name,
+          body: `Hábito: ${habit.name}`,
+          email: habit.owner.email,
+          habit_id: habit.id,
+        },
+      });
+    }
+  }
+
+  private async recordHabitStreakBreaks(now: Date): Promise<void> {
+    const habits = await this.prisma.habit.findMany({
+      where: { deletedAt: null, archived: false },
+      select: {
+        id: true,
+        ownerId: true,
+        name: true,
+        goal: true,
+        frequency: true,
+        reminderTime: true,
+        logs: { where: { deletedAt: null }, select: { date: true, count: true } },
+        owner: { select: { timeZone: true } },
+      },
+    });
+    for (const habit of habits) {
+      const stored = readStoredHabit(habit.goal, habit.frequency, habit.reminderTime);
+      if (stored === null) {
+        continue;
+      }
+      const broken = streakBreakOn({
+        goal: stored.goal,
+        days: stored.days,
+        logs: habit.logs.map((log) => ({
+          date: log.date.toISOString().slice(0, 10),
+          count: log.count,
+        })),
+        timeZone: habit.owner.timeZone,
+        now: now.toISOString(),
+      });
+      if (broken === null) {
+        continue;
+      }
+      const existing = await this.prisma.outboxEvent.findFirst({
+        where: {
+          ownerId: habit.ownerId,
+          type: DomainEvent.habitStreakBroken,
+          AND: [
+            { data: { path: ['habit_id'], equals: habit.id } },
+            { data: { path: ['date'], equals: broken } },
+          ],
+        },
+        select: { id: true },
+      });
+      if (existing !== null) {
+        continue;
+      }
+      await this.prisma.$transaction(async (tx) => {
+        await this.events.record(tx, automation(habit.ownerId), {
+          type: DomainEvent.habitStreakBroken,
+          entityType: 'habit',
+          entityId: habit.id,
+          action: 'updated',
+          data: asJson({ habit_id: habit.id, date: broken, name: habit.name }),
+          previous: null,
+        });
+      });
+    }
+  }
+
   private async enqueueSignals(now: Date): Promise<void> {
     const horizon = new Date(now.getTime() + DUE_SOON_MS);
     const tasks = await this.prisma.task.findMany({
@@ -489,16 +606,18 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
             where: { id: row.id },
             data: { status: mark, firedAt: now, payload: asJson({ ...payload, delivery: result }) },
           });
+          const habitId = typeof payload.habit_id === 'string' ? payload.habit_id : null;
           await this.events.record(tx, automation(row.ownerId), {
             type: DomainEvent.reminderFired,
-            entityType: 'reminder',
-            entityId: row.reminderId ?? row.id,
+            entityType: habitId === null ? 'reminder' : 'habit',
+            entityId: habitId ?? row.reminderId ?? row.id,
             action: 'updated',
             data: asJson({
               delivery_id: row.id,
-              kind: row.kind,
+              kind: habitId === null ? row.kind : 'habit',
               status: mark,
               task_id: row.taskId,
+              ...(habitId === null ? {} : { habit_id: habitId }),
             }),
             previous: null,
           });
