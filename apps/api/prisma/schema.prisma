@@ -80,6 +80,19 @@ enum ReminderChannel {
   both
 }
 
+enum ReminderDeliveryStatus {
+  scheduled
+  fired
+  late
+}
+
+enum ReminderDeliveryKind {
+  task
+  daily_digest
+  overdue
+  due_soon
+}
+
 enum FocusSessionType {
   focus
   short_break
@@ -180,6 +193,9 @@ model User {
   weeklyReports         WeeklyReport[]
   outboxEvents          OutboxEvent[]
   idempotencyRecords    IdempotencyRecord[]
+  reminderDeliveries    ReminderDelivery[]
+  pushSubscriptions     PushSubscription[]
+  seriesAdvances        SeriesAdvance[]
 
   @@map("users")
 }
@@ -302,6 +318,8 @@ model Task {
   durationMinutes Int?                     @map("duration_minutes")
   repeatRule      String?                  @map("repeat_rule")
   repeatFrom      RepeatFrom               @default(due_date) @map("repeat_from")
+  seriesId        String?                  @map("series_id") @db.Uuid
+  recurrenceOpen  Boolean                  @default(true) @map("recurrence_open")
   sortOrder       BigInt                   @default(65536) @map("sort_order")
   assigneeId      String?                  @map("assignee_id") @db.Uuid
   assignee        User?                    @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
@@ -317,14 +335,17 @@ model Task {
 
   tags          TaskTag[]
   checklist     ChecklistItem[]
-  reminders     Reminder[]
-  attachments   Attachment[]
+  reminders        Reminder[]
+  deliveries       ReminderDelivery[]
+  seriesAdvances   SeriesAdvance[]          @relation("SeriesAdvanceSource")
+  attachments      Attachment[]
   comments      Comment[]
   focusSessions FocusSession[]
   stickyNotes   StickyNote[]
 
   @@index([projectId, status, sortOrder], map: "tasks_project_status_sort_idx")
   @@index([dueDate], map: "tasks_due_date_idx")
+  @@index([seriesId, status], map: "tasks_series_status_idx")
   @@index([searchVector], type: Gin, map: "tasks_fts_idx")
   @@map("tasks")
 }
@@ -406,8 +427,10 @@ model Reminder {
   type         ReminderType
   location     Json?
   channel      ReminderChannel @default(push)
-  constant     Boolean         @default(false)
-  snoozedUntil DateTime?       @map("snoozed_until") @db.Timestamptz(6)
+  constant                 Boolean         @default(false)
+  constantIntervalMinutes Int?            @map("constant_interval_minutes")
+  snoozedUntil             DateTime?       @map("snoozed_until") @db.Timestamptz(6)
+  deliveries               ReminderDelivery[]
   createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt    DateTime?       @map("deleted_at") @db.Timestamptz(6)
@@ -685,4 +708,66 @@ model WeeklyReport {
 
   @@unique([ownerId, weekStart])
   @@map("weekly_reports")
+}
+
+// Operational queue for RF-808. Not a soft-deleted domain entity: rows are the
+// persistent schedule until they are fired or marked late.
+model ReminderDelivery {
+  id         String                 @id @default(uuid()) @db.Uuid
+  ownerId    String                 @map("owner_id") @db.Uuid
+  owner      User                   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  reminderId String?                @map("reminder_id") @db.Uuid
+  reminder   Reminder?              @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+  taskId     String?                @map("task_id") @db.Uuid
+  task       Task?                  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  dedupeKey  String                 @unique @map("dedupe_key")
+  fireAt     DateTime               @map("fire_at") @db.Timestamptz(6)
+  channel    ReminderChannel        @default(push)
+  status     ReminderDeliveryStatus @default(scheduled)
+  kind       ReminderDeliveryKind
+  payload    Json                   @default("{}")
+  firedAt    DateTime?              @map("fired_at") @db.Timestamptz(6)
+  createdAt  DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([status, fireAt])
+  @@map("reminder_deliveries")
+}
+
+model PushSubscription {
+  id        String    @id @default(uuid()) @db.Uuid
+  ownerId   String    @map("owner_id") @db.Uuid
+  owner     User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  endpoint  String
+  p256dh    String
+  auth      String
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  @@unique([ownerId, endpoint])
+  @@map("push_subscriptions")
+}
+
+// Written when the current occurrence is detached. The scheduler is the only
+// reader that turns this into the next series task.
+model SeriesAdvance {
+  id           String     @id @default(uuid()) @db.Uuid
+  ownerId      String     @map("owner_id") @db.Uuid
+  owner        User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  seriesId     String     @map("series_id") @db.Uuid
+  sourceTaskId String     @map("source_task_id") @db.Uuid
+  sourceTask   Task       @relation("SeriesAdvanceSource", fields: [sourceTaskId], references: [id], onDelete: Cascade)
+  repeatRule   String     @map("repeat_rule")
+  repeatFrom   RepeatFrom @map("repeat_from")
+  timeZone     String     @map("time_zone")
+  isAllDay     Boolean    @map("is_all_day")
+  dueDate      DateTime?  @map("due_date") @db.Timestamptz(6)
+  startDate    DateTime?  @map("start_date") @db.Timestamptz(6)
+  processedAt  DateTime?  @map("processed_at") @db.Timestamptz(6)
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([processedAt])
+  @@map("series_advances")
 }
