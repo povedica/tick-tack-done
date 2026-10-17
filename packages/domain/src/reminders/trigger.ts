@@ -5,7 +5,12 @@ import { isIanaTimeZone } from '../tasks/time-zone';
 export const REMINDER_HORIZON_MS = 48 * 60 * 60 * 1000;
 
 export type TriggerParse =
-  | { readonly ok: true; readonly kind: 'relative'; readonly related: 'due' | 'start'; readonly offsetMs: number }
+  | {
+      readonly ok: true;
+      readonly kind: 'relative';
+      readonly related: 'due' | 'start';
+      readonly offsetMs: number;
+    }
   | { readonly ok: true; readonly kind: 'absolute'; readonly at: string }
   | { readonly ok: false; readonly reason: 'invalid_trigger' };
 
@@ -58,7 +63,9 @@ export function reminderFireAt(input: {
   readonly dueDate: string | null;
   readonly startDate: string | null;
   readonly absoluteAt: string | null;
-}): { ok: true; fireAt: string | null } | { ok: false; reason: 'invalid_trigger' | 'missing_anchor' | 'invalid_date' } {
+}):
+  | { ok: true; fireAt: string | null }
+  | { ok: false; reason: 'invalid_trigger' | 'missing_anchor' | 'invalid_date' } {
   if (input.type === 'location' || input.type === 'daily_digest') {
     return { ok: true, fireAt: null };
   }
@@ -91,7 +98,9 @@ export function snoozeReminder(input: {
   readonly timeZone: string;
   readonly preset: ReminderSnoozePreset;
   readonly until?: string | null;
-}): { ok: true; until: string } | { ok: false; reason: 'invalid_zone' | 'invalid_date' | 'date_required' } {
+}):
+  | { ok: true; until: string }
+  | { ok: false; reason: 'invalid_zone' | 'invalid_date' | 'date_required' } {
   if (!isIanaTimeZone(input.timeZone)) {
     return { ok: false, reason: 'invalid_zone' };
   }
@@ -106,7 +115,11 @@ export function snoozeReminder(input: {
     return { ok: true, until: new Date(now.getTime() + 60 * 60_000).toISOString() };
   }
   if (input.preset === 'custom') {
-    if (input.until === null || input.until === undefined || Number.isNaN(Date.parse(input.until))) {
+    if (
+      input.until === null ||
+      input.until === undefined ||
+      Number.isNaN(Date.parse(input.until))
+    ) {
       return { ok: false, reason: 'date_required' };
     }
     return { ok: true, until: new Date(input.until).toISOString() };
@@ -124,7 +137,11 @@ export function snoozeReminder(input: {
 
 /** RF-803. The next constant ping is one interval after the fire that just happened. */
 export function nextConstantFire(firedAt: string, intervalMinutes: number): string | null {
-  if (!Number.isInteger(intervalMinutes) || intervalMinutes < 1 || Number.isNaN(Date.parse(firedAt))) {
+  if (
+    !Number.isInteger(intervalMinutes) ||
+    intervalMinutes < 1 ||
+    Number.isNaN(Date.parse(firedAt))
+  ) {
     return null;
   }
   return new Date(Date.parse(firedAt) + intervalMinutes * 60_000).toISOString();
@@ -135,7 +152,9 @@ export function nextDailyReminder(input: {
   readonly time: string;
   readonly timeZone: string;
   readonly now: string;
-}): { ok: true; fireAt: string } | { ok: false; reason: 'invalid_time' | 'invalid_zone' | 'invalid_date' } {
+}):
+  | { ok: true; fireAt: string }
+  | { ok: false; reason: 'invalid_time' | 'invalid_zone' | 'invalid_date' } {
   const match = /^(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(input.time);
   if (match?.[1] === undefined || match[2] === undefined) {
     return { ok: false, reason: 'invalid_time' };
@@ -153,10 +172,7 @@ export function nextDailyReminder(input: {
   if (nowWall === null) {
     return { ok: false, reason: 'invalid_date' };
   }
-  const today = instantFromWall(
-    { ...nowWall, hour, minute, second },
-    input.timeZone,
-  );
+  const today = instantFromWall({ ...nowWall, hour, minute, second }, input.timeZone);
   if (today !== null && Date.parse(today) > Date.parse(input.now)) {
     return { ok: true, fireAt: today };
   }

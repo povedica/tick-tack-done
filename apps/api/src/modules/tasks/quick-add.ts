@@ -44,13 +44,11 @@ export async function resolveQuickAdd(
   }
 
   const warnings: CaptureWarning[] = [];
-  const projectId =
-    dto.project_id ?? (await resolveList(tx, user.id, parsed.listName, warnings));
+  const projectId = dto.project_id ?? (await resolveList(tx, user.id, parsed.listName, warnings));
   const tagIds = dto.tag_ids ?? (await resolveTags(tx, user.id, parsed.tagNames, warnings));
   const dueDate = dto.due_date !== undefined ? dto.due_date : (parsed.due?.date ?? null);
   const isAllDay =
-    dto.is_all_day ??
-    (dto.due_date !== undefined ? false : (parsed.due?.isAllDay ?? false));
+    dto.is_all_day ?? (dto.due_date !== undefined ? false : (parsed.due?.isAllDay ?? false));
   const repeatRule = dto.repeat_rule !== undefined ? dto.repeat_rule : parsed.repeatRule;
   let reminderTrigger = parsed.reminderTrigger;
   if (reminderTrigger !== null && dueDate === null) {

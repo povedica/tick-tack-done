@@ -61,7 +61,10 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
   }
 
   /** Materializes the next occurrence and fires reminders. catchUp marks already-due work as late. */
-  async run(now: Date, catchUp: boolean): Promise<{ materialized: number; fired: number; late: number }> {
+  async run(
+    now: Date,
+    catchUp: boolean,
+  ): Promise<{ materialized: number; fired: number; late: number }> {
     const materialized = (await this.advanceCompleted()) + (await this.advanceDetached());
     await this.enqueueReminders(now, catchUp);
     await this.enqueueDigests(now, catchUp);
@@ -153,7 +156,10 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     });
     if (!next.ok || next.occurrence === null) {
       if (source.recurrenceOpen) {
-        await this.prisma.task.update({ where: { id: source.id }, data: { recurrenceOpen: false } });
+        await this.prisma.task.update({
+          where: { id: source.id },
+          data: { recurrenceOpen: false },
+        });
       }
       return false;
     }
@@ -210,7 +216,11 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     });
     await this.copyChecklist(tx, source.ownerId, id, source.checklist);
     await this.copyReminders(tx, source.ownerId, id, source.reminders);
-    await this.copyTags(tx, id, source.tags.map((tag) => tag.tagId));
+    await this.copyTags(
+      tx,
+      id,
+      source.tags.map((tag) => tag.tagId),
+    );
     for (const child of source.children) {
       const childId = randomUUID();
       await tx.task.create({
@@ -239,7 +249,11 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         },
       });
       await this.copyChecklist(tx, source.ownerId, childId, child.checklist);
-      await this.copyTags(tx, childId, child.tags.map((tag) => tag.tagId));
+      await this.copyTags(
+        tx,
+        childId,
+        child.tags.map((tag) => tag.tagId),
+      );
     }
     await this.events.record(tx, automation(source.ownerId), {
       type: source.kind === 'note' ? DomainEvent.noteCreated : DomainEvent.taskCreated,
@@ -247,7 +261,12 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       entityId: id,
       action: 'created',
       data: asJson({
-        task: { id, title: source.title, due_date: next.due.toISOString(), series_id: next.seriesId },
+        task: {
+          id,
+          title: source.title,
+          due_date: next.due.toISOString(),
+          series_id: next.seriesId,
+        },
         materialized_from: source.id,
       }),
       previous: null,
@@ -257,7 +276,9 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
   private async enqueueReminders(now: Date, catchUp: boolean): Promise<void> {
     const reminders = await this.prisma.reminder.findMany({
       where: { deletedAt: null, task: { status: 'active', deletedAt: null } },
-      include: { task: { select: { dueDate: true, startDate: true, title: true, timeZone: true } } },
+      include: {
+        task: { select: { dueDate: true, startDate: true, title: true, timeZone: true } },
+      },
     });
     for (const reminder of reminders) {
       const natural = reminderFireAt({
@@ -308,22 +329,29 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         continue;
       }
       const tasks = await this.prisma.task.findMany({
-        where: { ownerId: user.id, status: 'active', deletedAt: null, parentId: null, dueDate: { not: null } },
+        where: {
+          ownerId: user.id,
+          status: 'active',
+          deletedAt: null,
+          parentId: null,
+          dueDate: { not: null },
+        },
         orderBy: { dueDate: 'asc' },
         take: 20,
         select: { title: true, dueDate: true, isAllDay: true, timeZone: true, status: true },
       });
       const lines = tasks
-        .filter((task) =>
-          task.dueDate !== null &&
-          (isOverdue({
-            status: 'active',
-            dueDate: task.dueDate.toISOString(),
-            isAllDay: task.isAllDay,
-            timeZone: task.timeZone,
-            now: now.toISOString(),
-          }) ||
-            sameLocalDay(task.dueDate.toISOString(), next.fireAt, task.timeZone)),
+        .filter(
+          (task) =>
+            task.dueDate !== null &&
+            (isOverdue({
+              status: 'active',
+              dueDate: task.dueDate.toISOString(),
+              isAllDay: task.isAllDay,
+              timeZone: task.timeZone,
+              now: now.toISOString(),
+            }) ||
+              sameLocalDay(task.dueDate.toISOString(), next.fireAt, task.timeZone)),
         )
         .map((task) => `- ${task.title}`);
       await this.queue({
@@ -404,7 +432,11 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       return;
     }
     const tooOld = input.now.getTime() - at > REMINDER_HORIZON_MS;
-    const disposition = reminderDisposition(input.fireAt, input.now.toISOString(), input.catchUp || tooOld);
+    const disposition = reminderDisposition(
+      input.fireAt,
+      input.now.toISOString(),
+      input.catchUp || tooOld,
+    );
     if (disposition === 'beyond_horizon') {
       return;
     }
@@ -462,7 +494,12 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
             entityType: 'reminder',
             entityId: row.reminderId ?? row.id,
             action: 'updated',
-            data: asJson({ delivery_id: row.id, kind: row.kind, status: mark, task_id: row.taskId }),
+            data: asJson({
+              delivery_id: row.id,
+              kind: row.kind,
+              status: mark,
+              task_id: row.taskId,
+            }),
             previous: null,
           });
         });
@@ -497,7 +534,13 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async scheduleConstant(
-    row: { reminderId: string | null; ownerId: string; taskId: string | null; channel: ReminderChannel; reminder: { constantIntervalMinutes: number | null; taskId: string } | null },
+    row: {
+      reminderId: string | null;
+      ownerId: string;
+      taskId: string | null;
+      channel: ReminderChannel;
+      reminder: { constantIntervalMinutes: number | null; taskId: string } | null;
+    },
     now: Date,
   ): Promise<void> {
     if (row.reminderId === null || row.taskId === null || row.reminder === null) {
@@ -533,7 +576,14 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     tx: Tx,
     ownerId: string,
     taskId: string,
-    items: readonly { title: string; sortOrder: bigint; startDate: Date | null; dueDate: Date | null; isAllDay: boolean; timeZone: string }[],
+    items: readonly {
+      title: string;
+      sortOrder: bigint;
+      startDate: Date | null;
+      dueDate: Date | null;
+      isAllDay: boolean;
+      timeZone: string;
+    }[],
   ): Promise<void> {
     for (const item of items) {
       await tx.checklistItem.create({

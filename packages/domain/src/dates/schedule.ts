@@ -93,7 +93,11 @@ export function snoozeDue(input: {
   };
 }
 
-function shiftStart(start: string | null, previousDue: string | null, nextDue: string): string | null {
+function shiftStart(
+  start: string | null,
+  previousDue: string | null,
+  nextDue: string,
+): string | null {
   if (start === null || previousDue === null) {
     return start;
   }

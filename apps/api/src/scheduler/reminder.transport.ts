@@ -73,7 +73,10 @@ export class ReminderTransport {
       const payload = JSON.stringify({ title: message.title, body: message.body });
       for (const subscription of message.subscriptions) {
         await webpush.sendNotification(
-          { endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } },
+          {
+            endpoint: subscription.endpoint,
+            keys: { p256dh: subscription.p256dh, auth: subscription.auth },
+          },
           payload,
         );
       }

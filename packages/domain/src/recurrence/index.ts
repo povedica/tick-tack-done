@@ -1,10 +1,7 @@
 import type { RepeatFrom } from '../types';
 import { isIanaTimeZone } from '../tasks/time-zone';
 import { advanceFromCompletion, countThrough, firstAfter, occurrencesInRange } from './expand';
-import {
-  parseRepeatRule,
-  type RuleFailure,
-} from './rule';
+import { parseRepeatRule, type RuleFailure } from './rule';
 
 export interface RecurrenceInput {
   readonly repeatRule: string;
@@ -49,7 +46,8 @@ export function nextOccurrence(input: RecurrenceInput): RecurrenceResult {
     if (input.completedAt === null) {
       return { ok: false, reason: 'missing_anchor' };
     }
-    const index = input.occurrenceIndex ?? countThrough(rule, input.timeZone, input.dueDate ?? origin);
+    const index =
+      input.occurrenceIndex ?? countThrough(rule, input.timeZone, input.dueDate ?? origin);
     if (rule.count !== null && index >= rule.count) {
       return { ok: true, occurrence: null };
     }
@@ -94,7 +92,11 @@ export function occurrencesBetween(input: {
   if (!isIanaTimeZone(input.timeZone)) {
     return { ok: false, reason: 'invalid_zone' };
   }
-  if (Number.isNaN(Date.parse(input.from)) || Number.isNaN(Date.parse(input.to)) || input.from > input.to) {
+  if (
+    Number.isNaN(Date.parse(input.from)) ||
+    Number.isNaN(Date.parse(input.to)) ||
+    input.from > input.to
+  ) {
     return { ok: false, reason: 'invalid_date' };
   }
   const parsed = parseRepeatRule(input.repeatRule);
@@ -116,7 +118,11 @@ export function occurrencesBetween(input: {
   };
 }
 
-function shiftStart(start: string | null, previousDue: string | null, nextDue: string): string | null {
+function shiftStart(
+  start: string | null,
+  previousDue: string | null,
+  nextDue: string,
+): string | null {
   if (start === null || previousDue === null) {
     return null;
   }

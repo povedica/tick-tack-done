@@ -85,9 +85,7 @@ describe('dates', () => {
         startDate: '2026-10-24T06:00:00.000Z',
       },
     });
-    expect(
-      snoozeDue({ ...base, preset: 'date', date: '2026-11-02T15:30:00.000Z' }),
-    ).toEqual({
+    expect(snoozeDue({ ...base, preset: 'date', date: '2026-11-02T15:30:00.000Z' })).toEqual({
       ok: true,
       dates: {
         dueDate: '2026-11-02T15:30:00.000Z',

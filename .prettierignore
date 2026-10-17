@@ -1,2 +1,7 @@
 # Generated from the Nest controllers. Do not format by hand.
 apps/api/openapi.json
+packages/sdk/src/generated/**
+
+# Lockfile and the versioned spec are not prose to reflow in CI.
+pnpm-lock.yaml
+docs/spec/ticktick-clone-spec-v1.1.md

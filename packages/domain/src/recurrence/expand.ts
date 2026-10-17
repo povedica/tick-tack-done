@@ -33,11 +33,7 @@ export function occurrencesInRange(
 }
 
 /** First included occurrence strictly after `afterIso`, or null when the series ends. */
-export function firstAfter(
-  rule: ParsedRule,
-  timeZone: string,
-  afterIso: string,
-): string | null {
+export function firstAfter(rule: ParsedRule, timeZone: string, afterIso: string): string | null {
   const origin = rule.dtstart ?? afterIso;
   if (needsMonthClamp(rule, origin, timeZone)) {
     const upcoming = expand(rule, timeZone, origin, afterIso, null, 1, true);
@@ -88,11 +84,7 @@ export function advanceFromCompletion(
     stamp = withClock(addCalendarDays(completed, 7 * rule.interval), clock);
   } else if (rule.freq === 'MONTHLY') {
     const shifted = addCalendarMonths(completed.year, completed.month, rule.interval);
-    const day = clampDay(
-      shifted.year,
-      shifted.month,
-      rule.byMonthDay[0] ?? clock.day,
-    );
+    const day = clampDay(shifted.year, shifted.month, rule.byMonthDay[0] ?? clock.day);
     stamp = { ...shifted, day, hour: clock.hour, minute: clock.minute, second: clock.second };
   } else {
     const year = completed.year + rule.interval;
@@ -110,11 +102,7 @@ export function advanceFromCompletion(
   return iso;
 }
 
-export function countThrough(
-  rule: ParsedRule,
-  timeZone: string,
-  throughIso: string,
-): number {
+export function countThrough(rule: ParsedRule, timeZone: string, throughIso: string): number {
   const origin = rule.dtstart ?? throughIso;
   if (needsMonthClamp(rule, origin, timeZone)) {
     return countClamped(rule, timeZone, origin, throughIso);
@@ -138,16 +126,19 @@ function expand(
   exclusiveAfter: boolean,
 ): string[] {
   if (needsMonthClamp(rule, originIso, timeZone)) {
-  return expandClamped(rule, timeZone, originIso, afterIso, toIso, limit, exclusiveAfter);
-}
+    return expandClamped(rule, timeZone, originIso, afterIso, toIso, limit, exclusiveAfter);
+  }
   const wall = wallClock(originIso, timeZone);
   if (wall === null) {
     return [];
   }
   const set = ruleSet(rule, wall, timeZone);
-  const start = afterIso === null ? floating(wall) : floating(wallClock(afterIso, timeZone) ?? wall);
+  const start =
+    afterIso === null ? floating(wall) : floating(wallClock(afterIso, timeZone) ?? wall);
   const endWall =
-    toIso === null ? addCalendarDays(wall, limit * Math.max(rule.interval, 1) + 400) : wallClock(toIso, timeZone);
+    toIso === null
+      ? addCalendarDays(wall, limit * Math.max(rule.interval, 1) + 400)
+      : wallClock(toIso, timeZone);
   if (endWall === null) {
     return [];
   }
@@ -211,7 +202,8 @@ function expandClamped(
   };
 
   if (rule.freq === 'YEARLY') {
-    const months = rule.byMonth.length > 0 ? [...rule.byMonth].sort((a, b) => a - b) : [origin.month];
+    const months =
+      rule.byMonth.length > 0 ? [...rule.byMonth].sort((a, b) => a - b) : [origin.month];
     for (let step = 0; step < STEP_CAP && results.length < limit; step += 1) {
       const year = origin.year + step * rule.interval;
       let stop = false;
@@ -351,7 +343,12 @@ function nextWeekdayAfter(
   const options: Partial<Options> = RRule.parseString(rule.rruleBody);
   delete options.count;
   delete options.until;
-  options.dtstart = floating({ ...completed, hour: clock.hour, minute: clock.minute, second: clock.second });
+  options.dtstart = floating({
+    ...completed,
+    hour: clock.hour,
+    minute: clock.minute,
+    second: clock.second,
+  });
   const found = new RRule(options).after(floating(completed), false);
   if (found === null) {
     return null;

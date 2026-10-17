@@ -39,13 +39,13 @@ docs/             arquitectura, migraciones, testing, seguridad, roadmap, prompt
 
 ## Comandos
 
-| Comando | Qué hace |
-|---|---|
-| `pnpm dev` | infra + api + web en desarrollo |
-| `pnpm test` / `test:integration` / `test:e2e` | Vitest / Supertest / Playwright |
-| `pnpm lint` · `pnpm typecheck` · `pnpm format` | calidad |
-| `pnpm db:migrate` / `db:deploy` / `db:seed` | Prisma |
-| `pnpm backup` · `pnpm backup:verify` | backup diario y prueba de restauración (RF-1704) |
+| Comando                                        | Qué hace                                         |
+| ---------------------------------------------- | ------------------------------------------------ |
+| `pnpm dev`                                     | infra + api + web en desarrollo                  |
+| `pnpm test` / `test:integration` / `test:e2e`  | Vitest / Supertest / Playwright                  |
+| `pnpm lint` · `pnpm typecheck` · `pnpm format` | calidad                                          |
+| `pnpm db:migrate` / `db:deploy` / `db:seed`    | Prisma                                           |
+| `pnpm backup` · `pnpm backup:verify`           | backup diario y prueba de restauración (RF-1704) |
 
 ## Despliegue
 

@@ -97,12 +97,8 @@ describe('recurrence', () => {
         monthWeek: { setpos: 1, weekday: 'MO' },
       }),
     ).toEqual({ ok: true, rule: 'RRULE:FREQ=MONTHLY;BYDAY=1MO' });
-    expect(describeRepeatRule('RRULE:FREQ=MONTHLY;BYDAY=1MO')).toBe(
-      'El primer lunes de cada mes',
-    );
-    expect(describeRepeatRule('RRULE:FREQ=MONTHLY;BYMONTHDAY=31')).toBe(
-      'El día 31 de cada mes',
-    );
+    expect(describeRepeatRule('RRULE:FREQ=MONTHLY;BYDAY=1MO')).toBe('El primer lunes de cada mes');
+    expect(describeRepeatRule('RRULE:FREQ=MONTHLY;BYMONTHDAY=31')).toBe('El día 31 de cada mes');
     expect(describeRepeatRule('RRULE:FREQ=DAILY;INTERVAL=3;COUNT=10')).toBe(
       'Cada 3 días, 10 veces',
     );
@@ -157,10 +153,7 @@ describe('recurrence', () => {
   });
 
   it('RF-705: an EXDATE drops that occurrence and leaves the rest of the series', () => {
-    const excluded = excludeOccurrence(
-      'RRULE:FREQ=DAILY',
-      '2026-10-20T07:00:00.000Z',
-    );
+    const excluded = excludeOccurrence('RRULE:FREQ=DAILY', '2026-10-20T07:00:00.000Z');
     expect(excluded.ok).toBe(true);
     if (!excluded.ok) {
       return;
@@ -291,14 +284,16 @@ describe('recurrence', () => {
       ok: false,
       reason: 'missing_anchor',
     });
-    expect(occurrencesBetween({
-      repeatRule: 'RRULE:FREQ=DAILY',
-      dueDate: '2026-10-17T07:00:00.000Z',
-      startDate: null,
-      timeZone: MADRID,
-      from: '2026-10-19T00:00:00.000Z',
-      to: '2026-10-17T00:00:00.000Z',
-    })).toEqual({ ok: false, reason: 'invalid_date' });
+    expect(
+      occurrencesBetween({
+        repeatRule: 'RRULE:FREQ=DAILY',
+        dueDate: '2026-10-17T07:00:00.000Z',
+        startDate: null,
+        timeZone: MADRID,
+        from: '2026-10-19T00:00:00.000Z',
+        to: '2026-10-17T00:00:00.000Z',
+      }),
+    ).toEqual({ ok: false, reason: 'invalid_date' });
     const twice = excludeOccurrence('RRULE:FREQ=DAILY', 'not-a-date');
     expect(twice).toEqual({ ok: false, reason: 'invalid_date' });
   });
@@ -318,15 +313,31 @@ describe('recurrence', () => {
       reason: 'invalid_rule',
     });
     expect(parseRepeatRule('RRULE:INTERVAL=1')).toEqual({ ok: false, reason: 'invalid_rule' });
-    expect(parseRepeatRule('RRULE:FREQ=DAILY;INTERVAL=0')).toEqual({ ok: false, reason: 'invalid_rule' });
-    expect(parseRepeatRule('RRULE:FREQ=DAILY;BYMONTH=13')).toEqual({ ok: false, reason: 'invalid_rule' });
-    expect(parseRepeatRule('RRULE:FREQ=DAILY;BYMONTHDAY=0')).toEqual({ ok: false, reason: 'invalid_rule' });
-    expect(parseRepeatRule('RRULE:FREQ=DAILY;WKST=XX')).toEqual({ ok: false, reason: 'invalid_rule' });
-    expect(parseRepeatRule('RRULE:FREQ=DAILY;UNTIL=nope')).toEqual({ ok: false, reason: 'invalid_rule' });
+    expect(parseRepeatRule('RRULE:FREQ=DAILY;INTERVAL=0')).toEqual({
+      ok: false,
+      reason: 'invalid_rule',
+    });
+    expect(parseRepeatRule('RRULE:FREQ=DAILY;BYMONTH=13')).toEqual({
+      ok: false,
+      reason: 'invalid_rule',
+    });
+    expect(parseRepeatRule('RRULE:FREQ=DAILY;BYMONTHDAY=0')).toEqual({
+      ok: false,
+      reason: 'invalid_rule',
+    });
+    expect(parseRepeatRule('RRULE:FREQ=DAILY;WKST=XX')).toEqual({
+      ok: false,
+      reason: 'invalid_rule',
+    });
+    expect(parseRepeatRule('RRULE:FREQ=DAILY;UNTIL=nope')).toEqual({
+      ok: false,
+      reason: 'invalid_rule',
+    });
     expect(parseRepeatRule('NOTHING')).toEqual({ ok: false, reason: 'invalid_rule' });
-    expect(
-      parseRepeatRule('DTSTART;TZID=Mars/Olympus:20260101T000000\nRRULE:FREQ=DAILY'),
-    ).toEqual({ ok: false, reason: 'invalid_rule' });
+    expect(parseRepeatRule('DTSTART;TZID=Mars/Olympus:20260101T000000\nRRULE:FREQ=DAILY')).toEqual({
+      ok: false,
+      reason: 'invalid_rule',
+    });
     expect(describeRepeatRule('RRULE:FREQ=WEEKLY;BYDAY=MO,WE')).toBe(
       'Cada semana los lunes y miércoles',
     );
@@ -345,7 +356,9 @@ describe('recurrence', () => {
       ok: false,
       reason: 'invalid_rule',
     });
-    expect(canonicalizeRepeatRule('RRULE:FREQ=DAILY', '2026-10-17T07:00:00.000Z', 'Mars/Olympus')).toEqual({
+    expect(
+      canonicalizeRepeatRule('RRULE:FREQ=DAILY', '2026-10-17T07:00:00.000Z', 'Mars/Olympus'),
+    ).toEqual({
       ok: false,
       reason: 'invalid_zone',
     });

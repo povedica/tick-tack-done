@@ -119,7 +119,10 @@ describe('core tasks API', () => {
     expect(listed.body.items.some((item: { id: string }) => item.id === owner.inboxId)).toBe(true);
     const etag = listed.headers.etag;
     expect(etag).toEqual(expect.any(String));
-    await api.get('/api/v1/projects').set('If-None-Match', etag ?? '').expect(304);
+    await api
+      .get('/api/v1/projects')
+      .set('If-None-Match', etag ?? '')
+      .expect(304);
   });
 
   it('RF-201 RF-202 RF-205 RF-207 RF-209 RF-501: creates tasks, checklist lines and nested subtasks', async () => {

@@ -78,7 +78,7 @@ Completar una recurrente sigue sin crear la siguiente fila. Solo el scheduler la
 - Miniaturas de adjuntos (RF-203). No hay `sharp`.
 - El tipo `location` de recordatorio se guarda y no se dispara.
 - Límite de 1000 peticiones / 15 min. Entra con los PAT del punto 7.
-- `pnpm format:check` sigue fallando en ficheros del arnés que ya estaban sin formatear: la spec, el README, los compose, el workflow de CI y `pnpm-lock.yaml`. No se reformatearon.
+- `pnpm format:check` pasa. La spec v1.1 y `pnpm-lock.yaml` están en `.prettierignore` para que CI no las reescriba. El cliente generado del SDK tampoco se formatea.
 
 ## Norma de trabajo
 

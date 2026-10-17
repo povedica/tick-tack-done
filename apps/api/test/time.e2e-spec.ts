@@ -24,7 +24,9 @@ interface Owner {
 
 async function createOwner(name: string): Promise<Owner> {
   const email = `${name}-${randomUUID()}@reflexionia.test`;
-  const user = await prisma.user.create({ data: { email, displayName: name, timeZone: 'Europe/Madrid' } });
+  const user = await prisma.user.create({
+    data: { email, displayName: name, timeZone: 'Europe/Madrid' },
+  });
   const inbox = await prisma.project.create({
     data: { ownerId: user.id, name: 'Bandeja', isInbox: true },
   });
@@ -97,7 +99,9 @@ describe('time API', () => {
     expect(created.body.duration_minutes).toBe(60);
 
     await authed().patch('/api/v1/me').send({ time_zone: 'America/New_York' }).expect(200);
-    const again = await authed().get(`/api/v1/tasks/${created.body.id as string}`).expect(200);
+    const again = await authed()
+      .get(`/api/v1/tasks/${created.body.id as string}`)
+      .expect(200);
     expect(again.body.due_date).toBe('2026-10-19T07:00:00.000Z');
     expect(again.body.time_zone).toBe('Europe/Madrid');
     await authed().patch('/api/v1/me').send({ time_zone: 'Europe/Madrid' }).expect(200);
@@ -198,9 +202,14 @@ describe('time API', () => {
     expect(detached.body.repeat_rule).toBeNull();
     expect(detached.body.title).toBe('excepción');
 
-    const head = await authed().get(`/api/v1/tasks/${created.body.id as string}`).expect(200);
+    const head = await authed()
+      .get(`/api/v1/tasks/${created.body.id as string}`)
+      .expect(200);
     expect(head.body.repeat_rule).toContain('EXDATE:');
-    await authed().post(`/api/v1/tasks/${created.body.id as string}/complete`).send({}).expect(200);
+    await authed()
+      .post(`/api/v1/tasks/${created.body.id as string}/complete`)
+      .send({})
+      .expect(200);
     await scheduler.run(new Date('2026-10-19T12:00:00.000Z'), false);
     const next = await prisma.task.findFirst({
       where: { ownerId: owner.id, seriesId: created.body.series_id as string, status: 'active' },
@@ -274,10 +283,15 @@ describe('time API', () => {
         repeat_rule: 'RRULE:FREQ=DAILY',
       })
       .expect(201);
-    const copy = await authed().post(`/api/v1/tasks/${created.body.id as string}/duplicate`).expect(201);
+    const copy = await authed()
+      .post(`/api/v1/tasks/${created.body.id as string}/duplicate`)
+      .expect(201);
     expect(copy.body.series_id).toBe(copy.body.id);
     expect(copy.body.series_id).not.toBe(created.body.series_id);
-    await authed().post(`/api/v1/tasks/${copy.body.id as string}/complete`).send({}).expect(200);
+    await authed()
+      .post(`/api/v1/tasks/${copy.body.id as string}/complete`)
+      .send({})
+      .expect(200);
     await scheduler.run(new Date('2026-10-19T12:00:00.000Z'), false);
     const next = await prisma.task.findFirst({
       where: { seriesId: copy.body.series_id as string, status: 'active', deletedAt: null },
@@ -305,7 +319,9 @@ describe('time API', () => {
     });
     expect(next?.fireAt.getTime()).toBeGreaterThan(Date.now());
     const snoozed = await authed()
-      .post(`/api/v1/tasks/${created.body.id as string}/reminders/${reminder.body.id as string}/snooze`)
+      .post(
+        `/api/v1/tasks/${created.body.id as string}/reminders/${reminder.body.id as string}/snooze`,
+      )
       .send({ preset: '10m' })
       .expect(200);
     expect(snoozed.body.snoozed_until).not.toBeNull();
@@ -320,6 +336,8 @@ describe('time API', () => {
       .post('/api/v1/me/push-subscriptions')
       .send({ endpoint: `https://push.example/${owner.id}`, p256dh: 'key', auth: 'secret' })
       .expect(201);
-    await authed().del(`/api/v1/me/push-subscriptions/${created.body.id as string}`).expect(204);
+    await authed()
+      .del(`/api/v1/me/push-subscriptions/${created.body.id as string}`)
+      .expect(204);
   });
 });

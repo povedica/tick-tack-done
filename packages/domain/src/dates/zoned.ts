@@ -62,7 +62,11 @@ export function addCalendarDays(wall: WallClock, days: number): WallClock {
   };
 }
 
-export function addCalendarMonths(year: number, month: number, delta: number): {
+export function addCalendarMonths(
+  year: number,
+  month: number,
+  delta: number,
+): {
   year: number;
   month: number;
 } {

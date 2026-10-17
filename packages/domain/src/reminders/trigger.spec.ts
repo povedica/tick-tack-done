@@ -128,12 +128,22 @@ describe('reminders', () => {
       }),
     ).toEqual({ ok: true, fireAt: '2026-10-18T06:00:00.000Z' });
     expect(
-      nextDailyReminder({ time: '25:00', timeZone: 'Europe/Madrid', now: '2026-10-17T07:00:00.000Z' }),
+      nextDailyReminder({
+        time: '25:00',
+        timeZone: 'Europe/Madrid',
+        now: '2026-10-17T07:00:00.000Z',
+      }),
     ).toEqual({
       ok: false,
       reason: 'invalid_time',
     });
-    expect(nextDailyReminder({ time: '08:00', timeZone: 'Mars/Olympus', now: '2026-10-17T07:00:00.000Z' })).toEqual({
+    expect(
+      nextDailyReminder({
+        time: '08:00',
+        timeZone: 'Mars/Olympus',
+        now: '2026-10-17T07:00:00.000Z',
+      }),
+    ).toEqual({
       ok: false,
       reason: 'invalid_zone',
     });
@@ -142,14 +152,18 @@ describe('reminders', () => {
   it('RF-808: fires inside 48h are scheduled, and a catch-up marks the past as late', () => {
     const now = '2026-10-17T12:00:00.000Z';
     expect(REMINDER_HORIZON_MS).toBe(48 * 60 * 60 * 1000);
-    expect(reminderDisposition(new Date(Date.parse(now) + 47 * 3_600_000).toISOString(), now, false)).toBe(
-      'scheduled',
+    expect(
+      reminderDisposition(new Date(Date.parse(now) + 47 * 3_600_000).toISOString(), now, false),
+    ).toBe('scheduled');
+    expect(
+      reminderDisposition(new Date(Date.parse(now) + 49 * 3_600_000).toISOString(), now, false),
+    ).toBe('beyond_horizon');
+    expect(reminderDisposition(new Date(Date.parse(now) - 60_000).toISOString(), now, true)).toBe(
+      'late',
     );
-    expect(reminderDisposition(new Date(Date.parse(now) + 49 * 3_600_000).toISOString(), now, false)).toBe(
-      'beyond_horizon',
+    expect(reminderDisposition(new Date(Date.parse(now) - 60_000).toISOString(), now, false)).toBe(
+      'fire',
     );
-    expect(reminderDisposition(new Date(Date.parse(now) - 60_000).toISOString(), now, true)).toBe('late');
-    expect(reminderDisposition(new Date(Date.parse(now) - 60_000).toISOString(), now, false)).toBe('fire');
     expect(reminderDisposition('nope', now, false)).toBe('beyond_horizon');
   });
 });
