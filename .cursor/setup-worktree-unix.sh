@@ -43,6 +43,8 @@ perl -pi -e "s|localhost:5432|localhost:${PG_PORT}|g;
              s|^SMTP_PORT=1025\$|SMTP_PORT=${SMTP_PORT}|m;
              s|^SCHEDULER_AUTOSTART=true\$|SCHEDULER_AUTOSTART=false|m" .env
 grep -q '^VITE_API_PROXY=' .env || echo "VITE_API_PROXY=http://localhost:${API_PORT}" >> .env
+# El .env real puede no traer la variable; sin ella el scheduler arranca y duplica envíos.
+grep -q '^SCHEDULER_AUTOSTART=' .env || echo 'SCHEDULER_AUTOSTART=false' >> .env
 
 # 4) Infra aislada: proyecto compose propio => contenedores, red y volumen independientes.
 docker compose -p "$PROJECT" -f "$COMPOSE_LOCAL" up -d
