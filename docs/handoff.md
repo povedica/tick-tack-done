@@ -1,45 +1,38 @@
-# Handoff — captura (fase 1, punto 4)
+# Handoff — hábitos (fase 1, punto 5)
 
-Punto seguro para retomar. Lint, typecheck y tests unitarios pasan en local; la CI los corre después de compilar `packages/domain`. La integración de la API pasó al cerrar el correo de entrada. Este corte es el tag `phase-1.4` y entra en `main` con el PR #1. La rama `feat/core-tasks` no sigue.
+Punto seguro para retomar. Lint, typecheck y tests unitarios pasan en local; la integración de la API también. La CI los corre después de compilar `packages/domain`. Este corte es el tag `phase-1.5` en `feat/habits`, con PR abierta contra `main`. No está mergeado. La rama `feat/core-tasks` no se usa.
 
 ## Dónde estamos
 
-Cerrado el punto 4 de la fase 1 (`docs/roadmap.md`): captura rápida (RF-101–107).
+Cerrado el punto 5 de la fase 1 (`docs/roadmap.md`): hábitos (RF-1301–1305). Los puntos 1 a 4 siguen en `main` (PR #1, tag `phase-1.4`).
 
 La API pública sigue en `/api/v1`. OpenAPI está en `/api/docs` y el JSON commiteado es `apps/api/openapi.json`. El cliente web llama a la API solo a través de `@reflexionia/sdk`.
 
-Siguiente producto: punto 5, hábitos (RF-1301–1305), en una rama nueva desde `main`. No adelantar filtros, búsqueda, MCP, PAT ni la cola offline. Una feature o un punto del roadmap es una PR, y se mergea al terminarla.
+Siguiente producto: punto 6, smart lists, filtros y búsqueda (RF-901–904, RF-1001, RF-1501–1502), en una rama nueva desde `main` cuando este PR se mergee. No adelantar PAT, MCP, cola offline ni export. Una feature o un punto del roadmap es una PR, y se mergea al terminarla.
 
-La web de ahora es un wireframe (`/today` y `/quick-add`). Aún queda la interfaz de la sección 7, parecida a TickTick. Está anotado abajo y no se hace en este corte.
+La web sigue siendo un wireframe. Este corte añade `/habits` y un enlace desde `/today`. La interfaz de la sección 7, parecida a TickTick, sigue anotada abajo y no se hace aquí.
 
 ## Tags
 
 | Tag                | Qué marca                                                                 |
 | ------------------ | ------------------------------------------------------------------------- |
-| `phase-1.4-domain` | Parser de quick add en español e inglés, con patrones extra por argumento |
-| `phase-1.4-api`    | `POST /api/v1/tasks` acepta `raw_text` por el mismo CRUD                  |
-| `phase-1.4-email`  | Dirección regenerable y entrega `POST /api/v1/inbound/email`              |
-| `phase-1.4-web`    | Atajo `N`, botón flotante, resaltado, voz y share target                  |
-| `phase-1.4`        | Este handoff. Punto seguro para seguir                                    |
+| `phase-1.5-domain` | Objetivos, check-in, rachas, cumplimiento y mapa de calor                 |
+| `phase-1.5-api`    | CRUD, check-in, estadísticas, eventos y recordatorio diario del scheduler |
+| `phase-1.5-web`    | Pantalla `/habits` enlazada desde `/today`                                |
+| `phase-1.5`        | Este handoff. Punto seguro para seguir                                    |
 
-Los tags `phase-1.3*` y `phase-1.2*` siguen en `feat/core-tasks`. Los `phase-1.1*` siguen en `main`.
+Los tags `phase-1.4*` están en `main`. Los `phase-1.3*` y `phase-1.2*` siguen en `feat/core-tasks`. Los `phase-1.1*` siguen en `main`.
 
-## Cómo probar la captura
+## Cómo probar los hábitos
 
-La auth de desarrollo no cambia: `AUTH_MODE=dev` y cabecera `X-Dev-User-Email`. El seed crea `demo@reflexionia.test`. La web manda esa cabecera desde `DEV_USER_EMAIL`.
+La auth de desarrollo no cambia: `AUTH_MODE=dev` y cabecera `X-Dev-User-Email`. El seed crea `demo@reflexionia.test` y el hábito «Beber agua». La web manda esa cabecera desde `DEV_USER_EMAIL`.
 
 ```bash
 pnpm --filter api dev
 pnpm --filter web dev
 ```
 
-Abrir `http://127.0.0.1:5173/today`. `N` o el botón «Nueva tarea» abren `/quick-add`. Un texto como `comprar leche mañana 18:00 !alta #casa` resalta los tokens y muestra el título que se va a guardar. Quitar un chip borra ese tramo. Enter crea la tarea. Si el título parseado queda vacío, el botón no envía nada.
-
-Compartir a la PWA hace `POST /quick-add`. El service worker responde 303 a `GET /quick-add?title&text&url`. En el navegador, esa URL ya rellena el borrador.
-
-El dictado usa Web Speech API y vuelca el texto al mismo parser. Si el navegador no lo tiene, el botón queda desactivado y se explica.
-
-Correo de entrada: `POST /api/v1/me/inbound-email` muestra el token una sola vez. `GET` solo dice si hay dirección. `DELETE` la revoca al momento. `POST /api/v1/inbound/email` es multipart (`recipient`, `subject`, `text`, `message_id`, `file`) y no pide la cabecera de desarrollo: autentica el token del destinatario.
+Abrir `http://127.0.0.1:5173/today` y seguir «Hábitos». Una sugerencia rellena el formulario; crearlo llama a `POST /api/v1/habits`. «Registrar» hace check-in del día con el contador. La nota se guarda al salir del campo. La racha, los porcentajes y el mapa de calor salen de `GET /api/v1/habits/{id}/stats`.
 
 Integración, con Postgres migrado:
 
@@ -51,22 +44,23 @@ bash scripts/with-env.sh pnpm --filter api exec vitest run --config vitest.confi
 
 ## Qué quedó dentro del corte
 
-- `packages/domain`: `parseQuickAdd` por reglas, español e inglés. Fechas con `date-fns-tz` (`wallClock`, `instantFromWall`, `addCalendarDays`). Prioridad pública `none | low | medium | high`. `p1` es baja, `p2` media, `p3` alta. Los spans conservan los offsets del texto original. `RF-103`: el tercer argumento acepta `patterns`. El host de plugins no existe. Cobertura del paquete: sentencias 90,69 %, ramas 83,50 % (el umbral es 80 %). `filters` sigue sin implementar.
-- `POST /api/v1/tasks` acepta `raw_text` y crea la tarea por el CRUD actual (idempotencia, outbox con `published_at` null, `task.created`). Los campos explícitos pisan lo parseado. Título vacío: `400 empty_title` y no se escribe nada. Si `^lista` o `~lista` no existe, la tarea va a la bandeja con `warnings: [{code: list_not_found}]` y no se crea la lista. Una etiqueta desconocida avisa `tag_not_found` y no se crea. No hay endpoint de preview: el cliente usa el mismo parser para resaltar. La sección 10.3 de la spec lo documenta.
-- Email-to-task (RF-105). Columna `users.inbound_email_token_hash`, única y nullable. El token es 32 bytes en base64url; en base solo está el SHA-256. Dirección `<token>@in.todo.reflexionia.com`. El asunto pasa por el mismo parser, el cuerpo es el contenido y los adjuntos son Attachment con tope de 25 MB y como mucho 10. No se ejecuta nada. Un `message_id` repetido no duplica la tarea. `source` queda `api` y `metadata.capture` es `email`. Migración `20261017170000_add_inbound_email_token`: `prisma migrate diff` contra el schema quedó vacío y el `down.sql` se probó en una base scratch.
-- Web: `/today` y `/quick-add`. Atajo `N` (no el atajo global de escritorio, que es V2), botón flotante, resaltado editable, chips para quitar un span, voz y share target. No hay listas, calendario, hábitos ni constructor de reglas.
+- `packages/domain`: objetivo diario o semanal, días activos, hora `HH:mm`, check-in con tope, racha actual y mejor, porcentaje de la semana y del mes sobre días activos ya transcurridos, mapa de calor anual y agregado. Un día a medias no rompe la racha hasta que ese día ha pasado. Cobertura del paquete por encima del 80 %.
+- API: `GET/POST /api/v1/habits`, `GET/PATCH/DELETE /api/v1/habits/{id}`, `POST /api/v1/habits/{id}/checkins` (`date`, `count`, `note`), `GET /api/v1/habits/{id}/stats?year=`. Idempotencia en el alta y en el check-in. El hábito no crea una tarea (RF-1304). Papelera con `deleted_at`. Scopes `habits:read` y `habits:write`; el guard de desarrollo los concede todos.
+- Eventos, en el outbox con `published_at` null: `habit.created@v1`, `habit.updated@v1`, `habit.deleted@v1`, `habit.checkin@v1`, `habit.goal_met@v1`, `habit.streak_broken@v1`. El catálogo 11.1 nombra esos seis. `habit.goal_met` solo al cruzar el objetivo. `habit.streak_broken` al bajar un día que sostenía la racha, y también una vez por hábito cuando el scheduler ve el primer día activo ya cerrado que la rompe.
+- Recordatorio diario opcional (`reminder_time`). Lo encola el scheduler, igual que el resto de avisos. La fila de entrega reutiliza el tipo `daily_digest` porque el enum no tiene un valor `habit`; el evento `reminder.fired` lleva `kind: habit` y `habit_id`. No hay migración.
+- Web: `/habits` en el mismo boceto que Hoy. Sugerencias, alta, check-in con contador y nota, archivo, racha y mapas. Español en la UI.
 
-Completar una recurrente sigue sin crear la siguiente fila. Solo el scheduler la materializa.
+Completar una recurrente sigue sin crear la siguiente fila. Solo el scheduler la materializa. BullMQ sigue sin cablear.
 
 ## Decisiones que no hay que reabrir
 
 - Sección 21 de la spec, sin cambios.
-- No hay evento nuevo de rotación de la dirección de correo. El catálogo 11.1 no se amplió.
-- El mapa TickTick 0/1/3/5 no se reabre. `p1` es baja.
-- Los patrones extra no entran por HTTP (riesgo de ReDoS).
-- Prisma sigue en 6.19. La migración nueva no toca los índices parciales ni `search_vector`.
+- El mapa de calor agregado viaja en `GET /habits/{id}/stats`, que es la ruta de estadísticas de la spec. No hay una ruta nueva.
+- Un objetivo diario exige el mismo número en `times_per_period` y `target_count` (el seed de «Beber agua» ya es así). Uno semanal pide `times_per_period` días con `target_count` cada uno, y no puede pedir más días de los que están activos.
+- Prisma sigue en 6.19. Este corte no toca índices parciales ni `search_vector`.
 - `typescript-eslint` sigue en 8.18.2 y `eslint` en 9.17.0 por Node 23. `.nvmrc` pide 22.
-- Vitest no emite `design:paramtypes`. Todo constructor de Nest lleva `@Inject` explícito.
+- Vitest no emite `design:paramtypes`. Todo constructor de Nest lleva `@Inject`.
+- Los módulos de dominio no se importan entre sí. El scheduler lee hábitos por Prisma y publica en el bus.
 - Los scopes se declaran con `@Scopes` pero el guard de desarrollo los concede todos. La aplicación real llega con los PAT del punto 7.
 - BullMQ no está cableado. `published_at` del outbox se queda a null. Redis sí está en el compose.
 - `apps/api/openapi.json` está en `.prettierignore`. Si cambia un endpoint, `pnpm --filter api build && pnpm --filter api openapi:generate` y `pnpm --filter @reflexionia/sdk generate`.
@@ -74,7 +68,7 @@ Completar una recurrente sigue sin crear la siguiente fila. Solo el scheduler la
 
 ## Qué no está hecho
 
-- Hábitos, filtros y smart lists, búsqueda, MCP, PAT, cola offline, Telegram, geovallado, miniaturas, drenado del outbox y la pantalla del constructor de reglas (RF-702).
+- Filtros y smart lists, búsqueda, MCP, PAT, cola offline, Telegram, geovallado, miniaturas, drenado del outbox y la pantalla del constructor de reglas (RF-702).
 - Miniaturas de adjuntos (RF-203). No hay `sharp`.
 - El tipo `location` de recordatorio se guarda y no se dispara.
 - Límite de 1000 peticiones / 15 min. Entra con los PAT del punto 7.
@@ -108,6 +102,10 @@ El revisor volvió a mirar commits y docs, sin correr tests. Los puntos 1 a 4 si
 
 ### Cierre de `feat/core-tasks` (17 oct 2026, noche)
 
-Decisión de Pablo: cerrar el PR #1 ahora y no seguir apilando puntos. A partir de aquí, cada feature o punto del roadmap va en su propia PR y se mergea al terminarla.
+Decisión de Pablo: cerrar el PR #1 ahora y no seguir apilando puntos. A partir de aquí, cada feature o un punto del roadmap va en su propia PR y se mergea al terminarla.
 
 En este cierre sí se compila `packages/domain` antes del lint y de los tests unitarios. El resto de la segunda pasada sigue sin hacer: no se despliega, no se configura `BACKUP_REMOTE`, no se publica la spec como v1.2, no se adelantan PAT ni MCP, no se limita todavía el correo entrante y no se rediseña la UI. El punto 5 abre otra rama desde `main`.
+
+### Corte de hábitos (17 oct 2026, noche)
+
+El punto 5 está en `feat/habits` (tag `phase-1.5`), con PR contra `main` y sin merge. Los avisos de arriba se conservan y no se ejecutan: no se despliega, no se configura `BACKUP_REMOTE` ni el cron, no se publica la spec como v1.2, no se adelantan PAT ni MCP, no se limita todavía el correo entrante y no se rediseña el resto de la UI. La única edición de la spec v1.1 en este corte es la línea del catálogo 11.1, para nombrar los eventos que el código publica. El punto 6 no se apila en esta rama.

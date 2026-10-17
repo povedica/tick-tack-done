@@ -4,7 +4,7 @@ Usa este plan para acotar cada tarea de Cursor: cita la fase y los RF-xx.
 
 ## MVP / fase 1 (4-6 semanas de agente)
 
-Estado al tag `phase-1.4`: puntos 1, 2, 3 y 4 cerrados y mergeados a `main` (PR #1). Cada punto siguiente va en su propia PR y se mergea al terminarlo. El punto 5 abre otra rama desde `main`. La web de captura es un wireframe; la UI similar a TickTick queda anotada en `docs/handoff.md` y sin hacer.
+Estado al tag `phase-1.5`: puntos 1, 2, 3 y 4 cerrados y mergeados a `main` (PR #1). El punto 5 (hábitos, RF-1301–1305) está en `feat/habits`, tag `phase-1.5`, con PR abierta contra `main` y sin merge. El punto 6 abre otra rama desde `main` cuando esa PR se mergee. La web sigue siendo un wireframe; este corte solo añade `/habits`. La UI similar a TickTick queda anotada en `docs/handoff.md` y sin hacer.
 
 1. **Base**: monorepo, CI, Docker Compose, modelo de datos completo (sección 5), migraciones, seed.
 2. **Tareas núcleo**: CRUD + checklist + subtareas (RF-201–210), listas/carpetas/secciones
@@ -12,7 +12,7 @@ Estado al tag `phase-1.4`: puntos 1, 2, 3 y 4 cerrados y mergeados a `main` (PR 
 3. **Tiempo**: fechas y zonas (RF-601–605), recurrencias (RF-701–706), recordatorios push+email
    con scheduler fiable (RF-801–808).
 4. **Captura**: quick add con NLP ES/EN (RF-101–107), email-to-task (RF-105), share target (RF-106).
-5. **Hábitos** con recordatorios y estadísticas (RF-1301–1305).
+5. **Hábitos** con recordatorios y estadísticas (RF-1301–1305). Hecho en `feat/habits`, pendiente de merge.
 6. **Smart lists + filtros** con evaluación en backend (RF-901–904); vista lista (RF-1001);
    búsqueda + paleta (RF-1501–1502).
 7. **Acceso de agentes**: API v1 completa de esos recursos + PAT con scopes (RF-2002) +
