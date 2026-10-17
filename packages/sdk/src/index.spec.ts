@@ -57,6 +57,54 @@ describe('sdk', () => {
     } satisfies Partial<ApiError>);
   });
 
+  it('RF-603: lists overdue tasks from the public collection', async () => {
+    const requests: { url: string; init: RequestInit | undefined }[] = [];
+    const client = createApiClient({
+      baseUrl: 'http://api.test',
+      devUserEmail: 'demo@reflexionia.test',
+      fetchImpl: (url, init) => {
+        requests.push({ url: requestUrl(url), init });
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              items: [{ id: 'task-1', title: 'Informe', status: 'active' }],
+              next_cursor: null,
+            }),
+            { status: 200 },
+          ),
+        );
+      },
+    });
+
+    const page = await client.listTasks({ overdue: true, status: 'active' });
+
+    expect(page.items[0]?.title).toBe('Informe');
+    expect(requests[0]?.url).toBe('http://api.test/api/v1/tasks?status=active&overdue=true');
+    expect(requests[0]?.init?.method).toBe('GET');
+  });
+
+  it('RF-206: completes a task with an idempotency key', async () => {
+    const requests: { url: string; init: RequestInit | undefined }[] = [];
+    const client = createApiClient({
+      baseUrl: 'http://api.test',
+      fetchImpl: (url, init) => {
+        requests.push({ url: requestUrl(url), init });
+        return Promise.resolve(
+          new Response(JSON.stringify({ id: 'task-1', title: 'Informe', status: 'completed' }), {
+            status: 200,
+          }),
+        );
+      },
+    });
+
+    const task = await client.completeTask('task-1', {}, 'key-3');
+
+    expect(task.status).toBe('completed');
+    expect(requests[0]?.url).toBe('http://api.test/api/v1/tasks/task-1/complete');
+    const headers = requests[0]?.init?.headers as Record<string, string>;
+    expect(headers['Idempotency-Key']).toBe('key-3');
+  });
+
   it('RF-1301: lists habits from the public collection', async () => {
     const requests: { url: string; init: RequestInit | undefined }[] = [];
     const client = createApiClient({
