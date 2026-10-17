@@ -11,6 +11,7 @@ export type {
   FocusSessionType,
   HabitGoal,
   HabitPeriod,
+  HabitWeekday,
   Priority,
   ProjectKind,
   ProjectViewMode,
@@ -98,3 +99,25 @@ export type { SubtaskProject, TaskTitle } from './tasks/subtask';
 export { isIanaTimeZone } from './tasks/time-zone';
 
 export { createsTagCycle, normalizeTagName, tagDescendantIds, tagNameKey } from './tags/tags';
+
+export {
+  aggregateHeatmap,
+  assessCheckIn,
+  calendarDate,
+  HABIT_WEEKDAYS,
+  habitStats,
+  nextHabitReminder,
+  normalizeHabitDraft,
+  readStoredHabit,
+  streakBreakOn,
+} from './habits/habits';
+export type {
+  AggregateHeatCell,
+  CheckInAssessment,
+  CheckInFailure,
+  HabitDraftFailure,
+  HabitHeatCell,
+  HabitLogEntry,
+  HabitStats,
+  NormalizedHabit,
+} from './habits/habits';
