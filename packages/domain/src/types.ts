@@ -79,9 +79,35 @@ export interface QuickAddSpan {
   readonly kind: QuickAddSpanKind;
 }
 
+/** Extra rule supplied by a host. The plugin host itself is V2 (RF-103). */
+export interface QuickAddPattern {
+  readonly source: string;
+  readonly kind: QuickAddSpanKind;
+  /** Overrides the first capture group. ISO-8601 for a date, RRULE for a repeat, iCalendar trigger for a reminder. */
+  readonly value?: string;
+}
+
+/** Clock is injected. Relative dates are not resolved without it. */
+export interface QuickAddContext {
+  readonly now: string;
+  readonly timeZone: string;
+  readonly patterns?: readonly QuickAddPattern[];
+}
+
+export interface QuickAddDue {
+  readonly date: string;
+  readonly isAllDay: boolean;
+}
+
 export interface QuickAddParse {
   readonly title: string;
   readonly spans: readonly QuickAddSpan[];
+  readonly priority: Priority | null;
+  readonly tagNames: readonly string[];
+  readonly listName: string | null;
+  readonly due: QuickAddDue | null;
+  readonly repeatRule: string | null;
+  readonly reminderTrigger: string | null;
 }
 
 export interface Task {

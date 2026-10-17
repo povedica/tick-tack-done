@@ -37,9 +37,15 @@ describe('domain entry points', () => {
     ).toThrow(/filters are not implemented/);
   });
 
-  it('RF-102: quick add parsing is reserved and not implemented', () => {
-    expect(() => parseQuickAdd('mañana 18:00 comprar leche', 'es')).toThrow(
-      /nlp is not implemented/,
-    );
+  it('RF-102: quick add keeps the date span offsets of the original text', () => {
+    const text = 'comprar leche mañana 18:00';
+    const parsed = parseQuickAdd(text, 'es', {
+      now: '2026-10-17T10:00:00.000Z',
+      timeZone: 'Europe/Madrid',
+    });
+    const span = parsed.spans.find((item) => item.kind === 'date');
+    expect(span).toBeDefined();
+    expect(text.slice(span?.start, span?.end)).toBe('mañana 18:00');
+    expect(parsed.title).toBe('comprar leche');
   });
 });
