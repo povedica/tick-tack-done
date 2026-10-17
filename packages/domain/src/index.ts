@@ -29,8 +29,30 @@ export type {
   WeekStart,
 } from './types';
 
-export { nextOccurrence } from './recurrence/index';
-export type { Occurrence, RecurrenceInput } from './recurrence/index';
+export { nextOccurrence, occurrencesBetween } from './recurrence/index';
+export type { Occurrence, RecurrenceInput, RecurrenceResult } from './recurrence/index';
+export {
+  buildRepeatRule,
+  canonicalizeRepeatRule,
+  describeRepeatRule,
+  excludeOccurrence,
+  parseRepeatRule,
+} from './recurrence/rule';
+export type { ParsedRule, RepeatDraft, RuleFailure, Weekday } from './recurrence/rule';
+
+export { isOverdue, snoozeDue } from './dates/schedule';
+export type { DateSnoozePreset, ScheduleFailure, SnoozedDates } from './dates/schedule';
+
+export {
+  nextConstantFire,
+  nextDailyReminder,
+  parseTrigger,
+  REMINDER_HORIZON_MS,
+  reminderDisposition,
+  reminderFireAt,
+  snoozeReminder,
+} from './reminders/trigger';
+export type { ReminderSnoozePreset, TriggerParse } from './reminders/trigger';
 
 export { matchesFilter } from './filters/index';
 export type { FilterSubject } from './filters/index';
