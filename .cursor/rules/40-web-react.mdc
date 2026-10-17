@@ -1,0 +1,25 @@
+---
+globs: apps/web/**
+alwaysApply: false
+---
+
+# Convenciones del frontend (React PWA)
+
+## Estructura
+
+- `apps/web/src/features/<feature>/` — por dominio (tasks, lists, habits, calendar, dashboard…), cada una con `components/`, `hooks/`, `api.ts`, `types.ts`.
+- Estado de servidor con TanStack Query (cache + invalidación por eventos de sync); estado local efímero con Zustand. Nada de Redux.
+- Datos solo a través de `packages/sdk` (cliente generado del OpenAPI). Prohibido `fetch` suelto.
+- Rutas limpias y compartibles (sección 7): `/list/:id`, `/today`, `/calendar/:view`, `/habits`, `/dashboard`, `/task/:id`. La URL refleja el estado de navegación.
+
+## PWA y offline (RF-13010 y criterio de aceptación 5)
+
+- Cola local de mutaciones en IndexedDB con `Idempotency-Key` por mutación; replay al reconectar; la UI optimista marca el estado pendiente.
+- Service worker con `vite-plugin-pwa`: app shell cacheado, datos por IndexedDB, sync en segundo plano cuando el navegador lo permita.
+- Web Push para recordatorios; en iOS documentar que requiere la PWA instalada (sección 20).
+
+## UI
+
+- i18n desde el primer componente: todas las cadenas en ficheros de mensajes (`es` default, `en`). Nada de texto hardcodeado.
+- Accesibilidad WCAG 2.1 AA: navegación completa por teclado, atajos de la sección 9.19 (`N` crear, `space` completar, `?` ayuda, `/` o `Ctrl/Cmd+K` paleta).
+- Componentes pequeños y con tipos explícitos; nada de `any`. Los componentes de tarjeta de tarea muestran el progreso del checklist (x/y, RF-207).

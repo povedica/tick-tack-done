@@ -1,0 +1,11 @@
+---
+alwaysApply: true
+---
+
+# Git y flujo de trabajo
+
+- Conventional Commits en inglés: `feat(api): …`, `fix(domain): …`, `test:`, `docs:`, `chore:`, `refactor:`. Scope = app/package tocado.
+- Sin commits directos a `main`: rama por tarea (`feat/quick-add-nlp`), PR, CI en verde (lint, format, typecheck, unit, integration, openapi-check).
+- Un PR = un RF o un grupo pequeño de RFs. Cita los RF-xx en la descripción del PR.
+- Si el PR toca el modelo: incluye migración y su rollback verificado. Si toca eventos: catálogo de la sección 11.1 actualizado. Si toca la API: OpenAPI regenerado.
+- La spec se versiona junto al código: si una fase se cierra o una decisión cambia, actualiza `docs/spec/` (sección 19) en el mismo PR.

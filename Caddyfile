@@ -1,0 +1,26 @@
+# Reverse proxy con HTTPS automático para todo.reflexionia.com (sección 4, D4)
+todo.reflexionia.com {
+	encode zstd gzip
+
+	# App web (PWA)
+	handle /* {
+		reverse_proxy web:8080
+	}
+
+	# API REST v1 + servidor MCP (mismo proceso NestJS)
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+	handle /mcp/* {
+		reverse_proxy api:3000
+	}
+
+	# Cabeceras de seguridad (sección 15)
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+}

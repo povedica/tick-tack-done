@@ -1,0 +1,28 @@
+---
+alwaysApply: true
+---
+
+# Arquitectura (sección 4 de la spec)
+
+## Reglas arquitectónicas duras
+
+- Los módulos de dominio NO se llaman entre sí directamente: publican y consumen eventos del bus.
+- El scheduler es el ÚNICO componente que materializa ocurrencias de tareas recurrentes y dispara recordatorios.
+- El dispatcher de webhooks y el motor de automatizaciones consumen del mismo bus: un evento existe una vez y se reparte.
+- Integraciones externas (Telegram, Google Calendar, Drive) son consumidores de la API y los eventos; jamás código especial con acceso directo a la base de datos (RF-2006).
+
+## Estructura del monorepo (sección 18)
+
+- `apps/api/src/modules/<modulo>/` — un módulo NestJS por dominio: tasks, lists, tags, filters, habits, focus, notes, calendar, reminders, search, sync, dashboard, reports, review, import-export, auth, mcp, webhooks, automations.
+- Cada módulo: `<modulo>.module.ts`, `<modulo>.controller.ts`, `<modulo>.service.ts`, `dto/`, `<modulo>.service.spec.ts`.
+- `apps/api/src/events/` — catálogo de eventos de dominio, bus (BullMQ), ActivityLog.
+- `apps/api/src/scheduler/` — materialización de recurrencias y recordatorios (RF-808: 48 h de antelación, catch-up al arrancar).
+- `packages/domain/src/` — lógica pura compartida: `recurrence/`, `filters/`, `nlp/`. Sin imports de Nest/React/Prisma.
+- `packages/sdk` — cliente generado del OpenAPI; no editar a mano.
+
+## Reglas transversales del modelo (sección 6)
+
+- Soft delete con papelera 30 días; purga automática después.
+- `sort_order` con espaciado de 65536 para reordenar en O(1).
+- Fechas en UTC + `time_zone` de captura (IANA). Una tarea "9:00 en Madrid" sigue a las 9:00 locales aunque el usuario viaje.
+- Al completar una recurrente se crea la siguiente ocurrencia según `repeat_rule` y `repeat_from`; el checklist vuelve a activo.

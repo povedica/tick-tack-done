@@ -1,0 +1,22 @@
+---
+alwaysApply: true
+---
+
+# Estrategia de tests (sección 16)
+
+Pirámide: muchos unitarios de dominio, integración de API contra servicios reales, pocos e2e de flujos críticos.
+
+## Frameworks elegidos (default del harness)
+
+- **Vitest** en todo el monorepo para unitarios (incluida la API: se usa Vitest también en NestJS para tener un solo runner).
+- **Supertest + Testcontainers** (o Postgres/Redis del compose de CI) para integración de API.
+- **Playwright** para e2e de la PWA.
+
+## Convenciones
+
+- Tests junto al código: `foo.service.spec.ts`. Los e2e en `apps/web/e2e/`.
+- Nombra los tests con el RF que cubren: `it('RF-706: mensual en 31 cae en último día de febrero', …)`.
+- Casos límite obligatorios en recurrencias (RF-706), zonas horarias (RF-604), filtros (5.7) y NLP (RF-102).
+- Integración: migra una BD real con `prisma migrate deploy` antes de correr; no mockees Prisma en integración.
+- E2e mínimos (sección 16): crear → recordar → completar; y crear/editar offline → reconectar → converge sin duplicados.
+- Cobertura >80% en `packages/domain`; CI la exige.

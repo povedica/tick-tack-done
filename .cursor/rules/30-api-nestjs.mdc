@@ -1,0 +1,29 @@
+---
+globs: apps/api/**
+alwaysApply: false
+---
+
+# Convenciones de la API (NestJS)
+
+## Endpoints
+
+- Base `/api/v1`, versionado en path. JSON en todo. La spec (sección 10.3) define las rutas; no inventar rutas fuera de ella sin actualizar la spec.
+- Todo endpoint lleva decoradores OpenAPI (`@ApiOperation`, `@ApiResponse`, DTOs con `@ApiProperty`). CI falla si el OpenAPI generado cambia sin commitear.
+- Errores con formato `{error: {code, message, details}}` y códigos estables (`task_not_found`, `validation_failed`, `scope_missing`…). Un filtro global mapea excepciones de dominio a estos códigos.
+- Paginación por cursor: `?limit=50&cursor=`, respuesta con `next_cursor`. Nada de offsets.
+- POST de creación acepta cabecera `Idempotency-Key` (requisito offline, RF-13010); respeta la clave 24 h.
+- `X-Request-Id` en todas las respuestas; ETag en GETs de colección.
+
+## Seguridad por endpoint
+
+- Todo endpoint declara sus scopes con un decorador `@Scopes('tasks:write')` y un guard global los verifica (lista de scopes en sección 10.1).
+- Rate limiting por token: 1000 req/15 min, cabeceras `X-RateLimit-*`, `429` con `Retry-After`.
+- Validación con class-validator en DTOs; `whitelist: true, forbidNonWhitelisted: true, transform: true`.
+- La UI usa cookies httpOnly + CSRF; los agentes usan PAT (Bearer). Nunca mezclar.
+
+## Servicios y eventos
+
+- Un service por módulo; transacciones Prisma explícitas cuando una operación toca varias tablas.
+- Después de cada mutación de estado relevante, publicar el evento de dominio correspondiente en la MISMA transacción (tabla outbox) y dejar que el bus la drene (patrón outbox, no doble escritura).
+- El ActivityLog se alimenta de los eventos, con `actor` = usuario o token (auditoría por agente, sección 15).
+- Integraciones externas consumen API/eventos; nunca importan servicios de otros módulos (RF-2006).

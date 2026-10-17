@@ -1,0 +1,15 @@
+---
+globs: packages/domain/**
+alwaysApply: false
+---
+
+# packages/domain — reglas de negocio puras
+
+Aquí vive la lógica que comparten API, automatizaciones y clientes (sección 18). Es el paquete más testeado del repo: cobertura >80% (sección 16).
+
+- PROHIBIDO importar NestJS, React, Prisma, Express, o cualquier IO. ESLint lo bloquea.
+- Funciones puras: reloj y generador de IDs se inyectan.
+- `recurrence/` — expansión RRULE con librería probada (rrule.js). Cubrir los casos límite de RF-706: 29-31 de febrero, cambio de horario de verano, completar con retraso, `repeat_from: completion_date`.
+- `filters/` — evaluador de la gramática de filtros de la sección 5.7 (combinators AND/OR, un nivel de grupos). Es la ÚNICA implementación: la usan `POST /filters/preview`, las smart lists, las automatizaciones y las revisiones asistidas. Nada de lógica duplicada en cliente (RF-904).
+- `nlp/` — parser del quick add (RF-102): fecha/hora, prioridad (`!alta`, p1-p3), etiquetas (`#`), lista (`^`), recordatorio, en español e inglés. Reglas, no ML. Devuelve siempre qué fragmentos del texto reconoció para que la UI los resalte.
+- Cada función pública tiene tests de casos felices, límite y error, citando el RF-xx correspondiente en el nombre del test.

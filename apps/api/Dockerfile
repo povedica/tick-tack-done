@@ -1,0 +1,22 @@
+# Imagen de la API (NestJS + servidor MCP en el mismo proceso, sección 4)
+FROM node:22-alpine AS deps
+WORKDIR /app
+RUN corepack enable
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
+COPY apps/api/package.json apps/api/
+COPY packages/domain/package.json packages/domain/
+RUN pnpm install --frozen-lockfile --filter api...
+
+FROM deps AS build
+COPY tsconfig.base.json ./
+COPY packages/domain packages/domain
+COPY apps/api apps/api
+RUN pnpm --filter api build && pnpm --filter api exec prisma generate
+
+FROM node:22-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+RUN corepack enable
+COPY --from=build /app ./
+# El entrypoint aplica `prisma migrate deploy` antes de arrancar (ver docker-compose.yml)
+CMD ["sh", "-c", "pnpm --filter api exec prisma migrate deploy && node apps/api/dist/main.js"]

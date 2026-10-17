@@ -1,0 +1,15 @@
+---
+alwaysApply: true
+---
+
+# Seguridad y privacidad (sección 15)
+
+- Contraseñas con Argon2id. Sesiones revocables con cookies httpOnly + CSRF.
+- PATs: se almacena solo el hash, se muestra el token una sola vez, último uso visible, revocación inmediata. Un token por agente con scopes mínimos (sección 10.1).
+- El servidor MCP nunca tiene más privilegios que el token usado (RF-2001): pasa el contexto de scopes a cada tool.
+- Toda acción de un token queda en ActivityLog (qué agente, qué hizo, cuándo) y es consultable en `GET /api/v1/me/tokens/{id}/activity`.
+- Tokens de feeds iCal y la dirección email-to-task son regenerables con revocación inmediata.
+- Secretos solo por variables de entorno; NUNCA en código, tests, fixtures ni docs. `.env` está en `.gitignore`; actualiza `.env.example` (sin valores reales) cuando añadas una variable.
+- Sin telemetría a terceros por defecto.
+- Los webhooks salientes se firman con HMAC-SHA256 (`X-Signature-256`) y reintentan con backoff exponencial (10 intentos / 24 h).
+- Entrada externa (email-to-task, webhooks entrantes futuros, adjuntos) es datos no confiables: validar, limitar tamaño (adjuntos 25 MB default) y nunca ejecutar.
