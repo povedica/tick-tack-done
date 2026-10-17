@@ -31,6 +31,7 @@ normas; el detalle vive en `.cursor/rules/*.mdc`, que Cursor aplica automáticam
 - **Multiusuario desde el modelo** aunque hoy haya un usuario: toda entidad cuelga de un owner.
 - **Español en docs y UI, inglés en código** (identificadores, commits, nombres de API).
 - **Conventional Commits** (`feat:`, `fix:`, `test:`…). Sin commits directos a `main`.
+- **Una feature, una PR**: cada punto del roadmap va en su propia rama. Al terminarlo, se mergea la PR. El siguiente punto no se añade a esa rama.
 - Cobertura >80% en `packages/domain` (recurrencias, filtros, NLP: es donde viven los bugs).
 - Migraciones Prisma siempre reversibles y generadas con `pnpm db:migrate`, nunca a mano sin revisar.
 
@@ -53,3 +54,4 @@ pnpm lint && pnpm typecheck
 2. OpenAPI regenerado y sin diff (`pnpm --filter api openapi:generate`).
 3. Si tocaste eventos: catálogo de eventos actualizado (sección 11.1 de la spec).
 4. Si tocaste el modelo: migración incluida en el PR con su rollback verificado.
+5. La PR de ese punto se mergea al quedar el corte cerrado. No empieces el punto siguiente en la misma rama.

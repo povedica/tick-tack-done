@@ -1,6 +1,224 @@
 {
   "openapi": "3.0.0",
   "paths": {
+    "/api/v1/me": {
+      "get": {
+        "operationId": "MeController_getMe",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Current user profile",
+        "tags": [
+          "me"
+        ]
+      },
+      "patch": {
+        "operationId": "MeController_updateMe",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update profile settings, including RF-206 completion policy",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/inbound-email": {
+      "get": {
+        "operationId": "MeController_inboundEmail",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboundEmailStatusDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Whether the email-to-task address is active (RF-105). The token is not returned.",
+        "tags": [
+          "me"
+        ]
+      },
+      "post": {
+        "operationId": "MeController_rotateInboundEmail",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboundEmailAddressDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create or regenerate the email-to-task address (RF-105). The token is shown once.",
+        "tags": [
+          "me"
+        ]
+      },
+      "delete": {
+        "operationId": "MeController_revokeInboundEmail",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Revoke the email-to-task address immediately (RF-105)",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/push-subscriptions": {
+      "post": {
+        "operationId": "MeController_subscribe",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushSubscriptionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Register a Web Push subscription (RF-802)",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/push-subscriptions/{id}": {
+      "delete": {
+        "operationId": "MeController_unsubscribe",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Remove a Web Push subscription",
+        "tags": [
+          "me"
+        ]
+      }
+    },
     "/api/v1/health": {
       "get": {
         "operationId": "HealthController_getHealth",
@@ -22,6 +240,2115 @@
           "health"
         ]
       }
+    },
+    "/api/v1/folders": {
+      "get": {
+        "operationId": "ListsController_listFolders",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FolderPageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List folders",
+        "tags": [
+          "lists"
+        ]
+      },
+      "post": {
+        "operationId": "ListsController_createFolder",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFolderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FolderResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create a folder",
+        "tags": [
+          "lists"
+        ]
+      }
+    },
+    "/api/v1/folders/{id}": {
+      "get": {
+        "operationId": "ListsController_getFolder",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FolderResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get a folder",
+        "tags": [
+          "lists"
+        ]
+      },
+      "patch": {
+        "operationId": "ListsController_updateFolder",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateFolderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FolderResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update a folder",
+        "tags": [
+          "lists"
+        ]
+      },
+      "delete": {
+        "operationId": "ListsController_deleteFolder",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "Move a folder to the trash and detach its lists",
+        "tags": [
+          "lists"
+        ]
+      }
+    },
+    "/api/v1/projects": {
+      "get": {
+        "operationId": "ListsController_listProjects",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectPageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List projects, with the active task count (RF-305)",
+        "tags": [
+          "lists"
+        ]
+      },
+      "post": {
+        "operationId": "ListsController_createProject",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProjectDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create a list",
+        "tags": [
+          "lists"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}": {
+      "get": {
+        "operationId": "ListsController_getProject",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get a list",
+        "tags": [
+          "lists"
+        ]
+      },
+      "patch": {
+        "operationId": "ListsController_updateProject",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProjectDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update a list",
+        "tags": [
+          "lists"
+        ]
+      },
+      "delete": {
+        "operationId": "ListsController_deleteProject",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Move a list and its tasks to the trash",
+        "tags": [
+          "lists"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/data": {
+      "get": {
+        "operationId": "ListsController_projectData",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "List plus its sections and active tasks",
+        "tags": [
+          "lists"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/archive": {
+      "post": {
+        "operationId": "ListsController_archive",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Archive a list",
+        "tags": [
+          "lists"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/unarchive": {
+      "post": {
+        "operationId": "ListsController_unarchive",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Unarchive a list",
+        "tags": [
+          "lists"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/archive-completed": {
+      "post": {
+        "operationId": "ListsController_archiveCompleted",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Archive every completed task in a list (RF-306)",
+        "tags": [
+          "lists"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/columns": {
+      "get": {
+        "operationId": "ListsController_listColumns",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ColumnPageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List sections of a list",
+        "tags": [
+          "lists"
+        ]
+      },
+      "post": {
+        "operationId": "ListsController_createColumn",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateColumnDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ColumnResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create a section",
+        "tags": [
+          "lists"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/columns/{columnId}": {
+      "patch": {
+        "operationId": "ListsController_updateColumn",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "columnId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateColumnDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ColumnResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Rename, collapse or reorder a section (RF-304)",
+        "tags": [
+          "lists"
+        ]
+      },
+      "delete": {
+        "operationId": "ListsController_deleteColumn",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "columnId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Delete a section and detach its tasks",
+        "tags": [
+          "lists"
+        ]
+      }
+    },
+    "/api/v1/tags": {
+      "get": {
+        "operationId": "TagsController_list",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagPageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List tags with active task counts (RF-403)",
+        "tags": [
+          "tags"
+        ]
+      },
+      "post": {
+        "operationId": "TagsController_create",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTagDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create a tag",
+        "tags": [
+          "tags"
+        ]
+      }
+    },
+    "/api/v1/tags/merge": {
+      "post": {
+        "operationId": "TagsController_merge",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MergeTagsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Merge one tag into another",
+        "tags": [
+          "tags"
+        ]
+      }
+    },
+    "/api/v1/tags/{id}": {
+      "get": {
+        "operationId": "TagsController_get",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get a tag",
+        "tags": [
+          "tags"
+        ]
+      },
+      "patch": {
+        "operationId": "TagsController_update",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTagDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Rename, recolor, reparent or reorder a tag",
+        "tags": [
+          "tags"
+        ]
+      },
+      "delete": {
+        "operationId": "TagsController_remove",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Delete a tag. Filters keep working because they store ids (RF-403).",
+        "tags": [
+          "tags"
+        ]
+      }
+    },
+    "/api/v1/tasks/completed": {
+      "get": {
+        "operationId": "TasksController_completed",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskPageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Completed tasks",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/trash": {
+      "get": {
+        "operationId": "TasksController_trash",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskPageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Trashed tasks",
+        "tags": [
+          "tasks"
+        ]
+      },
+      "delete": {
+        "operationId": "TasksController_emptyTrash",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Empty the trash (RF-306)",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/trash/{id}/restore": {
+      "post": {
+        "operationId": "TasksController_restore",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Restore a trashed task",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/batch": {
+      "post": {
+        "operationId": "TasksController_batch",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchTasksDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Bulk complete, move, tag, prioritize, reschedule or delete (RF-208)",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks": {
+      "get": {
+        "operationId": "TasksController_list",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskPageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List tasks. Subtasks stay nested unless flat=true (RF-205).",
+        "tags": [
+          "tasks"
+        ]
+      },
+      "post": {
+        "operationId": "TasksController_create",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTaskDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateTaskResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create a task. raw_text is parsed on the server (RF-102); explicit fields override it. Checklist lines can be extracted from Markdown (RF-202).",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{id}": {
+      "get": {
+        "operationId": "TasksController_get",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Task detail, checklist progress, subtasks and activity (RF-207, RF-209)",
+        "tags": [
+          "tasks"
+        ]
+      },
+      "patch": {
+        "operationId": "TasksController_update",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTaskDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update a task, including kind task/note and priority (RF-204, RF-501)",
+        "tags": [
+          "tasks"
+        ]
+      },
+      "delete": {
+        "operationId": "TasksController_remove",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Move a task and its subtasks to the trash",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{id}/occurrences": {
+      "get": {
+        "operationId": "TasksController_occurrences",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Theoretical occurrences of a repeating task (RF-704). Nothing is stored.",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{id}/occurrences/detach": {
+      "post": {
+        "operationId": "TasksController_detach",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DetachOccurrenceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Detach one occurrence from the series with an EXDATE (RF-705)",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{id}/snooze": {
+      "post": {
+        "operationId": "TasksController_snooze",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SnoozeTaskDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Move the due date to tomorrow, next week or a chosen date (RF-605)",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{id}/reminders": {
+      "get": {
+        "operationId": "TasksController_listReminders",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Reminders on a task (RF-801)",
+        "tags": [
+          "tasks"
+        ]
+      },
+      "post": {
+        "operationId": "TasksController_createReminder",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateReminderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Add a relative, absolute or location reminder (RF-801)",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{id}/reminders/{reminderId}/snooze": {
+      "post": {
+        "operationId": "TasksController_snoozeReminder",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reminderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SnoozeReminderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Snooze a reminder for 10 minutes, 1 hour, tomorrow or a custom time (RF-804)",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{id}/reminders/{reminderId}": {
+      "delete": {
+        "operationId": "TasksController_deleteReminder",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reminderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Delete a reminder",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{id}/complete": {
+      "post": {
+        "operationId": "TasksController_complete",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteTaskDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Complete a task. Active children require a choice unless a policy is set (RF-206).",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{id}/uncomplete": {
+      "post": {
+        "operationId": "TasksController_uncomplete",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Mark a task active again",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{id}/move": {
+      "post": {
+        "operationId": "TasksController_move",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveTaskDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Move a task between lists or sections (RF-204)",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{id}/duplicate": {
+      "post": {
+        "operationId": "TasksController_duplicate",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Duplicate a task with its checklist and subtasks (RF-204)",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{id}/items": {
+      "post": {
+        "operationId": "TasksController_createItem",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChecklistItemDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Add a checklist item",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{id}/items/{itemId}": {
+      "patch": {
+        "operationId": "TasksController_updateItem",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateChecklistItemDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Update a checklist item",
+        "tags": [
+          "tasks"
+        ]
+      },
+      "delete": {
+        "operationId": "TasksController_deleteItem",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Delete a checklist item",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{id}/items/{itemId}/complete": {
+      "post": {
+        "operationId": "TasksController_completeItem",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Complete a checklist item",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{id}/attachments": {
+      "post": {
+        "operationId": "TasksController_upload",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Attach a file to a task (RF-203)",
+        "tags": [
+          "tasks"
+        ]
+      },
+      "get": {
+        "operationId": "TasksController_listAttachments",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "List attachments of a task",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{id}/attachments/{attachmentId}": {
+      "get": {
+        "operationId": "TasksController_download",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "attachmentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Download an attachment",
+        "tags": [
+          "tasks"
+        ]
+      },
+      "delete": {
+        "operationId": "TasksController_deleteAttachment",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "attachmentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Delete an attachment",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/inbound/email": {
+      "post": {
+        "operationId": "InboundEmailController_receive",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "recipient",
+                  "subject"
+                ],
+                "properties": {
+                  "recipient": {
+                    "type": "string"
+                  },
+                  "subject": {
+                    "type": "string"
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "message_id": {
+                    "type": "string"
+                  },
+                  "file": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Deliver an email-to-task message (RF-105). The recipient token authenticates the call. Content is stored and never executed.",
+        "tags": [
+          "inbound"
+        ]
+      }
     }
   },
   "info": {
@@ -41,6 +2368,118 @@
       }
     },
     "schemas": {
+      "MeResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "time_zone": {
+            "type": "string"
+          },
+          "locale": {
+            "type": "string"
+          },
+          "task_complete_children": {
+            "type": "string",
+            "enum": [
+              "ask",
+              "complete",
+              "leave"
+            ]
+          },
+          "daily_reminder_time": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "display_name",
+          "time_zone",
+          "locale",
+          "task_complete_children",
+          "daily_reminder_time"
+        ]
+      },
+      "UpdateMeDto": {
+        "type": "object",
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "time_zone": {
+            "type": "string"
+          },
+          "task_complete_children": {
+            "type": "string",
+            "enum": [
+              "ask",
+              "complete",
+              "leave"
+            ]
+          },
+          "daily_reminder_time": {
+            "type": "object",
+            "nullable": true,
+            "example": "08:00"
+          }
+        }
+      },
+      "InboundEmailStatusDto": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "active"
+        ]
+      },
+      "InboundEmailAddressDto": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "type": "string",
+            "description": "Shown once. The secret is not stored in clear text."
+          },
+          "token": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "address",
+          "token"
+        ]
+      },
+      "PushSubscriptionDto": {
+        "type": "object",
+        "properties": {
+          "endpoint": {
+            "type": "string"
+          },
+          "p256dh": {
+            "type": "string"
+          },
+          "auth": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "endpoint",
+          "p256dh",
+          "auth"
+        ]
+      },
       "HealthResponseDto": {
         "type": "object",
         "properties": {
@@ -54,6 +2493,1276 @@
         "required": [
           "status"
         ]
+      },
+      "FolderResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sort_order": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "sort_order",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "FolderPageDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FolderResponseDto"
+            }
+          },
+          "next_cursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ]
+      },
+      "CreateFolderDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "before_id": {
+            "type": "object",
+            "nullable": true
+          },
+          "move_to_end": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UpdateFolderDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "before_id": {
+            "type": "object",
+            "nullable": true
+          },
+          "move_to_end": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ProjectResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string",
+            "nullable": true
+          },
+          "folder_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "view_mode": {
+            "type": "string",
+            "enum": [
+              "list",
+              "kanban",
+              "timeline"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "TASK",
+              "NOTE"
+            ]
+          },
+          "closed": {
+            "type": "boolean"
+          },
+          "is_inbox": {
+            "type": "boolean"
+          },
+          "sort_order": {
+            "type": "string"
+          },
+          "active_task_count": {
+            "type": "number"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "color",
+          "folder_id",
+          "view_mode",
+          "kind",
+          "closed",
+          "is_inbox",
+          "sort_order",
+          "active_task_count",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "ProjectPageDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectResponseDto"
+            }
+          },
+          "next_cursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ]
+      },
+      "CreateProjectDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "color": {
+            "type": "object",
+            "nullable": true
+          },
+          "folder_id": {
+            "type": "object",
+            "nullable": true
+          },
+          "view_mode": {
+            "type": "string",
+            "enum": [
+              "list",
+              "kanban",
+              "timeline"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "TASK",
+              "NOTE"
+            ]
+          },
+          "before_id": {
+            "type": "object",
+            "nullable": true
+          },
+          "move_to_end": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UpdateProjectDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "color": {
+            "type": "object",
+            "nullable": true
+          },
+          "folder_id": {
+            "type": "object",
+            "nullable": true
+          },
+          "view_mode": {
+            "type": "string",
+            "enum": [
+              "list",
+              "kanban",
+              "timeline"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "TASK",
+              "NOTE"
+            ]
+          },
+          "before_id": {
+            "type": "object",
+            "nullable": true
+          },
+          "move_to_end": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ColumnResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "collapsed": {
+            "type": "boolean"
+          },
+          "sort_order": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "name",
+          "collapsed",
+          "sort_order",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "ColumnPageDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ColumnResponseDto"
+            }
+          },
+          "next_cursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ]
+      },
+      "CreateColumnDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "collapsed": {
+            "type": "boolean"
+          },
+          "before_id": {
+            "type": "object",
+            "nullable": true
+          },
+          "move_to_end": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UpdateColumnDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "collapsed": {
+            "type": "boolean"
+          },
+          "before_id": {
+            "type": "object",
+            "nullable": true
+          },
+          "move_to_end": {
+            "type": "boolean"
+          }
+        }
+      },
+      "TagResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string",
+            "nullable": true
+          },
+          "parent_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "sort_order": {
+            "type": "string"
+          },
+          "active_task_count": {
+            "type": "number"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "color",
+          "parent_id",
+          "sort_order",
+          "active_task_count",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "TagPageDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagResponseDto"
+            }
+          },
+          "next_cursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ]
+      },
+      "CreateTagDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "color": {
+            "type": "object",
+            "nullable": true
+          },
+          "parent_id": {
+            "type": "object",
+            "nullable": true
+          },
+          "before_id": {
+            "type": "object",
+            "nullable": true
+          },
+          "move_to_end": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "MergeTagsDto": {
+        "type": "object",
+        "properties": {
+          "source_id": {
+            "type": "string"
+          },
+          "target_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_id",
+          "target_id"
+        ]
+      },
+      "UpdateTagDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "color": {
+            "type": "object",
+            "nullable": true
+          },
+          "parent_id": {
+            "type": "object",
+            "nullable": true
+          },
+          "before_id": {
+            "type": "object",
+            "nullable": true
+          },
+          "move_to_end": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ChecklistProgressDto": {
+        "type": "object",
+        "properties": {
+          "completed": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "completed",
+          "total"
+        ]
+      },
+      "TaskResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "parent_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "column_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "title": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "task",
+              "note"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "completed",
+              "archived"
+            ]
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "none",
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "is_all_day": {
+            "type": "boolean"
+          },
+          "start_date": {
+            "type": "string",
+            "nullable": true
+          },
+          "due_date": {
+            "type": "string",
+            "nullable": true
+          },
+          "time_zone": {
+            "type": "string"
+          },
+          "duration_minutes": {
+            "type": "number",
+            "nullable": true
+          },
+          "repeat_rule": {
+            "type": "string",
+            "nullable": true
+          },
+          "repeat_from": {
+            "type": "string",
+            "enum": [
+              "due_date",
+              "completion_date"
+            ]
+          },
+          "series_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "sort_order": {
+            "type": "string"
+          },
+          "tag_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "assignee_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "completed_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "source": {
+            "type": "string"
+          },
+          "checklist_progress": {
+            "$ref": "#/components/schemas/ChecklistProgressDto"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "deleted_at": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "parent_id",
+          "column_id",
+          "title",
+          "content",
+          "kind",
+          "status",
+          "priority",
+          "is_all_day",
+          "start_date",
+          "due_date",
+          "time_zone",
+          "duration_minutes",
+          "repeat_rule",
+          "repeat_from",
+          "series_id",
+          "sort_order",
+          "tag_ids",
+          "assignee_id",
+          "created_by",
+          "completed_at",
+          "source",
+          "checklist_progress",
+          "created_at",
+          "updated_at",
+          "deleted_at"
+        ]
+      },
+      "TaskPageDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskResponseDto"
+            }
+          },
+          "next_cursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ]
+      },
+      "BatchTasksDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "complete",
+              "move",
+              "tag",
+              "priority",
+              "due",
+              "delete"
+            ]
+          },
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "column_id": {
+            "type": "object",
+            "nullable": true
+          },
+          "tag_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "none",
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "due_date": {
+            "type": "object",
+            "nullable": true
+          },
+          "complete_children": {
+            "type": "string",
+            "enum": [
+              "complete",
+              "leave"
+            ]
+          }
+        },
+        "required": [
+          "action",
+          "ids"
+        ]
+      },
+      "CreateTaskDto": {
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "description": "Required unless raw_text is set. An explicit list overrides a parsed ^list or ~list."
+          },
+          "parent_id": {
+            "type": "object",
+            "nullable": true
+          },
+          "column_id": {
+            "type": "object",
+            "nullable": true
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "Required unless raw_text yields a title. An explicit title overrides the parse."
+          },
+          "raw_text": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "Quick add text. The server parses it (RF-102). Explicit fields in this body override the parse."
+          },
+          "content": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "task",
+              "note"
+            ]
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "none",
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "is_all_day": {
+            "type": "boolean"
+          },
+          "start_date": {
+            "type": "object",
+            "nullable": true
+          },
+          "due_date": {
+            "type": "object",
+            "nullable": true
+          },
+          "time_zone": {
+            "type": "string"
+          },
+          "duration_minutes": {
+            "type": "object",
+            "nullable": true
+          },
+          "repeat_rule": {
+            "type": "object",
+            "nullable": true
+          },
+          "repeat_from": {
+            "type": "string",
+            "enum": [
+              "due_date",
+              "completion_date"
+            ]
+          },
+          "tag_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "extract_checklist": {
+            "type": "boolean"
+          },
+          "extract_as": {
+            "type": "string",
+            "enum": [
+              "checklist",
+              "subtask"
+            ]
+          },
+          "before_id": {
+            "type": "object",
+            "nullable": true
+          },
+          "move_to_end": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CaptureWarningDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "list_not_found",
+              "tag_not_found",
+              "reminder_without_date"
+            ]
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "CreateTaskResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "parent_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "column_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "title": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "task",
+              "note"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "completed",
+              "archived"
+            ]
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "none",
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "is_all_day": {
+            "type": "boolean"
+          },
+          "start_date": {
+            "type": "string",
+            "nullable": true
+          },
+          "due_date": {
+            "type": "string",
+            "nullable": true
+          },
+          "time_zone": {
+            "type": "string"
+          },
+          "duration_minutes": {
+            "type": "number",
+            "nullable": true
+          },
+          "repeat_rule": {
+            "type": "string",
+            "nullable": true
+          },
+          "repeat_from": {
+            "type": "string",
+            "enum": [
+              "due_date",
+              "completion_date"
+            ]
+          },
+          "series_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "sort_order": {
+            "type": "string"
+          },
+          "tag_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "assignee_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "completed_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "source": {
+            "type": "string"
+          },
+          "checklist_progress": {
+            "$ref": "#/components/schemas/ChecklistProgressDto"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "deleted_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CaptureWarningDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "parent_id",
+          "column_id",
+          "title",
+          "content",
+          "kind",
+          "status",
+          "priority",
+          "is_all_day",
+          "start_date",
+          "due_date",
+          "time_zone",
+          "duration_minutes",
+          "repeat_rule",
+          "repeat_from",
+          "series_id",
+          "sort_order",
+          "tag_ids",
+          "assignee_id",
+          "created_by",
+          "completed_at",
+          "source",
+          "checklist_progress",
+          "created_at",
+          "updated_at",
+          "deleted_at"
+        ]
+      },
+      "DetachOccurrenceDto": {
+        "type": "object",
+        "properties": {
+          "due_date": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "due_date"
+        ]
+      },
+      "SnoozeTaskDto": {
+        "type": "object",
+        "properties": {
+          "preset": {
+            "type": "string",
+            "enum": [
+              "tomorrow",
+              "next_week",
+              "date"
+            ]
+          },
+          "date": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": [
+          "preset"
+        ]
+      },
+      "CreateReminderDto": {
+        "type": "object",
+        "properties": {
+          "trigger": {
+            "type": "string",
+            "example": "TRIGGER:-PT5M"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "relative",
+              "absolute",
+              "location",
+              "daily_digest"
+            ]
+          },
+          "absolute_at": {
+            "type": "object",
+            "nullable": true
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "push",
+              "email",
+              "both"
+            ]
+          },
+          "constant": {
+            "type": "boolean"
+          },
+          "constant_interval_minutes": {
+            "type": "object",
+            "nullable": true
+          },
+          "location": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": [
+          "trigger",
+          "type"
+        ]
+      },
+      "SnoozeReminderDto": {
+        "type": "object",
+        "properties": {
+          "preset": {
+            "type": "string",
+            "enum": [
+              "10m",
+              "1h",
+              "tomorrow",
+              "custom"
+            ]
+          },
+          "until": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": [
+          "preset"
+        ]
+      },
+      "UpdateTaskDto": {
+        "type": "object",
+        "properties": {
+          "column_id": {
+            "type": "object"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "content": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "task",
+              "note"
+            ]
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "none",
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "is_all_day": {
+            "type": "boolean"
+          },
+          "start_date": {
+            "type": "object",
+            "nullable": true
+          },
+          "due_date": {
+            "type": "object",
+            "nullable": true
+          },
+          "time_zone": {
+            "type": "string"
+          },
+          "duration_minutes": {
+            "type": "object",
+            "nullable": true
+          },
+          "repeat_rule": {
+            "type": "object",
+            "nullable": true
+          },
+          "repeat_from": {
+            "type": "string",
+            "enum": [
+              "due_date",
+              "completion_date"
+            ]
+          },
+          "tag_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "extract_checklist": {
+            "type": "boolean"
+          },
+          "extract_as": {
+            "type": "string",
+            "enum": [
+              "checklist",
+              "subtask"
+            ]
+          },
+          "before_id": {
+            "type": "object",
+            "nullable": true
+          },
+          "move_to_end": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CompleteTaskDto": {
+        "type": "object",
+        "properties": {
+          "complete_children": {
+            "type": "string",
+            "enum": [
+              "complete",
+              "leave"
+            ]
+          }
+        }
+      },
+      "MoveTaskDto": {
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string"
+          },
+          "column_id": {
+            "type": "object",
+            "nullable": true
+          },
+          "before_task_id": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": [
+          "project_id"
+        ]
+      },
+      "ChecklistItemDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "start_date": {
+            "type": "object",
+            "nullable": true
+          },
+          "due_date": {
+            "type": "object",
+            "nullable": true
+          },
+          "is_all_day": {
+            "type": "boolean"
+          },
+          "time_zone": {
+            "type": "string"
+          },
+          "before_id": {
+            "type": "object",
+            "nullable": true
+          },
+          "move_to_end": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "title"
+        ]
+      },
+      "UpdateChecklistItemDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "start_date": {
+            "type": "object",
+            "nullable": true
+          },
+          "due_date": {
+            "type": "object",
+            "nullable": true
+          },
+          "is_all_day": {
+            "type": "boolean"
+          },
+          "time_zone": {
+            "type": "string"
+          },
+          "before_id": {
+            "type": "object",
+            "nullable": true
+          },
+          "move_to_end": {
+            "type": "boolean"
+          }
+        }
       }
     }
   }

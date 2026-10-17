@@ -1,0 +1,752 @@
+import {
+  addCalendarDays,
+  daysInMonth,
+  instantFromWall,
+  wallClock,
+  type WallClock,
+} from '../dates/zoned';
+import { isPriority } from '../priority/priority';
+import { buildRepeatRule, parseRepeatRule, type Weekday } from '../recurrence/rule';
+import { parseTrigger } from '../reminders/trigger';
+import { normalizeTagName, tagNameKey } from '../tags/tags';
+import { isIanaTimeZone } from '../tasks/time-zone';
+import type {
+  Priority,
+  QuickAddContext,
+  QuickAddDue,
+  QuickAddParse,
+  QuickAddPattern,
+  QuickAddSpan,
+  QuickAddSpanKind,
+} from '../types';
+
+export type QuickAddLanguage = 'es' | 'en';
+
+/**
+ * p1 is low, p2 medium, p3 high. The public priority stays none|low|medium|high.
+ * TickTick's 0/1/3/5 map is a different layer and is not applied here.
+ */
+const PRIORITY_WORD: Readonly<Record<string, Priority>> = {
+  baja: 'low',
+  low: 'low',
+  p1: 'low',
+  media: 'medium',
+  medium: 'medium',
+  p2: 'medium',
+  alta: 'high',
+  high: 'high',
+  p3: 'high',
+};
+
+const WEEKDAY: Readonly<Record<string, Weekday>> = {
+  lunes: 'MO',
+  monday: 'MO',
+  martes: 'TU',
+  tuesday: 'TU',
+  miércoles: 'WE',
+  miercoles: 'WE',
+  wednesday: 'WE',
+  jueves: 'TH',
+  thursday: 'TH',
+  viernes: 'FR',
+  friday: 'FR',
+  sábado: 'SA',
+  sabado: 'SA',
+  saturday: 'SA',
+  domingo: 'SU',
+  sunday: 'SU',
+};
+
+const MONTH_NAME: Readonly<Record<string, number>> = {
+  enero: 1,
+  january: 1,
+  jan: 1,
+  febrero: 2,
+  february: 2,
+  feb: 2,
+  marzo: 3,
+  march: 3,
+  mar: 3,
+  abril: 4,
+  april: 4,
+  apr: 4,
+  mayo: 5,
+  may: 5,
+  junio: 6,
+  june: 6,
+  jun: 6,
+  julio: 7,
+  july: 7,
+  jul: 7,
+  agosto: 8,
+  august: 8,
+  aug: 8,
+  septiembre: 9,
+  setiembre: 9,
+  september: 9,
+  sep: 9,
+  sept: 9,
+  octubre: 10,
+  october: 10,
+  oct: 10,
+  noviembre: 11,
+  november: 11,
+  nov: 11,
+  diciembre: 12,
+  december: 12,
+  dec: 12,
+};
+
+const RELATIVE =
+  /(?<![\p{L}\p{N}])(pasado\s+mañana|day\s+after\s+tomorrow|mañana|tomorrow|hoy|today)(?![\p{L}\p{N}])/giu;
+
+const EVERY =
+  /(?<![\p{L}\p{N}])(?:cada|todos\s+los|every)\s+(lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo|d[ií]a|semana|mes|a[nñ]o|monday|tuesday|wednesday|thursday|friday|saturday|sunday|day|week|month|year)(?![\p{L}\p{N}])/giu;
+
+const NUMERIC_DATE =
+  /(?<![\p{L}\p{N}])(?:(el|on)\s+)?(\d{1,2})[/-](\d{1,2})(?:[/-](\d{4}))?(?![\p{L}\p{N}])/giu;
+
+const MONTH_WORD =
+  /(?<![\p{L}\p{N}])(?:(?:el|on)\s+)?(?:(\d{1,2})(?:st|nd|rd|th)?\s+de\s+)?(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre|jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)(?:\s+(\d{1,2})(?:st|nd|rd|th)?)?(?:,?\s+(\d{4}))?(?![\p{L}\p{N}])/giu;
+
+const REMINDER =
+  /(?<![\p{L}\p{N}])(?:av[ií]same|remind\s+me)\s+(\d+)\s*(min(?:uto)?s?|h(?:our|ora)?s?|d(?:[ií]as?|ays?))\s+(?:antes|before)(?![\p{L}\p{N}])/giu;
+
+const PRIORITY_TOKEN =
+  /(?<![\p{L}\p{N}])(?:!(alta|media|baja|high|medium|low)|p([123]))(?![\p{L}\p{N}])/giu;
+
+const TAG = /(?<![\p{L}\p{N}])#([\p{L}\p{N}_][\p{L}\p{N}_-]{0,98})(?![\p{L}\p{N}])/giu;
+
+const LIST = /(?<![\p{L}\p{N}])[~^]([\p{L}\p{N}_][\p{L}\p{N}_-]{0,98})(?![\p{L}\p{N}])/giu;
+
+interface Clock {
+  readonly hour: number;
+  readonly minute: number;
+}
+
+interface Found {
+  readonly start: number;
+  readonly end: number;
+  readonly kind: QuickAddSpanKind;
+  readonly apply: (draft: Draft) => void;
+}
+
+interface Draft {
+  priority: Priority | null;
+  tagNames: string[];
+  listName: string | null;
+  due: QuickAddDue | null;
+  repeatRule: string | null;
+  reminderTrigger: string | null;
+  spans: QuickAddSpan[];
+}
+
+interface ClockContext {
+  readonly now: WallClock;
+  readonly timeZone: string;
+}
+
+type Matcher = (
+  text: string,
+  from: number,
+  language: QuickAddLanguage,
+  clock: ClockContext | null,
+) => Found | null;
+
+/** RF-102, RF-103. Rule parser. Spans keep offsets into the original text. */
+export function parseQuickAdd(
+  text: string,
+  language: QuickAddLanguage,
+  context?: QuickAddContext,
+): QuickAddParse {
+  const clock = readClock(context);
+  const matchers = [...builtinMatchers, ...extraMatchers(context?.patterns ?? [])];
+  const draft: Draft = {
+    priority: null,
+    tagNames: [],
+    listName: null,
+    due: null,
+    repeatRule: null,
+    reminderTrigger: null,
+    spans: [],
+  };
+  let cursor = 0;
+  while (cursor < text.length) {
+    const found = earliest(text, cursor, language, clock, matchers);
+    if (found === null) {
+      break;
+    }
+    if (found.end <= found.start) {
+      cursor += 1;
+      continue;
+    }
+    found.apply(draft);
+    draft.spans.push({ start: found.start, end: found.end, kind: found.kind });
+    cursor = found.end;
+  }
+  const spans = [...draft.spans].sort((left, right) => left.start - right.start);
+  return {
+    title: titleWithout(text, spans),
+    spans,
+    priority: draft.priority,
+    tagNames: draft.tagNames,
+    listName: draft.listName,
+    due: draft.due,
+    repeatRule: draft.repeatRule,
+    reminderTrigger: draft.reminderTrigger,
+  };
+}
+
+const builtinMatchers: readonly Matcher[] = [
+  matchRelative,
+  matchEvery,
+  matchNumericDate,
+  matchMonthWord,
+  matchReminder,
+  matchPriority,
+  matchTag,
+  matchList,
+];
+
+function readClock(context: QuickAddContext | undefined): ClockContext | null {
+  if (context === undefined || !isIanaTimeZone(context.timeZone)) {
+    return null;
+  }
+  const now = wallClock(context.now, context.timeZone);
+  if (now === null) {
+    return null;
+  }
+  return { now, timeZone: context.timeZone };
+}
+
+function earliest(
+  text: string,
+  from: number,
+  language: QuickAddLanguage,
+  clock: ClockContext | null,
+  matchers: readonly Matcher[],
+): Found | null {
+  let best: Found | null = null;
+  for (const matcher of matchers) {
+    const found = matcher(text, from, language, clock);
+    if (found === null || found.end <= found.start) {
+      continue;
+    }
+    if (
+      best === null ||
+      found.start < best.start ||
+      (found.start === best.start && found.end > best.end)
+    ) {
+      best = found;
+    }
+  }
+  return best;
+}
+
+function matchRelative(
+  text: string,
+  from: number,
+  _language: QuickAddLanguage,
+  clock: ClockContext | null,
+): Found | null {
+  if (clock === null) {
+    return null;
+  }
+  const match = firstMatch(text, from, RELATIVE);
+  if (match?.[1] === undefined) {
+    return null;
+  }
+  const days = relativeDays(match[1]);
+  if (days === null) {
+    return null;
+  }
+  const timed = extendWithTime(text, match.index + match[0].length);
+  const day = addCalendarDays(clock.now, days);
+  return dateFound(match.index, timed, day, null, clock.timeZone);
+}
+
+function matchEvery(
+  text: string,
+  from: number,
+  _language: QuickAddLanguage,
+  clock: ClockContext | null,
+): Found | null {
+  if (clock === null) {
+    return null;
+  }
+  const match = firstMatch(text, from, EVERY);
+  if (match?.[1] === undefined) {
+    return null;
+  }
+  const word = fold(match[1]);
+  const timed = extendWithTime(text, match.index + match[0].length);
+  const weekday = WEEKDAY[word];
+  if (weekday !== undefined) {
+    const delta = (weekdayIndex(weekday) - weekdayIndexOf(clock.now) + 7) % 7;
+    const day = addCalendarDays(clock.now, delta);
+    const rule = ruleOf({ freq: 'weekly', weekdays: [weekday] });
+    return rule === null ? null : dateFound(match.index, timed, day, rule, clock.timeZone);
+  }
+  const freq = frequencyOf(word);
+  if (freq === null) {
+    return null;
+  }
+  const draft = freq === 'monthly' ? { freq, monthDay: clock.now.day } : { freq };
+  const rule = ruleOf(draft);
+  return rule === null ? null : dateFound(match.index, timed, clock.now, rule, clock.timeZone);
+}
+
+function matchNumericDate(
+  text: string,
+  from: number,
+  language: QuickAddLanguage,
+  clock: ClockContext | null,
+): Found | null {
+  if (clock === null) {
+    return null;
+  }
+  return scan(text, from, NUMERIC_DATE, (match) => {
+    if (match[2] === undefined || match[3] === undefined) {
+      return null;
+    }
+    const parts = dayAndMonth(
+      Number(match[2]),
+      Number(match[3]),
+      match[1]?.toLocaleLowerCase('es'),
+      language,
+    );
+    if (parts === null) {
+      return null;
+    }
+    const explicitYear = match[4] === undefined ? null : Number(match[4]);
+    if (explicitYear !== null && (explicitYear < 1970 || explicitYear > 9999)) {
+      return null;
+    }
+    const year = explicitYear ?? upcomingYear(parts.month, parts.day, clock.now);
+    if (!validDay(year, parts.month, parts.day)) {
+      return null;
+    }
+    const timed = extendWithTime(text, match.index + match[0].length);
+    return dateFound(
+      match.index,
+      timed,
+      { ...clock.now, year, month: parts.month, day: parts.day },
+      null,
+      clock.timeZone,
+    );
+  });
+}
+
+function matchMonthWord(
+  text: string,
+  from: number,
+  _language: QuickAddLanguage,
+  clock: ClockContext | null,
+): Found | null {
+  if (clock === null) {
+    return null;
+  }
+  return scan(text, from, MONTH_WORD, (match) => {
+    if (match[2] === undefined) {
+      return null;
+    }
+    const month = MONTH_NAME[fold(match[2])];
+    const dayText = match[1] ?? match[3];
+    if (month === undefined || dayText === undefined) {
+      return null;
+    }
+    const day = Number(dayText);
+    const explicitYear = match[4] === undefined ? null : Number(match[4]);
+    if (explicitYear !== null && (explicitYear < 1970 || explicitYear > 9999)) {
+      return null;
+    }
+    const year = explicitYear ?? upcomingYear(month, day, clock.now);
+    if (!validDay(year, month, day)) {
+      return null;
+    }
+    const timed = extendWithTime(text, match.index + match[0].length);
+    return dateFound(match.index, timed, { ...clock.now, year, month, day }, null, clock.timeZone);
+  });
+}
+
+function matchReminder(text: string, from: number): Found | null {
+  return scan(text, from, REMINDER, (match) => {
+    if (match[1] === undefined || match[2] === undefined) {
+      return null;
+    }
+    const amount = Number(match[1]);
+    if (!Number.isInteger(amount) || amount < 1 || amount > 999) {
+      return null;
+    }
+    const trigger = reminderTrigger(amount, match[2]);
+    if (trigger === null || !parseTrigger(trigger).ok) {
+      return null;
+    }
+    return {
+      start: match.index,
+      end: match.index + match[0].length,
+      kind: 'reminder',
+      apply: (draft) => {
+        draft.reminderTrigger = trigger;
+      },
+    };
+  });
+}
+
+function matchPriority(text: string, from: number): Found | null {
+  const match = firstMatch(text, from, PRIORITY_TOKEN);
+  if (match === null) {
+    return null;
+  }
+  const word = fold(match[1] ?? (match[2] === undefined ? '' : `p${match[2]}`));
+  const priority = PRIORITY_WORD[word];
+  if (priority === undefined) {
+    return null;
+  }
+  return {
+    start: match.index,
+    end: match.index + match[0].length,
+    kind: 'priority',
+    apply: (draft) => {
+      draft.priority = priority;
+    },
+  };
+}
+
+function matchTag(text: string, from: number): Found | null {
+  const match = firstMatch(text, from, TAG);
+  const name = match?.[1] === undefined ? null : normalizeTagName(match[1]);
+  if (match === null || name === null) {
+    return null;
+  }
+  return {
+    start: match.index,
+    end: match.index + match[0].length,
+    kind: 'tag',
+    apply: (draft) => {
+      if (!draft.tagNames.some((existing) => tagNameKey(existing) === tagNameKey(name))) {
+        draft.tagNames.push(name);
+      }
+    },
+  };
+}
+
+function matchList(text: string, from: number): Found | null {
+  const match = firstMatch(text, from, LIST);
+  const name = match?.[1] === undefined ? null : normalizeTagName(match[1]);
+  if (match === null || name === null) {
+    return null;
+  }
+  return {
+    start: match.index,
+    end: match.index + match[0].length,
+    kind: 'list',
+    apply: (draft) => {
+      draft.listName = name;
+    },
+  };
+}
+
+function extraMatchers(patterns: readonly QuickAddPattern[]): Matcher[] {
+  return patterns.map((pattern) => {
+    if (pattern.source.trim().length === 0) {
+      throw new Error('invalid quick add pattern');
+    }
+    let regex: RegExp;
+    try {
+      regex = new RegExp(pattern.source, 'gu');
+    } catch {
+      throw new Error('invalid quick add pattern');
+    }
+    return (text: string, from: number): Found | null =>
+      scan(text, from, regex, (match) => {
+        if (match[0].length === 0) {
+          return null;
+        }
+        const apply = applyPattern(pattern.kind, pattern.value ?? match[1]);
+        if (apply === null) {
+          return null;
+        }
+        return {
+          start: match.index,
+          end: match.index + match[0].length,
+          kind: pattern.kind,
+          apply,
+        };
+      });
+  });
+}
+
+function applyPattern(
+  kind: QuickAddSpanKind,
+  captured: string | undefined,
+): ((draft: Draft) => void) | null {
+  if (kind === 'priority') {
+    if (captured === undefined || !isPriority(captured)) {
+      return null;
+    }
+    return (draft) => {
+      draft.priority = captured;
+    };
+  }
+  if (kind === 'tag') {
+    const name = captured === undefined ? null : normalizeTagName(captured);
+    if (name === null) {
+      return null;
+    }
+    return (draft) => {
+      draft.tagNames.push(name);
+    };
+  }
+  if (kind === 'list') {
+    const name = captured === undefined ? null : normalizeTagName(captured);
+    if (name === null) {
+      return null;
+    }
+    return (draft) => {
+      draft.listName = name;
+    };
+  }
+  if (kind === 'reminder') {
+    if (captured === undefined || !parseTrigger(captured).ok) {
+      return null;
+    }
+    return (draft) => {
+      draft.reminderTrigger = captured;
+    };
+  }
+  if (captured === undefined) {
+    return () => undefined;
+  }
+  if (captured.startsWith('RRULE:')) {
+    const parsed = parseRepeatRule(captured);
+    if (!parsed.ok) {
+      return null;
+    }
+    const rule = `RRULE:${parsed.rule.rruleBody}`;
+    return (draft) => {
+      draft.repeatRule = rule;
+    };
+  }
+  if (Number.isNaN(Date.parse(captured))) {
+    return null;
+  }
+  const date = new Date(captured).toISOString();
+  return (draft) => {
+    draft.due = { date, isAllDay: false };
+    draft.repeatRule = null;
+  };
+}
+
+function dateFound(
+  start: number,
+  timed: { readonly end: number; readonly clock: Clock | null },
+  day: WallClock,
+  repeatRule: string | null,
+  timeZone: string,
+): Found | null {
+  const wall =
+    timed.clock === null
+      ? { ...day, hour: 0, minute: 0, second: 0 }
+      : { ...day, hour: timed.clock.hour, minute: timed.clock.minute, second: 0 };
+  const date = instantFromWall(wall, timeZone);
+  if (date === null) {
+    return null;
+  }
+  const due: QuickAddDue = { date, isAllDay: timed.clock === null };
+  return {
+    start,
+    end: timed.end,
+    kind: 'date',
+    apply: (draft) => {
+      draft.due = due;
+      draft.repeatRule = repeatRule;
+    },
+  };
+}
+
+function extendWithTime(text: string, from: number): { end: number; clock: Clock | null } {
+  const slice = text.slice(from);
+  const match =
+    /^(?:\s+(?:a\s+las|at))?(?:\s+(\d{1,2}):(\d{2})(?:\s*([ap])\.?m\.?)?|\s+(\d{1,2})\s*([ap])\.?m\.?)/iu.exec(
+      slice,
+    );
+  if (match === null) {
+    return { end: from, clock: null };
+  }
+  const clock = clockFrom(match[1] ?? match[4], match[2], match[3] ?? match[5]);
+  if (clock === null) {
+    return { end: from, clock: null };
+  }
+  const end = from + match[0].length;
+  const next = text[end];
+  if (next !== undefined && /[\p{L}\p{N}]/u.test(next)) {
+    return { end: from, clock: null };
+  }
+  return { end, clock };
+}
+
+function clockFrom(
+  hourText: string | undefined,
+  minuteText: string | undefined,
+  ampm: string | undefined,
+): Clock | null {
+  if (hourText === undefined) {
+    return null;
+  }
+  let hour = Number(hourText);
+  const minute = minuteText === undefined ? 0 : Number(minuteText);
+  if (!Number.isInteger(hour) || !Number.isInteger(minute) || minute > 59 || minute < 0) {
+    return null;
+  }
+  if (ampm !== undefined) {
+    const marker = ampm.toLocaleLowerCase('es');
+    if (hour < 1 || hour > 12) {
+      return null;
+    }
+    if (marker === 'a') {
+      hour = hour === 12 ? 0 : hour;
+    } else {
+      hour = hour === 12 ? 12 : hour + 12;
+    }
+  } else if (hour > 23) {
+    return null;
+  }
+  return { hour, minute };
+}
+
+function relativeDays(phrase: string): number | null {
+  const key = fold(phrase).replace(/\s+/gu, ' ');
+  if (key === 'hoy' || key === 'today') {
+    return 0;
+  }
+  if (key === 'mañana' || key === 'tomorrow') {
+    return 1;
+  }
+  if (key === 'pasado mañana' || key === 'day after tomorrow') {
+    return 2;
+  }
+  return null;
+}
+
+function frequencyOf(word: string): 'daily' | 'weekly' | 'monthly' | 'yearly' | null {
+  if (word === 'día' || word === 'dia' || word === 'day') {
+    return 'daily';
+  }
+  if (word === 'semana' || word === 'week') {
+    return 'weekly';
+  }
+  if (word === 'mes' || word === 'month') {
+    return 'monthly';
+  }
+  if (word === 'año' || word === 'ano' || word === 'year') {
+    return 'yearly';
+  }
+  return null;
+}
+
+function dayAndMonth(
+  first: number,
+  second: number,
+  prefix: string | undefined,
+  language: QuickAddLanguage,
+): { day: number; month: number } | null {
+  const dayFirst = prefix === 'el' || (prefix !== 'on' && language !== 'en');
+  const preferDayFirst = first > 12 ? true : second > 12 ? false : dayFirst;
+  const day = preferDayFirst ? first : second;
+  const month = preferDayFirst ? second : first;
+  if (month < 1 || month > 12 || day < 1 || day > 31) {
+    return null;
+  }
+  return { day, month };
+}
+
+function upcomingYear(month: number, day: number, today: WallClock): number {
+  if (month < today.month || (month === today.month && day < today.day)) {
+    return today.year + 1;
+  }
+  return today.year;
+}
+
+function validDay(year: number, month: number, day: number): boolean {
+  return month >= 1 && month <= 12 && day >= 1 && day <= daysInMonth(year, month);
+}
+
+function reminderTrigger(amount: number, unit: string): string | null {
+  const key = fold(unit);
+  if (key.startsWith('min')) {
+    return `TRIGGER:-PT${String(amount)}M`;
+  }
+  if (key.startsWith('h')) {
+    return `TRIGGER:-PT${String(amount)}H`;
+  }
+  if (key.startsWith('d')) {
+    return `TRIGGER:-P${String(amount)}D`;
+  }
+  return null;
+}
+
+function ruleOf(draft: Parameters<typeof buildRepeatRule>[0]): string | null {
+  const built = buildRepeatRule(draft);
+  return built.ok ? built.rule : null;
+}
+
+function weekdayIndex(day: Weekday): number {
+  const order: readonly Weekday[] = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+  return order.indexOf(day);
+}
+
+function weekdayIndexOf(wall: WallClock): number {
+  return new Date(Date.UTC(wall.year, wall.month - 1, wall.day)).getUTCDay();
+}
+
+function titleWithout(text: string, spans: readonly QuickAddSpan[]): string {
+  let cursor = 0;
+  let out = '';
+  for (const span of spans) {
+    out += text.slice(cursor, span.start);
+    cursor = span.end;
+  }
+  out += text.slice(cursor);
+  return out.replace(/\s+/gu, ' ').trim();
+}
+
+function scan(
+  text: string,
+  from: number,
+  source: RegExp,
+  accept: (match: RegExpExecArray) => Found | null,
+): Found | null {
+  let cursor = from;
+  while (cursor < text.length) {
+    const match = firstMatch(text, cursor, source);
+    if (match === null) {
+      return null;
+    }
+    const found = accept(match);
+    if (found !== null) {
+      return found;
+    }
+    const next = match.index + Math.max(match[0].length, 1);
+    if (next <= cursor) {
+      return null;
+    }
+    cursor = next;
+  }
+  return null;
+}
+
+function firstMatch(text: string, from: number, source: RegExp): RegExpExecArray | null {
+  const flags = source.flags.includes('g') ? source.flags : `${source.flags}g`;
+  const regex = new RegExp(source.source, flags);
+  regex.lastIndex = from;
+  const match = regex.exec(text);
+  if (match === null || match.index < from) {
+    return null;
+  }
+  return match;
+}
+
+function fold(value: string): string {
+  return value.toLocaleLowerCase('es');
+}

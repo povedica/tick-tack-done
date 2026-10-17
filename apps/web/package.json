@@ -13,18 +13,22 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@reflexionia/domain": "workspace:*",
+    "@reflexionia/sdk": "workspace:*",
     "@tanstack/react-query": "^5.62.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router": "^7.1.0",
+    "workbox-precaching": "7.4.1",
+    "workbox-window": "7.4.1",
     "zustand": "^5.0.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.0",
-    "eslint": "9.17.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",
+    "eslint": "9.17.0",
     "typescript": "^5.7.0",
     "vite": "^6.0.0",
     "vite-plugin-pwa": "^0.21.0",

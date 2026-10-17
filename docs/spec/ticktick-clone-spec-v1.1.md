@@ -184,7 +184,7 @@ Todos los IDs son `uuid` (o ULID si se prefiere ordenación). Todas las entidade
 
 ### 5.5 Column (columna Kanban / sección)
 
-`id`, `project_id`, `name`, `sort_order`. Las tareas llevan además `column_id` nullable. En vista lista, las Column se muestran como secciones; en Kanban, como columnas. Replicar que TickTick muestra en Kanban la agrupación elegida y el progreso por columna.
+`id`, `project_id`, `name`, `sort_order`, `collapsed` (sección plegada). Las tareas llevan además `column_id` nullable. En vista lista, las Column se muestran como secciones; en Kanban, como columnas. Replicar que TickTick muestra en Kanban la agrupación elegida y el progreso por columna.
 
 ### 5.6 Tag (etiqueta)
 
@@ -291,7 +291,7 @@ ActivityLog: `id`, `actor_id`, `entity_type`, `entity_id`, `action` (created/upd
 
 ### 5.17 User y Settings
 
-User: `id`, `email`, `password_hash` o SSO, `display_name`, `avatar`, `time_zone`, `locale` (`es` default), `week_start` (`monday` default), `date_format`, `theme` (light/dark/auto), `nlp_language`, `daily_reminder_time`, settings de Focus (5.10), settings del reporte semanal (9.22: día/hora, canales, tono), `achievement_score` (gamificación, V2).
+User: `id`, `email`, `password_hash` o SSO, `display_name`, `avatar`, `time_zone`, `locale` (`es` default), `week_start` (`monday` default), `date_format`, `theme` (light/dark/auto), `nlp_language`, `daily_reminder_time`, `task_complete_children` (`ask` por defecto, `complete` o `leave`; RF-206), settings de Focus (5.10), settings del reporte semanal (9.22: día/hora, canales, tono), `achievement_score` (gamificación, V2).
 
 ### 5.18 DashboardLayout
 
@@ -576,7 +576,7 @@ Principio rector: **la API cubre el 100% del dominio**, no el subconjunto que of
 Tareas:
 
 ```
-GET    /api/v1/tasks                      listado con filtros (proyecto, fecha, tag, prioridad, estado, búsqueda)
+GET    /api/v1/tasks                      listado con filtros (proyecto, fecha, tag, prioridad, estado, búsqueda, overdue)
 POST   /api/v1/tasks                      crear (soporta `raw_text` con parseo NLP server-side)
 GET    /api/v1/tasks/{id}
 PATCH  /api/v1/tasks/{id}
@@ -585,14 +585,21 @@ POST   /api/v1/tasks/{id}/complete
 POST   /api/v1/tasks/{id}/uncomplete
 POST   /api/v1/tasks/{id}/move            {project_id, column_id, before_task_id?}
 POST   /api/v1/tasks/{id}/duplicate
-GET    /api/v1/tasks/{id}/occurrences     ocurrencias teóricas de recurrente (?from&to)
-POST   /api/v1/tasks/batch                operaciones masivas (complete/move/tag/delete)
+GET    /api/v1/tasks/{id}/occurrences          ocurrencias teóricas (?from&to, RF-704)
+POST   /api/v1/tasks/{id}/occurrences/detach   desvincula una ocurrencia (EXDATE, RF-705)
+POST   /api/v1/tasks/{id}/snooze               aplaza la fecha (tomorrow | next_week | date, RF-605)
+POST   /api/v1/tasks/batch                operaciones masivas (complete/move/tag/priority/due/delete)
 GET    /api/v1/tasks/completed            historial de completadas (?from&to)
 GET    /api/v1/tasks/trash                papelera
+DELETE /api/v1/tasks/trash                vaciar papelera (RF-306)
 POST   /api/v1/tasks/trash/{id}/restore
 ```
 
+`POST /tasks` con `raw_text` parsea en el servidor (RF-102) y crea la tarea por el mismo camino que el resto del CRUD (idempotencia, outbox, eventos). Los campos explícitos del cuerpo pisan lo parseado. Si el título queda vacío no se crea nada (`empty_title`). Si `^lista` o `~lista` no existe, la tarea se crea en el Inbox y la respuesta incluye `warnings` con `list_not_found`; no se crea la lista. Una etiqueta desconocida no se crea y avisa con `tag_not_found`. El resaltado anterior a confirmar lo hace el cliente con el mismo parser de `packages/domain`; no hay endpoint de preview.
+
 Checklist items: `POST/PATCH/DELETE /api/v1/tasks/{id}/items[/{itemId}]`, `POST .../items/{itemId}/complete`.
+
+Adjuntos (RF-203): `POST/GET /api/v1/tasks/{id}/attachments` (multipart `file`, 25 MB), `GET/DELETE /api/v1/tasks/{id}/attachments/{attachmentId}`. La descarga fuerza `Content-Disposition: attachment`.
 
 Listas y estructura:
 
@@ -600,7 +607,7 @@ Listas y estructura:
 GET/POST         /api/v1/projects
 GET/PATCH/DELETE /api/v1/projects/{id}
 GET              /api/v1/projects/{id}/data        lista + tareas + columnas (equiv. TickTick /project/{id}/data)
-POST             /api/v1/projects/{id}/archive | /unarchive
+POST             /api/v1/projects/{id}/archive | /unarchive | /archive-completed
 GET/POST         /api/v1/folders
 GET/PATCH/DELETE /api/v1/folders/{id}
 GET/POST/PATCH/DELETE /api/v1/projects/{id}/columns[/{columnId}]
@@ -618,7 +625,7 @@ GET              /api/v1/filters/{id}/tasks  evaluación persisted
 GET              /api/v1/smart-lists         activar/ordenar smart lists de sistema
 ```
 
-Recordatorios: `GET/POST/DELETE /api/v1/tasks/{id}/reminders[/{rid}]`.
+Recordatorios: `GET/POST/DELETE /api/v1/tasks/{id}/reminders[/{rid}]`, `POST /api/v1/tasks/{id}/reminders/{rid}/snooze` (RF-804). Web Push: `POST/DELETE /api/v1/me/push-subscriptions`. `PATCH /api/v1/me` acepta `daily_reminder_time` (`HH:mm`, RF-805). Completar una recurrente no crea la siguiente fila: lo hace el scheduler (RF-704, RF-808).
 
 Hábitos: `GET/POST /api/v1/habits`, `GET/PATCH/DELETE /api/v1/habits/{id}`, `POST /api/v1/habits/{id}/checkins` ({date, count, note}), `GET /api/v1/habits/{id}/stats`.
 
@@ -638,6 +645,8 @@ Import/export: `POST /api/v1/import/ticktick` (con credenciales OAuth del usuari
 
 Administración: `GET/PATCH /api/v1/me`, `GET/POST/DELETE /api/v1/me/tokens`, `GET /api/v1/me/activity`, `GET /api/v1/me/tokens/{id}/activity`.
 
+Email-to-task (RF-105): `GET /api/v1/me/inbound-email` dice si hay dirección (sin el token), `POST /api/v1/me/inbound-email` la crea o regenera y muestra el token una sola vez, `DELETE /api/v1/me/inbound-email` la revoca al momento. `POST /api/v1/inbound/email` recibe `multipart/form-data` (`recipient`, `subject`, `text`, `message_id`, `file`). El token del destinatario autentica la entrega. El asunto pasa por el mismo parser que `raw_text`, el cuerpo se guarda como contenido y los adjuntos como Attachment (25 MB). Es entrada no confiable: se valida, se limita el tamaño y no se ejecuta nada. El token no se guarda en claro.
+
 ### 10.4 Compatibilidad TickTick (opcional pero recomendada)
 
 Capa de compatibilidad `GET /open/v1/...` que replica la forma de la Open API de TickTick (mismos nombres de campo: `projectId`, `repeatFlag`, `sortOrder`, `items`...). Permite reutilizar integraciones existentes de terceros (MCP servers, CLIs, atajos) contra nuestro backend cambiando solo la URL base y el token. Implementación: adaptador fino sobre los servicios de dominio. Prioridad V1.
@@ -652,9 +661,11 @@ Todos versionados (`task.created@v1`). Mínimo:
 
 ```
 task.created task.updated task.completed task.uncompleted task.deleted task.restored task.moved task.due_soon task.overdue
-checklist_item.completed
-project.created project.updated project.archived
-tag.created tag.updated
+checklist_item.created checklist_item.updated checklist_item.completed checklist_item.uncompleted checklist_item.deleted
+project.created project.updated project.archived project.unarchived project.deleted
+folder.created folder.updated folder.deleted
+column.created column.updated column.deleted
+tag.created tag.updated tag.deleted tag.merged
 habit.checkin habit.streak_broken habit.goal_met
 focus.session_started focus.session_finished focus.session_aborted
 reminder.fired
@@ -821,6 +832,8 @@ Objetivo: que cualquier funcionalidad nueva (integración con otra app, una vist
 
 **MVP / fase 1 (4-6 semanas de agente, uso personal ya posible):**
 modelo de datos completo de tareas/listas/etiquetas/filtros (multiusuario desde el inicio, D5) · quick add con NLP · CRUD tareas + checklist + subtareas · fechas/recurrencias/recordatorios push+email · **hábitos con recordatorios y estadísticas (RF-1301–1305), fáciles de adoptar y configurar** · smart lists + filtros · vista lista · búsqueda + paleta · API v1 de esos recursos + **PAT con scopes granulares + servidor MCP (RF-2001/2002)** · export JSON · offline básico (cola de mutaciones) · Docker Compose con Caddy en Hetzner (`todo.reflexionia.com`).
+
+Puntos 1 a 3 cerrados en `feat/core-tasks` (base, tareas núcleo y tiempo). El scheduler es quien materializa la siguiente ocurrencia y dispara los recordatorios.
 
 **V1:**
 Kanban, Timeline, Eisenhower · calendario completo + suscripciones iCal + Google Calendar (lectura) + feeds propios · **bot de Telegram (RF-2003)** · **Google Drive: adjuntos y backups (RF-2005)** · notas · **dashboard de KPIs / jardín digital (RF-2101–2105)** · **reporte semanal honesto (RF-2201–2204)** · **revisión diaria/semanal asistida (RF-2301–2303)** · webhooks + automatizaciones · sync en tiempo real · capa de compatibilidad `/open/v1` · import CSV, export iCal/CSV · 2FA.
