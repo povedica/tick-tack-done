@@ -22,8 +22,8 @@ export default defineConfig(({ mode }) => {
         registerType: 'prompt',
         injectRegister: 'auto',
         manifest: {
-          name: 'Reflexionia Tasks',
-          short_name: 'Tasks',
+          name: 'tick-tack-done',
+          short_name: 'tick-tack-done',
           start_url: '/today',
           display: 'standalone',
           background_color: '#ffffff',
