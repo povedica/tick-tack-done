@@ -9,6 +9,22 @@ export type UpdateHabitBody = components['schemas']['UpdateHabitDto'];
 export type CheckInBody = components['schemas']['CheckInDto'];
 export type CheckInResult = components['schemas']['CheckInResponseDto'];
 export type HabitStats = components['schemas']['HabitStatsDto'];
+export type ProjectPage = components['schemas']['ProjectPageDto'];
+export type FilterRules = components['schemas']['FilterRulesDto'];
+export type Filter = components['schemas']['FilterResponseDto'];
+export type FilterPage = components['schemas']['FilterPageDto'];
+export type CreateFilterBody = components['schemas']['CreateFilterDto'];
+export type UpdateFilterBody = components['schemas']['UpdateFilterDto'];
+export type PreviewFilterBody = components['schemas']['PreviewFilterDto'];
+export type ViewPage = components['schemas']['ViewPageDto'];
+export type SmartListPage = components['schemas']['SmartListPageDto'];
+export type UpdateSmartListsBody = components['schemas']['UpdateSmartListsDto'];
+export type SearchResponse = components['schemas']['SearchResponseDto'];
+
+export interface ViewOptions {
+  readonly groupBy?: ViewPage['group_by'];
+  readonly sort?: ViewPage['sort'];
+}
 
 export class ApiError extends Error {
   readonly status: number;
@@ -35,6 +51,17 @@ export interface ApiClient {
   deleteHabit(id: string): Promise<void>;
   checkInHabit(id: string, body: CheckInBody, idempotencyKey: string): Promise<CheckInResult>;
   habitStats(id: string, year?: number): Promise<HabitStats>;
+  listProjects(): Promise<ProjectPage>;
+  listSmartLists(): Promise<SmartListPage>;
+  updateSmartLists(body: UpdateSmartListsBody): Promise<SmartListPage>;
+  smartListTasks(key: string, options?: ViewOptions): Promise<ViewPage>;
+  listFilters(): Promise<FilterPage>;
+  createFilter(body: CreateFilterBody, idempotencyKey: string): Promise<Filter>;
+  updateFilter(id: string, body: UpdateFilterBody): Promise<Filter>;
+  deleteFilter(id: string): Promise<void>;
+  previewFilter(body: PreviewFilterBody, options?: ViewOptions): Promise<ViewPage>;
+  filterTasks(id: string, options?: ViewOptions): Promise<ViewPage>;
+  search(q: string, types?: string): Promise<SearchResponse>;
 }
 
 /** Thin client over the generated OpenAPI types. The web app does not call fetch itself. */
@@ -77,6 +104,103 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         undefined,
         undefined,
         isHabitStats,
+      );
+    },
+    listProjects() {
+      return request(call, options, 'GET', '/api/v1/projects', undefined, undefined, isProjectPage);
+    },
+    listSmartLists() {
+      return request(
+        call,
+        options,
+        'GET',
+        '/api/v1/smart-lists',
+        undefined,
+        undefined,
+        isSmartListPage,
+      );
+    },
+    updateSmartLists(body) {
+      return request(
+        call,
+        options,
+        'PATCH',
+        '/api/v1/smart-lists',
+        body,
+        undefined,
+        isSmartListPage,
+      );
+    },
+    smartListTasks(key, view) {
+      return request(
+        call,
+        options,
+        'GET',
+        `/api/v1/smart-lists/${encodeURIComponent(key)}/tasks${viewQuery(view)}`,
+        undefined,
+        undefined,
+        isViewPage,
+      );
+    },
+    listFilters() {
+      return request(call, options, 'GET', '/api/v1/filters', undefined, undefined, isFilterPage);
+    },
+    createFilter(body, idempotencyKey) {
+      return request(call, options, 'POST', '/api/v1/filters', body, idempotencyKey, isFilter);
+    },
+    updateFilter(id, body) {
+      return request(call, options, 'PATCH', `/api/v1/filters/${id}`, body, undefined, isFilter);
+    },
+    async deleteFilter(id) {
+      await request(
+        call,
+        options,
+        'DELETE',
+        `/api/v1/filters/${id}`,
+        undefined,
+        undefined,
+        isEmpty,
+      );
+    },
+    previewFilter(body, view) {
+      return request(
+        call,
+        options,
+        'POST',
+        `/api/v1/filters/preview${viewQuery(view)}`,
+        body,
+        undefined,
+        isViewPage,
+      );
+    },
+    filterTasks(id, view) {
+      return request(
+        call,
+        options,
+        'GET',
+        `/api/v1/filters/${id}/tasks${viewQuery(view)}`,
+        undefined,
+        undefined,
+        isViewPage,
+      );
+    },
+    search(q, types) {
+      const params = new URLSearchParams();
+      if (q.length > 0) {
+        params.set('q', q);
+      }
+      if (types !== undefined && types.length > 0) {
+        params.set('types', types);
+      }
+      const query = params.toString();
+      return request(
+        call,
+        options,
+        'GET',
+        `/api/v1/search${query.length === 0 ? '' : `?${query}`}`,
+        undefined,
+        undefined,
+        isSearch,
       );
     },
   };
@@ -180,4 +304,61 @@ function isHabitStats(value: unknown): value is HabitStats {
 
 function isEmpty(value: unknown): value is void {
   return value === undefined;
+}
+
+function isProjectPage(value: unknown): value is ProjectPage {
+  return hasItems(value);
+}
+
+function isSmartListPage(value: unknown): value is SmartListPage {
+  return hasItems(value);
+}
+
+function isFilterPage(value: unknown): value is FilterPage {
+  return hasItems(value);
+}
+
+function isFilter(value: unknown): value is Filter {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const row = value as { id?: unknown; name?: unknown; task_count?: unknown };
+  return (
+    typeof row.id === 'string' && typeof row.name === 'string' && typeof row.task_count === 'number'
+  );
+}
+
+function isViewPage(value: unknown): value is ViewPage {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const row = value as { count?: unknown; groups?: unknown };
+  return typeof row.count === 'number' && Array.isArray(row.groups);
+}
+
+function isSearch(value: unknown): value is SearchResponse {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const row = value as { text?: unknown; groups?: unknown };
+  return typeof row.text === 'string' && Array.isArray(row.groups);
+}
+
+function hasItems(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  return Array.isArray((value as { items?: unknown }).items);
+}
+
+function viewQuery(view: ViewOptions | undefined): string {
+  const params = new URLSearchParams();
+  if (view?.groupBy !== undefined) {
+    params.set('group_by', view.groupBy);
+  }
+  if (view?.sort !== undefined) {
+    params.set('sort', view.sort);
+  }
+  const query = params.toString();
+  return query.length === 0 ? '' : `?${query}`;
 }

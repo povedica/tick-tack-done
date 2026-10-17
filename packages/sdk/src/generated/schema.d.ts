@@ -341,6 +341,129 @@ export interface paths {
         patch: operations["ListsController_updateColumn"];
         trace?: never;
     };
+    "/api/v1/filters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List saved filters with task counts (RF-903) */
+        get: operations["FiltersController_list"];
+        put?: never;
+        /** Save a normal or advanced filter (RF-902) */
+        post: operations["FiltersController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/filters/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview filter rules without saving (RF-902) */
+        post: operations["FiltersController_preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/filters/{id}/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List view of a saved filter (RF-903, RF-1001) */
+        get: operations["FiltersController_tasks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/filters/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a saved filter (RF-902) */
+        get: operations["FiltersController_get"];
+        put?: never;
+        post?: never;
+        /** Move a filter to the trash (RF-902) */
+        delete: operations["FiltersController_remove"];
+        options?: never;
+        head?: never;
+        /** Update, pin or reorder a filter (RF-902, RF-903) */
+        patch: operations["FiltersController_update"];
+        trace?: never;
+    };
+    "/api/v1/smart-lists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** System smart lists for the current user (RF-901) */
+        get: operations["SmartListsController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Enable and reorder system smart lists (RF-901) */
+        patch: operations["SmartListsController_update"];
+        trace?: never;
+    };
+    "/api/v1/smart-lists/{key}/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List view of a system smart list (RF-901, RF-1001) */
+        get: operations["SmartListsController_tasks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search tasks, notes, lists and tags (RF-1501) */
+        get: operations["SearchController_query"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tags": {
         parameters: {
             query?: never;
@@ -995,6 +1118,148 @@ export interface components {
             collapsed?: boolean;
             before_id?: Record<string, never> | null;
             move_to_end?: boolean;
+        };
+        FilterConditionDto: {
+            /** @enum {string} */
+            field: "list" | "tag" | "date" | "priority" | "keyword" | "status" | "assignee";
+            op: string;
+            value?: string | string[];
+        };
+        FilterGroupDto: {
+            /** @enum {string} */
+            combinator: "AND" | "OR";
+            conditions: components["schemas"]["FilterConditionDto"][];
+        };
+        FilterRulesDto: {
+            /** @enum {string} */
+            combinator: "AND" | "OR";
+            groups: components["schemas"]["FilterGroupDto"][];
+        };
+        FilterResponseDto: {
+            id: string;
+            name: string;
+            icon: string | null;
+            color: string | null;
+            /** @enum {string} */
+            mode: "normal" | "advanced";
+            rules: components["schemas"]["FilterRulesDto"];
+            sort_order: string;
+            task_count: number;
+            created_at: string;
+            updated_at: string;
+        };
+        FilterPageDto: {
+            items: components["schemas"]["FilterResponseDto"][];
+            next_cursor: string | null;
+        };
+        PreviewFilterDto: {
+            /** @enum {string} */
+            mode: "normal" | "advanced";
+            rules: components["schemas"]["FilterRulesDto"];
+        };
+        ViewTagDto: {
+            id: string;
+            name: string;
+        };
+        ViewChecklistDto: {
+            id: string;
+            title: string;
+            /** @enum {string} */
+            status: "active" | "completed";
+        };
+        ViewTaskDto: {
+            id: string;
+            title: string;
+            content: string;
+            /** @enum {string} */
+            kind: "task" | "note";
+            /** @enum {string} */
+            status: "active" | "completed" | "archived";
+            /** @enum {string} */
+            priority: "none" | "low" | "medium" | "high";
+            due_date: string | null;
+            is_all_day: boolean;
+            time_zone: string;
+            project_id: string;
+            project_name: string;
+            column_id: string | null;
+            column_name: string | null;
+            tags: components["schemas"]["ViewTagDto"][];
+            checklist: components["schemas"]["ViewChecklistDto"][];
+            checklist_progress: Record<string, never>;
+            sort_order: string;
+            assignee_id: string | null;
+            created_at: string;
+            deleted_at: string | null;
+        };
+        ViewGroupDto: {
+            key: string;
+            label: string;
+            tasks: components["schemas"]["ViewTaskDto"][];
+        };
+        ViewPageDto: {
+            count: number;
+            /** @enum {string} */
+            group_by: "none" | "section" | "date" | "tag" | "priority";
+            /** @enum {string} */
+            sort: "manual" | "date" | "priority" | "title" | "created";
+            groups: components["schemas"]["ViewGroupDto"][];
+            next_cursor: string | null;
+        };
+        CreateFilterDto: {
+            name: string;
+            icon?: string | null;
+            color?: string | null;
+            /** @enum {string} */
+            mode: "normal" | "advanced";
+            rules: components["schemas"]["FilterRulesDto"];
+            before_id?: string | null;
+        };
+        UpdateFilterDto: {
+            name?: string;
+            icon?: string | null;
+            color?: string | null;
+            /** @enum {string} */
+            mode?: "normal" | "advanced";
+            rules?: components["schemas"]["FilterRulesDto"];
+            before_id?: string | null;
+            move_to_end?: boolean;
+            /** @description Place the filter first in the sidebar (RF-903). */
+            pin?: boolean;
+        };
+        SmartListResponseDto: {
+            id: string;
+            key: string;
+            enabled: boolean;
+            sort_order: string;
+            task_count: number;
+        };
+        SmartListPageDto: {
+            items: components["schemas"]["SmartListResponseDto"][];
+        };
+        SmartListItemDto: {
+            /** @enum {string} */
+            key: "today" | "tomorrow" | "next_7_days" | "all" | "inbox" | "assigned_to_me" | "completed" | "trash" | "no_date" | "recently_added";
+            enabled: boolean;
+        };
+        UpdateSmartListsDto: {
+            items: components["schemas"]["SmartListItemDto"][];
+        };
+        SearchGroupDto: {
+            /** @enum {string} */
+            type: "task" | "note" | "list" | "tag";
+            items: {
+                [key: string]: unknown;
+            }[];
+        };
+        SearchResponseDto: {
+            text: string;
+            list: string | null;
+            tags: string[];
+            /** @enum {string|null} */
+            priority: "none" | "low" | "medium" | "high" | null;
+            done: boolean | null;
+            groups: components["schemas"]["SearchGroupDto"][];
         };
         TagResponseDto: {
             id: string;
@@ -1992,6 +2257,261 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ColumnResponseDto"];
+                };
+            };
+        };
+    };
+    FiltersController_list: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FilterPageDto"];
+                };
+            };
+        };
+    };
+    FiltersController_create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateFilterDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FilterResponseDto"];
+                };
+            };
+        };
+    };
+    FiltersController_preview: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreviewFilterDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ViewPageDto"];
+                };
+            };
+        };
+    };
+    FiltersController_tasks: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ViewPageDto"];
+                };
+            };
+        };
+    };
+    FiltersController_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FilterResponseDto"];
+                };
+            };
+        };
+    };
+    FiltersController_remove: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FiltersController_update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateFilterDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FilterResponseDto"];
+                };
+            };
+        };
+    };
+    SmartListsController_list: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SmartListPageDto"];
+                };
+            };
+        };
+    };
+    SmartListsController_update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSmartListsDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SmartListPageDto"];
+                };
+            };
+        };
+    };
+    SmartListsController_tasks: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ViewPageDto"];
+                };
+            };
+        };
+    };
+    SearchController_query: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResponseDto"];
                 };
             };
         };

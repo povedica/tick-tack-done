@@ -77,4 +77,22 @@ describe('sdk', () => {
     const headers = requests[0]?.init?.headers as Record<string, string>;
     expect(headers['X-Dev-User-Email']).toBe('demo@reflexionia.test');
   });
+
+  it('RF-1501: searches through the public endpoint', async () => {
+    const requests: { url: string }[] = [];
+    const client = createApiClient({
+      baseUrl: 'http://api.test',
+      fetchImpl: (url) => {
+        requests.push({ url: requestUrl(url) });
+        return Promise.resolve(
+          new Response(JSON.stringify({ text: 'leer', groups: [] }), { status: 200 }),
+        );
+      },
+    });
+
+    const result = await client.search('leer #casa', 'task,note');
+
+    expect(result.text).toBe('leer');
+    expect(requests[0]?.url).toBe('http://api.test/api/v1/search?q=leer+%23casa&types=task%2Cnote');
+  });
 });
