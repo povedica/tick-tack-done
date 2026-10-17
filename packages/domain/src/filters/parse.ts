@@ -106,9 +106,9 @@ function stringList(
     return fail('invalid_condition');
   }
   if (field === 'list') {
-    return { ok: true, condition: { field, op: 'in', value: items } };
+    return { ok: true, condition: { field: 'list', op: 'in', value: items } };
   }
-  return { ok: true, condition: { field, op, value: items } };
+  return { ok: true, condition: { field: 'tag', op: 'any_of', value: items } };
 }
 
 function parseDate(
