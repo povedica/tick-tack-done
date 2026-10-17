@@ -1,39 +1,43 @@
-# Handoff — tiempo (fase 1, punto 3)
+# Handoff — captura (fase 1, punto 4)
 
-Punto seguro para retomar. Lint, typecheck, tests unitarios e integración pasan. Este estado está en la rama `feat/core-tasks` con el tag `phase-1.3`. No está en `main`: la norma del repo impide commits directos a esa rama.
+Punto seguro para retomar. Lint, typecheck y tests unitarios pasan. La integración de la API pasó al cerrar el correo de entrada. Este estado está en la rama `feat/core-tasks` con el tag `phase-1.4`. No está en `main`: la norma del repo impide commits directos a esa rama.
 
 ## Dónde estamos
 
-Cerrado el punto 3 de la fase 1 (`docs/roadmap.md`): fechas y zonas (RF-601–605), recurrencias (RF-701–706) y recordatorios push+email con scheduler (RF-801–808).
+Cerrado el punto 4 de la fase 1 (`docs/roadmap.md`): captura rápida (RF-101–107).
 
-La API pública sigue en `/api/v1`. OpenAPI está en `/api/docs` y el JSON commiteado es `apps/api/openapi.json`.
+La API pública sigue en `/api/v1`. OpenAPI está en `/api/docs` y el JSON commiteado es `apps/api/openapi.json`. El cliente web llama a la API solo a través de `@reflexionia/sdk`.
 
-Siguiente trabajo: punto 4, captura. Quick add con NLP en español e inglés (RF-101–107), email-to-task (RF-105) y share target (RF-106). `POST /tasks` sigue sin aceptar `raw_text`.
+Siguiente trabajo: punto 5, hábitos (RF-1301–1305). No adelantar filtros, búsqueda, MCP, PAT ni la cola offline.
 
 ## Tags
 
-| Tag | Qué marca |
-|---|---|
-| `phase-1.3-domain` | Fechas con zona, RRULE y disparo de recordatorios en `packages/domain` |
-| `phase-1.3-schema` | Serie, cola de entregas y suscripciones push, con `down.sql` probado |
-| `phase-1.3-api` | Ocurrencias, aplazamiento, vencidas, recordatorios y Web Push |
-| `phase-1.3-scheduler` | Materialización de la siguiente ocurrencia y envío push/email |
-| `phase-1.3` | Este handoff. Punto seguro para seguir |
+| Tag                | Qué marca                                                                 |
+| ------------------ | ------------------------------------------------------------------------- |
+| `phase-1.4-domain` | Parser de quick add en español e inglés, con patrones extra por argumento |
+| `phase-1.4-api`    | `POST /api/v1/tasks` acepta `raw_text` por el mismo CRUD                  |
+| `phase-1.4-email`  | Dirección regenerable y entrega `POST /api/v1/inbound/email`              |
+| `phase-1.4-web`    | Atajo `N`, botón flotante, resaltado, voz y share target                  |
+| `phase-1.4`        | Este handoff. Punto seguro para seguir                                    |
 
-Los tags `phase-1.2*` siguen en `feat/core-tasks`. Los `phase-1.1*` siguen en `main`.
+Los tags `phase-1.3*` y `phase-1.2*` siguen en `feat/core-tasks`. Los `phase-1.1*` siguen en `main`.
 
-## Cómo probar el tiempo
+## Cómo probar la captura
 
-La auth de desarrollo no cambia: `AUTH_MODE=dev` y cabecera `X-Dev-User-Email`. El seed crea `demo@reflexionia.test`.
-
-El scheduler vive en el proceso de la API. Arranca solo salvo `SCHEDULER_AUTOSTART=false` o `NODE_ENV=test`. El primer tick recupera lo vencido (catch-up) y luego repite cada 60 s. No hace falta un worker aparte.
+La auth de desarrollo no cambia: `AUTH_MODE=dev` y cabecera `X-Dev-User-Email`. El seed crea `demo@reflexionia.test`. La web manda esa cabecera desde `DEV_USER_EMAIL`.
 
 ```bash
-curl -H 'X-Dev-User-Email: demo@reflexionia.test' \
-  'http://localhost:3000/api/v1/tasks?overdue=true'
+pnpm --filter api dev
+pnpm --filter web dev
 ```
 
-El correo sale por SMTP (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`). En local, Mailpit escucha en `localhost:1025` y su bandeja en el puerto 8025. El push usa `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` y `VAPID_SUBJECT`. Si faltan, el envío queda en `skipped` y el evento se publica igual.
+Abrir `http://127.0.0.1:5173/today`. `N` o el botón «Nueva tarea» abren `/quick-add`. Un texto como `comprar leche mañana 18:00 !alta #casa` resalta los tokens y muestra el título que se va a guardar. Quitar un chip borra ese tramo. Enter crea la tarea. Si el título parseado queda vacío, el botón no envía nada.
+
+Compartir a la PWA hace `POST /quick-add`. El service worker responde 303 a `GET /quick-add?title&text&url`. En el navegador, esa URL ya rellena el borrador.
+
+El dictado usa Web Speech API y vuelca el texto al mismo parser. Si el navegador no lo tiene, el botón queda desactivado y se explica.
+
+Correo de entrada: `POST /api/v1/me/inbound-email` muestra el token una sola vez. `GET` solo dice si hay dirección. `DELETE` la revoca al momento. `POST /api/v1/inbound/email` es multipart (`recipient`, `subject`, `text`, `message_id`, `file`) y no pide la cabecera de desarrollo: autentica el token del destinatario.
 
 Integración, con Postgres migrado:
 
@@ -45,38 +49,45 @@ bash scripts/with-env.sh pnpm --filter api exec vitest run --config vitest.confi
 
 ## Qué quedó dentro del corte
 
-- `packages/domain`: vencidas y aplazar fecha (RF-603, RF-605), RRULE diaria/semanal/mensual/anual con intervalo, `UNTIL`, `COUNT`, `BYDAY` y `EXDATE` (RF-701), el día 29–31 cae en el último día del mes corto (RF-706) y la hora local se conserva al cambiar el horario de verano. `describeRepeatRule` devuelve la etiqueta en español; la pantalla del constructor (RF-702) no está. Cobertura del paquete: sentencias 88,91 %, ramas 80,36 % (el umbral es 80 %).
-- Completar una recurrente no crea la siguiente fila. El scheduler la crea después, copia checklist (vuelto a activo), recordatorios y subtareas de un nivel, y publica `task.created` con `materialized_from`. La regla conserva el `DTSTART` original para que `COUNT` no se reinicie.
-- `GET /api/v1/tasks/{id}/occurrences?from&to` calcula ocurrencias y no escribe nada. `POST .../occurrences/detach` saca una ocurrencia futura con `EXDATE` o, si es la actual, le quita la regla y deja un `series_advances` para que el scheduler cree la siguiente.
-- Una serie tiene como mucho una tarea activa. El índice único parcial `tasks_one_active_per_series_idx` está solo en el SQL de la migración, no en el schema de Prisma, para que `prisma migrate diff` siga vacío.
-- Duplicar una recurrente da a la copia su propia serie.
-- Recordatorios relativos (`TRIGGER:-PT5M`, `TRIGGER:PT0S`, `RELATED=START`) y absolutos. El tipo `location` se guarda y no se programa (el geovallado es V1+, RF-806).
-- Cola durable en `reminder_deliveries`, no en BullMQ. Horizonte de 48 h. En el arranque, lo ya vencido dentro de esas 48 h se marca `late` y se envía; lo más viejo deja una fila `late` y no se envía. Un recordatorio constante vuelve a encolarse (15 min por defecto) hasta completar o aplazar el aviso. Aplazar el aviso (`10m`, `1h`, `tomorrow`, `custom`) no mueve la fecha de la tarea y borra las entregas `scheduled` de ese recordatorio.
-- `PATCH /api/v1/me` acepta `daily_reminder_time` (`HH:mm`). El aviso diario dice «Planifica tu día». Cambiar `time_zone` del perfil no reescribe las fechas ya guardadas (RF-604).
-- `POST/DELETE /api/v1/me/push-subscriptions`.
+- `packages/domain`: `parseQuickAdd` por reglas, español e inglés. Fechas con `date-fns-tz` (`wallClock`, `instantFromWall`, `addCalendarDays`). Prioridad pública `none | low | medium | high`. `p1` es baja, `p2` media, `p3` alta. Los spans conservan los offsets del texto original. `RF-103`: el tercer argumento acepta `patterns`. El host de plugins no existe. Cobertura del paquete: sentencias 90,69 %, ramas 83,50 % (el umbral es 80 %). `filters` sigue sin implementar.
+- `POST /api/v1/tasks` acepta `raw_text` y crea la tarea por el CRUD actual (idempotencia, outbox con `published_at` null, `task.created`). Los campos explícitos pisan lo parseado. Título vacío: `400 empty_title` y no se escribe nada. Si `^lista` o `~lista` no existe, la tarea va a la bandeja con `warnings: [{code: list_not_found}]` y no se crea la lista. Una etiqueta desconocida avisa `tag_not_found` y no se crea. No hay endpoint de preview: el cliente usa el mismo parser para resaltar. La sección 10.3 de la spec lo documenta.
+- Email-to-task (RF-105). Columna `users.inbound_email_token_hash`, única y nullable. El token es 32 bytes en base64url; en base solo está el SHA-256. Dirección `<token>@in.todo.reflexionia.com`. El asunto pasa por el mismo parser, el cuerpo es el contenido y los adjuntos son Attachment con tope de 25 MB y como mucho 10. No se ejecuta nada. Un `message_id` repetido no duplica la tarea. `source` queda `api` y `metadata.capture` es `email`. Migración `20261017170000_add_inbound_email_token`: `prisma migrate diff` contra el schema quedó vacío y el `down.sql` se probó en una base scratch.
+- Web: `/today` y `/quick-add`. Atajo `N` (no el atajo global de escritorio, que es V2), botón flotante, resaltado editable, chips para quitar un span, voz y share target. No hay listas, calendario, hábitos ni constructor de reglas.
 
-Eventos nuevos de este corte (ya estaban en el catálogo 11.1): `task.overdue@v1`, `task.due_soon@v1`, `reminder.fired@v1`. El actor del scheduler es `automation` y su `actorId` es el usuario dueño, porque `ActivityLog.actorId` apunta a `users`.
+Completar una recurrente sigue sin crear la siguiente fila. Solo el scheduler la materializa.
 
 ## Decisiones que no hay que reabrir
 
 - Sección 21 de la spec, sin cambios.
-- Prisma sigue en 6.19. La migración `20261017124655_add_recurrence_series_and_reminder_queue` no toca los índices parciales de la inicial ni `search_vector`. `prisma migrate diff` contra el schema quedó vacío. El `down.sql` se probó en una base scratch.
+- No hay evento nuevo de rotación de la dirección de correo. El catálogo 11.1 no se amplió.
+- El mapa TickTick 0/1/3/5 no se reabre. `p1` es baja.
+- Los patrones extra no entran por HTTP (riesgo de ReDoS).
+- Prisma sigue en 6.19. La migración nueva no toca los índices parciales ni `search_vector`.
 - `typescript-eslint` sigue en 8.18.2 y `eslint` en 9.17.0 por Node 23. `.nvmrc` pide 22.
 - Vitest no emite `design:paramtypes`. Todo constructor de Nest lleva `@Inject` explícito.
 - Los scopes se declaran con `@Scopes` pero el guard de desarrollo los concede todos. La aplicación real llega con los PAT del punto 7.
 - BullMQ no está cableado. `published_at` del outbox se queda a null. Redis sí está en el compose.
-- `apps/api/openapi.json` está en `.prettierignore`. Si cambia un endpoint, `pnpm --filter api build && pnpm --filter api openapi:generate`.
+- `apps/api/openapi.json` está en `.prettierignore`. Si cambia un endpoint, `pnpm --filter api build && pnpm --filter api openapi:generate` y `pnpm --filter @reflexionia/sdk generate`.
+- El paquete de dominio publica CJS. El build de la web aliasa `@reflexionia/domain` al fuente porque Rollup no trata el enlace del workspace como `node_modules`.
 
 ## Qué no está hecho
 
-- UI, incluida la pantalla del constructor de reglas (RF-702). Hábitos funcionales, MCP, cola offline del cliente y NLP. `POST /tasks` no acepta `raw_text`.
+- Hábitos, filtros y smart lists, búsqueda, MCP, PAT, cola offline, Telegram, geovallado, miniaturas, drenado del outbox y la pantalla del constructor de reglas (RF-702).
 - Miniaturas de adjuntos (RF-203). No hay `sharp`.
-- Geovallado de recordatorios (RF-806). El tipo `location` se acepta y no se dispara.
+- El tipo `location` de recordatorio se guarda y no se dispara.
 - Límite de 1000 peticiones / 15 min. Entra con los PAT del punto 7.
-- Drenado del outbox por BullMQ.
-- `packages/domain` sigue lanzando `filters are not implemented` y `nlp is not implemented`.
 - `pnpm format:check` sigue fallando en ficheros del arnés que ya estaban sin formatear: la spec, el README, los compose, el workflow de CI y `pnpm-lock.yaml`. No se reformatearon.
 
 ## Norma de trabajo
 
 Commits pequeños en inglés (Conventional Commits), un tag por hito cerrado, y un tag de punto seguro al dejar la sesión retomable. Español en docs y UI; inglés en código. Módulos de dominio solo se hablan por eventos. Lógica pura en `packages/domain`. El scheduler es el único que materializa ocurrencias y dispara recordatorios.
+
+## Avisos para más adelante
+
+Anotados el 17 oct 2026 a partir de una revisión externa. No cambian la sección 21 ni el orden del roadmap, y no forman parte del corte en curso. El siguiente trabajo sigue siendo el punto 4 (captura) en `feat/core-tasks`, sin merge a `main`.
+
+- No desplegar en Hetzner con `AUTH_MODE=dev` ni con datos reales hasta que existan los PAT (punto 7). El guard de desarrollo concede todos los scopes que declara la ruta.
+- En el servidor, `BACKUP_REMOTE` y el cron de `docs/deployment.md` (`scripts/backup.sh` a las 04:00, `scripts/restore-verify.sh` los domingos a las 05:00). Sin el destino remoto, el backup se queda en la máquina.
+- Cuando la spec cambie de verdad, publicar `docs/spec/` como v1.2. No seguir editando v1.1 in situ: se pierde el rastro.
+- Abrir PRs revisables. Uno de más de 10.000 líneas es demasiado grande.
+- Orden que sugirió el revisor, y que no aplicamos ahora: arreglar CI y mergear, después PAT y MCP, y después la PWA o la captura rápida. El roadmap del repo mantiene la captura en el punto 4 y los PAT/MCP en el punto 7.
