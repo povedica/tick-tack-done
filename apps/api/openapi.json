@@ -1210,6 +1210,412 @@
         ]
       }
     },
+    "/api/v1/filters": {
+      "get": {
+        "operationId": "FiltersController_list",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilterPageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List saved filters with task counts (RF-903)",
+        "tags": [
+          "filters"
+        ]
+      },
+      "post": {
+        "operationId": "FiltersController_create",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFilterDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilterResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Save a normal or advanced filter (RF-902)",
+        "tags": [
+          "filters"
+        ]
+      }
+    },
+    "/api/v1/filters/preview": {
+      "post": {
+        "operationId": "FiltersController_preview",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewFilterDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewPageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Preview filter rules without saving (RF-902)",
+        "tags": [
+          "filters"
+        ]
+      }
+    },
+    "/api/v1/filters/{id}/tasks": {
+      "get": {
+        "operationId": "FiltersController_tasks",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewPageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List view of a saved filter (RF-903, RF-1001)",
+        "tags": [
+          "filters"
+        ]
+      }
+    },
+    "/api/v1/filters/{id}": {
+      "get": {
+        "operationId": "FiltersController_get",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilterResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Get a saved filter (RF-902)",
+        "tags": [
+          "filters"
+        ]
+      },
+      "patch": {
+        "operationId": "FiltersController_update",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateFilterDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilterResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update, pin or reorder a filter (RF-902, RF-903)",
+        "tags": [
+          "filters"
+        ]
+      },
+      "delete": {
+        "operationId": "FiltersController_remove",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Move a filter to the trash (RF-902)",
+        "tags": [
+          "filters"
+        ]
+      }
+    },
+    "/api/v1/smart-lists": {
+      "get": {
+        "operationId": "SmartListsController_list",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SmartListPageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "System smart lists for the current user (RF-901)",
+        "tags": [
+          "smart-lists"
+        ]
+      },
+      "patch": {
+        "operationId": "SmartListsController_update",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSmartListsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SmartListPageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Enable and reorder system smart lists (RF-901)",
+        "tags": [
+          "smart-lists"
+        ]
+      }
+    },
+    "/api/v1/smart-lists/{key}/tasks": {
+      "get": {
+        "operationId": "SmartListsController_tasks",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "key",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewPageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List view of a system smart list (RF-901, RF-1001)",
+        "tags": [
+          "smart-lists"
+        ]
+      }
+    },
+    "/api/v1/search": {
+      "get": {
+        "operationId": "SearchController_query",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Search tasks, notes, lists and tags (RF-1501)",
+        "tags": [
+          "search"
+        ]
+      }
+    },
     "/api/v1/tags": {
       "get": {
         "operationId": "TagsController_list",
@@ -3519,6 +3925,625 @@
             "type": "boolean"
           }
         }
+      },
+      "FilterConditionDto": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string",
+            "enum": [
+              "list",
+              "tag",
+              "date",
+              "priority",
+              "keyword",
+              "status",
+              "assignee"
+            ]
+          },
+          "op": {
+            "type": "string"
+          },
+          "value": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
+          }
+        },
+        "required": [
+          "field",
+          "op"
+        ]
+      },
+      "FilterGroupDto": {
+        "type": "object",
+        "properties": {
+          "combinator": {
+            "type": "string",
+            "enum": [
+              "AND",
+              "OR"
+            ]
+          },
+          "conditions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FilterConditionDto"
+            }
+          }
+        },
+        "required": [
+          "combinator",
+          "conditions"
+        ]
+      },
+      "FilterRulesDto": {
+        "type": "object",
+        "properties": {
+          "combinator": {
+            "type": "string",
+            "enum": [
+              "AND",
+              "OR"
+            ]
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FilterGroupDto"
+            }
+          }
+        },
+        "required": [
+          "combinator",
+          "groups"
+        ]
+      },
+      "FilterResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string",
+            "nullable": true
+          },
+          "color": {
+            "type": "string",
+            "nullable": true
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "advanced"
+            ]
+          },
+          "rules": {
+            "$ref": "#/components/schemas/FilterRulesDto"
+          },
+          "sort_order": {
+            "type": "string"
+          },
+          "task_count": {
+            "type": "number"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "icon",
+          "color",
+          "mode",
+          "rules",
+          "sort_order",
+          "task_count",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "FilterPageDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FilterResponseDto"
+            }
+          },
+          "next_cursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ]
+      },
+      "PreviewFilterDto": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "advanced"
+            ]
+          },
+          "rules": {
+            "$ref": "#/components/schemas/FilterRulesDto"
+          }
+        },
+        "required": [
+          "mode",
+          "rules"
+        ]
+      },
+      "ViewTagDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
+      "ViewChecklistDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "completed"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "status"
+        ]
+      },
+      "ViewTaskDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "task",
+              "note"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "completed",
+              "archived"
+            ]
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "none",
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "due_date": {
+            "type": "string",
+            "nullable": true
+          },
+          "is_all_day": {
+            "type": "boolean"
+          },
+          "time_zone": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "project_name": {
+            "type": "string"
+          },
+          "column_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "column_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ViewTagDto"
+            }
+          },
+          "checklist": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ViewChecklistDto"
+            }
+          },
+          "checklist_progress": {
+            "type": "object"
+          },
+          "sort_order": {
+            "type": "string"
+          },
+          "assignee_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "deleted_at": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "content",
+          "kind",
+          "status",
+          "priority",
+          "due_date",
+          "is_all_day",
+          "time_zone",
+          "project_id",
+          "project_name",
+          "column_id",
+          "column_name",
+          "tags",
+          "checklist",
+          "checklist_progress",
+          "sort_order",
+          "assignee_id",
+          "created_at",
+          "deleted_at"
+        ]
+      },
+      "ViewGroupDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ViewTaskDto"
+            }
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "tasks"
+        ]
+      },
+      "ViewPageDto": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "number"
+          },
+          "group_by": {
+            "type": "string",
+            "enum": [
+              "none",
+              "section",
+              "date",
+              "tag",
+              "priority"
+            ]
+          },
+          "sort": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "date",
+              "priority",
+              "title",
+              "created"
+            ]
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ViewGroupDto"
+            }
+          },
+          "next_cursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "count",
+          "group_by",
+          "sort",
+          "groups",
+          "next_cursor"
+        ]
+      },
+      "CreateFilterDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "icon": {
+            "type": "string",
+            "nullable": true
+          },
+          "color": {
+            "type": "string",
+            "nullable": true
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "advanced"
+            ]
+          },
+          "rules": {
+            "$ref": "#/components/schemas/FilterRulesDto"
+          },
+          "before_id": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "name",
+          "mode",
+          "rules"
+        ]
+      },
+      "UpdateFilterDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "icon": {
+            "type": "string",
+            "nullable": true
+          },
+          "color": {
+            "type": "string",
+            "nullable": true
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "advanced"
+            ]
+          },
+          "rules": {
+            "$ref": "#/components/schemas/FilterRulesDto"
+          },
+          "before_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "move_to_end": {
+            "type": "boolean"
+          },
+          "pin": {
+            "type": "boolean",
+            "description": "Place the filter first in the sidebar (RF-903)."
+          }
+        }
+      },
+      "SmartListResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "sort_order": {
+            "type": "string"
+          },
+          "task_count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "enabled",
+          "sort_order",
+          "task_count"
+        ]
+      },
+      "SmartListPageDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SmartListResponseDto"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "SmartListItemDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "enum": [
+              "today",
+              "tomorrow",
+              "next_7_days",
+              "all",
+              "inbox",
+              "assigned_to_me",
+              "completed",
+              "trash",
+              "no_date",
+              "recently_added"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "enabled"
+        ]
+      },
+      "UpdateSmartListsDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SmartListItemDto"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "SearchGroupDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "task",
+              "note",
+              "list",
+              "tag"
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        },
+        "required": [
+          "type",
+          "items"
+        ]
+      },
+      "SearchResponseDto": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "list": {
+            "type": "string",
+            "nullable": true
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "priority": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "none",
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "done": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchGroupDto"
+            }
+          }
+        },
+        "required": [
+          "text",
+          "list",
+          "tags",
+          "priority",
+          "done",
+          "groups"
+        ]
       },
       "TagResponseDto": {
         "type": "object",

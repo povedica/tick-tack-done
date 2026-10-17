@@ -622,7 +622,9 @@ GET/POST         /api/v1/filters
 GET/PATCH/DELETE /api/v1/filters/{id}
 POST             /api/v1/filters/preview     evalúa rules sin guardar, devuelve tareas que casan
 GET              /api/v1/filters/{id}/tasks  evaluación persisted
-GET              /api/v1/smart-lists         activar/ordenar smart lists de sistema
+GET              /api/v1/smart-lists
+PATCH            /api/v1/smart-lists         activar y ordenar
+GET              /api/v1/smart-lists/{key}/tasks
 ```
 
 Recordatorios: `GET/POST/DELETE /api/v1/tasks/{id}/reminders[/{rid}]`, `POST /api/v1/tasks/{id}/reminders/{rid}/snooze` (RF-804). Web Push: `POST/DELETE /api/v1/me/push-subscriptions`. `PATCH /api/v1/me` acepta `daily_reminder_time` (`HH:mm`, RF-805). Completar una recurrente no crea la siguiente fila: lo hace el scheduler (RF-704, RF-808).
@@ -667,6 +669,7 @@ folder.created folder.updated folder.deleted
 column.created column.updated column.deleted
 tag.created tag.updated tag.deleted tag.merged
 habit.created habit.updated habit.deleted habit.checkin habit.streak_broken habit.goal_met
+filter.created filter.updated filter.deleted smart_list.updated
 focus.session_started focus.session_finished focus.session_aborted
 reminder.fired
 note.created note.updated
