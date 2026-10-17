@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { messagesFor } from '../../../i18n';
 import { useCaptureNotice } from '../notice';
 import { warningText } from './CaptureSheet';
@@ -10,6 +10,9 @@ export function TodayPage() {
 
   return (
     <main className="today">
+      <p>
+        <Link to="/habits">{messages.habitsLink}</Link>
+      </p>
       <h1>{messages.todayTitle}</h1>
       <p>{messages.todayHint}</p>
       {notice !== null ? (

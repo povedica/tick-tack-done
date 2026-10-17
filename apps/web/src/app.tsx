@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useNavigate, useSearchParams } from 'react-router';
 import { CaptureSheet } from './features/capture/components/CaptureSheet';
 import { TodayPage } from './features/capture/components/TodayPage';
+import { HabitsPage } from './features/habits/components/HabitsPage';
 import { draftFromShare } from './features/capture/share-target';
 import { isCaptureShortcut } from './features/capture/draft';
 import { useCaptureNotice } from './features/capture/notice';
@@ -13,6 +14,7 @@ export function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/today" replace />} />
         <Route path="/today" element={<TodayPage />} />
+        <Route path="/habits" element={<HabitsPage />} />
         <Route path="/quick-add" element={<QuickAddRoute />} />
         <Route path="*" element={<Navigate to="/today" replace />} />
       </Routes>
