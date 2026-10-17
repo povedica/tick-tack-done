@@ -144,6 +144,12 @@ importers:
 
   apps/web:
     dependencies:
+      '@reflexionia/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@reflexionia/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
       '@tanstack/react-query':
         specifier: ^5.62.0
         version: 5.104.3(react@19.3.1)
@@ -156,6 +162,12 @@ importers:
       react-router:
         specifier: ^7.1.0
         version: 7.18.4(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      workbox-precaching:
+        specifier: 7.4.1
+        version: 7.4.1
+      workbox-window:
+        specifier: 7.4.1
+        version: 7.4.1
       zustand:
         specifier: ^5.0.0
         version: 5.0.15(@types/react@19.3.0)(react@19.3.1)

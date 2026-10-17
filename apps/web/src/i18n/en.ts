@@ -1,0 +1,28 @@
+import type { es } from './es';
+
+export const en = {
+  todayTitle: 'Today',
+  todayHint: 'Capture a task with N or the button. The rest of the schedule comes later.',
+  fab: 'New task',
+  captureTitle: 'New task',
+  placeholder: 'Buy milk tomorrow 6pm !high',
+  titlePreview: 'Title',
+  confirm: 'Create task',
+  cancel: 'Cancel',
+  voice: 'Dictate',
+  voiceStop: 'Stop dictation',
+  voiceUnsupported: 'This browser does not support dictation.',
+  emptyTitle: 'Write a title to create the task.',
+  created: 'Task created',
+  createFailed: 'The task could not be created.',
+  saving: 'Creating…',
+  remove: 'Remove',
+  kindDate: 'Date',
+  kindPriority: 'Priority',
+  kindTag: 'Tag',
+  kindList: 'List',
+  kindReminder: 'Reminder',
+  listNotFound: 'The list “{name}” does not exist. The task was created in the inbox.',
+  tagNotFound: 'The tag “{name}” does not exist and was not created.',
+  reminderWithoutDate: 'The reminder needs a date, so it was not saved.',
+} as const satisfies { [K in keyof typeof es]: string };

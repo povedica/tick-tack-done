@@ -1,0 +1,164 @@
+:root {
+  color: #1c1917;
+  background: #f6f4ef;
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  line-height: 1.5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+textarea {
+  font: inherit;
+}
+
+.today,
+.sheet {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 6rem;
+}
+
+h1 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem;
+}
+
+.capture-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.capture-field {
+  position: relative;
+}
+
+.capture-backdrop,
+.capture-input {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 0.75rem;
+  font: inherit;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.capture-backdrop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  color: transparent;
+  border: 1px solid transparent;
+  pointer-events: none;
+}
+
+.capture-input {
+  position: relative;
+  min-height: 6.5rem;
+  color: #1c1917;
+  background: transparent;
+  border: 1px solid #d6d3d1;
+  border-radius: 0.75rem;
+  resize: vertical;
+}
+
+.capture-input:focus {
+  outline: 2px solid #4f46e5;
+  outline-offset: 1px;
+}
+
+.mark-date {
+  background: #fde68a;
+}
+
+.mark-priority {
+  background: #fecaca;
+}
+
+.mark-tag {
+  background: #bbf7d0;
+}
+
+.mark-list {
+  background: #bfdbfe;
+}
+
+.mark-reminder {
+  background: #ddd6fe;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chips button,
+.actions button,
+.fab {
+  border: 0;
+  border-radius: 999px;
+  background: #4f46e5;
+  color: #fff;
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+}
+
+.chips button {
+  background: #44403c;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.actions button[disabled],
+.chips button[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.preview,
+.hint,
+.notice,
+.error {
+  margin: 0.75rem 0 0;
+}
+
+.error {
+  color: #991b1b;
+}
+
+.fab {
+  position: fixed;
+  right: 1.25rem;
+  bottom: calc(1.25rem + env(safe-area-inset-bottom));
+  min-width: 3.5rem;
+  min-height: 3.5rem;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
