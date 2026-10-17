@@ -576,7 +576,7 @@ Principio rector: **la API cubre el 100% del dominio**, no el subconjunto que of
 Tareas:
 
 ```
-GET    /api/v1/tasks                      listado con filtros (proyecto, fecha, tag, prioridad, estado, búsqueda)
+GET    /api/v1/tasks                      listado con filtros (proyecto, fecha, tag, prioridad, estado, búsqueda, overdue)
 POST   /api/v1/tasks                      crear (soporta `raw_text` con parseo NLP server-side)
 GET    /api/v1/tasks/{id}
 PATCH  /api/v1/tasks/{id}
@@ -585,7 +585,9 @@ POST   /api/v1/tasks/{id}/complete
 POST   /api/v1/tasks/{id}/uncomplete
 POST   /api/v1/tasks/{id}/move            {project_id, column_id, before_task_id?}
 POST   /api/v1/tasks/{id}/duplicate
-GET    /api/v1/tasks/{id}/occurrences     ocurrencias teóricas de recurrente (?from&to)
+GET    /api/v1/tasks/{id}/occurrences          ocurrencias teóricas (?from&to, RF-704)
+POST   /api/v1/tasks/{id}/occurrences/detach   desvincula una ocurrencia (EXDATE, RF-705)
+POST   /api/v1/tasks/{id}/snooze               aplaza la fecha (tomorrow | next_week | date, RF-605)
 POST   /api/v1/tasks/batch                operaciones masivas (complete/move/tag/priority/due/delete)
 GET    /api/v1/tasks/completed            historial de completadas (?from&to)
 GET    /api/v1/tasks/trash                papelera
@@ -621,7 +623,7 @@ GET              /api/v1/filters/{id}/tasks  evaluación persisted
 GET              /api/v1/smart-lists         activar/ordenar smart lists de sistema
 ```
 
-Recordatorios: `GET/POST/DELETE /api/v1/tasks/{id}/reminders[/{rid}]`.
+Recordatorios: `GET/POST/DELETE /api/v1/tasks/{id}/reminders[/{rid}]`, `POST /api/v1/tasks/{id}/reminders/{rid}/snooze` (RF-804). Web Push: `POST/DELETE /api/v1/me/push-subscriptions`. `PATCH /api/v1/me` acepta `daily_reminder_time` (`HH:mm`, RF-805). Completar una recurrente no crea la siguiente fila: lo hace el scheduler (RF-704, RF-808).
 
 Hábitos: `GET/POST /api/v1/habits`, `GET/PATCH/DELETE /api/v1/habits/{id}`, `POST /api/v1/habits/{id}/checkins` ({date, count, note}), `GET /api/v1/habits/{id}/stats`.
 
@@ -826,6 +828,8 @@ Objetivo: que cualquier funcionalidad nueva (integración con otra app, una vist
 
 **MVP / fase 1 (4-6 semanas de agente, uso personal ya posible):**
 modelo de datos completo de tareas/listas/etiquetas/filtros (multiusuario desde el inicio, D5) · quick add con NLP · CRUD tareas + checklist + subtareas · fechas/recurrencias/recordatorios push+email · **hábitos con recordatorios y estadísticas (RF-1301–1305), fáciles de adoptar y configurar** · smart lists + filtros · vista lista · búsqueda + paleta · API v1 de esos recursos + **PAT con scopes granulares + servidor MCP (RF-2001/2002)** · export JSON · offline básico (cola de mutaciones) · Docker Compose con Caddy en Hetzner (`todo.reflexionia.com`).
+
+Puntos 1 a 3 cerrados en `feat/core-tasks` (base, tareas núcleo y tiempo). El scheduler es quien materializa la siguiente ocurrencia y dispara los recordatorios.
 
 **V1:**
 Kanban, Timeline, Eisenhower · calendario completo + suscripciones iCal + Google Calendar (lectura) + feeds propios · **bot de Telegram (RF-2003)** · **Google Drive: adjuntos y backups (RF-2005)** · notas · **dashboard de KPIs / jardín digital (RF-2101–2105)** · **reporte semanal honesto (RF-2201–2204)** · **revisión diaria/semanal asistida (RF-2301–2303)** · webhooks + automatizaciones · sync en tiempo real · capa de compatibilidad `/open/v1` · import CSV, export iCal/CSV · 2FA.

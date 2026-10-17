@@ -71,6 +71,72 @@
         ]
       }
     },
+    "/api/v1/me/push-subscriptions": {
+      "post": {
+        "operationId": "MeController_subscribe",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushSubscriptionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Register a Web Push subscription (RF-802)",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/push-subscriptions/{id}": {
+      "delete": {
+        "operationId": "MeController_unsubscribe",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Remove a Web Push subscription",
+        "tags": [
+          "me"
+        ]
+      }
+    },
     "/api/v1/health": {
       "get": {
         "operationId": "HealthController_getHealth",
@@ -1358,6 +1424,298 @@
         ]
       }
     },
+    "/api/v1/tasks/{id}/occurrences": {
+      "get": {
+        "operationId": "TasksController_occurrences",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Theoretical occurrences of a repeating task (RF-704). Nothing is stored.",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{id}/occurrences/detach": {
+      "post": {
+        "operationId": "TasksController_detach",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DetachOccurrenceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Detach one occurrence from the series with an EXDATE (RF-705)",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{id}/snooze": {
+      "post": {
+        "operationId": "TasksController_snooze",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SnoozeTaskDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Move the due date to tomorrow, next week or a chosen date (RF-605)",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{id}/reminders": {
+      "get": {
+        "operationId": "TasksController_listReminders",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Reminders on a task (RF-801)",
+        "tags": [
+          "tasks"
+        ]
+      },
+      "post": {
+        "operationId": "TasksController_createReminder",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateReminderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Add a relative, absolute or location reminder (RF-801)",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{id}/reminders/{reminderId}/snooze": {
+      "post": {
+        "operationId": "TasksController_snoozeReminder",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reminderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SnoozeReminderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Snooze a reminder for 10 minutes, 1 hour, tomorrow or a custom time (RF-804)",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{id}/reminders/{reminderId}": {
+      "delete": {
+        "operationId": "TasksController_deleteReminder",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reminderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Delete a reminder",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
     "/api/v1/tasks/{id}/complete": {
       "post": {
         "operationId": "TasksController_complete",
@@ -1903,6 +2261,10 @@
               "complete",
               "leave"
             ]
+          },
+          "daily_reminder_time": {
+            "type": "string",
+            "nullable": true
           }
         },
         "required": [
@@ -1911,7 +2273,8 @@
           "display_name",
           "time_zone",
           "locale",
-          "task_complete_children"
+          "task_complete_children",
+          "daily_reminder_time"
         ]
       },
       "UpdateMeDto": {
@@ -1931,8 +2294,32 @@
               "complete",
               "leave"
             ]
+          },
+          "daily_reminder_time": {
+            "type": "object",
+            "nullable": true,
+            "example": "08:00"
           }
         }
+      },
+      "PushSubscriptionDto": {
+        "type": "object",
+        "properties": {
+          "endpoint": {
+            "type": "string"
+          },
+          "p256dh": {
+            "type": "string"
+          },
+          "auth": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "endpoint",
+          "p256dh",
+          "auth"
+        ]
       },
       "HealthResponseDto": {
         "type": "object",
@@ -2515,6 +2902,10 @@
               "completion_date"
             ]
           },
+          "series_id": {
+            "type": "string",
+            "nullable": true
+          },
           "sort_order": {
             "type": "string"
           },
@@ -2569,6 +2960,7 @@
           "duration_minutes",
           "repeat_rule",
           "repeat_from",
+          "series_id",
           "sort_order",
           "tag_ids",
           "assignee_id",
@@ -2755,6 +3147,107 @@
         "required": [
           "project_id",
           "title"
+        ]
+      },
+      "DetachOccurrenceDto": {
+        "type": "object",
+        "properties": {
+          "due_date": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "due_date"
+        ]
+      },
+      "SnoozeTaskDto": {
+        "type": "object",
+        "properties": {
+          "preset": {
+            "type": "string",
+            "enum": [
+              "tomorrow",
+              "next_week",
+              "date"
+            ]
+          },
+          "date": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": [
+          "preset"
+        ]
+      },
+      "CreateReminderDto": {
+        "type": "object",
+        "properties": {
+          "trigger": {
+            "type": "string",
+            "example": "TRIGGER:-PT5M"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "relative",
+              "absolute",
+              "location",
+              "daily_digest"
+            ]
+          },
+          "absolute_at": {
+            "type": "object",
+            "nullable": true
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "push",
+              "email",
+              "both"
+            ]
+          },
+          "constant": {
+            "type": "boolean"
+          },
+          "constant_interval_minutes": {
+            "type": "object",
+            "nullable": true
+          },
+          "location": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": [
+          "trigger",
+          "type"
+        ]
+      },
+      "SnoozeReminderDto": {
+        "type": "object",
+        "properties": {
+          "preset": {
+            "type": "string",
+            "enum": [
+              "10m",
+              "1h",
+              "tomorrow",
+              "custom"
+            ]
+          },
+          "until": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": [
+          "preset"
         ]
       },
       "UpdateTaskDto": {

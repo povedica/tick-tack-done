@@ -379,6 +379,79 @@ export class ChecklistProgressDto {
   total!: number;
 }
 
+export class SnoozeTaskDto {
+  @ApiProperty({ enum: ['tomorrow', 'next_week', 'date'] })
+  @IsIn(['tomorrow', 'next_week', 'date'])
+  preset!: 'tomorrow' | 'next_week' | 'date';
+
+  @ApiProperty({ required: false, nullable: true })
+  @IsOptional()
+  @IsString()
+  date?: string | null;
+}
+
+export class DetachOccurrenceDto {
+  @ApiProperty()
+  @IsString()
+  due_date!: string;
+
+  @ApiProperty({ required: false, maxLength: 500 })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(500)
+  title?: string;
+}
+
+export class CreateReminderDto {
+  @ApiProperty({ example: 'TRIGGER:-PT5M' })
+  @IsString()
+  @MaxLength(200)
+  trigger!: string;
+
+  @ApiProperty({ enum: ['relative', 'absolute', 'location', 'daily_digest'] })
+  @IsIn(['relative', 'absolute', 'location', 'daily_digest'])
+  type!: 'relative' | 'absolute' | 'location' | 'daily_digest';
+
+  @ApiProperty({ required: false, nullable: true })
+  @IsOptional()
+  @IsString()
+  absolute_at?: string | null;
+
+  @ApiProperty({ required: false, enum: ['push', 'email', 'both'] })
+  @IsOptional()
+  @IsIn(['push', 'email', 'both'])
+  channel?: 'push' | 'email' | 'both';
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  constant?: boolean;
+
+  @ApiProperty({ required: false, nullable: true })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(24 * 60)
+  constant_interval_minutes?: number | null;
+
+  @ApiProperty({ required: false, nullable: true, type: Object })
+  @IsOptional()
+  @IsObject()
+  location?: Record<string, unknown> | null;
+}
+
+export class SnoozeReminderDto {
+  @ApiProperty({ enum: ['10m', '1h', 'tomorrow', 'custom'] })
+  @IsIn(['10m', '1h', 'tomorrow', 'custom'])
+  preset!: '10m' | '1h' | 'tomorrow' | 'custom';
+
+  @ApiProperty({ required: false, nullable: true })
+  @IsOptional()
+  @IsString()
+  until?: string | null;
+}
+
 export class TaskResponseDto {
   @ApiProperty()
   id!: string;
@@ -427,6 +500,9 @@ export class TaskResponseDto {
 
   @ApiProperty({ enum: ['due_date', 'completion_date'] })
   repeat_from!: 'due_date' | 'completion_date';
+
+  @ApiProperty({ nullable: true, type: String })
+  series_id!: string | null;
 
   @ApiProperty()
   sort_order!: string;

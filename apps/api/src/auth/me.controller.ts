@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Inject, Patch } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Inject, Param, ParseUUIDPipe, Patch, Post, Res } from '@nestjs/common';
 import { ApiHeader, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { CurrentUser } from './current-user.decorator';
 import type { AuthUser } from './auth-user';
-import { MeResponseDto, UpdateMeDto } from './me.dto';
+import { MeResponseDto, PushSubscriptionDto, UpdateMeDto } from './me.dto';
 import { MeService } from './me.service';
 import { Scopes } from './scopes.decorator';
 
@@ -26,5 +27,27 @@ export class MeController {
   @ApiOkResponse({ type: MeResponseDto })
   updateMe(@CurrentUser() user: AuthUser, @Body() dto: UpdateMeDto): Promise<MeResponseDto> {
     return this.me.update(user, dto);
+  }
+
+  @Post('push-subscriptions')
+  @Scopes('reminders:write')
+  @ApiOperation({ summary: 'Register a Web Push subscription (RF-802)' })
+  subscribe(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: PushSubscriptionDto,
+  ): Promise<{ id: string }> {
+    return this.me.subscribe(user, dto);
+  }
+
+  @Delete('push-subscriptions/:id')
+  @Scopes('reminders:write')
+  @ApiOperation({ summary: 'Remove a Web Push subscription' })
+  async unsubscribe(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.me.unsubscribe(user, id);
+    res.status(204).end();
   }
 }

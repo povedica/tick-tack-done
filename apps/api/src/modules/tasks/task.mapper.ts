@@ -18,6 +18,7 @@ export interface TaskRow {
   durationMinutes: number | null;
   repeatRule: string | null;
   repeatFrom: 'due_date' | 'completion_date';
+  seriesId: string | null;
   sortOrder: bigint;
   assigneeId: string | null;
   createdById: string;
@@ -58,6 +59,7 @@ export interface TaskSummaryJson {
   duration_minutes: number | null;
   repeat_rule: string | null;
   repeat_from: 'due_date' | 'completion_date';
+  series_id: string | null;
   sort_order: string;
   tag_ids: string[];
   assignee_id: string | null;
@@ -104,6 +106,7 @@ export function toTaskSummary(
     duration_minutes: row.durationMinutes,
     repeat_rule: row.repeatRule,
     repeat_from: row.repeatFrom,
+    series_id: row.seriesId,
     sort_order: row.sortOrder.toString(),
     tag_ids: (row.tags ?? []).map((tag) => tag.tagId),
     assignee_id: row.assigneeId,

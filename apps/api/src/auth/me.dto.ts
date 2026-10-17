@@ -18,6 +18,29 @@ export class UpdateMeDto {
   @IsOptional()
   @IsIn(['ask', 'complete', 'leave'])
   task_complete_children?: 'ask' | 'complete' | 'leave';
+
+  @ApiProperty({ required: false, nullable: true, example: '08:00' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(8)
+  daily_reminder_time?: string | null;
+}
+
+export class PushSubscriptionDto {
+  @ApiProperty()
+  @IsString()
+  @MaxLength(2000)
+  endpoint!: string;
+
+  @ApiProperty()
+  @IsString()
+  @MaxLength(200)
+  p256dh!: string;
+
+  @ApiProperty()
+  @IsString()
+  @MaxLength(200)
+  auth!: string;
 }
 
 export class MeResponseDto {
@@ -38,4 +61,7 @@ export class MeResponseDto {
 
   @ApiProperty({ enum: ['ask', 'complete', 'leave'] })
   task_complete_children!: 'ask' | 'complete' | 'leave';
+
+  @ApiProperty({ nullable: true, type: String })
+  daily_reminder_time!: string | null;
 }

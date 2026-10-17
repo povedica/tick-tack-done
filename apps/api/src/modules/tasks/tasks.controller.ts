@@ -43,8 +43,12 @@ import {
   BatchTasksDto,
   ChecklistItemDto,
   CompleteTaskDto,
+  CreateReminderDto,
   CreateTaskDto,
+  DetachOccurrenceDto,
   MoveTaskDto,
+  SnoozeReminderDto,
+  SnoozeTaskDto,
   TaskPageDto,
   TaskResponseDto,
   UpdateChecklistItemDto,
@@ -154,6 +158,7 @@ export class TasksController {
     @Query('q') q: string | undefined,
     @Query('flat') flat: string | undefined,
     @Query('sort') sort: string | undefined,
+    @Query('overdue') overdue: string | undefined,
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
@@ -170,6 +175,7 @@ export class TasksController {
         ...(q === undefined ? {} : { q }),
         flat: flat === 'true',
         sort: parseTaskSort(sort),
+        overdue: overdue === 'true',
       }),
     );
     respondJson(req, res, 200, page, true);
@@ -205,6 +211,108 @@ export class TasksController {
     @Res() res: Response,
   ): Promise<void> {
     respondJson(req, res, 200, await this.tasks.get(user, id), false);
+  }
+
+  @Get(':id/occurrences')
+  @Scopes('tasks:read')
+  @ApiOperation({ summary: 'Theoretical occurrences of a repeating task (RF-704). Nothing is stored.' })
+  async occurrences(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('from') from: string | undefined,
+    @Query('to') to: string | undefined,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(req, res, 200, await this.tasks.occurrences(user, id, from, to), false);
+  }
+
+  @Post(':id/occurrences/detach')
+  @Scopes('tasks:write')
+  @ApiOperation({ summary: 'Detach one occurrence from the series with an EXDATE (RF-705)' })
+  @ApiOkResponse({ type: TaskResponseDto })
+  async detach(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: DetachOccurrenceDto,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(req, res, 201, await this.tasks.detach(user, id, dto.due_date, dto.title), false);
+  }
+
+  @Post(':id/snooze')
+  @Scopes('tasks:write')
+  @ApiOperation({ summary: 'Move the due date to tomorrow, next week or a chosen date (RF-605)' })
+  @ApiOkResponse({ type: TaskResponseDto })
+  async snooze(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SnoozeTaskDto,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(req, res, 200, await this.tasks.snooze(user, id, dto.preset, dto.date ?? null), false);
+  }
+
+  @Get(':id/reminders')
+  @Scopes('tasks:read')
+  @ApiOperation({ summary: 'Reminders on a task (RF-801)' })
+  async listReminders(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(req, res, 200, await this.tasks.listReminders(user, id), false);
+  }
+
+  @Post(':id/reminders')
+  @Scopes('reminders:write')
+  @ApiOperation({ summary: 'Add a relative, absolute or location reminder (RF-801)' })
+  async createReminder(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateReminderDto,
+    @Headers('idempotency-key') key: string | undefined,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    const result = await this.tasks.createReminder(user, id, dto, key);
+    respondJson(req, res, result.replayed ? result.statusCode : 201, result.body, false);
+  }
+
+  @Post(':id/reminders/:reminderId/snooze')
+  @Scopes('reminders:write')
+  @ApiOperation({ summary: 'Snooze a reminder for 10 minutes, 1 hour, tomorrow or a custom time (RF-804)' })
+  async snoozeReminder(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('reminderId', ParseUUIDPipe) reminderId: string,
+    @Body() dto: SnoozeReminderDto,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(
+      req,
+      res,
+      200,
+      await this.tasks.snoozeReminder(user, id, reminderId, dto.preset, dto.until ?? null),
+      false,
+    );
+  }
+
+  @Delete(':id/reminders/:reminderId')
+  @Scopes('reminders:write')
+  @ApiOperation({ summary: 'Delete a reminder' })
+  async deleteReminder(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('reminderId', ParseUUIDPipe) reminderId: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.tasks.deleteReminder(user, id, reminderId);
+    res.status(204).end();
   }
 
   @Patch(':id')
@@ -430,6 +538,7 @@ export class TasksController {
       flat: false,
       sort: 'manual' satisfies TaskSort,
       deleted: false,
+      overdue: false,
       ...extra,
     };
   }
