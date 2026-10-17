@@ -1,64 +1,75 @@
-# Handoff — base del MVP (fase 1, punto 1)
+# Handoff — tareas núcleo (fase 1, punto 2)
 
-Punto seguro para retomar. El árbol está limpio, los comandos de calidad pasan y este estado está en `main` con el tag `phase-1.1`.
+Punto seguro para retomar. Lint, typecheck, tests unitarios e integración pasan. Este estado está en la rama `feat/core-tasks` con el tag `phase-1.2`. No está en `main`: la norma del repo impide commits directos a esa rama.
 
 ## Dónde estamos
 
-Cerrado el punto 1 de la fase 1 (`docs/roadmap.md`): monorepo que instala, hace lint, typecheck y test; infra local; modelo de la sección 5; migración reversible; seed; API Nest en `/api/v1` con OpenAPI en `/api/docs`.
+Cerrado el punto 2 de la fase 1 (`docs/roadmap.md`): CRUD de tareas con checklist, subtareas, adjuntos y papelera (RF-201–210), listas, carpetas y secciones (RF-301–306), etiquetas (RF-401–403) y prioridades (RF-501–503).
 
-Siguiente trabajo: punto 2, tareas núcleo. CRUD + checklist + subtareas (RF-201–210), listas/carpetas/secciones (RF-301–306), etiquetas (RF-401–403), prioridades (RF-501–503). Aún no hay módulos de dominio en `apps/api/src/modules/`.
+La API pública sigue en `/api/v1`. OpenAPI está en `/api/docs` y el JSON commiteado es `apps/api/openapi.json`.
+
+Siguiente trabajo: punto 3, tiempo. Fechas y zonas (RF-601–605), recurrencias (RF-701–706) y recordatorios push+email con scheduler (RF-801–808). El scheduler sigue siendo el único componente que puede materializar ocurrencias y disparar recordatorios.
 
 ## Tags
 
-Cada hito cerrado lleva un tag anotado `phase-<fase>.<punto>-<hito>`. El tag sin sufijo marca el punto seguro de ese punto del roadmap.
+| Tag | Qué marca |
+|---|---|
+| `phase-1.2-domain` | Reglas puras de orden, prioridad, checklist, subtareas y etiquetas |
+| `phase-1.2-schema` | Outbox, idempotencia, `task_complete_children` y secciones plegables, con `down.sql` probado |
+| `phase-1.2-api` | Módulos de listas, etiquetas y tareas, más OpenAPI |
+| `phase-1.2` | Este handoff. Punto seguro para seguir |
 
-| Tag | Commit | Qué marca |
-|---|---|---|
-| `phase-1.1-harness` | arnés importado | Reglas, spec, Compose, CI, paquetes vacíos |
-| `phase-1.1-domain` | entradas de dominio | Contratos de recurrence, filters y nlp |
-| `phase-1.1-scripts` | scripts ejecutables | api, web y sdk pasan lint, typecheck y test |
-| `phase-1.1-schema` | `schema.prisma` | Modelo de la sección 5 |
-| `phase-1.1-migration` | migración y seed | SQL aplicado y `down.sql` probado |
-| `phase-1.1-api` | arranque Nest | `/api/v1/health` y `/api/docs` |
-| `phase-1.1` | este handoff | Punto seguro para seguir |
+Los tags `phase-1.1*` siguen en `main`.
 
-Al cerrar el siguiente corte, crear `phase-1.2-…` y, al dejarlo retomable, `phase-1.2`.
+## Cómo probar las tareas
 
-## Cómo arrancar
+La auth de desarrollo no es la de producción. Con `AUTH_MODE=dev` (está en `.env.example`) cada ruta con `@Scopes` exige la cabecera `X-Dev-User-Email` de un usuario que exista. El seed crea `demo@reflexionia.test` y su inbox. `/api/v1/health` sigue público.
 
 ```bash
-cp .env.example .env
-pnpm install
-docker compose -f docker-compose.dev.yml up -d
-pnpm db:migrate
-pnpm db:seed
-pnpm dev
+curl -H 'X-Dev-User-Email: demo@reflexionia.test' http://localhost:3000/api/v1/tasks
 ```
 
-- API: http://localhost:3000/api/v1/health
-- OpenAPI: http://localhost:3000/api/docs
-- Mailpit: http://localhost:8025
-- Seed: `demo@reflexionia.test`. La contraseña es `SEED_USER_PASSWORD` del `.env` (`dev-only` en el ejemplo). No está en el código.
+Los `POST` aceptan `Idempotency-Key` (24 h, por usuario). Repetir la misma clave con otro cuerpo responde `409 idempotency_conflict`.
 
-`pnpm install`, `pnpm lint`, `pnpm typecheck` y `pnpm test` estaban en verde al etiquetar `phase-1.1`. La integración (`pnpm test:integration`) exige Postgres migrado y `DATABASE_URL`.
+Integración, con Postgres migrado:
+
+```bash
+bash scripts/with-env.sh pnpm --filter api exec vitest run --config vitest.config.integration.ts
+```
+
+`scripts/with-env.sh` pisa `DATABASE_URL`. Para una base scratch hay que llamar a Prisma sin ese wrapper.
+
+## Qué quedó dentro del corte
+
+- `packages/domain`: `sort_order` con hueco 65536, prioridades y el mapa TickTick 0/1/3/5, checklist Markdown, progreso, política al completar al padre, herencia de lista en subtareas, nombres y ciclos de etiquetas, zona IANA y duración. El paquete emite CommonJS en `dist/` para que Nest lo importe. Vitest de la API aliasa el fuente, así que los tests no dependen de ese build. Cobertura 100 %.
+- Módulos aislados en `apps/api/src/modules/`: `lists`, `tags`, `tasks`. No se importan entre sí. Borrar una lista manda sus tareas a la papelera en la misma transacción y publica `task.deleted` con `EventRecorder`, sin llamar a `TasksService`.
+- Outbox y `ActivityLog` en la misma transacción Prisma. `published_at` se queda a null: BullMQ no está cableado.
+- Prioridades en la API pública son `none | low | medium | high`. `priorityToTickTick` / `priorityFromTickTick` quedan en dominio para la capa `/open/v1` (V1, RF-503).
+- `PATCH /api/v1/me` acepta `display_name`, `time_zone` y `task_complete_children` (`ask | complete | leave`, default `ask`). Completar una tarea con hijos activos y política `ask` responde `409 children_need_decision` salvo que el cuerpo pida `complete_with_children`.
+- Adjuntos en disco (`ATTACHMENT_DIR`, 25 MB). La descarga fuerza `Content-Disposition: attachment`. No hay miniaturas.
+- `GET /api/v1/tasks` oculta subtareas salvo `flat=true`. `status` por defecto es `active`. Orden `manual | priority | due`, paginación por cursor y ETag débil en los listados.
+
+Eventos que emite este corte (catálogo 11.1 actualizado): `task.created/updated/completed/uncompleted/deleted/restored/moved`, `checklist_item.created/updated/completed/uncompleted/deleted`, `project.created/updated/archived/unarchived/deleted`, `folder.*`, `column.*`, `tag.created/updated/deleted/merged`, `note.created/updated`. Duplicar publica `task.created` con `duplicated_from`. Completar una recurrente no crea la siguiente ocurrencia.
 
 ## Decisiones que no hay que reabrir
 
-- Sección 21 de la spec: PWA, Nest + Prisma + Postgres, dominio `todo.reflexionia.com`, un usuario activo con modelo multiusuario, hábitos en fase 1, Pomodoro en V2, sin importador TickTick, MCP + PAT en fase 1.
-- Prisma se queda en 6.19. Los índices parciales (tareas activas por `due_date`, una inbox por usuario) viven en el SQL de `20261017105855_init_domain_model` porque Prisma 6 no los modela. No generan drift. `search_vector` es una columna generada; el `@default(dbgenerated(...))` del schema coincide con lo que introspecciona Prisma. Si se toca, hay que repetir `prisma migrate diff` y dejarlo vacío.
-- El rollback de esa migración es `down.sql` en la misma carpeta. Probado en una base scratch: borra tablas, enums y `citext`. No borra `_prisma_migrations`.
-- `nest build` usa `apps/api/tsconfig.build.json` (`rootDir: src`) para emitir `dist/main.js`, que es lo que espera el Dockerfile.
-- Node del entorno era v23.9.0 y `.nvmrc` pide 22. `engine-strict` rompe con `typescript-eslint` 8.71 (`eslint-visitor-keys@5` excluye Node 23). Quedaron fijados `typescript-eslint` 8.18.2 y `eslint` 9.17.0.
-- Los ficheros `*config*.ts` no están en un tsconfig. ESLint los cubre con `disableTypeChecked` en `eslint.config.mjs`.
-- `apps/api/openapi.json` está en `.prettierignore` porque lo genera `pnpm --filter api openapi:generate`. Si cambia un endpoint, regenerar y commitear el JSON.
+- Sección 21 de la spec, sin cambios.
+- Prisma sigue en 6.19. La migración `20261017113322_add_outbox_idempotency_and_task_policies` no toca los índices parciales ni `search_vector`. `prisma migrate diff` contra el schema quedó vacío. El `down.sql` se probó en una base scratch: borra el outbox, la idempotencia, las dos columnas y el enum, y deja los índices de la migración inicial.
+- `typescript-eslint` sigue en 8.18.2 y `eslint` en 9.17.0 por Node 23 (`eslint-visitor-keys@5` lo excluye). `.nvmrc` pide 22.
+- Vitest no emite `design:paramtypes`. Todo constructor de Nest lleva `@Inject` explícito; si no, la integración inyecta `undefined`.
+- Los scopes se declaran con `@Scopes` pero el guard de desarrollo los concede todos. La aplicación real llega con los PAT del punto 7.
+- `apps/api/openapi.json` está en `.prettierignore`. Si cambia un endpoint, `pnpm --filter api build && pnpm --filter api openapi:generate`.
 
 ## Qué no está hecho
 
-- CRUD, UI, hábitos funcionales, scheduler, MCP, offline, NLP.
-- BullMQ no está cableado. Redis sí está en el compose.
-- `packages/domain` lanza `recurrence is not implemented`, `filters are not implemented` y `nlp is not implemented`. Los tipos sí son el contrato.
-- `pnpm format:check` sigue fallando en ficheros del arnés que ya estaban sin formatear: la spec, el README, los compose, el workflow de CI y `pnpm-lock.yaml`. No se reformatearon para no mezclarlos con la base.
+- UI, hábitos funcionales, scheduler, MCP, cola offline del cliente y NLP. `POST /tasks` no acepta `raw_text` (el cuerpo desconocido responde 400); el parseo llega en el punto 4.
+- `GET /api/v1/tasks/{id}/occurrences` (las ocurrencias son del scheduler, punto 3).
+- Miniaturas de adjuntos (RF-203). No hay `sharp`.
+- Límite de 1000 peticiones / 15 min. Entra con los PAT del punto 7.
+- Drenado del outbox por BullMQ. Redis sí está en el compose.
+- `packages/domain` sigue lanzando `recurrence is not implemented`, `filters are not implemented` y `nlp is not implemented`.
+- `pnpm format:check` sigue fallando en ficheros del arnés que ya estaban sin formatear: la spec, el README, los compose, el workflow de CI y `pnpm-lock.yaml`. No se reformatearon.
 
 ## Norma de trabajo
 
-Commits pequeños en inglés (Conventional Commits), un tag por hito cerrado, y un tag de punto seguro al dejar la sesión retomable. Español en docs y UI; inglés en código.
+Commits pequeños en inglés (Conventional Commits), un tag por hito cerrado, y un tag de punto seguro al dejar la sesión retomable. Español en docs y UI; inglés en código. Módulos de dominio solo se hablan por eventos. Lógica pura en `packages/domain`.
