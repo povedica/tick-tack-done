@@ -20,6 +20,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @reflexionia/domain build
       - run: pnpm lint
       - run: pnpm format:check
       - run: pnpm typecheck
@@ -34,6 +35,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @reflexionia/domain build
       - run: pnpm test
 
   test-integration:
@@ -45,13 +47,13 @@ jobs:
           POSTGRES_USER: reflexionia
           POSTGRES_PASSWORD: ci
           POSTGRES_DB: reflexionia_test
-        ports: ["5432:5432"]
+        ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U reflexionia"
           --health-interval 5s --health-timeout 3s --health-retries 10
       redis:
         image: redis:7-alpine
-        ports: ["6379:6379"]
+        ports: ['6379:6379']
     env:
       DATABASE_URL: postgresql://reflexionia:ci@localhost:5432/reflexionia_test
       REDIS_URL: redis://localhost:6379
