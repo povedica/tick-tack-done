@@ -6,4 +6,5 @@ import { Module } from '@nestjs/common';
 @Module({
   imports: [],
 })
+// eslint-disable-next-line @typescript-eslint/no-extraneous-class -- shell until domain modules land
 export class AppModule {}

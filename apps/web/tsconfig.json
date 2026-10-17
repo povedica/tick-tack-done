@@ -6,6 +6,8 @@
     "jsx": "react-jsx",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "noEmit": true,
+    "composite": true,
+    "declaration": true,
     "useDefineForClassFields": true,
     "types": ["vite/client", "vite-plugin-pwa/client"]
   },

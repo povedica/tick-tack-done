@@ -9,6 +9,7 @@
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
     "declaration": false,
+    "declarationMap": false,
     "sourceMap": true
   },
   "include": ["src/**/*", "test/**/*", "prisma/seed.ts"]
