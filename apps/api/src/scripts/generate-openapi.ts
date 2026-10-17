@@ -3,6 +3,9 @@ import path from 'node:path';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module';
 import { configureApp, createOpenApiDocument } from '../configure-app';
+import { loadRootEnv } from '../load-env';
+
+loadRootEnv();
 
 async function generate(): Promise<void> {
   const app = await NestFactory.create(AppModule, { logger: false });

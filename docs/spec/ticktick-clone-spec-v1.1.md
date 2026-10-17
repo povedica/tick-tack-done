@@ -586,13 +586,16 @@ POST   /api/v1/tasks/{id}/uncomplete
 POST   /api/v1/tasks/{id}/move            {project_id, column_id, before_task_id?}
 POST   /api/v1/tasks/{id}/duplicate
 GET    /api/v1/tasks/{id}/occurrences     ocurrencias teóricas de recurrente (?from&to)
-POST   /api/v1/tasks/batch                operaciones masivas (complete/move/tag/delete)
+POST   /api/v1/tasks/batch                operaciones masivas (complete/move/tag/priority/due/delete)
 GET    /api/v1/tasks/completed            historial de completadas (?from&to)
 GET    /api/v1/tasks/trash                papelera
+DELETE /api/v1/tasks/trash                vaciar papelera (RF-306)
 POST   /api/v1/tasks/trash/{id}/restore
 ```
 
 Checklist items: `POST/PATCH/DELETE /api/v1/tasks/{id}/items[/{itemId}]`, `POST .../items/{itemId}/complete`.
+
+Adjuntos (RF-203): `POST/GET /api/v1/tasks/{id}/attachments` (multipart `file`, 25 MB), `GET/DELETE /api/v1/tasks/{id}/attachments/{attachmentId}`. La descarga fuerza `Content-Disposition: attachment`.
 
 Listas y estructura:
 
@@ -600,7 +603,7 @@ Listas y estructura:
 GET/POST         /api/v1/projects
 GET/PATCH/DELETE /api/v1/projects/{id}
 GET              /api/v1/projects/{id}/data        lista + tareas + columnas (equiv. TickTick /project/{id}/data)
-POST             /api/v1/projects/{id}/archive | /unarchive
+POST             /api/v1/projects/{id}/archive | /unarchive | /archive-completed
 GET/POST         /api/v1/folders
 GET/PATCH/DELETE /api/v1/folders/{id}
 GET/POST/PATCH/DELETE /api/v1/projects/{id}/columns[/{columnId}]
@@ -652,9 +655,11 @@ Todos versionados (`task.created@v1`). Mínimo:
 
 ```
 task.created task.updated task.completed task.uncompleted task.deleted task.restored task.moved task.due_soon task.overdue
-checklist_item.completed
-project.created project.updated project.archived
-tag.created tag.updated
+checklist_item.created checklist_item.updated checklist_item.completed checklist_item.uncompleted checklist_item.deleted
+project.created project.updated project.archived project.unarchived project.deleted
+folder.created folder.updated folder.deleted
+column.created column.updated column.deleted
+tag.created tag.updated tag.deleted tag.merged
 habit.checkin habit.streak_broken habit.goal_met
 focus.session_started focus.session_finished focus.session_aborted
 reminder.fired

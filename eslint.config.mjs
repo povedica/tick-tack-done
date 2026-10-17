@@ -5,7 +5,15 @@ import tseslint from 'typescript-eslint';
 import prettierConfig from 'eslint-config-prettier';
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/build/**', '**/coverage/**', '**/node_modules/**', '**/src/generated/**'] },
+  {
+    ignores: [
+      '**/dist/**',
+      '**/build/**',
+      '**/coverage/**',
+      '**/node_modules/**',
+      '**/src/generated/**',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   ...tseslint.configs.stylisticTypeChecked,
@@ -30,7 +38,15 @@ export default tseslint.config(
       'no-restricted-imports': [
         'error',
         {
-          patterns: ['@nestjs/*', 'express', 'fastify', 'react', 'react-dom', 'prisma', '@prisma/*'],
+          patterns: [
+            '@nestjs/*',
+            'express',
+            'fastify',
+            'react',
+            'react-dom',
+            'prisma',
+            '@prisma/*',
+          ],
         },
       ],
     },
@@ -39,7 +55,9 @@ export default tseslint.config(
     files: ['**/*.spec.ts', '**/*.test.ts', '**/test/**/*.ts'],
     rules: {
       '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/restrict-template-expressions': 'off',
     },
   },
   {
