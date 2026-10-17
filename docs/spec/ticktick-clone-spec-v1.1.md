@@ -184,7 +184,7 @@ Todos los IDs son `uuid` (o ULID si se prefiere ordenación). Todas las entidade
 
 ### 5.5 Column (columna Kanban / sección)
 
-`id`, `project_id`, `name`, `sort_order`. Las tareas llevan además `column_id` nullable. En vista lista, las Column se muestran como secciones; en Kanban, como columnas. Replicar que TickTick muestra en Kanban la agrupación elegida y el progreso por columna.
+`id`, `project_id`, `name`, `sort_order`, `collapsed` (sección plegada). Las tareas llevan además `column_id` nullable. En vista lista, las Column se muestran como secciones; en Kanban, como columnas. Replicar que TickTick muestra en Kanban la agrupación elegida y el progreso por columna.
 
 ### 5.6 Tag (etiqueta)
 
@@ -291,7 +291,7 @@ ActivityLog: `id`, `actor_id`, `entity_type`, `entity_id`, `action` (created/upd
 
 ### 5.17 User y Settings
 
-User: `id`, `email`, `password_hash` o SSO, `display_name`, `avatar`, `time_zone`, `locale` (`es` default), `week_start` (`monday` default), `date_format`, `theme` (light/dark/auto), `nlp_language`, `daily_reminder_time`, settings de Focus (5.10), settings del reporte semanal (9.22: día/hora, canales, tono), `achievement_score` (gamificación, V2).
+User: `id`, `email`, `password_hash` o SSO, `display_name`, `avatar`, `time_zone`, `locale` (`es` default), `week_start` (`monday` default), `date_format`, `theme` (light/dark/auto), `nlp_language`, `daily_reminder_time`, `task_complete_children` (`ask` por defecto, `complete` o `leave`; RF-206), settings de Focus (5.10), settings del reporte semanal (9.22: día/hora, canales, tono), `achievement_score` (gamificación, V2).
 
 ### 5.18 DashboardLayout
 

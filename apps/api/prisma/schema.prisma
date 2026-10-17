@@ -124,6 +124,12 @@ enum SmartListKey {
   recently_added
 }
 
+enum CompleteChildrenPolicy {
+  ask
+  complete
+  leave
+}
+
 model User {
   id                   String    @id @default(uuid()) @db.Uuid
   email                String    @unique
@@ -138,8 +144,9 @@ model User {
   nlpLanguage          String    @default("es") @map("nlp_language")
   dailyReminderTime    String?   @map("daily_reminder_time")
   weeklyReportSettings Json      @default("{}") @map("weekly_report_settings")
-  achievementScore     Int       @default(0) @map("achievement_score")
-  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  achievementScore     Int                    @default(0) @map("achievement_score")
+  taskCompleteChildren CompleteChildrenPolicy @default(ask) @map("task_complete_children")
+  createdAt            DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt            DateTime? @map("deleted_at") @db.Timestamptz(6)
 
@@ -171,6 +178,8 @@ model User {
   templates             Template[]
   dashboardLayouts      DashboardLayout[]
   weeklyReports         WeeklyReport[]
+  outboxEvents          OutboxEvent[]
+  idempotencyRecords    IdempotencyRecord[]
 
   @@map("users")
 }
@@ -239,6 +248,7 @@ model Column {
   projectId String    @map("project_id") @db.Uuid
   project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   name      String
+  collapsed Boolean   @default(false)
   sortOrder BigInt    @default(65536) @map("sort_order")
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -577,6 +587,42 @@ model ActivityLog {
   @@index([ownerId, createdAt])
   @@index([entityType, entityId])
   @@map("activity_log")
+}
+
+// Transactional outbox (section 11). Drained by the bus; not a section 5 entity.
+model OutboxEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  ownerId     String    @map("owner_id") @db.Uuid
+  owner       User      @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  type        String
+  occurredAt  DateTime  @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  actorKind   String    @map("actor_kind")
+  actorId     String    @map("actor_id") @db.Uuid
+  data        Json
+  previous    Json?
+  publishedAt DateTime? @map("published_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([publishedAt, occurredAt])
+  @@index([ownerId, occurredAt])
+  @@map("outbox_events")
+}
+
+// Idempotency-Key retention is 24h (section 10.2). Not a section 5 entity.
+model IdempotencyRecord {
+  id           String   @id @default(uuid()) @db.Uuid
+  ownerId      String   @map("owner_id") @db.Uuid
+  owner        User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  key          String
+  fingerprint  String
+  statusCode   Int      @map("status_code")
+  responseBody Json     @map("response_body")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt    DateTime @map("expires_at") @db.Timestamptz(6)
+
+  @@unique([ownerId, key])
+  @@index([expiresAt])
+  @@map("idempotency_records")
 }
 
 model Countdown {
