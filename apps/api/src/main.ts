@@ -1,28 +1,13 @@
-import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import helmet from 'helmet';
-import cookieParser from 'cookie-parser';
+import { SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { configureApp, createOpenApiDocument } from './configure-app';
 
-async function bootstrap() {
+async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
-  app.setGlobalPrefix('api/v1');
-  app.use(helmet());
-  app.use(cookieParser());
-  app.useGlobalPipes(
-    new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
-  );
-
-  // OpenAPI generado del código (sección 18): publicado en /api/docs y exportado por openapi:generate
-  const config = new DocumentBuilder()
-    .setTitle('Reflexionia Tasks API')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
-
+  configureApp(app);
+  SwaggerModule.setup('api/docs', app, createOpenApiDocument(app));
   await app.listen(process.env.PORT ?? 3000);
 }
+
 void bootstrap();

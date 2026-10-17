@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
+import { HealthModule } from './health/health.module';
+import { PrismaModule } from './prisma/prisma.module';
 
-// Un módulo por dominio (sección 4): tasks, lists, tags, filters, habits, focus, notes,
-// calendar, reminders, search, sync, dashboard, reports, review, import-export, auth,
-// mcp, webhooks, automations. Los módulos no se importan entre sí: publican/consumen eventos.
+// Domain modules (tasks, lists, …) register here and do not import each other.
+// They will publish and consume events on the bus.
 @Module({
-  imports: [],
+  imports: [PrismaModule, HealthModule],
 })
-// eslint-disable-next-line @typescript-eslint/no-extraneous-class -- shell until domain modules land
+// eslint-disable-next-line @typescript-eslint/no-extraneous-class -- Nest module is decorator-only
 export class AppModule {}

@@ -42,4 +42,8 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-member-access': 'off',
     },
   },
+  {
+    files: ['**/*config*.ts', '**/*.config.mjs', 'eslint.config.mjs'],
+    extends: [tseslint.configs.disableTypeChecked],
+  },
 );
