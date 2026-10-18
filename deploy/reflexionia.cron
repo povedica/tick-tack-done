@@ -1,0 +1,4 @@
+# Instalar en el host: crontab deploy/reflexionia.cron
+# Ajusta el directorio si el clone no está en /opt/reflexionia.
+0 4 * * * cd /opt/reflexionia && ./scripts/backup.sh >> /var/log/reflexionia-backup.log 2>&1
+0 5 * * 0 cd /opt/reflexionia && ./scripts/restore-verify.sh >> /var/log/reflexionia-restore.log 2>&1
