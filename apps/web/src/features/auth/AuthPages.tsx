@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { createApiClient } from '@reflexionia/sdk';
+import { BrandMark } from '../../components/BrandMark';
 import { messagesFor } from '../../i18n';
 import { setCsrfToken } from './session';
+import './auth.css';
 
 const sessionApi = createApiClient({ baseUrl: '', credentials: 'include' });
 
@@ -25,8 +27,7 @@ export function LoginPage() {
   }
 
   return (
-    <main className="today">
-      <h1>{messages.loginTitle}</h1>
+    <AuthCard title={messages.loginTitle}>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -56,10 +57,14 @@ export function LoginPage() {
           />
         </label>
         <button type="submit">{messages.loginTitle}</button>
-        {error !== null ? <p className="error">{error}</p> : null}
+        {error !== null ? (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        ) : null}
       </form>
       <Link to="/register">{messages.registerTitle}</Link>
-    </main>
+    </AuthCard>
   );
 }
 
@@ -83,8 +88,7 @@ export function RegisterPage() {
   }
 
   return (
-    <main className="today">
-      <h1>{messages.registerTitle}</h1>
+    <AuthCard title={messages.registerTitle}>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -121,8 +125,27 @@ export function RegisterPage() {
           />
         </label>
         <button type="submit">{messages.registerTitle}</button>
-        {error !== null ? <p className="error">{error}</p> : null}
+        {error !== null ? (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        ) : null}
       </form>
+      <Link to="/login">{messages.loginTitle}</Link>
+    </AuthCard>
+  );
+}
+
+function AuthCard({ title, children }: { readonly title: string; readonly children: ReactNode }) {
+  return (
+    <main className="auth-screen">
+      <section className="auth-card">
+        <header className="auth-brand">
+          <BrandMark size={64} />
+          <h1>{title}</h1>
+        </header>
+        {children}
+      </section>
     </main>
   );
 }
