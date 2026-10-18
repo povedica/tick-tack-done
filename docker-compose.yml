@@ -65,8 +65,8 @@ services:
     volumes:
       - redisdata:/data
 
-  # Backup diario con prueba de restauración (RF-1704). El script real vive en scripts/backup.sh
-  # y se programa con cron del host: 0 4 * * * cd /opt/reflexionia && ./scripts/backup.sh
+  # Backup diario con prueba de restauración (RF-1704). En el host compartido
+  # el cron es deploy/reflexionia.cron y llama a deploy/production/cron-backup.sh.
 
 volumes:
   caddy_data:

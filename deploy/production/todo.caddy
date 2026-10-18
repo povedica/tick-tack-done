@@ -1,0 +1,32 @@
+# Lo importa el Caddy que ya escucha en 80/443 (ia.turugby).
+# Este fichero no abre puertos: solo enruta el dominio hacia la red Docker compartida.
+todo.reflexionia.com {
+	encode zstd gzip
+
+	handle /api/* {
+		request_body {
+			max_size 26MB
+		}
+		reverse_proxy todo-api:3000
+	}
+
+	handle /feeds/* {
+		reverse_proxy todo-api:3000
+	}
+
+	handle /open/* {
+		reverse_proxy todo-api:3000
+	}
+
+	handle {
+		reverse_proxy todo-web:8080
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+}

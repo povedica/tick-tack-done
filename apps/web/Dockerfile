@@ -12,7 +12,7 @@ COPY packages/domain packages/domain
 COPY packages/sdk packages/sdk
 COPY apps/web apps/web
 ENV VITE_AUTH_MODE=session
-RUN pnpm --filter web build
+RUN pnpm --filter @reflexionia/domain build && pnpm --filter web build
 
 FROM nginx:alpine AS runner
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
