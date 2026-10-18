@@ -120,6 +120,7 @@ export interface ApiClient extends ResourceClient {
   tokenActivity(id: string): Promise<ActivityPage>;
   login(body: { email: string; password: string }): Promise<SessionBody>;
   register(body: { email: string; password: string; display_name: string }): Promise<SessionBody>;
+  currentSession(): Promise<SessionBody>;
   logout(): Promise<void>;
   sync(since?: string): Promise<SyncPage>;
   oauthConsent(body: OauthConsentBody): Promise<{ redirect_to: string }>;
@@ -346,6 +347,9 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     },
     register(body) {
       return request(call, options, 'POST', '/api/v1/auth/register', body, undefined, isSession);
+    },
+    currentSession() {
+      return request(call, options, 'GET', '/api/v1/auth/session', undefined, undefined, isSession);
     },
     async logout() {
       await request(call, options, 'POST', '/api/v1/auth/logout', undefined, undefined, isEmpty);

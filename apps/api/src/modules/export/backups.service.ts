@@ -38,7 +38,9 @@ export class BackupsService {
         has_attachments: attachments > 0,
       });
     }
-    return { items, remote_configured: (process.env.BACKUP_REMOTE ?? '').length > 0 };
+    const remote = process.env.BACKUP_REMOTE ?? '';
+    const drive = process.env.GOOGLE_DRIVE_FOLDER_ID ?? '';
+    return { items, remote_configured: remote.length > 0 || drive.length > 0 };
   }
 
   async restore(

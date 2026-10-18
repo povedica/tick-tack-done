@@ -1,20 +1,25 @@
 import { randomUUID } from 'node:crypto';
 import { Body, Controller, Get, HttpStatus, Inject, Post, Query, Req, Res } from '@nestjs/common';
-import { ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
-import { IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import { ApiBody, ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
+import { IsBoolean, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 import type { Request, Response } from 'express';
-import { parseTelegramCommand } from '@reflexionia/domain';
 import { actorOf, type AuthUser } from '../../auth/auth-user';
 import { CurrentUser } from '../../auth/current-user.decorator';
 import { Scopes } from '../../auth/scopes.decorator';
 import { DomainEvent } from '../../events/domain-events';
 import { EventRecorder } from '../../events/event-recorder';
 import { driveConfigured, googleConfigured, telegramConfigured } from '../../integrations/config';
+import { downloadDriveFile } from '../../integrations/google-drive';
+import { exchangeGoogleRefreshToken } from '../../integrations/google-token';
+import { telegramSecretMatches } from '../../integrations/telegram-secret';
 import { authorizeUrl, readState, redirectFor, signState } from './google-oauth';
+import { TelegramBotService } from './telegram-bot.service';
 import { asJson } from '../../http/json';
 import { DomainException } from '../../http/domain.exception';
 import { respondJson } from '../../http/respond';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ATTACHMENT_MAX_BYTES } from '../tasks/attachment-storage';
+import { TasksService } from '../tasks/tasks.service';
 
 class LinkDto {
   @ApiProperty()
@@ -42,13 +47,11 @@ class DriveDto {
   @IsString()
   @MaxLength(200)
   name!: string;
-}
 
-class TelegramUpdateDto {
   @ApiProperty({ required: false })
   @IsOptional()
-  @IsString()
-  text?: string;
+  @IsBoolean()
+  copy?: boolean;
 }
 
 @ApiTags('integrations')
@@ -57,6 +60,8 @@ export class IntegrationsController {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
+    @Inject(TelegramBotService) private readonly telegram: TelegramBotService,
+    @Inject(TasksService) private readonly tasks: TasksService,
   ) {}
 
   @Get('telegram')
@@ -80,9 +85,7 @@ export class IntegrationsController {
 
   @Post('telegram/link')
   @Scopes('profile:write')
-  @ApiOperation({
-    summary: 'Remember a chat id. The bot still does not call Telegram without a token.',
-  })
+  @ApiOperation({ summary: 'Remember a chat id so the bot can act as this user (RF-2003).' })
   async link(
     @CurrentUser() user: AuthUser,
     @Body() dto: LinkDto,
@@ -110,9 +113,17 @@ export class IntegrationsController {
 
   @Post('telegram/webhook')
   @ApiOperation({
-    summary: 'Inbound Telegram update. Refuses to run when the bot token is missing.',
+    summary:
+      'Inbound Telegram update. Creates the task and replies in the chat (RF-2003). Refuses to run when the bot token is missing.',
   })
-  webhook(@Body() dto: TelegramUpdateDto, @Req() req: Request, @Res() res: Response): void {
+  @ApiBody({
+    schema: {
+      type: 'object',
+      additionalProperties: true,
+      description: 'Telegram Update: message text, voice, photo, or callback_query.',
+    },
+  })
+  async webhook(@Req() req: Request, @Res() res: Response): Promise<void> {
     if (!telegramConfigured()) {
       throw new DomainException(
         HttpStatus.SERVICE_UNAVAILABLE,
@@ -120,11 +131,10 @@ export class IntegrationsController {
         'Set TELEGRAM_BOT_TOKEN. The bot is not calling Telegram.',
       );
     }
-    if (req.header('x-telegram-bot-api-secret-token') !== process.env.TELEGRAM_BOT_TOKEN) {
+    if (!telegramSecretMatches(req.header('x-telegram-bot-api-secret-token'), botToken())) {
       throw new DomainException(HttpStatus.UNAUTHORIZED, 'unauthorized', 'Invalid bot secret');
     }
-    const command = parseTelegramCommand(dto.text ?? '');
-    respondJson(req, res, 200, { command, called_telegram: false }, false);
+    respondJson(req, res, 200, await this.telegram.handle(req.body), false);
   }
 
   @Get('google')
@@ -257,6 +267,11 @@ export class IntegrationsController {
     if (task === null) {
       throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
     }
+    if (dto.copy === true) {
+      const copied = await this.copyDriveFile(user, task.id, dto);
+      respondJson(req, res, 201, copied, false);
+      return;
+    }
     const row = await this.prisma.$transaction(async (tx) => {
       const created = await tx.attachment.create({
         data: {
@@ -286,6 +301,52 @@ export class IntegrationsController {
       return created;
     });
     respondJson(req, res, 201, { id: row.id, drive_url: dto.url, copied: false }, false);
+  }
+
+  private async copyDriveFile(
+    user: AuthUser,
+    taskId: string,
+    dto: DriveDto,
+  ): Promise<{ id: string; drive_url: string; copied: true }> {
+    const row = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: { googleRefreshToken: true },
+    });
+    const refresh = row?.googleRefreshToken ?? process.env.GOOGLE_REFRESH_TOKEN ?? '';
+    const access = await exchangeGoogleRefreshToken(refresh);
+    const file = await downloadDriveFile(access, dto.file_id);
+    if (file.bytes.length > ATTACHMENT_MAX_BYTES) {
+      throw new DomainException(
+        HttpStatus.PAYLOAD_TOO_LARGE,
+        'payload_too_large',
+        'Drive file exceeds 25 MB',
+      );
+    }
+    const saved = await this.tasks.addAttachment(user, taskId, {
+      originalname: dto.name.length > 0 ? dto.name : file.name,
+      mimetype: file.mimeType,
+      size: file.bytes.length,
+      buffer: file.bytes,
+    });
+    await this.prisma.$transaction(async (tx) => {
+      await tx.attachment.update({
+        where: { id: saved.id },
+        data: { driveFileId: dto.file_id, driveUrl: dto.url },
+      });
+      await this.events.record(tx, actorOf(user), {
+        type: DomainEvent.driveAttached,
+        entityType: 'attachment',
+        entityId: saved.id,
+        action: 'created',
+        data: asJson({
+          drive_file_id: dto.file_id,
+          copied: true,
+          drive_configured: driveConfigured(),
+        }),
+        previous: null,
+      });
+    });
+    return { id: saved.id, drive_url: dto.url, copied: true };
   }
 }
 
@@ -318,6 +379,10 @@ async function googleAccount(accessToken: string): Promise<string | null> {
   }
   const body = (await response.json()) as { email?: unknown };
   return typeof body.email === 'string' ? body.email : null;
+}
+
+function botToken(): string {
+  return process.env.TELEGRAM_BOT_TOKEN ?? '';
 }
 
 function present(name: string): boolean {

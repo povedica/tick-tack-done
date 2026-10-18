@@ -128,6 +128,7 @@ export const es = {
   searchTitle: 'Búsqueda',
   settingsTitle: 'Ajustes',
   loginTitle: 'Entrar',
+  sessionChecking: 'Comprobando la sesión…',
   registerTitle: 'Crear cuenta',
   forgotTitle: 'Recuperar contraseña',
   smartListsLink: 'Listas inteligentes',

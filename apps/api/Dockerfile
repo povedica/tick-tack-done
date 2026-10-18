@@ -4,6 +4,7 @@ WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
 COPY apps/api/package.json apps/api/
+COPY apps/api/prisma apps/api/prisma
 COPY packages/domain/package.json packages/domain/
 RUN pnpm install --frozen-lockfile --filter api...
 

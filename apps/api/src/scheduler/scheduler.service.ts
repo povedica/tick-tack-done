@@ -584,7 +584,13 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     const due = await this.prisma.reminderDelivery.findMany({
       where: { status: 'scheduled', fireAt: { lte: now } },
       include: {
-        owner: { select: { email: true, pushSubscriptions: { where: { deletedAt: null } } } },
+        owner: {
+          select: {
+            email: true,
+            pushSubscriptions: { where: { deletedAt: null } },
+            telegramLinks: { where: { deletedAt: null }, select: { chatId: true }, take: 1 },
+          },
+        },
         reminder: { select: { constant: true, constantIntervalMinutes: true, taskId: true } },
       },
     });
@@ -598,6 +604,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
           channel: row.channel,
           email: typeof payload.email === 'string' ? payload.email : row.owner.email,
           subscriptions: row.owner.pushSubscriptions,
+          telegramChatId: row.owner.telegramLinks[0]?.chatId ?? null,
           title: typeof payload.title === 'string' ? payload.title : 'Recordatorio',
           body: typeof payload.body === 'string' ? payload.body : '',
         });

@@ -251,6 +251,47 @@ describe('time API', () => {
     expect(overdue).not.toBeNull();
   });
 
+  it('RF-2003: a fired reminder is also sent to the linked Telegram chat', async () => {
+    await prisma.telegramLink.create({ data: { ownerId: owner.id, chatId: '9001' } });
+    process.env.TELEGRAM_BOT_TOKEN = 'test-token';
+    const original = globalThis.fetch;
+    const chats: string[] = [];
+    globalThis.fetch = async (input, init) => {
+      const url =
+        input instanceof URL ? input.toString() : typeof input === 'string' ? input : input.url;
+      if (url.startsWith('https://api.telegram.org/')) {
+        const raw = typeof init?.body === 'string' ? init.body : '';
+        const body = raw.length === 0 ? {} : (JSON.parse(raw) as { chat_id?: unknown });
+        if (typeof body.chat_id === 'string') {
+          chats.push(body.chat_id);
+        }
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      }
+      return original(input, init);
+    };
+    try {
+      const created = await authed()
+        .post('/api/v1/tasks')
+        .send({
+          project_id: owner.inboxId,
+          title: 'avisar por telegram',
+          due_date: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+          time_zone: 'Europe/Madrid',
+        })
+        .expect(201);
+      await authed()
+        .post(`/api/v1/tasks/${created.body.id as string}/reminders`)
+        .send({ trigger: 'TRIGGER:PT0S', type: 'relative', channel: 'push' })
+        .expect(201);
+      await scheduler.run(new Date(), true);
+      expect(chats).toContain('9001');
+    } finally {
+      globalThis.fetch = original;
+      delete process.env.TELEGRAM_BOT_TOKEN;
+      await prisma.telegramLink.deleteMany({ where: { ownerId: owner.id } });
+    }
+  });
+
   it('RF-805: the daily reminder time is stored and does not rewrite tasks', async () => {
     const before = await prisma.task.findFirst({
       where: { ownerId: owner.id, title: 'reunión' },

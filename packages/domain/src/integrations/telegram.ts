@@ -8,7 +8,18 @@ export type TelegramCommand =
   | { readonly kind: 'list'; readonly name: string }
   | { readonly kind: 'tag'; readonly name: string }
   | { readonly kind: 'priority'; readonly level: 'high' | 'medium' | 'low' }
+  | { readonly kind: 'complete'; readonly query: string }
   | { readonly kind: 'capture'; readonly text: string };
+
+export interface TelegramTaskRef {
+  readonly id: string;
+  readonly title: string;
+}
+
+export type TitleMatch =
+  | { readonly status: 'one'; readonly id: string; readonly title: string }
+  | { readonly status: 'many'; readonly titles: readonly string[] }
+  | { readonly status: 'none' };
 
 export function parseTelegramCommand(text: string): TelegramCommand {
   const trimmed = text.trim();
@@ -34,11 +45,42 @@ export function parseTelegramCommand(text: string): TelegramCommand {
   if (list?.[1] !== undefined) {
     return listFilter(list[1]);
   }
+  const complete = /^(?:\/(?:hecho|completar)|hecho|completar)\s+(.+)$/i.exec(trimmed);
+  if (complete?.[1] !== undefined) {
+    return { kind: 'complete', query: complete[1].trim() };
+  }
   const capture = /^\/(?:capturar|add)(?:\s+([\s\S]+))?$/i.exec(trimmed);
   if (capture !== null) {
     return { kind: 'capture', text: capture[1]?.trim() ?? '' };
   }
   return { kind: 'capture', text: trimmed };
+}
+
+/** RF-2003. Completes by title or by 1-based position. The caller never asks for a UUID. */
+export function matchTaskByTitle(tasks: readonly TelegramTaskRef[], query: string): TitleMatch {
+  const wanted = fold(query);
+  if (wanted.length === 0) {
+    return { status: 'none' };
+  }
+  const index = /^(\d+)$/.exec(wanted);
+  if (index?.[1] !== undefined) {
+    const row = tasks[Number(index[1]) - 1];
+    return row === undefined ? { status: 'none' } : { status: 'one', id: row.id, title: row.title };
+  }
+  const exact = tasks.filter((task) => fold(task.title) === wanted);
+  const hits = exact.length > 0 ? exact : tasks.filter((task) => fold(task.title).includes(wanted));
+  const first = hits[0];
+  if (hits.length === 1 && first !== undefined) {
+    return { status: 'one', id: first.id, title: first.title };
+  }
+  if (hits.length > 1) {
+    return { status: 'many', titles: hits.map((task) => task.title).slice(0, 8) };
+  }
+  return { status: 'none' };
+}
+
+function fold(value: string): string {
+  return value.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
 }
 
 function listFilter(raw: string): TelegramCommand {

@@ -8,6 +8,7 @@ import { asJson } from '../../http/json';
 import { DomainException } from '../../http/domain.exception';
 import { PrismaService } from '../../prisma/prisma.service';
 import { googleConfigured } from '../../integrations/config';
+import { exchangeGoogleRefreshToken } from '../../integrations/google-token';
 
 const MAX_ICAL_BYTES = 1_000_000;
 
@@ -175,33 +176,36 @@ export class CalendarService {
       if (due === null) {
         continue;
       }
-      const response = await fetch(
-        'https://www.googleapis.com/calendar/v3/calendars/primary/events',
-        {
-          method: 'POST',
-          headers: {
-            authorization: `Bearer ${token}`,
-            'content-type': 'application/json',
-          },
-          body: JSON.stringify({
-            summary: task.title,
-            description: task.content,
-            start: task.isAllDay
-              ? { date: due.toISOString().slice(0, 10) }
-              : { dateTime: (task.startDate ?? due).toISOString() },
-            end: task.isAllDay
-              ? { date: due.toISOString().slice(0, 10) }
-              : { dateTime: due.toISOString() },
-          }),
-          signal: AbortSignal.timeout(8_000),
+      const metadata = metadataRecord(task.metadata);
+      const existing = typeof metadata.google_event_id === 'string' ? metadata.google_event_id : '';
+      const url =
+        existing.length === 0
+          ? 'https://www.googleapis.com/calendar/v3/calendars/primary/events'
+          : `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(existing)}`;
+      const response = await fetch(url, {
+        method: existing.length === 0 ? 'POST' : 'PATCH',
+        headers: {
+          authorization: `Bearer ${token}`,
+          'content-type': 'application/json',
         },
-      );
+        body: JSON.stringify(googleEventBody(task, due)),
+        signal: AbortSignal.timeout(8_000),
+      });
       if (!response.ok) {
         throw new DomainException(
           HttpStatus.BAD_GATEWAY,
           'google_push_failed',
           'Google Calendar rejected an event',
         );
+      }
+      const created = (await response.json()) as { id?: unknown };
+      const eventId =
+        typeof created.id === 'string' && created.id.length > 0 ? created.id : existing;
+      if (eventId.length > 0 && eventId !== existing) {
+        await this.prisma.task.update({
+          where: { id: task.id },
+          data: { metadata: { ...metadata, google_event_id: eventId } },
+        });
       }
       pushed += 1;
     }
@@ -431,33 +435,7 @@ export class CalendarService {
         'Connect Google from settings before reading the calendar',
       );
     }
-    const response = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id: process.env.GOOGLE_CLIENT_ID ?? '',
-        client_secret: process.env.GOOGLE_CLIENT_SECRET ?? '',
-        refresh_token: refresh,
-        grant_type: 'refresh_token',
-      }),
-      signal: AbortSignal.timeout(8_000),
-    });
-    if (!response.ok) {
-      throw new DomainException(
-        HttpStatus.BAD_GATEWAY,
-        'google_push_failed',
-        'Google token exchange failed',
-      );
-    }
-    const body = (await response.json()) as { access_token?: unknown };
-    if (typeof body.access_token !== 'string' || body.access_token.length === 0) {
-      throw new DomainException(
-        HttpStatus.BAD_GATEWAY,
-        'google_push_failed',
-        'Google did not return an access token',
-      );
-    }
-    return body.access_token;
+    return exchangeGoogleRefreshToken(refresh);
   }
 
   private async fetchIcal(url: string): Promise<string> {
@@ -488,6 +466,40 @@ export class CalendarService {
     }
     return text;
   }
+}
+
+function metadataRecord(value: unknown): Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return {};
+  }
+  return { ...value };
+}
+
+function googleEventBody(
+  task: { title: string; content: string; isAllDay: boolean; startDate: Date | null },
+  due: Date,
+): Record<string, unknown> {
+  if (task.isAllDay) {
+    const date = due.toISOString().slice(0, 10);
+    return {
+      summary: task.title,
+      description: task.content,
+      start: { date },
+      end: { date: nextDate(date) },
+    };
+  }
+  return {
+    summary: task.title,
+    description: task.content,
+    start: { dateTime: (task.startDate ?? due).toISOString() },
+    end: { dateTime: due.toISOString() },
+  };
+}
+
+function nextDate(isoDate: string): string {
+  const [year, month, day] = isoDate.split('-').map((part) => Number(part));
+  const next = new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1, (day ?? 1) + 1));
+  return next.toISOString().slice(0, 10);
 }
 
 function googleEvent(

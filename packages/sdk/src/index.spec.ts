@@ -200,4 +200,36 @@ describe('sdk', () => {
       'GET http://api.test/api/v1/me/tokens',
     ]);
   });
+
+  it('reads the current session and sends the cookie and CSRF token', async () => {
+    const requests: { url: string; init: RequestInit | undefined }[] = [];
+    const client = createApiClient({
+      baseUrl: 'http://api.test',
+      credentials: 'include',
+      csrfToken: () => 'csrf-1',
+      fetchImpl: (url, init) => {
+        requests.push({ url: requestUrl(url), init });
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              id: 'user-1',
+              email: 'ada@example.com',
+              display_name: 'Ada',
+              csrf_token: 'csrf-1',
+            }),
+            { status: 200 },
+          ),
+        );
+      },
+    });
+
+    const session = await client.currentSession();
+
+    expect(session.email).toBe('ada@example.com');
+    expect(requests[0]?.url).toBe('http://api.test/api/v1/auth/session');
+    expect(requests[0]?.init?.credentials).toBe('include');
+    const headers = requests[0]?.init?.headers as Record<string, string>;
+    expect(headers['X-CSRF-Token']).toBe('csrf-1');
+    expect(headers['X-Dev-User-Email']).toBeUndefined();
+  });
 });
