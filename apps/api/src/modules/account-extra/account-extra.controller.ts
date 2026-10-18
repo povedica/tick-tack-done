@@ -43,7 +43,9 @@ export class LocationController {
 
   @Post('location')
   @Scopes('reminders:write')
-  @ApiOperation({ summary: 'Fire location reminders when the browser supplies a position (RF-806)' })
+  @ApiOperation({
+    summary: 'Fire location reminders when the browser supplies a position (RF-806)',
+  })
   async check(
     @CurrentUser() user: AuthUser,
     @Body() dto: LocationDto,
@@ -51,7 +53,12 @@ export class LocationController {
     @Res() res: Response,
   ): Promise<void> {
     const reminders = await this.prisma.reminder.findMany({
-      where: { ownerId: user.id, type: 'location', deletedAt: null, task: { status: 'active', deletedAt: null } },
+      where: {
+        ownerId: user.id,
+        type: 'location',
+        deletedAt: null,
+        task: { status: 'active', deletedAt: null },
+      },
     });
     const fired: string[] = [];
     const day = new Date().toISOString().slice(0, 10);
@@ -77,7 +84,10 @@ export class LocationController {
             status: 'fired',
             kind: 'task',
             firedAt: new Date(),
-            payload: asJson({ title: 'Recordatorio de lugar', body: 'Estás en la zona del recordatorio' }),
+            payload: asJson({
+              title: 'Recordatorio de lugar',
+              body: 'Estás en la zona del recordatorio',
+            }),
           },
         });
         await this.events.record(tx, actorOf(user), {
@@ -106,7 +116,11 @@ export class AchievementsController {
   @Get()
   @Scopes('profile:read')
   @ApiOperation({ summary: 'Achievement score from the dashboard KPIs (RF-1602). Off means null.' })
-  async read(@CurrentUser() user: AuthUser, @Req() req: Request, @Res() res: Response): Promise<void> {
+  async read(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
     respondJson(req, res, 200, await this.score(user.id), false);
   }
 

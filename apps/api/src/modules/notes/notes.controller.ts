@@ -1,4 +1,17 @@
-import { Body, Controller, Delete, Get, HttpStatus, Inject, Param, ParseUUIDPipe, Patch, Post, Req, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpStatus,
+  Inject,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Req,
+  Res,
+} from '@nestjs/common';
 import { ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 import type { Request, Response } from 'express';
@@ -46,7 +59,11 @@ export class NotesController {
   @Get('notes')
   @Scopes('notes:read')
   @ApiOperation({ summary: 'Notes, which are tasks with kind note (RF-1401)' })
-  async list(@CurrentUser() user: AuthUser, @Req() req: Request, @Res() res: Response): Promise<void> {
+  async list(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
     const rows = await this.prisma.task.findMany({
       where: { ownerId: user.id, kind: 'note', deletedAt: null },
       orderBy: { updatedAt: 'desc' },
@@ -56,7 +73,14 @@ export class NotesController {
       req,
       res,
       200,
-      { items: rows.map((row) => ({ id: row.id, title: row.title, content: row.content, project_id: row.projectId })) },
+      {
+        items: rows.map((row) => ({
+          id: row.id,
+          title: row.title,
+          content: row.content,
+          project_id: row.projectId,
+        })),
+      },
       false,
     );
   }
@@ -71,7 +95,9 @@ export class NotesController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    const current = await this.prisma.task.findFirst({ where: { id, ownerId: user.id, deletedAt: null } });
+    const current = await this.prisma.task.findFirst({
+      where: { id, ownerId: user.id, deletedAt: null },
+    });
     if (current === null) {
       throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
     }
@@ -93,8 +119,14 @@ export class NotesController {
   @Get('sticky-notes')
   @Scopes('notes:read')
   @ApiOperation({ summary: 'Sticky notes (RF-1403)' })
-  async stickies(@CurrentUser() user: AuthUser, @Req() req: Request, @Res() res: Response): Promise<void> {
-    const rows = await this.prisma.stickyNote.findMany({ where: { ownerId: user.id, deletedAt: null } });
+  async stickies(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    const rows = await this.prisma.stickyNote.findMany({
+      where: { ownerId: user.id, deletedAt: null },
+    });
     respondJson(req, res, 200, { items: rows }, false);
   }
 
@@ -126,7 +158,13 @@ export class NotesController {
       });
       return created;
     });
-    respondJson(req, res, 201, { id: row.id, text: row.text, pinned_task_id: row.pinnedTaskId }, false);
+    respondJson(
+      req,
+      res,
+      201,
+      { id: row.id, text: row.text, pinned_task_id: row.pinnedTaskId },
+      false,
+    );
   }
 
   @Patch('sticky-notes/:id')

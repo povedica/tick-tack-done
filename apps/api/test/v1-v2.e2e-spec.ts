@@ -127,13 +127,17 @@ describe('V1 and V2 product', () => {
     const url = new URL(feed.body.url as string);
     const body = await request(server).get(url.pathname).expect(200);
     expect(body.text).toContain('BEGIN:VCALENDAR');
-    await session().delete(`/api/v1/calendar/feeds/${feed.body.id as string}`).expect(204);
+    await session()
+      .delete(`/api/v1/calendar/feeds/${feed.body.id as string}`)
+      .expect(204);
     await request(server).get(url.pathname).expect(404);
   });
 
   it('RF-2102: the dashboard returns backend KPIs', async () => {
     const data = await session().get('/api/v1/dashboard/data').expect(200);
-    expect(data.body.widgets).toEqual(expect.objectContaining({ completed_today: expect.any(Number) }));
+    expect(data.body.widgets).toEqual(
+      expect.objectContaining({ completed_today: expect.any(Number) }),
+    );
   });
 
   it('RF-2201: the weekly report is deterministic and stored', async () => {
@@ -154,18 +158,26 @@ describe('V1 and V2 product', () => {
   it('RF-1201: a focus session is stored on the server', async () => {
     const started = await session().post('/api/v1/focus/sessions').send({}).expect(201);
     expect(started.body.remaining_seconds).toBeGreaterThan(0);
-    await session().post(`/api/v1/focus/sessions/${started.body.id as string}/finish`).expect(200);
+    await session()
+      .post(`/api/v1/focus/sessions/${started.body.id as string}/finish`)
+      .expect(200);
   });
 
   it('RF-1602: turning achievements off yields a null score', async () => {
-    const off = await session().patch('/api/v1/me/achievements').send({ enabled: false }).expect(200);
+    const off = await session()
+      .patch('/api/v1/me/achievements')
+      .send({ enabled: false })
+      .expect(200);
     expect(off.body.score).toBeNull();
   });
 
   it('RF-2003: the Telegram webhook stops when the bot token is missing', async () => {
     const status = await session().get('/api/v1/integrations/telegram').expect(200);
     expect(status.body.configured).toBe(false);
-    const denied = await session().post('/api/v1/integrations/telegram/webhook').send({ text: '/today' }).expect(503);
+    const denied = await session()
+      .post('/api/v1/integrations/telegram/webhook')
+      .send({ text: '/today' })
+      .expect(503);
     expect(denied.body.error.code).toBe('telegram_not_configured');
   });
 
@@ -199,7 +211,10 @@ describe('V1 and V2 product', () => {
         location: { lat: 40.4, lon: -3.7, radius_m: 100 },
       })
       .expect(201);
-    const checked = await session().post('/api/v1/me/location').send({ lat: 0, lon: 0 }).expect(200);
+    const checked = await session()
+      .post('/api/v1/me/location')
+      .send({ lat: 0, lon: 0 })
+      .expect(200);
     expect(checked.body.fired).toEqual([]);
   });
 
@@ -223,11 +238,16 @@ describe('V1 and V2 product', () => {
 
   function session() {
     return {
-      get: (url: string) => request(server).get(url).set('Cookie', cookie).set('X-CSRF-Token', csrf),
-      post: (url: string) => request(server).post(url).set('Cookie', cookie).set('X-CSRF-Token', csrf),
-      patch: (url: string) => request(server).patch(url).set('Cookie', cookie).set('X-CSRF-Token', csrf),
-      put: (url: string) => request(server).put(url).set('Cookie', cookie).set('X-CSRF-Token', csrf),
-      delete: (url: string) => request(server).delete(url).set('Cookie', cookie).set('X-CSRF-Token', csrf),
+      get: (url: string) =>
+        request(server).get(url).set('Cookie', cookie).set('X-CSRF-Token', csrf),
+      post: (url: string) =>
+        request(server).post(url).set('Cookie', cookie).set('X-CSRF-Token', csrf),
+      patch: (url: string) =>
+        request(server).patch(url).set('Cookie', cookie).set('X-CSRF-Token', csrf),
+      put: (url: string) =>
+        request(server).put(url).set('Cookie', cookie).set('X-CSRF-Token', csrf),
+      delete: (url: string) =>
+        request(server).delete(url).set('Cookie', cookie).set('X-CSRF-Token', csrf),
     };
   }
 });

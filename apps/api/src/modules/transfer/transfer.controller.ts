@@ -2,7 +2,13 @@ import { Body, Controller, Get, Header, Inject, Post, Query, Req, Res } from '@n
 import { ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsOptional, IsString, IsUUID } from 'class-validator';
 import type { Request, Response } from 'express';
-import { mapCsv, tasksToCsv, tasksToIcal, type CsvExportTask, type IcalTask } from '@reflexionia/domain';
+import {
+  mapCsv,
+  tasksToCsv,
+  tasksToIcal,
+  type CsvExportTask,
+  type IcalTask,
+} from '@reflexionia/domain';
 import { actorOf, type AuthUser } from '../../auth/auth-user';
 import { CurrentUser } from '../../auth/current-user.decorator';
 import { Scopes } from '../../auth/scopes.decorator';
@@ -49,7 +55,9 @@ export class TransferController {
 
   @Post('import/csv')
   @Scopes('tasks:write')
-  @ApiOperation({ summary: 'Import a CSV with a column map (RF-1702). TickTick import stays deferred.' })
+  @ApiOperation({
+    summary: 'Import a CSV with a column map (RF-1702). TickTick import stays deferred.',
+  })
   async importCsv(
     @CurrentUser() user: AuthUser,
     @Body() dto: CsvImportDto,
@@ -135,7 +143,10 @@ export class TransferController {
   private async rows(ownerId: string, projectId: string | undefined): Promise<CsvExportTask[]> {
     const rows = await this.prisma.task.findMany({
       where: { ownerId, deletedAt: null, ...(projectId === undefined ? {} : { projectId }) },
-      include: { project: { select: { name: true } }, tags: { select: { tag: { select: { name: true } } } } },
+      include: {
+        project: { select: { name: true } },
+        tags: { select: { tag: { select: { name: true } } } },
+      },
       take: 500,
     });
     return rows.map((row) => ({
@@ -150,7 +161,9 @@ export class TransferController {
   }
 
   private async inbox(ownerId: string): Promise<string> {
-    const inbox = await this.prisma.project.findFirst({ where: { ownerId, isInbox: true, deletedAt: null } });
+    const inbox = await this.prisma.project.findFirst({
+      where: { ownerId, isInbox: true, deletedAt: null },
+    });
     if (inbox === null) {
       throw new DomainException(HttpStatus.NOT_FOUND, 'project_not_found', 'Inbox was not found');
     }

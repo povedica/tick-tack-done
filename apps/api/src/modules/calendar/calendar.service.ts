@@ -1,10 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
-import {
-  parseIcal,
-  tasksToIcal,
-  type IcalTask,
-} from '@reflexionia/domain';
+import { parseIcal, tasksToIcal, type IcalTask } from '@reflexionia/domain';
 import { actorOf, type AuthUser } from '../../auth/auth-user';
 import { DomainEvent } from '../../events/domain-events';
 import { EventRecorder } from '../../events/event-recorder';
@@ -30,10 +26,7 @@ export class CalendarService {
         ownerId: user.id,
         deletedAt: null,
         status: 'active',
-        OR: [
-          { dueDate: { gte: from, lt: to } },
-          { startDate: { gte: from, lt: to } },
-        ],
+        OR: [{ dueDate: { gte: from, lt: to } }, { startDate: { gte: from, lt: to } }],
       },
       orderBy: { dueDate: 'asc' },
     });
@@ -143,9 +136,16 @@ export class CalendarService {
       where: { id, ownerId: user.id, deletedAt: null },
     });
     if (row === null) {
-      throw new DomainException(HttpStatus.NOT_FOUND, 'subscription_not_found', 'Subscription was not found');
+      throw new DomainException(
+        HttpStatus.NOT_FOUND,
+        'subscription_not_found',
+        'Subscription was not found',
+      );
     }
-    await this.prisma.calendarSubscription.update({ where: { id }, data: { deletedAt: new Date() } });
+    await this.prisma.calendarSubscription.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
   }
 
   /** RF-2004 write path. Without a refresh token this does not call Google. */
@@ -154,7 +154,11 @@ export class CalendarService {
       where: { id, ownerId: user.id, deletedAt: null },
     });
     if (row === null) {
-      throw new DomainException(HttpStatus.NOT_FOUND, 'subscription_not_found', 'Subscription was not found');
+      throw new DomainException(
+        HttpStatus.NOT_FOUND,
+        'subscription_not_found',
+        'Subscription was not found',
+      );
     }
     if (row.syncDirection !== 'two_way') {
       throw new DomainException(HttpStatus.CONFLICT, 'read_only', 'This subscription is read only');
@@ -171,24 +175,33 @@ export class CalendarService {
       if (due === null) {
         continue;
       }
-      const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
-        method: 'POST',
-        headers: {
-          authorization: `Bearer ${token}`,
-          'content-type': 'application/json',
+      const response = await fetch(
+        'https://www.googleapis.com/calendar/v3/calendars/primary/events',
+        {
+          method: 'POST',
+          headers: {
+            authorization: `Bearer ${token}`,
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            summary: task.title,
+            description: task.content,
+            start: task.isAllDay
+              ? { date: due.toISOString().slice(0, 10) }
+              : { dateTime: (task.startDate ?? due).toISOString() },
+            end: task.isAllDay
+              ? { date: due.toISOString().slice(0, 10) }
+              : { dateTime: due.toISOString() },
+          }),
+          signal: AbortSignal.timeout(8_000),
         },
-        body: JSON.stringify({
-          summary: task.title,
-          description: task.content,
-          start: task.isAllDay
-            ? { date: due.toISOString().slice(0, 10) }
-            : { dateTime: (task.startDate ?? due).toISOString() },
-          end: task.isAllDay ? { date: due.toISOString().slice(0, 10) } : { dateTime: due.toISOString() },
-        }),
-        signal: AbortSignal.timeout(8_000),
-      });
+      );
       if (!response.ok) {
-        throw new DomainException(HttpStatus.BAD_GATEWAY, 'google_push_failed', 'Google Calendar rejected an event');
+        throw new DomainException(
+          HttpStatus.BAD_GATEWAY,
+          'google_push_failed',
+          'Google Calendar rejected an event',
+        );
       }
       pushed += 1;
     }
@@ -200,7 +213,11 @@ export class CalendarService {
       where: { id, ownerId: user.id, deletedAt: null },
     });
     if (row === null) {
-      throw new DomainException(HttpStatus.NOT_FOUND, 'subscription_not_found', 'Subscription was not found');
+      throw new DomainException(
+        HttpStatus.NOT_FOUND,
+        'subscription_not_found',
+        'Subscription was not found',
+      );
     }
     if (row.provider === 'google') {
       return this.refreshGoogle(user, row.id);
@@ -327,12 +344,19 @@ export class CalendarService {
   private instant(value: string, name: string): Date {
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) {
-      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', `${name} is not a date`);
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        `${name} is not a date`,
+      );
     }
     return parsed;
   }
 
-  private async refreshGoogle(user: AuthUser, subscriptionId: string): Promise<{ imported: number }> {
+  private async refreshGoogle(
+    user: AuthUser,
+    subscriptionId: string,
+  ): Promise<{ imported: number }> {
     const token = await this.googleAccessToken();
     const now = new Date();
     const timeMin = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -346,7 +370,11 @@ export class CalendarService {
       signal: AbortSignal.timeout(8_000),
     });
     if (!response.ok) {
-      throw new DomainException(HttpStatus.BAD_GATEWAY, 'calendar_fetch_failed', 'Google Calendar refused the read');
+      throw new DomainException(
+        HttpStatus.BAD_GATEWAY,
+        'calendar_fetch_failed',
+        'Google Calendar refused the read',
+      );
     }
     const body = (await response.json()) as { items?: unknown };
     const items = Array.isArray(body.items) ? body.items : [];
@@ -372,7 +400,10 @@ export class CalendarService {
           },
         });
       }
-      await tx.calendarSubscription.update({ where: { id: subscriptionId }, data: { lastSyncedAt: new Date() } });
+      await tx.calendarSubscription.update({
+        where: { id: subscriptionId },
+        data: { lastSyncedAt: new Date() },
+      });
       if (parsed.length > 0) {
         await this.events.record(tx, actorOf(user), {
           type: DomainEvent.calendarEventImported,
@@ -407,11 +438,19 @@ export class CalendarService {
       signal: AbortSignal.timeout(8_000),
     });
     if (!response.ok) {
-      throw new DomainException(HttpStatus.BAD_GATEWAY, 'google_push_failed', 'Google token exchange failed');
+      throw new DomainException(
+        HttpStatus.BAD_GATEWAY,
+        'google_push_failed',
+        'Google token exchange failed',
+      );
     }
     const body = (await response.json()) as { access_token?: unknown };
     if (typeof body.access_token !== 'string' || body.access_token.length === 0) {
-      throw new DomainException(HttpStatus.BAD_GATEWAY, 'google_push_failed', 'Google did not return an access token');
+      throw new DomainException(
+        HttpStatus.BAD_GATEWAY,
+        'google_push_failed',
+        'Google did not return an access token',
+      );
     }
     return body.access_token;
   }
@@ -428,17 +467,27 @@ export class CalendarService {
     }
     const response = await fetch(parsed, { signal: AbortSignal.timeout(8_000) });
     if (!response.ok) {
-      throw new DomainException(HttpStatus.BAD_GATEWAY, 'calendar_fetch_failed', 'Calendar URL failed');
+      throw new DomainException(
+        HttpStatus.BAD_GATEWAY,
+        'calendar_fetch_failed',
+        'Calendar URL failed',
+      );
     }
     const text = await response.text();
     if (text.length > MAX_ICAL_BYTES) {
-      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'Calendar is too large');
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'Calendar is too large',
+      );
     }
     return text;
   }
 }
 
-function googleEvent(value: unknown): { uid: string; title: string; startsAt: string; endsAt: string | null; isAllDay: boolean }[] {
+function googleEvent(
+  value: unknown,
+): { uid: string; title: string; startsAt: string; endsAt: string | null; isAllDay: boolean }[] {
   if (typeof value !== 'object' || value === null) {
     return [];
   }
@@ -455,7 +504,12 @@ function googleEvent(value: unknown): { uid: string; title: string; startsAt: st
   if (typeof start !== 'string') {
     return [];
   }
-  const end = typeof item.end?.dateTime === 'string' ? item.end.dateTime : typeof item.end?.date === 'string' ? item.end.date : null;
+  const end =
+    typeof item.end?.dateTime === 'string'
+      ? item.end.dateTime
+      : typeof item.end?.date === 'string'
+        ? item.end.date
+        : null;
   return [
     {
       uid: item.id,

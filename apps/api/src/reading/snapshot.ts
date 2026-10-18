@@ -22,7 +22,10 @@ export async function loadDashboardSnapshot(
   });
   const habits = await prisma.habit.findMany({
     where: { ownerId, deletedAt: null, archived: false },
-    select: { goal: true, logs: { where: { deletedAt: null }, select: { date: true, count: true } } },
+    select: {
+      goal: true,
+      logs: { where: { deletedAt: null }, select: { date: true, count: true } },
+    },
   });
   const mappedTasks: DashboardTask[] = tasks.map((task) => ({
     createdAt: task.createdAt.toISOString(),

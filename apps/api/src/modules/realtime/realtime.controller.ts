@@ -36,7 +36,9 @@ export class RealtimeController {
         take: 50,
       });
       for (const row of rows) {
-        res.write(`id: ${row.id}\nevent: ${row.type}\ndata: ${JSON.stringify({ id: row.id, type: row.type })}\n\n`);
+        res.write(
+          `id: ${row.id}\nevent: ${row.type}\ndata: ${JSON.stringify({ id: row.id, type: row.type })}\n\n`,
+        );
         cursor = row.occurredAt.toISOString();
       }
     };

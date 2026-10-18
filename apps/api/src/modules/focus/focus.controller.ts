@@ -1,4 +1,17 @@
-import { Body, Controller, Get, HttpStatus, Inject, Param, ParseUUIDPipe, Patch, Post, Query, Req, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpStatus,
+  Inject,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  Req,
+  Res,
+} from '@nestjs/common';
 import { ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 import type { Request, Response } from 'express';
@@ -178,10 +191,18 @@ export class FocusController {
   @Get('stats')
   @Scopes('focus:read')
   @ApiOperation({ summary: 'Focus statistics (RF-1204)' })
-  async stats(@CurrentUser() user: AuthUser, @Req() req: Request, @Res() res: Response): Promise<void> {
+  async stats(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
     const rows = await this.prisma.focusSession.findMany({
       where: { ownerId: user.id, deletedAt: null },
-      include: { task: { select: { projectId: true, tags: { select: { tag: { select: { name: true } } } } } } },
+      include: {
+        task: {
+          select: { projectId: true, tags: { select: { tag: { select: { name: true } } } } },
+        },
+      },
     });
     const stats = focusStats(
       rows.map((row) => ({
@@ -199,7 +220,11 @@ export class FocusController {
   @Get('settings')
   @Scopes('focus:read')
   @ApiOperation({ summary: 'Focus settings (RF-1201)' })
-  async getSettings(@CurrentUser() user: AuthUser, @Req() req: Request, @Res() res: Response): Promise<void> {
+  async getSettings(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
     const settings = await this.settingsOf(user.id);
     respondJson(req, res, 200, settings, false);
   }
@@ -220,13 +245,18 @@ export class FocusController {
         pomodoroMinutes: dto.pomodoro_minutes ?? DEFAULT_FOCUS_SETTINGS.pomodoroMinutes,
         shortBreakMinutes: dto.short_break_minutes ?? DEFAULT_FOCUS_SETTINGS.shortBreakMinutes,
         longBreakMinutes: dto.long_break_minutes ?? DEFAULT_FOCUS_SETTINGS.longBreakMinutes,
-        cyclesBeforeLongBreak: dto.cycles_before_long_break ?? DEFAULT_FOCUS_SETTINGS.cyclesBeforeLongBreak,
+        cyclesBeforeLongBreak:
+          dto.cycles_before_long_break ?? DEFAULT_FOCUS_SETTINGS.cyclesBeforeLongBreak,
         strictMode: dto.strict_mode ?? false,
       },
       update: {
         ...(dto.pomodoro_minutes !== undefined ? { pomodoroMinutes: dto.pomodoro_minutes } : {}),
-        ...(dto.short_break_minutes !== undefined ? { shortBreakMinutes: dto.short_break_minutes } : {}),
-        ...(dto.long_break_minutes !== undefined ? { longBreakMinutes: dto.long_break_minutes } : {}),
+        ...(dto.short_break_minutes !== undefined
+          ? { shortBreakMinutes: dto.short_break_minutes }
+          : {}),
+        ...(dto.long_break_minutes !== undefined
+          ? { longBreakMinutes: dto.long_break_minutes }
+          : {}),
         ...(dto.cycles_before_long_break !== undefined
           ? { cyclesBeforeLongBreak: dto.cycles_before_long_break }
           : {}),
@@ -299,7 +329,8 @@ export class FocusController {
       pomodoroMinutes: row?.pomodoroMinutes ?? DEFAULT_FOCUS_SETTINGS.pomodoroMinutes,
       shortBreakMinutes: row?.shortBreakMinutes ?? DEFAULT_FOCUS_SETTINGS.shortBreakMinutes,
       longBreakMinutes: row?.longBreakMinutes ?? DEFAULT_FOCUS_SETTINGS.longBreakMinutes,
-      cyclesBeforeLongBreak: row?.cyclesBeforeLongBreak ?? DEFAULT_FOCUS_SETTINGS.cyclesBeforeLongBreak,
+      cyclesBeforeLongBreak:
+        row?.cyclesBeforeLongBreak ?? DEFAULT_FOCUS_SETTINGS.cyclesBeforeLongBreak,
     };
   }
 
@@ -326,7 +357,9 @@ export class FocusController {
       ended_at: row.endedAt?.toISOString() ?? null,
       completed: row.completed,
       remaining_seconds:
-        row.endedAt === null ? remainingSeconds(row.startedAt.toISOString(), row.plannedMinutes, now.toISOString()) : 0,
+        row.endedAt === null
+          ? remainingSeconds(row.startedAt.toISOString(), row.plannedMinutes, now.toISOString())
+          : 0,
     };
   }
 }

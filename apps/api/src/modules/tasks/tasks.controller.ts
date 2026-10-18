@@ -517,7 +517,10 @@ export class TasksController {
     const file = await this.tasks.openThumbnail(user, id, attachmentId);
     res.setHeader('Content-Type', file.mimeType);
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Content-Disposition', `inline; filename="thumb-${file.fileName.replace(/"/g, '')}"`);
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="thumb-${file.fileName.replace(/"/g, '')}"`,
+    );
     createReadStream(file.absolute).pipe(res);
   }
 

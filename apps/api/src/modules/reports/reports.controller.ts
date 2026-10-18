@@ -1,4 +1,15 @@
-import { Body, Controller, Get, HttpStatus, Inject, Param, Patch, Post, Req, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpStatus,
+  Inject,
+  Param,
+  Patch,
+  Post,
+  Req,
+  Res,
+} from '@nestjs/common';
 import { ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsArray, IsIn, IsOptional, IsString, Matches } from 'class-validator';
 import type { Request, Response } from 'express';
@@ -47,7 +58,11 @@ export class ReportsController {
   @Get('reports/weekly')
   @Scopes('tasks:read')
   @ApiOperation({ summary: 'Weekly report history (RF-2204)' })
-  async list(@CurrentUser() user: AuthUser, @Req() req: Request, @Res() res: Response): Promise<void> {
+  async list(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
     const rows = await this.prisma.weeklyReport.findMany({
       where: { ownerId: user.id, deletedAt: null },
       orderBy: { weekStart: 'desc' },
@@ -84,7 +99,11 @@ export class ReportsController {
   @Post('reports/weekly')
   @Scopes('tasks:read')
   @ApiOperation({ summary: 'Build this week’s honest report (RF-2201, RF-2203)' })
-  async build(@CurrentUser() user: AuthUser, @Req() req: Request, @Res() res: Response): Promise<void> {
+  async build(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
     const body = await this.compose(user, new Date());
     respond(req, res, body);
   }
@@ -92,7 +111,11 @@ export class ReportsController {
   @Get('me/report-settings')
   @Scopes('profile:read')
   @ApiOperation({ summary: 'Weekly report settings (RF-2202)' })
-  async settings(@CurrentUser() user: AuthUser, @Req() req: Request, @Res() res: Response): Promise<void> {
+  async settings(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
     const row = await this.prisma.user.findFirst({
       where: { id: user.id },
       select: { weeklyReportSettings: true },
@@ -145,7 +168,12 @@ export class ReportsController {
       focus._sum.actualSeconds === null ? null : Math.round(focus._sum.actualSeconds / 60);
     const narrative = weeklyNarrative(snapshot, settings.tone, focusMinutes);
     const week = weekStart(now);
-    const payload = { summary: narrative.summary, observations: narrative.observations, snapshot, weak: narrative.weak };
+    const payload = {
+      summary: narrative.summary,
+      observations: narrative.observations,
+      snapshot,
+      weak: narrative.weak,
+    };
     const row = await this.prisma.$transaction(async (tx) => {
       const saved = await tx.weeklyReport.upsert({
         where: { ownerId_weekStart: { ownerId: user.id, weekStart: week } },
@@ -193,8 +221,10 @@ interface ReportSettings {
 }
 
 function normalizeSettings(value: unknown): ReportSettings {
-  const record = typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
-  const tone = typeof record.tone === 'string' && isReportTone(record.tone) ? record.tone : 'honesto';
+  const record =
+    typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+  const tone =
+    typeof record.tone === 'string' && isReportTone(record.tone) ? record.tone : 'honesto';
   return {
     day: typeof record.day === 'string' ? record.day : 'sunday',
     time: typeof record.time === 'string' ? record.time : '20:00',
@@ -208,6 +238,8 @@ function normalizeSettings(value: unknown): ReportSettings {
 function weekStart(now: Date): Date {
   const day = now.getUTCDay();
   const mondayOffset = day === 0 ? 6 : day - 1;
-  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - mondayOffset));
+  const start = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - mondayOffset),
+  );
   return start;
 }

@@ -192,7 +192,12 @@ export function TaskList({
             onBlur={() => {
               const column = columns?.[0];
               const value = Number(limit);
-              if (createProjectId !== undefined && column !== undefined && Number.isInteger(value) && value > 0) {
+              if (
+                createProjectId !== undefined &&
+                column !== undefined &&
+                Number.isInteger(value) &&
+                value > 0
+              ) {
                 void api.updateColumn(createProjectId, column.id, { wip_limit: value });
               }
             }}
@@ -305,7 +310,11 @@ function Kanban({
 }: {
   readonly messages: Messages;
   readonly rows: readonly RowModel[];
-  readonly columns: readonly { readonly id: string; readonly name: string; readonly wip_limit?: number | null }[];
+  readonly columns: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly wip_limit?: number | null;
+  }[];
   readonly onOpen: (id: string) => void;
   readonly onComplete: (row: RowModel) => void;
 }) {
@@ -423,7 +432,10 @@ function Timeline({
               </button>
               <Button
                 onClick={() => {
-                  void api.patchTask(row.id, { due_date: new Date().toISOString(), start_date: new Date().toISOString() });
+                  void api.patchTask(row.id, {
+                    due_date: new Date().toISOString(),
+                    start_date: new Date().toISOString(),
+                  });
                 }}
               >
                 {messages.placeToday}

@@ -60,7 +60,9 @@ export class IntegrationsController {
 
   @Get('telegram')
   @Scopes('profile:read')
-  @ApiOperation({ summary: 'Telegram bot status. Without TELEGRAM_BOT_TOKEN it stays stopped (RF-2003).' })
+  @ApiOperation({
+    summary: 'Telegram bot status. Without TELEGRAM_BOT_TOKEN it stays stopped (RF-2003).',
+  })
   status(@Req() req: Request, @Res() res: Response): void {
     respondJson(
       req,
@@ -77,7 +79,9 @@ export class IntegrationsController {
 
   @Post('telegram/link')
   @Scopes('profile:write')
-  @ApiOperation({ summary: 'Remember a chat id. The bot still does not call Telegram without a token.' })
+  @ApiOperation({
+    summary: 'Remember a chat id. The bot still does not call Telegram without a token.',
+  })
   async link(
     @CurrentUser() user: AuthUser,
     @Body() dto: LinkDto,
@@ -104,7 +108,9 @@ export class IntegrationsController {
   }
 
   @Post('telegram/webhook')
-  @ApiOperation({ summary: 'Inbound Telegram update. Refuses to run when the bot token is missing.' })
+  @ApiOperation({
+    summary: 'Inbound Telegram update. Refuses to run when the bot token is missing.',
+  })
   webhook(@Body() dto: TelegramUpdateDto, @Req() req: Request, @Res() res: Response): void {
     if (!telegramConfigured()) {
       throw new DomainException(
@@ -129,7 +135,9 @@ export class IntegrationsController {
 
   @Post('drive/attachments')
   @Scopes('tasks:write')
-  @ApiOperation({ summary: 'Attach a Drive file by link. Copying bytes needs credentials (RF-2005).' })
+  @ApiOperation({
+    summary: 'Attach a Drive file by link. Copying bytes needs credentials (RF-2005).',
+  })
   async attach(
     @CurrentUser() user: AuthUser,
     @Body() dto: DriveDto,
@@ -161,7 +169,11 @@ export class IntegrationsController {
         entityType: 'attachment',
         entityId: created.id,
         action: 'created',
-        data: asJson({ drive_file_id: dto.file_id, copied: false, drive_configured: driveConfigured() }),
+        data: asJson({
+          drive_file_id: dto.file_id,
+          copied: false,
+          drive_configured: driveConfigured(),
+        }),
         previous: null,
       });
       return created;

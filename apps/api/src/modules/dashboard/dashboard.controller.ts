@@ -163,7 +163,11 @@ export class DashboardController {
             })
           : await tx.dashboardLayout.update({
               where: { id: current.id },
-              data: { name: dto.name, widgets: asJson(dto.widgets), isDefault: dto.is_default ?? true },
+              data: {
+                name: dto.name,
+                widgets: asJson(dto.widgets),
+                isDefault: dto.is_default ?? true,
+              },
             });
       await this.events.record(tx, actorOf(user), {
         type: DomainEvent.dashboardUpdated,

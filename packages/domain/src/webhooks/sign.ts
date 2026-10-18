@@ -6,9 +6,13 @@ export const WEBHOOK_MAX_ATTEMPTS = 10;
 export const WEBHOOK_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export async function signWebhookBody(secret: string, body: string): Promise<string> {
-  const key = await subtle().importKey('raw', asBuffer(utf8(secret)), { name: 'HMAC', hash: 'SHA-256' }, false, [
-    'sign',
-  ]);
+  const key = await subtle().importKey(
+    'raw',
+    asBuffer(utf8(secret)),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
   const signature = await subtle().sign('HMAC', key, utf8(body));
   const hex = [...new Uint8Array(signature)]
     .map((byte) => byte.toString(16).padStart(2, '0'))

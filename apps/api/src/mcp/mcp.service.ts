@@ -286,7 +286,10 @@ export class McpService {
       case 'review_daily': {
         const tasks = await this.prisma.task.findMany({
           where: { ownerId: user.id, deletedAt: null, status: 'active' },
-          include: { project: { select: { name: true } }, tags: { select: { tag: { select: { name: true } } } } },
+          include: {
+            project: { select: { name: true } },
+            tags: { select: { tag: { select: { name: true } } } },
+          },
           take: 100,
         });
         const now = new Date().toISOString();

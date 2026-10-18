@@ -146,7 +146,9 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: 'pin_sticky_note',
     description: 'Pin a sticky note.',
     scopes: ['notes:write'],
-    inputSchema: objectSchema({ text: { type: 'string', minLength: 1, maxLength: 4000 } }, ['text']),
+    inputSchema: objectSchema({ text: { type: 'string', minLength: 1, maxLength: 4000 } }, [
+      'text',
+    ]),
   },
   {
     name: 'dashboard_snapshot',

@@ -68,7 +68,8 @@ export const extraEs = {
   focusReset: 'Reiniciar',
   pluginEmpty: 'Un plugin declara permisos y corre fuera del proceso de la API.',
   shareEmpty: 'Compartir listas es V2. La API no publica colaboradores.',
-  backupEmpty: 'Aquí están el export JSON y los backups de esta máquina. Restaurar verifica el archivo y no pisa la base.',
+  backupEmpty:
+    'Aquí están el export JSON y los backups de esta máquina. Restaurar verifica el archivo y no pisa la base.',
   exportEmpty: 'La API no publica la exportación de datos.',
   accountHint:
     'El perfil se guarda en el servidor. La contraseña, las sesiones y el 2FA aún no tienen endpoint.',
@@ -323,7 +324,8 @@ export const extraEn = {
   focusReset: 'Reset',
   pluginEmpty: 'A plugin declares permissions and runs outside the API process.',
   shareEmpty: 'Sharing lists is V2. The API does not publish collaborators.',
-  backupEmpty: 'JSON export and the backups on this machine. Restore checks the file and does not overwrite the database.',
+  backupEmpty:
+    'JSON export and the backups on this machine. Restore checks the file and does not overwrite the database.',
   exportEmpty: 'The API does not publish a data export.',
   accountHint:
     'The profile is saved on the server. Password, sessions and 2FA have no endpoint yet.',

@@ -97,7 +97,11 @@ export class WebhookDispatcher implements OnModuleInit {
       include: { endpoint: true },
     });
     if (delivery === null) {
-      throw new DomainException(HttpStatus.NOT_FOUND, 'delivery_not_found', 'Delivery was not found');
+      throw new DomainException(
+        HttpStatus.NOT_FOUND,
+        'delivery_not_found',
+        'Delivery was not found',
+      );
     }
     const payload = JSON.stringify({ id: delivery.eventId, type: delivery.eventType });
     const signature = createHmac('sha256', delivery.endpoint.secret).update(payload).digest('hex');
@@ -119,7 +123,11 @@ export class WebhookDispatcher implements OnModuleInit {
       ok = false;
     }
     const attempts = delivery.attempts + 1;
-    const open = webhookStillOpen(delivery.createdAt.toISOString(), new Date().toISOString(), attempts);
+    const open = webhookStillOpen(
+      delivery.createdAt.toISOString(),
+      new Date().toISOString(),
+      attempts,
+    );
     const delay = webhookRetryDelayMs(attempts);
     const state = ok ? 'delivered' : open && delay !== null ? 'failed' : 'gave_up';
     await this.prisma.webhookDelivery.update({
@@ -157,7 +165,11 @@ export class WebhooksController {
   @Get()
   @Scopes('webhooks:manage')
   @ApiOperation({ summary: 'List webhook endpoints (RF-11010)' })
-  async list(@CurrentUser() user: AuthUser, @Req() req: Request, @Res() res: Response): Promise<void> {
+  async list(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
     const rows = await this.prisma.webhookEndpoint.findMany({
       where: { ownerId: user.id, deletedAt: null },
       orderBy: { createdAt: 'asc' },
@@ -166,7 +178,14 @@ export class WebhooksController {
       req,
       res,
       200,
-      { items: rows.map((row) => ({ id: row.id, url: row.url, events: row.events, active: row.active })) },
+      {
+        items: rows.map((row) => ({
+          id: row.id,
+          url: row.url,
+          events: row.events,
+          active: row.active,
+        })),
+      },
       false,
     );
   }
@@ -257,7 +276,11 @@ export class WebhooksController {
       where: { id: deliveryId, endpoint: { ownerId: user.id } },
     });
     if (delivery === null) {
-      throw new DomainException(HttpStatus.NOT_FOUND, 'delivery_not_found', 'Delivery was not found');
+      throw new DomainException(
+        HttpStatus.NOT_FOUND,
+        'delivery_not_found',
+        'Delivery was not found',
+      );
     }
     respondJson(req, res, 200, await this.dispatcher.deliverOne(delivery.id), false);
   }

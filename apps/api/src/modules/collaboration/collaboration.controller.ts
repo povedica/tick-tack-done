@@ -230,7 +230,14 @@ export class CollaborationController {
       req,
       res,
       200,
-      { items: rows.map((row) => ({ id: row.id, body: row.body, author_id: row.authorId, mentions: parseMentions(row.body) })) },
+      {
+        items: rows.map((row) => ({
+          id: row.id,
+          body: row.body,
+          author_id: row.authorId,
+          mentions: parseMentions(row.body),
+        })),
+      },
       false,
     );
   }
@@ -250,14 +257,18 @@ export class CollaborationController {
       const created = await tx.comment.create({
         data: { ownerId: task.ownerId, taskId: task.id, authorId: user.id, body: dto.body },
       });
-      await this.events.record(tx, { ...actorOf(user), ownerId: task.ownerId }, {
-        type: DomainEvent.commentCreated,
-        entityType: 'comment',
-        entityId: created.id,
-        action: 'commented',
-        data: asJson({ body: dto.body, mentions: parseMentions(dto.body) }),
-        previous: null,
-      });
+      await this.events.record(
+        tx,
+        { ...actorOf(user), ownerId: task.ownerId },
+        {
+          type: DomainEvent.commentCreated,
+          entityType: 'comment',
+          entityId: created.id,
+          action: 'commented',
+          data: asJson({ body: dto.body, mentions: parseMentions(dto.body) }),
+          previous: null,
+        },
+      );
       return created;
     });
     respondJson(req, res, 201, { id: row.id, mentions: parseMentions(dto.body) }, false);
@@ -275,15 +286,22 @@ export class CollaborationController {
   ): Promise<void> {
     const task = await this.task(user, id, 'write');
     const row = await this.prisma.$transaction(async (tx) => {
-      const saved = await tx.task.update({ where: { id: task.id }, data: { assigneeId: dto.assignee_id } });
-      await this.events.record(tx, { ...actorOf(user), ownerId: task.ownerId }, {
-        type: DomainEvent.taskAssigned,
-        entityType: 'task',
-        entityId: task.id,
-        action: 'assigned',
-        data: asJson({ assignee_id: dto.assignee_id }),
-        previous: asJson({ assignee_id: task.assigneeId }),
+      const saved = await tx.task.update({
+        where: { id: task.id },
+        data: { assigneeId: dto.assignee_id },
       });
+      await this.events.record(
+        tx,
+        { ...actorOf(user), ownerId: task.ownerId },
+        {
+          type: DomainEvent.taskAssigned,
+          entityType: 'task',
+          entityId: task.id,
+          action: 'assigned',
+          data: asJson({ assignee_id: dto.assignee_id }),
+          previous: asJson({ assignee_id: task.assigneeId }),
+        },
+      );
       return saved;
     });
     respondJson(req, res, 200, { id: row.id, assignee_id: row.assigneeId }, false);
@@ -312,10 +330,7 @@ export class CollaborationController {
       where: {
         projectId,
         deletedAt: null,
-        OR: [
-          { memberId: user.id },
-          ...(user.tokenId === null ? [] : [{ tokenId: user.tokenId }]),
-        ],
+        OR: [{ memberId: user.id }, ...(user.tokenId === null ? [] : [{ tokenId: user.tokenId }])],
       },
     });
     if (member === null || !allows(member.permission, action)) {

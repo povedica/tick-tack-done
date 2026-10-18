@@ -1,4 +1,14 @@
-import { Body, Controller, Delete, Get, HttpStatus, Inject, Param, Post, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpStatus,
+  Inject,
+  Param,
+  Post,
+  Res,
+} from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { fromOpenTask, toOpenProject, toOpenTask } from '@reflexionia/domain';
@@ -160,7 +170,9 @@ export class OpenController {
   }
 
   private async inbox(ownerId: string): Promise<string> {
-    const inbox = await this.prisma.project.findFirst({ where: { ownerId, isInbox: true, deletedAt: null } });
+    const inbox = await this.prisma.project.findFirst({
+      where: { ownerId, isInbox: true, deletedAt: null },
+    });
     if (inbox === null) {
       throw new DomainException(HttpStatus.NOT_FOUND, 'project_not_found', 'Inbox was not found');
     }

@@ -89,7 +89,10 @@ export class TotpService {
       throw new DomainException(HttpStatus.UNAUTHORIZED, 'invalid_totp', 'Invalid code');
     }
     await this.prisma.$transaction(async (tx) => {
-      await tx.user.update({ where: { id: user.id }, data: { totpEnabled: false, totpSecret: null } });
+      await tx.user.update({
+        where: { id: user.id },
+        data: { totpEnabled: false, totpSecret: null },
+      });
       await tx.recoveryCode.deleteMany({ where: { ownerId: user.id } });
       await this.events.record(tx, actorOf(user), {
         type: DomainEvent.totpDisabled,
@@ -115,18 +118,28 @@ export class TotpService {
     if (!ok) {
       throw new DomainException(
         HttpStatus.UNAUTHORIZED,
-        factor.totp_code === undefined && factor.recovery_code === undefined ? 'totp_required' : 'invalid_totp',
+        factor.totp_code === undefined && factor.recovery_code === undefined
+          ? 'totp_required'
+          : 'invalid_totp',
         'Second factor required',
       );
     }
   }
 
-  private async matches(userId: string, code: string | null, recovery: string | null): Promise<boolean> {
+  private async matches(
+    userId: string,
+    code: string | null,
+    recovery: string | null,
+  ): Promise<boolean> {
     const row = await this.prisma.user.findFirst({
       where: { id: userId },
       select: { totpSecret: true },
     });
-    if (row?.totpSecret != null && code !== null && (await verifyTotp(row.totpSecret, code, Date.now()))) {
+    if (
+      row?.totpSecret != null &&
+      code !== null &&
+      (await verifyTotp(row.totpSecret, code, Date.now()))
+    ) {
       return true;
     }
     if (recovery === null) {
@@ -139,7 +152,10 @@ export class TotpService {
     if (saved === null) {
       return false;
     }
-    await this.prisma.recoveryCode.update({ where: { id: saved.id }, data: { usedAt: new Date() } });
+    await this.prisma.recoveryCode.update({
+      where: { id: saved.id },
+      data: { usedAt: new Date() },
+    });
     return true;
   }
 }
@@ -152,7 +168,11 @@ export class TotpController {
   @Post()
   @Scopes('profile:write')
   @ApiOperation({ summary: 'Start TOTP. It is not forced on the dev user.' })
-  async begin(@CurrentUser() user: AuthUser, @Req() req: Request, @Res() res: Response): Promise<void> {
+  async begin(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
     respondJson(req, res, 200, await this.totp.begin(user), false);
   }
 

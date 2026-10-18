@@ -1,4 +1,15 @@
-import { Body, Controller, Delete, Get, HttpStatus, Inject, Param, Post, Req, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpStatus,
+  Inject,
+  Param,
+  Post,
+  Req,
+  Res,
+} from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { parsePluginManifest, pluginMay } from '@reflexionia/domain';
@@ -24,17 +35,38 @@ export class PluginsController {
   @Get()
   @Scopes('profile:read')
   @ApiOperation({ summary: 'Installed plugins (section 12)' })
-  async list(@CurrentUser() user: AuthUser, @Req() req: Request, @Res() res: Response): Promise<void> {
+  async list(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
     const rows = await this.prisma.pluginInstall.findMany({
       where: { ownerId: user.id, deletedAt: null },
     });
-    respondJson(req, res, 200, { items: rows.map((row) => ({ id: row.id, plugin_id: row.pluginId, enabled: row.enabled, manifest: row.manifest })) }, false);
+    respondJson(
+      req,
+      res,
+      200,
+      {
+        items: rows.map((row) => ({
+          id: row.id,
+          plugin_id: row.pluginId,
+          enabled: row.enabled,
+          manifest: row.manifest,
+        })),
+      },
+      false,
+    );
   }
 
   @Get('widgets')
   @Scopes('profile:read')
   @ApiOperation({ summary: 'Widgets registered by plugins (RF-2105)' })
-  async widgets(@CurrentUser() user: AuthUser, @Req() req: Request, @Res() res: Response): Promise<void> {
+  async widgets(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
     const rows = await this.prisma.pluginInstall.findMany({
       where: { ownerId: user.id, deletedAt: null, enabled: true },
     });
@@ -64,7 +96,11 @@ export class PluginsController {
     const row = await this.prisma.$transaction(async (tx) => {
       const saved = await tx.pluginInstall.upsert({
         where: { ownerId_pluginId: { ownerId: user.id, pluginId: parsed.manifest.id } },
-        create: { ownerId: user.id, pluginId: parsed.manifest.id, manifest: asJson(parsed.manifest) },
+        create: {
+          ownerId: user.id,
+          pluginId: parsed.manifest.id,
+          manifest: asJson(parsed.manifest),
+        },
         update: { manifest: asJson(parsed.manifest), enabled: true, deletedAt: null },
       });
       await this.events.record(tx, actorOf(user), {
@@ -95,7 +131,10 @@ export class PluginsController {
       throw new DomainException(HttpStatus.NOT_FOUND, 'plugin_not_found', 'Plugin was not found');
     }
     await this.prisma.$transaction(async (tx) => {
-      await tx.pluginInstall.update({ where: { id: row.id }, data: { deletedAt: new Date(), enabled: false } });
+      await tx.pluginInstall.update({
+        where: { id: row.id },
+        data: { deletedAt: new Date(), enabled: false },
+      });
       await this.events.record(tx, actorOf(user), {
         type: DomainEvent.pluginRemoved,
         entityType: 'plugin',

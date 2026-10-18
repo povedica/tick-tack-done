@@ -1092,7 +1092,13 @@ export class TasksService {
     user: AuthUser,
     taskId: string,
   ): Promise<
-    { id: string; file_name: string; mime_type: string; byte_size: number; has_thumbnail: boolean }[]
+    {
+      id: string;
+      file_name: string;
+      mime_type: string;
+      byte_size: number;
+      has_thumbnail: boolean;
+    }[]
   > {
     await this.require(this.prisma, user.id, taskId, false);
     const rows = await this.prisma.attachment.findMany({

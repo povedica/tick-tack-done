@@ -16,7 +16,11 @@ export class ReviewController {
   @Get('daily')
   @Scopes('tasks:read')
   @ApiOperation({ summary: 'Propose today’s short list. The UI does not decide (RF-2301)' })
-  async daily(@CurrentUser() user: AuthUser, @Req() req: Request, @Res() res: Response): Promise<void> {
+  async daily(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
     const now = new Date();
     const tasks = await this.candidates(user.id);
     const proposal = proposeDaily(tasks, now.toISOString(), null, {
@@ -35,12 +39,20 @@ export class ReviewController {
   @Get('weekly')
   @Scopes('tasks:read')
   @ApiOperation({ summary: 'Guided weekly review (RF-2302, RF-2303)' })
-  async weekly(@CurrentUser() user: AuthUser, @Req() req: Request, @Res() res: Response): Promise<void> {
+  async weekly(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
     const now = new Date();
     const tasks = await this.candidates(user.id);
     const habits = await this.prisma.habit.findMany({
       where: { ownerId: user.id, deletedAt: null, archived: false },
-      select: { id: true, name: true, logs: { where: { deletedAt: null }, select: { date: true, count: true } } },
+      select: {
+        id: true,
+        name: true,
+        logs: { where: { deletedAt: null }, select: { date: true, count: true } },
+      },
     });
     const review = proposeWeekly(
       tasks,
@@ -58,7 +70,10 @@ export class ReviewController {
   private async candidates(ownerId: string): Promise<ReviewCandidate[]> {
     const rows = await this.prisma.task.findMany({
       where: { ownerId, deletedAt: null },
-      include: { tags: { select: { tag: { select: { name: true } } } }, project: { select: { name: true } } },
+      include: {
+        tags: { select: { tag: { select: { name: true } } } },
+        project: { select: { name: true } },
+      },
     });
     return rows.map((row) => ({
       id: row.id,

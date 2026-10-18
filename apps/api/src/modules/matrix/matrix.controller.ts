@@ -3,7 +3,11 @@ import { Prisma } from '@prisma/client';
 import { ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsIn, IsObject, IsOptional } from 'class-validator';
 import type { Request, Response } from 'express';
-import { DEFAULT_QUADRANT_EFFECTS, MATRIX_QUADRANTS, type MatrixQuadrant } from '@reflexionia/domain';
+import {
+  DEFAULT_QUADRANT_EFFECTS,
+  MATRIX_QUADRANTS,
+  type MatrixQuadrant,
+} from '@reflexionia/domain';
 import { actorOf, type AuthUser } from '../../auth/auth-user';
 import { CurrentUser } from '../../auth/current-user.decorator';
 import { Scopes } from '../../auth/scopes.decorator';
@@ -40,7 +44,11 @@ export class MatrixController {
   @Get('rules')
   @Scopes('tasks:read')
   @ApiOperation({ summary: 'Eisenhower rules. Missing rows use the spec defaults (RF-1004).' })
-  async list(@CurrentUser() user: AuthUser, @Req() req: Request, @Res() res: Response): Promise<void> {
+  async list(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
     const rows = await this.prisma.matrixRule.findMany({
       where: { ownerId: user.id, deletedAt: null },
     });
