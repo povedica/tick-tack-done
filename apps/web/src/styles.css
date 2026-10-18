@@ -1,8 +1,9 @@
 :root {
-  color: #1c1917;
-  background: #f6f4ef;
-  font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
-  line-height: 1.5;
+  color: var(--ink);
+  background: var(--bg);
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  line-height: var(--lh-base);
 }
 
 * {
@@ -14,20 +15,28 @@ body {
 }
 
 button,
-textarea {
+textarea,
+select {
   font: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
 }
 
 .today,
 .sheet {
-  max-width: 40rem;
-  margin: 0 auto;
-  padding: 2rem 1.25rem 6rem;
+  max-width: none;
+  margin: 0;
+  padding: 0;
 }
 
 h1 {
-  font-size: 1.75rem;
+  font-family: var(--font-serif);
+  font-size: var(--fs-2xl);
   font-weight: 600;
+  line-height: var(--lh-tight);
   margin: 0 0 0.75rem;
 }
 
@@ -67,15 +76,15 @@ h1 {
 .capture-input {
   position: relative;
   min-height: 6.5rem;
-  color: #1c1917;
+  color: var(--ink);
   background: transparent;
-  border: 1px solid #d6d3d1;
+  border: 1px solid var(--border-strong);
   border-radius: 0.75rem;
   resize: vertical;
 }
 
 .capture-input:focus {
-  outline: 2px solid #4f46e5;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
 }
 
@@ -113,14 +122,14 @@ h1 {
 .fab {
   border: 0;
   border-radius: 999px;
-  background: #4f46e5;
-  color: #fff;
+  background: var(--accent);
+  color: var(--ink-inverse);
   padding: 0.45rem 0.8rem;
   cursor: pointer;
 }
 
 .chips button {
-  background: #44403c;
+  background: var(--ink-2);
 }
 
 .actions {
@@ -143,8 +152,15 @@ h1 {
   margin: 0.75rem 0 0;
 }
 
+.notice {
+  padding: var(--sp-4);
+  background: var(--success-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
 .error {
-  color: #991b1b;
+  color: var(--danger);
 }
 
 .fab {

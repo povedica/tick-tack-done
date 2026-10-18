@@ -4,7 +4,7 @@ Usa este plan para acotar cada tarea de Cursor: cita la fase y los RF-xx.
 
 ## MVP / fase 1 (4-6 semanas de agente)
 
-Estado al tag `phase-1.7`: puntos 1 a 6 cerrados y mergeados a `main` (el punto 6, smart lists y filtros, es la PR #7 y el tag `phase-1.6`). El punto 7 (acceso de agentes) está en `feat/agent-access`, tag `phase-1.7`, con la PR #8 abierta contra `main` y sin merge. El punto 8 abre otra rama desde `main` cuando esa PR se mergee. La web sigue siendo un wireframe; este corte añade la pantalla de tokens enlazada desde `/today`, sin el rediseño de la sección 7. La UI similar a TickTick queda anotada en `docs/handoff.md` y sin hacer.
+Estado al tag `phase-1.7`: puntos 1 a 6 en `main` (el punto 6 es la PR #7, tag `phase-1.6`). La PR #5, también en `main`, añade el shell y Hoy con tareas reales. El punto 7 (acceso de agentes) está en `feat/agent-access`, tag `phase-1.7`, con la PR #8 abierta contra `main` y sin merge. El punto 8 abre otra rama desde `main` cuando esa PR se mergee. Este corte añade la pantalla de tokens enlazada desde `/today`. El pulido visual del shell queda anotado en `docs/handoff.md` y no es este corte.
 
 1. **Base**: monorepo, CI, Docker Compose, modelo de datos completo (sección 5), migraciones, seed.
 2. **Tareas núcleo**: CRUD + checklist + subtareas (RF-201–210), listas/carpetas/secciones

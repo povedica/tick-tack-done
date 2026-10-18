@@ -1,16 +1,16 @@
 # Handoff — acceso de agentes (fase 1, punto 7)
 
-Punto seguro para retomar. Lint, typecheck, tests unitarios y la integración de la API pasan en local. La CI los corre después de compilar `packages/domain`. Este corte es el tag `phase-1.7` en `feat/agent-access`, con la PR #8 abierta contra `main`. No está mergeado. No se usa `feat/filters`: el punto 6 ya está en `main` (PR #7, tag `phase-1.6`).
+Punto seguro para retomar. Lint, typecheck, tests unitarios y la integración de la API pasan en local. La CI los corre después de compilar `packages/domain`. La rama es `feat/agent-access`, con la PR #8 abierta contra `main`. No está mergeada. El tag `phase-1.7` marca el handoff de antes de traer `main`; la punta de la rama incluye ese merge. No se usa `feat/filters`: el punto 6 ya está en `main` (PR #7, tag `phase-1.6`). La PR #5 (shell y Hoy) también está en `main`; esta rama se actualizó encima para poder mergear.
 
 ## Dónde estamos
 
-Cerrado el punto 7 de la fase 1 (`docs/roadmap.md`): PAT con scopes granulares (RF-2002), límite de 1000 peticiones / 15 min por token y servidor MCP (RF-2001, criterio de aceptación 4 de la sección 17). Los puntos 1 a 6 están en `main`.
+Cerrado el punto 7 de la fase 1 (`docs/roadmap.md`): PAT con scopes granulares (RF-2002), límite de 1000 peticiones / 15 min por token y servidor MCP (RF-2001, criterio de aceptación 4 de la sección 17). Los puntos 1 a 6 están en `main`, y el shell de la PR #5 también.
 
-La API pública sigue en `/api/v1`. OpenAPI está en `/api/docs` y el JSON commiteado es `apps/api/openapi.json`. El cliente web llama a la API solo a través de `@reflexionia/sdk`.
+La API pública sigue en `/api/v1`. OpenAPI está en `/api/docs` y el JSON commiteado es `apps/api/openapi.json`. El cliente web llama a la API solo a través de `@reflexionia/sdk`. `apps/api/tsconfig.json` es NodeNext. No revertirlo a CommonJS.
 
 Siguiente producto: punto 8, cola offline (RF-13010, criterio 5), en una rama nueva desde `main` cuando esta PR se mergee. No adelantar offline ni export en `feat/agent-access`. Una feature o un punto del roadmap es una PR, y se mergea al terminarla.
 
-La web sigue siendo un wireframe. Este corte añade la pantalla de tokens, enlazada desde `/today`. La interfaz de la sección 7, parecida a TickTick, sigue anotada abajo y no se hace aquí. OAuth2 Authorization Code no entra: la UI sigue con la sesión de desarrollo. El módulo de notas no se construye.
+Este corte añade la pantalla de tokens, enlazada desde el Hoy del shell. OAuth2 Authorization Code no entra: la UI sigue con la sesión de desarrollo. El módulo de notas no se construye. El pulido visual del shell no es este corte; queda anotado más abajo.
 
 ## Tags
 
@@ -19,8 +19,17 @@ La web sigue siendo un wireframe. Este corte añade la pantalla de tokens, enlaz
 | `phase-1.7-api` | PAT, scopes, actividad, límite por token y OpenAPI             |
 | `phase-1.7-mcp` | Servidor MCP sobre la API v1, sin más privilegios que el token |
 | `phase-1.7-sdk` | Cliente de administración de tokens                            |
-| `phase-1.7-web` | Pantalla de boceto enlazada desde `/today`                     |
+| `phase-1.7-web` | Pantalla de tokens enlazada desde `/today`                     |
 | `phase-1.7`     | Este handoff. Punto seguro para seguir                         |
+
+## Shell ya en main (PR #5), sin pulir aquí
+
+La PR #5 dejó el shell, el tema y Hoy con tareas reales. Este corte no lo pule. El prompt de esa sesión sigue en `docs/prompts/pulir-ui-hoy.md`.
+
+- La barra es una lista plana de enlaces. No muestra contadores, ni listas con punto de color, ni filtros fijados.
+- Hoy tiene título, grupos y filas de checkbox más título. No hay nombre de lista, etiquetas ni fila «Añadir tarea».
+- Agrupar por etiqueta muestra el id. El panel de `?task=` sigue en aviso. `/inbox` sigue en aviso.
+- Kanban, timeline, calendario, matriz, notas, dashboard, reportes y Focus siguen fuera.
 
 Los tags `phase-1.6*` están en `main`. Los `phase-1.5*` y `phase-1.4*` también. Los `phase-1.3*` y `phase-1.2*` siguen en `feat/core-tasks`. Los `phase-1.1*` siguen en `main`.
 
@@ -53,7 +62,7 @@ bash scripts/with-env.sh pnpm test:integration
 - MCP (RF-2001): `POST /api/v1/mcp`, JSON-RPC, sobre los servicios que ya existen (tareas, listas, etiquetas, filtros, hábitos y búsqueda). `tools/list` oculta lo que el token no puede. `tools/call` fuera de scope devuelve error de tool y no escribe. El criterio 4 se cubre con un PAT de tareas: lista, crea y completa, y no sale de sus scopes.
 - Eventos, en el outbox con `published_at` null: `token.created@v1` y `token.revoked@v1`. El catálogo 11.1 nombra esos dos. El actor del outbox es el token (`actorKind` `api`) cuando actúa un PAT.
 - Migraciones `20261018084436_add_personal_access_tokens` y `20261018084502_personal_access_token_active_name`, con `down.sql`. Prisma sigue en 6.19.
-- Web: `/tokens` en el mismo boceto, enlazada desde `/today`. Español en la UI. El secreto no se vuelve a pintar al recargar.
+- Web: `/tokens` dentro del shell, enlazada desde Hoy. Español en la UI. El secreto no se vuelve a pintar al recargar.
 
 Completar una recurrente sigue sin crear la siguiente fila. Solo el scheduler la materializa. BullMQ sigue sin cablear. La cobertura de `packages/domain` sigue por encima del 80 %.
 
@@ -67,6 +76,7 @@ Completar una recurrente sigue sin crear la siguiente fila. Solo el scheduler la
 - `apps/api/tsconfig.json` está en NodeNext en `main`. No volver a CommonJS.
 - BullMQ no está cableado. `published_at` del outbox se queda a null. Redis sí está en el compose.
 - `apps/api/openapi.json` está en `.prettierignore`. Si cambia un endpoint, `pnpm --filter api build && pnpm --filter api openapi:generate` y `pnpm --filter @reflexionia/sdk generate`. Generar OpenAPI con `SCHEDULER_AUTOSTART=false`: el `.env` local lo deja en true y `loadRootEnv` no pisa una variable ya definida.
+- El paquete de dominio publica CJS. El build de la web aliasa `@reflexionia/domain` al fuente porque Rollup no trata el enlace del workspace como `node_modules`.
 
 ## Qué no está hecho
 
@@ -119,4 +129,4 @@ El punto 5 ya está mergeado (PR #4, tag `phase-1.5`). El punto 6 quedó en `fea
 
 ### Corte de acceso de agentes (18 oct 2026)
 
-El punto 6 ya está mergeado (PR #7, tag `phase-1.6`). El punto 7 está en `feat/agent-access` (tag `phase-1.7`), con la PR #8 contra `main` y sin merge. Este corte sí hace los PAT, el servidor MCP y el límite de 1000 peticiones / 15 min por token. Los avisos de arriba se conservan y no se ejecutan: no se despliega, no se configura `BACKUP_REMOTE` ni el cron, no se publica la spec como v1.2, no se limita todavía el correo entrante y no se rediseña la UI. Offline y export no se apilan. OAuth2 no entra.
+El punto 6 ya está mergeado (PR #7, tag `phase-1.6`). La PR #5 (shell) también. El punto 7 está en `feat/agent-access` (tag `phase-1.7`), con la PR #8 contra `main` y sin merge. Este corte sí hace los PAT, el servidor MCP y el límite de 1000 peticiones / 15 min por token. Los avisos de arriba se conservan y no se ejecutan: no se despliega, no se configura `BACKUP_REMOTE` ni el cron, no se publica la spec como v1.2, no se limita todavía el correo entrante y no se pule el shell. Offline y export no se apilan. OAuth2 no entra.
