@@ -1,15 +1,22 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   CalendarDays,
+  CalendarRange,
+  CheckCircle2,
+  Inbox,
   LayoutDashboard,
+  ListTodo,
+  MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
-  Plus,
   Repeat,
+  Sparkles,
+  Sun,
+  UserRound,
   type LucideIcon,
 } from 'lucide-react';
-import { useState } from 'react';
-import { Link, NavLink, useLocation } from 'react-router';
+import { useState, type ReactNode } from 'react';
+import { Link, NavLink, useLocation, useMatch } from 'react-router';
 import { api } from '../api';
 import { Badge } from '../components/ui';
 import { useMessages, type Messages } from '../i18n';
@@ -18,10 +25,16 @@ import { nextTheme, type ThemePreference } from '../theme/preference';
 import { useThemePreference } from '../theme/store';
 import { smartPath } from '../features/tasks/model';
 
-const ICONS: Record<string, LucideIcon> = {
-  today: CalendarDays,
-  habits: Repeat,
-  dashboard: LayoutDashboard,
+const SMART_ICONS: Record<string, LucideIcon> = {
+  today: Sun,
+  tomorrow: CalendarDays,
+  next_7_days: CalendarRange,
+  all: ListTodo,
+  inbox: Inbox,
+  assigned_to_me: UserRound,
+  completed: CheckCircle2,
+  no_date: CalendarDays,
+  recently_added: Sparkles,
 };
 
 export function Sidebar({
@@ -29,13 +42,11 @@ export function Sidebar({
   concealed = false,
   onToggleCollapsed,
   onNavigate,
-  onCapture,
 }: {
   readonly collapsed: boolean;
   readonly concealed?: boolean;
   readonly onToggleCollapsed: () => void;
   readonly onNavigate: () => void;
-  readonly onCapture: () => void;
 }) {
   const messages = useMessages();
   const preference = useThemePreference((state) => state.preference);
@@ -59,15 +70,12 @@ export function Sidebar({
       aria-hidden={concealed ? true : undefined}
       aria-label={messages.appName}
       className="sidebar"
+      data-collapsed={collapsed ? 'true' : 'false'}
       inert={concealed ? true : undefined}
     >
       <NavLink className="brand" to="/today" onClick={onNavigate}>
         <span className="brand-name">{messages.appName}</span>
       </NavLink>
-      <button type="button" className="sidebar-capture" aria-keyshortcuts="N" onClick={onCapture}>
-        <Plus size={18} aria-hidden="true" />
-        <span>{messages.fab}</span>
-      </button>
       {smart.isPending ? (
         <div className="ui-skeleton" aria-hidden="true">
           <span />
@@ -95,14 +103,11 @@ export function Sidebar({
             .filter((item) => item.enabled && item.key !== 'trash')
             .map((item) => (
               <li key={item.id}>
-                <NavLink
-                  className={({ isActive }) => (isActive ? 'nav-link is-active' : 'nav-link')}
-                  to={smartPath(item.key)}
-                  onClick={onNavigate}
-                >
+                <SideLink to={smartPath(item.key)} onNavigate={onNavigate}>
+                  <SmartIcon name={item.key} />
                   <span className="nav-label">{smartLabel(messages, item.key)}</span>
                   {showCounters ? <Badge value={item.task_count} /> : null}
-                </NavLink>
+                </SideLink>
               </li>
             ))}
         </ul>
@@ -110,14 +115,14 @@ export function Sidebar({
         <ul className="nav-list">
           {(filters.data?.items ?? []).map((filter) => (
             <li key={filter.id}>
-              <NavLink className="nav-link" to={`/filter/${filter.id}`} onClick={onNavigate}>
+              <SideLink to={`/filter/${filter.id}`} section onNavigate={onNavigate}>
                 <span
                   className="color-dot"
                   style={filter.color === null ? undefined : { background: filter.color }}
                 />
                 <span className="nav-label">{filter.name}</span>
                 {showCounters ? <Badge value={filter.task_count} /> : null}
-              </NavLink>
+              </SideLink>
             </li>
           ))}
         </ul>
@@ -127,14 +132,14 @@ export function Sidebar({
             .filter((project) => !project.closed)
             .map((project) => (
               <li key={project.id}>
-                <NavLink className="nav-link" to={`/list/${project.id}`} onClick={onNavigate}>
+                <SideLink to={`/list/${project.id}`} section onNavigate={onNavigate}>
                   <span
                     className="color-dot"
                     style={project.color === null ? undefined : { background: project.color }}
                   />
                   <span className="nav-label">{project.name}</span>
                   {showCounters ? <Badge value={project.active_task_count} /> : null}
-                </NavLink>
+                </SideLink>
               </li>
             ))}
         </ul>
@@ -145,7 +150,7 @@ export function Sidebar({
             if (name.length === 0) {
               return;
             }
-            void api.createProject({ name, color: '#4f46e5' }, crypto.randomUUID()).then(() => {
+            void api.createProject({ name, color: '#4772fa' }, crypto.randomUUID()).then(() => {
               setDraft('');
               void queryClient.invalidateQueries({ queryKey: ['projects'] });
             });
@@ -169,12 +174,14 @@ export function Sidebar({
               <li key={tag.id}>
                 <Link
                   aria-current={current ? 'page' : undefined}
-                  className={current ? 'nav-link active' : 'nav-link'}
+                  className={current ? 'nav-link is-active is-section' : 'nav-link is-section'}
+                  data-selected={current ? 'true' : undefined}
                   to={href}
                   onClick={onNavigate}
                 >
                   <span className="nav-label">{tag.name}</span>
                   {showCounters ? <Badge value={tag.active_task_count} /> : null}
+                  <MoreHorizontal className="nav-more" size={16} aria-hidden="true" />
                 </Link>
               </li>
             );
@@ -186,25 +193,25 @@ export function Sidebar({
             to="/calendar/month"
             label={messages.navCalendar}
             onNavigate={onNavigate}
-            icon={ICONS.dashboard}
+            icon={CalendarDays}
           />
           <Item to="/matrix" label={messages.navMatrix} onNavigate={onNavigate} />
-          <Item to="/dashboard" label={messages.navDashboard} onNavigate={onNavigate} />
+          <Item
+            to="/dashboard"
+            label={messages.navDashboard}
+            onNavigate={onNavigate}
+            icon={LayoutDashboard}
+          />
           <Item to="/reports/weekly" label={messages.navReports} onNavigate={onNavigate} />
           <Item to="/review/weekly" label={messages.navReview} onNavigate={onNavigate} />
           <Item to="/focus" label={messages.navFocus} onNavigate={onNavigate} />
-          <Item
-            to="/habits"
-            label={messages.navHabits}
-            onNavigate={onNavigate}
-            icon={ICONS.habits}
-          />
+          <Item to="/habits" label={messages.navHabits} onNavigate={onNavigate} icon={Repeat} />
           <Item to="/settings/appearance" label={messages.navSettings} onNavigate={onNavigate} />
         </ul>
         <p className="nav-section">{messages.smartTrash}</p>
-        <NavLink className="nav-link" to="/smart/trash" onClick={onNavigate}>
+        <SideLink to="/smart/trash" onNavigate={onNavigate}>
           <span className="nav-label">{messages.smartTrash}</span>
-        </NavLink>
+        </SideLink>
         <p className="ui-muted">{messages.trashHint}</p>
         {confirmTrash ? (
           <div>
@@ -277,12 +284,44 @@ function Item({
 }) {
   return (
     <li>
-      <NavLink className="nav-link" to={to} onClick={onNavigate}>
-        {Icon !== undefined ? <Icon size={18} aria-hidden="true" /> : null}
+      <SideLink to={to} section onNavigate={onNavigate}>
+        {Icon !== undefined ? <Icon size={20} aria-hidden="true" /> : null}
         <span className="nav-label">{label}</span>
-      </NavLink>
+      </SideLink>
     </li>
   );
+}
+
+function SideLink({
+  to,
+  onNavigate,
+  section = false,
+  children,
+}: {
+  readonly to: string;
+  readonly onNavigate: () => void;
+  readonly section?: boolean;
+  readonly children: ReactNode;
+}) {
+  const match = useMatch({ path: to, end: true });
+  const selected = match !== null;
+  const sectionClass = section ? ' is-section' : '';
+  return (
+    <NavLink
+      to={to}
+      data-selected={selected ? 'true' : undefined}
+      className={selected ? `nav-link is-active${sectionClass}` : `nav-link${sectionClass}`}
+      onClick={onNavigate}
+    >
+      {children}
+      <MoreHorizontal className="nav-more" size={16} aria-hidden="true" />
+    </NavLink>
+  );
+}
+
+function SmartIcon({ name }: { readonly name: string }) {
+  const Icon = SMART_ICONS[name] ?? ListTodo;
+  return <Icon size={20} aria-hidden="true" />;
 }
 
 function smartLabel(messages: Messages, key: string): string {

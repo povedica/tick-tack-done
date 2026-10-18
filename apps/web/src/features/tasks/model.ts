@@ -9,7 +9,11 @@ export interface RowModel {
   readonly projectId: string;
   readonly projectName: string;
   readonly columnId: string | null;
-  readonly tags: readonly { readonly id: string; readonly name: string }[];
+  readonly tags: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly color: string | null;
+  }[];
   readonly checklist: { readonly completed: number; readonly total: number };
   readonly kind: 'task' | 'note';
   readonly status: string;
@@ -45,7 +49,7 @@ export function rowFromTask(
     projectId: task.project_id,
     projectName: names.get(task.project_id) ?? '',
     columnId: task.column_id,
-    tags: task.tag_ids.map((id) => ({ id, name: tags.get(id) ?? id })),
+    tags: task.tag_ids.map((id) => ({ id, name: tags.get(id) ?? id, color: null })),
     checklist: progressOf(task.checklist_progress),
     kind: task.kind,
     status: task.status,
@@ -65,7 +69,7 @@ export function rowFromView(task: ViewTask): RowModel {
     projectId: task.project_id,
     projectName: task.project_name,
     columnId: task.column_id,
-    tags: task.tags.map((tag) => ({ id: tag.id, name: tag.name })),
+    tags: task.tags.map((tag) => ({ id: tag.id, name: tag.name, color: colorOf(tag) })),
     checklist: progressOf(task.checklist_progress),
     kind: task.kind,
     status: task.status,
@@ -73,6 +77,13 @@ export function rowFromView(task: ViewTask): RowModel {
     source: 'manual',
     content: task.content,
   };
+}
+
+function colorOf(value: object): string | null {
+  if (!('color' in value)) {
+    return null;
+  }
+  return typeof value.color === 'string' ? value.color : null;
 }
 
 export function rowsFromView(page: ViewPage | undefined): RowModel[] {

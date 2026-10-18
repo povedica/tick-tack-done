@@ -9,6 +9,7 @@ import './styles/tokens.css';
 import './styles.css';
 import './shell/shell.css';
 import './components/ui.css';
+import './features/today/today.css';
 
 applyTheme(
   readThemePreference(localStorage),

@@ -2,7 +2,6 @@
   color: var(--ink);
   background: var(--bg);
   font-family: var(--font-sans);
-  font-size: var(--fs-base);
   line-height: var(--lh-base);
 }
 
@@ -12,6 +11,8 @@
 
 body {
   margin: 0;
+  font-size: var(--fs-base);
+  line-height: var(--lh-base);
 }
 
 button,
@@ -33,10 +34,10 @@ select {
 }
 
 h1 {
-  font-family: var(--font-serif);
-  font-size: var(--fs-2xl);
+  font-family: var(--font-sans);
+  font-size: 20px;
   font-weight: 600;
-  line-height: var(--lh-tight);
+  line-height: 1.2;
   margin: 0 0 0.75rem;
 }
 
@@ -194,7 +195,7 @@ h1 {
 .habit-list input {
   font: inherit;
   padding: 0.45rem 0.6rem;
-  border: 1px solid #d6d3d1;
+  border: 1px solid var(--border-strong);
   border-radius: 0.5rem;
 }
 
@@ -207,11 +208,11 @@ h1 {
   display: grid;
   gap: 0.5rem;
   padding: 0.75rem 0;
-  border-top: 1px solid #e7e5e4;
+  border-top: 1px solid var(--border);
 }
 
 .habit-list button.selected {
-  outline: 2px solid #4f46e5;
+  outline: 2px solid var(--focus-ring);
 }
 
 .heat {
@@ -223,15 +224,15 @@ h1 {
 .heat span {
   width: 0.55rem;
   height: 0.55rem;
-  background: #e7e5e4;
+  background: var(--border-strong);
 }
 
 .heat span[data-level='met'] {
-  background: #4f46e5;
+  background: var(--accent);
 }
 
 .heat span[data-level='partial'] {
-  background: #a5b4fc;
+  background: var(--accent-hover);
 }
 
 .heat span[data-level='off'] {
@@ -268,7 +269,7 @@ h1 {
 
 .task-list li {
   padding: 0.5rem 0;
-  border-top: 1px solid #e7e5e4;
+  border-top: 1px solid var(--border);
 }
 
 .task-list button,
@@ -285,7 +286,7 @@ h1 {
 .palette-backdrop {
   position: fixed;
   inset: 0;
-  background: rgb(28 25 23 / 35%);
+  background: rgb(25 25 25 / 35%);
   display: grid;
   align-items: start;
   justify-items: center;
@@ -294,7 +295,7 @@ h1 {
 
 .palette {
   width: min(36rem, 100%);
-  background: #f6f4ef;
+  background: var(--surface);
   border-radius: 0.75rem;
   padding: 1rem;
 }
@@ -319,7 +320,7 @@ h1 {
 
 .token-secret {
   padding: 0.75rem;
-  border: 1px dashed #a8a29e;
+  border: 1px dashed var(--border-strong);
   overflow-wrap: anywhere;
 }
 

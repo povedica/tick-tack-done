@@ -4,7 +4,7 @@ Usa este plan para acotar cada tarea de Cursor: cita la fase y los RF-xx.
 
 ## MVP / fase 1 (4-6 semanas de agente)
 
-Estado en `main` (18 oct 2026): la fase 1 está cerrada en la PR #11, tag `phase-1`. La web de la spec de UI entró antes, en la PR #10. No está desplegada: falta `BACKUP_REMOTE` y el acceso al servidor. La PR #9 (`feat/ui-today-polish`) sigue abierta y no forma parte de este cierre.
+Estado en `main` (18 oct 2026): la fase 1 está cerrada en la PR #11, tag `phase-1`. La web de la spec de UI entró antes, en la PR #10. El look medido de TickTick entró en la PR #13 y la spec de UI pasó a v1.1. No está desplegada: falta `BACKUP_REMOTE` y el acceso al servidor. La PR #9 se cerró sin merge.
 
 1. **Base**: monorepo, CI, Docker Compose, modelo de datos completo (sección 5), migraciones, seed.
 2. **Tareas núcleo**: CRUD + checklist + subtareas (RF-201–210), listas/carpetas/secciones
