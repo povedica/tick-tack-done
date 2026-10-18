@@ -2,6 +2,19 @@ import type { components } from './generated/schema';
 
 export type CreateTaskBody = components['schemas']['CreateTaskDto'];
 export type CreatedTask = components['schemas']['CreateTaskResponseDto'];
+export type Task = components['schemas']['TaskResponseDto'];
+export type TaskPage = components['schemas']['TaskPageDto'];
+export type CompleteTaskBody = components['schemas']['CompleteTaskDto'];
+
+export interface ListTasksQuery {
+  readonly limit?: number;
+  readonly cursor?: string;
+  readonly status?: 'active' | 'completed' | 'archived';
+  readonly overdue?: boolean;
+  readonly dueBefore?: string;
+  readonly dueAfter?: string;
+  readonly sort?: string;
+}
 export type Habit = components['schemas']['HabitResponseDto'];
 export type HabitPage = components['schemas']['HabitPageDto'];
 export type CreateHabitBody = components['schemas']['CreateHabitDto'];
@@ -45,6 +58,10 @@ export interface ApiClientOptions {
 
 export interface ApiClient {
   createTask(body: CreateTaskBody, idempotencyKey: string): Promise<CreatedTask>;
+  listTasks(query?: ListTasksQuery): Promise<TaskPage>;
+  getTask(id: string): Promise<Task>;
+  completeTask(id: string, body: CompleteTaskBody, idempotencyKey: string): Promise<Task>;
+  uncompleteTask(id: string, idempotencyKey: string): Promise<Task>;
   listHabits(): Promise<HabitPage>;
   createHabit(body: CreateHabitBody, idempotencyKey: string): Promise<Habit>;
   updateHabit(id: string, body: UpdateHabitBody): Promise<Habit>;
@@ -70,6 +87,42 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   return {
     createTask(body, idempotencyKey) {
       return request(call, options, 'POST', '/api/v1/tasks', body, idempotencyKey, isCreatedTask);
+    },
+    listTasks(query) {
+      return request(
+        call,
+        options,
+        'GET',
+        `/api/v1/tasks${taskQuery(query)}`,
+        undefined,
+        undefined,
+        isTaskPage,
+      );
+    },
+    getTask(id) {
+      return request(call, options, 'GET', `/api/v1/tasks/${id}`, undefined, undefined, isTask);
+    },
+    completeTask(id, body, idempotencyKey) {
+      return request(
+        call,
+        options,
+        'POST',
+        `/api/v1/tasks/${id}/complete`,
+        body,
+        idempotencyKey,
+        isTask,
+      );
+    },
+    uncompleteTask(id, idempotencyKey) {
+      return request(
+        call,
+        options,
+        'POST',
+        `/api/v1/tasks/${id}/uncomplete`,
+        undefined,
+        idempotencyKey,
+        isTask,
+      );
     },
     listHabits() {
       return request(call, options, 'GET', '/api/v1/habits', undefined, undefined, isHabitPage);
@@ -255,6 +308,58 @@ function readError(value: unknown): { code: string; message: string } {
     code: typeof error?.code === 'string' ? error.code : 'request_failed',
     message: typeof error?.message === 'string' ? error.message : 'Request failed',
   };
+}
+
+function taskQuery(query: ListTasksQuery | undefined): string {
+  if (query === undefined) {
+    return '';
+  }
+  const params = new URLSearchParams();
+  if (query.limit !== undefined) {
+    params.set('limit', String(query.limit));
+  }
+  if (query.cursor !== undefined) {
+    params.set('cursor', query.cursor);
+  }
+  if (query.status !== undefined) {
+    params.set('status', query.status);
+  }
+  if (query.overdue === true) {
+    params.set('overdue', 'true');
+  }
+  if (query.dueBefore !== undefined) {
+    params.set('due_before', query.dueBefore);
+  }
+  if (query.dueAfter !== undefined) {
+    params.set('due_after', query.dueAfter);
+  }
+  if (query.sort !== undefined) {
+    params.set('sort', query.sort);
+  }
+  const text = params.toString();
+  return text.length === 0 ? '' : `?${text}`;
+}
+
+function isTask(value: unknown): value is Task {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const row = value as { id?: unknown; title?: unknown; status?: unknown };
+  return (
+    typeof row.id === 'string' && typeof row.title === 'string' && typeof row.status === 'string'
+  );
+}
+
+function isTaskPage(value: unknown): value is TaskPage {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const row = value as { items?: unknown; next_cursor?: unknown };
+  return (
+    Array.isArray(row.items) &&
+    row.items.every(isTask) &&
+    (row.next_cursor === null || typeof row.next_cursor === 'string')
+  );
 }
 
 function isCreatedTask(value: unknown): value is CreatedTask {
