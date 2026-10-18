@@ -730,17 +730,6 @@ export function CalendarSettings() {
   return <GapPage title={messages.settingsCalendar} body={messages.feedEmpty} />;
 }
 
-export function TokenSettings() {
-  const messages = useMessages();
-  return (
-    <section>
-      <h1>{messages.settingsTokens}</h1>
-      <EmptyState title={messages.settingsTokens} body={messages.tokenEmpty} />
-      <p>{messages.mcpEmpty}</p>
-    </section>
-  );
-}
-
 export function IntegrationSettings() {
   const messages = useMessages();
   return <GapPage title={messages.settingsIntegrations} body={messages.integrationsEmpty} />;

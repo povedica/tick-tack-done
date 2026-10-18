@@ -1,6 +1,6 @@
 # Handoff — spec de UI (feat/ui-spec)
 
-La web cubre el mapa de `docs/spec/tick-tack-done-ui-spec-v1.0.md` en una sola rama. Lo que la API ya publica se lee y se escribe por `@reflexionia/sdk`. Lo que la spec pide y la API no publica existe como pantalla con el estado vacío de la spec. No hay endpoints inventados.
+La web cubre el mapa de `docs/spec/tick-tack-done-ui-spec-v1.0.md` en una sola rama. Lo que la API ya publica se lee y se escribe por `@reflexionia/sdk`. Lo que la spec pide y la API no publica existe como pantalla con el estado vacío de la spec. No hay endpoints inventados. Esta rama incluye el punto 7 (PAT y MCP), que ya está en `main`.
 
 `apps/api/tsconfig.json` sigue en NodeNext. No revertirlo.
 
@@ -24,7 +24,6 @@ Estas pantallas están hechas y se quedan en el vacío que describe la spec hast
 - Revisión semanal: espera `GET /api/v1/review/weekly`. Los cuatro pasos se ven vacíos.
 - Jardín digital (`/dashboard` y `/sticky`): espera `GET /api/v1/me/dashboard`. Los widgets no se rellenan con listas de tareas.
 - Reportes semanales: la API no publica el histórico.
-- Tokens y MCP: no hay PAT, hash, último uso, actividad por token ni URL del servidor MCP.
 - Calendario: no hay eventos de calendarios externos ni feeds iCal que copiar o regenerar.
 - Ajustes de calendario, integraciones, automatizaciones, webhooks, datos (export y backup), plugins (V2) y compartir (V2): la API no publica esos recursos.
 - Cuenta: `GET/PATCH /api/v1/me` guarda nombre y zona horaria. Contraseña, sesiones, 2FA y borrar la cuenta no tienen endpoint. `/login`, `/register` y `/forgot-password` lo dicen.
@@ -44,6 +43,7 @@ Estas pantallas están hechas y se quedan en el vacío que describe la spec hast
 - Captura en `/quick-add`. El correo entrante se rota y se revoca en Ajustes.
 - Notas: `/list/:id/note/:taskId` abre el detalle de esa tarea. Convertir nota/tarea usa el `kind` que ya guarda la API.
 - Atajos: `?` abre la ayuda. `G` y luego t/i/c/m/s/a/b/n/r/w navega. `.` invalida las queries.
+- Tokens y MCP: la pantalla del punto 7 está en `/tokens` y en Ajustes → Tokens. Crea, revoca y lista la actividad del token.
 
 ## Aún corto respecto a la spec, sin endpoint nuevo
 
@@ -61,71 +61,81 @@ Lo que sigue es el handoff de shell y Hoy (PR #5) y de los puntos 1 a 6. Ya est�
 
 Lo que sigue describe el corte de filtros ya mergeado (PR #7, tag `phase-1.6`). No es el trabajo abierto.
 
+El punto 7 (PAT, límite por token y MCP) ya está en `main`. Su handoff sigue debajo. La pantalla de tokens de ese corte queda montada en `/tokens` y en Ajustes.
+
 ## Tags
 
-| Tag                | Qué marca                                                             |
-| ------------------ | --------------------------------------------------------------------- |
-| `phase-1.6-domain` | Evaluación de smart lists, filtros, agrupación y consulta de búsqueda |
-| `phase-1.6-api`    | Endpoints públicos, eventos y OpenAPI                                 |
-| `phase-1.6-web`    | Pantallas de boceto y paleta enlazadas desde `/today`                 |
-| `phase-1.6`        | Handoff del punto 6, ya en `main`                                     |
+| Tag             | Qué marca                                                      |
+| --------------- | -------------------------------------------------------------- |
+| `phase-1.7-api` | PAT, scopes, actividad, límite por token y OpenAPI             |
+| `phase-1.7-mcp` | Servidor MCP sobre la API v1, sin más privilegios que el token |
+| `phase-1.7-sdk` | Cliente de administración de tokens                            |
+| `phase-1.7-web` | Pantalla de tokens enlazada desde `/today`                     |
+| `phase-1.7`     | Este handoff. Punto seguro para seguir                         |
 
-Los tags `phase-1.5*` y `phase-1.4*` están en `main`. Los `phase-1.3*` y `phase-1.2*` siguen en `feat/core-tasks`. Los `phase-1.1*` siguen en `main`.
+## Shell ya en main (PR #5), sin pulir aquí
+
+La PR #5 dejó el shell, el tema y Hoy con tareas reales. Este corte no lo pule. El prompt de esa sesión sigue en `docs/prompts/pulir-ui-hoy.md`.
+
+- La barra es una lista plana de enlaces. No muestra contadores, ni listas con punto de color, ni filtros fijados.
+- Hoy tiene título, grupos y filas de checkbox más título. No hay nombre de lista, etiquetas ni fila «Añadir tarea».
+- Agrupar por etiqueta muestra el id. El panel de `?task=` sigue en aviso. `/inbox` sigue en aviso.
+- Kanban, timeline, calendario, matriz, notas, dashboard, reportes y Focus siguen fuera.
+
+Los tags `phase-1.6*` están en `main`. Los `phase-1.5*` y `phase-1.4*` también. Los `phase-1.3*` y `phase-1.2*` siguen en `feat/core-tasks`. Los `phase-1.1*` siguen en `main`.
 
 ## Cómo probar este corte
 
-La auth de desarrollo no cambia: `AUTH_MODE=dev` y cabecera `X-Dev-User-Email`. El seed crea `demo@reflexionia.test`. La web manda esa cabecera desde `DEV_USER_EMAIL`.
+La PWA de desarrollo sigue identificándose con `AUTH_MODE=dev` y la cabecera `X-Dev-User-Email`. El seed crea `demo@reflexionia.test`. La web manda esa cabecera desde `DEV_USER_EMAIL`. Un PAT no hereda ese pase: solo puede lo que dicen sus scopes. Si la petición trae `Authorization` y `X-Dev-User-Email`, manda el token.
 
 ```bash
 pnpm --filter api dev
 pnpm --filter web dev
 ```
 
-Abrir `http://127.0.0.1:5173/today`. «Listas inteligentes» lista las diez del sistema, con contador; se activan y se reordenan con `PATCH /api/v1/smart-lists`. Abrir una muestra la vista lista: agrupar por sección, fecha, etiqueta o prioridad, y ordenar a mano o por fecha, prioridad, título o creación. El detalle se abre en la misma página.
+Abrir `http://127.0.0.1:5173/today` y entrar en «Tokens». Crear un agente con los scopes justos muestra el secreto una sola vez (`rfx_pat_…`). La lista guarda el prefijo, el último uso y permite revocar. Revocar es inmediato: la siguiente petición con ese secreto responde 401. La actividad del token está en `GET /api/v1/me/tokens/{id}/activity`; la de la cuenta, en `GET /api/v1/me/activity`.
 
-«Filtros» construye un filtro normal o avanzado (AND/OR, un solo nivel de grupos). «Vista previa» llama a `POST /api/v1/filters/preview` y no guarda. Guardar crea la vista con contador. La búsqueda es `GET /api/v1/search`. La paleta se abre con `/` o con Ctrl/Cmd+K: buscar, crear una tarea o ir a una lista.
+Con un PAT de `tasks:read` y `tasks:write`, `POST /api/v1/mcp` lista, crea y completa tareas. Una tool fuera de esos scopes responde `scope_missing` y no cambia datos. Cada petición de token lleva `X-RateLimit-Limit`, `X-RateLimit-Remaining` y `X-RateLimit-Reset`. Al pasar de 1000 en 15 minutos responde 429 con `Retry-After`.
 
 Integración, con Postgres migrado:
 
 ```bash
-bash scripts/with-env.sh pnpm --filter api exec vitest run --config vitest.config.integration.ts
+bash scripts/with-env.sh pnpm test:integration
 ```
 
-`scripts/with-env.sh` pisa `DATABASE_URL`. Para una base scratch hay que llamar a Prisma sin ese wrapper.
+`scripts/with-env.sh` pisa `DATABASE_URL`. Para una base scratch hay que llamar a Prisma sin ese wrapper. El rollback de las dos migraciones de tokens está en sus `down.sql` y se verificó en una base scratch.
 
 ## Qué quedó dentro del corte
 
-- `packages/domain`: la gramática de la sección 5.7, `matchesFilter` / `matchesClause`, smart lists, agrupación y orden de la vista lista, y el parseo de la búsqueda (`in:lista`, `#tag`, `priority:`, `done:`). La evaluación vive solo ahí. Cobertura del paquete por encima del 80 %.
-- API: `GET` y `PATCH /api/v1/smart-lists`, `GET /api/v1/smart-lists/{key}/tasks`. `GET/POST /api/v1/filters`, `POST /api/v1/filters/preview`, `GET/PATCH/DELETE /api/v1/filters/{id}`, `GET /api/v1/filters/{id}/tasks`. `GET /api/v1/search`. El `WHERE` de Prisma se genera desde el árbol de cláusulas y `matchesClause` vuelve a decidir. No hay migración: `SmartList`, `Filter` y `search_vector` ya estaban. Los índices parciales no cambian.
-- Eventos, en el outbox con `published_at` null: `filter.created@v1`, `filter.updated@v1`, `filter.deleted@v1`, `smart_list.updated@v1`. El catálogo 11.1 nombra esos cuatro. Aprovisionar las listas del sistema al leer no emite evento. `smart_list.updated` solo si cambia `enabled` o el orden.
-- «Asignadas a mí» puede ir vacía: la colaboración es V2. La papelera incluye archivadas. El resto de smart lists de tareas activas no. Un filtro guardado excluye borradas y archivadas.
-- Web: `/smart-lists`, `/smart-lists/:key`, `/filters`, `/filters/:id` y `/lists/:id` en el mismo boceto. Español en la UI. La paleta no monta el tercer panel.
+- PAT (RF-2002): se guarda solo el hash SHA-256, el secreto se muestra una vez, el último uso es visible y la revocación es inmediata. Un nombre activo por agente. Toda petición autenticada con token queda en ActivityLog (`accessed`) y las mutaciones de dominio también, con `tokenId`. Consulta en `GET /api/v1/me/tokens/{id}/activity` y `GET /api/v1/me/activity`. Rutas ya previstas: `GET/POST /api/v1/me/tokens` y `DELETE /api/v1/me/tokens/{id}`.
+- El guard de desarrollo sigue concediendo los scopes de la ruta cuando no hay `Authorization`. Una petición con PAT recibe 403 `scope_missing` si le falta el scope que declara `@Scopes`.
+- Límite por token: 1000 peticiones / 15 min, cabeceras `X-RateLimit-*` y 429 `rate_limited` con `Retry-After`. No se aplica a la sesión de desarrollo ni al correo entrante.
+- MCP (RF-2001): `POST /api/v1/mcp`, JSON-RPC, sobre los servicios que ya existen (tareas, listas, etiquetas, filtros, hábitos y búsqueda). `tools/list` oculta lo que el token no puede. `tools/call` fuera de scope devuelve error de tool y no escribe. El criterio 4 se cubre con un PAT de tareas: lista, crea y completa, y no sale de sus scopes.
+- Eventos, en el outbox con `published_at` null: `token.created@v1` y `token.revoked@v1`. El catálogo 11.1 nombra esos dos. El actor del outbox es el token (`actorKind` `api`) cuando actúa un PAT.
+- Migraciones `20261018084436_add_personal_access_tokens` y `20261018084502_personal_access_token_active_name`, con `down.sql`. Prisma sigue en 6.19.
+- Web: `/tokens` dentro del shell, enlazada desde Hoy. Español en la UI. El secreto no se vuelve a pintar al recargar.
 
-Completar una recurrente sigue sin crear la siguiente fila. Solo el scheduler la materializa. BullMQ sigue sin cablear.
+Completar una recurrente sigue sin crear la siguiente fila. Solo el scheduler la materializa. BullMQ sigue sin cablear. La cobertura de `packages/domain` sigue por encima del 80 %.
 
 ## Decisiones que no hay que reabrir
 
-- Sección 21 de la spec, sin cambios. Las únicas ediciones de la v1.1 en este corte son el nombre de los cuatro eventos en el catálogo 11.1 y las rutas públicas de smart lists en la sección 10.3. Un GET no escribe: activar y ordenar es `PATCH /api/v1/smart-lists`.
-- La evaluación de filtros no se duplica en el cliente. Si hace falta SQL, sale de la misma gramática.
-- Fijar un filtro es llevar su `sort_order` al frente. No hay columna nueva.
-- Kanban, timeline y notas quedan fuera. `kind=note` en la búsqueda solo aparece si la tarea ya es una nota.
-- Prisma sigue en 6.19. `search_vector` sigue siendo columna generada; no se toca su índice.
-- `typescript-eslint` sigue en 8.18.2 y `eslint` en 9.17.0 por Node 23. `.nvmrc` pide 22.
-- Vitest no emite `design:paramtypes`. Todo constructor de Nest lleva `@Inject`.
-- Los módulos de dominio no se importan entre sí. Filtros y búsqueda leen por Prisma y publican en el bus.
-- Los scopes se declaran con `@Scopes` pero el guard de desarrollo los concede todos. La aplicación real llega con los PAT del punto 7.
+- Sección 21 de la spec, sin cambios. Las únicas ediciones de la v1.1 en este corte son los nombres `token.created` y `token.revoked` en el catálogo 11.1 y la línea `POST /api/v1/mcp` en las rutas de la sección 10.3.
+- `profile:write` ya lo usaban `PATCH /me` y las mutaciones de tokens. Está en el código y en la pantalla. No se añade a la lista de la sección 10.1: esa lista no se reabre.
+- El hash del PAT es SHA-256, igual que el del correo entrante. Argon2id sigue reservado a contraseñas. El índice único de nombre es parcial (activos y no borrados); Prisma no lo expresa, va en SQL.
+- El servidor MCP llama a los servicios Nest ya existentes con el mismo `AuthUser`. No abre otro acceso a la base. Los módulos de dominio exportan su servicio para que MCP los importe; siguen sin importarse entre sí.
+- Vitest no emite `design:paramtypes`. Todo constructor de Nest con dependencias lleva `@Inject`. El limitador no tiene argumentos de constructor: Nest intentaría inyectar el número del límite.
+- `apps/api/tsconfig.json` está en NodeNext en `main`. No volver a CommonJS.
 - BullMQ no está cableado. `published_at` del outbox se queda a null. Redis sí está en el compose.
-- `apps/api/openapi.json` está en `.prettierignore`. Si cambia un endpoint, `pnpm --filter api build && pnpm --filter api openapi:generate` y `pnpm --filter @reflexionia/sdk generate`.
+- `apps/api/openapi.json` está en `.prettierignore`. Si cambia un endpoint, `pnpm --filter api build && pnpm --filter api openapi:generate` y `pnpm --filter @reflexionia/sdk generate`. Generar OpenAPI con `SCHEDULER_AUTOSTART=false`: el `.env` local lo deja en true y `loadRootEnv` no pisa una variable ya definida.
 - El paquete de dominio publica CJS. El build de la web aliasa `@reflexionia/domain` al fuente porque Rollup no trata el enlace del workspace como `node_modules`.
-- `apps/api/tsconfig.json` quedó en NodeNext en `main` (`chore(api): align the API tsconfig with NodeNext`). No revertirlo a CommonJS.
 
 ## Qué no está hecho
 
-- MCP, PAT, cola offline, export, Telegram, geovallado, miniaturas, drenado del outbox y la pantalla del constructor de reglas (RF-702).
-- Kanban, timeline y el módulo de notas.
+- Cola offline, export, Telegram, geovallado, miniaturas, drenado del outbox y la pantalla del constructor de reglas (RF-702).
+- Kanban, timeline y el módulo de notas. OAuth2 Authorization Code.
 - Miniaturas de adjuntos (RF-203). No hay `sharp`.
 - El tipo `location` de recordatorio se guarda y no se dispara.
-- Límite de 1000 peticiones / 15 min. Entra con los PAT del punto 7.
+- Límite de ritmo del correo entrante. El de 1000 / 15 min es solo por PAT.
 - `pnpm format:check` pasa. La spec v1.1 y `pnpm-lock.yaml` están en `.prettierignore` para que CI no las reescriba. El cliente generado del SDK tampoco se formatea.
 
 ## Norma de trabajo
@@ -166,4 +176,8 @@ El punto 5 está en `feat/habits` (tag `phase-1.5`), con PR contra `main` y sin 
 
 ### Corte de filtros (17 oct 2026, noche)
 
-El punto 5 ya está mergeado (PR #4, tag `phase-1.5`). El punto 6 está en `feat/filters` (tag `phase-1.6`), con la PR #7 contra `main` y sin merge. Los avisos de arriba se conservan y no se ejecutan: no se despliega, no se configura `BACKUP_REMOTE` ni el cron, no se publica la spec como v1.2, no se adelantan PAT ni MCP, no se limita todavía el correo entrante y no se rediseña la UI. La spec v1.1 solo gana los nombres de evento en 11.1 y el `PATCH` público de smart lists en 10.3. El punto 7 no se apila en esta rama.
+El punto 5 ya está mergeado (PR #4, tag `phase-1.5`). El punto 6 quedó en `feat/filters` (tag `phase-1.6`) y después se mergeó en la PR #7. Los avisos de arriba se conservan y no se ejecutan: no se despliega, no se configura `BACKUP_REMOTE` ni el cron, no se publica la spec como v1.2, no se adelantan PAT ni MCP, no se limita todavía el correo entrante y no se rediseña la UI. La spec v1.1 solo gana los nombres de evento en 11.1 y el `PATCH` público de smart lists en 10.3. El punto 7 no se apila en esa rama.
+
+### Corte de acceso de agentes (18 oct 2026)
+
+El punto 6 ya está mergeado (PR #7, tag `phase-1.6`). La PR #5 (shell) también. El punto 7 se cierra con el merge de la PR #8 (tag `phase-1.7`). Este corte sí hace los PAT, el servidor MCP y el límite de 1000 peticiones / 15 min por token. En este corte no se despliega, no se configura `BACKUP_REMOTE` ni el cron, no se publica la spec como v1.2, no se limita todavía el correo entrante y no se pule el shell. Offline, export y OAuth2 quedan para la PR que cierra la fase 1.

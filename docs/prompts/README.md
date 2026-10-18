@@ -8,3 +8,4 @@ fase y archivos de referencia.
 - `nuevo-endpoint.md` — añadir un recurso/endpoint a la API con OpenAPI y scopes.
 - `nueva-migracion.md` — cambio de modelo con migración reversible.
 - `revision-codigo.md` — checklist de revisión antes de abrir PR.
+- `cerrar-fase-1.md` — prompt para cerrar lo que queda del MVP (sección 19) en una sola PR.

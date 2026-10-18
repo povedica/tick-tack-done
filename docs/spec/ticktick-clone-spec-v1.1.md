@@ -647,6 +647,8 @@ Import/export: `POST /api/v1/import/ticktick` (con credenciales OAuth del usuari
 
 Administración: `GET/PATCH /api/v1/me`, `GET/POST/DELETE /api/v1/me/tokens`, `GET /api/v1/me/activity`, `GET /api/v1/me/tokens/{id}/activity`.
 
+MCP (RF-2001): `POST /api/v1/mcp`.
+
 Email-to-task (RF-105): `GET /api/v1/me/inbound-email` dice si hay dirección (sin el token), `POST /api/v1/me/inbound-email` la crea o regenera y muestra el token una sola vez, `DELETE /api/v1/me/inbound-email` la revoca al momento. `POST /api/v1/inbound/email` recibe `multipart/form-data` (`recipient`, `subject`, `text`, `message_id`, `file`). El token del destinatario autentica la entrega. El asunto pasa por el mismo parser que `raw_text`, el cuerpo se guarda como contenido y los adjuntos como Attachment (25 MB). Es entrada no confiable: se valida, se limita el tamaño y no se ejecuta nada. El token no se guarda en claro.
 
 ### 10.4 Compatibilidad TickTick (opcional pero recomendada)
@@ -669,7 +671,7 @@ folder.created folder.updated folder.deleted
 column.created column.updated column.deleted
 tag.created tag.updated tag.deleted tag.merged
 habit.created habit.updated habit.deleted habit.checkin habit.streak_broken habit.goal_met
-filter.created filter.updated filter.deleted smart_list.updated
+filter.created filter.updated filter.deleted smart_list.updated token.created token.revoked
 focus.session_started focus.session_finished focus.session_aborted
 reminder.fired
 note.created note.updated

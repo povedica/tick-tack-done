@@ -68,8 +68,6 @@ export const extraEs = {
   focusReset: 'Reiniciar',
   pluginEmpty: 'No hay plugins. La API no publica instalación ni permisos (V2).',
   shareEmpty: 'Compartir listas es V2. La API no publica colaboradores.',
-  tokenEmpty: 'No hay tokens. La API no publica PAT ni el registro de actividad.',
-  mcpEmpty: 'La URL del servidor MCP llegará con los tokens.',
   backupEmpty: 'La API no publica el último backup ni la última prueba de restauración.',
   exportEmpty: 'La API no publica la exportación de datos.',
   accountHint:
@@ -310,8 +308,6 @@ export const extraEn = {
   focusReset: 'Reset',
   pluginEmpty: 'No plugins. The API does not publish install or permissions (V2).',
   shareEmpty: 'Sharing lists is V2. The API does not publish collaborators.',
-  tokenEmpty: 'No tokens. The API does not publish PATs or the activity log.',
-  mcpEmpty: 'The MCP server URL arrives with the tokens.',
   backupEmpty: 'The API does not publish the last backup or the last restore drill.',
   exportEmpty: 'The API does not publish a data export.',
   accountHint:

@@ -40,6 +40,11 @@ export type ViewPage = components['schemas']['ViewPageDto'];
 export type SmartListPage = components['schemas']['SmartListPageDto'];
 export type UpdateSmartListsBody = components['schemas']['UpdateSmartListsDto'];
 export type SearchResponse = components['schemas']['SearchResponseDto'];
+export type Token = components['schemas']['TokenDto'];
+export type TokenPage = components['schemas']['TokenPageDto'];
+export type CreatedToken = components['schemas']['TokenCreatedDto'];
+export type CreateTokenBody = components['schemas']['CreateTokenDto'];
+export type ActivityPage = components['schemas']['ActivityPageDto'];
 
 export interface ViewOptions {
   readonly groupBy?: ViewPage['group_by'];
@@ -77,6 +82,10 @@ export interface ApiClient extends ResourceClient {
   previewFilter(body: PreviewFilterBody, options?: ViewOptions): Promise<ViewPage>;
   filterTasks(id: string, options?: ViewOptions): Promise<ViewPage>;
   search(q: string, types?: string): Promise<SearchResponse>;
+  listTokens(): Promise<TokenPage>;
+  createToken(body: CreateTokenBody): Promise<CreatedToken>;
+  revokeToken(id: string): Promise<void>;
+  tokenActivity(id: string): Promise<ActivityPage>;
 }
 
 /** Thin client over the generated OpenAPI types. The web app does not call fetch itself. */
@@ -233,6 +242,34 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         undefined,
         undefined,
         isViewPage,
+      );
+    },
+    listTokens() {
+      return request(call, options, 'GET', '/api/v1/me/tokens', undefined, undefined, isTokenPage);
+    },
+    createToken(body) {
+      return request(call, options, 'POST', '/api/v1/me/tokens', body, undefined, isCreatedToken);
+    },
+    async revokeToken(id) {
+      await request(
+        call,
+        options,
+        'DELETE',
+        `/api/v1/me/tokens/${id}`,
+        undefined,
+        undefined,
+        isEmpty,
+      );
+    },
+    tokenActivity(id) {
+      return request(
+        call,
+        options,
+        'GET',
+        `/api/v1/me/tokens/${id}/activity`,
+        undefined,
+        undefined,
+        isActivityPage,
       );
     },
     search(q, types) {
@@ -466,6 +503,24 @@ function isSearch(value: unknown): value is SearchResponse {
   }
   const row = value as { text?: unknown; groups?: unknown };
   return typeof row.text === 'string' && Array.isArray(row.groups);
+}
+
+function isTokenPage(value: unknown): value is TokenPage {
+  return hasItems(value);
+}
+
+function isCreatedToken(value: unknown): value is CreatedToken {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const row = value as { id?: unknown; name?: unknown; token?: unknown };
+  return (
+    typeof row.id === 'string' && typeof row.name === 'string' && typeof row.token === 'string'
+  );
+}
+
+function isActivityPage(value: unknown): value is ActivityPage {
+  return hasItems(value);
 }
 
 function hasItems(value: unknown): boolean {

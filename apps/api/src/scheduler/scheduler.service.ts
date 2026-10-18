@@ -774,7 +774,7 @@ export function schedulerAutostart(): boolean {
 }
 
 function automation(ownerId: string): EventActor {
-  return { ownerId, actorId: ownerId, actorKind: 'automation' };
+  return { ownerId, actorId: ownerId, actorKind: 'automation', tokenId: null };
 }
 
 function iso(value: Date | null): string | null {

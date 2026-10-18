@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useNavigate, useSearchParams } from 'react-router';
 import { CaptureSheet } from './features/capture/components/CaptureSheet';
+import { TokensPage } from './features/tokens/components/TokensPage';
 import { CommandPalette } from './features/views/components/CommandPalette';
 import { FiltersPage } from './features/views/components/FiltersPage';
 import { SmartListsPage } from './features/views/components/SmartListsPage';
@@ -41,7 +42,6 @@ import {
   SharingSettings,
   ShortcutSettings,
   TaskRoute,
-  TokenSettings,
   WebhookSettings,
 } from './features/places/Places';
 import { AppearancePage } from './features/settings/AppearancePage';
@@ -118,6 +118,7 @@ function Shell() {
           <Route path="/review/weekly" element={<ReviewPage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/sticky" element={<DashboardPage />} />
+          <Route path="/tokens" element={<TokensPage />} />
           <Route path="/settings" element={<SettingsLayout />}>
             <Route index element={<Navigate to="/settings/appearance" replace />} />
             <Route
@@ -134,7 +135,7 @@ function Shell() {
             <Route path="notifications" element={<NotificationSettings />} />
             <Route path="smart-lists" element={<SmartListsPage />} />
             <Route path="calendar" element={<CalendarSettings />} />
-            <Route path="tokens" element={<TokenSettings />} />
+            <Route path="tokens" element={<TokensPage />} />
             <Route path="integrations" element={<IntegrationSettings />} />
             <Route path="automations" element={<AutomationSettings />} />
             <Route path="webhooks" element={<WebhookSettings />} />

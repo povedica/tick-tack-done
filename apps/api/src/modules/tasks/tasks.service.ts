@@ -207,6 +207,8 @@ export class TasksService {
       email: owner.email,
       timeZone: owner.timeZone,
       completeChildren: owner.taskCompleteChildren,
+      scopes: ['tasks:write'],
+      tokenId: null,
     };
     const metadata: Record<string, unknown> = { capture: 'email' };
     if (messageId !== null) {
