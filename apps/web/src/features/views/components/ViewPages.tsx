@@ -9,7 +9,9 @@ import { useMessages, type Messages } from '../../../i18n';
 import { useShellActions } from '../../../shell/shell-actions';
 import { newMutation, runOrQueue } from '../../offline/client';
 import { rowsFromView, smartApiKey } from '../../tasks/model';
+import { refreshTaskSurfaces } from '../../tasks/refresh';
 import { TaskList } from '../../tasks/TaskList';
+import type { ViewDay } from '../../capture/quick-add';
 import { viewsApi } from '../api';
 
 type GroupBy = ViewPage['group_by'];
@@ -27,6 +29,7 @@ export function SmartListViewPage() {
       queryKey={['smart-list-tasks', listKey]}
       load={(groupBy, sort) => viewsApi.smartListTasks(listKey, { groupBy, sort })}
       notice={listKey === 'assigned_to_me' ? messages.assignedEmpty : undefined}
+      createViewDay={viewDayFor(listKey)}
     />
   );
 }
@@ -103,6 +106,7 @@ function Board({
   load,
   enabled = true,
   createProjectId,
+  createViewDay = null,
   columns,
   notice,
   note = false,
@@ -113,6 +117,7 @@ function Board({
   readonly load: (groupBy: GroupBy, sort: Sort) => Promise<ViewPage>;
   readonly enabled?: boolean | undefined;
   readonly createProjectId?: string | undefined;
+  readonly createViewDay?: ViewDay | null | undefined;
   readonly columns?: readonly { readonly id: string; readonly name: string }[] | undefined;
   readonly notice?: string | undefined;
   readonly note?: boolean | undefined;
@@ -215,19 +220,27 @@ function Board({
         showDetails={details}
         hideCompleted={hideCompleted}
         createProjectId={note ? undefined : createProjectId}
+        createViewDay={createViewDay}
         onComplete={(row) => {
           void runOrQueue(newMutation('complete', row.id, {}), (key) =>
             api.completeTask(row.id, {}, key),
           ).then(() => {
-            void queryClient.invalidateQueries({ queryKey: [...queryKey] });
+            void refreshTaskSurfaces(queryClient);
           });
         }}
         onCreated={() => {
-          void queryClient.invalidateQueries({ queryKey: [...queryKey] });
+          void refreshTaskSurfaces(queryClient);
         }}
       />
     </main>
   );
+}
+
+function viewDayFor(key: string): ViewDay | null {
+  if (key === 'today' || key === 'tomorrow') {
+    return key;
+  }
+  return null;
 }
 
 function parseView(value: string | null): BoardView {

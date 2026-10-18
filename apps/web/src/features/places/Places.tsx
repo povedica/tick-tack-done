@@ -10,6 +10,7 @@ import { useLocale } from '../../i18n/locale';
 import { usePreferences, type AccentId } from '../../theme/preferences';
 import { useThemePreference } from '../../theme/store';
 import { quadrantOf, rowFromTask, smartApiKey } from '../tasks/model';
+import { refreshTaskSurfaces } from '../tasks/refresh';
 import { newMutation, runOrQueue } from '../offline/client';
 import { TaskList } from '../tasks/TaskList';
 
@@ -119,7 +120,7 @@ export function InboxPage() {
               );
             }}
             onCreated={() => {
-              void queryClient.invalidateQueries({ queryKey: ['inbox-tasks'] });
+              void refreshTaskSurfaces(queryClient);
             }}
           />
         )
