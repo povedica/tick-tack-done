@@ -5,6 +5,8 @@ import {
   groupTasks,
   isOverdue,
   parseGroup,
+  partitionToday,
+  visibleTasks,
   type TodayTask,
 } from './groups';
 
@@ -49,5 +51,51 @@ describe('today groups', () => {
     expect(activeTasks(grouped.flatMap((section) => section.tasks)).map((item) => item.id)).toEqual(
       ['b', 'a'],
     );
+  });
+
+  it('UI-401: overdue tasks stay in their own group above today', () => {
+    const parts = partitionToday(
+      [
+        task({ id: 'today', dueDate: '2026-10-17T18:00:00.000Z', priority: 'low' }),
+        task({ id: 'old', dueDate: '2026-10-15T10:00:00.000Z', priority: 'high' }),
+        task({ id: 'older', dueDate: '2026-10-14T10:00:00.000Z' }),
+        task({ id: 'later', dueDate: '2026-10-20T10:00:00.000Z' }),
+      ],
+      now,
+    );
+    expect(parts.overdue.map((item) => item.id)).toEqual(['older', 'old']);
+    expect(parts.today.map((item) => item.id)).toEqual(['today']);
+  });
+
+  it('UI-402: due, tag and list buckets follow the task and dates sort first', () => {
+    const undated = task({ id: 'b', dueDate: null, tagIds: [], projectId: 'inbox' });
+    const dated = task({
+      id: 'a',
+      dueDate: '2026-10-17T18:00:00.000Z',
+      tagIds: ['casa'],
+      projectId: 'trabajo',
+    });
+    expect(groupTasks([undated, dated], 'due').map((section) => section.id)).toEqual([
+      '2026-10-17',
+      'none',
+    ]);
+    expect(groupTasks([dated, undated], 'tag').map((section) => section.id)).toEqual([
+      'casa',
+      'none',
+    ]);
+    expect(groupTasks([dated, undated], 'list').map((section) => section.id)).toEqual([
+      'trabajo',
+      'inbox',
+    ]);
+  });
+
+  it('UI-404: a completed task leaves the list and undo puts it back in place', () => {
+    const tasks = [
+      task({ id: 'a', dueDate: null }),
+      task({ id: 'b', dueDate: null }),
+      task({ id: 'c', dueDate: null }),
+    ];
+    expect(visibleTasks(tasks, new Set(['b'])).map((item) => item.id)).toEqual(['a', 'c']);
+    expect(visibleTasks(tasks, new Set()).map((item) => item.id)).toEqual(['a', 'b', 'c']);
   });
 });

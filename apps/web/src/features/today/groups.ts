@@ -53,6 +53,64 @@ export function isOverdue(task: TodayTask, now: Date): boolean {
   return calendarDay(task.dueDate, task.timeZone) < calendarDay(now.toISOString(), task.timeZone);
 }
 
+export function isDueToday(task: TodayTask, now: Date): boolean {
+  if (task.dueDate === null || task.status !== 'active') {
+    return false;
+  }
+  return calendarDay(task.dueDate, task.timeZone) === calendarDay(now.toISOString(), task.timeZone);
+}
+
+export function partitionToday(
+  tasks: readonly TodayTask[],
+  now: Date,
+): { overdue: TodayTask[]; today: TodayTask[] } {
+  const overdue: TodayTask[] = [];
+  const today: TodayTask[] = [];
+  for (const task of tasks) {
+    if (isOverdue(task, now)) {
+      overdue.push(task);
+    } else if (isDueToday(task, now)) {
+      today.push(task);
+    }
+  }
+  const byDue = (left: TodayTask, right: TodayTask): number =>
+    (left.dueDate ?? '').localeCompare(right.dueDate ?? '');
+  overdue.sort(byDue);
+  today.sort(byDue);
+  return { overdue, today };
+}
+
+/** Drops completed rows locally so undo can put them back without refetching. */
+export function visibleTasks(
+  tasks: readonly TodayTask[],
+  hiddenIds: ReadonlySet<string>,
+): TodayTask[] {
+  return tasks.filter((task) => !hiddenIds.has(task.id));
+}
+
+export function formatDueDate(dueDate: string, timeZone: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+    timeZone,
+  }).format(new Date(dueDate));
+}
+
+export function formatDayId(day: string, locale: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
+  if (match === null) {
+    return day;
+  }
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const date = Number(match[3]);
+  return new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+  }).format(new Date(Date.UTC(year, month - 1, date)));
+}
+
 export function activeTasks(tasks: readonly TodayTask[]): TodayTask[] {
   return tasks.filter((task) => task.status === 'active');
 }
@@ -71,7 +129,24 @@ export function groupTasks(tasks: readonly TodayTask[], group: TaskGroupKey): To
     current.push(task);
     buckets.set(id, current);
   }
-  return [...buckets.entries()].map(([id, section]) => ({ id, tasks: section }));
+  const sections = [...buckets.entries()].map(([id, section]) => ({ id, tasks: section }));
+  if (group === 'due') {
+    sections.sort((left, right) => compareDueGroup(left.id, right.id));
+  }
+  return sections;
+}
+
+function compareDueGroup(left: string, right: string): number {
+  if (left === right) {
+    return 0;
+  }
+  if (left === 'none') {
+    return 1;
+  }
+  if (right === 'none') {
+    return -1;
+  }
+  return left.localeCompare(right);
 }
 
 function bucketId(task: TodayTask, group: Exclude<TaskGroupKey, 'priority'>): string {
