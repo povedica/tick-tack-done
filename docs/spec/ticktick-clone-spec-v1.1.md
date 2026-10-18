@@ -854,10 +854,10 @@ modelo de datos completo de tareas/listas/etiquetas/filtros (multiusuario desde 
 
 Puntos 1 a 3 cerrados en `feat/core-tasks` (base, tareas núcleo y tiempo). El scheduler es quien materializa la siguiente ocurrencia y dispara los recordatorios.
 
-**V1:** implementado en `feat/v1-v2` (18 oct 2026). Telegram, Google Calendar en lectura, Google Drive y `BACKUP_REMOTE` arrancan y responden que faltan credenciales; no se inventan secretos. El importador TickTick (RF-1701) sigue aplazado.
+**V1:** implementado en la PR #12 (18 oct 2026). El consentimiento de Google guarda el refresh token por usuario. Telegram responde en local con `scripts/telegram-poll.mjs`; el webhook de producción aún no crea tareas. Drive tiene carpeta, pero el backup no la usa. `BACKUP_REMOTE` sigue vacío. El importador TickTick (RF-1701) sigue aplazado. Lo que falta de Telegram, Calendar, Drive, backup y despliegue va en la PR siguiente.
 Kanban, Timeline, Eisenhower · calendario completo + suscripciones iCal + Google Calendar (lectura) + feeds propios · **bot de Telegram (RF-2003)** · **Google Drive: adjuntos y backups (RF-2005)** · notas · **dashboard de KPIs / jardín digital (RF-2101–2105)** · **reporte semanal honesto (RF-2201–2204)** · **revisión diaria/semanal asistida (RF-2301–2303)** · webhooks + automatizaciones · sync en tiempo real · capa de compatibilidad `/open/v1` · import CSV, export iCal/CSV · 2FA.
 
-**V2:** implementado en el mismo corte. La escritura de Google Calendar no llama a Google si falta `GOOGLE_REFRESH_TOKEN`. Apps nativas y widgets de iOS/Android no entran: la sección 21 no se reabre. El importador TickTick sigue fuera.
+**V2:** implementado en el mismo corte. La escritura de Google Calendar usa el refresh token guardado en el usuario. Apps nativas y widgets de iOS/Android no entran: la sección 21 no se reabre. El importador TickTick sigue fuera.
 colaboración (compartir listas con permisos — p. ej. la lista compartida con su pareja —, asignar, comentarios) · **Pomodoro/Focus con estadísticas (RF-1201–1206)** · plugins · widgets nativos / apps móviles · logros · WIP limits y otras mejoras propias · Google Calendar two-way · (opcional, solo si surge la necesidad) importador TickTick.
 
 ---

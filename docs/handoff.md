@@ -1,6 +1,6 @@
-# Handoff — V1 y V2 en `feat/v1-v2`
+# Handoff — V1 y V2 cerradas en la PR #12
 
-Punto seguro para retomar. La fase 1 sigue en `main` (PR #11, tag `phase-1`) y no se reabre. El look medido de TickTick está en `main` (PR #13). V1 y V2 de la sección 19 están en la rama `feat/v1-v2`, PR contra `main`, sin merge. No se ha desplegado en Hetzner.
+Punto seguro para retomar. La fase 1 sigue en `main` (PR #11, tag `phase-1`) y no se reabre. El look medido de TickTick está en `main` (PR #13). V1 y V2 de la sección 19 se cierran en la PR #12 (`feat/v1-v2`). No se ha desplegado en Hetzner. La siguiente PR termina lo que la spec deja pendiente; el prompt está en `docs/prompts/terminar-spec.md`.
 
 `apps/api/tsconfig.json` sigue en NodeNext. No revertirlo a CommonJS. La CI compila `packages/domain` antes del lint y de los tests. No quites ese paso.
 
@@ -10,7 +10,7 @@ Punto seguro para retomar. La fase 1 sigue en `main` (PR #11, tag `phase-1`) y n
 - Pantallas de la spec de UI en la PR #10. Lo que la API no publica sigue como estado vacío. No se inventaron endpoints para rellenarlas.
 - Look de TickTick en la PR #13, ya en `main`. La spec de UI pasa a v1.1 en el mismo archivo (`docs/spec/tick-tack-done-ui-spec-v1.0.md`): UI-D2 es la paleta medida, UI-D3 es sans del sistema en toda la UI y UI-D5 es el oscuro `#242424`. No vuelvas a la crema ni a la serif de los títulos.
 - La PR #9 se cerró sin merge y la rama ya no existe. No se resucita.
-- Siguiente trabajo real: desplegar cuando existan `BACKUP_REMOTE` y acceso al servidor. No reabrir la fase 1 ni la sección 21. No publicar la spec de producto como v1.2.
+- Siguiente trabajo: la PR que termina la spec (`docs/prompts/terminar-spec.md`). No reabrir la fase 1, la PR #12 ni la sección 21. No publicar la spec de producto como v1.2. RF-1701 sigue aplazado. Apps nativas y widgets siguen fuera.
 
 En local la PWA sigue con `AUTH_MODE=dev` y `X-Dev-User-Email` (`demo@reflexionia.test`). Producción deja `AUTH_MODE` vacío: el compose lo fuerza. La primera cuenta se crea en `/register` mientras no haya usuarios.
 
@@ -142,8 +142,12 @@ No se tocó la API, Prisma, el dominio ni el bus. No se desplegó. No se public�
 
 ## Cierre de V1 y V2 (18 oct 2026)
 
-Quedó hecho en `feat/v1-v2`: kanban con columnas y WIP, timeline día/semana/mes, matriz con las reglas por defecto y reglas editables, calendario con suscripción iCal y feed propio, notas y sticky notes, dashboard con KPIs de backend, reporte semanal, revisión asistida que propone y no decide, webhooks firmados, automatizaciones sobre el mismo bus, SSE, `/open/v1`, import CSV, export CSV e iCal, 2FA opcional, miniatura de imagen, recordatorio de lugar cuando el navegador da la posición, colaboración, Pomodoro en servidor, plugins fuera del proceso de la API, logros desactivables y la escritura de Google Calendar. El look de la PR #13 se conserva.
+Quedó hecho en la PR #12: kanban con columnas y WIP, timeline día/semana/mes, matriz con las reglas por defecto y reglas editables, calendario con suscripción iCal y feed propio, notas y sticky notes, dashboard con KPIs de backend, reporte semanal, revisión asistida que propone y no decide, webhooks firmados, automatizaciones sobre el mismo bus, SSE, `/open/v1`, import CSV, export CSV e iCal, 2FA opcional, miniatura de imagen, recordatorio de lugar cuando el navegador da la posición, colaboración, Pomodoro en servidor, plugins fuera del proceso de la API, logros desactivables y la escritura de Google Calendar. El look de la PR #13 se conserva. Tags `phase-v1` (`b9419a4`) y `phase-v2` (`586043e`); el cierre de integraciones va encima, en `f8c6c84`.
 
-Quedó a falta de un secreto, con el mecanismo y `.env.example` vacíos: `TELEGRAM_BOT_TOKEN`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`, `GOOGLE_DRIVE_FOLDER_ID` y `BACKUP_REMOTE`. Sin esos valores no se llama a Telegram ni a Google, y el backup no sale de la máquina.
+Google ya no pide pegar `GOOGLE_REFRESH_TOKEN`. `GET /api/v1/integrations/google/start` abre el consentimiento y el callback guarda `google_refresh_token` y el correo en el usuario. El calendario usa ese token; la variable de entorno solo es respaldo. En local la cuenta `yoyyosemite@gmail.com` quedó conectada. El cliente OAuth y el secreto viven en `.env`, no en git.
 
-Quedó fuera: RF-1701, el despliegue en Hetzner, apps nativas y widgets de iOS/Android, y la PR #9. La spec no se publica como v1.2. La sección 21 no se toca.
+Telegram, en local: `bash scripts/with-env.sh node scripts/telegram-poll.mjs` lee `@reflexionia_todo_bot` y llama a la API pública con `X-Dev-User-Email`. Comandos: `/capturar` y `/add` (mismo quick add), `/hoy`, `/manana`, `/semana`, `/lista`, `/lista #etiqueta`, `/lista !alta`. La respuesta es texto con ☐ y un enlace `APP_WEB_URL`; no es clicable. `/complete` se quitó. El webhook `POST /api/v1/integrations/telegram/webhook` sigue parseando y respondiendo `called_telegram: false`: no crea tareas ni contesta al chat. Sin el sondeo, el teléfono no llega a `127.0.0.1`.
+
+`GOOGLE_DRIVE_FOLDER_ID` está en el `.env` local (carpeta «tick-tack-done backups»). `scripts/backup.sh` no sube a esa carpeta: sigue siendo rclone y `BACKUP_REMOTE` está vacío.
+
+Quedó fuera de esta PR, y es el trabajo de la siguiente: voz, foto y recordatorios de Telegram, completar desde el chat, el webhook de producción, lectura y escritura reales de Calendar con el token guardado, adjuntos de Drive, el backup diario en Drive, el despliegue y `APP_WEB_URL` público. RF-1701, apps nativas, widgets y la PR #9 siguen fuera. La spec no se publica como v1.2. La sección 21 no se toca. No se inventan secretos.
