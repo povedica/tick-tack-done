@@ -188,6 +188,8 @@ model User {
   achievementsEnabled   Boolean                @default(true) @map("achievements_enabled")
   totpSecret            String?                @map("totp_secret")
   totpEnabled           Boolean                @default(false) @map("totp_enabled")
+  googleRefreshToken    String?                @map("google_refresh_token")
+  googleAccountEmail    String?                @map("google_account_email")
   taskCompleteChildren  CompleteChildrenPolicy @default(ask) @map("task_complete_children")
   createdAt             DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)

@@ -221,7 +221,8 @@ export interface ResourceClient {
   listNotes(): Promise<JsonObject>;
   listStickies(): Promise<JsonObject>;
   createSticky(text: string): Promise<JsonObject>;
-  integrationStatus(kind: 'telegram' | 'drive'): Promise<JsonObject>;
+  integrationStatus(kind: 'telegram' | 'drive' | 'google'): Promise<JsonObject>;
+  googleConnect(): Promise<JsonObject>;
   listWebhooks(): Promise<JsonObject>;
   listAutomations(): Promise<JsonObject>;
   listPlugins(): Promise<JsonObject>;
@@ -396,6 +397,8 @@ export function resourceMethods(http: Http): ResourceClient {
     createSticky: (text) => ask('POST', '/api/v1/sticky-notes', { text }, undefined, isJsonObject),
     integrationStatus: (kind) =>
       ask('GET', `/api/v1/integrations/${kind}`, undefined, undefined, isJsonObject),
+    googleConnect: () =>
+      ask('GET', '/api/v1/integrations/google/start', undefined, undefined, isJsonObject),
     listWebhooks: () => ask('GET', '/api/v1/webhooks', undefined, undefined, isJsonObject),
     listAutomations: () => ask('GET', '/api/v1/automations', undefined, undefined, isJsonObject),
     listPlugins: () => ask('GET', '/api/v1/plugins', undefined, undefined, isJsonObject),

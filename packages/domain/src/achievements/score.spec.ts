@@ -80,12 +80,23 @@ describe('attachments', () => {
 });
 
 describe('telegram', () => {
-  it('RF-2003: today, a list and a button complete are commands; the rest is capture', () => {
+  it('RF-2003: today and a list are commands; the rest is capture', () => {
     expect(parseTelegramCommand('¿qué tengo hoy?').kind).toBe('today');
+    expect(parseTelegramCommand('/lista')).toEqual({ kind: 'lists' });
+    expect(parseTelegramCommand('/manana').kind).toBe('tomorrow');
+    expect(parseTelegramCommand('/semana').kind).toBe('week');
     expect(parseTelegramCommand('qué hay en compra')).toEqual({ kind: 'list', name: 'compra' });
-    expect(parseTelegramCommand('/complete 11111111-1111-1111-1111-111111111111').kind).toBe(
-      'complete',
-    );
+    expect(parseTelegramCommand('/lista #5min')).toEqual({ kind: 'tag', name: '5min' });
+    expect(parseTelegramCommand('/lista !alta')).toEqual({ kind: 'priority', level: 'high' });
     expect(parseTelegramCommand('comprar leche mañana').kind).toBe('capture');
+    expect(parseTelegramCommand('/capturar comprar leche mañana')).toEqual({
+      kind: 'capture',
+      text: 'comprar leche mañana',
+    });
+    expect(parseTelegramCommand('/add comprar leche ^compra')).toEqual({
+      kind: 'capture',
+      text: 'comprar leche ^compra',
+    });
+    expect(parseTelegramCommand('/capturar')).toEqual({ kind: 'capture', text: '' });
   });
 });

@@ -253,11 +253,27 @@ export function IntegrationSettings() {
     queryFn: () => api.integrationStatus('telegram'),
   });
   const drive = useQuery({ queryKey: ['drive'], queryFn: () => api.integrationStatus('drive') });
+  const google = useQuery({ queryKey: ['google'], queryFn: () => api.integrationStatus('google') });
+  const account = text(google.data?.account);
   return (
     <section>
       <h1>{messages.settingsIntegrations}</h1>
       <p>Telegram: {telegram.data?.configured === true ? messages.online : messages.gpsMissing}</p>
       <p>Drive: {drive.data?.configured === true ? messages.online : messages.offline}</p>
+      <p>Google: {google.data?.connected === true ? account : messages.offline}</p>
+      <Button
+        disabled={google.data?.configured !== true || google.data.connected === true}
+        onClick={() => {
+          void api.googleConnect().then((body) => {
+            const url = text(body.url);
+            if (url.startsWith('https://accounts.google.com/')) {
+              window.location.assign(url);
+            }
+          });
+        }}
+      >
+        {messages.googleConnect}
+      </Button>
     </section>
   );
 }

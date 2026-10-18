@@ -7,7 +7,7 @@ import { EventRecorder } from '../../events/event-recorder';
 import { asJson } from '../../http/json';
 import { DomainException } from '../../http/domain.exception';
 import { PrismaService } from '../../prisma/prisma.service';
-import { googleConfigured, googleRefreshConfigured } from '../../integrations/config';
+import { googleConfigured } from '../../integrations/config';
 
 const MAX_ICAL_BYTES = 1_000_000;
 
@@ -163,7 +163,7 @@ export class CalendarService {
     if (row.syncDirection !== 'two_way') {
       throw new DomainException(HttpStatus.CONFLICT, 'read_only', 'This subscription is read only');
     }
-    const token = await this.googleAccessToken();
+    const token = await this.googleAccessToken(user.id);
     const tasks = await this.prisma.task.findMany({
       where: { ownerId: user.id, deletedAt: null, status: 'active', dueDate: { not: null } },
       orderBy: { updatedAt: 'desc' },
@@ -357,7 +357,7 @@ export class CalendarService {
     user: AuthUser,
     subscriptionId: string,
   ): Promise<{ imported: number }> {
-    const token = await this.googleAccessToken();
+    const token = await this.googleAccessToken(user.id);
     const now = new Date();
     const timeMin = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const timeMax = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -418,12 +418,17 @@ export class CalendarService {
     return { imported: parsed.length };
   }
 
-  private async googleAccessToken(): Promise<string> {
-    if (!googleRefreshConfigured()) {
+  private async googleAccessToken(userId: string): Promise<string> {
+    const row = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { googleRefreshToken: true },
+    });
+    const refresh = row?.googleRefreshToken ?? process.env.GOOGLE_REFRESH_TOKEN ?? '';
+    if (!googleConfigured() || refresh.length === 0) {
       throw new DomainException(
         HttpStatus.SERVICE_UNAVAILABLE,
         'google_not_configured',
-        'Google Calendar needs GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and GOOGLE_REFRESH_TOKEN',
+        'Connect Google from settings before reading the calendar',
       );
     }
     const response = await fetch('https://oauth2.googleapis.com/token', {
@@ -432,7 +437,7 @@ export class CalendarService {
       body: new URLSearchParams({
         client_id: process.env.GOOGLE_CLIENT_ID ?? '',
         client_secret: process.env.GOOGLE_CLIENT_SECRET ?? '',
-        refresh_token: process.env.GOOGLE_REFRESH_TOKEN ?? '',
+        refresh_token: refresh,
         grant_type: 'refresh_token',
       }),
       signal: AbortSignal.timeout(8_000),

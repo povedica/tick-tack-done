@@ -228,6 +228,14 @@ describe('V1 and V2 product', () => {
     expect(page.body[0]).toEqual(expect.objectContaining({ name: expect.any(String) }));
   });
 
+  it('RF-2004: Google consent stays stopped without a client id', async () => {
+    const denied = await session()
+      .get('/api/v1/integrations/google/start')
+      .set('Origin', 'http://127.0.0.1:5173')
+      .expect(503);
+    expect(denied.body.error.code).toBe('google_not_configured');
+  });
+
   it('does not call Google when the refresh token is missing', async () => {
     const denied = await session()
       .post('/api/v1/calendar/subscriptions')

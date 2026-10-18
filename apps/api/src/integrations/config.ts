@@ -11,10 +11,6 @@ export function driveConfigured(): boolean {
   return googleConfigured() && present('GOOGLE_DRIVE_FOLDER_ID');
 }
 
-export function googleRefreshConfigured(): boolean {
-  return googleConfigured() && present('GOOGLE_REFRESH_TOKEN');
-}
-
 function present(name: string): boolean {
   const value = process.env[name];
   return value !== undefined && value.trim().length > 0;

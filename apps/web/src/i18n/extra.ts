@@ -252,6 +252,7 @@ export const extraEs = {
   shareAdd: 'Compartir',
   achievementsOff: 'Puntuación desactivada',
   achievementsOn: 'Puntuación activada',
+  googleConnect: 'Conectar Google',
 } as const;
 
 export const extraEn = {
@@ -507,4 +508,5 @@ export const extraEn = {
   shareAdd: 'Share',
   achievementsOff: 'Score off',
   achievementsOn: 'Score on',
+  googleConnect: 'Connect Google',
 } as const;

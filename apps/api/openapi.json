@@ -5174,6 +5174,51 @@
         ]
       }
     },
+    "/api/v1/integrations/google": {
+      "get": {
+        "operationId": "IntegrationsController_google",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Google connection status. The refresh token is stored after consent (RF-2004).",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/google/start": {
+      "get": {
+        "operationId": "IntegrationsController_start",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Build the Google consent URL. The browser completes it (RF-2004).",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/google/callback": {
+      "get": {
+        "operationId": "IntegrationsController_callback",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Google redirects here with the authorization code (RF-2004).",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
     "/api/v1/integrations/drive": {
       "get": {
         "operationId": "IntegrationsController_drive",
