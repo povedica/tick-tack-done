@@ -16,6 +16,8 @@ export function TodayPage() {
         <Link to="/smart-lists">{messages.smartListsLink}</Link>
         {' · '}
         <Link to="/filters">{messages.filtersLink}</Link>
+        {' · '}
+        <Link to="/tokens">{messages.tokensLink}</Link>
       </p>
       <h1>{messages.todayTitle}</h1>
       <p>{messages.todayHint}</p>

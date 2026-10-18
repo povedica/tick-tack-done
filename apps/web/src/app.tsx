@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes, useNavigate, useSearchParams } 
 import { CaptureSheet } from './features/capture/components/CaptureSheet';
 import { TodayPage } from './features/capture/components/TodayPage';
 import { HabitsPage } from './features/habits/components/HabitsPage';
+import { TokensPage } from './features/tokens/components/TokensPage';
 import { CommandPalette } from './features/views/components/CommandPalette';
 import { FiltersPage } from './features/views/components/FiltersPage';
 import { SmartListsPage } from './features/views/components/SmartListsPage';
@@ -48,6 +49,7 @@ function Shell() {
         <Route path="/smart-lists" element={<SmartListsPage />} />
         <Route path="/smart-lists/:key" element={<SmartListViewPage />} />
         <Route path="/filters" element={<FiltersPage />} />
+        <Route path="/tokens" element={<TokensPage />} />
         <Route path="/filters/:id" element={<FilterViewPage />} />
         <Route path="/lists/:id" element={<ProjectListPage />} />
         <Route path="/quick-add" element={<QuickAddRoute />} />
