@@ -1,14 +1,16 @@
-import type { TaskDetail as Detail } from '@reflexionia/sdk';
+import { ApiError, type TaskDetail as Detail } from '@reflexionia/sdk';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Bell, Flag } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { api } from '../../api';
 import { PriorityCheck } from '../../components/PriorityCheck';
 import { Button } from '../../components/ui';
 import { DueField } from './DueField';
 import { fill, useMessages } from '../../i18n';
+import { useActionToast } from '../../components/action-toast';
 import { collectTags } from './collect';
+import { refreshTaskSurfaces } from './refresh';
 import { newMutation, runOrQueue } from '../offline/client';
 
 const MAX_ATTACHMENT = 25 * 1024 * 1024;
@@ -23,6 +25,9 @@ export function TaskDetail({
   const messages = useMessages();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [, setParams] = useSearchParams();
+  const showToast = useActionToast((state) => state.show);
   const [saved, setSaved] = useState(false);
   const [series, setSeries] = useState<string | null>(null);
   const [children, setChildren] = useState(false);
@@ -70,8 +75,8 @@ export function TaskDetail({
         await refresh();
       }
     },
-    onError: () => {
-      setError(messages.saveFailed);
+    onError: (caught: unknown) => {
+      setError(caught instanceof ApiError ? caught.message : messages.saveFailed);
     },
   });
 
@@ -161,10 +166,13 @@ export function TaskDetail({
             void api
               .createReminder(
                 task.id,
-                { trigger: '-PT30M', type: 'relative', channel: 'push' },
+                { trigger: 'TRIGGER:-PT30M', type: 'relative', channel: 'push' },
                 crypto.randomUUID(),
               )
-              .then(() => queryClient.invalidateQueries({ queryKey: ['reminders', taskId] }));
+              .then(() => queryClient.invalidateQueries({ queryKey: ['reminders', taskId] }))
+              .catch((caught: unknown) => {
+                setError(caught instanceof ApiError ? caught.message : messages.saveFailed);
+              });
           }}
         >
           <Bell size={20} aria-hidden="true" />
@@ -203,7 +211,13 @@ export function TaskDetail({
           <Button
             variant="ghost"
             onClick={() => {
-              void api.duplicateTask(task.id, crypto.randomUUID()).then(refresh);
+              void api.duplicateTask(task.id, crypto.randomUUID()).then((copy) => {
+                const next = new URLSearchParams(window.location.search);
+                next.set('task', copy.id);
+                setParams(next, { replace: true });
+                showToast(messages.duplicated);
+                return refreshTaskSurfaces(queryClient);
+              });
             }}
           >
             {messages.duplicate}
@@ -211,12 +225,21 @@ export function TaskDetail({
           <Button
             variant="danger"
             onClick={() => {
-              void api.deleteTask(task.id).then(() => {
+              if (!confirmDelete) {
+                setConfirmDelete(true);
+                return;
+              }
+              const id = task.id;
+              void api.deleteTask(id).then(() => {
+                showToast(messages.movedToTrash, () => {
+                  void api.restoreTask(id).then(() => refreshTaskSurfaces(queryClient));
+                });
+                void refreshTaskSurfaces(queryClient);
                 onClose();
               });
             }}
           >
-            {messages.batchDelete}
+            {confirmDelete ? messages.confirmDelete : messages.batchDelete}
           </Button>
         </div>
         {error !== null ? <p role="alert">{error}</p> : null}
@@ -373,10 +396,13 @@ export function TaskDetail({
               void api
                 .createReminder(
                   task.id,
-                  { trigger: '-PT30M', type: 'relative', channel: 'push' },
+                  { trigger: 'TRIGGER:-PT30M', type: 'relative', channel: 'push' },
                   crypto.randomUUID(),
                 )
-                .then(() => queryClient.invalidateQueries({ queryKey: ['reminders', taskId] }));
+                .then(() => queryClient.invalidateQueries({ queryKey: ['reminders', taskId] }))
+                .catch((caught: unknown) => {
+                  setError(caught instanceof ApiError ? caught.message : messages.saveFailed);
+                });
             }}
           >
             {messages.addReminder}
@@ -388,14 +414,17 @@ export function TaskDetail({
           <div className="page-toolbar">
             <Button
               onClick={() => {
-                save.mutate({ repeat_rule: 'FREQ=DAILY', repeat_from: 'due_date' });
+                save.mutate({ repeat_rule: 'RRULE:FREQ=DAILY', repeat_from: 'due_date' });
               }}
             >
               {messages.repeatDaily}
             </Button>
             <Button
               onClick={() => {
-                save.mutate({ repeat_rule: 'FREQ=WEEKLY', repeat_from: 'due_date' });
+                save.mutate({
+                  repeat_rule: weeklyRule(task.due_date, task.time_zone),
+                  repeat_from: 'due_date',
+                });
               }}
             >
               {messages.repeatWeekly}
@@ -403,7 +432,7 @@ export function TaskDetail({
             <Button
               onClick={() => {
                 save.mutate({
-                  repeat_rule: 'FREQ=MONTHLY;BYDAY=1MO;COUNT=6',
+                  repeat_rule: 'RRULE:FREQ=MONTHLY;BYDAY=1MO;COUNT=6',
                   repeat_from: 'due_date',
                 });
               }}
@@ -598,6 +627,25 @@ function relativeTime(iso: string, locale: string): string {
     return format.format(-hours, 'hour');
   }
   return format.format(-Math.round(hours / 24), 'day');
+}
+
+function weeklyRule(due: string | null, timeZone: string): string {
+  if (due === null) {
+    return 'RRULE:FREQ=WEEKLY;BYDAY=MO';
+  }
+  const name = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone }).format(
+    new Date(due),
+  );
+  const codes: Readonly<Record<string, string>> = {
+    Sun: 'SU',
+    Mon: 'MO',
+    Tue: 'TU',
+    Wed: 'WE',
+    Thu: 'TH',
+    Fri: 'FR',
+    Sat: 'SA',
+  };
+  return `RRULE:FREQ=WEEKLY;BYDAY=${codes[name] ?? 'MO'}`;
 }
 
 function toLocal(value: string | null): string {

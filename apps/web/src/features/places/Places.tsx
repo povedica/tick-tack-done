@@ -587,44 +587,101 @@ export function ReviewPage() {
 
 export function FocusPage() {
   const messages = useMessages();
-  const [left, setLeft] = useState(25 * 60);
-  const [running, setRunning] = useState(false);
+  const queryClient = useQueryClient();
+  const sessions = useQuery({
+    queryKey: ['focus-sessions'],
+    queryFn: () => api.listFocusSessions(),
+  });
+  const active = activeSession(sessions.data);
+  const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    if (!running) {
+    if (active === null) {
       return;
     }
     const id = window.setInterval(() => {
-      setLeft((value) => (value > 0 ? value - 1 : 0));
+      setNow(Date.now());
     }, 1000);
     return () => {
       window.clearInterval(id);
     };
-  }, [running]);
+  }, [active?.id]);
+  const left = active === null ? 25 * 60 : secondsLeft(active, now);
   return (
     <section className="screen-page">
       <h1>{messages.focusTitle}</h1>
       <p>{messages.focusHint}</p>
       <p className="detail-title">{formatClock(left)}</p>
       <div className="page-toolbar">
-        <Button
-          variant="primary"
-          onClick={() => {
-            setRunning((value) => !value);
-          }}
-        >
-          {running ? messages.focusPause : messages.focusStart}
-        </Button>
-        <Button
-          onClick={() => {
-            setLeft(25 * 60);
-            setRunning(false);
-          }}
-        >
-          {messages.focusReset}
-        </Button>
+        {active === null ? (
+          <Button
+            variant="primary"
+            onClick={() => {
+              void api.startFocus().then(() => {
+                void queryClient.invalidateQueries({ queryKey: ['focus-sessions'] });
+              });
+            }}
+          >
+            {messages.focusStart}
+          </Button>
+        ) : (
+          <>
+            <Button
+              variant="primary"
+              onClick={() => {
+                void api.finishFocus(active.id).then(() => {
+                  void queryClient.invalidateQueries({ queryKey: ['focus-sessions'] });
+                });
+              }}
+            >
+              {messages.focusFinish}
+            </Button>
+            <Button
+              onClick={() => {
+                void api.abortFocus(active.id).then(() => {
+                  void queryClient.invalidateQueries({ queryKey: ['focus-sessions'] });
+                });
+              }}
+            >
+              {messages.cancel}
+            </Button>
+          </>
+        )}
       </div>
     </section>
   );
+}
+
+function activeSession(data: unknown): { id: string; started_at: string; planned_minutes: number } | null {
+  if (typeof data !== 'object' || data === null || !('items' in data)) {
+    return null;
+  }
+  const items = (data as { items?: unknown }).items;
+  if (!Array.isArray(items)) {
+    return null;
+  }
+  for (const item of items) {
+    if (typeof item !== 'object' || item === null) {
+      continue;
+    }
+    const row = item as { id?: unknown; ended_at?: unknown; started_at?: unknown; planned_minutes?: unknown };
+    if (
+      typeof row.id === 'string' &&
+      row.ended_at === null &&
+      typeof row.started_at === 'string' &&
+      typeof row.planned_minutes === 'number'
+    ) {
+      return { id: row.id, started_at: row.started_at, planned_minutes: row.planned_minutes };
+    }
+  }
+  return null;
+}
+
+function secondsLeft(
+  session: { started_at: string; planned_minutes: number },
+  now: number,
+): number {
+  const elapsed = Math.floor((now - new Date(session.started_at).getTime()) / 1000);
+  return Math.max(0, session.planned_minutes * 60 - elapsed);
 }
 
 function formatClock(total: number): string {

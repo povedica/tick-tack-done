@@ -219,6 +219,7 @@ export interface ResourceClient {
   startFocus(): Promise<JsonObject>;
   listFocusSessions(): Promise<JsonObject>;
   finishFocus(id: string): Promise<JsonObject>;
+  abortFocus(id: string): Promise<JsonObject>;
   listNotes(): Promise<JsonObject>;
   listStickies(): Promise<JsonObject>;
   createSticky(text: string): Promise<JsonObject>;
@@ -409,6 +410,8 @@ export function resourceMethods(http: Http): ResourceClient {
       ask('GET', '/api/v1/focus/sessions', undefined, undefined, isJsonObject),
     finishFocus: (id) =>
       ask('POST', `/api/v1/focus/sessions/${id}/finish`, undefined, undefined, isJsonObject),
+    abortFocus: (id) =>
+      ask('POST', `/api/v1/focus/sessions/${id}/abort`, undefined, undefined, isJsonObject),
     listNotes: () => ask('GET', '/api/v1/notes', undefined, undefined, isJsonObject),
     listStickies: () => ask('GET', '/api/v1/sticky-notes', undefined, undefined, isJsonObject),
     createSticky: (text) => ask('POST', '/api/v1/sticky-notes', { text }, undefined, isJsonObject),

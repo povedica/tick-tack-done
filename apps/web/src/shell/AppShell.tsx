@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useSearchParams } from 'react-router';
 import { LocationWatch } from '../features/product/ProductPages';
 import { TaskDetail } from '../features/tasks/TaskDetail';
+import { useActionToast } from '../components/action-toast';
 import { useMessages } from '../i18n';
 import { BottomBar } from './BottomBar';
 import { IconRail } from './IconRail';
@@ -157,8 +158,44 @@ export function AppShell() {
             setDrawer(true);
           }}
         />
+        <ActionToast />
       </div>
     </ShellActionsProvider>
+  );
+}
+
+function ActionToast() {
+  const messages = useMessages();
+  const text = useActionToast((state) => state.text);
+  const undo = useActionToast((state) => state.undo);
+  const clear = useActionToast((state) => state.clear);
+  useEffect(() => {
+    if (text === null) {
+      return;
+    }
+    const id = window.setTimeout(clear, 6000);
+    return () => {
+      window.clearTimeout(id);
+    };
+  }, [text, clear]);
+  if (text === null) {
+    return null;
+  }
+  return (
+    <p className="action-toast" role="status">
+      {text}
+      {undo === null ? null : (
+        <button
+          type="button"
+          onClick={() => {
+            undo();
+            clear();
+          }}
+        >
+          {messages.undo}
+        </button>
+      )}
+    </p>
   );
 }
 

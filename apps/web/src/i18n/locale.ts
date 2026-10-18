@@ -11,9 +11,9 @@ function read(): LocaleChoice {
       return value;
     }
   } catch {
-    return 'auto';
+    return 'es';
   }
-  return 'auto';
+  return 'es';
 }
 
 interface LocaleStore {

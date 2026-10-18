@@ -1,5 +1,8 @@
 export const extraEs = {
   completedOn: 'Completada {date}',
+  confirmDelete: 'Confirmar borrado',
+  movedToTrash: 'Tarea movida a la papelera',
+  duplicated: 'Tarea duplicada',
   skip: 'Saltar al contenido',
   offline: 'Sin conexión',
   online: 'Conectado',
@@ -67,6 +70,7 @@ export const extraEs = {
   focusStart: 'Empezar',
   focusPause: 'Pausar',
   focusReset: 'Reiniciar',
+  focusFinish: 'Terminar',
   pluginEmpty: 'Un plugin declara permisos y corre fuera del proceso de la API.',
   shareEmpty: 'Esta lista todavía no está compartida.',
   backupEmpty:
@@ -289,6 +293,9 @@ export const extraEs = {
 
 export const extraEn = {
   completedOn: 'Completed {date}',
+  confirmDelete: 'Confirm delete',
+  movedToTrash: 'Task moved to the trash',
+  duplicated: 'Task duplicated',
   skip: 'Skip to content',
   offline: 'Offline',
   online: 'Online',
@@ -356,6 +363,7 @@ export const extraEn = {
   focusStart: 'Start',
   focusPause: 'Pause',
   focusReset: 'Reset',
+  focusFinish: 'Finish',
   pluginEmpty: 'A plugin declares permissions and runs outside the API process.',
   shareEmpty: 'This list is not shared yet.',
   backupEmpty:

@@ -32,6 +32,15 @@ describe('parseQuickAdd', () => {
     expect(result.repeatRule).toBeNull();
   });
 
+  it('RF-102: every weekday at 9am sets a weekday rule and 09:00', () => {
+    const result = parsed('stand up every weekday at 9am', 'en');
+    expect(result.title).toBe('stand up');
+    expect(result.due?.isAllDay).toBe(false);
+    expect(result.due?.date).toBe(localDue(2, 9, 0));
+    expect(result.repeatRule).toContain('FREQ=WEEKLY');
+    expect(result.repeatRule).toContain('BYDAY=MO,TU,WE,TH,FR');
+  });
+
   it('RF-102: tomorrow 6pm keeps the same local hour in English', () => {
     const result = parsed('call mom tomorrow 6pm', 'en');
     expect(result.title).toBe('call mom');
@@ -101,16 +110,16 @@ describe('parseQuickAdd', () => {
     expect(english.due?.date).toBe(localDue(0, 0, 0, '2026-10-23T00:00:00.000Z'));
   });
 
-  it('RF-102: !alta !media !baja and p1–p3 map onto low medium high', () => {
+  it('RF-102: !alta !media !baja and p1–p3 map onto high medium low', () => {
     expect(parsed('a !alta').priority).toBe('high');
     expect(parsed('a !media').priority).toBe('medium');
     expect(parsed('a !baja').priority).toBe('low');
     expect(parsed('a !high', 'en').priority).toBe('high');
     expect(parsed('a !medium', 'en').priority).toBe('medium');
     expect(parsed('a !low', 'en').priority).toBe('low');
-    expect(parsed('a p1').priority).toBe('low');
+    expect(parsed('a p1').priority).toBe('high');
     expect(parsed('a p2').priority).toBe('medium');
-    expect(parsed('a p3').priority).toBe('high');
+    expect(parsed('a p3').priority).toBe('low');
     expect(parsed('step1').priority).toBeNull();
     expect(parsed('p1 luego !alta').priority).toBe('high');
   });

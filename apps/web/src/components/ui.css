@@ -379,6 +379,28 @@
   color: var(--ink-inverse);
 }
 
+.action-toast {
+  position: fixed;
+  right: var(--sp-4);
+  bottom: var(--sp-4);
+  z-index: 50;
+  display: flex;
+  gap: var(--sp-3);
+  align-items: center;
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--ink);
+  color: var(--ink-inverse);
+  border-radius: var(--radius);
+}
+
+.action-toast button {
+  color: inherit;
+  background: transparent;
+  border: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .offline-banner,
 .notice-banner {
   padding: var(--sp-2) var(--sp-3);
