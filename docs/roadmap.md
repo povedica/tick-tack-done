@@ -4,7 +4,7 @@ Usa este plan para acotar cada tarea de Cursor: cita la fase y los RF-xx.
 
 ## MVP / fase 1 (4-6 semanas de agente)
 
-Estado al tag `phase-1.7`: puntos 1 a 6 en `main` (el punto 6 es la PR #7, tag `phase-1.6`). La PR #5, también en `main`, añade el shell y Hoy con tareas reales. El punto 7 (acceso de agentes) está en `feat/agent-access`, tag `phase-1.7`, con la PR #8 abierta contra `main` y sin merge. El punto 8 abre otra rama desde `main` cuando esa PR se mergee. Este corte añade la pantalla de tokens enlazada desde `/today`. El pulido visual del shell queda anotado en `docs/handoff.md` y no es este corte.
+Estado al merge de la PR #8: puntos 1 a 7 en `main` (el punto 6 es la PR #7, tag `phase-1.6`; el punto 7 es la PR #8, tag `phase-1.7`). La PR #5, también en `main`, añade el shell y Hoy con tareas reales. El resto de la fase 1 (puntos 8 y 9, más el despliegue de la sección 19 y los huecos MVP que siguen abiertos) va en una sola PR desde `main`. El prompt es `docs/prompts/cerrar-fase-1.md`. El pulido visual del shell no es esa PR.
 
 1. **Base**: monorepo, CI, Docker Compose, modelo de datos completo (sección 5), migraciones, seed.
 2. **Tareas núcleo**: CRUD + checklist + subtareas (RF-201–210), listas/carpetas/secciones
@@ -16,8 +16,8 @@ Estado al tag `phase-1.7`: puntos 1 a 6 en `main` (el punto 6 es la PR #7, tag `
 6. **Smart lists + filtros** con evaluación en backend (RF-901–904); vista lista (RF-1001);
    búsqueda + paleta (RF-1501–1502). Hecho y mergeado (PR #7, tag `phase-1.6`).
 7. **Acceso de agentes**: API v1 completa de esos recursos + PAT con scopes (RF-2002) +
-   servidor MCP (RF-2001). Criterio de aceptación 4. Hecho en `feat/agent-access`, tag `phase-1.7`,
-   PR #8 sin merge. Incluye el límite de 1000 peticiones / 15 min por token.
+   servidor MCP (RF-2001). Criterio de aceptación 4. Hecho y mergeado (PR #8, tag `phase-1.7`).
+   Incluye el límite de 1000 peticiones / 15 min por token.
 8. **Offline básico**: cola de mutaciones con Idempotency-Key (RF-13010; criterio 5).
 9. **Export JSON** versionado (RF-1703/1705) + backup diario con restauración probada (RF-1704).
 

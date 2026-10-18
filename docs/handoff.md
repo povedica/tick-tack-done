@@ -1,6 +1,6 @@
 # Handoff — acceso de agentes (fase 1, punto 7)
 
-Punto seguro para retomar. Lint, typecheck, tests unitarios y la integración de la API pasan en local. La CI los corre después de compilar `packages/domain`. La rama es `feat/agent-access`, con la PR #8 abierta contra `main`. No está mergeada. El tag `phase-1.7` marca el handoff de antes de traer `main`; la punta de la rama incluye ese merge. No se usa `feat/filters`: el punto 6 ya está en `main` (PR #7, tag `phase-1.6`). La PR #5 (shell y Hoy) también está en `main`; esta rama se actualizó encima para poder mergear.
+Punto seguro para retomar. Lint, typecheck, tests unitarios y la integración de la API pasan en local. La CI los corre después de compilar `packages/domain`. La rama es `feat/agent-access` y se cierra con el merge de la PR #8 a `main`. El tag `phase-1.7` marca el handoff de antes de traer el shell; la punta de la rama incluye ese merge. No se usa `feat/filters`: el punto 6 ya está en `main` (PR #7, tag `phase-1.6`). La PR #5 (shell y Hoy) también está en `main`; esta rama se actualizó encima para poder mergear.
 
 ## Dónde estamos
 
@@ -8,7 +8,7 @@ Cerrado el punto 7 de la fase 1 (`docs/roadmap.md`): PAT con scopes granulares (
 
 La API pública sigue en `/api/v1`. OpenAPI está en `/api/docs` y el JSON commiteado es `apps/api/openapi.json`. El cliente web llama a la API solo a través de `@reflexionia/sdk`. `apps/api/tsconfig.json` es NodeNext. No revertirlo a CommonJS.
 
-Siguiente producto: punto 8, cola offline (RF-13010, criterio 5), en una rama nueva desde `main` cuando esta PR se mergee. No adelantar offline ni export en `feat/agent-access`. Una feature o un punto del roadmap es una PR, y se mergea al terminarla.
+Siguiente producto: el resto de la fase 1, en una sola PR desde `main`. Pablo lo pidió así el 18 oct 2026: offline, export JSON, backup y el despliegue, más los huecos MVP que siguen abiertos. El prompt está en `docs/prompts/cerrar-fase-1.md`. Esta rama no adelanta ese corte.
 
 Este corte añade la pantalla de tokens, enlazada desde el Hoy del shell. OAuth2 Authorization Code no entra: la UI sigue con la sesión de desarrollo. El módulo de notas no se construye. El pulido visual del shell no es este corte; queda anotado más abajo.
 
@@ -129,4 +129,4 @@ El punto 5 ya está mergeado (PR #4, tag `phase-1.5`). El punto 6 quedó en `fea
 
 ### Corte de acceso de agentes (18 oct 2026)
 
-El punto 6 ya está mergeado (PR #7, tag `phase-1.6`). La PR #5 (shell) también. El punto 7 está en `feat/agent-access` (tag `phase-1.7`), con la PR #8 contra `main` y sin merge. Este corte sí hace los PAT, el servidor MCP y el límite de 1000 peticiones / 15 min por token. Los avisos de arriba se conservan y no se ejecutan: no se despliega, no se configura `BACKUP_REMOTE` ni el cron, no se publica la spec como v1.2, no se limita todavía el correo entrante y no se pule el shell. Offline y export no se apilan. OAuth2 no entra.
+El punto 6 ya está mergeado (PR #7, tag `phase-1.6`). La PR #5 (shell) también. El punto 7 se cierra con el merge de la PR #8 (tag `phase-1.7`). Este corte sí hace los PAT, el servidor MCP y el límite de 1000 peticiones / 15 min por token. En este corte no se despliega, no se configura `BACKUP_REMOTE` ni el cron, no se publica la spec como v1.2, no se limita todavía el correo entrante y no se pule el shell. Offline, export y OAuth2 quedan para la PR que cierra la fase 1.
