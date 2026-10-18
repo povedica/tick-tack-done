@@ -1,6 +1,6 @@
-# Handoff — fase 1 en main, con la spec de UI
+# Handoff — V1 y V2 en `feat/v1-v2`
 
-Punto seguro para retomar. La fase 1 del MVP y las pantallas de `docs/spec/tick-tack-done-ui-spec-v1.0.md` están juntas en `main` al mergear la PR #11. La PR #10 (spec de UI) ya estaba en `main` y esta rama la absorbió. No se ha desplegado en Hetzner.
+Punto seguro para retomar. La fase 1 sigue en `main` (PR #11, tag `phase-1`) y no se reabre. V1 y V2 de la sección 19 están en la rama `feat/v1-v2`, PR contra `main`, sin merge. No se ha desplegado en Hetzner.
 
 `apps/api/tsconfig.json` sigue en NodeNext. No revertirlo a CommonJS. La CI compila `packages/domain` antes del lint y de los tests. No quites ese paso.
 
@@ -8,8 +8,8 @@ Punto seguro para retomar. La fase 1 del MVP y las pantallas de `docs/spec/tick-
 
 - Puntos 1 a 9 de la fase 1, más sesión, OAuth2 PKCE, RF-702 y el bus, en la PR #11 (tag `phase-1`).
 - Pantallas de la spec de UI en la PR #10. Lo que la API no publica sigue como estado vacío. No se inventaron endpoints para rellenarlas.
-- La PR #9 (`feat/ui-today-polish`) sigue abierta, con worktree en `~/CodeProjects/todo-ui-today-polish`. No está mergeada y no se borra.
-- Siguiente trabajo real: desplegar cuando existan `BACKUP_REMOTE` y acceso al servidor, o abrir V1 en una rama nueva desde `main`. No reabrir la fase 1 ni la sección 21. No publicar la spec como v1.2.
+- La PR #9 se cerró sin merge y la rama ya no existe. No se resucita.
+- Siguiente trabajo real: desplegar cuando existan `BACKUP_REMOTE` y acceso al servidor. No reabrir la fase 1 ni la sección 21. No publicar la spec como v1.2.
 
 En local la PWA sigue con `AUTH_MODE=dev` y `X-Dev-User-Email` (`demo@reflexionia.test`). Producción deja `AUTH_MODE` vacío: el compose lo fuerza. La primera cuenta se crea en `/register` mientras no haya usuarios.
 
@@ -36,19 +36,17 @@ bash scripts/with-env.sh pnpm test:integration
 - Export JSON con `schema_version`, `DELETE /api/v1/me`, listado de backups y verificación del archivo. `POST /api/v1/backups/restore` comprueba el gzip y no pisa la base. Aplicar el archivo es `RESTORE_CONFIRM=restore ./scripts/restore.sh <stamp>`.
 - Sesión Argon2id, cookie httpOnly y CSRF. OAuth2 Authorization Code + PKCE. El token de acceso es un PAT. Un PAT no hereda el pase de desarrollo.
 - Pantalla de recurrencia en español (`/repeat`). La RRULE solo se ve en modo avanzado. Solo el scheduler materializa la siguiente ocurrencia.
-- El outbox se publica en BullMQ y marca `published_at`. No hay dispatcher de webhooks ni motor de automatizaciones.
+- El outbox se publica en BullMQ y marca `published_at`. El dispatcher de webhooks y el motor de automatizaciones consumen ese mismo bus.
 - Correo entrante: 25 MB y límite de ritmo. El cron de backup (04:00) y de prueba de restauración (domingo 05:00) está en `deploy/reflexionia.cron`.
 
 ## Qué quedó de la spec de UI
 
 Hecho contra la API que ya existía: barra con contadores, Hoy con lista y etiquetas, bandeja, detalle, lista/kanban/timeline, hábitos, smart lists, filtros, búsqueda, paleta, atajos y tokens.
 
-Siguen vacías porque la API no publica el recurso: plan de hoy, revisión semanal, jardín digital, reportes, calendarios externos, integraciones, automatizaciones, webhooks, plugins y compartir. Foco es V2 y el temporizador vive solo en el navegador.
+Jardín, reportes, revisión, foco, calendario, datos, cuenta, integraciones, automatizaciones, webhooks, plugins y compartir leen la API de esta rama. El foco ya no es un temporizador solo del navegador.
 
-Estas pantallas de Ajustes siguen diciendo que el recurso no está publicado, aunque la API de la fase 1 ya lo tiene. No las cablees otra vez: enlázalas.
-
-- Datos: `GET /api/v1/export/json`, `GET /api/v1/backups` y `POST /api/v1/backups/restore`.
-- Cuenta: `/login` y `/register` ya son la sesión real. Borrar la cuenta es `DELETE /api/v1/me` con el correo como confirmación. El 2FA sigue sin existir. Recuperar contraseña tampoco.
+- Datos: `GET /api/v1/export/json`, `GET /api/v1/backups` y `POST /api/v1/backups/restore`. Restaurar verifica el gzip y no pisa la base.
+- Cuenta: `/login` y `/register` son la sesión real. Borrar la cuenta es `DELETE /api/v1/me` con el correo como confirmación. El 2FA TOTP es opcional y no se fuerza al usuario de desarrollo. Recuperar contraseña sigue sin existir.
 
 La cola offline no cubre el completado por lote, deshacer, mover, borrar ni el resto de acciones que no son crear, editar o completar una tarea.
 
@@ -65,11 +63,10 @@ La cola offline no cubre el completado por lote, deshacer, mover, borrar ni el r
 ## Qué no está hecho
 
 - Despliegue en `todo.reflexionia.com`. Falta `BACKUP_REMOTE` y el acceso al servidor. No se inventaron secretos.
-- V1 de producto: Telegram, Google Drive, Google Calendar, notas de servidor, dashboard con datos, reporte semanal, revisiones asistidas, webhooks, automatizaciones, sync en tiempo real, `/open/v1`, import CSV, export iCal/CSV, 2FA y geovallado. Kanban y timeline se pintan en cliente; no son el corte de V1.
-- V2: colaboración, Pomodoro, plugins, widgets, logros, WIP de servidor y Calendar two-way.
 - RF-1701 (importador TickTick) sigue aplazado.
-- Miniaturas de adjuntos. El recordatorio `location` se guarda y no se dispara.
-- La PR #9, pulido de Hoy y de la barra, sigue aparte.
+- Apps nativas y widgets de iOS/Android. La sección 21 no se reabre.
+- Recuperar contraseña.
+- La PR #9 se cerró sin merge. No se resucita.
 
 ## Tags
 
@@ -132,4 +129,12 @@ Quedó hecho en la PR #11, ya sincronizada con la spec de UI de la PR #10: cola 
 
 Quedó fuera por ser V1 o V2 lo que la API no publica: Telegram, Google Drive, Google Calendar, dashboard con datos, reporte, revisiones, webhooks, automatizaciones, sync en tiempo real, `/open/v1`, import CSV, export iCal/CSV, 2FA, geovallado, colaboración, Pomodoro, plugins, widgets, logros y Calendar two-way. Kanban y timeline existen como vista de cliente. RF-1701 sigue aplazado.
 
-No se desplegó en Hetzner: falta `BACKUP_REMOTE` y el acceso al servidor. No se inventaron secretos. La spec v1.1 solo ganó los nombres de evento en 11.1 y las rutas públicas que faltaban en 10.3. La PR #9 sigue abierta.
+No se desplegó en Hetzner: falta `BACKUP_REMOTE` y el acceso al servidor. No se inventaron secretos. La spec v1.1 solo ganó los nombres de evento en 11.1 y las rutas públicas que faltaban en 10.3. La PR #9 se cerró sin merge.
+
+## Cierre de V1 y V2 (18 oct 2026)
+
+Quedó hecho en `feat/v1-v2`: kanban con columnas y WIP, timeline día/semana/mes, matriz con las reglas por defecto y reglas editables, calendario con suscripción iCal y feed propio, notas y sticky notes, dashboard con KPIs de backend, reporte semanal, revisión asistida que propone y no decide, webhooks firmados, automatizaciones sobre el mismo bus, SSE, `/open/v1`, import CSV, export CSV e iCal, 2FA opcional, miniatura de imagen, recordatorio de lugar cuando el navegador da la posición, colaboración, Pomodoro en servidor, plugins fuera del proceso de la API, logros desactivables y la escritura de Google Calendar.
+
+Quedó a falta de un secreto, con el mecanismo y `.env.example` vacíos: `TELEGRAM_BOT_TOKEN`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`, `GOOGLE_DRIVE_FOLDER_ID` y `BACKUP_REMOTE`. Sin esos valores no se llama a Telegram ni a Google, y el backup no sale de la máquina.
+
+Quedó fuera: RF-1701, el despliegue en Hetzner, apps nativas y widgets de iOS/Android, el pulido visual y la PR #9. La spec no se publica como v1.2. La sección 21 no se toca.

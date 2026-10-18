@@ -18,30 +18,32 @@ import { HabitsPage } from './features/habits/components/HabitsPage';
 import {
   AccountPage,
   AppearanceExtras,
-  AutomationSettings,
   CalendarPage,
-  CalendarSettings,
   CaptureSettings,
-  DataSettings,
   ForgotPage,
-  DashboardPage,
-  FocusPage,
   HabitDetailPage,
   InboxPage,
-  IntegrationSettings,
   MatrixPage,
   NoteRoute,
   NotificationSettings,
+  SearchPage,
+  SettingsLayout,
+  ShortcutSettings,
+  TaskRoute,
+} from './features/places/Places';
+import {
+  AutomationSettings,
+  CalendarSettings,
+  DashboardPage,
+  DataSettings,
+  FocusPage,
+  IntegrationSettings,
   PluginSettings,
   ReportsPage,
   ReviewPage,
-  SearchPage,
-  SettingsLayout,
   SharingSettings,
-  ShortcutSettings,
-  TaskRoute,
   WebhookSettings,
-} from './features/places/Places';
+} from './features/product/ProductPages';
 import { AppearancePage } from './features/settings/AppearancePage';
 import { ConsentPage } from './features/auth/ConsentPage';
 import { LoginPage, RegisterPage } from './features/auth/AuthPages';
@@ -116,6 +118,8 @@ function Shell() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/reports/weekly" element={<ReportsPage />} />
           <Route path="/reports/weekly/:week" element={<ReportsPage />} />
+          <Route path="/review" element={<ReviewPage />} />
+          <Route path="/review/daily" element={<ReviewPage />} />
           <Route path="/review/weekly" element={<ReviewPage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/sticky" element={<DashboardPage />} />

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useSearchParams } from 'react-router';
+import { LocationWatch } from '../features/product/ProductPages';
 import { TaskDetail } from '../features/tasks/TaskDetail';
 import { useMessages } from '../i18n';
 import { BottomBar } from './BottomBar';
@@ -125,6 +126,7 @@ export function AppShell() {
             {messages.offline}. {messages.pendingSync}.
           </p>
         )}
+        <LocationWatch />
         <div className="outlet" id="content">
           <Outlet />
         </div>

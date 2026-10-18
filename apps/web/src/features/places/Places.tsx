@@ -2,6 +2,7 @@ import type { Habit, Project, Task } from '@reflexionia/sdk';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, Outlet, useNavigate, useParams, useSearchParams } from 'react-router';
+import { applyQuadrantDrop, DEFAULT_QUADRANT_EFFECTS } from '@reflexionia/domain';
 import { api } from '../../api';
 import { Button, EmptyState, ErrorState, Kbd, SkeletonRows } from '../../components/ui';
 import { fill, useMessages, type Messages } from '../../i18n';
@@ -216,8 +217,7 @@ export function CalendarPage() {
           </Link>
         ))}
       </header>
-      <p className="ui-muted">{messages.externalEmpty}</p>
-      <p className="ui-muted">{messages.feedEmpty}</p>
+      <CalendarExtras messages={messages} />
       {current === 'year' ? <Year tasks={dated} /> : null}
       {current === 'agenda' ||
       current === 'day' ||
@@ -299,6 +299,32 @@ function Year({ tasks }: { readonly tasks: readonly Task[] }) {
   );
 }
 
+function CalendarExtras({ messages }: { readonly messages: Messages }) {
+  const events = useQuery({
+    queryKey: ['calendar-range'],
+    queryFn: () => {
+      const from = new Date();
+      const to = new Date(from.getTime() + 31 * 24 * 60 * 60 * 1000);
+      return api.calendarEvents(from.toISOString(), to.toISOString());
+    },
+  });
+  const external = Array.isArray(events.data?.external) ? events.data.external : [];
+  return (
+    <>
+      <p className="ui-muted">{messages.externalEmpty}</p>
+      {external.filter(isRecord).map((event) => (
+        <p key={typeof event.id === 'string' ? event.id : 'event'}>
+          {typeof event.title === 'string' ? event.title : ''}
+        </p>
+      ))}
+    </>
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
 function labelView(messages: Messages, view: string): string {
   switch (view) {
     case 'day':
@@ -361,9 +387,15 @@ export function MatrixPage() {
             }}
             onDrop={(event) => {
               const id = event.dataTransfer.getData('text/plain');
-              const priority = key === 'do' || key === 'schedule' ? 'high' : 'low';
-              const due = key === 'do' || key === 'delegate' ? new Date().toISOString() : null;
-              void api.patchTask(id, { priority, due_date: due });
+              const patch = applyQuadrantDrop(
+                DEFAULT_QUADRANT_EFFECTS[key],
+                new Date().toISOString(),
+              );
+              void api
+                .patchTask(id, { priority: patch.priority, due_date: patch.dueDate })
+                .then(() => {
+                  void tasks.refetch();
+                });
             }}
           >
             <h2>
@@ -793,6 +825,7 @@ export function AccountPage() {
   const [name, setName] = useState('');
   const [zone, setZone] = useState('');
   const [status, setStatus] = useState<string | null>(null);
+  const [confirmEmail, setConfirmEmail] = useState('');
   return (
     <section>
       <h1>{messages.settingsAccount}</h1>
@@ -837,7 +870,36 @@ export function AccountPage() {
           <p className="ui-muted">{messages.passwordUnavailable}</p>
           <p className="ui-muted">{messages.sessionsUnavailable}</p>
           <p className="ui-muted">{messages.twoFactorUnavailable}</p>
-          <p className="ui-muted">{messages.deleteAccountUnavailable}</p>
+          <Button
+            type="button"
+            onClick={() => {
+              void api.beginTotp().then(() => {
+                setStatus(messages.twoFactorUnavailable);
+              });
+            }}
+          >
+            2FA
+          </Button>
+          <label>
+            {messages.deleteAccountUnavailable}
+            <input
+              value={confirmEmail}
+              onChange={(event) => {
+                setConfirmEmail(event.target.value);
+              }}
+            />
+          </label>
+          <Button
+            type="button"
+            variant="danger"
+            onClick={() => {
+              if (confirmEmail === me.data.email) {
+                void api.deleteAccount(me.data.email);
+              }
+            }}
+          >
+            {messages.deleteAccountUnavailable}
+          </Button>
           <Button type="submit" variant="primary">
             {messages.saved}
           </Button>

@@ -4,7 +4,7 @@ Usa este plan para acotar cada tarea de Cursor: cita la fase y los RF-xx.
 
 ## MVP / fase 1 (4-6 semanas de agente)
 
-Estado en `main` (18 oct 2026): la fase 1 está cerrada en la PR #11, tag `phase-1`. La web de la spec de UI entró antes, en la PR #10. No está desplegada: falta `BACKUP_REMOTE` y el acceso al servidor. La PR #9 (`feat/ui-today-polish`) sigue abierta y no forma parte de este cierre.
+Estado en `main` (18 oct 2026): la fase 1 está cerrada en la PR #11, tag `phase-1`. La web de la spec de UI entró antes, en la PR #10. No está desplegada: falta `BACKUP_REMOTE` y el acceso al servidor. La PR #9 se cerró sin merge y no se resucita. V1 y V2 están en `feat/v1-v2`, sin merge.
 
 1. **Base**: monorepo, CI, Docker Compose, modelo de datos completo (sección 5), migraciones, seed.
 2. **Tareas núcleo**: CRUD + checklist + subtareas (RF-201–210), listas/carpetas/secciones
@@ -23,6 +23,8 @@ Estado en `main` (18 oct 2026): la fase 1 está cerrada en la PR #11, tag `phase
 
 ## V1
 
+Hecho en `feat/v1-v2` (18 oct 2026), tag `phase-v1`. Telegram, Google Calendar en lectura y Google Drive quedan desplegables a falta del secreto. RF-1701 no entra.
+
 Kanban/Timeline/Eisenhower (RF-1002–1004) · calendario completo + iCal + Google Calendar lectura
 (RF-1101–1105) · bot de Telegram (RF-2003) · Google Drive (RF-2005) · notas (RF-1401–1403) ·
 dashboard KPIs (RF-2101–2105) · reporte semanal (RF-2201–2204) · revisiones asistidas
@@ -30,6 +32,8 @@ dashboard KPIs (RF-2101–2105) · reporte semanal (RF-2201–2204) · revisione
 capa `/open/v1` (10.4) · import CSV · 2FA.
 
 ## V2
+
+Hecho en el mismo corte, tag `phase-v2`. La escritura de Google Calendar no llama a Google sin `GOOGLE_REFRESH_TOKEN`. Apps nativas y widgets de iOS/Android no entran.
 
 Colaboración (RF-1801–1805) · Pomodoro/Focus (RF-1201–1206) · plugins (sección 12) ·
 widgets nativos/apps móviles · logros (RF-1602) · WIP limits · Google Calendar two-way.

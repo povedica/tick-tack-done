@@ -63,7 +63,11 @@ export function ProjectListPage() {
       title={project?.name ?? messages.listName}
       queryKey={['project-tasks', projectId]}
       createProjectId={projectId}
-      columns={(columns.data?.items ?? []).map((column) => ({ id: column.id, name: column.name }))}
+      columns={(columns.data?.items ?? []).map((column) => ({
+        id: column.id,
+        name: column.name,
+        wip_limit: wipOf(column),
+      }))}
       load={(groupBy, sort) =>
         viewsApi.previewFilter(
           {
@@ -257,4 +261,11 @@ function smartLabel(messages: Messages, key: string): string {
     default:
       return key;
   }
+}
+
+function wipOf(column: object): number | null {
+  if ('wip_limit' in column && typeof column.wip_limit === 'number') {
+    return column.wip_limit;
+  }
+  return null;
 }
