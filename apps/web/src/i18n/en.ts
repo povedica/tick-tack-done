@@ -1,3 +1,4 @@
+import { extraEn } from './extra';
 import type { es } from './es';
 
 export const en = {
@@ -121,7 +122,7 @@ export const en = {
   calendarTitle: 'Calendar',
   matrixTitle: 'Matrix',
   focusTitle: 'Focus',
-  dashboardTitle: 'Dashboard',
+  dashboardTitle: 'Digital garden',
   reportsTitle: 'Reports',
   reportTitle: 'Report',
   reviewTitle: 'Weekly review',
@@ -262,13 +263,11 @@ export const en = {
   combinatorAnd: 'And',
   combinatorOr: 'Or',
   previewFailed: 'The preview could not be evaluated.',
+  ...extraEn,
   repeatLink: 'Repeat',
   repeatTitle: 'Repeat',
   repeatHint: 'Choose how often it repeats. The technical rule is only shown in advanced mode.',
   repeatFreq: 'Frequency',
-  repeatDaily: 'Every day',
-  repeatWeekly: 'Every week',
-  repeatMonthly: 'Every month',
   repeatYearly: 'Every year',
   repeatInterval: 'Interval',
   repeatWeekdays: 'Days',
@@ -288,7 +287,6 @@ export const en = {
   weekdaySU: 'Sunday',
   email: 'Email',
   password: 'Password',
-  displayName: 'Name',
   loginFailed: 'Email or password is wrong.',
   registerFailed: 'The account could not be created.',
   consentTitle: 'App permission',

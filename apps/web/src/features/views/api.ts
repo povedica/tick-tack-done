@@ -1,7 +1,3 @@
-import { createApiClient } from '@reflexionia/sdk';
-import { DEV_USER_EMAIL } from '../../config';
+import { api } from '../../api';
 
-export const viewsApi = createApiClient({
-  baseUrl: '',
-  devUserEmail: DEV_USER_EMAIL,
-});
+export const viewsApi = api;

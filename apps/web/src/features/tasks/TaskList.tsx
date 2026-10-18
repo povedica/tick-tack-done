@@ -1,0 +1,401 @@
+import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router';
+import { api } from '../../api';
+import { Button, TagChip } from '../../components/ui';
+import { fill, type Messages } from '../../i18n';
+import { newMutation, runOrQueue } from '../offline/client';
+import { isOverdue, isSameDay, type RowModel } from './model';
+
+export function TaskList({
+  messages,
+  rows,
+  locale,
+  onComplete,
+  onCreated,
+  createProjectId,
+  columns,
+  view,
+}: {
+  readonly messages: Messages;
+  readonly rows: readonly RowModel[];
+  readonly locale: string;
+  readonly onComplete: (row: RowModel) => void;
+  readonly onCreated?: (() => void) | undefined;
+  readonly createProjectId?: string | undefined;
+  readonly columns?: readonly { readonly id: string; readonly name: string }[] | undefined;
+  readonly view: 'list' | 'kanban' | 'timeline';
+}) {
+  const [, setParams] = useSearchParams();
+  const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
+  const [limit, setLimit] = useState('');
+  const now = useMemo(() => new Date(), []);
+
+  function open(id: string): void {
+    const next = new URLSearchParams(window.location.search);
+    next.set('task', id);
+    setParams(next, { replace: true });
+  }
+
+  function toggle(id: string, extend: boolean): void {
+    setSelected((current) => {
+      const next = extend ? new Set(current) : new Set<string>();
+      if (current.has(id) && extend) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  const body =
+    view === 'kanban' ? (
+      <Kanban
+        messages={messages}
+        rows={rows}
+        columns={columns ?? []}
+        onOpen={open}
+        onComplete={onComplete}
+      />
+    ) : view === 'timeline' ? (
+      <Timeline messages={messages} rows={rows} onOpen={open} />
+    ) : (
+      <ul className="task-list">
+        {rows.map((row) => (
+          <li key={row.id}>
+            <TaskRow
+              messages={messages}
+              row={row}
+              locale={locale}
+              now={now}
+              selected={selected.has(row.id)}
+              onOpen={() => {
+                open(row.id);
+              }}
+              onComplete={() => {
+                onComplete(row);
+              }}
+              onSelect={(extend) => {
+                toggle(row.id, extend);
+              }}
+            />
+          </li>
+        ))}
+      </ul>
+    );
+
+  return (
+    <div>
+      {createProjectId !== undefined ? (
+        <form
+          className="inline-add"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const data = new FormData(event.currentTarget);
+            const raw = data.get('title');
+            const title = (typeof raw === 'string' ? raw : '').trim();
+            if (title.length === 0) {
+              return;
+            }
+            void runOrQueue(
+              newMutation('create', crypto.randomUUID(), {
+                title,
+                project_id: createProjectId,
+              }),
+              (key) => api.createTask({ title, project_id: createProjectId }, key),
+            ).then(() => {
+              event.currentTarget.reset();
+              onCreated?.();
+            });
+          }}
+        >
+          <input name="title" aria-label={messages.addTask} placeholder={messages.addTask} />
+        </form>
+      ) : null}
+      {body}
+      {selected.size > 0 ? (
+        <div className="batch-bar" role="toolbar" aria-label={messages.selectedCount}>
+          <span>
+            {selected.size} {messages.selectedCount}
+          </span>
+          <Button
+            onClick={() => {
+              void api.batchTasks({ action: 'complete', ids: [...selected] }).then(() => {
+                setSelected(new Set());
+                onCreated?.();
+              });
+            }}
+          >
+            {messages.batchComplete}
+          </Button>
+          <Button
+            onClick={() => {
+              void api
+                .batchTasks({
+                  action: 'due',
+                  ids: [...selected],
+                  due_date: new Date(Date.now() + 86_400_000).toISOString(),
+                })
+                .then(() => {
+                  setSelected(new Set());
+                  onCreated?.();
+                });
+            }}
+          >
+            {messages.batchDate}
+          </Button>
+          <Button
+            onClick={() => {
+              void api
+                .batchTasks({ action: 'priority', ids: [...selected], priority: 'high' })
+                .then(() => {
+                  setSelected(new Set());
+                  onCreated?.();
+                });
+            }}
+          >
+            {messages.batchPriority}
+          </Button>
+          <Button
+            variant="danger"
+            onClick={() => {
+              void api.batchTasks({ action: 'delete', ids: [...selected] }).then(() => {
+                setSelected(new Set());
+                onCreated?.();
+              });
+            }}
+          >
+            {messages.batchDelete}
+          </Button>
+        </div>
+      ) : null}
+      {view === 'kanban' && (columns?.length ?? 0) > 0 ? (
+        <label>
+          {messages.columnLimit}
+          <input
+            value={limit}
+            onChange={(event) => {
+              setLimit(event.target.value);
+            }}
+          />
+        </label>
+      ) : null}
+    </div>
+  );
+}
+
+function TaskRow({
+  messages,
+  row,
+  locale,
+  now,
+  selected,
+  onOpen,
+  onComplete,
+  onSelect,
+}: {
+  readonly messages: Messages;
+  readonly row: RowModel;
+  readonly locale: string;
+  readonly now: Date;
+  readonly selected: boolean;
+  readonly onOpen: () => void;
+  readonly onComplete: () => void;
+  readonly onSelect: (extend: boolean) => void;
+}) {
+  const overdue = isOverdue(row.dueDate, now);
+  const today = isSameDay(row.dueDate, now, row.timeZone);
+  const dateClass = overdue ? 'task-date is-overdue' : today ? 'task-date is-today' : 'task-date';
+  return (
+    <div
+      className={selected ? 'task-row is-selected' : 'task-row'}
+      onTouchEnd={(event) => {
+        const touch = event.changedTouches[0];
+        if (touch === undefined) {
+          return;
+        }
+        const start = Number(event.currentTarget.dataset.x ?? touch.clientX);
+        if (touch.clientX - start > 70) {
+          onComplete();
+        }
+      }}
+      onTouchStart={(event) => {
+        const touch = event.changedTouches[0];
+        if (touch !== undefined) {
+          event.currentTarget.dataset.x = String(touch.clientX);
+        }
+      }}
+    >
+      <label className="task-check-hit">
+        <input
+          type="checkbox"
+          className={`task-check prio-${row.priority}`}
+          aria-label={fill(messages.completeLabel, row.title)}
+          onChange={(event) => {
+            if (
+              event.nativeEvent instanceof MouseEvent &&
+              (event.nativeEvent.metaKey || event.nativeEvent.ctrlKey || event.nativeEvent.shiftKey)
+            ) {
+              onSelect(true);
+              return;
+            }
+            onComplete();
+          }}
+        />
+      </label>
+      <button type="button" className="task-title" onClick={onOpen}>
+        {row.title}
+      </button>
+      <span className="task-meta">
+        {row.tags.map((tag) => (
+          <TagChip key={tag.id} label={tag.name} />
+        ))}
+        {row.repeat ? <span title={messages.recurrence}>↻</span> : null}
+        {row.checklist.total > 0 ? (
+          <span>
+            {row.checklist.completed}/{row.checklist.total}
+          </span>
+        ) : null}
+        {row.projectName.length > 0 ? <span>{row.projectName}</span> : null}
+        {row.source === 'email' ? <span title={messages.sourceEmail}>✉</span> : null}
+        {row.source === 'api' ? <span title={messages.sourceApi}>API</span> : null}
+        {row.dueDate !== null ? (
+          <time className={dateClass} dateTime={row.dueDate}>
+            {new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' }).format(
+              new Date(row.dueDate),
+            )}
+          </time>
+        ) : null}
+      </span>
+    </div>
+  );
+}
+
+function Kanban({
+  messages,
+  rows,
+  columns,
+  onOpen,
+  onComplete,
+}: {
+  readonly messages: Messages;
+  readonly rows: readonly RowModel[];
+  readonly columns: readonly { readonly id: string; readonly name: string }[];
+  readonly onOpen: (id: string) => void;
+  readonly onComplete: (row: RowModel) => void;
+}) {
+  const loose = rows.some((row) => row.columnId === null || row.columnId.length === 0);
+  const cols =
+    columns.length === 0
+      ? [{ id: 'none', name: messages.noSection }]
+      : [...columns, ...(loose ? [{ id: 'none', name: messages.noSection }] : [])];
+  return (
+    <div className="kanban">
+      {cols.map((column) => {
+        const items = rows.filter((row) =>
+          column.id === 'none'
+            ? row.columnId === null || row.columnId.length === 0
+            : row.columnId === column.id,
+        );
+        return (
+          <section
+            key={column.id}
+            className="kanban-col"
+            onDragOver={(event) => {
+              event.preventDefault();
+            }}
+            onDrop={(event) => {
+              const id = event.dataTransfer.getData('text/plain');
+              if (id.length === 0 || column.id === 'none') {
+                return;
+              }
+              void api.patchTask(id, { column_id: column.id });
+            }}
+          >
+            <h3>
+              {column.name} <span className="ui-badge">{items.length}</span>
+            </h3>
+            {items.length === 0 ? <p>{messages.kanbanEmpty}</p> : null}
+            {items.map((row) => (
+              <article
+                key={row.id}
+                draggable
+                onDragStart={(event) => {
+                  event.dataTransfer.setData('text/plain', row.id);
+                }}
+              >
+                <label>
+                  <input
+                    type="checkbox"
+                    className={`task-check prio-${row.priority}`}
+                    aria-label={fill(messages.completeLabel, row.title)}
+                    onChange={() => {
+                      onComplete(row);
+                    }}
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onOpen(row.id);
+                  }}
+                >
+                  {row.title}
+                </button>
+              </article>
+            ))}
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+function Timeline({
+  messages,
+  rows,
+  onOpen,
+}: {
+  readonly messages: Messages;
+  readonly rows: readonly RowModel[];
+  readonly onOpen: (id: string) => void;
+}) {
+  const planned = rows.filter((row) => row.dueDate !== null);
+  const loose = rows.filter((row) => row.dueDate === null);
+  return (
+    <div className="timeline">
+      <aside>
+        <h3>{messages.unscheduled}</h3>
+        <ul>
+          {loose.map((row) => (
+            <li key={row.id}>
+              <button
+                type="button"
+                onClick={() => {
+                  onOpen(row.id);
+                }}
+              >
+                {row.title}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </aside>
+      <div>
+        {planned.map((row) => (
+          <button
+            key={row.id}
+            type="button"
+            className="timeline-bar"
+            onClick={() => {
+              onOpen(row.id);
+            }}
+          >
+            {row.title}
+          </button>
+        ))}
+        {planned.length === 0 ? <p>{messages.unscheduled}</p> : null}
+      </div>
+    </div>
+  );
+}

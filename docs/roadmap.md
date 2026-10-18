@@ -4,7 +4,7 @@ Usa este plan para acotar cada tarea de Cursor: cita la fase y los RF-xx.
 
 ## MVP / fase 1 (4-6 semanas de agente)
 
-Estado en `feat/fase-1` (18 oct 2026): puntos 1 a 7 en `main`. El resto del MVP (puntos 8 y 9, sesión, RF-702, bus y despliegue) está en esa rama, tag `phase-1`, sin merge. El pulido visual del shell no entra.
+Estado en `main` (18 oct 2026): la fase 1 está cerrada en la PR #11, tag `phase-1`. La web de la spec de UI entró antes, en la PR #10. No está desplegada: falta `BACKUP_REMOTE` y el acceso al servidor. La PR #9 (`feat/ui-today-polish`) sigue abierta y no forma parte de este cierre.
 
 1. **Base**: monorepo, CI, Docker Compose, modelo de datos completo (sección 5), migraciones, seed.
 2. **Tareas núcleo**: CRUD + checklist + subtareas (RF-201–210), listas/carpetas/secciones
@@ -18,8 +18,8 @@ Estado en `feat/fase-1` (18 oct 2026): puntos 1 a 7 en `main`. El resto del MVP 
 7. **Acceso de agentes**: API v1 completa de esos recursos + PAT con scopes (RF-2002) +
    servidor MCP (RF-2001). Criterio de aceptación 4. Hecho y mergeado (PR #8, tag `phase-1.7`).
    Incluye el límite de 1000 peticiones / 15 min por token.
-8. **Offline básico**: cola de mutaciones con Idempotency-Key (RF-13010; criterio 5). Hecho en `feat/fase-1`, con delta sync (RF-13011), last-write-wins (RF-13012) y tombstones a 90 días (RF-13014).
-9. **Export JSON** versionado (RF-1703/1705) + backup diario con restauración probada (RF-1704). Hecho en `feat/fase-1`. El destino remoto sigue siendo `BACKUP_REMOTE`; sin ese valor el archivo no sale de la máquina.
+8. **Offline básico**: cola de mutaciones con Idempotency-Key (RF-13010; criterio 5). Hecho y en la PR #11, con delta sync (RF-13011), last-write-wins (RF-13012) y tombstones a 90 días (RF-13014).
+9. **Export JSON** versionado (RF-1703/1705) + backup diario con restauración probada (RF-1704). Hecho y en la PR #11. El destino remoto sigue siendo `BACKUP_REMOTE`; sin ese valor el archivo no sale de la máquina.
 
 ## V1
 

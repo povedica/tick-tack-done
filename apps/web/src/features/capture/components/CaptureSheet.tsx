@@ -2,7 +2,7 @@ import { parseQuickAdd, type QuickAddSpanKind } from '@reflexionia/domain';
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent, SubmitEvent } from 'react';
-import { captureLanguage, fill, messagesFor, type Messages } from '../../../i18n';
+import { captureLanguage, fill, useMessages, type Messages } from '../../../i18n';
 import { newMutation, runOrQueue } from '../../offline/client';
 import { api } from '../api';
 import { canSubmitTitle, removeSpan, textSegments } from '../draft';
@@ -23,7 +23,7 @@ export function CaptureSheet({
   readonly onClose: () => void;
   readonly onCreated: (created: CreatedCapture) => void;
 }) {
-  const messages = messagesFor(navigator.language);
+  const messages = useMessages();
   const language = captureLanguage(navigator.language);
   const timeZone = browserTimeZone();
   const [text, setText] = useState(initialText);

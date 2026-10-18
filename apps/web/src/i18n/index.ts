@@ -1,3 +1,4 @@
+import { useLocale } from './locale';
 import { en } from './en';
 import { es } from './es';
 
@@ -8,6 +9,12 @@ export function messagesFor(locale: string): Messages {
     return en;
   }
   return es;
+}
+
+export function useMessages(): Messages {
+  const choice = useLocale((state) => state.choice);
+  const locale = choice === 'auto' ? navigator.language : choice;
+  return messagesFor(locale);
 }
 
 export function fill(template: string, name: string): string {

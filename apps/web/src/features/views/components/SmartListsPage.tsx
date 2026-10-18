@@ -2,11 +2,11 @@ import { isSmartListKey } from '@reflexionia/domain';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { messagesFor, type Messages } from '../../../i18n';
+import { useMessages, type Messages } from '../../../i18n';
 import { viewsApi } from '../api';
 
 export function SmartListsPage() {
-  const messages = messagesFor(navigator.language);
+  const messages = useMessages();
   const queryClient = useQueryClient();
   const lists = useQuery({ queryKey: ['smart-lists'], queryFn: () => viewsApi.listSmartLists() });
   const [order, setOrder] = useState<string[] | null>(null);

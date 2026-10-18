@@ -1,3 +1,5 @@
+import { extraEs } from './extra';
+
 export const es = {
   appName: 'tick-tack-done',
   todayTitle: 'Hoy',
@@ -119,7 +121,7 @@ export const es = {
   calendarTitle: 'Calendario',
   matrixTitle: 'Matriz',
   focusTitle: 'Foco',
-  dashboardTitle: 'Tablero',
+  dashboardTitle: 'Jardín digital',
   reportsTitle: 'Reportes',
   reportTitle: 'Reporte',
   reviewTitle: 'Revisión semanal',
@@ -260,13 +262,11 @@ export const es = {
   combinatorAnd: 'Y',
   combinatorOr: 'O',
   previewFailed: 'La vista previa no ha podido evaluarse.',
+  ...extraEs,
   repeatLink: 'Repetir',
   repeatTitle: 'Repetición',
   repeatHint: 'Elige cada cuánto se repite. La regla técnica solo aparece en modo avanzado.',
   repeatFreq: 'Frecuencia',
-  repeatDaily: 'Cada día',
-  repeatWeekly: 'Cada semana',
-  repeatMonthly: 'Cada mes',
   repeatYearly: 'Cada año',
   repeatInterval: 'Intervalo',
   repeatWeekdays: 'Días',
@@ -286,7 +286,6 @@ export const es = {
   weekdaySU: 'Domingo',
   email: 'Correo',
   password: 'Contraseña',
-  displayName: 'Nombre',
   loginFailed: 'Correo o contraseña incorrectos.',
   registerFailed: 'No se ha podido crear la cuenta.',
   consentTitle: 'Permiso para la aplicación',

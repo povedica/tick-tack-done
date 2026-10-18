@@ -1,99 +1,90 @@
-# Handoff — cierre de la fase 1
+# Handoff — fase 1 en main, con la spec de UI
 
-Punto seguro para retomar. Lint, typecheck, tests unitarios y la integración de la API pasan en local. La CI los corre después de compilar `packages/domain`. La rama es `feat/fase-1` y no se mergea hasta que se pida. Los puntos 1 a 7 están en `main` (el punto 7 es la PR #8, tag `phase-1.7`). Esta rama cierra el resto del MVP: offline, export JSON, backup, sesión real, OAuth2 PKCE, RF-702, el bus y el corte desplegable.
+Punto seguro para retomar. La fase 1 del MVP y las pantallas de `docs/spec/tick-tack-done-ui-spec-v1.0.md` están juntas en `main` al mergear la PR #11. La PR #10 (spec de UI) ya estaba en `main` y esta rama la absorbió. No se ha desplegado en Hetzner.
+
+`apps/api/tsconfig.json` sigue en NodeNext. No revertirlo a CommonJS. La CI compila `packages/domain` antes del lint y de los tests. No quites ese paso.
 
 ## Dónde estamos
 
-Cerrada la fase 1 en `feat/fase-1`. Los puntos 8 y 9, la sesión de la sección 10.1, RF-702, el drenado del outbox y el despliegue de la sección 19 entran en esta PR. No se abre V1 ni V2. La spec no se publica como v1.2.
+- Puntos 1 a 9 de la fase 1, más sesión, OAuth2 PKCE, RF-702 y el bus, en la PR #11 (tag `phase-1`).
+- Pantallas de la spec de UI en la PR #10. Lo que la API no publica sigue como estado vacío. No se inventaron endpoints para rellenarlas.
+- La PR #9 (`feat/ui-today-polish`) sigue abierta, con worktree en `~/CodeProjects/todo-ui-today-polish`. No está mergeada y no se borra.
+- Siguiente trabajo real: desplegar cuando existan `BACKUP_REMOTE` y acceso al servidor, o abrir V1 en una rama nueva desde `main`. No reabrir la fase 1 ni la sección 21. No publicar la spec como v1.2.
 
-La API pública sigue en `/api/v1`. OpenAPI está en `/api/docs` y el JSON commiteado es `apps/api/openapi.json`. El cliente web llama a la API solo a través de `@reflexionia/sdk`. `apps/api/tsconfig.json` es NodeNext. No revertirlo a CommonJS.
+En local la PWA sigue con `AUTH_MODE=dev` y `X-Dev-User-Email` (`demo@reflexionia.test`). Producción deja `AUTH_MODE` vacío: el compose lo fuerza. La primera cuenta se crea en `/register` mientras no haya usuarios.
 
-En local la PWA sigue con `AUTH_MODE=dev` y `X-Dev-User-Email`. Producción deja `AUTH_MODE` vacío: el compose lo fuerza. La primera cuenta se crea en `/register` mientras no haya usuarios.
-
-## Tags
-
-| Tag                 | Qué marca                                                      |
-| ------------------- | -------------------------------------------------------------- |
-| `phase-1.7-api`     | PAT, scopes, actividad, límite por token y OpenAPI             |
-| `phase-1.7-mcp`     | Servidor MCP sobre la API v1, sin más privilegios que el token |
-| `phase-1.7-sdk`     | Cliente de administración de tokens                            |
-| `phase-1.7-web`     | Pantalla de tokens enlazada desde `/today`                     |
-| `phase-1.7`         | Punto 7 en `main`. Acceso de agentes                           |
-| `phase-1.8-offline` | Cola offline, delta sync y last-write-wins                     |
-| `phase-1.9-export`  | Export JSON, borrado de cuenta y backups                       |
-| `phase-1.10-auth`   | Sesión Argon2id, CSRF y OAuth2 PKCE                            |
-| `phase-1.11-deploy` | Compose de producción, cron y límite del correo entrante       |
-| `phase-1`           | Este handoff. Fase 1 cerrada en la rama                        |
-
-## Shell ya en main (PR #5), sin pulir aquí
-
-La PR #5 dejó el shell, el tema y Hoy con tareas reales. Este corte no lo pule. El prompt de esa sesión sigue en `docs/prompts/pulir-ui-hoy.md`.
-
-- La barra es una lista plana de enlaces. No muestra contadores, ni listas con punto de color, ni filtros fijados.
-- Hoy tiene título, grupos y filas de checkbox más título. No hay nombre de lista, etiquetas ni fila «Añadir tarea».
-- Agrupar por etiqueta muestra el id. El panel de `?task=` sigue en aviso. `/inbox` sigue en aviso.
-- Kanban, timeline, calendario, matriz, notas, dashboard, reportes y Focus siguen fuera.
-
-Los tags `phase-1.6*` están en `main`. Los `phase-1.5*` y `phase-1.4*` también. Los `phase-1.3*` y `phase-1.2*` siguen en `feat/core-tasks`. Los `phase-1.1*` siguen en `main`.
-
-## Cómo probar este corte
-
-La PWA de desarrollo sigue identificándose con `AUTH_MODE=dev` y la cabecera `X-Dev-User-Email`. El seed crea `demo@reflexionia.test`. La web manda esa cabecera desde `DEV_USER_EMAIL`. Un PAT no hereda ese pase: solo puede lo que dicen sus scopes. Si la petición trae `Authorization` y `X-Dev-User-Email`, manda el token.
+## Cómo probar
 
 ```bash
+pnpm --filter @reflexionia/domain build
 pnpm --filter api dev
 pnpm --filter web dev
 ```
 
-Abrir `http://127.0.0.1:5173/today` y entrar en «Tokens». Crear un agente con los scopes justos muestra el secreto una sola vez (`rfx_pat_…`). La lista guarda el prefijo, el último uso y permite revocar. Revocar es inmediato: la siguiente petición con ese secreto responde 401. La actividad del token está en `GET /api/v1/me/tokens/{id}/activity`; la de la cuenta, en `GET /api/v1/me/activity`.
-
-Con un PAT de `tasks:read` y `tasks:write`, `POST /api/v1/mcp` lista, crea y completa tareas. Una tool fuera de esos scopes responde `scope_missing` y no cambia datos. Cada petición de token lleva `X-RateLimit-Limit`, `X-RateLimit-Remaining` y `X-RateLimit-Reset`. Al pasar de 1000 en 15 minutos responde 429 con `Retry-After`.
-
-Integración, con Postgres migrado:
+Web en `http://127.0.0.1:5173`. Hoy, bandeja, detalle (`?task=`), `/repeat`, `/login` y `/tokens` hablan con la API. Integración, con Postgres migrado:
 
 ```bash
 bash scripts/with-env.sh pnpm test:integration
 ```
 
-`scripts/with-env.sh` pisa `DATABASE_URL`. Para una base scratch hay que llamar a Prisma sin ese wrapper. El rollback de las dos migraciones de tokens está en sus `down.sql` y se verificó en una base scratch.
+`scripts/with-env.sh` pisa `DATABASE_URL`.
 
-## Qué quedó dentro del corte
+## Qué quedó de la fase 1
 
-- PAT (RF-2002): se guarda solo el hash SHA-256, el secreto se muestra una vez, el último uso es visible y la revocación es inmediata. Un nombre activo por agente. Toda petición autenticada con token queda en ActivityLog (`accessed`) y las mutaciones de dominio también, con `tokenId`. Consulta en `GET /api/v1/me/tokens/{id}/activity` y `GET /api/v1/me/activity`. Rutas ya previstas: `GET/POST /api/v1/me/tokens` y `DELETE /api/v1/me/tokens/{id}`.
-- El guard de desarrollo sigue concediendo los scopes de la ruta cuando no hay `Authorization`. Una petición con PAT recibe 403 `scope_missing` si le falta el scope que declara `@Scopes`.
-- Límite por token: 1000 peticiones / 15 min, cabeceras `X-RateLimit-*` y 429 `rate_limited` con `Retry-After`. No se aplica a la sesión de desarrollo ni al correo entrante.
-- MCP (RF-2001): `POST /api/v1/mcp`, JSON-RPC, sobre los servicios que ya existen (tareas, listas, etiquetas, filtros, hábitos y búsqueda). `tools/list` oculta lo que el token no puede. `tools/call` fuera de scope devuelve error de tool y no escribe. El criterio 4 se cubre con un PAT de tareas: lista, crea y completa, y no sale de sus scopes.
-- Eventos, en el outbox con `published_at` null: `token.created@v1` y `token.revoked@v1`. El catálogo 11.1 nombra esos dos. El actor del outbox es el token (`actorKind` `api`) cuando actúa un PAT.
-- Migraciones `20261018084436_add_personal_access_tokens` y `20261018084502_personal_access_token_active_name`, con `down.sql`. Prisma sigue en 6.19.
-- Web: `/tokens` dentro del shell, enlazada desde Hoy. Español en la UI. El secreto no se vuelve a pintar al recargar.
+- Cola offline con `Idempotency-Key` para crear, editar y completar. Cubre la captura, el checkbox de Hoy, el alta de una lista, el detalle y completar desde bandeja o vista. Al reconectar no se duplica.
+- `GET /api/v1/sync`, last-write-wins por campo y tombstones 90 días.
+- Export JSON con `schema_version`, `DELETE /api/v1/me`, listado de backups y verificación del archivo. `POST /api/v1/backups/restore` comprueba el gzip y no pisa la base. Aplicar el archivo es `RESTORE_CONFIRM=restore ./scripts/restore.sh <stamp>`.
+- Sesión Argon2id, cookie httpOnly y CSRF. OAuth2 Authorization Code + PKCE. El token de acceso es un PAT. Un PAT no hereda el pase de desarrollo.
+- Pantalla de recurrencia en español (`/repeat`). La RRULE solo se ve en modo avanzado. Solo el scheduler materializa la siguiente ocurrencia.
+- El outbox se publica en BullMQ y marca `published_at`. No hay dispatcher de webhooks ni motor de automatizaciones.
+- Correo entrante: 25 MB y límite de ritmo. El cron de backup (04:00) y de prueba de restauración (domingo 05:00) está en `deploy/reflexionia.cron`.
 
-Completar una recurrente sigue sin crear la siguiente fila. Solo el scheduler la materializa. BullMQ sigue sin cablear. La cobertura de `packages/domain` sigue por encima del 80 %.
+## Qué quedó de la spec de UI
+
+Hecho contra la API que ya existía: barra con contadores, Hoy con lista y etiquetas, bandeja, detalle, lista/kanban/timeline, hábitos, smart lists, filtros, búsqueda, paleta, atajos y tokens.
+
+Siguen vacías porque la API no publica el recurso: plan de hoy, revisión semanal, jardín digital, reportes, calendarios externos, integraciones, automatizaciones, webhooks, plugins y compartir. Foco es V2 y el temporizador vive solo en el navegador.
+
+Estas pantallas de Ajustes siguen diciendo que el recurso no está publicado, aunque la API de la fase 1 ya lo tiene. No las cablees otra vez: enlázalas.
+
+- Datos: `GET /api/v1/export/json`, `GET /api/v1/backups` y `POST /api/v1/backups/restore`.
+- Cuenta: `/login` y `/register` ya son la sesión real. Borrar la cuenta es `DELETE /api/v1/me` con el correo como confirmación. El 2FA sigue sin existir. Recuperar contraseña tampoco.
+
+La cola offline no cubre el completado por lote, deshacer, mover, borrar ni el resto de acciones que no son crear, editar o completar una tarea.
 
 ## Decisiones que no hay que reabrir
 
-- Sección 21 de la spec, sin cambios. Las únicas ediciones de la v1.1 en este corte son los nombres `token.created` y `token.revoked` en el catálogo 11.1 y la línea `POST /api/v1/mcp` en las rutas de la sección 10.3.
-- `profile:write` ya lo usaban `PATCH /me` y las mutaciones de tokens. Está en el código y en la pantalla. No se añade a la lista de la sección 10.1: esa lista no se reabre.
-- El hash del PAT es SHA-256, igual que el del correo entrante. Argon2id sigue reservado a contraseñas. El índice único de nombre es parcial (activos y no borrados); Prisma no lo expresa, va en SQL.
-- El servidor MCP llama a los servicios Nest ya existentes con el mismo `AuthUser`. No abre otro acceso a la base. Los módulos de dominio exportan su servicio para que MCP los importe; siguen sin importarse entre sí.
-- Vitest no emite `design:paramtypes`. Todo constructor de Nest con dependencias lleva `@Inject`. El limitador no tiene argumentos de constructor: Nest intentaría inyectar el número del límite.
-- `apps/api/tsconfig.json` está en NodeNext en `main`. No volver a CommonJS.
-- BullMQ drena el outbox y marca `published_at`. No hay dispatcher de webhooks ni motor de automatizaciones: la sección 11 es V1. Redis sigue en el compose.
-- `apps/api/openapi.json` está en `.prettierignore`. Si cambia un endpoint, `pnpm --filter api build && pnpm --filter api openapi:generate` y `pnpm --filter @reflexionia/sdk generate`. Generar OpenAPI con `SCHEDULER_AUTOSTART=false`: el `.env` local lo deja en true y `loadRootEnv` no pisa una variable ya definida.
-- El paquete de dominio publica CJS. El build de la web aliasa `@reflexionia/domain` al fuente porque Rollup no trata el enlace del workspace como `node_modules`.
+- Sección 21 de la spec, sin cambios. La v1.1 solo ganó nombres de evento en 11.1 y las rutas públicas que faltaban en 10.3.
+- `profile:write` se usa en el código y no se añade a la lista de la sección 10.1.
+- El hash del PAT es SHA-256. Argon2id es solo para contraseñas.
+- Módulos de dominio no se importan entre sí. El scheduler es el único que materializa recurrencias y dispara recordatorios.
+- Vitest no emite `design:paramtypes`. Todo constructor de Nest con dependencias lleva `@Inject`.
+- `apps/api/openapi.json` está en `.prettierignore`. Si cambia un endpoint: `pnpm --filter api build && pnpm --filter api openapi:generate` y `pnpm --filter @reflexionia/sdk generate`, con `SCHEDULER_AUTOSTART=false` y `BUS_AUTOSTART=false`.
+- La web llama a la API solo a través de `@reflexionia/sdk`.
 
 ## Qué no está hecho
 
-- Kanban, timeline, calendario, notas, dashboard, reporte semanal, revisiones, webhooks, automatizaciones y sync en tiempo real. Son V1.
-- Telegram, Google Drive, Google Calendar, import CSV, export iCal/CSV, 2FA y geovallado. Son V1.
-- Colaboración, Pomodoro, plugins, widgets nativos, logros y Calendar two-way. Son V2.
-- Miniaturas de adjuntos (RF-203). No hay `sharp`.
-- El tipo `location` de recordatorio se guarda y no se dispara.
-- `BACKUP_REMOTE` no está relleno: sin ese destino el backup no sale de la máquina. No hay acceso al Hetzner en este corte, así que el compose queda listo y no se despliega.
-- `pnpm format:check` pasa. La spec v1.1 y `pnpm-lock.yaml` están en `.prettierignore` para que CI no las reescriba. El cliente generado del SDK tampoco se formatea.
+- Despliegue en `todo.reflexionia.com`. Falta `BACKUP_REMOTE` y el acceso al servidor. No se inventaron secretos.
+- V1 de producto: Telegram, Google Drive, Google Calendar, notas de servidor, dashboard con datos, reporte semanal, revisiones asistidas, webhooks, automatizaciones, sync en tiempo real, `/open/v1`, import CSV, export iCal/CSV, 2FA y geovallado. Kanban y timeline se pintan en cliente; no son el corte de V1.
+- V2: colaboración, Pomodoro, plugins, widgets, logros, WIP de servidor y Calendar two-way.
+- RF-1701 (importador TickTick) sigue aplazado.
+- Miniaturas de adjuntos. El recordatorio `location` se guarda y no se dispara.
+- La PR #9, pulido de Hoy y de la barra, sigue aparte.
+
+## Tags
+
+| Tag                 | Qué marca                                                |
+| ------------------- | -------------------------------------------------------- |
+| `phase-1.7`         | Punto 7 en `main`. PAT, MCP y límite por token           |
+| `phase-1.8-offline` | Cola offline, delta sync y last-write-wins               |
+| `phase-1.9-export`  | Export JSON, borrado de cuenta y backups                 |
+| `phase-1.10-auth`   | Sesión Argon2id, CSRF y OAuth2 PKCE                      |
+| `phase-1.11-deploy` | Compose de producción, cron y límite del correo entrante |
+| `phase-1`           | Cierre de la fase 1                                      |
 
 ## Norma de trabajo
 
-Commits pequeños en inglés (Conventional Commits), un tag por hito cerrado, y un tag de punto seguro al dejar la sesión retomable. Español en docs y UI; inglés en código. Módulos de dominio solo se hablan por eventos. Lógica pura en `packages/domain`. El scheduler es el único que materializa ocurrencias y dispara recordatorios.
+Commits pequeños en inglés (Conventional Commits), un tag por hito cerrado. Español en docs y UI; inglés en código. Una feature, una PR, desde `main`.
 
 ## Avisos para más adelante
 
@@ -137,8 +128,8 @@ El punto 6 ya está mergeado (PR #7, tag `phase-1.6`). La PR #5 (shell) también
 
 ## Cierre de la fase 1 (18 oct 2026)
 
-Quedó hecho, en `feat/fase-1`: cola offline con `Idempotency-Key` (crear, editar y completar, y al reconectar no se duplica), `GET /api/v1/sync`, last-write-wins por campo, tombstones 90 días, export JSON con `schema_version`, `DELETE /api/v1/me`, listado y verificación de backups, scripts de backup y de prueba de restauración, sesión con Argon2id, cookie httpOnly y CSRF, OAuth2 Authorization Code + PKCE con pantalla de consentimiento, la pantalla de recurrencia en español (RF-702), el outbox publicado en BullMQ, el límite de 25 MB y de ritmo del correo entrante, y el compose de producción sin `AUTH_MODE=dev`.
+Quedó hecho en la PR #11, ya sincronizada con la spec de UI de la PR #10: cola offline con `Idempotency-Key`, `GET /api/v1/sync`, last-write-wins, tombstones 90 días, export JSON, `DELETE /api/v1/me`, backups, sesión Argon2id con CSRF, OAuth2 PKCE, la pantalla de recurrencia en español, el outbox en BullMQ, el límite del correo entrante y el compose de producción sin `AUTH_MODE=dev`.
 
-Quedó fuera por ser V1 o V2: Kanban, timeline, Eisenhower, calendario, Telegram, Google Drive, Google Calendar, notas, dashboard, reporte semanal, revisiones asistidas, webhooks, automatizaciones, sync en tiempo real, `/open/v1`, import CSV, export iCal/CSV, 2FA, geovallado, colaboración, Pomodoro, plugins, widgets, logros, WIP limits y Calendar two-way. RF-1701 sigue aplazado. El look TickTick no se tocó.
+Quedó fuera por ser V1 o V2 lo que la API no publica: Telegram, Google Drive, Google Calendar, dashboard con datos, reporte, revisiones, webhooks, automatizaciones, sync en tiempo real, `/open/v1`, import CSV, export iCal/CSV, 2FA, geovallado, colaboración, Pomodoro, plugins, widgets, logros y Calendar two-way. Kanban y timeline existen como vista de cliente. RF-1701 sigue aplazado.
 
-No se desplegó en Hetzner: falta `BACKUP_REMOTE` y el acceso al servidor. No se inventaron secretos. La spec v1.1 solo ganó los nombres de evento en 11.1 y las rutas públicas que faltaban en 10.3.
+No se desplegó en Hetzner: falta `BACKUP_REMOTE` y el acceso al servidor. No se inventaron secretos. La spec v1.1 solo ganó los nombres de evento en 11.1 y las rutas públicas que faltaban en 10.3. La PR #9 sigue abierta.

@@ -3,7 +3,7 @@ import { HABIT_WEEKDAYS, type HabitWeekday } from '@reflexionia/domain';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { messagesFor, type Messages } from '../../../i18n';
+import { useMessages, type Messages } from '../../../i18n';
 import { habitsApi } from '../api';
 import { HABIT_SUGGESTIONS, buildHabitBody, canCreateHabit, type HabitDraft } from '../suggestions';
 
@@ -26,7 +26,7 @@ const EMPTY_DRAFT: HabitDraft = {
 };
 
 export function HabitsPage() {
-  const messages = messagesFor(navigator.language);
+  const messages = useMessages();
   const queryClient = useQueryClient();
   const habits = useQuery({
     queryKey: ['habits'],
@@ -217,6 +217,7 @@ export function HabitsPage() {
       <ul className="habit-list">
         {active.map((habit) => (
           <li key={habit.id}>
+            <Link to={`/habits/${habit.id}`}>{habit.name}</Link>
             <button
               type="button"
               className={habit.id === selected ? 'selected' : undefined}
@@ -224,7 +225,7 @@ export function HabitsPage() {
                 setPicked(habit.id);
               }}
             >
-              {habit.name}
+              {messages.habitOpen}
             </button>
             <p>
               {habit.today.count}/{habit.goal.target_count}

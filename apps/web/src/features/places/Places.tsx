@@ -1,0 +1,1092 @@
+import type { Habit, Project, Task } from '@reflexionia/sdk';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, NavLink, Outlet, useNavigate, useParams, useSearchParams } from 'react-router';
+import { api } from '../../api';
+import { Button, EmptyState, ErrorState, Kbd, SkeletonRows } from '../../components/ui';
+import { fill, useMessages, type Messages } from '../../i18n';
+import { useLocale } from '../../i18n/locale';
+import { usePreferences, type AccentId } from '../../theme/preferences';
+import { useThemePreference } from '../../theme/store';
+import { quadrantOf, rowFromTask, smartApiKey } from '../tasks/model';
+import { newMutation, runOrQueue } from '../offline/client';
+import { TaskList } from '../tasks/TaskList';
+
+const ACCENTS: readonly AccentId[] = ['indigo', 'violet', 'teal', 'amber', 'rose', 'slate'];
+const CAL_VIEWS = ['day', 'week', 'multi-day', 'multi-week', 'month', 'year', 'agenda'] as const;
+
+export function InboxPage() {
+  const messages = useMessages();
+  const queryClient = useQueryClient();
+  const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
+  const inbox = projects.data?.items.find((project) => project.is_inbox);
+  const tasks = useQuery({
+    queryKey: ['inbox-tasks', inbox?.id],
+    queryFn: () =>
+      api.listTasks({
+        ...(inbox?.id === undefined ? {} : { projectId: inbox.id }),
+        status: 'active',
+        sort: 'manual',
+        limit: 100,
+      }),
+    enabled: inbox !== undefined,
+  });
+  const tags = useQuery({ queryKey: ['tags'], queryFn: () => api.listTags() });
+  const [process, setProcess] = useState(false);
+  const [cursor, setCursor] = useState(0);
+  const names = new Map((projects.data?.items ?? []).map((project) => [project.id, project.name]));
+  const tagNames = new Map((tags.data?.items ?? []).map((tag) => [tag.id, tag.name]));
+  const rows = [...(tasks.data?.items ?? [])]
+    .sort((left, right) => right.created_at.localeCompare(left.created_at))
+    .map((task) => rowFromTask(task, names, tagNames));
+  const current = rows[cursor];
+
+  return (
+    <section className="screen-page">
+      <header className="page-header">
+        <h1>
+          {messages.inboxTitle}{' '}
+          {inbox !== undefined ? <span className="ui-badge">{inbox.active_task_count}</span> : null}
+        </h1>
+        <Button
+          onClick={() => {
+            setProcess(true);
+            setCursor(0);
+          }}
+        >
+          {messages.process}
+        </Button>
+      </header>
+      {tasks.isPending ? <SkeletonRows /> : null}
+      {tasks.isError ? (
+        <ErrorState
+          title={fill(messages.loadFailed, messages.inboxTitle)}
+          retryLabel={messages.retry}
+          onRetry={() => {
+            void tasks.refetch();
+          }}
+        />
+      ) : null}
+      {process && current !== undefined ? (
+        <ProcessCard
+          messages={messages}
+          taskTitle={current.title}
+          projects={projects.data?.items ?? []}
+          onDate={() => {
+            void api.snoozeTask(current.id, 'tomorrow').then(() => {
+              step();
+            });
+          }}
+          onMove={(projectId) => {
+            void api.moveTask(current.id, projectId).then(() => {
+              step();
+            });
+          }}
+          onDone={() => {
+            void runOrQueue(newMutation('complete', current.id, {}), (key) =>
+              api.completeTask(current.id, {}, key),
+            ).then(() => {
+              step();
+            });
+          }}
+          onDelete={() => {
+            void api.deleteTask(current.id).then(() => {
+              step();
+            });
+          }}
+          onSkip={() => {
+            step();
+          }}
+        />
+      ) : null}
+      {process && current === undefined && !tasks.isPending ? (
+        <EmptyState title={messages.processDone} body={messages.emptyInbox} />
+      ) : null}
+      {!process && !tasks.isError ? (
+        rows.length === 0 && !tasks.isPending ? (
+          <EmptyState title={messages.inboxTitle} body={messages.emptyInbox} />
+        ) : (
+          <TaskList
+            messages={messages}
+            rows={rows}
+            locale={navigator.language}
+            view="list"
+            createProjectId={inbox?.id}
+            onComplete={(row) => {
+              void runOrQueue(newMutation('complete', row.id, {}), (key) =>
+                api.completeTask(row.id, {}, key),
+              );
+            }}
+            onCreated={() => {
+              void queryClient.invalidateQueries({ queryKey: ['inbox-tasks'] });
+            }}
+          />
+        )
+      ) : null}
+    </section>
+  );
+
+  function step(): void {
+    setCursor((value) => value + 1);
+    void queryClient.invalidateQueries({ queryKey: ['inbox-tasks'] });
+  }
+}
+
+function ProcessCard({
+  messages,
+  taskTitle,
+  projects,
+  onDate,
+  onMove,
+  onDone,
+  onDelete,
+  onSkip,
+}: {
+  readonly messages: Messages;
+  readonly taskTitle: string;
+  readonly projects: readonly Project[];
+  readonly onDate: () => void;
+  readonly onMove: (projectId: string) => void;
+  readonly onDone: () => void;
+  readonly onDelete: () => void;
+  readonly onSkip: () => void;
+}) {
+  return (
+    <article>
+      <h2>{taskTitle}</h2>
+      <div className="page-toolbar">
+        <Button onClick={onDate}>{messages.processDate}</Button>
+        <label>
+          {messages.processMove}
+          <select
+            defaultValue=""
+            onChange={(event) => {
+              if (event.target.value.length > 0) {
+                onMove(event.target.value);
+              }
+            }}
+          >
+            <option value="">{messages.listMove}</option>
+            {projects.map((project) => (
+              <option key={project.id} value={project.id}>
+                {project.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <Button onClick={onDone}>{messages.processDoneAction}</Button>
+        <Button variant="danger" onClick={onDelete}>
+          {messages.processDelete}
+        </Button>
+        <Button variant="ghost" onClick={onSkip}>
+          {messages.processSkip}
+        </Button>
+      </div>
+    </article>
+  );
+}
+
+export function CalendarPage() {
+  const messages = useMessages();
+  const { view } = useParams();
+  const current = CAL_VIEWS.includes(view as (typeof CAL_VIEWS)[number]) ? view : 'month';
+  const navigate = useNavigate();
+  const weekStart = usePreferences((state) => state.weekStart);
+  const tasks = useQuery({
+    queryKey: ['calendar-tasks'],
+    queryFn: () => api.listTasks({ status: 'active', limit: 100, sort: 'due' }),
+  });
+  const dated = (tasks.data?.items ?? []).filter(
+    (task) => task.due_date !== null && task.kind === 'task',
+  );
+  return (
+    <section className="screen-page is-wide">
+      <header className="page-toolbar">
+        <h1>{messages.calendarTitle}</h1>
+        <Button
+          onClick={() => {
+            void navigate('/calendar/month');
+          }}
+        >
+          {messages.calToday}
+        </Button>
+        {CAL_VIEWS.map((item) => (
+          <Link key={item} to={`/calendar/${item}`}>
+            {labelView(messages, item)}
+          </Link>
+        ))}
+      </header>
+      <p className="ui-muted">{messages.externalEmpty}</p>
+      <p className="ui-muted">{messages.feedEmpty}</p>
+      {current === 'year' ? <Year tasks={dated} /> : null}
+      {current === 'agenda' ||
+      current === 'day' ||
+      current === 'week' ||
+      current === 'multi-day' ||
+      current === 'multi-week' ? (
+        <ul>
+          {dated.map((task) => (
+            <li key={task.id}>
+              <Link to={`/list/${task.project_id}?task=${task.id}`}>
+                {task.title} · {task.due_date}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {current === 'month' ? <Month tasks={dated} weekStart={weekStart} /> : null}
+    </section>
+  );
+}
+
+function Month({
+  tasks,
+  weekStart,
+}: {
+  readonly tasks: readonly Task[];
+  readonly weekStart: 'monday' | 'sunday';
+}) {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const shift = (start.getDay() - (weekStart === 'monday' ? 1 : 0) + 7) % 7;
+  const cells = Array.from({ length: 42 }, (_, index) => {
+    const day = new Date(start);
+    day.setDate(index - shift + 1);
+    return day;
+  });
+  return (
+    <div className="cal-month">
+      {cells.map((day) => {
+        const key = day.toISOString().slice(0, 10);
+        const items = tasks.filter((task) => (task.due_date ?? '').slice(0, 10) === key);
+        const weekend = day.getDay() === 0 || day.getDay() === 6;
+        return (
+          <div key={key} className={weekend ? 'cal-cell is-weekend' : 'cal-cell'}>
+            <strong>{day.getDate()}</strong>
+            {items.slice(0, 3).map((task) => (
+              <Link
+                key={task.id}
+                className={
+                  new Date(task.due_date ?? '').getTime() < Date.now()
+                    ? 'cal-pill is-overdue'
+                    : 'cal-pill'
+                }
+                to={`/list/${task.project_id}?task=${task.id}`}
+              >
+                {task.title}
+              </Link>
+            ))}
+            {items.length > 3 ? <span>+{items.length - 3}</span> : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function Year({ tasks }: { readonly tasks: readonly Task[] }) {
+  return (
+    <div className="year-grid">
+      {Array.from({ length: 12 }, (_, month) => (
+        <section key={month}>
+          <h3>{month + 1}</h3>
+          <p className="ui-badge">
+            {tasks.filter((task) => new Date(task.due_date ?? '').getMonth() === month).length}
+          </p>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function labelView(messages: Messages, view: string): string {
+  switch (view) {
+    case 'day':
+      return messages.calDay;
+    case 'week':
+      return messages.calWeek;
+    case 'multi-day':
+      return messages.calMultiDay;
+    case 'multi-week':
+      return messages.calMultiWeek;
+    case 'year':
+      return messages.calYear;
+    case 'agenda':
+      return messages.calAgenda;
+    default:
+      return messages.calMonth;
+  }
+}
+
+export function MatrixPage() {
+  const messages = useMessages();
+  const tasks = useQuery({
+    queryKey: ['matrix-tasks'],
+    queryFn: () => api.listTasks({ status: 'active', limit: 100, flat: true }),
+  });
+  const now = useMemo(() => new Date(), []);
+  const groups = {
+    do: [] as Task[],
+    schedule: [] as Task[],
+    delegate: [] as Task[],
+    drop: [] as Task[],
+  };
+  for (const task of tasks.data?.items ?? []) {
+    if (task.kind !== 'task') {
+      continue;
+    }
+    groups[quadrantOf(task.priority, task.due_date, now)].push(task);
+  }
+  const quads = [
+    ['do', messages.quadrantDo, 'is-do'],
+    ['schedule', messages.quadrantSchedule, 'is-schedule'],
+    ['delegate', messages.quadrantDelegate, 'is-delegate'],
+    ['drop', messages.quadrantDrop, 'is-drop'],
+  ] as const;
+  return (
+    <section className="screen-page is-wide">
+      <h1>{messages.matrixTitle}</h1>
+      <p>{messages.matrixRules}</p>
+      <p className="ui-muted">{messages.dropSummary}</p>
+      {(tasks.data?.items.length ?? 0) === 0 && !tasks.isPending ? (
+        <EmptyState title={messages.matrixTitle} body={messages.matrixEmpty} />
+      ) : null}
+      <div className="quad-grid">
+        {quads.map(([key, label, tone]) => (
+          <section
+            key={key}
+            className={`quad ${tone}`}
+            onDragOver={(event) => {
+              event.preventDefault();
+            }}
+            onDrop={(event) => {
+              const id = event.dataTransfer.getData('text/plain');
+              const priority = key === 'do' || key === 'schedule' ? 'high' : 'low';
+              const due = key === 'do' || key === 'delegate' ? new Date().toISOString() : null;
+              void api.patchTask(id, { priority, due_date: due });
+            }}
+          >
+            <h2>
+              {label} <span className="ui-badge">{groups[key].length}</span>
+            </h2>
+            <ul>
+              {groups[key].map((task) => (
+                <li
+                  key={task.id}
+                  draggable
+                  onDragStart={(event) => {
+                    event.dataTransfer.setData('text/plain', task.id);
+                  }}
+                >
+                  <Link to={`/list/${task.project_id}?task=${task.id}`}>{task.title}</Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+export function DashboardPage() {
+  const messages = useMessages();
+  const widgets = [
+    messages.navToday,
+    messages.overdueTitle,
+    messages.habitsTitle,
+    messages.calendarTitle,
+    messages.navFocus,
+    messages.settingsIntegrations,
+  ];
+  return (
+    <section className="screen-page is-wide">
+      <h1>{messages.dashboardTitle}</h1>
+      <p>{messages.dashboardEmpty}</p>
+      <div className="widget-grid">
+        {widgets.map((title) => (
+          <article key={title} className="widget">
+            <h3>{title}</h3>
+            <p>{messages.widgetEmpty}</p>
+          </article>
+        ))}
+      </div>
+      <p className="ui-muted">{messages.stickyHint}</p>
+    </section>
+  );
+}
+
+export function ReportsPage() {
+  const messages = useMessages();
+  const { week } = useParams();
+  return (
+    <section className="screen-page">
+      <h1>{week === undefined ? messages.reportsTitle : `${messages.reportTitle} ${week}`}</h1>
+      <EmptyState title={messages.reportsTitle} body={messages.reportEmpty} />
+    </section>
+  );
+}
+
+export function ReviewPage() {
+  const messages = useMessages();
+  const steps = [messages.overdueTitle, messages.noDate, messages.listsTitle, messages.habitsTitle];
+  return (
+    <section className="screen-page">
+      <h1>{messages.reviewTitle}</h1>
+      <p>{messages.reviewEmpty}</p>
+      <ol>
+        {steps.map((step, index) => (
+          <li key={step}>
+            {index + 1}. {step}. {messages.reviewStep}
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+export function FocusPage() {
+  const messages = useMessages();
+  const [left, setLeft] = useState(25 * 60);
+  const [running, setRunning] = useState(false);
+  useEffect(() => {
+    if (!running) {
+      return;
+    }
+    const id = window.setInterval(() => {
+      setLeft((value) => (value > 0 ? value - 1 : 0));
+    }, 1000);
+    return () => {
+      window.clearInterval(id);
+    };
+  }, [running]);
+  return (
+    <section className="screen-page">
+      <h1>{messages.focusTitle}</h1>
+      <p>{messages.focusHint}</p>
+      <p className="detail-title">{formatClock(left)}</p>
+      <div className="page-toolbar">
+        <Button
+          variant="primary"
+          onClick={() => {
+            setRunning((value) => !value);
+          }}
+        >
+          {running ? messages.focusPause : messages.focusStart}
+        </Button>
+        <Button
+          onClick={() => {
+            setLeft(25 * 60);
+            setRunning(false);
+          }}
+        >
+          {messages.focusReset}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+function formatClock(total: number): string {
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+export function SearchPage() {
+  const messages = useMessages();
+  const [params, setParams] = useSearchParams();
+  const q = params.get('q') ?? '';
+  const search = useQuery({
+    queryKey: ['search-page', q],
+    queryFn: () => api.search(q),
+    enabled: q.trim().length > 0,
+  });
+  return (
+    <section className="screen-page">
+      <h1>{messages.searchTitle}</h1>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          const data = new FormData(event.currentTarget);
+          const raw = data.get('q');
+          const next = new URLSearchParams(params);
+          next.set('q', typeof raw === 'string' ? raw : '');
+          setParams(next, { replace: true });
+        }}
+      >
+        <input name="q" defaultValue={q} aria-label={messages.searchTitle} />
+      </form>
+      {search.data?.groups.length === 0 ? <p>{messages.searchEmpty}</p> : null}
+      {(search.data?.groups ?? []).map((group) => (
+        <section key={group.type}>
+          <h2>{group.type}</h2>
+          <ul>
+            {group.items.map((item, index) => {
+              const title =
+                typeof item.title === 'string'
+                  ? item.title
+                  : typeof item.name === 'string'
+                    ? item.name
+                    : '';
+              const id = typeof item.id === 'string' ? item.id : String(index);
+              const projectId = typeof item.project_id === 'string' ? item.project_id : '';
+              const href =
+                group.type === 'list'
+                  ? `/list/${id}`
+                  : projectId.length > 0
+                    ? `/list/${projectId}?task=${id}`
+                    : `/search?q=${encodeURIComponent(title)}`;
+              return (
+                <li key={id}>
+                  <Link to={href}>{title}</Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ))}
+    </section>
+  );
+}
+
+export function HabitDetailPage() {
+  const messages = useMessages();
+  const { id } = useParams();
+  const habits = useQuery({ queryKey: ['habits'], queryFn: () => api.listHabits() });
+  const habit = habits.data?.items.find((item) => item.id === id);
+  const stats = useQuery({
+    queryKey: ['habit-stats', id],
+    queryFn: () => api.habitStats(id ?? '', new Date().getFullYear()),
+    enabled: id !== undefined,
+  });
+  if (habits.isPending || stats.isPending) {
+    return <SkeletonRows />;
+  }
+  if (habit === undefined || stats.data === undefined) {
+    return (
+      <ErrorState
+        title={fill(messages.loadFailed, messages.habitTitle)}
+        retryLabel={messages.retry}
+        onRetry={() => {
+          void habits.refetch();
+        }}
+      />
+    );
+  }
+  return (
+    <section className="screen-page">
+      <p>
+        <Link to="/habits">{messages.habitsTitle}</Link>
+      </p>
+      <h1>{habit.name}</h1>
+      <div className="page-toolbar">
+        <Stat label={messages.streakCurrent} value={String(stats.data.streak_current)} />
+        <Stat label={messages.streakBest} value={String(stats.data.streak_best)} />
+        <Stat
+          label={messages.monthPercent}
+          value={`${String(stats.data.completion_percent.month)}%`}
+        />
+        <Stat
+          label={messages.totalCheckins}
+          value={String(stats.data.heatmap.reduce((sum, cell) => sum + cell.count, 0))}
+        />
+      </div>
+      <h2>{messages.heatYear}</h2>
+      <div className="habit-heat" aria-label={messages.heatYear}>
+        {stats.data.heatmap.map((cell) => (
+          <i
+            key={cell.date}
+            className={
+              cell.count > 2
+                ? 'is-3'
+                : cell.count > 1
+                  ? 'is-2'
+                  : cell.count > 0
+                    ? 'is-1'
+                    : undefined
+            }
+            title={cell.date}
+          />
+        ))}
+      </div>
+      <WeekDots habit={habit} />
+      <Button
+        variant="danger"
+        onClick={() => {
+          if (id !== undefined) {
+            void api.deleteHabit(id);
+          }
+        }}
+      >
+        {messages.deleteHabit}
+      </Button>
+    </section>
+  );
+}
+
+function Stat({ label, value }: { readonly label: string; readonly value: string }) {
+  return (
+    <p>
+      <span className="ui-muted">{label}</span>
+      <strong> {value}</strong>
+    </p>
+  );
+}
+
+function WeekDots({ habit }: { readonly habit: Habit }) {
+  return (
+    <div className="week-dots" aria-label="week">
+      {habit.frequency.map((day) => (
+        <button
+          key={day}
+          type="button"
+          className={habit.today.count > 0 ? 'is-done' : undefined}
+          onClick={() => {
+            void api.checkInHabit(
+              habit.id,
+              { date: habit.today.date, count: habit.today.count + 1 },
+              crypto.randomUUID(),
+            );
+          }}
+        >
+          {day.slice(0, 2)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function NoteRoute() {
+  const { id, taskId } = useParams();
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (id !== undefined && taskId !== undefined) {
+      void navigate(`/list/${id}?task=${taskId}`, { replace: true });
+    }
+  }, [id, navigate, taskId]);
+  return <SkeletonRows />;
+}
+
+export function TaskRoute() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const detail = useQuery({
+    queryKey: ['task', id],
+    queryFn: () => api.taskDetail(id ?? ''),
+    enabled: id !== undefined,
+  });
+  useEffect(() => {
+    if (detail.data !== undefined) {
+      void navigate(`/list/${detail.data.project_id}?task=${detail.data.id}`, { replace: true });
+    }
+  }, [detail.data, navigate]);
+  if (detail.isError) {
+    return <p>{id}</p>;
+  }
+  return <SkeletonRows />;
+}
+
+export function AuthNote({ title, body }: { readonly title: string; readonly body: string }) {
+  return (
+    <section className="screen-page">
+      <h1>{title}</h1>
+      <EmptyState title={title} body={body} action={<Link to="/today">Hoy</Link>} />
+    </section>
+  );
+}
+
+export function SettingsLayout() {
+  const messages = useMessages();
+  const links = [
+    ['/settings/account', messages.settingsAccount],
+    ['/settings/appearance', messages.appearanceTitle],
+    ['/settings/capture', messages.settingsCapture],
+    ['/settings/notifications', messages.settingsNotifications],
+    ['/settings/smart-lists', messages.settingsSmart],
+    ['/settings/calendar', messages.settingsCalendar],
+    ['/settings/tokens', messages.settingsTokens],
+    ['/settings/integrations', messages.settingsIntegrations],
+    ['/settings/automations', messages.settingsAutomations],
+    ['/settings/webhooks', messages.settingsWebhooks],
+    ['/settings/data', messages.settingsData],
+    ['/settings/plugins', messages.settingsPlugins],
+    ['/settings/sharing', messages.settingsSharing],
+    ['/settings/shortcuts', messages.settingsShortcuts],
+  ] as const;
+  return (
+    <div className="settings-layout">
+      <nav className="settings-nav" aria-label={messages.settingsTitle}>
+        {links.map(([to, label]) => (
+          <NavLink key={to} to={to}>
+            {label}
+          </NavLink>
+        ))}
+      </nav>
+      <div>
+        <Outlet />
+      </div>
+    </div>
+  );
+}
+
+export function CalendarSettings() {
+  const messages = useMessages();
+  return <GapPage title={messages.settingsCalendar} body={messages.feedEmpty} />;
+}
+
+export function IntegrationSettings() {
+  const messages = useMessages();
+  return <GapPage title={messages.settingsIntegrations} body={messages.integrationsEmpty} />;
+}
+
+export function AutomationSettings() {
+  const messages = useMessages();
+  return <GapPage title={messages.settingsAutomations} body={messages.automationsEmpty} />;
+}
+
+export function WebhookSettings() {
+  const messages = useMessages();
+  return <GapPage title={messages.settingsWebhooks} body={messages.webhooksEmpty} />;
+}
+
+export function DataSettings() {
+  const messages = useMessages();
+  return (
+    <section>
+      <h1>{messages.settingsData}</h1>
+      <p>{messages.dataHint}</p>
+      <EmptyState title={messages.settingsData} body={messages.backupEmpty} />
+      <p>{messages.exportEmpty}</p>
+    </section>
+  );
+}
+
+export function PluginSettings() {
+  const messages = useMessages();
+  return <GapPage title={messages.settingsPlugins} body={messages.pluginEmpty} />;
+}
+
+export function SharingSettings() {
+  const messages = useMessages();
+  return <GapPage title={messages.settingsSharing} body={messages.shareEmpty} />;
+}
+
+export function LoginPage() {
+  const messages = useMessages();
+  return <AuthNote title={messages.loginTitle} body={messages.loginDev} />;
+}
+
+export function RegisterPage() {
+  const messages = useMessages();
+  return <AuthNote title={messages.registerTitle} body={messages.registerDev} />;
+}
+
+export function ForgotPage() {
+  const messages = useMessages();
+  return <AuthNote title={messages.forgotTitle} body={messages.forgotDev} />;
+}
+
+export function AccountPage() {
+  const messages = useMessages();
+  const me = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
+  const [name, setName] = useState('');
+  const [zone, setZone] = useState('');
+  const [status, setStatus] = useState<string | null>(null);
+  return (
+    <section>
+      <h1>{messages.settingsAccount}</h1>
+      <p>{messages.accountHint}</p>
+      {me.data === undefined ? <SkeletonRows /> : null}
+      {me.data !== undefined ? (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void api
+              .updateMe({
+                display_name: name.length > 0 ? name : me.data.display_name,
+                time_zone: zone.length > 0 ? zone : me.data.time_zone,
+              })
+              .then(() => {
+                setStatus(messages.saved);
+              })
+              .catch(() => {
+                setStatus(messages.saveFailed);
+              });
+          }}
+        >
+          <label>
+            {messages.displayName}
+            <input
+              defaultValue={me.data.display_name}
+              onChange={(event) => {
+                setName(event.target.value);
+              }}
+            />
+          </label>
+          <p>{me.data.email}</p>
+          <label>
+            {messages.timeZone}
+            <input
+              defaultValue={me.data.time_zone}
+              onChange={(event) => {
+                setZone(event.target.value);
+              }}
+            />
+          </label>
+          <p className="ui-muted">{messages.passwordUnavailable}</p>
+          <p className="ui-muted">{messages.sessionsUnavailable}</p>
+          <p className="ui-muted">{messages.twoFactorUnavailable}</p>
+          <p className="ui-muted">{messages.deleteAccountUnavailable}</p>
+          <Button type="submit" variant="primary">
+            {messages.saved}
+          </Button>
+          {status !== null ? <p role="status">{status}</p> : null}
+        </form>
+      ) : null}
+    </section>
+  );
+}
+
+export function CaptureSettings() {
+  const messages = useMessages();
+  const parser = usePreferences((state) => state.parser);
+  const setParser = usePreferences((state) => state.setParser);
+  const inbound = useQuery({ queryKey: ['inbound'], queryFn: () => api.inboundEmail() });
+  const [address, setAddress] = useState<string | null>(null);
+  return (
+    <section>
+      <h1>{messages.settingsCapture}</h1>
+      <p>{messages.captureHint}</p>
+      <label>
+        {messages.parserLanguage}
+        <select
+          value={parser}
+          onChange={(event) => {
+            const value = event.target.value;
+            setParser(value === 'en' || value === 'es' ? value : 'auto');
+          }}
+        >
+          <option value="auto">{messages.languageAuto}</option>
+          <option value="es">{messages.languageEs}</option>
+          <option value="en">{messages.languageEn}</option>
+        </select>
+      </label>
+      <h2>{messages.inbound}</h2>
+      <p>{inbound.data?.active === true ? messages.online : messages.offline}</p>
+      {address !== null ? <p>{address}</p> : null}
+      <div className="page-toolbar">
+        <Button
+          onClick={() => {
+            void api.rotateInboundEmail().then((created) => {
+              setAddress(created.address);
+            });
+          }}
+        >
+          {messages.regenerate}
+        </Button>
+        <Button
+          variant="danger"
+          onClick={() => {
+            void api.revokeInboundEmail();
+            setAddress(null);
+          }}
+        >
+          {messages.revoke}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+export function NotificationSettings() {
+  const messages = useMessages();
+  const me = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
+  return (
+    <section>
+      <h1>{messages.settingsNotifications}</h1>
+      <p>{messages.notificationsHint}</p>
+      <label>
+        {messages.dailyReminder}
+        <input
+          type="time"
+          defaultValue={me.data?.daily_reminder_time ?? ''}
+          onBlur={(event) => {
+            void api.updateMe({
+              daily_reminder_time: event.target.value.length === 0 ? null : event.target.value,
+            });
+          }}
+        />
+      </label>
+      <h2>{messages.quietHours}</h2>
+      <p>{messages.quietLocal}</p>
+      <p className="ui-muted">{messages.testUnavailable}</p>
+    </section>
+  );
+}
+
+export function GapPage({ title, body }: { readonly title: string; readonly body: string }) {
+  return (
+    <section>
+      <h1>{title}</h1>
+      <EmptyState title={title} body={body} />
+    </section>
+  );
+}
+
+export function ShortcutSettings() {
+  const messages = useMessages();
+  const rows = [
+    ['?', messages.shortcutsTitle],
+    ['N', messages.fab],
+    ['Ctrl/Cmd+K', messages.paletteTitle],
+    ['/', messages.searchTitle],
+    ['G T', messages.navToday],
+    ['G I', messages.navInbox],
+    ['G C', messages.navCalendar],
+    ['G M', messages.navMatrix],
+    ['G S', messages.navSettings],
+    ['Esc', messages.close],
+    ['.', messages.syncNow],
+  ];
+  return (
+    <section>
+      <h1>{messages.settingsShortcuts}</h1>
+      <table className="shortcut-table">
+        <tbody>
+          {rows.map(([keys, label]) => (
+            <tr key={keys}>
+              <td>{label}</td>
+              <td>
+                <Kbd>{keys ?? ''}</Kbd>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+export function AppearanceExtras() {
+  const messages = useMessages();
+  const density = usePreferences((state) => state.density);
+  const setDensity = usePreferences((state) => state.setDensity);
+  const accent = usePreferences((state) => state.accent);
+  const setAccent = usePreferences((state) => state.setAccent);
+  const week = usePreferences((state) => state.weekStart);
+  const setWeek = usePreferences((state) => state.setWeekStart);
+  const choice = useThemePreference((state) => state.preference);
+  return (
+    <section>
+      <p>{messages.appearanceSaved}</p>
+      <p className="ui-muted">
+        {messages.themeLabel}: {choice}
+      </p>
+      <fieldset>
+        <legend>{messages.density}</legend>
+        <p>{messages.densityHint}</p>
+        <label>
+          <input
+            type="radio"
+            checked={density === 'comfortable'}
+            onChange={() => {
+              setDensity('comfortable');
+            }}
+          />
+          {messages.densityComfortable}
+        </label>
+        <label>
+          <input
+            type="radio"
+            checked={density === 'compact'}
+            onChange={() => {
+              setDensity('compact');
+            }}
+          />
+          {messages.densityCompact}
+        </label>
+      </fieldset>
+      <fieldset>
+        <legend>{messages.accent}</legend>
+        <p>{messages.accentHint}</p>
+        {ACCENTS.map((item) => (
+          <label key={item}>
+            <input
+              type="radio"
+              checked={accent === item}
+              onChange={() => {
+                setAccent(item);
+              }}
+            />
+            {item}
+          </label>
+        ))}
+      </fieldset>
+      <fieldset>
+        <legend>{messages.weekStart}</legend>
+        <p>{messages.weekStartHint}</p>
+        <label>
+          <input
+            type="radio"
+            checked={week === 'monday'}
+            onChange={() => {
+              setWeek('monday');
+            }}
+          />
+          {messages.monday}
+        </label>
+        <label>
+          <input
+            type="radio"
+            checked={week === 'sunday'}
+            onChange={() => {
+              setWeek('sunday');
+            }}
+          />
+          {messages.sunday}
+        </label>
+      </fieldset>
+      <LanguageField />
+    </section>
+  );
+}
+
+function LanguageField() {
+  const messages = useMessages();
+  const choice = useLocale((state) => state.choice);
+  const setChoice = useLocale((state) => state.setChoice);
+  return (
+    <fieldset>
+      <legend>{messages.language}</legend>
+      {(['auto', 'es', 'en'] as const).map((item) => (
+        <label key={item}>
+          <input
+            type="radio"
+            checked={choice === item}
+            onChange={() => {
+              setChoice(item);
+            }}
+          />
+          {item === 'auto'
+            ? messages.languageAuto
+            : item === 'es'
+              ? messages.languageEs
+              : messages.languageEn}
+        </label>
+      ))}
+    </fieldset>
+  );
+}
+
+export function BlockedSettings({
+  title,
+  body,
+}: {
+  readonly title: string;
+  readonly body: string;
+}) {
+  return <GapPage title={title} body={body} />;
+}
+
+export { smartApiKey };
