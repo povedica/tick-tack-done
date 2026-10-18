@@ -1,6 +1,6 @@
-# Handoff — fase 1 en main, con la spec de UI
+# Handoff — look TickTick en main
 
-Punto seguro para retomar. La fase 1 del MVP y las pantallas de `docs/spec/tick-tack-done-ui-spec-v1.0.md` están juntas en `main` al mergear la PR #11. La PR #10 (spec de UI) ya estaba en `main` y esta rama la absorbió. No se ha desplegado en Hetzner.
+Punto seguro para retomar. La fase 1 del MVP, las pantallas de la spec de UI y el look medido de TickTick están en `main`. La fase 1 entró con la PR #11. Las pantallas, con la PR #10. El look, con la PR #13. No se ha desplegado en Hetzner.
 
 `apps/api/tsconfig.json` sigue en NodeNext. No revertirlo a CommonJS. La CI compila `packages/domain` antes del lint y de los tests. No quites ese paso.
 
@@ -8,8 +8,9 @@ Punto seguro para retomar. La fase 1 del MVP y las pantallas de `docs/spec/tick-
 
 - Puntos 1 a 9 de la fase 1, más sesión, OAuth2 PKCE, RF-702 y el bus, en la PR #11 (tag `phase-1`).
 - Pantallas de la spec de UI en la PR #10. Lo que la API no publica sigue como estado vacío. No se inventaron endpoints para rellenarlas.
-- La PR #9 (`feat/ui-today-polish`) sigue abierta, con worktree en `~/CodeProjects/todo-ui-today-polish`. No está mergeada y no se borra.
-- Siguiente trabajo real: desplegar cuando existan `BACKUP_REMOTE` y acceso al servidor, o abrir V1 en una rama nueva desde `main`. No reabrir la fase 1 ni la sección 21. No publicar la spec como v1.2.
+- Look de TickTick en la PR #13. La spec de UI pasa a v1.1 en el mismo archivo (`docs/spec/tick-tack-done-ui-spec-v1.0.md`): UI-D2 es la paleta medida, UI-D3 es sans del sistema en toda la UI y UI-D5 es el oscuro `#242424`. No vuelvas a la crema ni a la serif de los títulos.
+- La PR #9 (`feat/ui-today-polish`) se cerró sin merge. Su worktree ya no existe. No la reabras: pedía conservar la paleta crema y este corte la sustituye.
+- Siguiente trabajo real: desplegar cuando existan `BACKUP_REMOTE` y acceso al servidor, o abrir V1 en una rama nueva desde `main`. No reabrir la fase 1 ni la sección 21. No publicar la spec de producto como v1.2. El worktree `~/CodeProjects/todo-ui-look-ticktick` se borra al mergear esta PR.
 
 En local la PWA sigue con `AUTH_MODE=dev` y `X-Dev-User-Email` (`demo@reflexionia.test`). Producción deja `AUTH_MODE` vacío: el compose lo fuerza. La primera cuenta se crea en `/register` mientras no haya usuarios.
 
@@ -43,6 +44,8 @@ bash scripts/with-env.sh pnpm test:integration
 
 Hecho contra la API que ya existía: barra con contadores, Hoy con lista y etiquetas, bandeja, detalle, lista/kanban/timeline, hábitos, smart lists, filtros, búsqueda, paleta, atajos y tokens.
 
+El look de la PR #13 no cambia rutas, stores, agrupación, deshacer ni densidad. Cambia tokens, tipografía y marcado visual: rail de 50px, sidebar de 240px, filas de 40px, quick-add bajo la cabecera, checkbox de prioridad y menú de vista. El `rem` sigue valiendo 16px porque el tamaño de 14px vive en `body`, no en `:root`. `--ink-3` está en 0.65 para contraste AA sobre `#f2f5fe`.
+
 Siguen vacías porque la API no publica el recurso: plan de hoy, revisión semanal, jardín digital, reportes, calendarios externos, integraciones, automatizaciones, webhooks, plugins y compartir. Foco es V2 y el temporizador vive solo en el navegador.
 
 Estas pantallas de Ajustes siguen diciendo que el recurso no está publicado, aunque la API de la fase 1 ya lo tiene. No las cablees otra vez: enlázalas.
@@ -69,7 +72,7 @@ La cola offline no cubre el completado por lote, deshacer, mover, borrar ni el r
 - V2: colaboración, Pomodoro, plugins, widgets, logros, WIP de servidor y Calendar two-way.
 - RF-1701 (importador TickTick) sigue aplazado.
 - Miniaturas de adjuntos. El recordatorio `location` se guarda y no se dispara.
-- La PR #9, pulido de Hoy y de la barra, sigue aparte.
+- La PR #9 se cerró sin merge. No queda un pulido crema pendiente.
 
 ## Tags
 
@@ -132,4 +135,10 @@ Quedó hecho en la PR #11, ya sincronizada con la spec de UI de la PR #10: cola 
 
 Quedó fuera por ser V1 o V2 lo que la API no publica: Telegram, Google Drive, Google Calendar, dashboard con datos, reporte, revisiones, webhooks, automatizaciones, sync en tiempo real, `/open/v1`, import CSV, export iCal/CSV, 2FA, geovallado, colaboración, Pomodoro, plugins, widgets, logros y Calendar two-way. Kanban y timeline existen como vista de cliente. RF-1701 sigue aplazado.
 
-No se desplegó en Hetzner: falta `BACKUP_REMOTE` y el acceso al servidor. No se inventaron secretos. La spec v1.1 solo ganó los nombres de evento en 11.1 y las rutas públicas que faltaban en 10.3. La PR #9 sigue abierta.
+No se desplegó en Hetzner: falta `BACKUP_REMOTE` y el acceso al servidor. No se inventaron secretos. La spec de producto v1.1 solo ganó los nombres de evento en 11.1 y las rutas públicas que faltaban en 10.3. La PR #9 se cerró después, sin merge.
+
+## Look TickTick (18 oct 2026)
+
+Quedó hecho en la PR #13, mergeada a `main`. La UI deja la crema y la serif. Los valores medidos están en `docs/spec/cursor-prompt-ui-look-ticktick-v1.2.md` y en `apps/web/src/styles/tokens.css`. La spec de UI, en el mismo archivo de siempre, sube a v1.1.
+
+No se tocó la API, Prisma, el dominio ni el bus. No se desplegó. No se publicó la spec de producto como v1.2. El acento por defecto es `#4772fa`; los acentos de Ajustes (violeta, teal, ámbar, rosa, pizarra) siguen pudiendo sustituirlo. El siguiente corte sale de `main` y no reabre este look.

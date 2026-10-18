@@ -34,37 +34,37 @@ Tema claro, valores medidos de TickTick:
 
 ```css
 /* Marca */
---accent:        #4772fa;  /* primary TickTick */
---accent-hover:  #6c8efb;
+--accent: #4772fa; /* primary TickTick */
+--accent-hover: #6c8efb;
 --accent-active: #3e60cd;
---accent-soft:   rgba(71,114,250,0.12); /* píldora activa y fila seleccionada */
---focus-ring:    #4772fa;
+--accent-soft: rgba(71, 114, 250, 0.12); /* píldora activa y fila seleccionada */
+--focus-ring: #4772fa;
 
 /* Superficies */
---bg:            #ffffff;  /* contenido */
---sidebar-bg:    #f2f5fe;  /* sidebar azul muy claro */
---rail-bg:       #4772fa;  /* rail de iconos, iconos blancos */
---surface:       #ffffff;
---surface-2:     rgba(25,25,25,0.04);  /* hover de fila */
---surface-3:     rgba(25,25,25,0.03);  /* fondo del quick-add */
---border:        rgba(25,25,25,0.05);  /* separador de filas */
+--bg: #ffffff; /* contenido */
+--sidebar-bg: #f2f5fe; /* sidebar azul muy claro */
+--rail-bg: #4772fa; /* rail de iconos, iconos blancos */
+--surface: #ffffff;
+--surface-2: rgba(25, 25, 25, 0.04); /* hover de fila */
+--surface-3: rgba(25, 25, 25, 0.03); /* fondo del quick-add */
+--border: rgba(25, 25, 25, 0.05); /* separador de filas */
 --border-strong: #d9dce3;
 
 /* Tinta (TickTick usa negro con opacidades) */
---ink:        #191919;
---ink-2:      rgba(25,25,25,0.6);
---ink-3:      rgba(25,25,25,0.4);   /* lista, contadores atenuados */
---ink-faint:  rgba(25,25,25,0.3);   /* cabeceras de sección de sidebar */
---ink-inverse:#ffffff;
+--ink: #191919;
+--ink-2: rgba(25, 25, 25, 0.6);
+--ink-3: rgba(25, 25, 25, 0.4); /* lista, contadores atenuados */
+--ink-faint: rgba(25, 25, 25, 0.3); /* cabeceras de sección de sidebar */
+--ink-inverse: #ffffff;
 
 /* Prioridades (checkbox y bandera) */
---prio-high:   #e13e39;
+--prio-high: #e13e39;
 --prio-medium: #faa80c;
---prio-low:    #4772fa;
---prio-none:   #b3b3b3;
+--prio-low: #4772fa;
+--prio-none: #b3b3b3;
 
 /* Semánticos */
---danger: #e03131;  /* fechas vencidas */
+--danger: #e03131; /* fechas vencidas */
 ```
 
 Tema oscuro (`night-dark-theme` de TickTick): fondo `#242424`, sidebar `#1c1c1c`, rail `#242424`, tarjetas `#222222`, texto `#ffffff`, hover `rgba(255,255,255,0.04)` aprox, mismo acento `#4772fa`. Las opacidades de tinta se invierten (blanco con alpha).
