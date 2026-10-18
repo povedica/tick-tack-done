@@ -52,8 +52,17 @@ const WIDGET_LABEL = {
 } as const;
 
 function widgetLabel(messages: ReturnType<typeof useMessages>, key: string): string {
-  const name = WIDGET_LABEL[key as keyof typeof WIDGET_LABEL];
-  return name === undefined ? key : messages[name];
+  if (!Object.hasOwn(WIDGET_LABEL, key)) {
+    return key;
+  }
+  return messages[WIDGET_LABEL[key as keyof typeof WIDGET_LABEL]];
+}
+
+function asText(value: unknown): string {
+  if (typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean') {
+    return String(value);
+  }
+  return '0';
 }
 
 function widgetText(messages: ReturnType<typeof useMessages>, key: string, value: unknown): string {
@@ -65,20 +74,20 @@ function widgetText(messages: ReturnType<typeof useMessages>, key: string, value
   }
   const row = value as Record<string, unknown>;
   if (key === 'completed_week') {
-    return `${String(row.value ?? 0)} · ${messages.widgetTrend} ${String(row.trend ?? 0)}`;
+    return `${asText(row.value)} · ${messages.widgetTrend} ${asText(row.trend)}`;
   }
   if (key === 'flow') {
-    return `${messages.widgetCreated} ${String(row.created ?? 0)} · ${messages.widgetCompleted} ${String(row.completed ?? 0)} · ${messages.widgetNet} ${String(row.net ?? 0)}`;
+    return `${messages.widgetCreated} ${asText(row.created)} · ${messages.widgetCompleted} ${asText(row.completed)} · ${messages.widgetNet} ${asText(row.net)}`;
   }
   if (key === 'habits') {
-    return `${String(row.percent ?? 0)}%`;
+    return `${asText(row.percent)}%`;
   }
   if (key === 'focus') {
     const seconds = typeof row.seconds === 'number' ? row.seconds : 0;
     return clock(seconds);
   }
   if (key === 'calendar') {
-    return String(row.upcoming ?? 0);
+    return asText(row.upcoming);
   }
   if (key === 'integrations') {
     return Object.entries(row)

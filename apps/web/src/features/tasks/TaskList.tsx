@@ -135,7 +135,7 @@ export function TaskList({
                 priority: request.parsed.priority ?? 'none',
                 dueDate: request.dueDate ?? request.parsed.due?.date ?? null,
                 timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                projectId: createProjectId ?? '',
+                projectId: createProjectId,
                 projectName: '',
                 columnId: null,
                 tags: request.parsed.tagNames.map((name) => ({ id: name, name, color: null })),
