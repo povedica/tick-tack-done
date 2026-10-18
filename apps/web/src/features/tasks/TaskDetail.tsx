@@ -6,6 +6,7 @@ import { Link } from 'react-router';
 import { api } from '../../api';
 import { PriorityCheck } from '../../components/PriorityCheck';
 import { Button } from '../../components/ui';
+import { DueField } from './DueField';
 import { fill, useMessages } from '../../i18n';
 import { newMutation, runOrQueue } from '../offline/client';
 
@@ -98,6 +99,23 @@ export function TaskDetail({
 
   const task = detail.data;
   const activeChildren = task.subtasks.filter((item) => item.status === 'active');
+
+  function commitDue(nextDraft: string): void {
+    setDueDraft(nextDraft);
+    if (nextDraft === toLocal(task.due_date)) {
+      return;
+    }
+    const next = nextDraft.length === 0 ? null : new Date(nextDraft).toISOString();
+    if (next !== null && Number.isNaN(new Date(nextDraft).getTime())) {
+      setDueDraft(toLocal(task.due_date));
+      return;
+    }
+    if (task.repeat_rule !== null && next !== null) {
+      setSeries(next);
+      return;
+    }
+    save.mutate({ due_date: next });
+  }
 
   const progress =
     task.checklist_progress.total === 0
@@ -212,33 +230,16 @@ export function TaskDetail({
             }
           }}
         />
-        <div className="page-toolbar">
-          <label>
-            {messages.dateSet}
-            <input
-              type="datetime-local"
-              value={dueDraft}
-              onChange={(event) => {
-                setDueDraft(event.target.value);
-              }}
-              onBlur={() => {
-                if (dueDraft === toLocal(task.due_date)) {
-                  return;
-                }
-                const next = dueDraft.length === 0 ? null : new Date(dueDraft).toISOString();
-                if (next !== null && Number.isNaN(new Date(dueDraft).getTime())) {
-                  setDueDraft(toLocal(task.due_date));
-                  return;
-                }
-                if (task.repeat_rule !== null && next !== null) {
-                  setSeries(next);
-                  return;
-                }
-                save.mutate({ due_date: next });
-              }}
-            />
-          </label>
-        </div>
+        <DueField
+          value={dueDraft}
+          dateLabel={messages.dateSet}
+          timeLabel={messages.dueTime}
+          emptyLabel={messages.noDate}
+          clearLabel={messages.clearDate}
+          previousLabel={messages.calPrev}
+          nextLabel={messages.calNext}
+          onCommit={commitDue}
+        />
         <label>
           {messages.tagAdd}
           <select

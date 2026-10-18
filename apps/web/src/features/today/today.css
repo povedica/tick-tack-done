@@ -194,7 +194,8 @@
 }
 
 .task-title,
-button.task-title {
+button.task-title,
+a.task-title {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -206,7 +207,14 @@ button.task-title {
   font: inherit;
   font-size: 14px;
   text-align: left;
+  text-decoration: none;
   cursor: pointer;
+}
+
+.task-row .habit-check {
+  width: 22px;
+  height: 22px;
+  flex: none;
 }
 
 .task-date {

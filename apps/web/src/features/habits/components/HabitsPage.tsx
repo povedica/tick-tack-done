@@ -237,9 +237,7 @@ export function HabitsPage() {
               onClick={() => {
                 checkIn.mutate({ habit, count: habit.today.count + 1 });
               }}
-            >
-              {messages.streakLabel} {habit.today.count}
-            </button>
+            />
             <label>
               {messages.habitNote}
               <input

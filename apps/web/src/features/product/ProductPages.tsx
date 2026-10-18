@@ -316,7 +316,7 @@ export function IntegrationSettings() {
   return (
     <section>
       <h1>{messages.settingsIntegrations}</h1>
-      <p>Telegram: {telegram.data?.configured === true ? messages.online : messages.gpsMissing}</p>
+      <p>Telegram: {telegram.data?.configured === true ? messages.online : messages.offline}</p>
       <p>Drive: {drive.data?.configured === true ? messages.online : messages.offline}</p>
       <p>Google: {google.data?.connected === true ? account : messages.offline}</p>
       <Button
@@ -437,24 +437,17 @@ export function SharingSettings() {
 }
 
 export function LocationWatch() {
-  const messages = useMessages();
-  const [note, setNote] = useState<string | null>(null);
   useEffect(() => {
     if (!('geolocation' in navigator)) {
-      setNote(messages.gpsMissing);
       return;
     }
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        void api.reportLocation(position.coords.latitude, position.coords.longitude).then(() => {
-          setNote(messages.gpsChecked);
-        });
+        void api.reportLocation(position.coords.latitude, position.coords.longitude);
       },
-      () => {
-        setNote(messages.gpsMissing);
-      },
+      () => undefined,
       { enableHighAccuracy: false, maximumAge: 60_000, timeout: 8_000 },
     );
-  }, [messages.gpsChecked, messages.gpsMissing]);
-  return note === null ? null : <p className="ui-muted">{note}</p>;
+  }, []);
+  return null;
 }

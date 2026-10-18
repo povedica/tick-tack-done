@@ -499,19 +499,30 @@ export function TodayPage() {
             .filter((habit) => !habit.archived)
             .map((habit) => (
               <li key={habit.id}>
-                <Link to={`/habits/${habit.id}`}>{habit.name}</Link>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void api.checkInHabit(
-                      habit.id,
-                      { date: habit.today.date, count: habit.today.count + 1 },
-                      crypto.randomUUID(),
-                    );
-                  }}
-                >
-                  {habit.today.count}/{habit.goal.target_count}
-                </button>
+                <div className="task-row">
+                  <button
+                    type="button"
+                    className={
+                      habit.today.count >= habit.goal.target_count
+                        ? 'habit-check is-done'
+                        : 'habit-check'
+                    }
+                    aria-label={messages.checkIn}
+                    onClick={() => {
+                      void api.checkInHabit(
+                        habit.id,
+                        { date: habit.today.date, count: habit.today.count + 1 },
+                        crypto.randomUUID(),
+                      );
+                    }}
+                  />
+                  <Link className="task-title" to={`/habits/${habit.id}`}>
+                    {habit.name}
+                  </Link>
+                  <span className="task-meta">
+                    {habit.today.count}/{habit.goal.target_count}
+                  </span>
+                </div>
               </li>
             ))}
         </ul>
