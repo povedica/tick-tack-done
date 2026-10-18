@@ -127,7 +127,7 @@ Todos los IDs son `uuid` (o ULID si se prefiere ordenación). Todas las entidade
 | id | uuid | |
 | project_id | fk → Project | lista contenedora; la "bandeja de entrada" es un Project de sistema |
 | parent_id | fk → Task, nullable | subtarea de primer nivel como tarea completa (además del checklist, ver 9.2) |
-| title | text | requerido, máx. 500 chars |
+| title | text | máx. 500 chars, se guarda tal cual (espacios de los extremos incluidos; vacío permitido) |
 | content | text | descripción larga en Markdown |
 | kind | enum: `task`, `note` | TickTick permite notas dentro de listas (`kind: NOTE`) |
 | status | enum: `active`, `completed`, `archived` | equivalente a `status` 0/2 de la API de TickTick |
@@ -365,7 +365,7 @@ TickTick pone mucho peso en capturar sin fricción: atajo global, widget, voz, e
 - RF-104: Entrada por voz (Web Speech API en PWA; nativo en apps futuras) que vuelca texto al mismo pipeline NLP.
 - RF-105: **Email-to-task**: dirección única por usuario (`<token>@in.todo.reflexionia.com`); el asunto pasa a título y el cuerpo a contenido; adjuntos se guardan como Attachment. (TickTick lo tiene; además es nuestro primer canal de "integración externa".)
 - RF-106: Atajo global de escritorio cuando exista cliente de escritorio (V2); en PWA, `share target` para "compartir a la app" desde móvil.
-- RF-107: Si el título se deja vacío no se crea nada. Si la lista destino no existe (por `^lista`), se crea en Inbox y se avisa.
+- RF-107: Si el parser deja el título vacío no se crea nada (`empty_title`) y tampoco se crea lista ni etiqueta. Un `title` explícito, aunque sea `""`, sí crea la tarea y se guarda tal cual. Si `^lista` o `~lista` no existe, se crea el proyecto y la tarea entra ahí (`list_created`). Si `#etiqueta` no existe, se crea y se asocia (`tag_created`). Un `project_id` o `tag_ids` explícito no crea lo que solo venía en el texto.
 
 ### 9.2 Tareas — MVP
 
@@ -373,7 +373,7 @@ TickTick pone mucho peso en capturar sin fricción: atajo global, widget, voz, e
 - RF-202: Descripción en **Markdown** con previsualización, checklist inline `- [ ]` que se convierte en ChecklistItem (comportamiento TickTick: las líneas de checklist del contenido pueden convertirse en subtareas).
 - RF-203: Adjuntos múltiples por tarea (imágenes con miniatura inline).
 - RF-204: Duplicar, mover entre listas, mover entre columnas/secciones, convertir tarea en nota y viceversa.
-- RF-205: Dos tipos de "hijos": (a) **checklist items** (ligeros, 5.2) y (b) **subtareas completas** (Task con `parent_id`, con sus propias fechas/etiquetas/recordatorios). TickTick permite ambos. UI: pestañas o secciones dentro del detalle. Regla: un Task con `parent_id` hereda `project_id` del padre y no aparece suelto en la lista salvo vista plana.
+- RF-205: Dos tipos de "hijos": (a) **checklist items** (ligeros, 5.2) y (b) **subtareas completas** (Task con `parent_id`, con sus propias fechas/etiquetas/recordatorios). TickTick permite ambos. UI: pestañas o secciones dentro del detalle. Una subtarea puede vivir en otra lista: se respeta el `project_id` pedido y el `parent_id`. En la lista de la hija aparece (también con `flat=true`); en el detalle del padre sigue saliendo como subtarea. Sigue siendo inválido un padre inexistente, de otro usuario, o que forme un ciclo. Una hija en la misma lista no aparece suelta salvo vista plana.
 - RF-206: Al completar un padre con hijos activos, preguntar: completar hijos también / dejarlos. Configurable.
 - RF-207: Indicador de progreso del checklist (x/y) en la tarjeta de la tarea.
 - RF-208: Operaciones masivas: selección múltiple → completar, mover, etiquetar, priorizar, fijar fecha, borrar.
@@ -595,7 +595,7 @@ DELETE /api/v1/tasks/trash                vaciar papelera (RF-306)
 POST   /api/v1/tasks/trash/{id}/restore
 ```
 
-`POST /tasks` con `raw_text` parsea en el servidor (RF-102) y crea la tarea por el mismo camino que el resto del CRUD (idempotencia, outbox, eventos). Los campos explícitos del cuerpo pisan lo parseado. Si el título queda vacío no se crea nada (`empty_title`). Si `^lista` o `~lista` no existe, la tarea se crea en el Inbox y la respuesta incluye `warnings` con `list_not_found`; no se crea la lista. Una etiqueta desconocida no se crea y avisa con `tag_not_found`. El resaltado anterior a confirmar lo hace el cliente con el mismo parser de `packages/domain`; no hay endpoint de preview.
+`POST /tasks` con `raw_text` parsea en el servidor (RF-102) y crea la tarea por el mismo camino que el resto del CRUD (idempotencia, outbox, eventos). Los campos explícitos del cuerpo pisan lo parseado. Si el parser deja el título vacío no se crea nada (`empty_title`). Un `title` explícito se guarda tal cual, espacios de los extremos incluidos, y `""` es válido. Si `^lista` o `~lista` no existe, se crea el proyecto en la misma transacción y la respuesta incluye `warnings` con `list_created`. Si `#etiqueta` no existe, se crea y se asocia (`tag_created`). `project_id` explícito no crea la lista parseada; `tag_ids` explícito no crea las etiquetas parseadas. `repeat_rule` válido se guarda carácter a carácter (sin anteponer `DTSTART` ni quitar `INTERVAL=1`). El resaltado anterior a confirmar lo hace el cliente con el mismo parser de `packages/domain`; no hay endpoint de preview.
 
 Checklist items: `POST/PATCH/DELETE /api/v1/tasks/{id}/items[/{itemId}]`, `POST .../items/{itemId}/complete`.
 

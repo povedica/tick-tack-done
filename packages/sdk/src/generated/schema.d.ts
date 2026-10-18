@@ -2921,9 +2921,9 @@ export interface components {
             project_id?: string;
             parent_id?: Record<string, never> | null;
             column_id?: Record<string, never> | null;
-            /** @description Required unless raw_text yields a title. An explicit title overrides the parse. */
+            /** @description Required unless raw_text yields a title. Stored as sent, including edge spaces. Empty is valid. An explicit title overrides the parse. */
             title?: string;
-            /** @description Quick add text. The server parses it (RF-102). Explicit fields in this body override the parse. */
+            /** @description Quick add text. The server parses it (RF-102). A missing ^list or #tag is created. Explicit fields in this body override the parse and do not create the parsed list or tags. */
             raw_text?: string;
             content?: string;
             /** @enum {string} */
@@ -2948,7 +2948,7 @@ export interface components {
         };
         CaptureWarningDto: {
             /** @enum {string} */
-            code: "list_not_found" | "tag_not_found" | "reminder_without_date";
+            code: "list_not_found" | "list_created" | "tag_not_found" | "tag_created" | "reminder_without_date";
             name?: string;
         };
         CreateTaskResponseDto: {

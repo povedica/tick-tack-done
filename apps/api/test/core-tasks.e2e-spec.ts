@@ -159,8 +159,13 @@ describe('core tasks API', () => {
     const child = await api
       .post('/api/v1/tasks')
       .send({ project_id: owner.inboxId, parent_id: created.body.id, title: 'Poner la mesa' })
-      .expect(400);
-    expect(child.body.error.code).toBe('project_mismatch');
+      .expect(201);
+    expect(child.body.project_id).toBe(owner.inboxId);
+    expect(child.body.parent_id).toBe(created.body.id);
+    const parent = await api.get(`/api/v1/tasks/${created.body.id}`).expect(200);
+    expect(parent.body.subtasks.map((item: { id: string }) => item.id)).toContain(child.body.id);
+    const inInbox = await api.get(`/api/v1/tasks?project_id=${owner.inboxId}`).expect(200);
+    expect(inInbox.body.items.map((item: { id: string }) => item.id)).toContain(child.body.id);
 
     const subtask = await api
       .post('/api/v1/tasks')
@@ -298,6 +303,44 @@ describe('core tasks API', () => {
       where: { ownerId: owner.id, type: 'task.created@v1' },
     });
     expect(events.length).toBeGreaterThan(0);
+  });
+
+  it('keeps an explicit title, including empty and edge spaces', async () => {
+    const api = authed(owner.email);
+    const empty = await api
+      .post('/api/v1/tasks')
+      .send({ project_id: owner.inboxId, title: '', priority: 'none', time_zone: 'Europe/Madrid' })
+      .expect(201);
+    const emptyGet = await api.get(`/api/v1/tasks/${empty.body.id}`).expect(200);
+    expect(emptyGet.body.title).toBe('');
+
+    const spaced = ' lista de compra ';
+    const created = await api
+      .post('/api/v1/tasks')
+      .send({ project_id: owner.inboxId, title: spaced, time_zone: 'Europe/Madrid' })
+      .expect(201);
+    const loaded = await api.get(`/api/v1/tasks/${created.body.id}`).expect(200);
+    expect(loaded.body.title).toBe(spaced);
+  });
+
+  it('stores repeat_rule exactly as sent', async () => {
+    const api = authed(owner.email);
+    const rule = 'RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=MO';
+    const created = await api
+      .post('/api/v1/tasks')
+      .send({
+        project_id: owner.inboxId,
+        title: 'Asistenta lunes',
+        priority: 'high',
+        due_date: '2026-05-04T11:10:00.000Z',
+        start_date: '2026-05-04T11:10:00.000Z',
+        time_zone: 'Europe/Madrid',
+        repeat_rule: rule,
+      })
+      .expect(201);
+    expect(created.body.repeat_rule).toBe(rule);
+    const loaded = await api.get(`/api/v1/tasks/${created.body.id}`).expect(200);
+    expect(loaded.body.repeat_rule).toBe(rule);
   });
 
   it('RF-203: stores an attachment and downloads it as a file', async () => {

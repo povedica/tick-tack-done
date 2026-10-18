@@ -142,11 +142,19 @@ describe('phase 1 close', () => {
 
   it('publishes the outbox onto the bus', async () => {
     const publisher = app.get(OutboxPublisher);
-    const published = await publisher.publishPending();
+    let published = 0;
+    let row: { id: string } | null = null;
+    for (let batch = 0; batch < 40 && row === null; batch += 1) {
+      const count = await publisher.publishPending();
+      published += count;
+      row = await prisma.outboxEvent.findFirst({
+        where: { ownerId: userId, publishedAt: { not: null } },
+      });
+      if (count === 0) {
+        break;
+      }
+    }
     expect(published).toBeGreaterThan(0);
-    const row = await prisma.outboxEvent.findFirst({
-      where: { ownerId: userId, publishedAt: { not: null } },
-    });
     expect(row).not.toBeNull();
   });
 

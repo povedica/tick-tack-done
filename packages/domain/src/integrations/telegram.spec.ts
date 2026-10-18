@@ -7,6 +7,28 @@ describe('telegram commands', () => {
     expect(parseTelegramCommand('/manana')).toEqual({ kind: 'tomorrow' });
     expect(parseTelegramCommand('/semana')).toEqual({ kind: 'week' });
     expect(parseTelegramCommand('/lista')).toEqual({ kind: 'lists' });
+    expect(parseTelegramCommand('nueva lista Viaje')).toEqual({
+      kind: 'create_list',
+      name: 'Viaje',
+    });
+    expect(parseTelegramCommand('crear lista Viaje a Lisboa')).toEqual({
+      kind: 'create_list',
+      name: 'Viaje a Lisboa',
+    });
+    expect(parseTelegramCommand('/nuevalista Casa')).toEqual({ kind: 'create_list', name: 'Casa' });
+    expect(parseTelegramCommand('/lista nueva Casa')).toEqual({
+      kind: 'create_list',
+      name: 'Casa',
+    });
+    expect(parseTelegramCommand('/lista crear Casa')).toEqual({
+      kind: 'create_list',
+      name: 'Casa',
+    });
+    expect(parseTelegramCommand('/lista Casa')).toEqual({ kind: 'list', name: 'Casa' });
+    expect(parseTelegramCommand('Reservar el tren ^Viaje')).toEqual({
+      kind: 'capture',
+      text: 'Reservar el tren ^Viaje',
+    });
     expect(parseTelegramCommand('/lista #compra')).toEqual({ kind: 'tag', name: 'compra' });
     expect(parseTelegramCommand('/lista !alta')).toEqual({ kind: 'priority', level: 'high' });
     expect(parseTelegramCommand('/capturar comprar leche mañana')).toEqual({

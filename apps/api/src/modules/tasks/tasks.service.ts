@@ -112,6 +112,19 @@ export interface TaskListQuery {
   overdue: boolean;
 }
 
+/** A subtask in another list stays visible in its own list. Same-list children stay nested. */
+function visibleParents(query: TaskListQuery): Prisma.TaskWhereInput {
+  if (query.deleted || query.flat) {
+    return {};
+  }
+  if (query.projectId === undefined) {
+    return { parentId: null };
+  }
+  return {
+    OR: [{ parentId: null }, { parent: { projectId: { not: query.projectId } } }],
+  };
+}
+
 interface Saved {
   statusCode: number;
   body: CreatedTask;
@@ -144,7 +157,7 @@ export class TasksService {
       where: {
         ownerId: user.id,
         ...(query.deleted ? { deletedAt: { not: null } } : { deletedAt: null }),
-        ...(query.deleted || query.flat ? {} : { parentId: null }),
+        ...visibleParents(query),
         ...(query.projectId === undefined ? {} : { projectId: query.projectId }),
         ...(query.deleted || query.status === 'all' ? {} : { status: query.status }),
         ...(query.priority === undefined ? {} : { priority: query.priority }),
@@ -684,12 +697,8 @@ export class TasksService {
           requestedProjectId: project.id,
           parentProjectId: parent.projectId,
         });
-        if (!resolved.ok) {
-          throw new DomainException(
-            HttpStatus.BAD_REQUEST,
-            'project_mismatch',
-            'A subtask stays in its parent list',
-          );
+        if (resolved.projectId !== project.id) {
+          await this.requireProject(tx, user.id, resolved.projectId);
         }
       }
       if (dto.column_id !== undefined && dto.column_id !== null) {
@@ -1343,12 +1352,8 @@ export class TasksService {
         requestedProjectId: project.id,
         parentProjectId: parent.projectId,
       });
-      if (!resolved.ok) {
-        throw new DomainException(
-          HttpStatus.BAD_REQUEST,
-          'project_mismatch',
-          'A subtask stays in its parent list',
-        );
+      if (resolved.projectId !== project.id) {
+        await this.requireProject(tx, user.id, resolved.projectId);
       }
       parentId = parent.id;
     }
@@ -1360,6 +1365,9 @@ export class TasksService {
       captured === null || dto.tag_ids !== undefined
         ? await this.requireTags(tx, user.id, dto.tag_ids ?? [])
         : [...captured.tagIds];
+    if (captured === null && dto.title === undefined) {
+      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'title is required');
+    }
     const title = captured === null ? this.title(dto.title ?? '') : captured.title;
     const timeZone = dto.time_zone === undefined ? user.timeZone : this.zone(dto.time_zone);
     let content = dto.content ?? '';
@@ -1996,7 +2004,7 @@ export class TasksService {
           : 'repeat_rule must be an RRULE',
       );
     }
-    return canonical.rule;
+    return value;
   }
 
   private async overdueIds(ownerId: string): Promise<string[]> {

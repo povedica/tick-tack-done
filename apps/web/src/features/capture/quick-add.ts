@@ -40,7 +40,9 @@ export function quickAddRequest(input: QuickAddInput): QuickAddRequest {
   // OpenAPI types nullable strings as `{}`. The wire value is an ISO instant.
   const body = {
     raw_text: input.text,
-    ...(dueDate === undefined ? {} : { due_date: dueDate, is_all_day: true }),
+    ...(dueDate === undefined
+      ? {}
+      : { due_date: dueDate, is_all_day: true, time_zone: input.timeZone }),
     ...(projectId === undefined ? {} : { project_id: projectId }),
   } as unknown as CreateTaskBody;
   return { parsed, dueDate: dueDate ?? null, body };

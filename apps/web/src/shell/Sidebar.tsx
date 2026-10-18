@@ -1,4 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { normalizeTagName } from '@reflexionia/domain';
+import { ApiError } from '@reflexionia/sdk';
 import {
   CalendarDays,
   CalendarRange,
@@ -16,7 +18,7 @@ import {
   UserRound,
   type LucideIcon,
 } from 'lucide-react';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, NavLink, useLocation, useMatch } from 'react-router';
 import { api } from '../api';
 import { BrandMark } from '../components/BrandMark';
@@ -64,8 +66,12 @@ export function Sidebar({
   const tags = useQuery({ queryKey: ['tags'], queryFn: () => api.listTags() });
   const [draft, setDraft] = useState('');
   const [addingList, setAddingList] = useState(false);
+  const [listError, setListError] = useState<string | null>(null);
   const [addingTag, setAddingTag] = useState(false);
   const [tagDraft, setTagDraft] = useState('');
+  const [tagError, setTagError] = useState<string | null>(null);
+  const listField = useRef<HTMLInputElement>(null);
+  const tagField = useRef<HTMLInputElement>(null);
   const [menuId, setMenuId] = useState<string | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const location = useLocation();
@@ -178,6 +184,7 @@ export function Sidebar({
             onClick={() => {
               setAddingList((current) => !current);
               setDraft('');
+              setListError(null);
             }}
           >
             <Plus size={16} aria-hidden="true" />
@@ -189,17 +196,37 @@ export function Sidebar({
             onSubmit={(event) => {
               event.preventDefault();
               const name = draft.trim();
-              if (name.length === 0) {
+              if (name.length === 0 || name.length > 200) {
+                setListError(name.length === 0 ? null : messages.nameInvalid);
                 return;
               }
-              void api.createProject({ name, color: '#4772fa' }, crypto.randomUUID()).then(() => {
-                setDraft('');
-                setAddingList(false);
-                void queryClient.invalidateQueries({ queryKey: ['projects'] });
-              });
+              const taken = projectItems.some(
+                (project) =>
+                  project.name.localeCompare(name, undefined, { sensitivity: 'accent' }) === 0,
+              );
+              if (taken) {
+                setListError(messages.nameTaken);
+                return;
+              }
+              void api.createProject({ name, color: '#4772fa' }, crypto.randomUUID()).then(
+                () => {
+                  setDraft('');
+                  setListError(null);
+                  listField.current?.focus();
+                  void queryClient.invalidateQueries({ queryKey: ['projects'] });
+                },
+                (error: unknown) => {
+                  setListError(
+                    error instanceof ApiError && error.status === 409
+                      ? messages.nameTaken
+                      : messages.nameInvalid,
+                  );
+                },
+              );
             }}
           >
             <input
+              ref={listField}
               value={draft}
               aria-label={messages.newList}
               placeholder={messages.newList}
@@ -209,11 +236,15 @@ export function Sidebar({
               }}
               onKeyDown={(event) => {
                 if (event.key === 'Escape') {
+                  event.preventDefault();
                   setAddingList(false);
                   setDraft('');
+                  setListError(null);
                 }
               }}
             />
+            <button type="submit">{messages.createLabel}</button>
+            {listError !== null ? <p className="error">{listError}</p> : null}
           </form>
         ) : null}
         <ul className="nav-list">
@@ -264,6 +295,7 @@ export function Sidebar({
             onClick={() => {
               setAddingTag((current) => !current);
               setTagDraft('');
+              setTagError(null);
             }}
           >
             <Plus size={16} aria-hidden="true" />
@@ -277,18 +309,31 @@ export function Sidebar({
             className="nav-create"
             onSubmit={(event) => {
               event.preventDefault();
-              const name = tagDraft.trim();
-              if (name.length === 0) {
+              const name = normalizeTagName(tagDraft);
+              if (name === null) {
+                setTagError(tagDraft.trim().length === 0 ? null : messages.nameInvalid);
                 return;
               }
-              void api.createTag({ name, color: '#4772fa' }, crypto.randomUUID()).then(() => {
-                setTagDraft('');
-                setAddingTag(false);
-                void queryClient.invalidateQueries({ queryKey: ['tags'] });
-              });
+              void api.createTag({ name, color: '#4772fa' }, crypto.randomUUID()).then(
+                () => {
+                  setTagDraft('');
+                  setTagError(null);
+                  tagField.current?.focus();
+                  void queryClient.invalidateQueries({ queryKey: ['tags'] });
+                },
+                (error: unknown) => {
+                  setTagError(
+                    error instanceof ApiError &&
+                      (error.status === 409 || error.code === 'tag_name_taken')
+                      ? messages.nameTaken
+                      : messages.nameInvalid,
+                  );
+                },
+              );
             }}
           >
             <input
+              ref={tagField}
               value={tagDraft}
               aria-label={messages.newTag}
               placeholder={messages.newTag}
@@ -298,11 +343,15 @@ export function Sidebar({
               }}
               onKeyDown={(event) => {
                 if (event.key === 'Escape') {
+                  event.preventDefault();
                   setAddingTag(false);
                   setTagDraft('');
+                  setTagError(null);
                 }
               }}
             />
+            <button type="submit">{messages.createLabel}</button>
+            {tagError !== null ? <p className="error">{tagError}</p> : null}
           </form>
         ) : null}
         <ul className="nav-list">

@@ -126,27 +126,94 @@ describe('capture API', () => {
     expect(weekly.body.project_id).toBe(owner.inboxId);
   });
 
-  it('RF-107: an empty title creates nothing and a missing list stays in the inbox', async () => {
+  it('RF-107: an empty title creates nothing; a new list and tag are created with the task', async () => {
     const api = authed();
     const before = await prisma.task.count({ where: { ownerId: owner.id } });
     const listsBefore = await prisma.project.count({ where: { ownerId: owner.id } });
+    const tagsBefore = await prisma.tag.count({ where: { ownerId: owner.id } });
     const empty = await api.post('/api/v1/tasks').send({ raw_text: 'mañana 18:00' }).expect(400);
     expect(empty.body.error.code).toBe('empty_title');
     expect(await prisma.task.count({ where: { ownerId: owner.id } })).toBe(before);
+    expect(await prisma.project.count({ where: { ownerId: owner.id } })).toBe(listsBefore);
+    expect(await prisma.tag.count({ where: { ownerId: owner.id } })).toBe(tagsBefore);
 
     const missing = await api
       .post('/api/v1/tasks')
       .send({ raw_text: 'llamar ^noexiste #fantasma' })
       .expect(201);
-    expect(missing.body.project_id).toBe(owner.inboxId);
     expect(missing.body.title).toBe('llamar');
-    expect(missing.body.tag_ids).toEqual([]);
+    expect(missing.body.project_id).not.toBe(owner.inboxId);
+    const project = await prisma.project.findFirst({
+      where: { ownerId: owner.id, name: 'noexiste', deletedAt: null },
+    });
+    expect(project).not.toBeNull();
+    if (project === null) {
+      return;
+    }
+    expect(project.id).toBe(missing.body.project_id);
+    const tag = await prisma.tag.findFirst({
+      where: { ownerId: owner.id, name: 'fantasma', deletedAt: null },
+    });
+    expect(tag).not.toBeNull();
+    expect(missing.body.tag_ids).toEqual([tag?.id]);
     expect(missing.body.warnings).toEqual([
-      { code: 'list_not_found', name: 'noexiste' },
-      { code: 'tag_not_found', name: 'fantasma' },
+      { code: 'list_created', name: 'noexiste' },
+      { code: 'tag_created', name: 'fantasma' },
     ]);
-    expect(await prisma.project.count({ where: { ownerId: owner.id } })).toBe(listsBefore);
-    expect(await prisma.tag.count({ where: { ownerId: owner.id, name: 'fantasma' } })).toBe(0);
+    const createdList = await prisma.outboxEvent.findFirst({
+      where: {
+        ownerId: owner.id,
+        type: 'project.created@v1',
+        data: { path: ['project', 'id'], equals: project.id },
+      },
+    });
+    expect(createdList).not.toBeNull();
+
+    const again = await api.post('/api/v1/tasks').send({ raw_text: 'otra ^noexiste' }).expect(201);
+    expect(again.body.project_id).toBe(project.id);
+    expect(again.body.warnings ?? []).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: 'list_created' })]),
+    );
+    expect(
+      await prisma.project.count({
+        where: { ownerId: owner.id, name: 'noexiste', deletedAt: null },
+      }),
+    ).toBe(1);
+
+    const cased = await api
+      .post('/api/v1/tasks')
+      .send({ raw_text: 'tercera ^NOEXISTE' })
+      .expect(201);
+    expect(cased.body.project_id).toBe(project.id);
+    expect(cased.body.warnings ?? []).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: 'list_created' })]),
+    );
+
+    const reused = await api
+      .post('/api/v1/tasks')
+      .send({ raw_text: 'cuarta #fantasma' })
+      .expect(201);
+    expect(reused.body.tag_ids).toEqual([tag?.id]);
+    expect(reused.body.warnings ?? []).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: 'tag_created' })]),
+    );
+    expect(await prisma.tag.count({ where: { ownerId: owner.id, name: 'fantasma' } })).toBe(1);
+
+    const pinned = await api
+      .post('/api/v1/tasks')
+      .send({ raw_text: 'quinta ^otra', project_id: owner.inboxId })
+      .expect(201);
+    expect(pinned.body.project_id).toBe(owner.inboxId);
+    expect(
+      await prisma.project.count({ where: { ownerId: owner.id, name: 'otra', deletedAt: null } }),
+    ).toBe(0);
+
+    const explicitTags = await api
+      .post('/api/v1/tasks')
+      .send({ raw_text: 'sexta #nuevaetiqueta', tag_ids: [], project_id: owner.inboxId })
+      .expect(201);
+    expect(explicitTags.body.tag_ids).toEqual([]);
+    expect(await prisma.tag.count({ where: { ownerId: owner.id, name: 'nuevaetiqueta' } })).toBe(0);
   });
 
   it('RF-102: the same idempotency key replays one parsed task', async () => {

@@ -1,5 +1,5 @@
-import { GripVertical, MoreHorizontal } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { GripVertical, MoreHorizontal } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { ApiError } from '@reflexionia/sdk';
 import { useSearchParams } from 'react-router';
@@ -7,7 +7,9 @@ import { api } from '../../api';
 import { PriorityCheck } from '../../components/PriorityCheck';
 import { Button, TagChip } from '../../components/ui';
 import { captureLanguage, fill, type Messages } from '../../i18n';
+import { noticesFrom, useCaptureNotice } from '../capture/notice';
 import { quickAddRequest, type ViewDay } from '../capture/quick-add';
+import { refreshTaskSurfaces } from './refresh';
 import { newMutation, runOrQueue } from '../offline/client';
 import { isOverdue, isSameDay, type RowModel } from './model';
 
@@ -38,7 +40,9 @@ export function TaskList({
   readonly showDetails?: boolean | undefined;
   readonly hideCompleted?: boolean | undefined;
 }) {
+  const queryClient = useQueryClient();
   const [params, setParams] = useSearchParams();
+  const setNotice = useCaptureNotice((state) => state.setNotice);
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
   const [limit, setLimit] = useState('');
   const [draft, setDraft] = useState('');
@@ -154,8 +158,15 @@ export function TaskList({
                 api.createTask(request.body, key),
               )
                 .then((outcome) => {
+                  if (outcome.result !== null) {
+                    const warnings = noticesFrom(outcome.result.warnings);
+                    if (warnings.length > 0) {
+                      setNotice({ title: outcome.result.title, warnings });
+                    }
+                  }
                   if (!outcome.queued) {
                     setPending((current) => current.filter((item) => item.id !== tempId));
+                    void refreshTaskSurfaces(queryClient);
                   }
                   onCreated?.();
                 })
@@ -330,7 +341,7 @@ function TaskRow({
         }}
       />
       <button type="button" className="task-title" onClick={onOpen}>
-        {row.title}
+        {row.title.trim().length === 0 ? messages.untitled : row.title}
       </button>
       <span className="task-meta">
         {row.tags.map((tag) => (

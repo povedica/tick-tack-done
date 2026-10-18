@@ -8,7 +8,7 @@ import { ViewMenu } from '../../components/ViewMenu';
 import { api } from '../../api';
 import { captureLanguage, fill, useMessages, type Messages } from '../../i18n';
 import { warningText } from '../capture/components/CaptureSheet';
-import { useCaptureNotice } from '../capture/notice';
+import { noticesFrom, useCaptureNotice } from '../capture/notice';
 import { quickAddRequest } from '../capture/quick-add';
 import { refreshTaskSurfaces } from '../tasks/refresh';
 import { useShellActions } from '../../shell/shell-actions';
@@ -37,6 +37,9 @@ export function TodayPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const notice = useCaptureNotice((state) => state.notice);
+  const setNotice = useCaptureNotice((state) => state.setNotice);
+  const [draft, setDraft] = useState('');
+  const addRef = useRef<HTMLInputElement>(null);
   const [params, setParams] = useSearchParams();
   const group = groupFromLocation(params.get('group'), readGroup());
   const tasks = useQuery({
@@ -72,8 +75,6 @@ export function TodayPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [details, setDetails] = useState(true);
   const [hideCompleted, setHideCompleted] = useState(true);
-  const [draft, setDraft] = useState('');
-  const addRef = useRef<HTMLInputElement>(null);
   const [groupOpen, setGroupOpen] = useState(false);
   const jobs = useRef(new Map<string, CompleteJob>());
   const dateLabel = new Intl.DateTimeFormat(locale, {
@@ -257,6 +258,12 @@ export function TodayPage() {
       api.createTask(request.body, key),
     )
       .then(async (outcome) => {
+        if (outcome.result !== null) {
+          const warnings = noticesFrom(outcome.result.warnings);
+          if (warnings.length > 0) {
+            setNotice({ title: outcome.result.title, warnings });
+          }
+        }
         if (!outcome.queued) {
           await refreshTaskSurfaces(queryClient);
         }
@@ -456,6 +463,7 @@ export function TodayPage() {
           completeLabel={messages.completeLabel}
           repeatLabel={messages.repeatLink}
           moreLabel={messages.openDetail}
+          untitled={messages.untitled}
           projectNames={projectNames}
           tagNames={tagNames}
           tagColors={tagColors}
@@ -479,6 +487,7 @@ export function TodayPage() {
           completeLabel={messages.completeLabel}
           repeatLabel={messages.repeatLink}
           moreLabel={messages.openDetail}
+          untitled={messages.untitled}
           projectNames={projectNames}
           tagNames={tagNames}
           tagColors={tagColors}
@@ -565,6 +574,7 @@ function TaskGroup({
   completeLabel,
   repeatLabel,
   moreLabel,
+  untitled,
   projectNames,
   tagNames,
   tagColors,
@@ -580,6 +590,7 @@ function TaskGroup({
   readonly completeLabel: string;
   readonly repeatLabel: string;
   readonly moreLabel: string;
+  readonly untitled: string;
   readonly projectNames: ReadonlyMap<string, string>;
   readonly tagNames: ReadonlyMap<string, string>;
   readonly tagColors: ReadonlyMap<string, string | null>;
@@ -619,7 +630,7 @@ function TaskGroup({
                     onOpen(task.id);
                   }}
                 >
-                  {task.title}
+                  {task.title.trim().length === 0 ? untitled : task.title}
                 </button>
                 <span className="task-meta">
                   {task.tagIds.map((id) => (

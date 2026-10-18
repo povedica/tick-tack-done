@@ -7869,12 +7869,12 @@
           "title": {
             "type": "string",
             "maxLength": 500,
-            "description": "Required unless raw_text yields a title. An explicit title overrides the parse."
+            "description": "Required unless raw_text yields a title. Stored as sent, including edge spaces. Empty is valid. An explicit title overrides the parse."
           },
           "raw_text": {
             "type": "string",
             "maxLength": 2000,
-            "description": "Quick add text. The server parses it (RF-102). Explicit fields in this body override the parse."
+            "description": "Quick add text. The server parses it (RF-102). A missing ^list or #tag is created. Explicit fields in this body override the parse and do not create the parsed list or tags."
           },
           "content": {
             "type": "string"
@@ -7959,7 +7959,9 @@
             "type": "string",
             "enum": [
               "list_not_found",
+              "list_created",
               "tag_not_found",
+              "tag_created",
               "reminder_without_date"
             ]
           },

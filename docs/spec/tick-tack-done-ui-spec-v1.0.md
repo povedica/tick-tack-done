@@ -537,7 +537,7 @@ Mismo componente `TaskDetail` en panel derecho (escritorio) y hoja (móvil). Ref
 2. **Título**: textarea autoexpandible, serif `--fs-lg`; edición inline.
 3. **Propiedades rápidas** (fila de chips editables): fecha, prioridad, etiquetas (con `＋`), lista, recordatorios. Cada chip abre su popover.
 4. **Checklist** (RF-205a): items con checkbox, reordenables, "＋ Añadir ítem"; cada ítem admite fecha propia; progreso x/y arriba. Las líneas `- [ ]` del contenido pueden convertirse a items (acción "Convertir checklist") y viceversa (RF-202).
-5. **Subtareas** (RF-205b): sección propia con `TaskRow` compactas, crear inline; heredan la lista del padre; al completar el padre con hijas activas, diálogo (RF-206).
+5. **Subtareas** (RF-205b): sección propia con `TaskRow` compactas, crear inline; pueden vivir en otra lista que el padre y se respetan ambos ids; al completar el padre con hijas activas, diálogo (RF-206).
 6. **Contenido Markdown** (RF-202): editor con previsualización (pestañas Escribir/Vista previa o split en ancho), toolbar mínima (negrita, lista, checklist, enlace, código) y comandos `/` (como TickTick **[verificado: "type / for commands"]**): fecha, prioridad, etiqueta, tabla, código, cita, adjunto. Links clicables.
 7. **Adjuntos** (RF-203): dropzone (arrastrar archivos al panel), miniaturas inline de imágenes, lista de archivos con tamaño y descarga; límite 25 MB con error claro.
 8. **Recordatorios**: lista de recordatorios de la tarea con tipo (relativo/absoluto), canal y `×`; "＋ Añadir recordatorio" (RF-801); toggle "constante" (RF-803); snooze desde la notificación (RF-804, §14).

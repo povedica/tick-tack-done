@@ -220,8 +220,12 @@ export function warningText(messages: Messages, warning: CaptureWarningNotice): 
   switch (warning.code) {
     case 'list_not_found':
       return fill(messages.listNotFound, name);
+    case 'list_created':
+      return fill(messages.listCreated, name);
     case 'tag_not_found':
       return fill(messages.tagNotFound, name);
+    case 'tag_created':
+      return fill(messages.tagCreated, name);
     case 'reminder_without_date':
       return messages.reminderWithoutDate;
   }
