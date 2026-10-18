@@ -1,6 +1,6 @@
-# Handoff — look TickTick en main
+# Handoff — V1 y V2 cerradas en la PR #12
 
-Punto seguro para retomar. La fase 1 del MVP, las pantallas de la spec de UI y el look medido de TickTick están en `main`. La fase 1 entró con la PR #11. Las pantallas, con la PR #10. El look, con la PR #13. No se ha desplegado en Hetzner.
+Punto seguro para retomar. La fase 1 sigue en `main` (PR #11, tag `phase-1`) y no se reabre. El look medido de TickTick está en `main` (PR #13). V1 y V2 de la sección 19 se cierran en la PR #12 (`feat/v1-v2`). No se ha desplegado en Hetzner. La siguiente PR termina lo que la spec deja pendiente; el prompt está en `docs/prompts/terminar-spec.md`.
 
 `apps/api/tsconfig.json` sigue en NodeNext. No revertirlo a CommonJS. La CI compila `packages/domain` antes del lint y de los tests. No quites ese paso.
 
@@ -8,9 +8,9 @@ Punto seguro para retomar. La fase 1 del MVP, las pantallas de la spec de UI y e
 
 - Puntos 1 a 9 de la fase 1, más sesión, OAuth2 PKCE, RF-702 y el bus, en la PR #11 (tag `phase-1`).
 - Pantallas de la spec de UI en la PR #10. Lo que la API no publica sigue como estado vacío. No se inventaron endpoints para rellenarlas.
-- Look de TickTick en la PR #13. La spec de UI pasa a v1.1 en el mismo archivo (`docs/spec/tick-tack-done-ui-spec-v1.0.md`): UI-D2 es la paleta medida, UI-D3 es sans del sistema en toda la UI y UI-D5 es el oscuro `#242424`. No vuelvas a la crema ni a la serif de los títulos.
-- La PR #9 (`feat/ui-today-polish`) se cerró sin merge. Su worktree ya no existe. No la reabras: pedía conservar la paleta crema y este corte la sustituye.
-- Siguiente trabajo real: desplegar cuando existan `BACKUP_REMOTE` y acceso al servidor, o abrir V1 en una rama nueva desde `main`. No reabrir la fase 1 ni la sección 21. No publicar la spec de producto como v1.2. El worktree `~/CodeProjects/todo-ui-look-ticktick` se borra al mergear esta PR.
+- Look de TickTick en la PR #13, ya en `main`. La spec de UI pasa a v1.1 en el mismo archivo (`docs/spec/tick-tack-done-ui-spec-v1.0.md`): UI-D2 es la paleta medida, UI-D3 es sans del sistema en toda la UI y UI-D5 es el oscuro `#242424`. No vuelvas a la crema ni a la serif de los títulos.
+- La PR #9 se cerró sin merge y la rama ya no existe. No se resucita.
+- Siguiente trabajo: la PR que termina la spec (`docs/prompts/terminar-spec.md`). No reabrir la fase 1, la PR #12 ni la sección 21. No publicar la spec de producto como v1.2. RF-1701 sigue aplazado. Apps nativas y widgets siguen fuera.
 
 En local la PWA sigue con `AUTH_MODE=dev` y `X-Dev-User-Email` (`demo@reflexionia.test`). Producción deja `AUTH_MODE` vacío: el compose lo fuerza. La primera cuenta se crea en `/register` mientras no haya usuarios.
 
@@ -37,7 +37,7 @@ bash scripts/with-env.sh pnpm test:integration
 - Export JSON con `schema_version`, `DELETE /api/v1/me`, listado de backups y verificación del archivo. `POST /api/v1/backups/restore` comprueba el gzip y no pisa la base. Aplicar el archivo es `RESTORE_CONFIRM=restore ./scripts/restore.sh <stamp>`.
 - Sesión Argon2id, cookie httpOnly y CSRF. OAuth2 Authorization Code + PKCE. El token de acceso es un PAT. Un PAT no hereda el pase de desarrollo.
 - Pantalla de recurrencia en español (`/repeat`). La RRULE solo se ve en modo avanzado. Solo el scheduler materializa la siguiente ocurrencia.
-- El outbox se publica en BullMQ y marca `published_at`. No hay dispatcher de webhooks ni motor de automatizaciones.
+- El outbox se publica en BullMQ y marca `published_at`. El dispatcher de webhooks y el motor de automatizaciones consumen ese mismo bus.
 - Correo entrante: 25 MB y límite de ritmo. El cron de backup (04:00) y de prueba de restauración (domingo 05:00) está en `deploy/reflexionia.cron`.
 
 ## Qué quedó de la spec de UI
@@ -46,12 +46,10 @@ Hecho contra la API que ya existía: barra con contadores, Hoy con lista y etiqu
 
 El look de la PR #13 no cambia rutas, stores, agrupación, deshacer ni densidad. Cambia tokens, tipografía y marcado visual: rail de 50px, sidebar de 240px, filas de 40px, quick-add bajo la cabecera, checkbox de prioridad y menú de vista. El `rem` sigue valiendo 16px porque el tamaño de 14px vive en `body`, no en `:root`. `--ink-3` está en 0.65 para contraste AA sobre `#f2f5fe`.
 
-Siguen vacías porque la API no publica el recurso: plan de hoy, revisión semanal, jardín digital, reportes, calendarios externos, integraciones, automatizaciones, webhooks, plugins y compartir. Foco es V2 y el temporizador vive solo en el navegador.
+Jardín, reportes, revisión, foco, calendario, datos, cuenta, integraciones, automatizaciones, webhooks, plugins y compartir leen la API de esta rama. El foco ya no es un temporizador solo del navegador.
 
-Estas pantallas de Ajustes siguen diciendo que el recurso no está publicado, aunque la API de la fase 1 ya lo tiene. No las cablees otra vez: enlázalas.
-
-- Datos: `GET /api/v1/export/json`, `GET /api/v1/backups` y `POST /api/v1/backups/restore`.
-- Cuenta: `/login` y `/register` ya son la sesión real. Borrar la cuenta es `DELETE /api/v1/me` con el correo como confirmación. El 2FA sigue sin existir. Recuperar contraseña tampoco.
+- Datos: `GET /api/v1/export/json`, `GET /api/v1/backups` y `POST /api/v1/backups/restore`. Restaurar verifica el gzip y no pisa la base.
+- Cuenta: `/login` y `/register` son la sesión real. Borrar la cuenta es `DELETE /api/v1/me` con el correo como confirmación. El 2FA TOTP es opcional y no se fuerza al usuario de desarrollo. Recuperar contraseña sigue sin existir.
 
 La cola offline no cubre el completado por lote, deshacer, mover, borrar ni el resto de acciones que no son crear, editar o completar una tarea.
 
@@ -68,11 +66,10 @@ La cola offline no cubre el completado por lote, deshacer, mover, borrar ni el r
 ## Qué no está hecho
 
 - Despliegue en `todo.reflexionia.com`. Falta `BACKUP_REMOTE` y el acceso al servidor. No se inventaron secretos.
-- V1 de producto: Telegram, Google Drive, Google Calendar, notas de servidor, dashboard con datos, reporte semanal, revisiones asistidas, webhooks, automatizaciones, sync en tiempo real, `/open/v1`, import CSV, export iCal/CSV, 2FA y geovallado. Kanban y timeline se pintan en cliente; no son el corte de V1.
-- V2: colaboración, Pomodoro, plugins, widgets, logros, WIP de servidor y Calendar two-way.
 - RF-1701 (importador TickTick) sigue aplazado.
-- Miniaturas de adjuntos. El recordatorio `location` se guarda y no se dispara.
-- La PR #9 se cerró sin merge. No queda un pulido crema pendiente.
+- Apps nativas y widgets de iOS/Android. La sección 21 no se reabre.
+- Recuperar contraseña.
+- La PR #9 se cerró sin merge. No se resucita.
 
 ## Tags
 
@@ -135,10 +132,22 @@ Quedó hecho en la PR #11, ya sincronizada con la spec de UI de la PR #10: cola 
 
 Quedó fuera por ser V1 o V2 lo que la API no publica: Telegram, Google Drive, Google Calendar, dashboard con datos, reporte, revisiones, webhooks, automatizaciones, sync en tiempo real, `/open/v1`, import CSV, export iCal/CSV, 2FA, geovallado, colaboración, Pomodoro, plugins, widgets, logros y Calendar two-way. Kanban y timeline existen como vista de cliente. RF-1701 sigue aplazado.
 
-No se desplegó en Hetzner: falta `BACKUP_REMOTE` y el acceso al servidor. No se inventaron secretos. La spec de producto v1.1 solo ganó los nombres de evento en 11.1 y las rutas públicas que faltaban en 10.3. La PR #9 se cerró después, sin merge.
+No se desplegó en Hetzner: falta `BACKUP_REMOTE` y el acceso al servidor. No se inventaron secretos. La spec de producto v1.1 solo ganó los nombres de evento en 11.1 y las rutas públicas que faltaban en 10.3. La PR #9 se cerró sin merge.
 
 ## Look TickTick (18 oct 2026)
 
 Quedó hecho en la PR #13, mergeada a `main`. La UI deja la crema y la serif. Los valores medidos están en `docs/spec/cursor-prompt-ui-look-ticktick-v1.2.md` y en `apps/web/src/styles/tokens.css`. La spec de UI, en el mismo archivo de siempre, sube a v1.1.
 
-No se tocó la API, Prisma, el dominio ni el bus. No se desplegó. No se publicó la spec de producto como v1.2. El acento por defecto es `#4772fa`; los acentos de Ajustes (violeta, teal, ámbar, rosa, pizarra) siguen pudiendo sustituirlo. El siguiente corte sale de `main` y no reabre este look.
+No se tocó la API, Prisma, el dominio ni el bus. No se desplegó. No se publicó la spec de producto como v1.2. El acento por defecto es `#4772fa`.
+
+## Cierre de V1 y V2 (18 oct 2026)
+
+Quedó hecho en la PR #12: kanban con columnas y WIP, timeline día/semana/mes, matriz con las reglas por defecto y reglas editables, calendario con suscripción iCal y feed propio, notas y sticky notes, dashboard con KPIs de backend, reporte semanal, revisión asistida que propone y no decide, webhooks firmados, automatizaciones sobre el mismo bus, SSE, `/open/v1`, import CSV, export CSV e iCal, 2FA opcional, miniatura de imagen, recordatorio de lugar cuando el navegador da la posición, colaboración, Pomodoro en servidor, plugins fuera del proceso de la API, logros desactivables y la escritura de Google Calendar. El look de la PR #13 se conserva. Tags `phase-v1` (`b9419a4`) y `phase-v2` (`586043e`); el cierre de integraciones va encima, en `f8c6c84`.
+
+Google ya no pide pegar `GOOGLE_REFRESH_TOKEN`. `GET /api/v1/integrations/google/start` abre el consentimiento y el callback guarda `google_refresh_token` y el correo en el usuario. El calendario usa ese token; la variable de entorno solo es respaldo. En local la cuenta `yoyyosemite@gmail.com` quedó conectada. El cliente OAuth y el secreto viven en `.env`, no en git.
+
+Telegram, en local: `bash scripts/with-env.sh node scripts/telegram-poll.mjs` lee `@reflexionia_todo_bot` y llama a la API pública con `X-Dev-User-Email`. Comandos: `/capturar` y `/add` (mismo quick add), `/hoy`, `/manana`, `/semana`, `/lista`, `/lista #etiqueta`, `/lista !alta`. La respuesta es texto con ☐ y un enlace `APP_WEB_URL`; no es clicable. `/complete` se quitó. El webhook `POST /api/v1/integrations/telegram/webhook` sigue parseando y respondiendo `called_telegram: false`: no crea tareas ni contesta al chat. Sin el sondeo, el teléfono no llega a `127.0.0.1`.
+
+`GOOGLE_DRIVE_FOLDER_ID` está en el `.env` local (carpeta «tick-tack-done backups»). `scripts/backup.sh` no sube a esa carpeta: sigue siendo rclone y `BACKUP_REMOTE` está vacío.
+
+Quedó fuera de esta PR, y es el trabajo de la siguiente: voz, foto y recordatorios de Telegram, completar desde el chat, el webhook de producción, lectura y escritura reales de Calendar con el token guardado, adjuntos de Drive, el backup diario en Drive, el despliegue y `APP_WEB_URL` público. RF-1701, apps nativas, widgets y la PR #9 siguen fuera. La spec no se publica como v1.2. La sección 21 no se toca. No se inventan secretos.

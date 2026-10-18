@@ -1,5 +1,6 @@
 import { GripVertical, MoreHorizontal } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { ApiError } from '@reflexionia/sdk';
 import { useSearchParams } from 'react-router';
 import { api } from '../../api';
 import { PriorityCheck } from '../../components/PriorityCheck';
@@ -26,7 +27,9 @@ export function TaskList({
   readonly onComplete: (row: RowModel) => void;
   readonly onCreated?: (() => void) | undefined;
   readonly createProjectId?: string | undefined;
-  readonly columns?: readonly { readonly id: string; readonly name: string }[] | undefined;
+  readonly columns?:
+    | readonly { readonly id: string; readonly name: string; readonly wip_limit?: number | null }[]
+    | undefined;
   readonly view: 'list' | 'kanban' | 'timeline';
   readonly showDetails?: boolean | undefined;
   readonly hideCompleted?: boolean | undefined;
@@ -186,6 +189,18 @@ export function TaskList({
             onChange={(event) => {
               setLimit(event.target.value);
             }}
+            onBlur={() => {
+              const column = columns?.[0];
+              const value = Number(limit);
+              if (
+                createProjectId !== undefined &&
+                column !== undefined &&
+                Number.isInteger(value) &&
+                value > 0
+              ) {
+                void api.updateColumn(createProjectId, column.id, { wip_limit: value });
+              }
+            }}
           />
         </label>
       ) : null}
@@ -295,7 +310,11 @@ function Kanban({
 }: {
   readonly messages: Messages;
   readonly rows: readonly RowModel[];
-  readonly columns: readonly { readonly id: string; readonly name: string }[];
+  readonly columns: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly wip_limit?: number | null;
+  }[];
   readonly onOpen: (id: string) => void;
   readonly onComplete: (row: RowModel) => void;
 }) {
@@ -324,11 +343,19 @@ function Kanban({
               if (id.length === 0 || column.id === 'none') {
                 return;
               }
-              void api.patchTask(id, { column_id: column.id });
+              void api.patchTask(id, { column_id: column.id }).catch((error: unknown) => {
+                if (error instanceof ApiError && error.code === 'wip_exceeded') {
+                  window.alert(messages.wipExceeded);
+                }
+              });
             }}
           >
             <h3>
-              {column.name} <span className="ui-badge">{items.length}</span>
+              {column.name}{' '}
+              <span className="ui-badge">
+                {items.length}
+                {column.wip_limit != null ? `/${String(column.wip_limit)}` : ''}
+              </span>
             </h3>
             {items.length === 0 ? <p>{messages.kanbanEmpty}</p> : null}
             {items.map((row) => (
@@ -372,10 +399,24 @@ function Timeline({
   readonly rows: readonly RowModel[];
   readonly onOpen: (id: string) => void;
 }) {
+  const [zoom, setZoom] = useState<'day' | 'week' | 'month'>('week');
   const planned = rows.filter((row) => row.dueDate !== null);
   const loose = rows.filter((row) => row.dueDate === null);
   return (
-    <div className="timeline">
+    <div className="timeline" data-zoom={zoom}>
+      <div className="page-toolbar">
+        <span>{messages.timelineZoom}</span>
+        {(['day', 'week', 'month'] as const).map((item) => (
+          <Button
+            key={item}
+            onClick={() => {
+              setZoom(item);
+            }}
+          >
+            {item}
+          </Button>
+        ))}
+      </div>
       <aside>
         <h3>{messages.unscheduled}</h3>
         <ul>
@@ -389,6 +430,16 @@ function Timeline({
               >
                 {row.title}
               </button>
+              <Button
+                onClick={() => {
+                  void api.patchTask(row.id, {
+                    due_date: new Date().toISOString(),
+                    start_date: new Date().toISOString(),
+                  });
+                }}
+              >
+                {messages.placeToday}
+              </Button>
             </li>
           ))}
         </ul>

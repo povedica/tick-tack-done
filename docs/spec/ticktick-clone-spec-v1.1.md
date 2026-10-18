@@ -655,6 +655,8 @@ Sync: `GET /api/v1/sync?since=<event_id>&limit=`.
 
 MCP (RF-2001): `POST /api/v1/mcp`.
 
+Rutas que esta entrega añade al resumen: `GET/PUT /api/v1/matrix/rules`; `POST /api/v1/calendar/subscriptions/{id}/refresh`; `POST /api/v1/calendar/subscriptions/{id}/push`; `GET /feeds/{token}.ics` (fuera de `/api/v1`); `GET/POST/PATCH/DELETE /api/v1/sticky-notes`; `POST /api/v1/tasks/{id}/convert`; `GET /api/v1/tasks/{id}/attachments/{attachmentId}/thumbnail`; `GET /api/v1/events/stream`; `GET/POST/DELETE /api/v1/webhooks` y `POST /api/v1/webhooks/{id}/ping`; `GET/POST /api/v1/automations` y `POST /api/v1/automations/{id}/run`; `GET/POST/DELETE /api/v1/projects/{id}/members`, `POST /api/v1/projects/{id}/presence`, `GET /api/v1/projects/{id}/activity`, `GET/POST /api/v1/tasks/{id}/comments`, `POST /api/v1/tasks/{id}/assignee`; `GET/POST/DELETE /api/v1/plugins`; `POST /api/v1/me/totp`, `POST /api/v1/me/totp/confirm`, `POST /api/v1/me/totp/disable`; `POST /api/v1/me/location`; `GET/PATCH /api/v1/me/achievements`; `GET /api/v1/integrations/telegram`, `POST /api/v1/integrations/telegram/link`, `POST /api/v1/integrations/telegram/webhook`; `GET /api/v1/integrations/drive`, `POST /api/v1/integrations/drive/attachments`. `/open/v1` queda descrito en 10.4 y no lleva el prefijo `/api/v1`.
+
 Email-to-task (RF-105): `GET /api/v1/me/inbound-email` dice si hay dirección (sin el token), `POST /api/v1/me/inbound-email` la crea o regenera y muestra el token una sola vez, `DELETE /api/v1/me/inbound-email` la revoca al momento. `POST /api/v1/inbound/email` recibe `multipart/form-data` (`recipient`, `subject`, `text`, `message_id`, `file`). El token del destinatario autentica la entrega. El asunto pasa por el mismo parser que `raw_text`, el cuerpo se guarda como contenido y los adjuntos como Attachment (25 MB). Es entrada no confiable: se valida, se limita el tamaño y no se ejecuta nada. El token no se guarda en claro.
 
 ### 10.4 Compatibilidad TickTick (opcional pero recomendada)
@@ -681,8 +683,14 @@ filter.created filter.updated filter.deleted smart_list.updated token.created to
 focus.session_started focus.session_finished focus.session_aborted
 reminder.fired
 note.created note.updated
-calendar.event_imported
+calendar.event_imported calendar.subscribed calendar.feed_rotated
 automation.executed
+matrix.updated dashboard.updated report.generated
+sticky_note.created sticky_note.updated sticky_note.deleted
+comment.created project.shared task.assigned presence.updated
+plugin.installed plugin.removed
+totp.enabled totp.disabled achievement.updated
+import.completed drive.attached telegram.linked webhook.created
 ```
 
 Payload ejemplo:
@@ -846,10 +854,10 @@ modelo de datos completo de tareas/listas/etiquetas/filtros (multiusuario desde 
 
 Puntos 1 a 3 cerrados en `feat/core-tasks` (base, tareas núcleo y tiempo). El scheduler es quien materializa la siguiente ocurrencia y dispara los recordatorios.
 
-**V1:**
+**V1:** implementado en la PR #12 (18 oct 2026). El consentimiento de Google guarda el refresh token por usuario. Telegram responde en local con `scripts/telegram-poll.mjs`; el webhook de producción aún no crea tareas. Drive tiene carpeta, pero el backup no la usa. `BACKUP_REMOTE` sigue vacío. El importador TickTick (RF-1701) sigue aplazado. Lo que falta de Telegram, Calendar, Drive, backup y despliegue va en la PR siguiente.
 Kanban, Timeline, Eisenhower · calendario completo + suscripciones iCal + Google Calendar (lectura) + feeds propios · **bot de Telegram (RF-2003)** · **Google Drive: adjuntos y backups (RF-2005)** · notas · **dashboard de KPIs / jardín digital (RF-2101–2105)** · **reporte semanal honesto (RF-2201–2204)** · **revisión diaria/semanal asistida (RF-2301–2303)** · webhooks + automatizaciones · sync en tiempo real · capa de compatibilidad `/open/v1` · import CSV, export iCal/CSV · 2FA.
 
-**V2:**
+**V2:** implementado en el mismo corte. La escritura de Google Calendar usa el refresh token guardado en el usuario. Apps nativas y widgets de iOS/Android no entran: la sección 21 no se reabre. El importador TickTick sigue fuera.
 colaboración (compartir listas con permisos — p. ej. la lista compartida con su pareja —, asignar, comentarios) · **Pomodoro/Focus con estadísticas (RF-1201–1206)** · plugins · widgets nativos / apps móviles · logros · WIP limits y otras mejoras propias · Google Calendar two-way · (opcional, solo si surge la necesidad) importador TickTick.
 
 ---

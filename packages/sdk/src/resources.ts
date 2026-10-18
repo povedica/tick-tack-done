@@ -150,6 +150,8 @@ interface Http {
   options: ApiClientOptions;
 }
 
+export type JsonObject = Readonly<Record<string, unknown>>;
+
 export interface ResourceClient {
   getMe(): Promise<Me>;
   updateMe(body: UpdateMeBody): Promise<Me>;
@@ -177,7 +179,7 @@ export interface ResourceClient {
   updateColumn(
     projectId: string,
     columnId: string,
-    body: { name?: string; collapsed?: boolean },
+    body: { name?: string; collapsed?: boolean; wip_limit?: number | null },
   ): Promise<Column>;
   deleteColumn(projectId: string, columnId: string): Promise<void>;
   projectData(id: string): Promise<ProjectData>;
@@ -205,6 +207,40 @@ export interface ResourceClient {
   deleteChecklistItem(id: string, itemId: string): Promise<void>;
   listAttachments(id: string): Promise<AttachmentPage>;
   uploadAttachment(id: string, file: Blob, fileName: string): Promise<Attachment>;
+  dashboardData(): Promise<JsonObject>;
+  weeklyReports(): Promise<JsonObject>;
+  buildWeeklyReport(): Promise<JsonObject>;
+  reviewDaily(): Promise<JsonObject>;
+  reviewWeekly(): Promise<JsonObject>;
+  calendarEvents(from: string, to: string): Promise<JsonObject>;
+  matrixRules(): Promise<JsonObject>;
+  saveMatrixRule(body: JsonObject): Promise<JsonObject>;
+  startFocus(): Promise<JsonObject>;
+  listFocusSessions(): Promise<JsonObject>;
+  finishFocus(id: string): Promise<JsonObject>;
+  listNotes(): Promise<JsonObject>;
+  listStickies(): Promise<JsonObject>;
+  createSticky(text: string): Promise<JsonObject>;
+  integrationStatus(kind: 'telegram' | 'drive' | 'google'): Promise<JsonObject>;
+  googleConnect(): Promise<JsonObject>;
+  listWebhooks(): Promise<JsonObject>;
+  listAutomations(): Promise<JsonObject>;
+  listPlugins(): Promise<JsonObject>;
+  deleteAccount(confirmation: string): Promise<void>;
+  exportJson(): Promise<JsonObject>;
+  listBackups(): Promise<JsonObject>;
+  achievements(): Promise<JsonObject>;
+  setAchievements(enabled: boolean): Promise<JsonObject>;
+  beginTotp(): Promise<JsonObject>;
+  confirmTotp(code: string): Promise<JsonObject>;
+  reportLocation(lat: number, lon: number): Promise<JsonObject>;
+  createCalendarFeed(projectId: string): Promise<JsonObject>;
+  listMembers(projectId: string): Promise<JsonObject>;
+  addMember(
+    projectId: string,
+    email: string,
+    permission: 'read' | 'comment' | 'write',
+  ): Promise<JsonObject>;
 }
 
 export function resourceMethods(http: Http): ResourceClient {
@@ -335,6 +371,62 @@ export function resourceMethods(http: Http): ResourceClient {
     listAttachments: (id) =>
       ask('GET', `/api/v1/tasks/${id}/attachments`, undefined, undefined, isAttachmentPage),
     uploadAttachment: (id, file, fileName) => upload(http, id, file, fileName),
+    dashboardData: () => ask('GET', '/api/v1/dashboard/data', undefined, undefined, isJsonObject),
+    weeklyReports: () => ask('GET', '/api/v1/reports/weekly', undefined, undefined, isJsonObject),
+    buildWeeklyReport: () =>
+      ask('POST', '/api/v1/reports/weekly', undefined, undefined, isJsonObject),
+    reviewDaily: () => ask('GET', '/api/v1/review/daily', undefined, undefined, isJsonObject),
+    reviewWeekly: () => ask('GET', '/api/v1/review/weekly', undefined, undefined, isJsonObject),
+    calendarEvents: (from, to) =>
+      ask(
+        'GET',
+        `/api/v1/calendar/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+        undefined,
+        undefined,
+        isJsonObject,
+      ),
+    matrixRules: () => ask('GET', '/api/v1/matrix/rules', undefined, undefined, isJsonObject),
+    saveMatrixRule: (body) => ask('PUT', '/api/v1/matrix/rules', body, undefined, isJsonObject),
+    startFocus: () => ask('POST', '/api/v1/focus/sessions', {}, undefined, isJsonObject),
+    listFocusSessions: () =>
+      ask('GET', '/api/v1/focus/sessions', undefined, undefined, isJsonObject),
+    finishFocus: (id) =>
+      ask('POST', `/api/v1/focus/sessions/${id}/finish`, undefined, undefined, isJsonObject),
+    listNotes: () => ask('GET', '/api/v1/notes', undefined, undefined, isJsonObject),
+    listStickies: () => ask('GET', '/api/v1/sticky-notes', undefined, undefined, isJsonObject),
+    createSticky: (text) => ask('POST', '/api/v1/sticky-notes', { text }, undefined, isJsonObject),
+    integrationStatus: (kind) =>
+      ask('GET', `/api/v1/integrations/${kind}`, undefined, undefined, isJsonObject),
+    googleConnect: () =>
+      ask('GET', '/api/v1/integrations/google/start', undefined, undefined, isJsonObject),
+    listWebhooks: () => ask('GET', '/api/v1/webhooks', undefined, undefined, isJsonObject),
+    listAutomations: () => ask('GET', '/api/v1/automations', undefined, undefined, isJsonObject),
+    listPlugins: () => ask('GET', '/api/v1/plugins', undefined, undefined, isJsonObject),
+    async deleteAccount(confirmation) {
+      await ask('DELETE', '/api/v1/me', { confirmation }, undefined, isEmpty);
+    },
+    exportJson: () => ask('GET', '/api/v1/export/json', undefined, undefined, isJsonObject),
+    listBackups: () => ask('GET', '/api/v1/backups', undefined, undefined, isJsonObject),
+    achievements: () => ask('GET', '/api/v1/me/achievements', undefined, undefined, isJsonObject),
+    setAchievements: (enabled) =>
+      ask('PATCH', '/api/v1/me/achievements', { enabled }, undefined, isJsonObject),
+    beginTotp: () => ask('POST', '/api/v1/me/totp', undefined, undefined, isJsonObject),
+    confirmTotp: (code) =>
+      ask('POST', '/api/v1/me/totp/confirm', { code }, undefined, isJsonObject),
+    reportLocation: (lat, lon) =>
+      ask('POST', '/api/v1/me/location', { lat, lon }, undefined, isJsonObject),
+    createCalendarFeed: (projectId) =>
+      ask('POST', '/api/v1/calendar/feeds', { project_id: projectId }, undefined, isJsonObject),
+    listMembers: (projectId) =>
+      ask('GET', `/api/v1/projects/${projectId}/members`, undefined, undefined, isJsonObject),
+    addMember: (projectId, email, permission) =>
+      ask(
+        'POST',
+        `/api/v1/projects/${projectId}/members`,
+        { email, permission },
+        undefined,
+        isJsonObject,
+      ),
   };
 }
 
@@ -493,6 +585,10 @@ function isCount(value: unknown): value is CountResult {
     typeof value.updated === 'number' ||
     typeof value.archived === 'number'
   );
+}
+
+function isJsonObject(value: unknown): value is JsonObject {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function isEmpty(value: unknown): value is void {

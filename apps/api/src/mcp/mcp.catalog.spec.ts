@@ -7,7 +7,14 @@ describe('MCP tool catalog', () => {
     expect(names).toEqual(
       expect.arrayContaining(['list_tasks', 'create_task', 'complete_task', 'search']),
     );
-    for (const hidden of ['list_habits', 'create_habit', 'list_projects', 'create_filter']) {
+    for (const hidden of [
+      'list_habits',
+      'create_habit',
+      'list_projects',
+      'create_filter',
+      'list_notes',
+      'start_focus',
+    ]) {
       expect(names).not.toContain(hidden);
     }
   });

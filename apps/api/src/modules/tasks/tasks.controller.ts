@@ -505,6 +505,25 @@ export class TasksController {
     respondJson(req, res, 200, { items: await this.tasks.listAttachments(user, id) }, false);
   }
 
+  @Get(':id/attachments/:attachmentId/thumbnail')
+  @Scopes('tasks:read')
+  @ApiOperation({ summary: 'Download the image thumbnail (RF-203)' })
+  async thumbnail(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    const file = await this.tasks.openThumbnail(user, id, attachmentId);
+    res.setHeader('Content-Type', file.mimeType);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="thumb-${file.fileName.replace(/"/g, '')}"`,
+    );
+    createReadStream(file.absolute).pipe(res);
+  }
+
   @Get(':id/attachments/:attachmentId')
   @Scopes('tasks:read')
   @ApiOperation({ summary: 'Download an attachment' })

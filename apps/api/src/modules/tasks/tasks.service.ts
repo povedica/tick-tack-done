@@ -2,11 +2,13 @@ import { randomUUID } from 'node:crypto';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { Prisma, type Task } from '@prisma/client';
 import {
+  acceptsColumnDrop,
   canonicalizeRepeatRule,
   decideParentCompletion,
   deriveDurationMinutes,
   excludeOccurrence,
   extractMarkdownChecklist,
+  isRasterImage,
   isIanaTimeZone,
   normalizeTaskTitle,
   occurrencesBetween,
@@ -315,7 +317,8 @@ export class TasksService {
         content = extracted.content;
       }
       if (dto.column_id !== undefined && dto.column_id !== null) {
-        await this.requireColumn(tx, user.id, current.projectId, dto.column_id);
+        const column = await this.requireColumn(tx, user.id, current.projectId, dto.column_id);
+        await this.assertWip(tx, user.id, column, id);
       }
       if (dto.tag_ids !== undefined) {
         await this.requireTags(tx, user.id, dto.tag_ids);
@@ -690,7 +693,8 @@ export class TasksService {
         }
       }
       if (dto.column_id !== undefined && dto.column_id !== null) {
-        await this.requireColumn(tx, user.id, project.id, dto.column_id);
+        const column = await this.requireColumn(tx, user.id, project.id, dto.column_id);
+        await this.assertWip(tx, user.id, column, current.id);
       }
       const sortOrder = await this.planTaskSort(
         tx,
@@ -1032,7 +1036,13 @@ export class TasksService {
     user: AuthUser,
     taskId: string,
     file: { originalname: string; mimetype: string; size: number; buffer: Buffer } | undefined,
-  ): Promise<{ id: string; file_name: string; mime_type: string; byte_size: number }> {
+  ): Promise<{
+    id: string;
+    file_name: string;
+    mime_type: string;
+    byte_size: number;
+    has_thumbnail: boolean;
+  }> {
     if (file === undefined || file.buffer.length === 0) {
       throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'file is required');
     }
@@ -1045,6 +1055,10 @@ export class TasksService {
     }
     await this.require(this.prisma, user.id, taskId, false);
     const storageKey = await writeAttachment(user.id, file.buffer);
+    const thumbnailKey =
+      isRasterImage(file.mimetype) && file.buffer.length <= 1_500_000
+        ? await writeAttachment(user.id, file.buffer)
+        : null;
     try {
       const row = await this.prisma.attachment.create({
         data: {
@@ -1054,6 +1068,7 @@ export class TasksService {
           mimeType: file.mimetype,
           byteSize: file.size,
           storageKey,
+          thumbnailKey,
           uploadedById: user.id,
         },
       });
@@ -1062,9 +1077,13 @@ export class TasksService {
         file_name: row.fileName,
         mime_type: row.mimeType,
         byte_size: row.byteSize,
+        has_thumbnail: thumbnailKey !== null,
       };
     } catch (error) {
       await removeAttachmentFile(storageKey);
+      if (thumbnailKey !== null) {
+        await removeAttachmentFile(thumbnailKey);
+      }
       throw error;
     }
   }
@@ -1072,7 +1091,15 @@ export class TasksService {
   async listAttachments(
     user: AuthUser,
     taskId: string,
-  ): Promise<{ id: string; file_name: string; mime_type: string; byte_size: number }[]> {
+  ): Promise<
+    {
+      id: string;
+      file_name: string;
+      mime_type: string;
+      byte_size: number;
+      has_thumbnail: boolean;
+    }[]
+  > {
     await this.require(this.prisma, user.id, taskId, false);
     const rows = await this.prisma.attachment.findMany({
       where: { ownerId: user.id, taskId, deletedAt: null },
@@ -1083,7 +1110,30 @@ export class TasksService {
       file_name: row.fileName,
       mime_type: row.mimeType,
       byte_size: row.byteSize,
+      has_thumbnail: row.thumbnailKey !== null,
     }));
+  }
+
+  async openThumbnail(
+    user: AuthUser,
+    taskId: string,
+    attachmentId: string,
+  ): Promise<{ absolute: string; fileName: string; mimeType: string }> {
+    const row = await this.prisma.attachment.findFirst({
+      where: { id: attachmentId, ownerId: user.id, taskId, deletedAt: null },
+    });
+    if (row?.thumbnailKey == null) {
+      throw new DomainException(
+        HttpStatus.NOT_FOUND,
+        'thumbnail_not_found',
+        'This attachment has no thumbnail',
+      );
+    }
+    return {
+      absolute: resolveAttachment(row.thumbnailKey),
+      fileName: row.fileName,
+      mimeType: row.mimeType,
+    };
   }
 
   async openAttachment(
@@ -1303,7 +1353,8 @@ export class TasksService {
       parentId = parent.id;
     }
     if (dto.column_id !== undefined && dto.column_id !== null) {
-      await this.requireColumn(tx, user.id, project.id, dto.column_id);
+      const column = await this.requireColumn(tx, user.id, project.id, dto.column_id);
+      await this.assertWip(tx, user.id, column, null);
     }
     const tagIds =
       captured === null || dto.tag_ids !== undefined
@@ -1836,13 +1887,35 @@ export class TasksService {
     ownerId: string,
     projectId: string,
     id: string,
-  ): Promise<void> {
+  ): Promise<{ id: string; wipLimit: number | null }> {
     const row = await tx.column.findFirst({
       where: { id, ownerId, projectId, deletedAt: null },
-      select: { id: true },
+      select: { id: true, wipLimit: true },
     });
     if (row === null) {
       throw new DomainException(HttpStatus.NOT_FOUND, 'column_not_found', 'Section was not found');
+    }
+    return row;
+  }
+
+  /** RF-1002. A card already in the column is excluded from the count. */
+  private async assertWip(
+    tx: Tx,
+    ownerId: string,
+    column: { id: string; wipLimit: number | null },
+    movingTaskId: string | null,
+  ): Promise<void> {
+    const count = await tx.task.count({
+      where: {
+        ownerId,
+        columnId: column.id,
+        deletedAt: null,
+        status: 'active',
+        ...(movingTaskId === null ? {} : { id: { not: movingTaskId } }),
+      },
+    });
+    if (!acceptsColumnDrop(count, column.wipLimit, false)) {
+      throw new DomainException(HttpStatus.CONFLICT, 'wip_exceeded', 'Column WIP limit reached');
     }
   }
 

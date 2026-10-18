@@ -20,6 +20,9 @@ if [ -n "${BACKUP_REMOTE:-}" ]; then
   rclone copy "$DEST" "$BACKUP_REMOTE/$STAMP"
 else
   echo "[backup] AVISO: BACKUP_REMOTE no configurado; el backup NO sale de la máquina (incumple RF-1704)"
+  if [ -n "${GOOGLE_DRIVE_FOLDER_ID:-}" ]; then
+    echo "[backup] GOOGLE_DRIVE_FOLDER_ID está definido, pero este script no llama a Google. BACKUP_REMOTE sigue siendo un remoto rclone."
+  fi
 fi
 
 # Retención

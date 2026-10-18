@@ -2,11 +2,13 @@ import { ApiProperty } from '@nestjs/swagger';
 import {
   IsBoolean,
   IsIn,
+  IsInt,
   IsOptional,
   IsString,
   IsUUID,
   Matches,
   MaxLength,
+  Min,
   MinLength,
 } from 'class-validator';
 
@@ -138,6 +140,12 @@ export class CreateColumnDto {
   @IsBoolean()
   collapsed?: boolean;
 
+  @ApiProperty({ required: false, nullable: true, minimum: 1 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  wip_limit?: number | null;
+
   @ApiProperty({ required: false, nullable: true })
   @IsOptional()
   @IsUUID()
@@ -161,6 +169,12 @@ export class UpdateColumnDto {
   @IsOptional()
   @IsBoolean()
   collapsed?: boolean;
+
+  @ApiProperty({ required: false, nullable: true, minimum: 1 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  wip_limit?: number | null;
 
   @ApiProperty({ required: false, nullable: true })
   @IsOptional()
@@ -240,6 +254,9 @@ export class ColumnResponseDto {
 
   @ApiProperty()
   collapsed!: boolean;
+
+  @ApiProperty({ nullable: true, type: Number })
+  wip_limit!: number | null;
 
   @ApiProperty()
   sort_order!: string;

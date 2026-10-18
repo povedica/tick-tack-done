@@ -28,6 +28,11 @@ export default defineConfig(({ mode }) => {
           display: 'standalone',
           background_color: '#ffffff',
           theme_color: '#4772fa',
+          shortcuts: [
+            { name: 'Hoy', short_name: 'Hoy', url: '/today' },
+            { name: 'Captura', short_name: 'Captura', url: '/quick-add' },
+            { name: 'Foco', short_name: 'Foco', url: '/focus' },
+          ],
           share_target: {
             // RF-106: "compartir a la app" desde el móvil vuelca al quick add
             action: '/quick-add',

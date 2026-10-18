@@ -7,12 +7,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import type { LoginDto, RegisterDto, SessionListItemDto, SessionResponseDto } from './auth.dto';
 import { hashPassword, verifyPassword } from './passwords';
 import { newSessionSecret, SESSION_MAX_AGE_MS } from './session-cookie';
+import { TotpService } from './totp.controller';
 
 @Injectable()
 export class AuthService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
+    @Inject(TotpService) private readonly totp: TotpService,
   ) {}
 
   async register(dto: RegisterDto, meta: RequestMeta): Promise<IssuedLogin> {
@@ -69,6 +71,7 @@ export class AuthService {
         'Invalid credentials',
       );
     }
+    await this.totp.assertLogin(user.id, dto);
     return this.openSession(user.id, meta);
   }
 
