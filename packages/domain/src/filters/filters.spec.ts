@@ -285,6 +285,7 @@ describe('filter grammar', () => {
     expect(matchesClause(clause, subject({ deleted: true }), clock)).toBe(false);
     expect(matchesClause(clause, subject({ status: 'archived' }), clock)).toBe(false);
     expect(matchesClause(clause, subject(), clock)).toBe(true);
+    expect(matchesClause(clause, subject({ status: 'completed' }), clock)).toBe(false);
   });
 });
 

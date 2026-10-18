@@ -58,10 +58,21 @@ export function compileRules(rules: FilterRules, clock: FilterClock): FilterClau
 
 /** Saved filters never surface trash or archived tasks unless a status condition says otherwise. */
 export function savedFilterClause(rules: FilterRules, clock: FilterClock): FilterClause {
-  return {
-    op: 'and',
-    items: [compileRules(rules, clock), { op: 'deleted', deleted: false }, notArchived()],
-  };
+  const items: FilterClause[] = [
+    compileRules(rules, clock),
+    { op: 'deleted', deleted: false },
+    notArchived(),
+  ];
+  if (!rulesMentionStatus(rules)) {
+    items.push({ op: 'status', status: 'active' });
+  }
+  return { op: 'and', items };
+}
+
+function rulesMentionStatus(rules: FilterRules): boolean {
+  return rules.groups.some((group) =>
+    group.conditions.some((condition) => condition.field === 'status'),
+  );
 }
 
 export function matchesFilter(

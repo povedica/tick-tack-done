@@ -14,7 +14,7 @@ import {
 import { isPaletteShortcut } from './features/views/shortcuts';
 import { draftFromShare } from './features/capture/share-target';
 import { isCaptureShortcut } from './features/capture/draft';
-import { useCaptureNotice } from './features/capture/notice';
+import { useCaptureNotice, useCaptureOpen } from './features/capture/notice';
 import { HabitsPage } from './features/habits/components/HabitsPage';
 import {
   AccountPage,
@@ -28,6 +28,7 @@ import {
   NoteRoute,
   NotificationSettings,
   SearchPage,
+  SettingsHome,
   SettingsLayout,
   ShortcutSettings,
   TaskRoute,
@@ -135,7 +136,7 @@ function Shell() {
             <Route path="/tokens" element={<TokensPage />} />
             <Route path="/oauth/consent" element={<ConsentPage />} />
             <Route path="/settings" element={<SettingsLayout />}>
-              <Route index element={<Navigate to="/settings/appearance" replace />} />
+              <Route index element={<SettingsHome />} />
               <Route
                 path="appearance"
                 element={
@@ -194,8 +195,6 @@ function QuickAddRoute() {
 }
 
 function CaptureHotkey() {
-  const navigate = useNavigate();
-
   useEffect(() => {
     function onKey(event: KeyboardEvent): void {
       const target = event.target;
@@ -214,17 +213,17 @@ function CaptureHotkey() {
         return;
       }
       event.preventDefault();
-      if (window.location.pathname === '/quick-add') {
+      if (window.location.pathname === '/quick-add' || useCaptureOpen.getState().open) {
         document.getElementById('capture-input')?.focus();
         return;
       }
-      void navigate('/quick-add');
+      useCaptureOpen.getState().show();
     }
     window.addEventListener('keydown', onKey);
     return () => {
       window.removeEventListener('keydown', onKey);
     };
-  }, [navigate]);
+  }, []);
 
   return null;
 }

@@ -1,14 +1,15 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowUpDown, GripVertical, Lightbulb, Menu, MoreHorizontal } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { PriorityCheck } from '../../components/PriorityCheck';
 import { UndoToastStack } from '../../components/UndoToast';
 import { ViewMenu } from '../../components/ViewMenu';
 import { api } from '../../api';
 import { captureLanguage, fill, useMessages, type Messages } from '../../i18n';
 import { warningText } from '../capture/components/CaptureSheet';
-import { noticesFrom, useCaptureNotice } from '../capture/notice';
+import { noticesFrom, useCaptureNotice, useCaptureOpen } from '../capture/notice';
+import { useActionToast } from '../../components/action-toast';
 import { quickAddRequest } from '../capture/quick-add';
 import { collectTags } from '../tasks/collect';
 import { refreshTaskSurfaces } from '../tasks/refresh';
@@ -35,10 +36,23 @@ export function TodayPage() {
   const messages = useMessages();
   const shell = useShellActions();
   const locale = navigator.language;
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const notice = useCaptureNotice((state) => state.notice);
   const setNotice = useCaptureNotice((state) => state.setNotice);
+  const clearNotice = useCaptureNotice((state) => state.clear);
+  const showToast = useActionToast((state) => state.show);
+  useEffect(() => {
+    if (notice === null) {
+      return;
+    }
+    const extra = notice.warnings.map((warning) => warningText(messages, warning)).join(' ');
+    showToast(
+      extra.length > 0
+        ? `${messages.created}: ${notice.title}. ${extra}`
+        : `${messages.created}: ${notice.title}`,
+    );
+    clearNotice();
+  }, [clearNotice, messages, notice, showToast]);
   const [draft, setDraft] = useState('');
   const addRef = useRef<HTMLInputElement>(null);
   const [params, setParams] = useSearchParams();
@@ -420,16 +434,6 @@ export function TodayPage() {
         <summary>{messages.planTitle}</summary>
         <p>{messages.planEmpty}</p>
       </details>
-      {notice !== null ? (
-        <div className="notice" role="status">
-          <p>
-            {messages.created}: {notice.title}
-          </p>
-          {notice.warnings.map((warning) => (
-            <p key={`${warning.code}-${warning.name ?? ''}`}>{warningText(messages, warning)}</p>
-          ))}
-        </div>
-      ) : null}
       {actionError !== null ? (
         <p className="error" role="alert">
           {actionError}
@@ -544,7 +548,7 @@ export function TodayPage() {
               type="button"
               className="text-button"
               onClick={() => {
-                void navigate('/quick-add');
+                useCaptureOpen.getState().show();
               }}
             >
               {messages.fab}

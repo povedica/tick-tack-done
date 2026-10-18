@@ -18,6 +18,10 @@ todo.reflexionia.com {
 		reverse_proxy todo-api:3000
 	}
 
+	handle /manifest.json {
+		redir /manifest.webmanifest 308
+	}
+
 	handle {
 		reverse_proxy todo-web:8080
 	}

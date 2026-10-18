@@ -109,6 +109,7 @@ export function DashboardPage() {
   return (
     <section className="screen-page is-wide">
       <h1>{messages.dashboardTitle}</h1>
+      <p>{messages.gardenImportHint}</p>
       <div className="widget-grid">
         {Object.entries(widgets).map(([key, value]) => (
           <article key={key} className="widget">
@@ -198,56 +199,100 @@ export function FocusPage() {
   const sessions = useQuery({
     queryKey: ['focus-sessions'],
     queryFn: () => api.listFocusSessions(),
-    refetchInterval: 15_000,
+  });
+  const settings = useQuery({
+    queryKey: ['focus-settings'],
+    queryFn: () => api.getFocusSettings(),
   });
   const open = itemsOf(sessions.data).find((row) => row.ended_at === null);
-  const remaining = typeof open?.remaining_seconds === 'number' ? open.remaining_seconds : 0;
+  const started = typeof open?.started_at === 'string' ? open.started_at : null;
+  const planned =
+    typeof open?.planned_minutes === 'number'
+      ? open.planned_minutes
+      : typeof settings.data?.pomodoroMinutes === 'number'
+        ? settings.data.pomodoroMinutes
+        : 25;
+  const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    if (open === undefined || remaining > 0) {
+    if (started === null) {
+      return;
+    }
+    const id = window.setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => {
+      window.clearInterval(id);
+    };
+  }, [started]);
+  const remaining =
+    started === null
+      ? planned * 60
+      : Math.max(0, planned * 60 - Math.floor((now - Date.parse(started)) / 1000));
+  useEffect(() => {
+    if (started === null || remaining > 0) {
       return;
     }
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
       new Notification(messages.focusDone);
     }
     document.title = messages.focusDone;
-  }, [messages.focusDone, open, remaining]);
-  useEffect(() => {
-    if (open === undefined) {
-      return;
-    }
-    const previous = document.title;
-    document.title = clock(remaining);
-    return () => {
-      document.title = previous;
-    };
-  }, [open, remaining]);
+  }, [messages.focusDone, remaining, started]);
   return (
     <section className="screen-page">
       <h1>{messages.focusTitle}</h1>
       <p>{messages.focusHint}</p>
-      <p className="detail-title">{open === undefined ? '—' : clock(remaining)}</p>
+      <p className="detail-title">{clock(remaining)}</p>
+      {started === null ? (
+        <div className="page-toolbar">
+          {[15, 25, 50].map((minutes) => (
+            <Button
+              key={minutes}
+              onClick={() => {
+                void api.updateFocusSettings({ pomodoro_minutes: minutes }).then(() => {
+                  void queryClient.invalidateQueries({ queryKey: ['focus-settings'] });
+                });
+              }}
+            >
+              {String(minutes)}
+            </Button>
+          ))}
+        </div>
+      ) : null}
       <div className="page-toolbar">
-        <Button
-          variant="primary"
-          onClick={() => {
-            void api.startFocus().then(() => {
-              void queryClient.invalidateQueries({ queryKey: ['focus-sessions'] });
-            });
-          }}
-        >
-          {messages.focusStart}
-        </Button>
         {typeof open?.id === 'string' ? (
+          <>
+            <Button
+              variant="primary"
+              onClick={() => {
+                void api.finishFocus(open.id as string).then(() => {
+                  void queryClient.invalidateQueries({ queryKey: ['focus-sessions'] });
+                });
+              }}
+            >
+              {messages.focusFinish}
+            </Button>
+            <Button
+              onClick={() => {
+                void api.abortFocus(open.id as string).then(() => {
+                  void queryClient.invalidateQueries({ queryKey: ['focus-sessions'] });
+                });
+              }}
+            >
+              {messages.cancel}
+            </Button>
+          </>
+        ) : (
           <Button
+            variant="primary"
             onClick={() => {
-              void api.finishFocus(open.id as string).then(() => {
+              void api.startFocus().then(() => {
                 void queryClient.invalidateQueries({ queryKey: ['focus-sessions'] });
               });
             }}
           >
-            {messages.focusPause}
+            {messages.focusStart}
           </Button>
-        ) : null}
+        )}
       </div>
     </section>
   );
@@ -280,7 +325,18 @@ export function DataSettings() {
       {exported ? <p role="status">{messages.saved}</p> : null}
       <ul>
         {itemsOf(backups.data).map((row) => (
-          <li key={text(row.stamp)}>{text(row.stamp)}</li>
+          <li key={text(row.stamp)}>
+            {text(row.stamp)}
+            <Button
+              onClick={() => {
+                void api.restoreBackup(text(row.stamp)).then((body) => {
+                  setExported(text(body.detail).length > 0);
+                });
+              }}
+            >
+              {messages.backupRestore}
+            </Button>
+          </li>
         ))}
       </ul>
     </section>
@@ -347,11 +403,42 @@ export function IntegrationSettings() {
 
 export function AutomationSettings() {
   const messages = useMessages();
+  const queryClient = useQueryClient();
   const rows = useQuery({ queryKey: ['automations'], queryFn: () => api.listAutomations() });
   const items = itemsOf(rows.data);
+  const [name, setName] = useState('');
   return (
     <section>
       <h1>{messages.settingsAutomations}</h1>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (name.trim().length === 0) {
+            return;
+          }
+          void api
+            .createAutomation({
+              name: name.trim(),
+              trigger: { event: 'task.completed@v1' },
+              actions: [{ type: 'notify' }],
+              enabled: true,
+            })
+            .then(() => {
+              setName('');
+              void queryClient.invalidateQueries({ queryKey: ['automations'] });
+            });
+        }}
+      >
+        <input
+          value={name}
+          aria-label={messages.automationCreate}
+          placeholder={messages.automationCreate}
+          onChange={(event) => {
+            setName(event.target.value);
+          }}
+        />
+        <Button type="submit">{messages.automationCreate}</Button>
+      </form>
       {items.length === 0 ? (
         <EmptyState title={messages.settingsAutomations} body={messages.automationsEmpty} />
       ) : null}
@@ -366,11 +453,35 @@ export function AutomationSettings() {
 
 export function WebhookSettings() {
   const messages = useMessages();
+  const queryClient = useQueryClient();
   const rows = useQuery({ queryKey: ['webhooks'], queryFn: () => api.listWebhooks() });
   const items = itemsOf(rows.data);
+  const [url, setUrl] = useState('');
   return (
     <section>
       <h1>{messages.settingsWebhooks}</h1>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!url.startsWith('https://')) {
+            return;
+          }
+          void api.createWebhook({ url, events: ['task.completed@v1'] }).then(() => {
+            setUrl('');
+            void queryClient.invalidateQueries({ queryKey: ['webhooks'] });
+          });
+        }}
+      >
+        <input
+          value={url}
+          aria-label={messages.webhookCreate}
+          placeholder="https://"
+          onChange={(event) => {
+            setUrl(event.target.value);
+          }}
+        />
+        <Button type="submit">{messages.webhookCreate}</Button>
+      </form>
       {items.length === 0 ? (
         <EmptyState title={messages.settingsWebhooks} body={messages.webhooksEmpty} />
       ) : null}

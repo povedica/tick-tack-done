@@ -26,6 +26,7 @@ export function TaskList({
   showDetails = true,
   hideCompleted = true,
   manualOrder = false,
+  trash = false,
 }: {
   readonly messages: Messages;
   readonly rows: readonly RowModel[];
@@ -41,6 +42,7 @@ export function TaskList({
   readonly showDetails?: boolean | undefined;
   readonly hideCompleted?: boolean | undefined;
   readonly manualOrder?: boolean | undefined;
+  readonly trash?: boolean | undefined;
 }) {
   const queryClient = useQueryClient();
   const [params, setParams] = useSearchParams();
@@ -102,6 +104,7 @@ export function TaskList({
               locale={locale}
               now={now}
               manualOrder={manualOrder}
+              trash={trash}
               selected={selected.has(row.id)}
               open={detailId === row.id}
               onOpen={() => {
@@ -294,6 +297,7 @@ function TaskRow({
   locale,
   now,
   manualOrder,
+  trash = false,
   selected,
   open,
   onOpen,
@@ -305,6 +309,7 @@ function TaskRow({
   readonly locale: string;
   readonly now: Date;
   readonly manualOrder: boolean;
+  readonly trash?: boolean | undefined;
   readonly selected: boolean;
   readonly open: boolean;
   readonly onOpen: () => void;
@@ -362,23 +367,47 @@ function TaskRow({
         }
       }}
     >
-      <GripVertical className="task-grip" size={12} aria-hidden="true" />
-      <PriorityCheck
-        priority={row.priority}
-        label={fill(done ? messages.reopenLabel : messages.completeLabel, row.title)}
-        checked={done}
-        onChange={(event) => {
-          if (
-            event.nativeEvent instanceof MouseEvent &&
-            (event.nativeEvent.metaKey || event.nativeEvent.ctrlKey || event.nativeEvent.shiftKey)
-          ) {
-            onSelect(true);
-            return;
-          }
-          onComplete();
-        }}
-      />
+      {trash ? null : <GripVertical className="task-grip" size={12} aria-hidden="true" />}
+      {trash ? (
+        <span className="task-trash-actions">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              void api.restoreTask(row.id).then(() => refreshTaskSurfaces(queryClient));
+            }}
+          >
+            {messages.restore}
+          </button>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              void api.purgeTask(row.id).then(() => refreshTaskSurfaces(queryClient));
+            }}
+          >
+            {messages.purge}
+          </button>
+        </span>
+      ) : (
+        <PriorityCheck
+          priority={row.priority}
+          label={fill(done ? messages.reopenLabel : messages.completeLabel, row.title)}
+          checked={done}
+          onChange={(event) => {
+            if (
+              event.nativeEvent instanceof MouseEvent &&
+              (event.nativeEvent.metaKey || event.nativeEvent.ctrlKey || event.nativeEvent.shiftKey)
+            ) {
+              onSelect(true);
+              return;
+            }
+            onComplete();
+          }}
+        />
+      )}
       <button type="button" className="task-title" onClick={onOpen}>
+        {row.kind === 'note' ? <span className="ui-badge">{messages.noteBadge}</span> : null}{' '}
         {row.title.trim().length === 0 ? messages.untitled : row.title}
       </button>
       <span className="task-meta">
@@ -590,6 +619,10 @@ function Timeline({
             <li key={row.id}>
               <button
                 type="button"
+                draggable
+                onDragStart={(event) => {
+                  event.dataTransfer.setData('text/plain', row.id);
+                }}
                 onClick={() => {
                   onOpen(row.id);
                 }}
@@ -612,23 +645,62 @@ function Timeline({
           ))}
         </ul>
       </aside>
-      <div>
-        {planned.map((row) => (
-          <button
-            key={row.id}
-            type="button"
-            className="timeline-bar"
-            onClick={() => {
-              onOpen(row.id);
-            }}
-          >
-            {row.title}
-          </button>
-        ))}
-        {planned.length === 0 && loose.length === 0 ? <p>{messages.unscheduled}</p> : null}
+      <div className="timeline-axis">
+        {timelineDays(zoom).map((day) => {
+          const key = day.toDateString();
+          const items = planned.filter((row) => new Date(row.dueDate ?? '').toDateString() === key);
+          return (
+            <section
+              key={key}
+              onDragOver={(event) => {
+                event.preventDefault();
+              }}
+              onDrop={(event) => {
+                const id = event.dataTransfer.getData('text/plain');
+                if (id.length === 0) {
+                  return;
+                }
+                const due = new Date(day);
+                due.setHours(9, 0, 0, 0);
+                void api
+                  .patchTask(id, { due_date: due.toISOString(), start_date: due.toISOString() })
+                  .then(() => refreshTaskSurfaces(queryClient));
+              }}
+            >
+              <h3>
+                {new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric' }).format(
+                  day,
+                )}
+              </h3>
+              {items.map((row) => (
+                <button
+                  key={row.id}
+                  type="button"
+                  className="timeline-bar"
+                  onClick={() => {
+                    onOpen(row.id);
+                  }}
+                >
+                  {row.title}
+                </button>
+              ))}
+            </section>
+          );
+        })}
       </div>
     </div>
   );
+}
+
+function timelineDays(zoom: 'day' | 'week' | 'month'): Date[] {
+  const count = zoom === 'day' ? 1 : zoom === 'week' ? 7 : 30;
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  return Array.from({ length: count }, (_, index) => {
+    const day = new Date(start);
+    day.setDate(start.getDate() + index);
+    return day;
+  });
 }
 
 function formatRowDate(
@@ -644,11 +716,15 @@ function formatRowDate(
   const day = new Date(date);
   day.setHours(0, 0, 0, 0);
   const diff = Math.round((day.getTime() - start.getTime()) / 86_400_000);
+  const time =
+    date.getHours() === 0 && date.getMinutes() === 0
+      ? ''
+      : ` ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
   if (!done && diff === 0) {
-    return messages.dateToday;
+    return `${messages.dateToday}${time}`;
   }
   if (!done && diff === 1) {
-    return messages.dateTomorrow;
+    return `${messages.dateTomorrow}${time}`;
   }
   const formatted = new Intl.DateTimeFormat(locale, {
     day: 'numeric',

@@ -125,6 +125,13 @@ export class OpenController {
         dueDate: write.dueDate == null ? null : new Date(write.dueDate),
         timeZone: write.timeZone ?? user.timeZone,
         repeatRule: write.repeatRule ?? null,
+        status: write.status ?? 'active',
+        completedAt:
+          write.completedAt != null
+            ? new Date(write.completedAt)
+            : write.status === 'completed'
+              ? new Date()
+              : null,
         createdById: user.id,
         source: 'api',
       },

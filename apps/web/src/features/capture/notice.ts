@@ -48,11 +48,33 @@ export interface CaptureNotice {
 interface NoticeStore {
   notice: CaptureNotice | null;
   setNotice: (notice: CaptureNotice) => void;
+  clear: () => void;
 }
 
 export const useCaptureNotice = create<NoticeStore>((set) => ({
   notice: null,
   setNotice: (notice) => {
     set({ notice });
+  },
+  clear: () => {
+    set({ notice: null });
+  },
+}));
+
+interface CaptureOpenState {
+  open: boolean;
+  text: string;
+  show: (text?: string) => void;
+  hide: () => void;
+}
+
+export const useCaptureOpen = create<CaptureOpenState>((set) => ({
+  open: false,
+  text: '',
+  show: (text = '') => {
+    set({ open: true, text });
+  },
+  hide: () => {
+    set({ open: false, text: '' });
   },
 }));

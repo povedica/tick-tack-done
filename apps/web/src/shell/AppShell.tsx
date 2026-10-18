@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Outlet, useNavigate, useSearchParams } from 'react-router';
+import { Outlet, useSearchParams } from 'react-router';
 import { LocationWatch } from '../features/product/ProductPages';
 import { TaskDetail } from '../features/tasks/TaskDetail';
+import { useQueryClient } from '@tanstack/react-query';
 import { useActionToast } from '../components/action-toast';
+import { CaptureSheet } from '../features/capture/components/CaptureSheet';
+import { useCaptureOpen } from '../features/capture/notice';
+import { refreshTaskSurfaces } from '../features/tasks/refresh';
 import { useMessages } from '../i18n';
 import { BottomBar } from './BottomBar';
 import { IconRail } from './IconRail';
@@ -13,7 +17,6 @@ import { isSidebarShortcut, isTypingTarget } from './shortcuts';
 
 export function AppShell() {
   const messages = useMessages();
-  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const taskId = params.get('task');
   const [collapsed, setCollapsed] = useState(() => readSidebarCollapsed(localStorage));
@@ -118,7 +121,7 @@ export function AppShell() {
           onToggleCollapsed={toggleNav}
           onCapture={() => {
             closeDrawer();
-            void navigate('/quick-add');
+            useCaptureOpen.getState().show();
           }}
         />
         <Sidebar
@@ -159,8 +162,35 @@ export function AppShell() {
           }}
         />
         <ActionToast />
+        <CaptureHost />
       </div>
     </ShellActionsProvider>
+  );
+}
+
+function CaptureHost() {
+  const open = useCaptureOpen((state) => state.open);
+  const text = useCaptureOpen((state) => state.text);
+  const hide = useCaptureOpen((state) => state.hide);
+  const queryClient = useQueryClient();
+  const showToast = useActionToast((state) => state.show);
+  if (!open) {
+    return null;
+  }
+  return (
+    <CaptureSheet
+      initialText={text}
+      onClose={hide}
+      onCreated={(created) => {
+        const warning = created.warnings
+          .map((item) => item.name)
+          .filter((name): name is string => name !== undefined)
+          .join(', ');
+        showToast(warning.length > 0 ? `${created.title} · ${warning}` : created.title);
+        hide();
+        void refreshTaskSurfaces(queryClient);
+      }}
+    />
   );
 }
 

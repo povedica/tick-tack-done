@@ -193,6 +193,7 @@ export interface ResourceClient {
   listTrash(): Promise<{ items: Task[]; next_cursor: string | null }>;
   emptyTrash(): Promise<CountResult>;
   restoreTask(id: string): Promise<Task>;
+  purgeTask(id: string): Promise<void>;
   snoozeTask(
     id: string,
     preset: 'tomorrow' | 'next_week' | 'date',
@@ -220,17 +221,22 @@ export interface ResourceClient {
   listFocusSessions(): Promise<JsonObject>;
   finishFocus(id: string): Promise<JsonObject>;
   abortFocus(id: string): Promise<JsonObject>;
+  getFocusSettings(): Promise<JsonObject>;
+  updateFocusSettings(body: JsonObject): Promise<JsonObject>;
   listNotes(): Promise<JsonObject>;
   listStickies(): Promise<JsonObject>;
   createSticky(text: string): Promise<JsonObject>;
   integrationStatus(kind: 'telegram' | 'drive' | 'google'): Promise<JsonObject>;
   googleConnect(): Promise<JsonObject>;
   listWebhooks(): Promise<JsonObject>;
+  createWebhook(body: JsonObject): Promise<JsonObject>;
   listAutomations(): Promise<JsonObject>;
+  createAutomation(body: JsonObject): Promise<JsonObject>;
   listPlugins(): Promise<JsonObject>;
   deleteAccount(confirmation: string): Promise<void>;
   exportJson(): Promise<JsonObject>;
   listBackups(): Promise<JsonObject>;
+  restoreBackup(stamp: string): Promise<JsonObject>;
   achievements(): Promise<JsonObject>;
   setAchievements(enabled: boolean): Promise<JsonObject>;
   beginTotp(): Promise<JsonObject>;
@@ -340,6 +346,9 @@ export function resourceMethods(http: Http): ResourceClient {
     batchTasks: (body) => ask('POST', '/api/v1/tasks/batch', body, undefined, isCount),
     listTrash: () => ask('GET', '/api/v1/tasks/trash', undefined, undefined, isTaskPage),
     emptyTrash: () => ask('DELETE', '/api/v1/tasks/trash', undefined, undefined, isCount),
+    async purgeTask(id) {
+      await ask('DELETE', `/api/v1/tasks/trash/${id}`, undefined, undefined, isEmpty);
+    },
     restoreTask: (id) =>
       ask('POST', `/api/v1/tasks/trash/${id}/restore`, undefined, undefined, isTask),
     snoozeTask: (id, preset, date) =>
@@ -412,6 +421,10 @@ export function resourceMethods(http: Http): ResourceClient {
       ask('POST', `/api/v1/focus/sessions/${id}/finish`, undefined, undefined, isJsonObject),
     abortFocus: (id) =>
       ask('POST', `/api/v1/focus/sessions/${id}/abort`, undefined, undefined, isJsonObject),
+    getFocusSettings: () =>
+      ask('GET', '/api/v1/focus/settings', undefined, undefined, isJsonObject),
+    updateFocusSettings: (body) =>
+      ask('PATCH', '/api/v1/focus/settings', body, undefined, isJsonObject),
     listNotes: () => ask('GET', '/api/v1/notes', undefined, undefined, isJsonObject),
     listStickies: () => ask('GET', '/api/v1/sticky-notes', undefined, undefined, isJsonObject),
     createSticky: (text) => ask('POST', '/api/v1/sticky-notes', { text }, undefined, isJsonObject),
@@ -420,13 +433,23 @@ export function resourceMethods(http: Http): ResourceClient {
     googleConnect: () =>
       ask('GET', '/api/v1/integrations/google/start', undefined, undefined, isJsonObject),
     listWebhooks: () => ask('GET', '/api/v1/webhooks', undefined, undefined, isJsonObject),
+    createWebhook: (body) => ask('POST', '/api/v1/webhooks', body, undefined, isJsonObject),
     listAutomations: () => ask('GET', '/api/v1/automations', undefined, undefined, isJsonObject),
+    createAutomation: (body) => ask('POST', '/api/v1/automations', body, undefined, isJsonObject),
     listPlugins: () => ask('GET', '/api/v1/plugins', undefined, undefined, isJsonObject),
     async deleteAccount(confirmation) {
       await ask('DELETE', '/api/v1/me', { confirmation }, undefined, isEmpty);
     },
     exportJson: () => ask('GET', '/api/v1/export/json', undefined, undefined, isJsonObject),
     listBackups: () => ask('GET', '/api/v1/backups', undefined, undefined, isJsonObject),
+    restoreBackup: (stamp) =>
+      ask(
+        'POST',
+        '/api/v1/backups/restore',
+        { stamp, confirmation: 'restore' },
+        undefined,
+        isJsonObject,
+      ),
     achievements: () => ask('GET', '/api/v1/me/achievements', undefined, undefined, isJsonObject),
     setAchievements: (enabled) =>
       ask('PATCH', '/api/v1/me/achievements', { enabled }, undefined, isJsonObject),

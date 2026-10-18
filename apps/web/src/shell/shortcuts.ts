@@ -1,3 +1,23 @@
+export const SHORTCUT_ROWS = [
+  ['N', 'fab'],
+  ['?', 'shortcutsTitle'],
+  ['Ctrl/Cmd+K', 'paletteTitle'],
+  ['/', 'searchTitle'],
+  ['Esc', 'close'],
+  ['.', 'syncNow'],
+  ['[', 'collapseSidebar'],
+  ['G T', 'navToday'],
+  ['G I', 'navInbox'],
+  ['G C', 'navCalendar'],
+  ['G M', 'navMatrix'],
+  ['G S', 'navSettings'],
+  ['G A', 'smartAll'],
+  ['G B', 'smartTrash'],
+  ['G N', 'navSearch'],
+  ['G R', 'smartNext7'],
+  ['G W', 'navReview'],
+] as const;
+
 export function isSidebarShortcut(input: {
   readonly key: string;
   readonly metaKey: boolean;

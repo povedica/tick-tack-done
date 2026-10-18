@@ -153,7 +153,7 @@ function Board({
     placeholderData: keepPreviousData,
   });
   const rows = rowsFromView(page.data)
-    .filter((row) => (note ? row.kind === 'note' : row.kind === 'task'))
+    .filter((row) => (note || viewKey === 'smart:trash' ? true : row.kind === 'task'))
     .filter((row) => row.status !== 'archived')
     .map((row) =>
       inboxId !== undefined && row.projectId === inboxId
@@ -183,7 +183,11 @@ function Board({
           <h1>{title}</h1>
         </div>
         <div className="page-actions">
-          <span className="ui-badge">{page.data?.count ?? rows.length}</span>
+          <span className="ui-badge">
+            {page.isPending
+              ? '—'
+              : messages.taskCount.replace('{count}', String(page.data?.count ?? rows.length))}
+          </span>
           <ViewMenu
             messages={messages}
             view={view}
@@ -241,6 +245,7 @@ function Board({
         showDetails={details}
         hideCompleted={hideCompleted}
         manualOrder={sort === 'manual'}
+        trash={viewKey === 'smart:trash'}
         createProjectId={note ? undefined : createProjectId}
         createViewDay={createViewDay}
         onComplete={(row) => {

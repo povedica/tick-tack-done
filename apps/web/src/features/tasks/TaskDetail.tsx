@@ -391,12 +391,18 @@ export function TaskDetail({
               </li>
             ))}
           </ul>
-          <Button
-            onClick={() => {
+          <ReminderAdd
+            label={messages.addReminder}
+            options={[
+              ['TRIGGER:-PT30M', messages.reminder30],
+              ['TRIGGER:-PT1H', messages.reminderHour],
+              ['TRIGGER:-P1D', messages.reminderDay],
+            ]}
+            onAdd={(trigger) => {
               void api
                 .createReminder(
                   task.id,
-                  { trigger: 'TRIGGER:-PT30M', type: 'relative', channel: 'push' },
+                  { trigger, type: 'relative', channel: 'push' },
                   crypto.randomUUID(),
                 )
                 .then(() => queryClient.invalidateQueries({ queryKey: ['reminders', taskId] }))
@@ -404,9 +410,7 @@ export function TaskDetail({
                   setError(caught instanceof ApiError ? caught.message : messages.saveFailed);
                 });
             }}
-          >
-            {messages.addReminder}
-          </Button>
+          />
         </section>
         <section>
           <h3>{messages.recurrence}</h3>
@@ -627,6 +631,42 @@ function relativeTime(iso: string, locale: string): string {
     return format.format(-hours, 'hour');
   }
   return format.format(-Math.round(hours / 24), 'day');
+}
+
+function ReminderAdd({
+  label,
+  options,
+  onAdd,
+}: {
+  readonly label: string;
+  readonly options: readonly (readonly [string, string])[];
+  readonly onAdd: (trigger: string) => void;
+}) {
+  const [trigger, setTrigger] = useState(options[0]?.[0] ?? 'TRIGGER:-PT30M');
+  return (
+    <div className="page-toolbar">
+      <select
+        value={trigger}
+        aria-label={label}
+        onChange={(event) => {
+          setTrigger(event.target.value);
+        }}
+      >
+        {options.map(([value, text]) => (
+          <option key={value} value={value}>
+            {text}
+          </option>
+        ))}
+      </select>
+      <Button
+        onClick={() => {
+          onAdd(trigger);
+        }}
+      >
+        {label}
+      </Button>
+    </div>
+  );
 }
 
 function weeklyRule(due: string | null, timeZone: string): string {
