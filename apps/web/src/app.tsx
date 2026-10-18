@@ -17,6 +17,9 @@ import { isCaptureShortcut } from './features/capture/draft';
 import { useCaptureNotice } from './features/capture/notice';
 import { LaterPage } from './features/screens/LaterPage';
 import { AppearancePage } from './features/settings/AppearancePage';
+import { ConsentPage } from './features/auth/ConsentPage';
+import { LoginPage, RegisterPage } from './features/auth/AuthPages';
+import { RepeatPage } from './features/repeat/RepeatPage';
 import { TodayPage } from './features/today/TodayPage';
 import { AppShell } from './shell/AppShell';
 import { ThemeSync } from './theme/ThemeSync';
@@ -79,8 +82,10 @@ function Shell() {
             <Route path="appearance" element={<AppearancePage />} />
             <Route path="*" element={<LaterPage titleKey="settingsTitle" />} />
           </Route>
-          <Route path="/login" element={<LaterPage titleKey="loginTitle" />} />
-          <Route path="/register" element={<LaterPage titleKey="registerTitle" />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/oauth/consent" element={<ConsentPage />} />
+          <Route path="/repeat" element={<RepeatPage />} />
           <Route path="/forgot-password" element={<LaterPage titleKey="forgotTitle" />} />
           <Route path="*" element={<Navigate to="/today" replace />} />
         </Route>
