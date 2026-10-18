@@ -1,48 +1,61 @@
-# Handoff — shell y Hoy (PR #5)
+# Handoff — spec de UI (feat/ui-spec)
 
-Punto seguro para retomar cuando la PR #5 esté en `main`. El corte funcional de la UI está cerrado: shell, tema y Hoy con tareas reales. La UI todavía no se parece a TickTick. Ese pulido es el siguiente corte, no el punto 7 del roadmap.
+La web cubre el mapa de `docs/spec/tick-tack-done-ui-spec-v1.0.md` en una sola rama. Lo que la API ya publica se lee y se escribe por `@reflexionia/sdk`. Lo que la spec pide y la API no publica existe como pantalla con el estado vacío de la spec. No hay endpoints inventados.
 
-## Dónde estamos
+`apps/api/tsconfig.json` sigue en NodeNext. No revertirlo.
 
-En `main` están los puntos 1 a 6 de la fase 1. El punto 6 (smart lists, filtros, vista lista y búsqueda) entró con la PR #7, tag `phase-1.6`. Encima, la PR #5 añade el shell y conecta Hoy al SDK.
+## Cómo probar este worktree
 
-La API pública sigue en `/api/v1`. OpenAPI está en `/api/docs` y el JSON commiteado es `apps/api/openapi.json`. El cliente web llama a la API solo a través de `@reflexionia/sdk`. `apps/api/tsconfig.json` es NodeNext. No revertirlo a CommonJS.
-
-Siguiente sesión: pulir Hoy y la barra según `docs/spec/tick-tack-done-ui-spec-v1.0.md`. El prompt está en `docs/prompts/pulir-ui-hoy.md`. El punto 7 (PAT y MCP, RF-2001–2002) sigue en el roadmap y no se abre en esa sesión. Una feature es una PR, y se mergea al terminarla.
-
-## Qué entra con la PR #5
-
-- Tokens, tema claro/oscuro/auto y layout de tres paneles. Barra colapsable a rail. En móvil, barra inferior con captura.
-- Rutas del mapa de la spec de UI resuelven sin 404. Las que no son de este corte muestran un aviso. `/quick-add` y la captura no se reescriben. `/habits` sigue siendo la pantalla real.
-- Hoy lista tareas (UI-401, UI-402, UI-404): vencidas arriba con la fecha en rojo, agrupación por prioridad y `?group=due|tag|list` recordada por vista, completar con toast de deshacer de 10 s.
-- El plan de hoy está vacío a propósito. No existe `GET /api/v1/review/daily`.
-- `main` ya trae las pantallas de listas inteligentes, filtros y búsqueda. El shell las monta en `/smart/:key`, `/filter/:id` y `/list/:id`, y conserva también `/smart-lists`, `/filters` y `/lists/:id`.
-
-## Qué falta pulir en la UI
-
-Comparado con TickTick y con la spec de UI, la pantalla actual es funcional y visualmente pobre. No se pule en esta PR.
-
-- La barra (sección 4.5) es una lista plana de enlaces. No muestra contadores, ni listas con punto de color, ni filtros fijados. El pie son tres botones a ancho completo (tema, apariencia, contraer).
-- Hoy (sección 7 y fila 9.2) tiene un título grande, grupos con mucho aire y filas de checkbox más título. La fecha de una tarea de hoy se pinta como acento, no como metadato. No hay nombre de lista, etiquetas ni fila «Añadir tarea».
-- Agrupar por etiqueta muestra el id. El SDK no lista etiquetas.
-- El panel de `?task=` sigue siendo un aviso. No carga la tarea (UI-801 y siguientes).
-- `/inbox` sigue en aviso. La bandeja de la spec (UI-501–503) no está hecha.
-- UI-403 (propuesta del plan de hoy) espera el endpoint de revisión. UI-405 (presupuesto de 200 tareas) no se ha medido.
-- Kanban, timeline, calendario, matriz, notas, dashboard, reportes y Focus siguen fuera. Son V1 o V2 en la spec de UI.
-
-El prompt de la sesión siguiente acota el primer pulido a la barra y a Hoy. No abre el resto de la spec.
-
-## Cómo probar el shell
-
-Worktree de la PR, sin `pnpm dev` (choca con el checkout principal):
+`~/CodeProjects/todo-ui-spec`, offset 300. Sin `pnpm dev`.
 
 ```bash
 pnpm --filter @reflexionia/domain build
 pnpm dev:api
-pnpm --filter web exec vite --port 5273 --strictPort --host 127.0.0.1
+pnpm --filter web exec vite --port 5473 --strictPort --host 127.0.0.1
 ```
 
-Abrir `http://127.0.0.1:5273/today`. La API de ese worktree escucha en el puerto `3100` (`VITE_API_PROXY`). Auth de desarrollo: `AUTH_MODE=dev` y `demo@reflexionia.test`.
+Web en `http://127.0.0.1:5473`. API en `http://127.0.0.1:3300` (`VITE_API_PROXY`). Auth de desarrollo: `AUTH_MODE=dev` y `demo@reflexionia.test`.
+
+## Bloqueado por falta de API
+
+Estas pantallas están hechas y se quedan en el vacío que describe la spec hasta que exista el endpoint:
+
+- Plan de hoy (UI-403): espera `GET /api/v1/review/daily`.
+- Revisión semanal: espera `GET /api/v1/review/weekly`. Los cuatro pasos se ven vacíos.
+- Jardín digital (`/dashboard` y `/sticky`): espera `GET /api/v1/me/dashboard`. Los widgets no se rellenan con listas de tareas.
+- Reportes semanales: la API no publica el histórico.
+- Tokens y MCP: no hay PAT, hash, último uso, actividad por token ni URL del servidor MCP.
+- Calendario: no hay eventos de calendarios externos ni feeds iCal que copiar o regenerar.
+- Ajustes de calendario, integraciones, automatizaciones, webhooks, datos (export y backup), plugins (V2) y compartir (V2): la API no publica esos recursos.
+- Cuenta: `GET/PATCH /api/v1/me` guarda nombre y zona horaria. Contraseña, sesiones, 2FA y borrar la cuenta no tienen endpoint. `/login`, `/register` y `/forgot-password` lo dicen.
+- Notificaciones: solo se guarda `daily_reminder_time`. No hay horas silenciosas ni centro de notificaciones.
+- Foco (V2): el temporizador de 25:00 vive solo en el navegador. No hay sesiones de foco en la API.
+- Actividad de una tarea: el log existe, pero el actor es un id. No hay nombre de token.
+- Ordenar la bandeja por creación: `GET /tasks` solo acepta `sort=manual|priority|due` y `limit` hasta 100. La UI pide `sort=manual` y ordena `created_at` en el cliente.
+- Fijar una tarea, límite WIP de columna y la regla de la matriz no están en el modelo. El WIP es un campo local. La matriz clasifica en cliente (vence en 24 h o ya venció; prioridad alta o media) y al soltar hace `PATCH` de prioridad y fecha.
+
+## Hecho con la API que ya existe
+
+- Barra con contadores, listas con color, etiquetas hacia `/search?q=#nombre`, papelera con confirmación. En menos de 1024 px la barra es un cajón (`inert` si está cerrado). En menos de 640 px, barra inferior.
+- Hoy conserva vencidas, agrupación y deshacer. Muestra lista, etiquetas y la tira de hábitos.
+- Bandeja en modo procesar, detalle (`?task=`), checklist, subtareas, recordatorios, RRULE, adjuntos y actividad.
+- Lista, kanban y timeline. Una tarea sin columna cae en «Sin sección».
+- Smart lists, filtros, búsqueda y paleta. `/habits` y `/habits/:id` (racha y mapa del año).
+- Captura en `/quick-add`. El correo entrante se rota y se revoca en Ajustes.
+- Notas: `/list/:id/note/:taskId` abre el detalle de esa tarea. Convertir nota/tarea usa el `kind` que ya guarda la API.
+- Atajos: `?` abre la ayuda. `G` y luego t/i/c/m/s/a/b/n/r/w navega. `.` invalida las queries.
+
+## Aún corto respecto a la spec, sin endpoint nuevo
+
+- UI-1902: el banner de offline avisa. Completar sin red no encola con `Idempotency-Key`.
+- UI-606: las listas no virtualizan 5000 filas. UI-405 (presupuesto de 2 s) no está medido.
+- El aviso de primera captura sobre `.` y `?` no está cableado.
+- Kanban y timeline no reordenan dentro de la columna. El calendario de mes no crea ni arrastra ocurrencias.
+- La actividad no muestra el nombre del agente.
+
+## Historial anterior
+
+Lo que sigue es el handoff de shell y Hoy (PR #5) y de los puntos 1 a 6. Ya está en `main` y esta rama lo conserva.
 
 ## Historial del punto 6
 
