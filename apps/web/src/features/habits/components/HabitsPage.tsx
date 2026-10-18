@@ -97,10 +97,7 @@ export function HabitsPage() {
   });
 
   return (
-    <main className="habits">
-      <p>
-        <Link to="/today">{messages.backToday}</Link>
-      </p>
+    <main className="habits screen-page">
       <h1>{messages.habitsTitle}</h1>
       <p>{messages.habitsHint}</p>
       {error !== null ? <p className="error">{error}</p> : null}
@@ -216,7 +213,7 @@ export function HabitsPage() {
       {active.length === 0 && !habits.isPending ? <p>{messages.habitEmpty}</p> : null}
       <ul className="habit-list">
         {active.map((habit) => (
-          <li key={habit.id}>
+          <li key={habit.id} className="habit-card">
             <Link to={`/habits/${habit.id}`}>{habit.name}</Link>
             <button
               type="button"
@@ -233,11 +230,15 @@ export function HabitsPage() {
             </p>
             <button
               type="button"
+              className={
+                habit.today.count >= habit.goal.target_count ? 'habit-check is-done' : 'habit-check'
+              }
+              aria-label={messages.checkIn}
               onClick={() => {
                 checkIn.mutate({ habit, count: habit.today.count + 1 });
               }}
             >
-              {messages.checkIn}
+              {messages.streakLabel} {habit.today.count}
             </button>
             <label>
               {messages.habitNote}

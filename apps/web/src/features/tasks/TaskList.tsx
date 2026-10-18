@@ -1,4 +1,5 @@
 import { GripVertical, MoreHorizontal } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useMemo, useRef, useState } from 'react';
 import { ApiError } from '@reflexionia/sdk';
 import { useSearchParams } from 'react-router';
@@ -75,6 +76,7 @@ export function TaskList({
         messages={messages}
         rows={visible}
         columns={columns ?? []}
+        projectId={createProjectId}
         onOpen={open}
         onComplete={onComplete}
       />
@@ -341,7 +343,9 @@ function TaskRow({
           </span>
         ) : null}
         {row.projectName.length > 0 ? (
-          <span className="task-list-name">{row.projectName}</span>
+          <span className="task-list-name" title={row.projectName}>
+            {row.projectName}
+          </span>
         ) : null}
         {row.source === 'email' ? <span title={messages.sourceEmail}>✉</span> : null}
         {row.source === 'api' ? <span title={messages.sourceApi}>API</span> : null}
@@ -364,6 +368,7 @@ function Kanban({
   messages,
   rows,
   columns,
+  projectId,
   onOpen,
   onComplete,
 }: {
@@ -374,9 +379,12 @@ function Kanban({
     readonly name: string;
     readonly wip_limit?: number | null;
   }[];
+  readonly projectId?: string | undefined;
   readonly onOpen: (id: string) => void;
   readonly onComplete: (row: RowModel) => void;
 }) {
+  const queryClient = useQueryClient();
+  const [section, setSection] = useState('');
   const loose = rows.some((row) => row.columnId === null || row.columnId.length === 0);
   const cols =
     columns.length === 0
@@ -445,6 +453,31 @@ function Kanban({
           </section>
         );
       })}
+      {projectId !== undefined ? (
+        <form
+          className="kanban-col kanban-add"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const name = section.trim();
+            if (name.length === 0) {
+              return;
+            }
+            void api.createColumn(projectId, name, crypto.randomUUID()).then(() => {
+              setSection('');
+              void queryClient.invalidateQueries({ queryKey: ['columns', projectId] });
+            });
+          }}
+        >
+          <input
+            aria-label={messages.noColumns}
+            placeholder={messages.noColumns}
+            value={section}
+            onChange={(event) => {
+              setSection(event.target.value);
+            }}
+          />
+        </form>
+      ) : null}
     </div>
   );
 }

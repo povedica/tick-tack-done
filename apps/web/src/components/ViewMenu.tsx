@@ -84,6 +84,7 @@ export function ViewMenu({
                 checked={view === 'list'}
                 onClick={() => {
                   onView('list');
+                  setOpen(false);
                 }}
               >
                 <List size={16} aria-hidden="true" />
@@ -93,6 +94,7 @@ export function ViewMenu({
                 checked={view === 'kanban'}
                 onClick={() => {
                   onView('kanban');
+                  setOpen(false);
                 }}
               >
                 <Kanban size={16} aria-hidden="true" />
@@ -102,6 +104,7 @@ export function ViewMenu({
                 checked={view === 'timeline'}
                 onClick={() => {
                   onView('timeline');
+                  setOpen(false);
                 }}
               >
                 <Timeline size={16} aria-hidden="true" />

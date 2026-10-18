@@ -45,8 +45,8 @@
 .task-list > li::after {
   content: '';
   position: absolute;
-  left: 58px;
-  right: 30px;
+  left: 0;
+  right: 0;
   bottom: 0;
   border-bottom: 1px solid var(--border);
   pointer-events: none;
@@ -224,7 +224,7 @@ button.task-title {
 }
 
 .task-list-name {
-  max-width: 72px;
+  max-width: 9rem;
   overflow: hidden;
   color: var(--ink-3);
   font-size: 12px;

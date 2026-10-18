@@ -1,6 +1,6 @@
 import { buildRepeatRule, describeRepeatRule, type Weekday } from '@reflexionia/domain';
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { useSearchParams } from 'react-router';
 import { messagesFor, type Messages } from '../../i18n';
 import { newMutation, runOrQueue } from '../offline/client';
 import { tasksApi } from '../today/api';
@@ -85,9 +85,6 @@ export function RepeatPage() {
           <h1>{messages.repeatTitle}</h1>
           <p className="today-date">{messages.repeatHint}</p>
         </div>
-        <Link className="text-button" to="/today">
-          {messages.backToday}
-        </Link>
       </header>
       <form
         className="task-group"

@@ -1,8 +1,7 @@
 import type { CreateTokenBody } from '@reflexionia/sdk';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Link } from 'react-router';
-import { messagesFor, type Messages } from '../../../i18n';
+import { useMessages, type Messages } from '../../../i18n';
 import { tokensApi } from '../api';
 
 type Scope = CreateTokenBody['scopes'][number];
@@ -67,7 +66,7 @@ const SCOPES: readonly { id: Scope; label: keyof Messages }[] = [
 ];
 
 export function TokensPage() {
-  const messages = messagesFor(navigator.language);
+  const messages = useMessages();
   const queryClient = useQueryClient();
   const tokens = useQuery({ queryKey: ['tokens'], queryFn: () => tokensApi.listTokens() });
   const [name, setName] = useState('');
@@ -112,10 +111,7 @@ export function TokensPage() {
   const items = tokens.data?.items ?? [];
 
   return (
-    <main className="today">
-      <p>
-        <Link to="/today">{messages.backToday}</Link>
-      </p>
+    <main className="screen-page">
       <h1>{messages.tokensTitle}</h1>
       <p>{messages.tokensHint}</p>
       <form
