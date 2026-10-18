@@ -115,6 +115,16 @@ describe('parseQuickAdd', () => {
     expect(parsed('p1 luego !alta').priority).toBe('high');
   });
 
+  it('RF-102: !1–!3, #tag and @lista leave a clean title', () => {
+    const parsed = parseQuickAdd('Informe !1 #casa @trabajo', 'es');
+    expect(parsed.priority).toBe('high');
+    expect(parsed.tagNames).toEqual(['casa']);
+    expect(parsed.listName).toBe('trabajo');
+    expect(parsed.title).toBe('Informe');
+    expect(parseQuickAdd('a !2', 'es').priority).toBe('medium');
+    expect(parseQuickAdd('a !3', 'es').priority).toBe('low');
+  });
+
   it('RF-102: #casa is a tag and both list sigils name the list', () => {
     const tagged = parsed('limpiar #casa');
     expect(tagged.tagNames).toEqual(['casa']);

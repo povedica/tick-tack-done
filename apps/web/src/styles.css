@@ -173,9 +173,10 @@ h1 {
 }
 
 .habits {
-  max-width: 40rem;
-  margin: 0 auto;
-  padding: 2rem 1.25rem 6rem;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 1.5rem 1.25rem 6rem;
 }
 
 .habit-form,

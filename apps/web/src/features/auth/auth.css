@@ -1,0 +1,85 @@
+.auth-screen {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--sidebar-bg);
+}
+
+.auth-card {
+  width: min(100%, 400px);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 32px 28px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 16px 40px rgb(71 114 250 / 0.1);
+}
+
+.auth-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  text-align: center;
+}
+
+.auth-brand .brand-mark {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+}
+
+.auth-brand h1 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.auth-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.auth-card input {
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
+.auth-card button[type='submit'] {
+  height: 40px;
+  margin-top: 4px;
+  border: 0;
+  border-radius: 10px;
+  background: #4772fa;
+  color: var(--ink-inverse);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.auth-card button[type='submit']:hover {
+  background: var(--accent-hover);
+}
+
+.auth-card a {
+  color: var(--accent-ink);
+  font-size: 14px;
+  text-align: center;
+}

@@ -6,9 +6,11 @@ import { PriorityCheck } from '../../components/PriorityCheck';
 import { UndoToastStack } from '../../components/UndoToast';
 import { ViewMenu } from '../../components/ViewMenu';
 import { api } from '../../api';
-import { fill, useMessages, type Messages } from '../../i18n';
+import { captureLanguage, fill, useMessages, type Messages } from '../../i18n';
 import { warningText } from '../capture/components/CaptureSheet';
 import { useCaptureNotice } from '../capture/notice';
+import { quickAddRequest } from '../capture/quick-add';
+import { refreshTaskSurfaces } from '../tasks/refresh';
 import { useShellActions } from '../../shell/shell-actions';
 import { isTypingTarget } from '../../shell/shortcuts';
 import { flushOfflineQueue, newMutation, runOrQueue } from '../offline/client';
@@ -60,13 +62,18 @@ export function TodayPage() {
   const tagNames = new Map((tags.data?.items ?? []).map((tag) => [tag.id, tag.name]));
   const tagColors = new Map((tags.data?.items ?? []).map((tag) => [tag.id, colorOf(tag)]));
   const projectNames = new Map(
-    (projects.data?.items ?? []).map((project) => [project.id, project.name]),
+    (projects.data?.items ?? []).map((project) => [
+      project.id,
+      project.is_inbox ? messages.smartInbox : project.name,
+    ]),
   );
   const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set());
   const [toasts, setToasts] = useState<readonly { id: string; title: string }[]>([]);
   const [actionError, setActionError] = useState<string | null>(null);
   const [details, setDetails] = useState(true);
   const [hideCompleted, setHideCompleted] = useState(true);
+  const [draft, setDraft] = useState('');
+  const addRef = useRef<HTMLInputElement>(null);
   const [groupOpen, setGroupOpen] = useState(false);
   const jobs = useRef(new Map<string, CompleteJob>());
   const dateLabel = new Intl.DateTimeFormat(locale, {
@@ -192,6 +199,8 @@ export function TodayPage() {
               next.delete(task.id);
               return next;
             });
+          } else {
+            void refreshTaskSurfaces(queryClient);
           }
         } catch {
           setHidden((current) => new Set(current).add(task.id));
@@ -213,6 +222,54 @@ export function TodayPage() {
   }
 
   const inbox = projects.data?.items.find((project) => project.is_inbox);
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  function addTask(): void {
+    const title = draft.trim();
+    if (title.length === 0) {
+      return;
+    }
+    const request = quickAddRequest({
+      text: title,
+      language: captureLanguage(locale),
+      now: new Date().toISOString(),
+      timeZone,
+      viewDay: 'today',
+    });
+    const tempId = `pending-${crypto.randomUUID()}`;
+    setDraft('');
+    setActionError(null);
+    addRef.current?.focus();
+    queryClient.setQueryData<TodayTask[]>(['today-tasks'], (current) => [
+      {
+        id: tempId,
+        title: request.parsed.title.length > 0 ? request.parsed.title : title,
+        priority: request.parsed.priority ?? 'none',
+        dueDate: request.dueDate ?? request.parsed.due?.date ?? null,
+        timeZone,
+        status: 'active',
+        projectId: inbox?.id ?? '',
+        tagIds: [],
+      },
+      ...(current ?? []),
+    ]);
+    void runOrQueue(newMutation('create', tempId, { ...request.body }), (key) =>
+      api.createTask(request.body, key),
+    )
+      .then(async (outcome) => {
+        if (!outcome.queued) {
+          await refreshTaskSurfaces(queryClient);
+        }
+      })
+      .catch(() => {
+        queryClient.setQueryData<TodayTask[]>(['today-tasks'], (current) =>
+          (current ?? []).filter((task) => task.id !== tempId),
+        );
+        setDraft(title);
+        setActionError(messages.createFailed);
+        addRef.current?.focus();
+      });
+  }
   const shown = visibleTasks(tasks.data ?? [], hidden).filter((task) =>
     hideCompleted ? task.status !== 'completed' : true,
   );
@@ -332,37 +389,22 @@ export function TodayPage() {
           </ViewMenu>
         </div>
       </header>
-      <p className="ui-muted">
-        <Link to="/tokens">{messages.tokensLink}</Link>
-      </p>
       <form
         className="quick-add"
         onSubmit={(event) => {
           event.preventDefault();
-          if (inbox === undefined) {
-            return;
-          }
-          const data = new FormData(event.currentTarget);
-          const raw = data.get('title');
-          const title = (typeof raw === 'string' ? raw : '').trim();
-          if (title.length === 0) {
-            return;
-          }
-          const projectId = inbox.id;
-          void runOrQueue(
-            newMutation('create', crypto.randomUUID(), { title, project_id: projectId }),
-            (key) => api.createTask({ title, project_id: projectId }, key),
-          ).then(() => {
-            event.currentTarget.reset();
-            void queryClient.invalidateQueries({ queryKey: ['today-tasks'] });
-          });
+          addTask();
         }}
       >
         <input
+          ref={addRef}
           name="title"
+          value={draft}
           aria-label={messages.addTask}
           placeholder={`+ ${messages.addTask}`}
-          disabled={inbox === undefined}
+          onChange={(event) => {
+            setDraft(event.target.value);
+          }}
         />
       </form>
       <details className="plan" open>
@@ -379,7 +421,11 @@ export function TodayPage() {
           ))}
         </div>
       ) : null}
-      {actionError !== null ? <p className="error">{actionError}</p> : null}
+      {actionError !== null ? (
+        <p className="error" role="alert">
+          {actionError}
+        </p>
+      ) : null}
       {tasks.isPending ? (
         <div aria-hidden="true">
           <div className="task-skeleton" />
@@ -453,19 +499,30 @@ export function TodayPage() {
             .filter((habit) => !habit.archived)
             .map((habit) => (
               <li key={habit.id}>
-                <Link to={`/habits/${habit.id}`}>{habit.name}</Link>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void api.checkInHabit(
-                      habit.id,
-                      { date: habit.today.date, count: habit.today.count + 1 },
-                      crypto.randomUUID(),
-                    );
-                  }}
-                >
-                  {habit.today.count}/{habit.goal.target_count}
-                </button>
+                <div className="task-row">
+                  <button
+                    type="button"
+                    className={
+                      habit.today.count >= habit.goal.target_count
+                        ? 'habit-check is-done'
+                        : 'habit-check'
+                    }
+                    aria-label={messages.checkIn}
+                    onClick={() => {
+                      void api.checkInHabit(
+                        habit.id,
+                        { date: habit.today.date, count: habit.today.count + 1 },
+                        crypto.randomUUID(),
+                      );
+                    }}
+                  />
+                  <Link className="task-title" to={`/habits/${habit.id}`}>
+                    {habit.name}
+                  </Link>
+                  <span className="task-meta">
+                    {habit.today.count}/{habit.goal.target_count}
+                  </span>
+                </div>
               </li>
             ))}
         </ul>

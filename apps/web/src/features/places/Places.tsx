@@ -1,6 +1,6 @@
 import type { Habit, Project, Task } from '@reflexionia/sdk';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, NavLink, Outlet, useNavigate, useParams, useSearchParams } from 'react-router';
 import { applyQuadrantDrop, DEFAULT_QUADRANT_EFFECTS } from '@reflexionia/domain';
 import { api } from '../../api';
@@ -10,6 +10,7 @@ import { useLocale } from '../../i18n/locale';
 import { usePreferences, type AccentId } from '../../theme/preferences';
 import { useThemePreference } from '../../theme/store';
 import { quadrantOf, rowFromTask, smartApiKey } from '../tasks/model';
+import { refreshTaskSurfaces } from '../tasks/refresh';
 import { newMutation, runOrQueue } from '../offline/client';
 import { TaskList } from '../tasks/TaskList';
 
@@ -119,7 +120,7 @@ export function InboxPage() {
               );
             }}
             onCreated={() => {
-              void queryClient.invalidateQueries({ queryKey: ['inbox-tasks'] });
+              void refreshTaskSurfaces(queryClient);
             }}
           />
         )
@@ -191,8 +192,8 @@ export function CalendarPage() {
   const messages = useMessages();
   const { view } = useParams();
   const current = CAL_VIEWS.includes(view as (typeof CAL_VIEWS)[number]) ? view : 'month';
-  const navigate = useNavigate();
   const weekStart = usePreferences((state) => state.weekStart);
+  const [cursor, setCursor] = useState(() => startOfMonth(new Date()));
   const tasks = useQuery({
     queryKey: ['calendar-tasks'],
     queryFn: () => api.listTasks({ status: 'active', limit: 100, sort: 'due' }),
@@ -200,22 +201,48 @@ export function CalendarPage() {
   const dated = (tasks.data?.items ?? []).filter(
     (task) => task.due_date !== null && task.kind === 'task',
   );
+  const title = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(
+    cursor,
+  );
   return (
     <section className="screen-page is-wide">
-      <header className="page-toolbar">
+      <header className="cal-toolbar">
         <h1>{messages.calendarTitle}</h1>
         <Button
           onClick={() => {
-            void navigate('/calendar/month');
+            setCursor(startOfMonth(new Date()));
           }}
         >
           {messages.calToday}
         </Button>
-        {CAL_VIEWS.map((item) => (
-          <Link key={item} to={`/calendar/${item}`}>
-            {labelView(messages, item)}
-          </Link>
-        ))}
+        <Button
+          aria-label={messages.calPrev}
+          onClick={() => {
+            setCursor((currentMonth) => shiftMonth(currentMonth, -1));
+          }}
+        >
+          ‹
+        </Button>
+        <Button
+          aria-label={messages.calNext}
+          onClick={() => {
+            setCursor((currentMonth) => shiftMonth(currentMonth, 1));
+          }}
+        >
+          ›
+        </Button>
+        <p className="cal-title">{title}</p>
+        <div className="cal-views">
+          {CAL_VIEWS.map((item) => (
+            <Link
+              key={item}
+              to={`/calendar/${item}`}
+              aria-current={current === item ? 'page' : undefined}
+            >
+              {labelView(messages, item)}
+            </Link>
+          ))}
+        </div>
       </header>
       <CalendarExtras messages={messages} />
       {current === 'year' ? <Year tasks={dated} /> : null}
@@ -224,44 +251,83 @@ export function CalendarPage() {
       current === 'week' ||
       current === 'multi-day' ||
       current === 'multi-week' ? (
-        <ul>
+        <ul className="task-list">
           {dated.map((task) => (
             <li key={task.id}>
-              <Link to={`/list/${task.project_id}?task=${task.id}`}>
-                {task.title} · {task.due_date}
+              <Link className="task-row" to={`/list/${task.project_id}?task=${task.id}`}>
+                <span className="task-title">{task.title}</span>
+                <time className="task-date">{localKey(new Date(task.due_date ?? ''))}</time>
               </Link>
             </li>
           ))}
         </ul>
       ) : null}
-      {current === 'month' ? <Month tasks={dated} weekStart={weekStart} /> : null}
+      {current === 'month' ? <Month tasks={dated} weekStart={weekStart} cursor={cursor} /> : null}
     </section>
   );
+}
+
+function startOfMonth(day: Date): Date {
+  return new Date(day.getFullYear(), day.getMonth(), 1);
+}
+
+function shiftMonth(day: Date, delta: number): Date {
+  return new Date(day.getFullYear(), day.getMonth() + delta, 1);
+}
+
+function localKey(day: Date): string {
+  if (Number.isNaN(day.getTime())) {
+    return '';
+  }
+  const month = String(day.getMonth() + 1).padStart(2, '0');
+  const date = String(day.getDate()).padStart(2, '0');
+  return `${String(day.getFullYear())}-${month}-${date}`;
 }
 
 function Month({
   tasks,
   weekStart,
+  cursor,
 }: {
   readonly tasks: readonly Task[];
   readonly weekStart: 'monday' | 'sunday';
+  readonly cursor: Date;
 }) {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const todayKey = localKey(new Date());
+  const start = startOfMonth(cursor);
   const shift = (start.getDay() - (weekStart === 'monday' ? 1 : 0) + 7) % 7;
   const cells = Array.from({ length: 42 }, (_, index) => {
     const day = new Date(start);
     day.setDate(index - shift + 1);
     return day;
   });
+  const weekday = new Intl.DateTimeFormat(undefined, { weekday: 'short' });
+  const heads = Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(2026, 0, weekStart === 'monday' ? 5 + index : 4 + index);
+    return weekday.format(day);
+  });
   return (
     <div className="cal-month">
+      {heads.map((label) => (
+        <div key={label} className="cal-head">
+          {label}
+        </div>
+      ))}
       {cells.map((day) => {
-        const key = day.toISOString().slice(0, 10);
-        const items = tasks.filter((task) => (task.due_date ?? '').slice(0, 10) === key);
+        const key = localKey(day);
+        const items = tasks.filter((task) => localKey(new Date(task.due_date ?? '')) === key);
         const weekend = day.getDay() === 0 || day.getDay() === 6;
+        const outside = day.getMonth() !== cursor.getMonth();
+        const classes = [
+          'cal-cell',
+          weekend ? 'is-weekend' : '',
+          key === todayKey ? 'is-today' : '',
+          outside ? 'is-outside' : '',
+        ]
+          .filter((item) => item.length > 0)
+          .join(' ');
         return (
-          <div key={key} className={weekend ? 'cal-cell is-weekend' : 'cal-cell'}>
+          <div key={key} className={classes}>
             <strong>{day.getDate()}</strong>
             {items.slice(0, 3).map((task) => (
               <Link
@@ -538,6 +604,7 @@ export function SearchPage() {
     <section className="screen-page">
       <h1>{messages.searchTitle}</h1>
       <form
+        className="search-bar"
         onSubmit={(event) => {
           event.preventDefault();
           const data = new FormData(event.currentTarget);
@@ -552,8 +619,8 @@ export function SearchPage() {
       {search.data?.groups.length === 0 ? <p>{messages.searchEmpty}</p> : null}
       {(search.data?.groups ?? []).map((group) => (
         <section key={group.type}>
-          <h2>{group.type}</h2>
-          <ul>
+          <h2>{groupLabel(messages, group.type)}</h2>
+          <ul className="task-list">
             {group.items.map((item, index) => {
               const title =
                 typeof item.title === 'string'
@@ -571,7 +638,9 @@ export function SearchPage() {
                     : `/search?q=${encodeURIComponent(title)}`;
               return (
                 <li key={id}>
-                  <Link to={href}>{title}</Link>
+                  <Link className="task-row" to={href}>
+                    <span className="task-title">{highlight(title, q)}</span>
+                  </Link>
                 </li>
               );
             })}
@@ -720,11 +789,44 @@ export function TaskRoute() {
 }
 
 export function AuthNote({ title, body }: { readonly title: string; readonly body: string }) {
+  const messages = useMessages();
   return (
     <section className="screen-page">
       <h1>{title}</h1>
-      <EmptyState title={title} body={body} action={<Link to="/today">Hoy</Link>} />
+      <EmptyState
+        title={title}
+        body={body}
+        action={<Link to="/today">{messages.backToday}</Link>}
+      />
     </section>
+  );
+}
+
+function groupLabel(messages: Messages, type: string): string {
+  if (type === 'task') {
+    return messages.entityTask;
+  }
+  if (type === 'list') {
+    return messages.listsTitle;
+  }
+  if (type === 'tag') {
+    return messages.tagsTitle;
+  }
+  return type;
+}
+
+function highlight(title: string, query: string): ReactNode {
+  const needle = query.trim();
+  const index = needle.length === 0 ? -1 : title.toLowerCase().indexOf(needle.toLowerCase());
+  if (index < 0) {
+    return title;
+  }
+  return (
+    <>
+      {title.slice(0, index)}
+      <mark>{title.slice(index, index + needle.length)}</mark>
+      {title.slice(index + needle.length)}
+    </>
   );
 }
 
@@ -826,85 +928,116 @@ export function AccountPage() {
   const [zone, setZone] = useState('');
   const [status, setStatus] = useState<string | null>(null);
   const [confirmEmail, setConfirmEmail] = useState('');
+  const [totpCode, setTotpCode] = useState('');
   return (
     <section>
       <h1>{messages.settingsAccount}</h1>
       <p>{messages.accountHint}</p>
       {me.data === undefined ? <SkeletonRows /> : null}
       {me.data !== undefined ? (
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            void api
-              .updateMe({
-                display_name: name.length > 0 ? name : me.data.display_name,
-                time_zone: zone.length > 0 ? zone : me.data.time_zone,
-              })
-              .then(() => {
-                setStatus(messages.saved);
-              })
-              .catch(() => {
-                setStatus(messages.saveFailed);
-              });
-          }}
-        >
-          <label>
-            {messages.displayName}
-            <input
-              defaultValue={me.data.display_name}
-              onChange={(event) => {
-                setName(event.target.value);
-              }}
-            />
-          </label>
-          <p>{me.data.email}</p>
-          <label>
-            {messages.timeZone}
-            <input
-              defaultValue={me.data.time_zone}
-              onChange={(event) => {
-                setZone(event.target.value);
-              }}
-            />
-          </label>
-          <p className="ui-muted">{messages.passwordUnavailable}</p>
-          <p className="ui-muted">{messages.sessionsUnavailable}</p>
-          <p className="ui-muted">{messages.twoFactorUnavailable}</p>
-          <Button
-            type="button"
-            onClick={() => {
-              void api.beginTotp().then(() => {
-                setStatus(messages.twoFactorUnavailable);
-              });
+        <>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void api
+                .updateMe({
+                  display_name: name.length > 0 ? name : me.data.display_name,
+                  time_zone: zone.length > 0 ? zone : me.data.time_zone,
+                })
+                .then(() => {
+                  setStatus(messages.saved);
+                })
+                .catch(() => {
+                  setStatus(messages.saveFailed);
+                });
             }}
           >
-            2FA
-          </Button>
-          <label>
-            {messages.deleteAccountUnavailable}
-            <input
-              value={confirmEmail}
-              onChange={(event) => {
-                setConfirmEmail(event.target.value);
+            <label>
+              {messages.displayName}
+              <input
+                defaultValue={me.data.display_name}
+                onChange={(event) => {
+                  setName(event.target.value);
+                }}
+              />
+            </label>
+            <p>{me.data.email}</p>
+            <label>
+              {messages.timeZone}
+              <input
+                defaultValue={me.data.time_zone}
+                onChange={(event) => {
+                  setZone(event.target.value);
+                }}
+              />
+            </label>
+            <Button type="submit" variant="primary">
+              {messages.saveChanges}
+            </Button>
+            {status !== null ? <p role="status">{status}</p> : null}
+          </form>
+          <section className="settings-block">
+            <h2>{messages.enableTwoFactor}</h2>
+            <p>{messages.twoFactorUnavailable}</p>
+            <Button
+              type="button"
+              onClick={() => {
+                void api.beginTotp().then((body) => {
+                  const secret =
+                    typeof body.secret === 'string' ? body.secret : messages.twoFactorCode;
+                  setStatus(secret);
+                });
               }}
-            />
-          </label>
-          <Button
-            type="button"
-            variant="danger"
-            onClick={() => {
-              if (confirmEmail === me.data.email) {
-                void api.deleteAccount(me.data.email);
-              }
-            }}
-          >
-            {messages.deleteAccountUnavailable}
-          </Button>
-          <Button type="submit" variant="primary">
-            {messages.saved}
-          </Button>
-          {status !== null ? <p role="status">{status}</p> : null}
-        </form>
+            >
+              {messages.enableTwoFactor}
+            </Button>
+            <label>
+              {messages.twoFactorCode}
+              <input
+                value={totpCode}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                onChange={(event) => {
+                  setTotpCode(event.target.value);
+                }}
+              />
+            </label>
+            <Button
+              type="button"
+              onClick={() => {
+                void api.confirmTotp(totpCode).then(() => {
+                  setStatus(messages.saved);
+                });
+              }}
+            >
+              {messages.saveChanges}
+            </Button>
+          </section>
+          <section className="settings-block">
+            <h2>{messages.accountDanger}</h2>
+            <label>
+              {messages.deleteAccountUnavailable}
+              <input
+                value={confirmEmail}
+                onChange={(event) => {
+                  setConfirmEmail(event.target.value);
+                }}
+              />
+            </label>
+            <Button
+              type="button"
+              variant="danger"
+              disabled={confirmEmail !== me.data.email}
+              onClick={() => {
+                if (confirmEmail === me.data.email) {
+                  void api.deleteAccount(me.data.email);
+                }
+              }}
+            >
+              {messages.deleteAccountUnavailable}
+            </Button>
+          </section>
+        </>
       ) : null}
     </section>
   );
