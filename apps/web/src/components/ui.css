@@ -165,7 +165,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
-  max-width: var(--content-max);
+  width: 100%;
+  max-width: none;
+  padding: var(--sp-4) var(--sp-5) var(--sp-8);
 }
 
 .screen-page.is-wide {
@@ -315,7 +317,8 @@
 
 .widget-grid {
   display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  width: 100%;
 }
 
 .widget {
@@ -414,6 +417,7 @@
   gap: 4px;
   align-items: center;
   min-width: 0;
+  margin-left: auto;
   color: var(--ink-3);
   font-size: 12px;
 }
@@ -469,7 +473,7 @@
   border: 0;
   background: transparent;
   color: var(--ink);
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   resize: vertical;
 }
 
@@ -671,8 +675,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 48px;
-  padding: 0 12px;
+  height: auto;
+  min-height: 48px;
+  padding: 8px 12px;
   flex: none;
 }
 
@@ -706,6 +711,35 @@
   border-top: 1px solid var(--border);
 }
 
+.detail-foot label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  color: var(--ink-2);
+  font-size: 12px;
+}
+
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.file-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
 .detail-foot select {
   max-width: 12rem;
   border: 0;
@@ -717,4 +751,139 @@
 
 .detail-head-spacer {
   flex: 1;
+}
+
+.screen-page input:not([type='checkbox']):not([type='radio']),
+.screen-page select,
+.habits input:not([type='checkbox']),
+.habits select,
+.search-bar input,
+.kanban-add input,
+.settings-block input,
+.settings-block select {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 28rem;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+}
+
+.screen-page label,
+.settings-block,
+.habit-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.scope-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 4px 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.scope-list label,
+.habit-form fieldset label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+}
+
+.cal-toolbar,
+.cal-views {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+}
+
+.cal-title {
+  margin: 0;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.cal-views a {
+  min-height: 32px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.cal-views a[aria-current='page'] {
+  background: var(--accent-soft);
+}
+
+.cal-head {
+  padding: var(--sp-1);
+  background: var(--surface-2);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  text-align: center;
+}
+
+.cal-cell.is-today strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  color: var(--ink-inverse);
+}
+
+.cal-cell.is-outside {
+  opacity: 0.45;
+}
+
+.search-bar input {
+  max-width: none;
+}
+
+.habit-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.habit-check {
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  background: transparent;
+  font-size: 11px;
+}
+
+.habit-check.is-done {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--ink-inverse);
+}
+
+.kanban-add input {
+  width: 100%;
+  max-width: none;
+}
+
+mark {
+  background: var(--accent-soft);
+  color: inherit;
 }

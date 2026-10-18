@@ -62,7 +62,10 @@ export function TodayPage() {
   const tagNames = new Map((tags.data?.items ?? []).map((tag) => [tag.id, tag.name]));
   const tagColors = new Map((tags.data?.items ?? []).map((tag) => [tag.id, colorOf(tag)]));
   const projectNames = new Map(
-    (projects.data?.items ?? []).map((project) => [project.id, project.name]),
+    (projects.data?.items ?? []).map((project) => [
+      project.id,
+      project.is_inbox ? messages.smartInbox : project.name,
+    ]),
   );
   const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set());
   const [toasts, setToasts] = useState<readonly { id: string; title: string }[]>([]);
@@ -196,6 +199,8 @@ export function TodayPage() {
               next.delete(task.id);
               return next;
             });
+          } else {
+            void refreshTaskSurfaces(queryClient);
           }
         } catch {
           setHidden((current) => new Set(current).add(task.id));
@@ -221,7 +226,7 @@ export function TodayPage() {
 
   function addTask(): void {
     const title = draft.trim();
-    if (title.length === 0 || inbox === undefined) {
+    if (title.length === 0) {
       return;
     }
     const request = quickAddRequest({
@@ -243,7 +248,7 @@ export function TodayPage() {
         dueDate: request.dueDate ?? request.parsed.due?.date ?? null,
         timeZone,
         status: 'active',
-        projectId: inbox.id,
+        projectId: inbox?.id ?? '',
         tagIds: [],
       },
       ...(current ?? []),
@@ -384,9 +389,6 @@ export function TodayPage() {
           </ViewMenu>
         </div>
       </header>
-      <p className="ui-muted">
-        <Link to="/tokens">{messages.tokensLink}</Link>
-      </p>
       <form
         className="quick-add"
         onSubmit={(event) => {
@@ -400,7 +402,6 @@ export function TodayPage() {
           value={draft}
           aria-label={messages.addTask}
           placeholder={`+ ${messages.addTask}`}
-          disabled={inbox === undefined}
           onChange={(event) => {
             setDraft(event.target.value);
           }}

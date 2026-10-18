@@ -1,7 +1,7 @@
 import type { TaskDetail as Detail } from '@reflexionia/sdk';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Bell, Flag } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { api } from '../../api';
 import { PriorityCheck } from '../../components/PriorityCheck';
@@ -44,6 +44,11 @@ export function TaskDetail({
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
   const tags = useQuery({ queryKey: ['tags'], queryFn: () => api.listTags() });
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
+  const serverDue = detail.data?.due_date ?? null;
+  const [dueDraft, setDueDraft] = useState('');
+  useEffect(() => {
+    setDueDraft(toLocal(serverDue));
+  }, [detail.data?.id, serverDue]);
 
   async function refresh(): Promise<void> {
     await queryClient.invalidateQueries({ queryKey: ['task', taskId] });
@@ -209,30 +214,22 @@ export function TaskDetail({
         />
         <div className="page-toolbar">
           <label>
-            {messages.prioritySet}
-            <select
-              value={task.priority}
-              onChange={(event) => {
-                const priority = event.target.value as Detail['priority'];
-                save.mutate({ priority });
-              }}
-            >
-              <option value="high">{messages.priorityHigh}</option>
-              <option value="medium">{messages.priorityMedium}</option>
-              <option value="low">{messages.priorityLow}</option>
-              <option value="none">{messages.priorityNone}</option>
-            </select>
-          </label>
-          <label>
             {messages.dateSet}
             <input
               type="datetime-local"
-              value={toLocal(task.due_date)}
+              value={dueDraft}
               onChange={(event) => {
-                const next =
-                  event.target.value.length === 0
-                    ? null
-                    : new Date(event.target.value).toISOString();
+                setDueDraft(event.target.value);
+              }}
+              onBlur={() => {
+                if (dueDraft === toLocal(task.due_date)) {
+                  return;
+                }
+                const next = dueDraft.length === 0 ? null : new Date(dueDraft).toISOString();
+                if (next !== null && Number.isNaN(new Date(dueDraft).getTime())) {
+                  setDueDraft(toLocal(task.due_date));
+                  return;
+                }
                 if (task.repeat_rule !== null && next !== null) {
                   setSeries(next);
                   return;
@@ -335,16 +332,18 @@ export function TaskDetail({
             />
           </form>
         </section>
-        <section>
-          <h3>{messages.subtasks}</h3>
-          <ul>
-            {task.subtasks.map((child) => (
-              <li key={child.id}>
-                <Link to={`?task=${child.id}`}>{child.title}</Link>
-              </li>
-            ))}
-          </ul>
-        </section>
+        {task.subtasks.length > 0 ? (
+          <section>
+            <h3>{messages.subtasks}</h3>
+            <ul>
+              {task.subtasks.map((child) => (
+                <li key={child.id}>
+                  <Link to={`?task=${child.id}`}>{child.title}</Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
         <section>
           <h3>{messages.reminders}</h3>
           <ul>
@@ -432,23 +431,27 @@ export function TaskDetail({
               </li>
             ))}
           </ul>
-          <input
-            type="file"
-            aria-label={messages.upload}
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file === undefined) {
-                return;
-              }
-              if (file.size > MAX_ATTACHMENT) {
-                setError(messages.tooLarge);
-                return;
-              }
-              void api
-                .uploadAttachment(task.id, file, file.name)
-                .then(() => queryClient.invalidateQueries({ queryKey: ['attachments', taskId] }));
-            }}
-          />
+          <label className="file-button">
+            {messages.upload}
+            <input
+              className="sr-only"
+              type="file"
+              aria-label={messages.upload}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file === undefined) {
+                  return;
+                }
+                if (file.size > MAX_ATTACHMENT) {
+                  setError(messages.tooLarge);
+                  return;
+                }
+                void api
+                  .uploadAttachment(task.id, file, file.name)
+                  .then(() => queryClient.invalidateQueries({ queryKey: ['attachments', taskId] }));
+              }}
+            />
+          </label>
         </section>
         <section>
           <h3>{messages.activity}</h3>
@@ -457,12 +460,12 @@ export function TaskDetail({
             {task.activity.map((entry) => (
               <li key={entry.id}>
                 {entry.actor_id === me.data?.id ? messages.actorYou : messages.actorOther} ·{' '}
-                {entry.action} · {entry.created_at}
+                {entry.action} · {relativeTime(entry.created_at, navigator.language)}
               </li>
             ))}
           </ul>
         </section>
-        <div className="page-toolbar">
+        <div className="detail-actions">
           <Button
             onClick={() => {
               save.mutate({ kind: task.kind === 'note' ? 'task' : 'note' });
@@ -575,6 +578,23 @@ function priorityColor(priority: string): string {
     default:
       return 'var(--prio-none)';
   }
+}
+
+function relativeTime(iso: string, locale: string): string {
+  const delta = Date.now() - new Date(iso).getTime();
+  if (Number.isNaN(delta)) {
+    return iso;
+  }
+  const minutes = Math.round(delta / 60_000);
+  const format = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+  if (Math.abs(minutes) < 60) {
+    return format.format(-minutes, 'minute');
+  }
+  const hours = Math.round(minutes / 60);
+  if (Math.abs(hours) < 36) {
+    return format.format(-hours, 'hour');
+  }
+  return format.format(-Math.round(hours / 24), 'day');
 }
 
 function toLocal(value: string | null): string {

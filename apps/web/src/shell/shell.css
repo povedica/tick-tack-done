@@ -52,6 +52,12 @@
   border-right: 1px solid var(--border);
   padding: var(--sp-3) var(--sp-2);
   max-height: 100dvh;
+  overflow: hidden;
+}
+
+.sidebar > nav {
+  flex: 1;
+  min-height: 0;
   overflow: auto;
 }
 
@@ -155,9 +161,12 @@
 
 .sidebar-footer {
   display: flex;
+  flex: none;
   flex-direction: column;
   gap: var(--sp-2);
   margin-top: auto;
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--border);
 }
 
 .theme-cycle,
@@ -564,4 +573,119 @@
 
 .group-popover .menu-card {
   min-width: 11rem;
+}
+
+.nav-section-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.nav-add,
+.nav-more-btn,
+.nav-more-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.nav-add:hover,
+.nav-more-btn:hover {
+  background: var(--surface-2);
+}
+
+.nav-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.nav-row .nav-link {
+  flex: 1;
+  min-width: 0;
+}
+
+.nav-more-btn {
+  position: absolute;
+  right: 4px;
+  opacity: 0;
+}
+
+.nav-row:hover .nav-more-btn,
+.nav-more-btn[aria-expanded='true'] {
+  opacity: 1;
+}
+
+.nav-create input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+}
+
+.nav-empty,
+.nav-confirm {
+  margin: 0;
+  padding: 0 12px 8px;
+  color: var(--ink-3);
+  font-size: var(--fs-sm);
+}
+
+.list-menu {
+  position: absolute;
+  z-index: 4;
+  top: 36px;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 12rem;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+
+.list-menu input,
+.menu-item {
+  width: 100%;
+  min-height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.menu-item.is-danger {
+  color: var(--danger);
+}
+
+.color-row {
+  display: flex;
+  gap: 6px;
+}
+
+.color-swatch {
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border-radius: var(--radius-full);
+  cursor: pointer;
 }

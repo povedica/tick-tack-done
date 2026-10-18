@@ -2,7 +2,7 @@ import type { ViewPage } from '@reflexionia/sdk';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Menu } from 'lucide-react';
 import { useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router';
+import { useParams, useSearchParams } from 'react-router';
 import { api } from '../../../api';
 import { ViewMenu } from '../../../components/ViewMenu';
 import { useMessages, type Messages } from '../../../i18n';
@@ -12,6 +12,7 @@ import { rowsFromView, smartApiKey } from '../../tasks/model';
 import { refreshTaskSurfaces } from '../../tasks/refresh';
 import { TaskList } from '../../tasks/TaskList';
 import type { ViewDay } from '../../capture/quick-add';
+import { readStoredView, writeStoredView } from '../view-prefs';
 import { viewsApi } from '../api';
 
 type GroupBy = ViewPage['group_by'];
@@ -24,12 +25,15 @@ export function SmartListViewPage() {
   const listKey = smartApiKey(key ?? 'today');
   return (
     <Board
+      key={listKey}
       messages={messages}
       title={smartLabel(messages, listKey)}
       queryKey={['smart-list-tasks', listKey]}
       load={(groupBy, sort) => viewsApi.smartListTasks(listKey, { groupBy, sort })}
       notice={listKey === 'assigned_to_me' ? messages.assignedEmpty : undefined}
       createViewDay={viewDayFor(listKey)}
+      viewKey={`smart:${listKey}`}
+      revealCompleted={listKey === 'completed' || listKey === 'trash'}
     />
   );
 }
@@ -47,6 +51,7 @@ export function FilterViewPage() {
       queryKey={['filter-tasks', filterId]}
       load={(groupBy, sort) => viewsApi.filterTasks(filterId, { groupBy, sort })}
       enabled={filterId.length > 0}
+      viewKey={`filter:${filterId}`}
     />
   );
 }
@@ -82,10 +87,7 @@ export function ProjectListPage() {
               groups: [
                 {
                   combinator: 'AND',
-                  conditions: [
-                    { field: 'list', op: 'in', value: [projectId] },
-                    { field: 'status', op: 'eq', value: 'active' },
-                  ],
+                  conditions: [{ field: 'list', op: 'in', value: [projectId] }],
                 },
               ],
             },
@@ -95,6 +97,7 @@ export function ProjectListPage() {
       }
       enabled={projectId.length > 0}
       note={project?.kind === 'NOTE'}
+      viewKey={`project:${projectId}`}
     />
   );
 }
@@ -110,6 +113,8 @@ function Board({
   columns,
   notice,
   note = false,
+  viewKey,
+  revealCompleted = false,
 }: {
   readonly messages: Messages;
   readonly title: string;
@@ -121,6 +126,8 @@ function Board({
   readonly columns?: readonly { readonly id: string; readonly name: string }[] | undefined;
   readonly notice?: string | undefined;
   readonly note?: boolean | undefined;
+  readonly viewKey: string;
+  readonly revealCompleted?: boolean | undefined;
 }) {
   const queryClient = useQueryClient();
   const shell = useShellActions();
@@ -128,17 +135,27 @@ function Board({
   const [groupBy, setGroupBy] = useState<GroupBy>('section');
   const [sort, setSort] = useState<Sort>('manual');
   const [details, setDetails] = useState(true);
-  const [hideCompleted, setHideCompleted] = useState(true);
-  const view = parseView(params.get('view'));
+  const [hideCompleted, setHideCompleted] = useState(!revealCompleted);
+  const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
+  const inboxId = projects.data?.items.find((project) => project.is_inbox)?.id;
+  const view = parseView(params.get('view') ?? readStoredView(viewKey));
   const page = useQuery({
     queryKey: [...queryKey, groupBy, sort],
     queryFn: () => load(groupBy, sort),
     enabled,
     placeholderData: keepPreviousData,
   });
-  const rows = rowsFromView(page.data).filter((row) => (note ? row.kind === 'note' : true));
+  const rows = rowsFromView(page.data)
+    .filter((row) => (note ? row.kind === 'note' : row.kind === 'task'))
+    .filter((row) => row.status !== 'archived')
+    .map((row) =>
+      inboxId !== undefined && row.projectId === inboxId
+        ? { ...row, projectName: messages.smartInbox }
+        : row,
+    );
 
   function chooseView(next: BoardView): void {
+    writeStoredView(viewKey, next);
     const query = new URLSearchParams(params);
     query.set('view', next);
     setParams(query, { replace: true });
@@ -146,9 +163,6 @@ function Board({
 
   return (
     <main className="screen-page">
-      <p className="ui-muted">
-        <Link to="/today">{messages.backToday}</Link>
-      </p>
       <header className="today-header">
         <div className="page-title">
           <button
