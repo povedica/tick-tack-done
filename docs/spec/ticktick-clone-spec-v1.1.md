@@ -669,7 +669,7 @@ folder.created folder.updated folder.deleted
 column.created column.updated column.deleted
 tag.created tag.updated tag.deleted tag.merged
 habit.created habit.updated habit.deleted habit.checkin habit.streak_broken habit.goal_met
-filter.created filter.updated filter.deleted smart_list.updated
+filter.created filter.updated filter.deleted smart_list.updated token.created token.revoked
 focus.session_started focus.session_finished focus.session_aborted
 reminder.fired
 note.created note.updated

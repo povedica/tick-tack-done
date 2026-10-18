@@ -219,6 +219,178 @@
         ]
       }
     },
+    "/api/v1/me/tokens": {
+      "get": {
+        "operationId": "TokensController_list",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List personal access tokens. The secret is never returned (RF-2002).",
+        "tags": [
+          "me"
+        ]
+      },
+      "post": {
+        "operationId": "TokensController_create",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTokenDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenCreatedDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create one token for an agent. The secret is shown once (RF-2002).",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/tokens/{id}/activity": {
+      "get": {
+        "operationId": "TokensController_tokenActivity",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityPageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Activity performed with one token (RF-2002)",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/tokens/{id}": {
+      "delete": {
+        "operationId": "TokensController_revoke",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Revoke a personal access token immediately (RF-2002)",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/activity": {
+      "get": {
+        "operationId": "TokensController_activity",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityPageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Account activity log",
+        "tags": [
+          "me"
+        ]
+      }
+    },
     "/api/v1/health": {
       "get": {
         "operationId": "HealthController_getHealth",
@@ -3158,6 +3330,210 @@
           "endpoint",
           "p256dh",
           "auth"
+        ]
+      },
+      "TokenDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "token_prefix": {
+            "type": "string"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "last_used_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "revoked_at": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "token_prefix",
+          "scopes",
+          "created_at",
+          "last_used_at",
+          "revoked_at"
+        ]
+      },
+      "TokenPageDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TokenDto"
+            }
+          },
+          "next_cursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ]
+      },
+      "CreateTokenDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "description": "Agent or script this token belongs to"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "tasks:read",
+                "tasks:write",
+                "lists:read",
+                "lists:write",
+                "tags:read",
+                "tags:write",
+                "filters:read",
+                "filters:write",
+                "habits:read",
+                "habits:write",
+                "focus:read",
+                "focus:write",
+                "notes:read",
+                "notes:write",
+                "calendar:read",
+                "calendar:write",
+                "reminders:write",
+                "webhooks:manage",
+                "automations:manage",
+                "profile:read",
+                "profile:write",
+                "backup:read"
+              ]
+            }
+          }
+        },
+        "required": [
+          "name",
+          "scopes"
+        ]
+      },
+      "TokenCreatedDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "token_prefix": {
+            "type": "string"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "last_used_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "revoked_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "token": {
+            "type": "string",
+            "description": "Shown once. Only the hash is stored."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "token_prefix",
+          "scopes",
+          "created_at",
+          "last_used_at",
+          "revoked_at",
+          "token"
+        ]
+      },
+      "ActivityEntryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "entity_type": {
+            "type": "string"
+          },
+          "entity_id": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "changes": {
+            "type": "object"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "token_id": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "entity_type",
+          "entity_id",
+          "action",
+          "changes",
+          "created_at",
+          "token_id"
+        ]
+      },
+      "ActivityPageDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActivityEntryDto"
+            }
+          },
+          "next_cursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
         ]
       },
       "HealthResponseDto": {
