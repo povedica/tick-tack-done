@@ -1,3 +1,5 @@
+import { extraEs } from './extra';
+
 export const es = {
   appName: 'tick-tack-done',
   todayTitle: 'Hoy',
@@ -119,7 +121,7 @@ export const es = {
   calendarTitle: 'Calendario',
   matrixTitle: 'Matriz',
   focusTitle: 'Foco',
-  dashboardTitle: 'Tablero',
+  dashboardTitle: 'Jardín digital',
   reportsTitle: 'Reportes',
   reportTitle: 'Reporte',
   reviewTitle: 'Revisión semanal',
@@ -212,4 +214,5 @@ export const es = {
   combinatorAnd: 'Y',
   combinatorOr: 'O',
   previewFailed: 'La vista previa no ha podido evaluarse.',
+  ...extraEs,
 } as const;

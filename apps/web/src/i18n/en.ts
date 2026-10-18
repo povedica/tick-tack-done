@@ -1,3 +1,4 @@
+import { extraEn } from './extra';
 import type { es } from './es';
 
 export const en = {
@@ -121,7 +122,7 @@ export const en = {
   calendarTitle: 'Calendar',
   matrixTitle: 'Matrix',
   focusTitle: 'Focus',
-  dashboardTitle: 'Dashboard',
+  dashboardTitle: 'Digital garden',
   reportsTitle: 'Reports',
   reportTitle: 'Report',
   reviewTitle: 'Weekly review',
@@ -214,4 +215,5 @@ export const en = {
   combinatorAnd: 'And',
   combinatorOr: 'Or',
   previewFailed: 'The preview could not be evaluated.',
+  ...extraEn,
 } as const satisfies { [K in keyof typeof es]: string };

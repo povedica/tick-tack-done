@@ -74,10 +74,17 @@
   accent-color: var(--prio-low);
 }
 
-.task-title {
+.task-title,
+button.task-title {
   flex: 1;
   min-width: 0;
   overflow-wrap: anywhere;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
 }
 
 .task-date {

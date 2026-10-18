@@ -1,18 +1,36 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useSearchParams } from 'react-router';
-import { messagesFor } from '../i18n';
+import { TaskDetail } from '../features/tasks/TaskDetail';
+import { useMessages } from '../i18n';
 import { BottomBar } from './BottomBar';
 import { readSidebarCollapsed, writeSidebarCollapsed } from './sidebar-state';
 import { Sidebar } from './Sidebar';
 import { isSidebarShortcut, isTypingTarget } from './shortcuts';
 
 export function AppShell() {
-  const messages = messagesFor(navigator.language);
+  const messages = useMessages();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const taskId = params.get('task');
   const [collapsed, setCollapsed] = useState(() => readSidebarCollapsed(localStorage));
   const [drawer, setDrawer] = useState(false);
+  const narrow = useNarrow();
+  const [online, setOnline] = useState(() => navigator.onLine);
+
+  useEffect(() => {
+    const on = (): void => {
+      setOnline(true);
+    };
+    const off = (): void => {
+      setOnline(false);
+    };
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => {
+      window.removeEventListener('online', on);
+      window.removeEventListener('offline', off);
+    };
+  }, []);
 
   function toggleCollapsed(): void {
     setCollapsed((current) => {
@@ -79,6 +97,7 @@ export function AppShell() {
     >
       <Sidebar
         collapsed={collapsed}
+        concealed={narrow && !drawer}
         onToggleCollapsed={toggleCollapsed}
         onNavigate={closeDrawer}
         onCapture={() => {
@@ -86,6 +105,9 @@ export function AppShell() {
           void navigate('/quick-add');
         }}
       />
+      <a className="skip-link" href="#content">
+        {messages.skip}
+      </a>
       <button
         type="button"
         className="scrim"
@@ -98,19 +120,16 @@ export function AppShell() {
         }}
       />
       <div className="center">
-        <div className="outlet">
+        {online ? null : (
+          <p className="offline-banner" role="status">
+            {messages.offline}. {messages.pendingSync}.
+          </p>
+        )}
+        <div className="outlet" id="content">
           <Outlet />
         </div>
       </div>
-      {taskId !== null ? (
-        <aside className="detail" aria-label={messages.taskTitle}>
-          <button type="button" className="text-button" onClick={closeDetail}>
-            {messages.closeDetail}
-          </button>
-          <h2>{messages.taskTitle}</h2>
-          <p>{messages.detailBlocked}</p>
-        </aside>
-      ) : null}
+      {taskId !== null ? <TaskDetail taskId={taskId} onClose={closeDetail} /> : null}
       <BottomBar
         onOpenLists={() => {
           setDrawer(true);
@@ -118,4 +137,20 @@ export function AppShell() {
       />
     </div>
   );
+}
+
+function useNarrow(): boolean {
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 1023px)');
+    const apply = (): void => {
+      setNarrow(query.matches);
+    };
+    apply();
+    query.addEventListener('change', apply);
+    return () => {
+      query.removeEventListener('change', apply);
+    };
+  }, []);
+  return narrow;
 }
