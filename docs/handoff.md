@@ -1,16 +1,52 @@
-# Handoff — smart lists, filtros y búsqueda (fase 1, punto 6)
+# Handoff — shell y Hoy (PR #5)
 
-Punto seguro para retomar. Lint, typecheck, tests unitarios y la integración de filtros pasan en local. La CI los corre después de compilar `packages/domain`. Este corte es el tag `phase-1.6` en `feat/filters`, con la PR #7 abierta contra `main`. No está mergeado. No se usa `feat/habits`: el punto 5 ya está en `main` (PR #4, tag `phase-1.5`).
+Punto seguro para retomar cuando la PR #5 esté en `main`. El corte funcional de la UI está cerrado: shell, tema y Hoy con tareas reales. La UI todavía no se parece a TickTick. Ese pulido es el siguiente corte, no el punto 7 del roadmap.
 
 ## Dónde estamos
 
-Cerrado el punto 6 de la fase 1 (`docs/roadmap.md`): smart lists, filtros, vista lista y búsqueda (RF-901–904, RF-1001, RF-1501–1502). Los puntos 1 a 5 están en `main`.
+En `main` están los puntos 1 a 6 de la fase 1. El punto 6 (smart lists, filtros, vista lista y búsqueda) entró con la PR #7, tag `phase-1.6`. Encima, la PR #5 añade el shell y conecta Hoy al SDK.
 
-La API pública sigue en `/api/v1`. OpenAPI está en `/api/docs` y el JSON commiteado es `apps/api/openapi.json`. El cliente web llama a la API solo a través de `@reflexionia/sdk`.
+La API pública sigue en `/api/v1`. OpenAPI está en `/api/docs` y el JSON commiteado es `apps/api/openapi.json`. El cliente web llama a la API solo a través de `@reflexionia/sdk`. `apps/api/tsconfig.json` es NodeNext. No revertirlo a CommonJS.
 
-Siguiente producto: punto 7, PAT con scopes y servidor MCP (RF-2001–2002), en una rama nueva desde `main` cuando esta PR se mergee. No adelantar PAT, MCP, cola offline ni export en `feat/filters`. Una feature o un punto del roadmap es una PR, y se mergea al terminarla.
+Siguiente sesión: pulir Hoy y la barra según `docs/spec/tick-tack-done-ui-spec-v1.0.md`. El prompt está en `docs/prompts/pulir-ui-hoy.md`. El punto 7 (PAT y MCP, RF-2001–2002) sigue en el roadmap y no se abre en esa sesión. Una feature es una PR, y se mergea al terminarla.
 
-La web sigue siendo un wireframe. Este corte añade listas inteligentes, filtros, la vista lista y la paleta, enlazados desde `/today`. La interfaz de la sección 7, parecida a TickTick, sigue anotada abajo y no se hace aquí. Kanban y timeline (RF-1002–1004) y el módulo de notas no entran.
+## Qué entra con la PR #5
+
+- Tokens, tema claro/oscuro/auto y layout de tres paneles. Barra colapsable a rail. En móvil, barra inferior con captura.
+- Rutas del mapa de la spec de UI resuelven sin 404. Las que no son de este corte muestran un aviso. `/quick-add` y la captura no se reescriben. `/habits` sigue siendo la pantalla real.
+- Hoy lista tareas (UI-401, UI-402, UI-404): vencidas arriba con la fecha en rojo, agrupación por prioridad y `?group=due|tag|list` recordada por vista, completar con toast de deshacer de 10 s.
+- El plan de hoy está vacío a propósito. No existe `GET /api/v1/review/daily`.
+- `main` ya trae las pantallas de listas inteligentes, filtros y búsqueda. El shell las monta en `/smart/:key`, `/filter/:id` y `/list/:id`, y conserva también `/smart-lists`, `/filters` y `/lists/:id`.
+
+## Qué falta pulir en la UI
+
+Comparado con TickTick y con la spec de UI, la pantalla actual es funcional y visualmente pobre. No se pule en esta PR.
+
+- La barra (sección 4.5) es una lista plana de enlaces. No muestra contadores, ni listas con punto de color, ni filtros fijados. El pie son tres botones a ancho completo (tema, apariencia, contraer).
+- Hoy (sección 7 y fila 9.2) tiene un título grande, grupos con mucho aire y filas de checkbox más título. La fecha de una tarea de hoy se pinta como acento, no como metadato. No hay nombre de lista, etiquetas ni fila «Añadir tarea».
+- Agrupar por etiqueta muestra el id. El SDK no lista etiquetas.
+- El panel de `?task=` sigue siendo un aviso. No carga la tarea (UI-801 y siguientes).
+- `/inbox` sigue en aviso. La bandeja de la spec (UI-501–503) no está hecha.
+- UI-403 (propuesta del plan de hoy) espera el endpoint de revisión. UI-405 (presupuesto de 200 tareas) no se ha medido.
+- Kanban, timeline, calendario, matriz, notas, dashboard, reportes y Focus siguen fuera. Son V1 o V2 en la spec de UI.
+
+El prompt de la sesión siguiente acota el primer pulido a la barra y a Hoy. No abre el resto de la spec.
+
+## Cómo probar el shell
+
+Worktree de la PR, sin `pnpm dev` (choca con el checkout principal):
+
+```bash
+pnpm --filter @reflexionia/domain build
+pnpm dev:api
+pnpm --filter web exec vite --port 5273 --strictPort --host 127.0.0.1
+```
+
+Abrir `http://127.0.0.1:5273/today`. La API de ese worktree escucha en el puerto `3100` (`VITE_API_PROXY`). Auth de desarrollo: `AUTH_MODE=dev` y `demo@reflexionia.test`.
+
+## Historial del punto 6
+
+Lo que sigue describe el corte de filtros ya mergeado (PR #7, tag `phase-1.6`). No es el trabajo abierto.
 
 ## Tags
 
@@ -19,7 +55,7 @@ La web sigue siendo un wireframe. Este corte añade listas inteligentes, filtros
 | `phase-1.6-domain` | Evaluación de smart lists, filtros, agrupación y consulta de búsqueda |
 | `phase-1.6-api`    | Endpoints públicos, eventos y OpenAPI                                 |
 | `phase-1.6-web`    | Pantallas de boceto y paleta enlazadas desde `/today`                 |
-| `phase-1.6`        | Este handoff. Punto seguro para seguir                                |
+| `phase-1.6`        | Handoff del punto 6, ya en `main`                                     |
 
 Los tags `phase-1.5*` y `phase-1.4*` están en `main`. Los `phase-1.3*` y `phase-1.2*` siguen en `feat/core-tasks`. Los `phase-1.1*` siguen en `main`.
 
@@ -68,7 +104,7 @@ Completar una recurrente sigue sin crear la siguiente fila. Solo el scheduler la
 - BullMQ no está cableado. `published_at` del outbox se queda a null. Redis sí está en el compose.
 - `apps/api/openapi.json` está en `.prettierignore`. Si cambia un endpoint, `pnpm --filter api build && pnpm --filter api openapi:generate` y `pnpm --filter @reflexionia/sdk generate`.
 - El paquete de dominio publica CJS. El build de la web aliasa `@reflexionia/domain` al fuente porque Rollup no trata el enlace del workspace como `node_modules`.
-- El cambio local de `apps/api/tsconfig.json` (`moduleResolution` NodeNext) no se commitea. CI y `nest build` usan el tsconfig CommonJS del repositorio.
+- `apps/api/tsconfig.json` quedó en NodeNext en `main` (`chore(api): align the API tsconfig with NodeNext`). No revertirlo a CommonJS.
 
 ## Qué no está hecho
 
