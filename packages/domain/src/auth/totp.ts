@@ -1,5 +1,7 @@
 /** V1 TOTP (RFC 6238) and recovery codes. SHA-1, 30 s, 6 digits. */
 
+import { subtle, utf8 } from '../crypto/web';
+
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
 export function randomBase32(bytes: Uint8Array): string {
@@ -30,7 +32,7 @@ export async function totpCode(
     return null;
   }
   const counter = Math.floor(nowMs / 1000 / stepSeconds);
-  const key = await crypto.subtle.importKey(
+  const key = await subtle().importKey(
     'raw',
     asBuffer(keyBytes),
     { name: 'HMAC', hash: 'SHA-1' },
@@ -43,7 +45,7 @@ export async function totpCode(
     message[index] = rest & 0xff;
     rest = Math.floor(rest / 256);
   }
-  const hmac = new Uint8Array(await crypto.subtle.sign('HMAC', key, message));
+  const hmac = new Uint8Array(await subtle().sign('HMAC', key, message));
   const offset = (hmac[hmac.length - 1] ?? 0) & 0x0f;
   const binary =
     (((hmac[offset] ?? 0) & 0x7f) << 24) |
@@ -86,7 +88,7 @@ export function recoveryCodes(random: () => number, count = 8): string[] {
 }
 
 export async function sha256Hex(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  const digest = await subtle().digest('SHA-256', utf8(value));
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 

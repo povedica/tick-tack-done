@@ -1,21 +1,23 @@
-/** RF-11010. Ten attempts inside a 24 h window, with exponential delay. */
+/** Ten attempts inside a 24 h window, with exponential delay. */
+
+import { subtle, utf8 } from '../crypto/web';
 
 export const WEBHOOK_MAX_ATTEMPTS = 10;
 export const WEBHOOK_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export async function signWebhookBody(secret: string, body: string): Promise<string> {
-  const key = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  );
-  const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(body));
+  const key = await subtle().importKey('raw', asBuffer(utf8(secret)), { name: 'HMAC', hash: 'SHA-256' }, false, [
+    'sign',
+  ]);
+  const signature = await subtle().sign('HMAC', key, utf8(body));
   const hex = [...new Uint8Array(signature)]
     .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('');
   return `sha256=${hex}`;
+}
+
+function asBuffer(bytes: Uint8Array): ArrayBuffer {
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
 }
 
 /** Delay before the next try. `attempts` is how many deliveries already happened. */
