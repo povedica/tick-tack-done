@@ -1,7 +1,8 @@
-import { Injectable, type OnModuleDestroy } from '@nestjs/common';
+import { Inject, Injectable, type OnModuleDestroy } from '@nestjs/common';
 import { Queue, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { EventBus, type DomainBusEvent } from './event-bus';
+import { EventRouter } from './event-router';
 
 const QUEUE = 'domain-events';
 
@@ -9,6 +10,10 @@ const QUEUE = 'domain-events';
 export class BullMqEventBus extends EventBus implements OnModuleDestroy {
   private queue: Queue | null = null;
   private worker: Worker | null = null;
+
+  constructor(@Inject(EventRouter) private readonly router: EventRouter) {
+    super();
+  }
 
   override start(): void {
     if (this.queue !== null) {
@@ -25,7 +30,18 @@ export class BullMqEventBus extends EventBus implements OnModuleDestroy {
         process.env.NODE_ENV === 'test' && times > 2 ? null : Math.min(times * 200, 2_000),
     });
     this.queue = new Queue(QUEUE, { connection });
-    this.worker = new Worker(QUEUE, () => Promise.resolve(), { connection, concurrency: 4 });
+    this.worker = new Worker(
+      QUEUE,
+      (job) => {
+        const data = job.data as { ownerId?: string };
+        return this.router.dispatch({
+          id: job.id ?? '',
+          type: job.name,
+          ownerId: data.ownerId ?? '',
+        });
+      },
+      { connection, concurrency: 4 },
+    );
   }
 
   async publish(event: DomainBusEvent): Promise<void> {

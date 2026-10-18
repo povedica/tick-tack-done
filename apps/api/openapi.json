@@ -738,6 +738,71 @@
         ]
       }
     },
+    "/api/v1/me/totp": {
+      "post": {
+        "operationId": "TotpController_begin",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Start TOTP. It is not forced on the dev user.",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/totp/confirm": {
+      "post": {
+        "operationId": "TotpController_confirm",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TotpCodeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Confirm TOTP and show recovery codes once",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/totp/disable": {
+      "post": {
+        "operationId": "TotpController_disable",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TotpCodeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Turn off TOTP",
+        "tags": [
+          "me"
+        ]
+      }
+    },
     "/api/v1/health": {
       "get": {
         "operationId": "HealthController_getHealth",
@@ -1726,6 +1791,44 @@
         "summary": "Delete a section and detach its tasks",
         "tags": [
           "lists"
+        ]
+      }
+    },
+    "/api/v1/matrix/rules": {
+      "get": {
+        "operationId": "MatrixController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Eisenhower rules. Missing rows use the spec defaults (RF-1004).",
+        "tags": [
+          "matrix"
+        ]
+      },
+      "put": {
+        "operationId": "MatrixController_save",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MatrixRuleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Replace one quadrant rule (RF-1004)",
+        "tags": [
+          "matrix"
         ]
       }
     },
@@ -3421,6 +3524,46 @@
         ]
       }
     },
+    "/api/v1/tasks/{id}/attachments/{attachmentId}/thumbnail": {
+      "get": {
+        "operationId": "TasksController_thumbnail",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "attachmentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Download the image thumbnail (RF-203)",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
     "/api/v1/tasks/{id}/attachments/{attachmentId}": {
       "get": {
         "operationId": "TasksController_download",
@@ -3685,6 +3828,1570 @@
         "summary": "MCP JSON-RPC (RF-2001). Tools use API v1 and cannot exceed the bearer token scopes. Notes are not exposed.",
         "tags": [
           "mcp"
+        ]
+      }
+    },
+    "/api/v1/calendar/events": {
+      "get": {
+        "operationId": "CalendarController_events",
+        "parameters": [
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Tasks with a date plus external events (RF-1101, RF-1102)",
+        "tags": [
+          "calendar"
+        ]
+      }
+    },
+    "/api/v1/calendar/subscriptions": {
+      "get": {
+        "operationId": "CalendarController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "List calendar subscriptions (RF-1103)",
+        "tags": [
+          "calendar"
+        ]
+      },
+      "post": {
+        "operationId": "CalendarController_subscribe",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscribeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Subscribe to an iCal URL or Google Calendar read (RF-1103, RF-2004)",
+        "tags": [
+          "calendar"
+        ]
+      }
+    },
+    "/api/v1/calendar/subscriptions/{id}/refresh": {
+      "post": {
+        "operationId": "CalendarController_refresh",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Fetch an iCal subscription (RF-1103)",
+        "tags": [
+          "calendar"
+        ]
+      }
+    },
+    "/api/v1/calendar/subscriptions/{id}/push": {
+      "post": {
+        "operationId": "CalendarController_push",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Google Calendar two-way write (V2). Stops without credentials.",
+        "tags": [
+          "calendar"
+        ]
+      }
+    },
+    "/api/v1/calendar/subscriptions/{id}": {
+      "delete": {
+        "operationId": "CalendarController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Remove a calendar subscription",
+        "tags": [
+          "calendar"
+        ]
+      }
+    },
+    "/api/v1/calendar/feeds": {
+      "post": {
+        "operationId": "CalendarController_createFeed",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The secret URL is returned once"
+          }
+        },
+        "summary": "Create a secret iCal feed for a list or filter (RF-1104)",
+        "tags": [
+          "calendar"
+        ]
+      }
+    },
+    "/api/v1/calendar/feeds/{id}": {
+      "delete": {
+        "operationId": "CalendarController_revokeFeed",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Revoke an iCal feed (RF-1104)",
+        "tags": [
+          "calendar"
+        ]
+      }
+    },
+    "/feeds/{token}": {
+      "get": {
+        "operationId": "FeedsController_feed",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read-only iCal feed (RF-1104)",
+        "tags": [
+          "Feeds"
+        ]
+      }
+    },
+    "/api/v1/dashboard/widgets": {
+      "get": {
+        "operationId": "DashboardController_widgets",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Widget catalog (RF-2101, RF-2104)",
+        "tags": [
+          "dashboard"
+        ]
+      }
+    },
+    "/api/v1/dashboard/data": {
+      "get": {
+        "operationId": "DashboardController_data",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "KPI for one widget (RF-2102, RF-2104)",
+        "tags": [
+          "dashboard"
+        ]
+      }
+    },
+    "/api/v1/me/dashboard": {
+      "get": {
+        "operationId": "DashboardController_getLayout",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Dashboard layout (RF-2103)",
+        "tags": [
+          "dashboard"
+        ]
+      },
+      "patch": {
+        "operationId": "DashboardController_saveLayout",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LayoutDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Save the dashboard layout (RF-2103)",
+        "tags": [
+          "dashboard"
+        ]
+      }
+    },
+    "/api/v1/reports/weekly": {
+      "get": {
+        "operationId": "ReportsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Weekly report history (RF-2204)",
+        "tags": [
+          "reports"
+        ]
+      },
+      "post": {
+        "operationId": "ReportsController_build",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Build this week’s honest report (RF-2201, RF-2203)",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/v1/reports/weekly/{week}": {
+      "get": {
+        "operationId": "ReportsController_one",
+        "parameters": [
+          {
+            "name": "week",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "One weekly report (RF-2204)",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/v1/me/report-settings": {
+      "get": {
+        "operationId": "ReportsController_settings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Weekly report settings (RF-2202)",
+        "tags": [
+          "reports"
+        ]
+      },
+      "patch": {
+        "operationId": "ReportsController_saveSettings",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportSettingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Update weekly report settings (RF-2202)",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/api/v1/review/daily": {
+      "get": {
+        "operationId": "ReviewController_daily",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Propose today’s short list. The UI does not decide (RF-2301)",
+        "tags": [
+          "review"
+        ]
+      }
+    },
+    "/api/v1/review/weekly": {
+      "get": {
+        "operationId": "ReviewController_weekly",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Guided weekly review (RF-2302, RF-2303)",
+        "tags": [
+          "review"
+        ]
+      }
+    },
+    "/api/v1/webhooks": {
+      "get": {
+        "operationId": "WebhooksController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "List webhook endpoints (RF-11010)",
+        "tags": [
+          "webhooks"
+        ]
+      },
+      "post": {
+        "operationId": "WebhooksController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Create a signed webhook (RF-11010)",
+        "tags": [
+          "webhooks"
+        ]
+      }
+    },
+    "/api/v1/webhooks/{id}": {
+      "delete": {
+        "operationId": "WebhooksController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Remove a webhook",
+        "tags": [
+          "webhooks"
+        ]
+      }
+    },
+    "/api/v1/webhooks/{id}/ping": {
+      "post": {
+        "operationId": "WebhooksController_ping",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Send a test ping (RF-11010)",
+        "tags": [
+          "webhooks"
+        ]
+      }
+    },
+    "/api/v1/webhooks/deliveries/{deliveryId}/retry": {
+      "post": {
+        "operationId": "WebhooksController_retry",
+        "parameters": [
+          {
+            "name": "deliveryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Retry a delivery (RF-11010)",
+        "tags": [
+          "webhooks"
+        ]
+      }
+    },
+    "/api/v1/automations": {
+      "get": {
+        "operationId": "AutomationsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "List automations (section 11.3)",
+        "tags": [
+          "automations"
+        ]
+      },
+      "post": {
+        "operationId": "AutomationsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutomationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Create an automation (section 11.3)",
+        "tags": [
+          "automations"
+        ]
+      }
+    },
+    "/api/v1/automations/{id}/run": {
+      "post": {
+        "operationId": "AutomationsController_run",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Run an automation now, including the weekly report template (RF-2203)",
+        "tags": [
+          "automations"
+        ]
+      }
+    },
+    "/api/v1/automations/{id}": {
+      "delete": {
+        "operationId": "AutomationsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Delete an automation",
+        "tags": [
+          "automations"
+        ]
+      }
+    },
+    "/api/v1/events/stream": {
+      "get": {
+        "operationId": "RealtimeController_stream",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Push domain events to open clients (RF-13013)",
+        "tags": [
+          "sync"
+        ]
+      }
+    },
+    "/api/v1/focus/sessions": {
+      "post": {
+        "operationId": "FocusController_start",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Start a server-side focus session (RF-1201, RF-1205)",
+        "tags": [
+          "focus"
+        ]
+      },
+      "get": {
+        "operationId": "FocusController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "List focus sessions (RF-1204)",
+        "tags": [
+          "focus"
+        ]
+      }
+    },
+    "/api/v1/focus/sessions/{id}/finish": {
+      "post": {
+        "operationId": "FocusController_finish",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Finish a session and name the next phase (RF-1201)",
+        "tags": [
+          "focus"
+        ]
+      }
+    },
+    "/api/v1/focus/sessions/{id}/abort": {
+      "post": {
+        "operationId": "FocusController_abort",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Abort a session (RF-1205)",
+        "tags": [
+          "focus"
+        ]
+      }
+    },
+    "/api/v1/focus/stats": {
+      "get": {
+        "operationId": "FocusController_stats",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Focus statistics (RF-1204)",
+        "tags": [
+          "focus"
+        ]
+      }
+    },
+    "/api/v1/focus/settings": {
+      "get": {
+        "operationId": "FocusController_getSettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Focus settings (RF-1201)",
+        "tags": [
+          "focus"
+        ]
+      },
+      "patch": {
+        "operationId": "FocusController_patchSettings",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Update focus settings (RF-1201)",
+        "tags": [
+          "focus"
+        ]
+      }
+    },
+    "/api/v1/focus/tasks/{taskId}/estimate": {
+      "patch": {
+        "operationId": "FocusController_estimate",
+        "parameters": [
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EstimateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Optional pomodoro estimate on a task (RF-1202)",
+        "tags": [
+          "focus"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/members": {
+      "get": {
+        "operationId": "CollaborationController_members",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "List members of a shared list (RF-1801)",
+        "tags": [
+          "collaboration"
+        ]
+      },
+      "post": {
+        "operationId": "CollaborationController_share",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShareDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Share a list with a user or a token (RF-1801, RF-1805)",
+        "tags": [
+          "collaboration"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/members/{memberId}": {
+      "delete": {
+        "operationId": "CollaborationController_unshare",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "memberId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Remove a member (RF-1801)",
+        "tags": [
+          "collaboration"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/presence": {
+      "post": {
+        "operationId": "CollaborationController_presence",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Mark that you are looking at the list (RF-1804)",
+        "tags": [
+          "collaboration"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/activity": {
+      "get": {
+        "operationId": "CollaborationController_activity",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Activity of a shared list (RF-1803)",
+        "tags": [
+          "collaboration"
+        ]
+      }
+    },
+    "/api/v1/tasks/{id}/comments": {
+      "get": {
+        "operationId": "CollaborationController_comments",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Comments on a task (RF-1803)",
+        "tags": [
+          "collaboration"
+        ]
+      },
+      "post": {
+        "operationId": "CollaborationController_comment",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Comment, with @mentions (RF-1803)",
+        "tags": [
+          "collaboration"
+        ]
+      }
+    },
+    "/api/v1/tasks/{id}/assignee": {
+      "post": {
+        "operationId": "CollaborationController_assign",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Assign a task (RF-1802)",
+        "tags": [
+          "collaboration"
+        ]
+      }
+    },
+    "/api/v1/plugins": {
+      "get": {
+        "operationId": "PluginsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Installed plugins (section 12)",
+        "tags": [
+          "plugins"
+        ]
+      },
+      "post": {
+        "operationId": "PluginsController_install",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Install a plugin from its manifest. It does not run inside the API.",
+        "tags": [
+          "plugins"
+        ]
+      }
+    },
+    "/api/v1/plugins/widgets": {
+      "get": {
+        "operationId": "PluginsController_widgets",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Widgets registered by plugins (RF-2105)",
+        "tags": [
+          "plugins"
+        ]
+      }
+    },
+    "/api/v1/plugins/{pluginId}": {
+      "delete": {
+        "operationId": "PluginsController_remove",
+        "parameters": [
+          {
+            "name": "pluginId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Remove a plugin",
+        "tags": [
+          "plugins"
+        ]
+      }
+    },
+    "/api/v1/notes": {
+      "get": {
+        "operationId": "NotesController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Notes, which are tasks with kind note (RF-1401)",
+        "tags": [
+          "notes"
+        ]
+      }
+    },
+    "/api/v1/tasks/{id}/convert": {
+      "post": {
+        "operationId": "NotesController_convert",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConvertDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Convert a note into a task or the other way (RF-1402)",
+        "tags": [
+          "notes"
+        ]
+      }
+    },
+    "/api/v1/sticky-notes": {
+      "get": {
+        "operationId": "NotesController_stickies",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Sticky notes (RF-1403)",
+        "tags": [
+          "notes"
+        ]
+      },
+      "post": {
+        "operationId": "NotesController_createSticky",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StickyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Pin a sticky note (RF-1403)",
+        "tags": [
+          "notes"
+        ]
+      }
+    },
+    "/api/v1/sticky-notes/{id}": {
+      "patch": {
+        "operationId": "NotesController_updateSticky",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StickyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Update a sticky note (RF-1403)",
+        "tags": [
+          "notes"
+        ]
+      },
+      "delete": {
+        "operationId": "NotesController_deleteSticky",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Delete a sticky note (RF-1403)",
+        "tags": [
+          "notes"
+        ]
+      }
+    },
+    "/api/v1/import/csv": {
+      "post": {
+        "operationId": "TransferController_importCsv",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CsvImportDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Import a CSV with a column map (RF-1702). TickTick import stays deferred.",
+        "tags": [
+          "import"
+        ]
+      }
+    },
+    "/api/v1/export/csv": {
+      "get": {
+        "operationId": "TransferController_csv",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "CSV export of a list (RF-1703)",
+        "tags": [
+          "import"
+        ]
+      }
+    },
+    "/api/v1/export/ical": {
+      "get": {
+        "operationId": "TransferController_ical",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "iCal export of a list or filter (RF-1703)",
+        "tags": [
+          "import"
+        ]
+      }
+    },
+    "/api/v1/integrations/telegram": {
+      "get": {
+        "operationId": "IntegrationsController_status",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Telegram bot status. Without TELEGRAM_BOT_TOKEN it stays stopped (RF-2003).",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/telegram/link": {
+      "post": {
+        "operationId": "IntegrationsController_link",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Remember a chat id. The bot still does not call Telegram without a token.",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/telegram/webhook": {
+      "post": {
+        "operationId": "IntegrationsController_webhook",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TelegramUpdateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Inbound Telegram update. Refuses to run when the bot token is missing.",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/drive": {
+      "get": {
+        "operationId": "IntegrationsController_drive",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Google Drive status. No call is made without credentials (RF-2005).",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/integrations/drive/attachments": {
+      "post": {
+        "operationId": "IntegrationsController_attach",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DriveDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Attach a Drive file by link. Copying bytes needs credentials (RF-2005).",
+        "tags": [
+          "integrations"
+        ]
+      }
+    },
+    "/api/v1/me/location": {
+      "post": {
+        "operationId": "LocationController_check",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Fire location reminders when the browser supplies a position (RF-806)",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/api/v1/me/achievements": {
+      "get": {
+        "operationId": "AchievementsController_read",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Achievement score from the dashboard KPIs (RF-1602). Off means null.",
+        "tags": [
+          "me"
+        ]
+      },
+      "patch": {
+        "operationId": "AchievementsController_update",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AchievementsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Turn the achievement score on or off (RF-1602)",
+        "tags": [
+          "me"
+        ]
+      }
+    },
+    "/open/v1/project": {
+      "get": {
+        "operationId": "OpenController_projects",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "TickTick-shaped project list",
+        "tags": [
+          "open"
+        ]
+      }
+    },
+    "/open/v1/project/{projectId}/data": {
+      "get": {
+        "operationId": "OpenController_data",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "TickTick-shaped project data",
+        "tags": [
+          "open"
+        ]
+      }
+    },
+    "/open/v1/task": {
+      "post": {
+        "operationId": "OpenController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Create a task with TickTick field names",
+        "tags": [
+          "open"
+        ]
+      }
+    },
+    "/open/v1/project/{projectId}/task/{taskId}/complete": {
+      "post": {
+        "operationId": "OpenController_complete",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Complete a task with the TickTick path",
+        "tags": [
+          "open"
+        ]
+      }
+    },
+    "/open/v1/project/{projectId}/task/{taskId}": {
+      "delete": {
+        "operationId": "OpenController_remove",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Delete a task with the TickTick path",
+        "tags": [
+          "open"
         ]
       }
     }
@@ -4088,6 +5795,12 @@
           },
           "password": {
             "type": "string"
+          },
+          "totp_code": {
+            "type": "string"
+          },
+          "recovery_code": {
+            "type": "string"
           }
         },
         "required": [
@@ -4285,6 +5998,17 @@
           "access_token",
           "token_type",
           "scope"
+        ]
+      },
+      "TotpCodeDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
         ]
       },
       "HealthResponseDto": {
@@ -4971,6 +6695,10 @@
           "collapsed": {
             "type": "boolean"
           },
+          "wip_limit": {
+            "type": "number",
+            "nullable": true
+          },
           "sort_order": {
             "type": "string"
           },
@@ -4986,6 +6714,7 @@
           "project_id",
           "name",
           "collapsed",
+          "wip_limit",
           "sort_order",
           "created_at",
           "updated_at"
@@ -5021,6 +6750,11 @@
           "collapsed": {
             "type": "boolean"
           },
+          "wip_limit": {
+            "type": "object",
+            "nullable": true,
+            "minimum": 1
+          },
           "before_id": {
             "type": "object",
             "nullable": true
@@ -5044,6 +6778,11 @@
           "collapsed": {
             "type": "boolean"
           },
+          "wip_limit": {
+            "type": "object",
+            "nullable": true,
+            "minimum": 1
+          },
           "before_id": {
             "type": "object",
             "nullable": true
@@ -5052,6 +6791,31 @@
             "type": "boolean"
           }
         }
+      },
+      "MatrixRuleDto": {
+        "type": "object",
+        "properties": {
+          "quadrant": {
+            "type": "string",
+            "enum": [
+              "do",
+              "schedule",
+              "delegate",
+              "drop"
+            ]
+          },
+          "rules": {
+            "type": "object",
+            "nullable": true
+          },
+          "effect": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "quadrant",
+          "effect"
+        ]
       },
       "FilterConditionDto": {
         "type": "object",
@@ -6612,6 +8376,357 @@
         "required": [
           "stamp",
           "confirmation"
+        ]
+      },
+      "SubscribeDto": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "ical",
+              "google"
+            ]
+          },
+          "color": {
+            "type": "string"
+          },
+          "sync_direction": {
+            "type": "string",
+            "enum": [
+              "read",
+              "two_way"
+            ]
+          }
+        }
+      },
+      "FeedDto": {
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string"
+          },
+          "filter_id": {
+            "type": "string"
+          }
+        }
+      },
+      "LayoutDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "is_default": {
+            "type": "boolean"
+          },
+          "widgets": {
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "widgets"
+        ]
+      },
+      "ReportSettingsDto": {
+        "type": "object",
+        "properties": {
+          "day": {
+            "type": "string",
+            "example": "sunday"
+          },
+          "time": {
+            "type": "string",
+            "example": "20:00"
+          },
+          "tone": {
+            "type": "string",
+            "enum": [
+              "honesto",
+              "neutro",
+              "motivador"
+            ]
+          },
+          "channels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "WebhookDto": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "secret": {
+            "type": "string"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "url",
+          "events"
+        ]
+      },
+      "AutomationDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "trigger": {
+            "type": "object"
+          },
+          "conditions": {
+            "type": "object",
+            "nullable": true
+          },
+          "actions": {
+            "type": "array"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "trigger",
+          "actions"
+        ]
+      },
+      "StartDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "focus",
+              "short_break",
+              "long_break"
+            ]
+          },
+          "task_id": {
+            "type": "string"
+          },
+          "ambient_sound": {
+            "type": "string"
+          }
+        }
+      },
+      "SettingsDto": {
+        "type": "object",
+        "properties": {
+          "pomodoro_minutes": {
+            "type": "number"
+          },
+          "short_break_minutes": {
+            "type": "number"
+          },
+          "long_break_minutes": {
+            "type": "number"
+          },
+          "cycles_before_long_break": {
+            "type": "number"
+          },
+          "strict_mode": {
+            "type": "boolean"
+          }
+        }
+      },
+      "EstimateDto": {
+        "type": "object",
+        "properties": {
+          "estimated_pomodoros": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "estimated_pomodoros"
+        ]
+      },
+      "ShareDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "token_id": {
+            "type": "string"
+          },
+          "permission": {
+            "type": "string",
+            "enum": [
+              "read",
+              "comment",
+              "write"
+            ]
+          }
+        },
+        "required": [
+          "permission"
+        ]
+      },
+      "CommentDto": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "body"
+        ]
+      },
+      "AssignDto": {
+        "type": "object",
+        "properties": {
+          "assignee_id": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": [
+          "assignee_id"
+        ]
+      },
+      "ConvertDto": {
+        "type": "object",
+        "properties": {
+          "to": {
+            "type": "string",
+            "enum": [
+              "task",
+              "note"
+            ]
+          }
+        },
+        "required": [
+          "to"
+        ]
+      },
+      "StickyDto": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          },
+          "pinned_task_id": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": [
+          "text"
+        ]
+      },
+      "CsvImportDto": {
+        "type": "object",
+        "properties": {
+          "csv": {
+            "type": "string"
+          },
+          "title_column": {
+            "type": "string"
+          },
+          "due_column": {
+            "type": "string"
+          },
+          "priority_column": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "csv",
+          "title_column"
+        ]
+      },
+      "LinkDto": {
+        "type": "object",
+        "properties": {
+          "chat_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "chat_id"
+        ]
+      },
+      "TelegramUpdateDto": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        }
+      },
+      "DriveDto": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "file_id": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_id",
+          "file_id",
+          "url",
+          "name"
+        ]
+      },
+      "LocationDto": {
+        "type": "object",
+        "properties": {
+          "lat": {
+            "type": "number"
+          },
+          "lon": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "lat",
+          "lon"
+        ]
+      },
+      "AchievementsDto": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
         ]
       }
     }

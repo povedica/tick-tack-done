@@ -114,6 +114,31 @@ enum ActivityAction {
   accessed
 }
 
+enum SharePermission {
+  read
+  comment
+  write
+}
+
+enum MatrixQuadrant {
+  do
+  schedule
+  delegate
+  drop
+}
+
+enum WebhookDeliveryState {
+  pending
+  delivered
+  failed
+  gave_up
+}
+
+enum AutomationRunState {
+  ok
+  error
+}
+
 enum Theme {
   light
   dark
@@ -160,6 +185,9 @@ model User {
   dailyReminderTime     String?                @map("daily_reminder_time")
   weeklyReportSettings  Json                   @default("{}") @map("weekly_report_settings")
   achievementScore      Int                    @default(0) @map("achievement_score")
+  achievementsEnabled   Boolean                @default(true) @map("achievements_enabled")
+  totpSecret            String?                @map("totp_secret")
+  totpEnabled           Boolean                @default(false) @map("totp_enabled")
   taskCompleteChildren  CompleteChildrenPolicy @default(ask) @map("task_complete_children")
   createdAt             DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -202,6 +230,16 @@ model User {
   sessions              Session[]
   oauthClients          OauthClient[]
   oauthCodes            OauthAuthorizationCode[]
+  matrixRules           MatrixRule[]
+  calendarFeeds         CalendarFeed[]
+  webhookEndpoints      WebhookEndpoint[]
+  automations           Automation[]
+  ownedMemberships      ProjectMember[]        @relation("MembershipOwner")
+  memberships           ProjectMember[]        @relation("MemberUser")
+  presences             ListPresence[]
+  plugins               PluginInstall[]
+  recoveryCodes         RecoveryCode[]
+  telegramLinks         TelegramLink[]
 
   @@map("users")
 }
@@ -258,6 +296,9 @@ model Project {
   deletedAt DateTime?       @map("deleted_at") @db.Timestamptz(6)
   columns   Column[]
   tasks     Task[]
+  members   ProjectMember[]
+  feeds     CalendarFeed[]
+  presences ListPresence[]
 
   @@index([ownerId, sortOrder])
   @@map("projects")
@@ -271,6 +312,7 @@ model Column {
   project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   name      String
   collapsed Boolean   @default(false)
+  wipLimit  Int?      @map("wip_limit")
   sortOrder BigInt    @default(65536) @map("sort_order")
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -332,8 +374,9 @@ model Task {
   createdById     String                   @map("created_by") @db.Uuid
   createdBy       User                     @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   completedAt     DateTime?                @map("completed_at") @db.Timestamptz(6)
-  source          TaskSource               @default(manual)
-  metadata        Json                     @default("{}")
+  source             TaskSource               @default(manual)
+  estimatedPomodoros Int?                  @map("estimated_pomodoros")
+  metadata           Json                     @default("{}")
   fieldClocks     Json                     @default("{}") @map("field_clocks")
   searchVector    Unsupported("tsvector")? @default(dbgenerated("to_tsvector('simple'::regconfig, (((COALESCE(title, ''::character varying))::text || ' '::text) || COALESCE(content, ''::text)))")) @map("search_vector")
   createdAt       DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -573,6 +616,9 @@ model Attachment {
   mimeType     String    @map("mime_type")
   byteSize     Int       @map("byte_size")
   storageKey   String    @map("storage_key")
+  thumbnailKey String?   @map("thumbnail_key")
+  driveFileId  String?   @map("drive_file_id")
+  driveUrl     String?   @map("drive_url")
   uploadedById String    @map("uploaded_by") @db.Uuid
   uploadedBy   User      @relation("AttachmentUploadedBy", fields: [uploadedById], references: [id], onDelete: Restrict)
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -637,7 +683,8 @@ model PersonalAccessToken {
   updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
 
-  activity ActivityLog[]
+  activity    ActivityLog[]
+  memberships ProjectMember[]
 
   @@index([ownerId, createdAt])
   @@map("personal_access_tokens")
@@ -853,4 +900,179 @@ model OauthAuthorizationCode {
 
   @@index([userId])
   @@map("oauth_authorization_codes")
+}
+
+/// RF-1004. Null rules mean the default urgent/important split.
+model MatrixRule {
+  id        String         @id @default(uuid()) @db.Uuid
+  ownerId   String         @map("owner_id") @db.Uuid
+  owner     User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  quadrant  MatrixQuadrant
+  rules     Json?
+  effect    Json
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime?      @map("deleted_at") @db.Timestamptz(6)
+
+  @@unique([ownerId, quadrant])
+  @@map("matrix_rules")
+}
+
+/// RF-1104. Only the hash of the secret URL is stored.
+model CalendarFeed {
+  id         String    @id @default(uuid()) @db.Uuid
+  ownerId    String    @map("owner_id") @db.Uuid
+  owner      User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique @map("token_hash")
+  projectId  String?   @map("project_id") @db.Uuid
+  project    Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  filterId   String?   @map("filter_id") @db.Uuid
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt  DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  @@index([ownerId])
+  @@map("calendar_feeds")
+}
+
+model WebhookEndpoint {
+  id        String            @id @default(uuid()) @db.Uuid
+  ownerId   String            @map("owner_id") @db.Uuid
+  owner     User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  url       String
+  secret    String
+  events    String[]
+  active    Boolean           @default(true)
+  deliveries WebhookDelivery[]
+  createdAt DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime?         @map("deleted_at") @db.Timestamptz(6)
+
+  @@index([ownerId])
+  @@map("webhook_endpoints")
+}
+
+model WebhookDelivery {
+  id          String               @id @default(uuid()) @db.Uuid
+  endpointId  String               @map("endpoint_id") @db.Uuid
+  endpoint    WebhookEndpoint      @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  eventId     String               @map("event_id") @db.Uuid
+  eventType   String               @map("event_type")
+  state       WebhookDeliveryState @default(pending)
+  attempts    Int                  @default(0)
+  lastStatus  Int?                 @map("last_status")
+  nextAttempt DateTime?            @map("next_attempt") @db.Timestamptz(6)
+  createdAt   DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([endpointId, eventId])
+  @@index([state, nextAttempt])
+  @@map("webhook_deliveries")
+}
+
+model Automation {
+  id         String          @id @default(uuid()) @db.Uuid
+  ownerId    String          @map("owner_id") @db.Uuid
+  owner      User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name       String
+  trigger    Json
+  conditions Json?
+  actions    Json
+  enabled    Boolean         @default(true)
+  runs       AutomationRun[]
+  createdAt  DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt  DateTime?       @map("deleted_at") @db.Timestamptz(6)
+
+  @@index([ownerId])
+  @@map("automations")
+}
+
+model AutomationRun {
+  id           String             @id @default(uuid()) @db.Uuid
+  automationId String             @map("automation_id") @db.Uuid
+  automation   Automation         @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  eventId      String?            @map("event_id") @db.Uuid
+  state        AutomationRunState
+  detail       Json               @default("{}")
+  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([automationId, createdAt])
+  @@map("automation_runs")
+}
+
+/// RF-1801. A member is a user or a personal access token. The list still has one owner.
+model ProjectMember {
+  id         String              @id @default(uuid()) @db.Uuid
+  ownerId    String              @map("owner_id") @db.Uuid
+  owner      User                @relation("MembershipOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  projectId  String              @map("project_id") @db.Uuid
+  project    Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  memberId   String?             @map("member_id") @db.Uuid
+  member     User?               @relation("MemberUser", fields: [memberId], references: [id], onDelete: Cascade)
+  tokenId    String?             @map("token_id") @db.Uuid
+  token      PersonalAccessToken? @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  permission SharePermission
+  createdAt  DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt  DateTime?           @map("deleted_at") @db.Timestamptz(6)
+
+  @@index([projectId])
+  @@index([memberId])
+  @@map("project_members")
+}
+
+/// RF-1804. Lightweight presence: last time someone opened the list.
+model ListPresence {
+  id        String   @id @default(uuid()) @db.Uuid
+  projectId String   @map("project_id") @db.Uuid
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  seenAt    DateTime @map("seen_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([projectId, userId])
+  @@map("list_presence")
+}
+
+model PluginInstall {
+  id          String    @id @default(uuid()) @db.Uuid
+  ownerId     String    @map("owner_id") @db.Uuid
+  owner       User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  pluginId    String    @map("plugin_id")
+  manifest    Json
+  enabled     Boolean   @default(true)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  @@unique([ownerId, pluginId])
+  @@map("plugin_installs")
+}
+
+model RecoveryCode {
+  id        String    @id @default(uuid()) @db.Uuid
+  ownerId   String    @map("owner_id") @db.Uuid
+  owner     User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  codeHash  String    @map("code_hash")
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([ownerId])
+  @@map("recovery_codes")
+}
+
+model TelegramLink {
+  id        String    @id @default(uuid()) @db.Uuid
+  ownerId   String    @map("owner_id") @db.Uuid
+  owner     User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  chatId    String    @unique @map("chat_id")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  @@index([ownerId])
+  @@map("telegram_links")
 }

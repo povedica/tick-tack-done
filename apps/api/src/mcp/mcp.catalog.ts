@@ -136,6 +136,36 @@ export const MCP_TOOLS: readonly McpTool[] = [
     scopes: ['tasks:read'],
     inputSchema: objectSchema({ q: { type: 'string' } }, ['q']),
   },
+  {
+    name: 'list_notes',
+    description: 'List notes.',
+    scopes: ['notes:read'],
+    inputSchema: objectSchema({ limit }),
+  },
+  {
+    name: 'pin_sticky_note',
+    description: 'Pin a sticky note.',
+    scopes: ['notes:write'],
+    inputSchema: objectSchema({ text: { type: 'string', minLength: 1, maxLength: 4000 } }, ['text']),
+  },
+  {
+    name: 'dashboard_snapshot',
+    description: 'Read the dashboard KPIs.',
+    scopes: ['tasks:read'],
+    inputSchema: objectSchema({}),
+  },
+  {
+    name: 'start_focus',
+    description: 'Start a server-side focus session.',
+    scopes: ['focus:write'],
+    inputSchema: objectSchema({ minutes: { type: 'integer', minimum: 1, maximum: 180 } }),
+  },
+  {
+    name: 'review_daily',
+    description: 'Propose a daily review. The tool does not apply it.',
+    scopes: ['tasks:read'],
+    inputSchema: objectSchema({}),
+  },
 ];
 
 export function findTool(name: string): McpTool | undefined {

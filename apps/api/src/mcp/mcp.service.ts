@@ -1,8 +1,13 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
-import { HABIT_WEEKDAYS } from '@reflexionia/domain';
-import type { AuthUser } from '../auth/auth-user';
+import { HABIT_WEEKDAYS, proposeDaily } from '@reflexionia/domain';
+import { actorOf, type AuthUser } from '../auth/auth-user';
 import { missingScopes } from '../auth/scopes';
+import { DomainEvent } from '../events/domain-events';
+import { EventRecorder } from '../events/event-recorder';
+import { asJson } from '../http/json';
 import { DomainException } from '../http/domain.exception';
+import { PrismaService } from '../prisma/prisma.service';
+import { loadDashboardSnapshot } from '../reading/snapshot';
 import { FiltersService } from '../modules/filters/filters.service';
 import { SmartListsService } from '../modules/filters/smart-lists.service';
 import { HabitsService } from '../modules/habits/habits.service';
@@ -40,6 +45,8 @@ export class McpService {
     @Inject(SmartListsService) private readonly smartLists: SmartListsService,
     @Inject(HabitsService) private readonly habits: HabitsService,
     @Inject(SearchService) private readonly search: SearchService,
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(EventRecorder) private readonly events: EventRecorder,
   ) {}
 
   async handle(user: AuthUser, body: unknown): Promise<RpcResponse | null> {
@@ -231,6 +238,80 @@ export class McpService {
         ).body;
       case 'search':
         return this.search.search(user, requiredString(args, 'q', 200), undefined);
+      case 'list_notes':
+        return this.prisma.task.findMany({
+          where: { ownerId: user.id, kind: 'note', deletedAt: null },
+          select: { id: true, title: true, content: true, projectId: true },
+          take: limit,
+        });
+      case 'pin_sticky_note':
+        return this.prisma.$transaction(async (tx) => {
+          const created = await tx.stickyNote.create({
+            data: { ownerId: user.id, text: requiredString(args, 'text', 4000) },
+          });
+          await this.events.record(tx, actorOf(user), {
+            type: DomainEvent.stickyNoteCreated,
+            entityType: 'sticky_note',
+            entityId: created.id,
+            action: 'created',
+            data: asJson({ text: created.text }),
+            previous: null,
+          });
+          return { id: created.id, text: created.text };
+        });
+      case 'dashboard_snapshot':
+        return loadDashboardSnapshot(this.prisma, user.id, new Date());
+      case 'start_focus': {
+        const minutes = typeof args.minutes === 'number' ? args.minutes : 25;
+        return this.prisma.$transaction(async (tx) => {
+          const created = await tx.focusSession.create({
+            data: {
+              ownerId: user.id,
+              type: 'focus',
+              plannedMinutes: minutes,
+              startedAt: new Date(),
+            },
+          });
+          await this.events.record(tx, actorOf(user), {
+            type: DomainEvent.focusSessionStarted,
+            entityType: 'focus_session',
+            entityId: created.id,
+            action: 'created',
+            data: asJson({ planned_minutes: minutes }),
+            previous: null,
+          });
+          return { id: created.id, planned_minutes: minutes };
+        });
+      }
+      case 'review_daily': {
+        const tasks = await this.prisma.task.findMany({
+          where: { ownerId: user.id, deletedAt: null, status: 'active' },
+          include: { project: { select: { name: true } }, tags: { select: { tag: { select: { name: true } } } } },
+          take: 100,
+        });
+        const now = new Date().toISOString();
+        return proposeDaily(
+          tasks.map((task) => ({
+            id: task.id,
+            title: task.title,
+            priority: task.priority,
+            dueDate: task.dueDate?.toISOString() ?? null,
+            listId: task.projectId,
+            listName: task.project.name,
+            status: task.status,
+            updatedAt: task.updatedAt.toISOString(),
+            tagNames: task.tags.map((link) => link.tag.name),
+            assigneeId: task.assigneeId,
+            content: task.content,
+            createdAt: task.createdAt.toISOString(),
+            isAllDay: task.isAllDay,
+            timeZone: task.timeZone,
+          })),
+          now,
+          null,
+          { now, timeZone: user.timeZone },
+        );
+      }
       default:
         throw new DomainException(HttpStatus.BAD_REQUEST, 'unknown_tool', 'Unknown tool');
     }

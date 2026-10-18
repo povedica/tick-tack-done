@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { type INestApplication, ValidationPipe } from '@nestjs/common';
+import { type INestApplication, RequestMethod, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule, type OpenAPIObject } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import type { NextFunction, Request, Response } from 'express';
@@ -7,7 +7,12 @@ import helmet from 'helmet';
 import { ApiExceptionFilter } from './http/api-exception.filter';
 
 export function configureApp(app: INestApplication): void {
-  app.setGlobalPrefix('api/v1');
+  app.setGlobalPrefix('api/v1', {
+    exclude: [
+      { path: 'feeds/(.*)', method: RequestMethod.GET },
+      { path: 'open/(.*)', method: RequestMethod.ALL },
+    ],
+  });
   app.use(helmet());
   app.use(cookieParser());
   app.use((req: Request, res: Response, next: NextFunction) => {

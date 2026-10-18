@@ -35,6 +35,7 @@ export function toColumnJson(row: Column): ColumnResponseDto {
     project_id: row.projectId,
     name: row.name,
     collapsed: row.collapsed,
+    wip_limit: row.wipLimit,
     sort_order: row.sortOrder.toString(),
     created_at: iso(row.createdAt) ?? '',
     updated_at: iso(row.updatedAt) ?? '',

@@ -465,6 +465,7 @@ export class ListsService {
             projectId,
             name: this.name(dto.name),
             collapsed: dto.collapsed ?? false,
+            wipLimit: dto.wip_limit ?? null,
             sortOrder: plan.movingSortOrder,
           },
         });
@@ -504,6 +505,7 @@ export class ListsService {
         data: {
           ...(dto.name !== undefined ? { name: this.name(dto.name) } : {}),
           ...(dto.collapsed !== undefined ? { collapsed: dto.collapsed } : {}),
+          ...(dto.wip_limit !== undefined ? { wipLimit: dto.wip_limit } : {}),
           ...(plan !== null ? { sortOrder: plan.movingSortOrder } : {}),
         },
       });
