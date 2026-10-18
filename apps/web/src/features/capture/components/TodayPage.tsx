@@ -12,9 +12,14 @@ export function TodayPage() {
     <main className="today">
       <p>
         <Link to="/habits">{messages.habitsLink}</Link>
+        {' · '}
+        <Link to="/smart-lists">{messages.smartListsLink}</Link>
+        {' · '}
+        <Link to="/filters">{messages.filtersLink}</Link>
       </p>
       <h1>{messages.todayTitle}</h1>
       <p>{messages.todayHint}</p>
+      <p>{messages.paletteHint}</p>
       {notice !== null ? (
         <div className="notice" role="status">
           <p>

@@ -1,17 +1,29 @@
-import type { FilterRules } from '../types';
+export {
+  calendarDateKey,
+  compileRules,
+  localDayStart,
+  matchesClause,
+  matchesFilter,
+  notArchived,
+  savedFilterClause,
+  shiftLocalDays,
+} from './clause';
+export type { FilterClause, FilterClock, FilterSubject } from './clause';
 
-export interface FilterSubject {
-  readonly listId: string | null;
-  readonly tagNames: readonly string[];
-  readonly dueDate: string | null;
-  readonly priority: string;
-  readonly title: string;
-  readonly content: string;
-  readonly status: string;
-  readonly assigneeId: string | null;
-}
+export { parseFilterRules } from './parse';
+export type { FilterParse } from './parse';
 
-/** RF-904. The grammar types exist; evaluation lands with smart lists. */
-export function matchesFilter(_rules: FilterRules, _subject: FilterSubject): never {
-  throw new Error('filters are not implemented');
-}
+export {
+  isSmartListKey,
+  matchesSmartList,
+  RECENT_WINDOW_DAYS,
+  SMART_LIST_KEYS,
+  smartListClause,
+} from './smart-list';
+export type { SmartListInput } from './smart-list';
+
+export { arrangeTasks, pageTaskGroups, parseTaskView } from './arrange';
+export type { ArrangedTask, TaskGroup, TaskGroupBy, TaskSort, TaskViewOptions } from './arrange';
+
+export { parseSearchQuery } from './search';
+export type { ParsedSearch } from './search';

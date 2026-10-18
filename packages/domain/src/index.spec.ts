@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { matchesFilter, nextOccurrence, parseQuickAdd } from './index';
+import type { FilterSubject } from './index';
 
 describe('domain entry points', () => {
   it('RF-701: a daily rule yields the following occurrence', () => {
@@ -19,22 +20,27 @@ describe('domain entry points', () => {
     });
   });
 
-  it('RF-904: filter evaluation is reserved and not implemented', () => {
-    expect(() =>
-      matchesFilter(
-        { combinator: 'AND', groups: [] },
-        {
-          listId: null,
-          tagNames: [],
-          dueDate: null,
-          priority: 'none',
-          title: '',
-          content: '',
-          status: 'active',
-          assigneeId: null,
-        },
-      ),
-    ).toThrow(/filters are not implemented/);
+  it('RF-904: an empty AND matches every subject', () => {
+    const subject: FilterSubject = {
+      listId: null,
+      tagNames: [],
+      dueDate: null,
+      isAllDay: false,
+      timeZone: 'Europe/Madrid',
+      priority: 'none',
+      title: 'Leer',
+      content: '',
+      status: 'active',
+      assigneeId: null,
+      deleted: false,
+      createdAt: '2026-10-17T10:00:00.000Z',
+    };
+    expect(
+      matchesFilter({ combinator: 'AND', groups: [] }, subject, {
+        now: '2026-10-17T10:00:00.000Z',
+        timeZone: 'Europe/Madrid',
+      }),
+    ).toBe(true);
   });
 
   it('RF-102: quick add keeps the date span offsets of the original text', () => {
