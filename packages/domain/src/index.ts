@@ -160,3 +160,92 @@ export type {
   HabitStats,
   NormalizedHabit,
 } from './habits/habits';
+
+export {
+  applyQuadrantDrop,
+  DEFAULT_QUADRANT_EFFECTS,
+  defaultQuadrant,
+  isImportant,
+  isUrgent,
+  MATRIX_QUADRANTS,
+  quadrantOf,
+} from './views/matrix';
+export type {
+  DueEffect,
+  MatrixQuadrant,
+  MatrixTask,
+  QuadrantEffect,
+  QuadrantPatch,
+  QuadrantRule,
+} from './views/matrix';
+export { acceptsColumnDrop, columnLoad } from './views/wip';
+export type { ColumnLoad } from './views/wip';
+export { moveTimelineBlock, resizeTimelineBlock, slotTask, timelineRange } from './views/timeline';
+export type { MovedBlock, TimelineBlock, TimelineRange, TimelineZoom } from './views/timeline';
+export { parseIcal, tasksToIcal } from './calendar/ical';
+export type { IcalEvent, IcalTask } from './calendar/ical';
+export { mapCsv, parseCsv, tasksToCsv } from './transfer/csv';
+export type {
+  CsvColumnMap,
+  CsvExportTask,
+  CsvFailure,
+  CsvParse,
+  CsvTaskDraft,
+} from './transfer/csv';
+export {
+  dashboardSnapshot,
+  habitPercent,
+  isReportTone,
+  productivityPanel,
+  weeklyNarrative,
+} from './dashboard/kpis';
+export type {
+  DashboardHabit,
+  DashboardSnapshot,
+  DashboardTask,
+  ProductivityInput,
+  ReportTone,
+  WeeklyNarrative,
+} from './dashboard/kpis';
+export { proposeDaily, proposeWeekly } from './review/propose';
+export type { DailyProposal, HabitRisk, ReviewCandidate, WeeklyReview } from './review/propose';
+export {
+  signWebhookBody,
+  WEBHOOK_MAX_ATTEMPTS,
+  WEBHOOK_WINDOW_MS,
+  webhookRetryDelayMs,
+  webhookStillOpen,
+} from './webhooks/sign';
+export { automationMatches, parseAutomationAction, renderTemplate } from './automations/rule';
+export type { AutomationAction, AutomationRule } from './automations/rule';
+export { distanceMeters, insideGeofence, readGeofence } from './reminders/geofence';
+export type { Geofence, GeoPoint } from './reminders/geofence';
+export { randomBase32, recoveryCodes, sha256Hex, totpCode, verifyTotp } from './auth/totp';
+export { fromOpenTask, toOpenProject, toOpenTask } from './open/ticktick';
+export type {
+  OpenChecklist,
+  OpenProjectInput,
+  OpenTaskInput,
+  OpenTaskWrite,
+} from './open/ticktick';
+export {
+  DEFAULT_FOCUS_SETTINGS,
+  focusStats,
+  nextFocusPhase,
+  remainingSeconds,
+} from './focus/cycle';
+export type { FocusPhase, FocusSettings, FocusStatSession, FocusStats } from './focus/cycle';
+export { achievementScore } from './achievements/score';
+export type { AchievementInput, AchievementScore } from './achievements/score';
+export { parsePluginManifest, PLUGIN_PERMISSIONS, pluginMay } from './plugins/manifest';
+export type {
+  ManifestFailure,
+  ManifestParse,
+  PluginManifest,
+  PluginPermission,
+} from './plugins/manifest';
+export { allows, parseMentions } from './collaboration/access';
+export type { ShareAction, SharePermission } from './collaboration/access';
+export { isRasterImage } from './attachments/image';
+export { parseTelegramCommand } from './integrations/telegram';
+export type { TelegramCommand } from './integrations/telegram';
