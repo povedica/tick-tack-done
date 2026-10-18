@@ -129,6 +129,7 @@ export const en = {
   searchTitle: 'Search',
   settingsTitle: 'Settings',
   loginTitle: 'Sign in',
+  sessionChecking: 'Checking the session…',
   registerTitle: 'Create account',
   forgotTitle: 'Reset password',
   smartListsLink: 'Smart lists',

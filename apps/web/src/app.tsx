@@ -47,6 +47,7 @@ import {
 import { AppearancePage } from './features/settings/AppearancePage';
 import { ConsentPage } from './features/auth/ConsentPage';
 import { LoginPage, RegisterPage } from './features/auth/AuthPages';
+import { RequireSession, SessionBootstrap } from './features/auth/RequireSession';
 import { RepeatPage } from './features/repeat/RepeatPage';
 import { TodayPage } from './features/today/TodayPage';
 import { ShortcutHelp } from './shell/ShortcutHelp';
@@ -58,6 +59,7 @@ export function App() {
   return (
     <BrowserRouter>
       <ThemeSync />
+      <SessionBootstrap />
       <Shell />
     </BrowserRouter>
   );
@@ -94,6 +96,10 @@ function Shell() {
         />
       ) : null}
       <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPage />} />
+        <Route element={<RequireSession />}>
         <Route element={<AppShell />}>
           <Route path="/" element={<Navigate to="/today" replace />} />
           <Route path="/today" element={<TodayPage />} />
@@ -124,6 +130,7 @@ function Shell() {
           <Route path="/search" element={<SearchPage />} />
           <Route path="/sticky" element={<DashboardPage />} />
           <Route path="/tokens" element={<TokensPage />} />
+          <Route path="/oauth/consent" element={<ConsentPage />} />
           <Route path="/settings" element={<SettingsLayout />}>
             <Route index element={<Navigate to="/settings/appearance" replace />} />
             <Route
@@ -149,12 +156,9 @@ function Shell() {
             <Route path="sharing" element={<SharingSettings />} />
             <Route path="shortcuts" element={<ShortcutSettings />} />
           </Route>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/oauth/consent" element={<ConsentPage />} />
           <Route path="/repeat" element={<RepeatPage />} />
-          <Route path="/forgot-password" element={<ForgotPage />} />
           <Route path="*" element={<Navigate to="/today" replace />} />
+        </Route>
         </Route>
       </Routes>
     </>
