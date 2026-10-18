@@ -1,7 +1,9 @@
+import { GripVertical, MoreHorizontal } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { ApiError } from '@reflexionia/sdk';
 import { useSearchParams } from 'react-router';
 import { api } from '../../api';
+import { PriorityCheck } from '../../components/PriorityCheck';
 import { Button, TagChip } from '../../components/ui';
 import { fill, type Messages } from '../../i18n';
 import { newMutation, runOrQueue } from '../offline/client';
@@ -16,6 +18,8 @@ export function TaskList({
   createProjectId,
   columns,
   view,
+  showDetails = true,
+  hideCompleted = true,
 }: {
   readonly messages: Messages;
   readonly rows: readonly RowModel[];
@@ -27,8 +31,10 @@ export function TaskList({
     | readonly { readonly id: string; readonly name: string; readonly wip_limit?: number | null }[]
     | undefined;
   readonly view: 'list' | 'kanban' | 'timeline';
+  readonly showDetails?: boolean | undefined;
+  readonly hideCompleted?: boolean | undefined;
 }) {
-  const [, setParams] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
   const [limit, setLimit] = useState('');
   const now = useMemo(() => new Date(), []);
@@ -51,20 +57,22 @@ export function TaskList({
     });
   }
 
+  const visible = hideCompleted ? rows.filter((row) => row.status !== 'completed') : rows;
+  const detailId = params.get('task');
   const body =
     view === 'kanban' ? (
       <Kanban
         messages={messages}
-        rows={rows}
+        rows={visible}
         columns={columns ?? []}
         onOpen={open}
         onComplete={onComplete}
       />
     ) : view === 'timeline' ? (
-      <Timeline messages={messages} rows={rows} onOpen={open} />
+      <Timeline messages={messages} rows={visible} onOpen={open} />
     ) : (
-      <ul className="task-list">
-        {rows.map((row) => (
+      <ul className="task-list" data-details={showDetails ? 'on' : 'off'}>
+        {visible.map((row) => (
           <li key={row.id}>
             <TaskRow
               messages={messages}
@@ -72,6 +80,7 @@ export function TaskList({
               locale={locale}
               now={now}
               selected={selected.has(row.id)}
+              open={detailId === row.id}
               onOpen={() => {
                 open(row.id);
               }}
@@ -112,7 +121,7 @@ export function TaskList({
             });
           }}
         >
-          <input name="title" aria-label={messages.addTask} placeholder={messages.addTask} />
+          <input name="title" aria-label={messages.addTask} placeholder={`+ ${messages.addTask}`} />
         </form>
       ) : null}
       {body}
@@ -200,6 +209,7 @@ function TaskRow({
   locale,
   now,
   selected,
+  open,
   onOpen,
   onComplete,
   onSelect,
@@ -209,6 +219,7 @@ function TaskRow({
   readonly locale: string;
   readonly now: Date;
   readonly selected: boolean;
+  readonly open: boolean;
   readonly onOpen: () => void;
   readonly onComplete: () => void;
   readonly onSelect: (extend: boolean) => void;
@@ -218,7 +229,8 @@ function TaskRow({
   const dateClass = overdue ? 'task-date is-overdue' : today ? 'task-date is-today' : 'task-date';
   return (
     <div
-      className={selected ? 'task-row is-selected' : 'task-row'}
+      className={`task-row${open ? ' is-selected' : ''}${selected ? ' is-batch' : ''}`}
+      data-selected={open ? 'true' : undefined}
       onTouchEnd={(event) => {
         const touch = event.changedTouches[0];
         if (touch === undefined) {
@@ -236,29 +248,27 @@ function TaskRow({
         }
       }}
     >
-      <label className="task-check-hit">
-        <input
-          type="checkbox"
-          className={`task-check prio-${row.priority}`}
-          aria-label={fill(messages.completeLabel, row.title)}
-          onChange={(event) => {
-            if (
-              event.nativeEvent instanceof MouseEvent &&
-              (event.nativeEvent.metaKey || event.nativeEvent.ctrlKey || event.nativeEvent.shiftKey)
-            ) {
-              onSelect(true);
-              return;
-            }
-            onComplete();
-          }}
-        />
-      </label>
+      <GripVertical className="task-grip" size={12} aria-hidden="true" />
+      <PriorityCheck
+        priority={row.priority}
+        label={fill(messages.completeLabel, row.title)}
+        onChange={(event) => {
+          if (
+            event.nativeEvent instanceof MouseEvent &&
+            (event.nativeEvent.metaKey || event.nativeEvent.ctrlKey || event.nativeEvent.shiftKey)
+          ) {
+            onSelect(true);
+            return;
+          }
+          onComplete();
+        }}
+      />
       <button type="button" className="task-title" onClick={onOpen}>
         {row.title}
       </button>
       <span className="task-meta">
         {row.tags.map((tag) => (
-          <TagChip key={tag.id} label={tag.name} />
+          <TagChip key={tag.id} label={tag.name} color={tag.color} />
         ))}
         {row.repeat ? <span title={messages.recurrence}>↻</span> : null}
         {row.checklist.total > 0 ? (
@@ -266,7 +276,9 @@ function TaskRow({
             {row.checklist.completed}/{row.checklist.total}
           </span>
         ) : null}
-        {row.projectName.length > 0 ? <span>{row.projectName}</span> : null}
+        {row.projectName.length > 0 ? (
+          <span className="task-list-name">{row.projectName}</span>
+        ) : null}
         {row.source === 'email' ? <span title={messages.sourceEmail}>✉</span> : null}
         {row.source === 'api' ? <span title={messages.sourceApi}>API</span> : null}
         {row.dueDate !== null ? (
@@ -277,6 +289,9 @@ function TaskRow({
           </time>
         ) : null}
       </span>
+      <button type="button" className="task-more" aria-label={messages.openDetail} onClick={onOpen}>
+        <MoreHorizontal size={16} aria-hidden="true" />
+      </button>
     </div>
   );
 }
@@ -342,16 +357,13 @@ function Kanban({
                   event.dataTransfer.setData('text/plain', row.id);
                 }}
               >
-                <label>
-                  <input
-                    type="checkbox"
-                    className={`task-check prio-${row.priority}`}
-                    aria-label={fill(messages.completeLabel, row.title)}
-                    onChange={() => {
-                      onComplete(row);
-                    }}
-                  />
-                </label>
+                <PriorityCheck
+                  priority={row.priority}
+                  label={fill(messages.completeLabel, row.title)}
+                  onChange={() => {
+                    onComplete(row);
+                  }}
+                />
                 <button
                   type="button"
                   onClick={() => {

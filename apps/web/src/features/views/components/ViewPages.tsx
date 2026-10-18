@@ -1,10 +1,12 @@
 import type { ViewPage } from '@reflexionia/sdk';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Menu } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { api } from '../../../api';
-import { Button } from '../../../components/ui';
+import { ViewMenu } from '../../../components/ViewMenu';
 import { useMessages, type Messages } from '../../../i18n';
+import { useShellActions } from '../../../shell/shell-actions';
 import { newMutation, runOrQueue } from '../../offline/client';
 import { rowsFromView, smartApiKey } from '../../tasks/model';
 import { TaskList } from '../../tasks/TaskList';
@@ -116,9 +118,12 @@ function Board({
   readonly note?: boolean | undefined;
 }) {
   const queryClient = useQueryClient();
+  const shell = useShellActions();
   const [params, setParams] = useSearchParams();
   const [groupBy, setGroupBy] = useState<GroupBy>('section');
   const [sort, setSort] = useState<Sort>('manual');
+  const [details, setDetails] = useState(true);
+  const [hideCompleted, setHideCompleted] = useState(true);
   const view = parseView(params.get('view'));
   const page = useQuery({
     queryKey: [...queryKey, groupBy, sort],
@@ -136,76 +141,70 @@ function Board({
 
   return (
     <main className="screen-page">
-      <p>
+      <p className="ui-muted">
         <Link to="/today">{messages.backToday}</Link>
       </p>
-      <header className="page-toolbar">
-        <h1>{title}</h1>
-        <span className="ui-badge">{page.data?.count ?? rows.length}</span>
-        <Button
-          onClick={() => {
-            chooseView('list');
-          }}
-        >
-          {messages.viewList}
-        </Button>
-        <Button
-          onClick={() => {
-            chooseView('kanban');
-          }}
-        >
-          {messages.viewKanban}
-        </Button>
-        <Button
-          onClick={() => {
-            chooseView('timeline');
-          }}
-        >
-          {messages.viewTimeline}
-        </Button>
+      <header className="today-header">
+        <div className="page-title">
+          <button
+            type="button"
+            className="icon-button"
+            aria-label={shell.navLabel}
+            onClick={shell.toggleNav}
+          >
+            <Menu size={20} aria-hidden="true" />
+          </button>
+          <h1>{title}</h1>
+        </div>
+        <div className="page-actions">
+          <span className="ui-badge">{page.data?.count ?? rows.length}</span>
+          <ViewMenu
+            messages={messages}
+            view={view}
+            onView={chooseView}
+            details={details}
+            onDetails={setDetails}
+            hideCompleted={hideCompleted}
+            onHideCompleted={setHideCompleted}
+            onPrint={() => {
+              window.print();
+            }}
+          >
+            <label>
+              {messages.groupBy}
+              <select
+                value={groupBy}
+                onChange={(event) => {
+                  setGroupBy(event.target.value as GroupBy);
+                }}
+              >
+                <option value="none">{messages.groupNone}</option>
+                <option value="section">{messages.groupSection}</option>
+                <option value="date">{messages.groupDate}</option>
+                <option value="tag">{messages.groupTag}</option>
+                <option value="priority">{messages.groupPriority}</option>
+              </select>
+            </label>
+            <label>
+              {messages.sortBy}
+              <select
+                value={sort}
+                onChange={(event) => {
+                  setSort(event.target.value as Sort);
+                }}
+              >
+                <option value="manual">{messages.sortManual}</option>
+                <option value="date">{messages.sortDate}</option>
+                <option value="priority">{messages.sortPriority}</option>
+                <option value="title">{messages.sortTitle}</option>
+                <option value="created">{messages.sortCreated}</option>
+              </select>
+            </label>
+          </ViewMenu>
+        </div>
       </header>
       {notice !== undefined ? <p>{notice}</p> : null}
       {note && rows.length === 0 ? <p>{messages.noteEmpty}</p> : null}
-      <div className="page-toolbar">
-        <label>
-          {messages.groupBy}
-          <select
-            value={groupBy}
-            onChange={(event) => {
-              setGroupBy(event.target.value as GroupBy);
-            }}
-          >
-            <option value="none">{messages.groupNone}</option>
-            <option value="section">{messages.groupSection}</option>
-            <option value="date">{messages.groupDate}</option>
-            <option value="tag">{messages.groupTag}</option>
-            <option value="priority">{messages.groupPriority}</option>
-          </select>
-        </label>
-        <label>
-          {messages.sortBy}
-          <select
-            value={sort}
-            onChange={(event) => {
-              setSort(event.target.value as Sort);
-            }}
-          >
-            <option value="manual">{messages.sortManual}</option>
-            <option value="date">{messages.sortDate}</option>
-            <option value="priority">{messages.sortPriority}</option>
-            <option value="title">{messages.sortTitle}</option>
-            <option value="created">{messages.sortCreated}</option>
-          </select>
-        </label>
-        <Button
-          variant="ghost"
-          onClick={() => {
-            window.print();
-          }}
-        >
-          {messages.printView}
-        </Button>
-      </div>
       {page.isError ? <p className="error">{messages.previewFailed}</p> : null}
       <TaskList
         messages={messages}
@@ -213,6 +212,8 @@ function Board({
         locale={navigator.language}
         view={view}
         columns={columns}
+        showDetails={details}
+        hideCompleted={hideCompleted}
         createProjectId={note ? undefined : createProjectId}
         onComplete={(row) => {
           void runOrQueue(newMutation('complete', row.id, {}), (key) =>

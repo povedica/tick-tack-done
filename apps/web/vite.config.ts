@@ -27,7 +27,7 @@ export default defineConfig(({ mode }) => {
           start_url: '/today',
           display: 'standalone',
           background_color: '#ffffff',
-          theme_color: '#4f46e5',
+          theme_color: '#4772fa',
           shortcuts: [
             { name: 'Hoy', short_name: 'Hoy', url: '/today' },
             { name: 'Captura', short_name: 'Captura', url: '/quick-add' },

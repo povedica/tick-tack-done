@@ -1,6 +1,6 @@
 # Handoff — V1 y V2 en `feat/v1-v2`
 
-Punto seguro para retomar. La fase 1 sigue en `main` (PR #11, tag `phase-1`) y no se reabre. V1 y V2 de la sección 19 están en la rama `feat/v1-v2`, PR contra `main`, sin merge. No se ha desplegado en Hetzner.
+Punto seguro para retomar. La fase 1 sigue en `main` (PR #11, tag `phase-1`) y no se reabre. El look medido de TickTick está en `main` (PR #13). V1 y V2 de la sección 19 están en la rama `feat/v1-v2`, PR contra `main`, sin merge. No se ha desplegado en Hetzner.
 
 `apps/api/tsconfig.json` sigue en NodeNext. No revertirlo a CommonJS. La CI compila `packages/domain` antes del lint y de los tests. No quites ese paso.
 
@@ -8,8 +8,9 @@ Punto seguro para retomar. La fase 1 sigue en `main` (PR #11, tag `phase-1`) y n
 
 - Puntos 1 a 9 de la fase 1, más sesión, OAuth2 PKCE, RF-702 y el bus, en la PR #11 (tag `phase-1`).
 - Pantallas de la spec de UI en la PR #10. Lo que la API no publica sigue como estado vacío. No se inventaron endpoints para rellenarlas.
+- Look de TickTick en la PR #13, ya en `main`. La spec de UI pasa a v1.1 en el mismo archivo (`docs/spec/tick-tack-done-ui-spec-v1.0.md`): UI-D2 es la paleta medida, UI-D3 es sans del sistema en toda la UI y UI-D5 es el oscuro `#242424`. No vuelvas a la crema ni a la serif de los títulos.
 - La PR #9 se cerró sin merge y la rama ya no existe. No se resucita.
-- Siguiente trabajo real: desplegar cuando existan `BACKUP_REMOTE` y acceso al servidor. No reabrir la fase 1 ni la sección 21. No publicar la spec como v1.2.
+- Siguiente trabajo real: desplegar cuando existan `BACKUP_REMOTE` y acceso al servidor. No reabrir la fase 1 ni la sección 21. No publicar la spec de producto como v1.2.
 
 En local la PWA sigue con `AUTH_MODE=dev` y `X-Dev-User-Email` (`demo@reflexionia.test`). Producción deja `AUTH_MODE` vacío: el compose lo fuerza. La primera cuenta se crea en `/register` mientras no haya usuarios.
 
@@ -42,6 +43,8 @@ bash scripts/with-env.sh pnpm test:integration
 ## Qué quedó de la spec de UI
 
 Hecho contra la API que ya existía: barra con contadores, Hoy con lista y etiquetas, bandeja, detalle, lista/kanban/timeline, hábitos, smart lists, filtros, búsqueda, paleta, atajos y tokens.
+
+El look de la PR #13 no cambia rutas, stores, agrupación, deshacer ni densidad. Cambia tokens, tipografía y marcado visual: rail de 50px, sidebar de 240px, filas de 40px, quick-add bajo la cabecera, checkbox de prioridad y menú de vista. El `rem` sigue valiendo 16px porque el tamaño de 14px vive en `body`, no en `:root`. `--ink-3` está en 0.65 para contraste AA sobre `#f2f5fe`.
 
 Jardín, reportes, revisión, foco, calendario, datos, cuenta, integraciones, automatizaciones, webhooks, plugins y compartir leen la API de esta rama. El foco ya no es un temporizador solo del navegador.
 
@@ -129,12 +132,18 @@ Quedó hecho en la PR #11, ya sincronizada con la spec de UI de la PR #10: cola 
 
 Quedó fuera por ser V1 o V2 lo que la API no publica: Telegram, Google Drive, Google Calendar, dashboard con datos, reporte, revisiones, webhooks, automatizaciones, sync en tiempo real, `/open/v1`, import CSV, export iCal/CSV, 2FA, geovallado, colaboración, Pomodoro, plugins, widgets, logros y Calendar two-way. Kanban y timeline existen como vista de cliente. RF-1701 sigue aplazado.
 
-No se desplegó en Hetzner: falta `BACKUP_REMOTE` y el acceso al servidor. No se inventaron secretos. La spec v1.1 solo ganó los nombres de evento en 11.1 y las rutas públicas que faltaban en 10.3. La PR #9 se cerró sin merge.
+No se desplegó en Hetzner: falta `BACKUP_REMOTE` y el acceso al servidor. No se inventaron secretos. La spec de producto v1.1 solo ganó los nombres de evento en 11.1 y las rutas públicas que faltaban en 10.3. La PR #9 se cerró sin merge.
+
+## Look TickTick (18 oct 2026)
+
+Quedó hecho en la PR #13, mergeada a `main`. La UI deja la crema y la serif. Los valores medidos están en `docs/spec/cursor-prompt-ui-look-ticktick-v1.2.md` y en `apps/web/src/styles/tokens.css`. La spec de UI, en el mismo archivo de siempre, sube a v1.1.
+
+No se tocó la API, Prisma, el dominio ni el bus. No se desplegó. No se publicó la spec de producto como v1.2. El acento por defecto es `#4772fa`.
 
 ## Cierre de V1 y V2 (18 oct 2026)
 
-Quedó hecho en `feat/v1-v2`: kanban con columnas y WIP, timeline día/semana/mes, matriz con las reglas por defecto y reglas editables, calendario con suscripción iCal y feed propio, notas y sticky notes, dashboard con KPIs de backend, reporte semanal, revisión asistida que propone y no decide, webhooks firmados, automatizaciones sobre el mismo bus, SSE, `/open/v1`, import CSV, export CSV e iCal, 2FA opcional, miniatura de imagen, recordatorio de lugar cuando el navegador da la posición, colaboración, Pomodoro en servidor, plugins fuera del proceso de la API, logros desactivables y la escritura de Google Calendar.
+Quedó hecho en `feat/v1-v2`: kanban con columnas y WIP, timeline día/semana/mes, matriz con las reglas por defecto y reglas editables, calendario con suscripción iCal y feed propio, notas y sticky notes, dashboard con KPIs de backend, reporte semanal, revisión asistida que propone y no decide, webhooks firmados, automatizaciones sobre el mismo bus, SSE, `/open/v1`, import CSV, export CSV e iCal, 2FA opcional, miniatura de imagen, recordatorio de lugar cuando el navegador da la posición, colaboración, Pomodoro en servidor, plugins fuera del proceso de la API, logros desactivables y la escritura de Google Calendar. El look de la PR #13 se conserva.
 
 Quedó a falta de un secreto, con el mecanismo y `.env.example` vacíos: `TELEGRAM_BOT_TOKEN`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`, `GOOGLE_DRIVE_FOLDER_ID` y `BACKUP_REMOTE`. Sin esos valores no se llama a Telegram ni a Google, y el backup no sale de la máquina.
 
-Quedó fuera: RF-1701, el despliegue en Hetzner, apps nativas y widgets de iOS/Android, el pulido visual y la PR #9. La spec no se publica como v1.2. La sección 21 no se toca.
+Quedó fuera: RF-1701, el despliegue en Hetzner, apps nativas y widgets de iOS/Android, y la PR #9. La spec no se publica como v1.2. La sección 21 no se toca.

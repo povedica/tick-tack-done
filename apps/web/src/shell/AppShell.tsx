@@ -4,7 +4,9 @@ import { LocationWatch } from '../features/product/ProductPages';
 import { TaskDetail } from '../features/tasks/TaskDetail';
 import { useMessages } from '../i18n';
 import { BottomBar } from './BottomBar';
+import { IconRail } from './IconRail';
 import { readSidebarCollapsed, writeSidebarCollapsed } from './sidebar-state';
+import { ShellActionsProvider } from './shell-actions';
 import { Sidebar } from './Sidebar';
 import { isSidebarShortcut, isTypingTarget } from './shortcuts';
 
@@ -89,55 +91,74 @@ export function AppShell() {
     };
   }, [drawer, params, setParams, taskId]);
 
+  function toggleNav(): void {
+    if (narrow) {
+      setDrawer((current) => !current);
+      return;
+    }
+    toggleCollapsed();
+  }
+
   return (
-    <div
-      className="shell"
-      data-sidebar={collapsed ? 'collapsed' : 'expanded'}
-      data-drawer={drawer ? 'open' : 'closed'}
-      data-detail={taskId === null ? 'closed' : 'open'}
+    <ShellActionsProvider
+      value={{
+        toggleNav,
+        navLabel: collapsed ? messages.expandSidebar : messages.collapseSidebar,
+      }}
     >
-      <Sidebar
-        collapsed={collapsed}
-        concealed={narrow && !drawer}
-        onToggleCollapsed={toggleCollapsed}
-        onNavigate={closeDrawer}
-        onCapture={() => {
-          closeDrawer();
-          void navigate('/quick-add');
-        }}
-      />
-      <a className="skip-link" href="#content">
-        {messages.skip}
-      </a>
-      <button
-        type="button"
-        className="scrim"
-        aria-label={messages.closeMenu}
-        onClick={() => {
-          closeDrawer();
-          if (taskId !== null) {
-            closeDetail();
-          }
-        }}
-      />
-      <div className="center">
-        {online ? null : (
-          <p className="offline-banner" role="status">
-            {messages.offline}. {messages.pendingSync}.
-          </p>
-        )}
-        <LocationWatch />
-        <div className="outlet" id="content">
-          <Outlet />
+      <div
+        className="shell"
+        data-sidebar={collapsed ? 'collapsed' : 'expanded'}
+        data-drawer={drawer ? 'open' : 'closed'}
+        data-detail={taskId === null ? 'closed' : 'open'}
+      >
+        <IconRail
+          collapsed={collapsed}
+          onToggleCollapsed={toggleNav}
+          onCapture={() => {
+            closeDrawer();
+            void navigate('/quick-add');
+          }}
+        />
+        <Sidebar
+          collapsed={collapsed}
+          concealed={narrow ? !drawer : collapsed}
+          onToggleCollapsed={toggleCollapsed}
+          onNavigate={closeDrawer}
+        />
+        <a className="skip-link" href="#content">
+          {messages.skip}
+        </a>
+        <button
+          type="button"
+          className="scrim"
+          aria-label={messages.closeMenu}
+          onClick={() => {
+            closeDrawer();
+            if (taskId !== null) {
+              closeDetail();
+            }
+          }}
+        />
+        <div className="center">
+          {online ? null : (
+            <p className="offline-banner" role="status">
+              {messages.offline}. {messages.pendingSync}.
+            </p>
+          )}
+          <LocationWatch />
+          <div className="outlet" id="content">
+            <Outlet />
+          </div>
         </div>
+        {taskId !== null ? <TaskDetail taskId={taskId} onClose={closeDetail} /> : null}
+        <BottomBar
+          onOpenLists={() => {
+            setDrawer(true);
+          }}
+        />
       </div>
-      {taskId !== null ? <TaskDetail taskId={taskId} onClose={closeDetail} /> : null}
-      <BottomBar
-        onOpenLists={() => {
-          setDrawer(true);
-        }}
-      />
-    </div>
+    </ShellActionsProvider>
   );
 }
 
