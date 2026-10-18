@@ -1,6 +1,6 @@
-# Handoff — V1 y V2 cerradas en la PR #12
+# Handoff — lo pendiente de la spec, en la PR #14
 
-Punto seguro para retomar. La fase 1 sigue en `main` (PR #11, tag `phase-1`) y no se reabre. El look medido de TickTick está en `main` (PR #13). V1 y V2 de la sección 19 se cierran en la PR #12 (`feat/v1-v2`). No se ha desplegado en Hetzner. La siguiente PR termina lo que la spec deja pendiente; el prompt está en `docs/prompts/terminar-spec.md`.
+Punto seguro para retomar. La fase 1 sigue en `main` (PR #11, tag `phase-1`) y no se reabre. El look medido de TickTick está en `main` (PR #13). V1 y V2 de la sección 19 están en `main` (PR #12). Lo que la spec dejaba pendiente se cierra en la PR #14 (`feat/terminar-spec`): Telegram de producción, Calendar en lectura y escritura, Drive y el backup a esa carpeta. No se ha desplegado en Hetzner. No se ha publicado la spec como v1.2.
 
 `apps/api/tsconfig.json` sigue en NodeNext. No revertirlo a CommonJS. La CI compila `packages/domain` antes del lint y de los tests. No quites ese paso.
 
@@ -10,7 +10,7 @@ Punto seguro para retomar. La fase 1 sigue en `main` (PR #11, tag `phase-1`) y n
 - Pantallas de la spec de UI en la PR #10. Lo que la API no publica sigue como estado vacío. No se inventaron endpoints para rellenarlas.
 - Look de TickTick en la PR #13, ya en `main`. La spec de UI pasa a v1.1 en el mismo archivo (`docs/spec/tick-tack-done-ui-spec-v1.0.md`): UI-D2 es la paleta medida, UI-D3 es sans del sistema en toda la UI y UI-D5 es el oscuro `#242424`. No vuelvas a la crema ni a la serif de los títulos.
 - La PR #9 se cerró sin merge y la rama ya no existe. No se resucita.
-- Siguiente trabajo: la PR que termina la spec (`docs/prompts/terminar-spec.md`). No reabrir la fase 1, la PR #12 ni la sección 21. No publicar la spec de producto como v1.2. RF-1701 sigue aplazado. Apps nativas y widgets siguen fuera.
+- La PR #14 cierra Telegram, Calendar, Drive y el backup a Drive. No reabrir la fase 1, la PR #12 ni la sección 21. No publicar la spec de producto como v1.2. RF-1701 sigue aplazado. Apps nativas y widgets siguen fuera.
 
 En local la PWA sigue con `AUTH_MODE=dev` y `X-Dev-User-Email` (`demo@reflexionia.test`). Producción deja `AUTH_MODE` vacío: el compose lo fuerza. La primera cuenta se crea en `/register` mientras no haya usuarios.
 
@@ -65,10 +65,12 @@ La cola offline no cubre el completado por lote, deshacer, mover, borrar ni el r
 
 ## Qué no está hecho
 
-- Despliegue en `todo.reflexionia.com`. Falta `BACKUP_REMOTE` y el acceso al servidor. No se inventaron secretos.
+- Despliegue en `todo.reflexionia.com`. El nombre resuelve, pero no hay un host SSH que apunte a esa máquina. No se ha entrado por SSH. `BACKUP_REMOTE` sigue vacío; el destino que sí está es la carpeta de Drive.
 - RF-1701 (importador TickTick) sigue aplazado.
 - Apps nativas y widgets de iOS/Android. La sección 21 no se reabre.
 - Recuperar contraseña.
+- La voz de Telegram necesita `TELEGRAM_VOICE_PROVIDER` (una URL que devuelva `{ "text": "..." }`). En local está vacía: el bot lo dice y no inventa una transcripción.
+- `APP_WEB_URL` en local sigue siendo el origen de la PWA en el portátil. Los enlaces del bot no abren el teléfono hasta que ese valor sea el origen público.
 - La PR #9 se cerró sin merge. No se resucita.
 
 ## Tags
@@ -151,3 +153,14 @@ Telegram, en local: `bash scripts/with-env.sh node scripts/telegram-poll.mjs` le
 `GOOGLE_DRIVE_FOLDER_ID` está en el `.env` local (carpeta «tick-tack-done backups»). `scripts/backup.sh` no sube a esa carpeta: sigue siendo rclone y `BACKUP_REMOTE` está vacío.
 
 Quedó fuera de esta PR, y es el trabajo de la siguiente: voz, foto y recordatorios de Telegram, completar desde el chat, el webhook de producción, lectura y escritura reales de Calendar con el token guardado, adjuntos de Drive, el backup diario en Drive, el despliegue y `APP_WEB_URL` público. RF-1701, apps nativas, widgets y la PR #9 siguen fuera. La spec no se publica como v1.2. La sección 21 no se toca. No se inventan secretos.
+
+## Cierre de lo pendiente (18 oct 2026)
+
+Quedó hecho en la PR #14, sin reabrir la fase 1, la PR #12 ni la sección 21:
+
+- Telegram (RF-2003). `POST /api/v1/integrations/telegram/webhook` crea la tarea con el quick add y contesta en el chat. Siguen `/capturar`, `/add`, `/hoy`, `/manana`, `/semana`, `/lista`, `/lista #etiqueta` y `/lista !alta`. Se completan con `/hecho` y el título, o con el botón, sin pedir un UUID. La voz pasa por `TELEGRAM_VOICE_PROVIDER` y luego por el mismo NLP. La foto se guarda como adjunto. El scheduler manda el recordatorio al chat vinculado. El sondeo `scripts/telegram-poll.mjs` sigue siendo solo local: borra el webhook y reenvía a la API. En el servidor, cuando la API sea pública, `scripts/telegram-webhook.mjs`.
+- Google Calendar (RF-2004). La lectura y la escritura usan el refresh token guardado en el usuario. La variable de entorno solo es respaldo. La segunda escritura actualiza el evento, no lo duplica.
+- Google Drive (RF-2005). Un adjunto puede ser un enlace o una copia del archivo. `scripts/backup.sh` vuelca el directorio del día a `GOOGLE_DRIVE_FOLDER_ID` con ese mismo token. Se comprobó la subida contra la carpeta configurada y se borró el archivo de prueba. `BACKUP_REMOTE` sigue vacío.
+- No se desplegó. `todo.reflexionia.com` resuelve, y no hay host SSH para esa máquina. No se inventaron secretos.
+
+Sigue fuera: RF-1701, apps nativas, widgets, recuperar contraseña y la PR #9. La spec no se publica como v1.2. La sección 21 no se toca.
