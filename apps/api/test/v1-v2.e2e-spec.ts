@@ -288,6 +288,117 @@ describe('V1 and V2 product', () => {
     }
   });
 
+  it('RF-2004: calendar read and write use the stored refresh token', async () => {
+    process.env.GOOGLE_CLIENT_ID = 'client';
+    process.env.GOOGLE_CLIENT_SECRET = 'secret';
+    process.env.GOOGLE_REFRESH_TOKEN = 'env-should-not-be-used';
+    await prisma.user.update({
+      where: { id: userId },
+      data: { googleRefreshToken: 'stored-refresh-token' },
+    });
+    const methods: string[] = [];
+    const refreshUsed: string[] = [];
+    const original = globalThis.fetch;
+    globalThis.fetch = async (input, init) => {
+      const url =
+        input instanceof URL ? input.toString() : typeof input === 'string' ? input : input.url;
+      const method = init?.method ?? 'GET';
+      const body =
+        typeof init?.body === 'string'
+          ? init.body
+          : init?.body instanceof URLSearchParams
+            ? init.body.toString()
+            : '';
+      if (url.includes('oauth2.googleapis.com/token')) {
+        refreshUsed.push(body);
+        return new Response(JSON.stringify({ access_token: 'access' }), { status: 200 });
+      }
+      if (url.includes('/calendar/v3/') && method === 'GET') {
+        return new Response(
+          JSON.stringify({
+            items: [
+              {
+                id: 'g1',
+                summary: 'Cita',
+                start: { dateTime: '2026-10-20T09:00:00Z' },
+                end: { dateTime: '2026-10-20T10:00:00Z' },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+      if (url.includes('/calendar/v3/') && (method === 'POST' || method === 'PATCH')) {
+        methods.push(method);
+        return new Response(JSON.stringify({ id: 'evt-1' }), { status: 200 });
+      }
+      if (url.includes('www.googleapis.com/drive')) {
+        if (url.includes('alt=media')) {
+          return new Response(Buffer.from('pdf-bytes'), { status: 200 });
+        }
+        return new Response(JSON.stringify({ name: 'notas.pdf', mimeType: 'application/pdf' }), {
+          status: 200,
+        });
+      }
+      return original(input, init);
+    };
+    try {
+      const read = await session()
+        .post('/api/v1/calendar/subscriptions')
+        .send({ provider: 'google', sync_direction: 'read' })
+        .expect(201);
+      const imported = await session()
+        .post(`/api/v1/calendar/subscriptions/${read.body.id as string}/refresh`)
+        .expect(200);
+      expect(imported.body.imported).toBe(1);
+      const write = await session()
+        .post('/api/v1/calendar/subscriptions')
+        .send({ provider: 'google', sync_direction: 'two_way' })
+        .expect(201);
+      await session()
+        .post('/api/v1/tasks')
+        .send({
+          project_id: projectId,
+          title: 'en el calendario',
+          due_date: '2026-10-21T09:00:00.000Z',
+        })
+        .expect(201);
+      const pushed = await session()
+        .post(`/api/v1/calendar/subscriptions/${write.body.id as string}/push`)
+        .expect(200);
+      expect(pushed.body.pushed).toBeGreaterThan(0);
+      await session()
+        .post(`/api/v1/calendar/subscriptions/${write.body.id as string}/push`)
+        .expect(200);
+      expect(methods).toContain('POST');
+      expect(methods).toContain('PATCH');
+      expect(refreshUsed.some((item) => item.includes('stored-refresh-token'))).toBe(true);
+      expect(refreshUsed.some((item) => item.includes('env-should-not-be-used'))).toBe(false);
+
+      const task = await session()
+        .post('/api/v1/tasks')
+        .send({ project_id: projectId, title: 'con copia' })
+        .expect(201);
+      const attached = await session()
+        .post('/api/v1/integrations/drive/attachments')
+        .send({
+          task_id: task.body.id,
+          file_id: 'file-2',
+          url: 'https://drive.google.com/file/d/file-2',
+          name: 'notas.pdf',
+          copy: true,
+        })
+        .expect(201);
+      expect(attached.body.copied).toBe(true);
+    } finally {
+      globalThis.fetch = original;
+      delete process.env.GOOGLE_CLIENT_ID;
+      delete process.env.GOOGLE_CLIENT_SECRET;
+      delete process.env.GOOGLE_REFRESH_TOKEN;
+      await prisma.user.update({ where: { id: userId }, data: { googleRefreshToken: null } });
+    }
+  });
+
   it('RF-2005: a Drive link is stored and nothing is copied', async () => {
     const task = await session()
       .post('/api/v1/tasks')

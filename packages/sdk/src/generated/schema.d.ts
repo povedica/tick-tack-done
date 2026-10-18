@@ -3160,6 +3160,7 @@ export interface components {
             file_id: string;
             url: string;
             name: string;
+            copy?: boolean;
         };
         LocationDto: {
             lat: number;

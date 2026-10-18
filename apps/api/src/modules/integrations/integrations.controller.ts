@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Body, Controller, Get, HttpStatus, Inject, Post, Query, Req, Res } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
-import { IsString, IsUUID, MaxLength } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 import type { Request, Response } from 'express';
 import { actorOf, type AuthUser } from '../../auth/auth-user';
 import { CurrentUser } from '../../auth/current-user.decorator';
@@ -9,6 +9,8 @@ import { Scopes } from '../../auth/scopes.decorator';
 import { DomainEvent } from '../../events/domain-events';
 import { EventRecorder } from '../../events/event-recorder';
 import { driveConfigured, googleConfigured, telegramConfigured } from '../../integrations/config';
+import { downloadDriveFile } from '../../integrations/google-drive';
+import { exchangeGoogleRefreshToken } from '../../integrations/google-token';
 import { telegramSecretMatches } from '../../integrations/telegram-secret';
 import { authorizeUrl, readState, redirectFor, signState } from './google-oauth';
 import { TelegramBotService } from './telegram-bot.service';
@@ -16,6 +18,8 @@ import { asJson } from '../../http/json';
 import { DomainException } from '../../http/domain.exception';
 import { respondJson } from '../../http/respond';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ATTACHMENT_MAX_BYTES } from '../tasks/attachment-storage';
+import { TasksService } from '../tasks/tasks.service';
 
 class LinkDto {
   @ApiProperty()
@@ -43,6 +47,11 @@ class DriveDto {
   @IsString()
   @MaxLength(200)
   name!: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  copy?: boolean;
 }
 
 @ApiTags('integrations')
@@ -52,6 +61,7 @@ export class IntegrationsController {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
     @Inject(TelegramBotService) private readonly telegram: TelegramBotService,
+    @Inject(TasksService) private readonly tasks: TasksService,
   ) {}
 
   @Get('telegram')
@@ -257,6 +267,11 @@ export class IntegrationsController {
     if (task === null) {
       throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
     }
+    if (dto.copy === true) {
+      const copied = await this.copyDriveFile(user, task.id, dto);
+      respondJson(req, res, 201, copied, false);
+      return;
+    }
     const row = await this.prisma.$transaction(async (tx) => {
       const created = await tx.attachment.create({
         data: {
@@ -286,6 +301,52 @@ export class IntegrationsController {
       return created;
     });
     respondJson(req, res, 201, { id: row.id, drive_url: dto.url, copied: false }, false);
+  }
+
+  private async copyDriveFile(
+    user: AuthUser,
+    taskId: string,
+    dto: DriveDto,
+  ): Promise<{ id: string; drive_url: string; copied: true }> {
+    const row = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: { googleRefreshToken: true },
+    });
+    const refresh = row?.googleRefreshToken ?? process.env.GOOGLE_REFRESH_TOKEN ?? '';
+    const access = await exchangeGoogleRefreshToken(refresh);
+    const file = await downloadDriveFile(access, dto.file_id);
+    if (file.bytes.length > ATTACHMENT_MAX_BYTES) {
+      throw new DomainException(
+        HttpStatus.PAYLOAD_TOO_LARGE,
+        'payload_too_large',
+        'Drive file exceeds 25 MB',
+      );
+    }
+    const saved = await this.tasks.addAttachment(user, taskId, {
+      originalname: dto.name.length > 0 ? dto.name : file.name,
+      mimetype: file.mimeType,
+      size: file.bytes.length,
+      buffer: file.bytes,
+    });
+    await this.prisma.$transaction(async (tx) => {
+      await tx.attachment.update({
+        where: { id: saved.id },
+        data: { driveFileId: dto.file_id, driveUrl: dto.url },
+      });
+      await this.events.record(tx, actorOf(user), {
+        type: DomainEvent.driveAttached,
+        entityType: 'attachment',
+        entityId: saved.id,
+        action: 'created',
+        data: asJson({
+          drive_file_id: dto.file_id,
+          copied: true,
+          drive_configured: driveConfigured(),
+        }),
+        previous: null,
+      });
+    });
+    return { id: saved.id, drive_url: dto.url, copied: true };
   }
 }
 

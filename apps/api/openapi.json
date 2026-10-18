@@ -8733,6 +8733,9 @@
           },
           "name": {
             "type": "string"
+          },
+          "copy": {
+            "type": "boolean"
           }
         },
         "required": [

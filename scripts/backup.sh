@@ -18,11 +18,11 @@ docker run --rm -v reflexionia-tasks_attachments:/data -v "$PWD/$DEST":/out alpi
 if [ -n "${BACKUP_REMOTE:-}" ]; then
   echo "[backup] copiando a destino externo: $BACKUP_REMOTE"
   rclone copy "$DEST" "$BACKUP_REMOTE/$STAMP"
+elif [ -n "${GOOGLE_DRIVE_FOLDER_ID:-}" ]; then
+  echo "[backup] volcando a Google Drive"
+  node scripts/backup-to-drive.mjs "$DEST"
 else
-  echo "[backup] AVISO: BACKUP_REMOTE no configurado; el backup NO sale de la máquina (incumple RF-1704)"
-  if [ -n "${GOOGLE_DRIVE_FOLDER_ID:-}" ]; then
-    echo "[backup] GOOGLE_DRIVE_FOLDER_ID está definido, pero este script no llama a Google. BACKUP_REMOTE sigue siendo un remoto rclone."
-  fi
+  echo "[backup] AVISO: ni BACKUP_REMOTE ni GOOGLE_DRIVE_FOLDER_ID; el backup NO sale de la máquina (incumple RF-1704)"
 fi
 
 # Retención
