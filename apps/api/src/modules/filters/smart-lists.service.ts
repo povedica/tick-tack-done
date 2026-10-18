@@ -2,8 +2,6 @@ import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import type { SmartList } from '@prisma/client';
 import {
   isSmartListKey,
-  matchesClause,
-  matchesSmartList,
   parseTaskView,
   rebalancedSortOrders,
   SMART_LIST_KEYS,
@@ -14,14 +12,15 @@ import {
 import { actorOf, type AuthUser } from '../../auth/auth-user';
 import { DomainEvent } from '../../events/domain-events';
 import { EventRecorder } from '../../events/event-recorder';
-import { whereFromClause } from '../../filters/where-from-clause';
 import { decodeCursor } from '../../http/cursor';
 import { DomainException } from '../../http/domain.exception';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { Tx } from '../../prisma/tx';
-import { buildViewPage, type ViewPageJson } from '../../reading/view-page';
-import { loadViewTasks } from '../../reading/view-tasks';
+import type { ViewPageJson } from '../../reading/view-page';
+import { countViewTasks, pageViewTasks } from '../../reading/view-query';
 import type { SmartListResponseDto, UpdateSmartListsDto } from './filters.dto';
+
+const readyOwners = new Set<string>();
 
 @Injectable()
 export class SmartListsService {
@@ -31,25 +30,20 @@ export class SmartListsService {
   ) {}
 
   async list(user: AuthUser): Promise<{ items: SmartListResponseDto[] }> {
-    const rows = await this.prisma.$transaction(async (tx) => {
-      await this.ensure(tx, user.id);
-      return tx.smartList.findMany({
-        where: { ownerId: user.id, deletedAt: null },
-        orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
-      });
+    await this.ensureOnce(user.id);
+    const rows = await this.prisma.smartList.findMany({
+      where: { ownerId: user.id, deletedAt: null },
+      orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
     });
     const clock = this.clock(user);
-    const inboxProjectId = await this.inboxId(user.id);
-    const tasks = await loadViewTasks(this.prisma, { ownerId: user.id, parentId: null });
-    const input = { clock, inboxProjectId, assigneeId: user.id };
+    const input = { clock, inboxProjectId: await this.inboxId(user.id), assigneeId: user.id };
+    const counts = await Promise.all(
+      rows.map((row) =>
+        countViewTasks(this.prisma, user.id, smartListClause(this.key(row.key), input), clock),
+      ),
+    );
     return {
-      items: rows.map((row) => {
-        const key = this.key(row.key);
-        return this.toJson(
-          row,
-          tasks.filter((task) => matchesSmartList(key, task.subject, input)).length,
-        );
-      }),
+      items: rows.map((row, index) => this.toJson(row, counts[index] ?? 0)),
     };
   }
 
@@ -117,7 +111,7 @@ export class SmartListsService {
     cursorRaw: string | undefined,
   ): Promise<ViewPageJson> {
     const key = this.key(keyRaw);
-    await this.prisma.$transaction((tx) => this.ensure(tx, user.id));
+    await this.ensureOnce(user.id);
     const view = parseTaskView(groupBy, sort);
     if (!view.ok) {
       throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', view.reason);
@@ -128,26 +122,24 @@ export class SmartListsService {
       inboxProjectId: await this.inboxId(user.id),
       assigneeId: user.id,
     };
-    const clause = smartListClause(key, input);
-    const rows = await loadViewTasks(this.prisma, {
-      AND: [{ ownerId: user.id }, { parentId: null }, whereFromClause(clause)],
-    });
-    const matched = rows.filter((row) => matchesClause(clause, row.subject, clock));
-    const page = buildViewPage(
-      matched,
-      { groupBy: view.groupBy, sort: view.sort, clock },
+    return pageViewTasks(this.prisma, {
+      ownerId: user.id,
+      clause: smartListClause(key, input),
+      clock,
+      groupBy: view.groupBy,
+      sort: view.sort,
       limit,
-      this.cursor(cursorRaw),
-    );
-    if (key === 'completed') {
-      const when = new Map(matched.map((row) => [row.id, row.completedAt ?? '']));
-      for (const group of page.groups) {
-        group.tasks.sort((left, right) =>
-          (when.get(right.id) ?? '').localeCompare(when.get(left.id) ?? ''),
-        );
-      }
+      cursor: this.cursor(cursorRaw),
+      ...(key === 'completed' ? { ranking: 'completed' as const } : {}),
+    });
+  }
+
+  private async ensureOnce(ownerId: string): Promise<void> {
+    if (readyOwners.has(ownerId)) {
+      return;
     }
-    return page;
+    await this.prisma.$transaction((tx) => this.ensure(tx, ownerId));
+    readyOwners.add(ownerId);
   }
 
   private async ensure(tx: Tx, ownerId: string): Promise<void> {

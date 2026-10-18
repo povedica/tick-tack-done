@@ -2759,6 +2759,10 @@ export interface components {
             sort_order: string;
             assignee_id: string | null;
             created_at: string;
+            completed_at: string | null;
+            repeat_rule: string | null;
+            /** @enum {string} */
+            source: "manual" | "import" | "api" | "automation" | "plugin";
             deleted_at: string | null;
         };
         ViewGroupDto: {

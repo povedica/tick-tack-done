@@ -17,7 +17,7 @@ services:
       BUS_AUTOSTART: 'true'
       SCHEDULER_AUTOSTART: 'true'
       ATTACHMENT_DIR: /data/attachments
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?connection_limit=10&pool_timeout=20
       REDIS_URL: redis://redis:6379
     volumes:
       - attachments:/data/attachments

@@ -303,6 +303,7 @@ model Project {
   presences ListPresence[]
 
   @@index([ownerId, sortOrder])
+  @@index([ownerId, deletedAt], map: "projects_owner_deleted_idx")
   @@map("projects")
 }
 
@@ -342,6 +343,7 @@ model Tag {
 
   @@unique([ownerId, name])
   @@index([ownerId, sortOrder])
+  @@index([ownerId, deletedAt], map: "tags_owner_deleted_idx")
   @@map("tags")
 }
 
@@ -398,6 +400,9 @@ model Task {
   @@index([projectId, status, sortOrder], map: "tasks_project_status_sort_idx")
   @@index([dueDate], map: "tasks_due_date_idx")
   @@index([seriesId, status], map: "tasks_series_status_idx")
+  @@index([ownerId, status, deletedAt, dueDate], map: "tasks_owner_status_deleted_due_idx")
+  @@index([ownerId, deletedAt, createdAt], map: "tasks_owner_deleted_created_idx")
+  @@index([ownerId, parentId, deletedAt], map: "tasks_owner_parent_deleted_idx")
   @@index([searchVector], type: Gin, map: "tasks_fts_idx")
   @@map("tasks")
 }

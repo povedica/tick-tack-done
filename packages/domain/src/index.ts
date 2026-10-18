@@ -73,6 +73,7 @@ export {
   parseTaskView,
   RECENT_WINDOW_DAYS,
   savedFilterClause,
+  shiftLocalDays,
   SMART_LIST_KEYS,
   smartListClause,
 } from './filters/index';

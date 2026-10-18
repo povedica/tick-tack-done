@@ -33,6 +33,19 @@ export interface SmartListInput {
 
 /** RF-901. System lists are the same grammar as a saved filter, plus trash and recency. */
 export function smartListClause(key: SmartListKey, input: SmartListInput): FilterClause {
+  if (key === 'today') {
+    return {
+      op: 'and',
+      items: [
+        {
+          op: 'or',
+          items: [compileRules(and(date('today'), active()), input.clock), { op: 'overdue' }],
+        },
+        { op: 'deleted', deleted: false },
+        notArchived(),
+      ],
+    };
+  }
   const items: FilterClause[] = [compileRules(rulesFor(key, input), input.clock)];
   if (key === 'trash') {
     items.push({ op: 'deleted', deleted: true });

@@ -7159,6 +7159,24 @@
           "created_at": {
             "type": "string"
           },
+          "completed_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "repeat_rule": {
+            "type": "string",
+            "nullable": true
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "import",
+              "api",
+              "automation",
+              "plugin"
+            ]
+          },
           "deleted_at": {
             "type": "string",
             "nullable": true
@@ -7184,6 +7202,9 @@
           "sort_order",
           "assignee_id",
           "created_at",
+          "completed_at",
+          "repeat_rule",
+          "source",
           "deleted_at"
         ]
       },
