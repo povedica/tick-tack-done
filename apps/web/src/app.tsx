@@ -14,7 +14,7 @@ import {
 import { isPaletteShortcut } from './features/views/shortcuts';
 import { draftFromShare } from './features/capture/share-target';
 import { isCaptureShortcut } from './features/capture/draft';
-import { useCaptureNotice, useCaptureOpen } from './features/capture/notice';
+import { useCaptureNotice, openTaskComposer, useCaptureOpen } from './features/capture/notice';
 import { HabitsPage } from './features/habits/components/HabitsPage';
 import {
   AccountPage,
@@ -217,7 +217,7 @@ function CaptureHotkey() {
         document.getElementById('capture-input')?.focus();
         return;
       }
-      useCaptureOpen.getState().show();
+      openTaskComposer();
     }
     window.addEventListener('keydown', onKey);
     return () => {

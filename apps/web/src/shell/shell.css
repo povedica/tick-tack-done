@@ -38,6 +38,11 @@
   grid-row: 1;
 }
 
+.shell > .sheet {
+  grid-column: 1 / -1;
+  grid-row: 1;
+}
+
 .sidebar,
 .detail,
 .detail-panel {
@@ -153,9 +158,13 @@
   background: var(--surface-2);
 }
 
-.nav-link.is-active,
-.nav-link[data-selected='true'] {
-  background: var(--accent-soft);
+.sidebar .nav-link:hover {
+  background: rgb(255 255 255 / 0.38);
+}
+
+.sidebar .nav-link.is-active,
+.sidebar .nav-link[data-selected='true'] {
+  background: rgb(255 255 255 / 0.62);
   color: var(--ink);
 }
 

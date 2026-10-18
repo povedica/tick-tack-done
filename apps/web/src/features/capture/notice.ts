@@ -78,3 +78,14 @@ export const useCaptureOpen = create<CaptureOpenState>((set) => ({
     set({ open: false, text: '' });
   },
 }));
+
+/** The list composer is the TickTick field. The sheet is only the fallback. */
+export function openTaskComposer(text = ''): void {
+  const field = document.querySelector<HTMLInputElement>('.quick-add input, .inline-add input');
+  if (field !== null && text.length === 0) {
+    field.scrollIntoView({ block: 'center' });
+    field.focus();
+    return;
+  }
+  useCaptureOpen.getState().show(text);
+}

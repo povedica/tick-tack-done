@@ -2,8 +2,8 @@
   color-scheme: light;
 
   --bg: #ffffff;
-  --sidebar-bg: #f2f5fe;
-  --rail-bg: #4772fa;
+  --sidebar-bg: #c5d6fc;
+  --rail-bg: #6f92f8;
   --surface: #ffffff;
   --surface-2: rgba(25, 25, 25, 0.04);
   --surface-3: rgba(25, 25, 25, 0.03);
@@ -12,7 +12,7 @@
 
   --ink: #191919;
   --ink-2: rgba(25, 25, 25, 0.6);
-  /* 0.4 no llega a AA sobre #f2f5fe; 0.65 sí en texto de 12px. */
+  /* 0.4 no llega a AA sobre el azul del lateral; 0.65 sí en texto de 12px. */
   --ink-3: rgba(25, 25, 25, 0.65);
   --ink-faint: rgba(25, 25, 25, 0.55);
   --ink-inverse: #ffffff;

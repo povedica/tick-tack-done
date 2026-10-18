@@ -67,7 +67,7 @@
 .task-row {
   position: relative;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) minmax(0, max-content) auto;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 42%) auto;
   align-items: center;
   gap: 4px;
   height: var(--row-h);

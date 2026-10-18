@@ -18,7 +18,6 @@ import { fill, useMessages, type Messages } from '../../i18n';
 import { SHORTCUT_ROWS } from '../../shell/shortcuts';
 import { useLocale } from '../../i18n/locale';
 import { usePreferences, type AccentId } from '../../theme/preferences';
-import { useThemePreference } from '../../theme/store';
 import { collectTags } from '../tasks/collect';
 import { quadrantOf, rowFromTask, smartApiKey, type RowModel } from '../tasks/model';
 import { refreshTaskSurfaces } from '../tasks/refresh';
@@ -986,7 +985,11 @@ export function SettingsLayout() {
   return (
     <div className="settings-layout" data-section={section}>
       <nav className="settings-nav" aria-label={messages.settingsTitle}>
-        {section === 'child' ? <NavLink to="/settings">{messages.settingsHome}</NavLink> : null}
+        {section === 'child' ? (
+          <NavLink to="/settings" end>
+            {messages.settingsHome}
+          </NavLink>
+        ) : null}
         {SETTINGS_GROUPS.map(([group, paths]) => (
           <div key={group}>
             <h2>{messages[group]}</h2>
@@ -1300,13 +1303,9 @@ export function AppearanceExtras() {
   const setAccent = usePreferences((state) => state.setAccent);
   const week = usePreferences((state) => state.weekStart);
   const setWeek = usePreferences((state) => state.setWeekStart);
-  const choice = useThemePreference((state) => state.preference);
   return (
     <section>
       <p>{messages.appearanceSaved}</p>
-      <p className="ui-muted">
-        {messages.themeLabel}: {choice}
-      </p>
       <fieldset>
         <legend>{messages.density}</legend>
         <p>{messages.densityHint}</p>

@@ -5,7 +5,7 @@ import { TaskDetail } from '../features/tasks/TaskDetail';
 import { useQueryClient } from '@tanstack/react-query';
 import { useActionToast } from '../components/action-toast';
 import { CaptureSheet } from '../features/capture/components/CaptureSheet';
-import { useCaptureOpen } from '../features/capture/notice';
+import { openTaskComposer, useCaptureOpen } from '../features/capture/notice';
 import { refreshTaskSurfaces } from '../features/tasks/refresh';
 import { useMessages } from '../i18n';
 import { BottomBar } from './BottomBar';
@@ -121,7 +121,7 @@ export function AppShell() {
           onToggleCollapsed={toggleNav}
           onCapture={() => {
             closeDrawer();
-            useCaptureOpen.getState().show();
+            openTaskComposer();
           }}
         />
         <Sidebar

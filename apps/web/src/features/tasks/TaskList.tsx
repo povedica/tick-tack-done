@@ -11,6 +11,7 @@ import { noticesFrom, useCaptureNotice } from '../capture/notice';
 import { quickAddRequest, type ViewDay } from '../capture/quick-add';
 import { refreshTaskSurfaces } from './refresh';
 import { newMutation, runOrQueue } from '../offline/client';
+import { displayTitle } from './displayTitle';
 import { isOverdue, isSameDay, type RowModel } from './model';
 
 export function TaskList({
@@ -408,7 +409,7 @@ function TaskRow({
       )}
       <button type="button" className="task-title" onClick={onOpen}>
         {row.kind === 'note' ? <span className="ui-badge">{messages.noteBadge}</span> : null}{' '}
-        {row.title.trim().length === 0 ? messages.untitled : row.title}
+        {shownTitle(row.title, named.map((tag) => tag.name), messages.untitled)}
       </button>
       <span className="task-meta">
         {shown.map((tag) => (
@@ -548,7 +549,11 @@ function Kanban({
                     onOpen(row.id);
                   }}
                 >
-                  {row.title}
+                  {shownTitle(
+                    row.title,
+                    row.tags.map((tag) => tag.name),
+                    messages.untitled,
+                  )}
                 </button>
               </article>
             ))}
@@ -627,7 +632,11 @@ function Timeline({
                   onOpen(row.id);
                 }}
               >
-                {row.title}
+                {shownTitle(
+                  row.title,
+                  row.tags.map((tag) => tag.name),
+                  messages.untitled,
+                )}
               </button>
               <Button
                 onClick={() => {
@@ -681,7 +690,11 @@ function Timeline({
                     onOpen(row.id);
                   }}
                 >
-                  {row.title}
+                  {shownTitle(
+                    row.title,
+                    row.tags.map((tag) => tag.name),
+                    messages.untitled,
+                  )}
                 </button>
               ))}
             </section>
@@ -732,4 +745,9 @@ function formatRowDate(
     ...(date.getFullYear() === now.getFullYear() ? {} : { year: 'numeric' }),
   }).format(date);
   return done ? messages.completedOn.replace('{date}', formatted) : formatted;
+}
+
+function shownTitle(title: string, tagNames: readonly string[], untitled: string): string {
+  const text = displayTitle(title, tagNames);
+  return text.length === 0 ? untitled : text;
 }

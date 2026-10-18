@@ -1,12 +1,11 @@
 import { CalendarDays, List, MoreHorizontal, Plus, Sun } from 'lucide-react';
 import { useState } from 'react';
 import { NavLink } from 'react-router';
-import { useCaptureOpen } from '../features/capture/notice';
+import { openTaskComposer } from '../features/capture/notice';
 import { useMessages } from '../i18n';
 
 export function BottomBar({ onOpenLists }: { readonly onOpenLists: () => void }) {
   const messages = useMessages();
-  const showCapture = useCaptureOpen((state) => state.show);
   const [more, setMore] = useState(false);
 
   return (
@@ -28,7 +27,7 @@ export function BottomBar({ onOpenLists }: { readonly onOpenLists: () => void })
         aria-label={messages.fab}
         aria-keyshortcuts="N"
         onClick={() => {
-          showCapture();
+          openTaskComposer();
         }}
       >
         <Plus size={22} aria-hidden="true" />

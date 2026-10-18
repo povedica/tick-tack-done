@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   activeTasks,
+  formatDueDate,
   groupFromLocation,
   groupTasks,
   isOverdue,
@@ -97,5 +98,11 @@ describe('today groups', () => {
     ];
     expect(visibleTasks(tasks, new Set(['b'])).map((item) => item.id)).toEqual(['a', 'c']);
     expect(visibleTasks(tasks, new Set()).map((item) => item.id)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('UI-405: a task due today reads Hoy and an older day keeps the date', () => {
+    const labels = { today: 'Hoy', tomorrow: 'Mañana' };
+    expect(formatDueDate(new Date().toISOString(), 'Europe/Madrid', 'es', labels)).toBe('Hoy');
+    expect(formatDueDate('2020-03-15T10:00:00.000Z', 'Europe/Madrid', 'es', labels)).toMatch(/15/);
   });
 });

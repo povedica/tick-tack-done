@@ -33,6 +33,36 @@ select {
   padding: 0;
 }
 
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(25 25 25 / 0.28);
+}
+
+.sheet form {
+  width: min(32rem, 100%);
+  max-height: min(80dvh, 40rem);
+  overflow: auto;
+  padding: 20px;
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.sheet .actions button {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.sheet .actions button[type='submit'] {
+  background: var(--accent);
+  color: var(--ink-inverse);
+}
+
 h1 {
   font-family: var(--font-sans);
   font-size: 20px;

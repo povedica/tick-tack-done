@@ -88,12 +88,30 @@ export function visibleTasks(
   return tasks.filter((task) => !hiddenIds.has(task.id));
 }
 
-export function formatDueDate(dueDate: string, timeZone: string, locale: string): string {
+export function formatDueDate(
+  dueDate: string,
+  timeZone: string,
+  locale: string,
+  labels: { readonly today: string; readonly tomorrow: string },
+): string {
+  const dueKey = calendarDay(dueDate, timeZone);
+  const todayKey = calendarDay(new Date().toISOString(), timeZone);
+  if (dueKey === todayKey) {
+    return labels.today;
+  }
+  if (dueKey === shiftDayKey(todayKey, 1)) {
+    return labels.tomorrow;
+  }
   return new Intl.DateTimeFormat(locale, {
     day: 'numeric',
     month: 'short',
     timeZone,
   }).format(new Date(dueDate));
+}
+
+function shiftDayKey(key: string, days: number): string {
+  const [year, month, day] = key.split('-').map(Number);
+  return new Date(Date.UTC(year ?? 0, (month ?? 1) - 1, (day ?? 1) + days)).toISOString().slice(0, 10);
 }
 
 export function formatDayId(day: string, locale: string): string {

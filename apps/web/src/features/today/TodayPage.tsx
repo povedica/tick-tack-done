@@ -8,9 +8,10 @@ import { ViewMenu } from '../../components/ViewMenu';
 import { api } from '../../api';
 import { captureLanguage, fill, useMessages, type Messages } from '../../i18n';
 import { warningText } from '../capture/components/CaptureSheet';
-import { noticesFrom, useCaptureNotice, useCaptureOpen } from '../capture/notice';
+import { noticesFrom, openTaskComposer, useCaptureNotice } from '../capture/notice';
 import { useActionToast } from '../../components/action-toast';
 import { quickAddRequest } from '../capture/quick-add';
+import { displayTitle } from '../tasks/displayTitle';
 import { collectTags } from '../tasks/collect';
 import { refreshTaskSurfaces } from '../tasks/refresh';
 import { useShellActions } from '../../shell/shell-actions';
@@ -465,6 +466,8 @@ export function TodayPage() {
           label={messages.overdueTitle}
           tasks={parts.overdue}
           locale={locale}
+          todayLabel={messages.dateToday}
+          tomorrowLabel={messages.dateTomorrow}
           overdue
           completeLabel={messages.completeLabel}
           moreLabel={messages.openDetail}
@@ -488,6 +491,8 @@ export function TodayPage() {
           label={sectionLabel(group, section.id, messages, locale, projectNames, tagNames)}
           tasks={section.tasks}
           locale={locale}
+          todayLabel={messages.dateToday}
+          tomorrowLabel={messages.dateTomorrow}
           overdue={false}
           completeLabel={messages.completeLabel}
           moreLabel={messages.openDetail}
@@ -548,7 +553,7 @@ export function TodayPage() {
               type="button"
               className="text-button"
               onClick={() => {
-                useCaptureOpen.getState().show();
+                openTaskComposer();
               }}
             >
               {messages.fab}
@@ -574,6 +579,8 @@ function TaskGroup({
   label,
   tasks,
   locale,
+  todayLabel,
+  tomorrowLabel,
   overdue,
   completeLabel,
   moreLabel,
@@ -589,6 +596,8 @@ function TaskGroup({
   readonly label: string;
   readonly tasks: readonly TodayTask[];
   readonly locale: string;
+  readonly todayLabel: string;
+  readonly tomorrowLabel: string;
   readonly overdue: boolean;
   readonly completeLabel: string;
   readonly moreLabel: string;
@@ -611,6 +620,14 @@ function TaskGroup({
         {tasks.map((task) => {
           const selected = openTaskId === task.id;
           const listName = projectNames.get(task.projectId) ?? '';
+          const namedTags = task.tagIds.flatMap((id) => {
+            const name = tagNames.get(id);
+            return name === undefined ? [] : [{ id, name }];
+          });
+          const title = displayTitle(
+            task.title,
+            namedTags.map((tag) => tag.name),
+          );
           return (
             <li key={task.id}>
               <div
@@ -633,28 +650,25 @@ function TaskGroup({
                     onOpen(task.id);
                   }}
                 >
-                  {task.title.trim().length === 0 ? untitled : task.title}
+                  {title.length === 0 ? untitled : title}
                 </button>
                 <span className="task-meta">
-                  {task.tagIds.flatMap((id) => {
-                    const name = tagNames.get(id);
-                    if (name === undefined) {
-                      return [];
-                    }
-                    return [
+                  {namedTags.slice(0, 2).map((tag) => (
                       <Link
-                        key={id}
-                        to={`/tag/${id}`}
+                        key={tag.id}
+                        to={`/tag/${tag.id}`}
                         onClick={(event) => {
                           event.stopPropagation();
                         }}
                       >
-                        <span className="ui-tag" style={tagStyle(tagColors.get(id) ?? null)}>
-                          {name}
+                        <span className="ui-tag" style={tagStyle(tagColors.get(tag.id) ?? null)}>
+                          {tag.name}
                         </span>
-                      </Link>,
-                    ];
-                  })}
+                      </Link>
+                    ))}
+                  {namedTags.length > 2 ? (
+                    <span className="task-tag-more">+{namedTags.length - 2}</span>
+                  ) : null}
                   {listName.length > 0 ? <span className="task-list-name">{listName}</span> : null}
                   {task.dueDate !== null ? (
                     <time
@@ -663,7 +677,10 @@ function TaskGroup({
                       }
                       dateTime={task.dueDate}
                     >
-                      {formatDueDate(task.dueDate, task.timeZone, locale)}
+                      {formatDueDate(task.dueDate, task.timeZone, locale, {
+                        today: todayLabel,
+                        tomorrow: tomorrowLabel,
+                      })}
                     </time>
                   ) : null}
                 </span>
