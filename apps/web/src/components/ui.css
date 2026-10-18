@@ -238,6 +238,11 @@
   align-items: start;
 }
 
+.quad a {
+  color: var(--ink);
+  text-decoration: none;
+}
+
 .quad {
   min-height: 12rem;
   padding: var(--sp-3);
