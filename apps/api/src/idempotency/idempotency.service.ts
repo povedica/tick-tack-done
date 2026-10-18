@@ -1,4 +1,4 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { asJson } from '../http/json';
 import { DomainException } from '../http/domain.exception';
@@ -6,6 +6,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import type { Tx } from '../prisma/tx';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+/** Capture writes parse, insert and outbox in one interactive transaction. 5s was too short. */
+const INTERACTIVE_TIMEOUT_MS = 15_000;
 
 export interface IdempotentHit {
   readonly statusCode: number;
@@ -14,6 +16,8 @@ export interface IdempotentHit {
 
 @Injectable()
 export class IdempotencyService {
+  private readonly logger = new Logger(IdempotencyService.name);
+
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async lookup(
@@ -56,19 +60,25 @@ export class IdempotencyService {
       return { statusCode: hit.statusCode, body: hit.body as T, replayed: true };
     }
     try {
-      const body = await this.prisma.$transaction(async (tx) => {
-        const created = await input.execute(tx);
-        await this.store(tx, {
-          ownerId: input.ownerId,
-          key: input.key,
-          fingerprint: input.fingerprint,
-          statusCode: input.statusCode,
-          body: asJson(created),
-        });
-        return created;
-      });
+      const body = await this.prisma.$transaction(
+        async (tx) => {
+          const created = await input.execute(tx);
+          await this.store(tx, {
+            ownerId: input.ownerId,
+            key: input.key,
+            fingerprint: input.fingerprint,
+            statusCode: input.statusCode,
+            body: asJson(created),
+          });
+          return created;
+        },
+        { timeout: INTERACTIVE_TIMEOUT_MS },
+      );
       return { statusCode: input.statusCode, body, replayed: false };
     } catch (error) {
+      if (isTransactionTimeout(error)) {
+        this.logger.error('interactive transaction timed out IdempotencyService.run');
+      }
       if (input.key !== undefined && isIdempotencyUnique(error)) {
         const again = await this.lookup(input.ownerId, input.key, input.fingerprint);
         if (again !== null) {
@@ -103,6 +113,10 @@ export class IdempotencyService {
       },
     });
   }
+}
+
+function isTransactionTimeout(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2028';
 }
 
 function isIdempotencyUnique(error: unknown): boolean {
