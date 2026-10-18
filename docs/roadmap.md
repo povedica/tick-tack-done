@@ -4,7 +4,7 @@ Usa este plan para acotar cada tarea de Cursor: cita la fase y los RF-xx.
 
 ## MVP / fase 1 (4-6 semanas de agente)
 
-Estado en la PR #14 (18 oct 2026): la fase 1 está cerrada en la PR #11, tag `phase-1`. La web de la spec de UI entró antes, en la PR #10. El look medido de TickTick entró en la PR #13. V1 y V2 están en `main` (PR #12). Telegram, Calendar, Drive y el backup a Drive se cierran en la PR #14. No está desplegada: el nombre resuelve y no hay host SSH para esa máquina. `BACKUP_REMOTE` sigue vacío; el destino que sí está es la carpeta de Drive. La PR #9 se cerró sin merge y no se resucita. RF-1701 sigue aplazado.
+Estado al cerrar la PR #14 (18 oct 2026): la fase 1 está en `main` (PR #11, tag `phase-1`). La web de la spec de UI entró en la PR #10. El look medido de TickTick entró en la PR #13. V1 y V2 están en `main` (PR #12). Telegram, Calendar, Drive, el backup a Drive y el despliegue se cierran en la PR #14. El sitio es `https://todo.reflexionia.com`, con sesión real y sin `AUTH_MODE=dev`. `BACKUP_REMOTE` sigue vacío; el cron de las 04:00 vuelca a `GOOGLE_DRIVE_FOLDER_ID` cuando el usuario de producción tiene refresh token. La PR #9 se cerró sin merge y no se resucita. RF-1701 sigue aplazado.
 
 1. **Base**: monorepo, CI, Docker Compose, modelo de datos completo (sección 5), migraciones, seed.
 2. **Tareas núcleo**: CRUD + checklist + subtareas (RF-201–210), listas/carpetas/secciones
@@ -23,7 +23,7 @@ Estado en la PR #14 (18 oct 2026): la fase 1 está cerrada en la PR #11, tag `ph
 
 ## V1
 
-Hecho en la PR #12 (18 oct 2026), tag `phase-v1`, y cerrado en lo que faltaba en la PR #14. El webhook de Telegram crea la tarea y contesta. Calendar lee con el refresh token guardado. Drive adjunta por enlace o copia, y el backup diario puede usar la carpeta. RF-1701 no entra. La voz necesita `TELEGRAM_VOICE_PROVIDER`.
+Hecho en la PR #12 (18 oct 2026), tag `phase-v1`, y cerrado en lo que faltaba en la PR #14, ya desplegada. El webhook de Telegram crea la tarea y contesta. Calendar lee con el refresh token guardado. Drive adjunta por enlace o copia, y el backup diario puede usar la carpeta. RF-1701 no entra. La voz necesita `TELEGRAM_VOICE_PROVIDER` (en producción está vacío). El usuario de producción aún no ha repetido el consentimiento de Google, así que Calendar y la subida del backup esperan ese token.
 
 Kanban/Timeline/Eisenhower (RF-1002–1004) · calendario completo + iCal + Google Calendar lectura
 (RF-1101–1105) · bot de Telegram (RF-2003) · Google Drive (RF-2005) · notas (RF-1401–1403) ·
