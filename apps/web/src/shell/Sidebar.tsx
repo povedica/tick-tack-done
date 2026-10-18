@@ -18,6 +18,7 @@ import {
 import { useState, type ReactNode } from 'react';
 import { Link, NavLink, useLocation, useMatch } from 'react-router';
 import { api } from '../api';
+import { BrandMark } from '../components/BrandMark';
 import { Badge } from '../components/ui';
 import { useMessages, type Messages } from '../i18n';
 import { usePreferences } from '../theme/preferences';
@@ -74,6 +75,7 @@ export function Sidebar({
       inert={concealed ? true : undefined}
     >
       <NavLink className="brand" to="/today" onClick={onNavigate}>
+        <BrandMark />
         <span className="brand-name">{messages.appName}</span>
       </NavLink>
       {smart.isPending ? (

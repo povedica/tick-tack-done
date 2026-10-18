@@ -1,5 +1,6 @@
 import { CalendarDays, ListTodo, PanelLeft, Plus, Repeat, Search } from 'lucide-react';
 import { NavLink } from 'react-router';
+import { BrandMark } from '../components/BrandMark';
 import { useMessages } from '../i18n';
 
 export function IconRail({
@@ -16,7 +17,7 @@ export function IconRail({
   return (
     <nav className="icon-rail" aria-label={messages.appName}>
       <NavLink className="rail-avatar" to="/settings/appearance" aria-label={messages.navSettings}>
-        t
+        <BrandMark size={28} />
       </NavLink>
       <NavLink to="/today" end aria-label={messages.navToday}>
         <ListTodo size={20} aria-hidden="true" />

@@ -57,8 +57,7 @@
 
 .brand {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+  align-items: center;
   gap: var(--sp-2);
   padding: 0 var(--sp-2);
   color: inherit;
@@ -70,6 +69,13 @@
   font-size: var(--fs-base);
   font-weight: 600;
   letter-spacing: -0.01em;
+}
+
+.brand-mark {
+  display: block;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
 }
 
 .sidebar-capture,
@@ -498,12 +504,19 @@
 }
 
 .rail-avatar {
+  display: grid;
+  place-items: center;
   width: 28px;
   height: 28px;
-  border-radius: var(--radius-full);
-  background: rgb(255 255 255 / 0.24);
-  font-size: 12px;
-  font-weight: 600;
+  padding: 0;
+  border-radius: 8px;
+  background: transparent;
+  overflow: hidden;
+}
+
+.rail-avatar .brand-mark {
+  width: 28px;
+  height: 28px;
 }
 
 .rail-add,
