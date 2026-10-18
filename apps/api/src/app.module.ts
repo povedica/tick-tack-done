@@ -3,6 +3,7 @@ import { AuthModule } from './auth/auth.module';
 import { EventsModule } from './events/events.module';
 import { HealthModule } from './health/health.module';
 import { IdempotencyModule } from './idempotency/idempotency.module';
+import { McpModule } from './mcp/mcp.module';
 import { FiltersModule } from './modules/filters/filters.module';
 import { HabitsModule } from './modules/habits/habits.module';
 import { ListsModule } from './modules/lists/lists.module';
@@ -27,6 +28,7 @@ import { SchedulerModule } from './scheduler/scheduler.module';
     SearchModule,
     TagsModule,
     TasksModule,
+    McpModule,
     SchedulerModule,
   ],
 })
