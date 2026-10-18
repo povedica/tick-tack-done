@@ -111,6 +111,7 @@ enum ActivityAction {
   deleted
   assigned
   commented
+  accessed
 }
 
 enum Theme {
@@ -194,6 +195,7 @@ model User {
   weeklyReports         WeeklyReport[]
   outboxEvents          OutboxEvent[]
   idempotencyRecords    IdempotencyRecord[]
+  personalAccessTokens  PersonalAccessToken[]
   reminderDeliveries    ReminderDelivery[]
   pushSubscriptions     PushSubscription[]
   seriesAdvances        SeriesAdvance[]
@@ -595,22 +597,46 @@ model Comment {
 }
 
 model ActivityLog {
-  id         String         @id @default(uuid()) @db.Uuid
-  ownerId    String         @map("owner_id") @db.Uuid
-  owner      User           @relation("ActivityOwner", fields: [ownerId], references: [id], onDelete: Restrict)
-  actorId    String         @map("actor_id") @db.Uuid
-  actor      User           @relation("ActivityActor", fields: [actorId], references: [id], onDelete: Restrict)
-  entityType String         @map("entity_type")
-  entityId   String         @map("entity_id") @db.Uuid
+  id         String               @id @default(uuid()) @db.Uuid
+  ownerId    String               @map("owner_id") @db.Uuid
+  owner      User                 @relation("ActivityOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  actorId    String               @map("actor_id") @db.Uuid
+  actor      User                 @relation("ActivityActor", fields: [actorId], references: [id], onDelete: Restrict)
+  tokenId    String?              @map("token_id") @db.Uuid
+  token      PersonalAccessToken? @relation(fields: [tokenId], references: [id], onDelete: Restrict)
+  entityType String               @map("entity_type")
+  entityId   String               @map("entity_id") @db.Uuid
   action     ActivityAction
-  changes    Json           @default("{}")
-  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt  DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt  DateTime?      @map("deleted_at") @db.Timestamptz(6)
+  changes    Json                 @default("{}")
+  createdAt  DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt  DateTime?            @map("deleted_at") @db.Timestamptz(6)
 
   @@index([ownerId, createdAt])
   @@index([entityType, entityId])
+  @@index([tokenId, createdAt])
   @@map("activity_log")
+}
+
+// PAT (RF-2002). Only the hash is stored. Revocation is immediate via revoked_at.
+model PersonalAccessToken {
+  id          String    @id @default(uuid()) @db.Uuid
+  ownerId     String    @map("owner_id") @db.Uuid
+  owner       User      @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  name        String
+  tokenHash   String    @unique @map("token_hash")
+  tokenPrefix String    @map("token_prefix")
+  scopes      String[]
+  lastUsedAt  DateTime? @map("last_used_at") @db.Timestamptz(6)
+  revokedAt   DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  activity ActivityLog[]
+
+  @@index([ownerId, createdAt])
+  @@map("personal_access_tokens")
 }
 
 // Transactional outbox (section 11). Drained by the bus; not a section 5 entity.

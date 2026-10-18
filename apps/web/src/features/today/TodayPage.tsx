@@ -186,6 +186,9 @@ export function TodayPage() {
         <div>
           <h1 id="today-heading">{messages.todayTitle}</h1>
           <p className="today-date">{dateLabel}</p>
+          <p>
+            <Link to="/tokens">{messages.tokensLink}</Link>
+          </p>
         </div>
         <label className="group-field">
           {messages.groupLabel}

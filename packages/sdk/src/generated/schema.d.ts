@@ -75,6 +75,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List personal access tokens. The secret is never returned (RF-2002). */
+        get: operations["TokensController_list"];
+        put?: never;
+        /** Create one token for an agent. The secret is shown once (RF-2002). */
+        post: operations["TokensController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/tokens/{id}/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Activity performed with one token (RF-2002) */
+        get: operations["TokensController_tokenActivity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/tokens/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke a personal access token immediately (RF-2002) */
+        delete: operations["TokensController_revoke"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Account activity log */
+        get: operations["TokensController_activity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/health": {
         parameters: {
             query?: never;
@@ -900,6 +969,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/mcp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** MCP JSON-RPC (RF-2001). Tools use API v1 and cannot exceed the bearer token scopes. Notes are not exposed. */
+        post: operations["McpController_handle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -934,6 +1020,48 @@ export interface components {
             endpoint: string;
             p256dh: string;
             auth: string;
+        };
+        TokenDto: {
+            id: string;
+            name: string;
+            token_prefix: string;
+            scopes: string[];
+            created_at: string;
+            last_used_at: string | null;
+            revoked_at: string | null;
+        };
+        TokenPageDto: {
+            items: components["schemas"]["TokenDto"][];
+            next_cursor: string | null;
+        };
+        CreateTokenDto: {
+            /** @description Agent or script this token belongs to */
+            name: string;
+            scopes: ("tasks:read" | "tasks:write" | "lists:read" | "lists:write" | "tags:read" | "tags:write" | "filters:read" | "filters:write" | "habits:read" | "habits:write" | "focus:read" | "focus:write" | "notes:read" | "notes:write" | "calendar:read" | "calendar:write" | "reminders:write" | "webhooks:manage" | "automations:manage" | "profile:read" | "profile:write" | "backup:read")[];
+        };
+        TokenCreatedDto: {
+            id: string;
+            name: string;
+            token_prefix: string;
+            scopes: string[];
+            created_at: string;
+            last_used_at: string | null;
+            revoked_at: string | null;
+            /** @description Shown once. Only the hash is stored. */
+            token: string;
+        };
+        ActivityEntryDto: {
+            id: string;
+            entity_type: string;
+            entity_id: string;
+            action: string;
+            changes: Record<string, never>;
+            created_at: string;
+            token_id: string | null;
+        };
+        ActivityPageDto: {
+            items: components["schemas"]["ActivityEntryDto"][];
+            next_cursor: string | null;
         };
         HealthResponseDto: {
             /** @enum {string} */
@@ -1650,6 +1778,117 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    TokensController_list: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenPageDto"];
+                };
+            };
+        };
+    };
+    TokensController_create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTokenDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenCreatedDto"];
+                };
+            };
+        };
+    };
+    TokensController_tokenActivity: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityPageDto"];
+                };
+            };
+        };
+    };
+    TokensController_revoke: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TokensController_activity: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityPageDto"];
+                };
             };
         };
     };
@@ -3354,6 +3593,34 @@ export interface operations {
                     text?: string;
                     message_id?: string;
                     file?: string[];
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    McpController_handle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example 2.0 */
+                    jsonrpc: string;
+                    id?: string | number;
+                    /** @example tools/list */
+                    method: string;
+                    params?: Record<string, never>;
                 };
             };
         };

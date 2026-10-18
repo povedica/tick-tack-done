@@ -143,4 +143,61 @@ describe('sdk', () => {
     expect(result.text).toBe('leer');
     expect(requests[0]?.url).toBe('http://api.test/api/v1/search?q=leer+%23casa&types=task%2Cnote');
   });
+
+  it('RF-2002: creates a token on the public route and lists it without the secret', async () => {
+    const requests: { url: string; method: string | undefined }[] = [];
+    const client = createApiClient({
+      baseUrl: 'http://api.test',
+      devUserEmail: 'demo@reflexionia.test',
+      fetchImpl: (url, init) => {
+        requests.push({ url: requestUrl(url), method: init?.method });
+        if (init?.method === 'POST') {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                id: 'tok-1',
+                name: 'Cursor',
+                token: 'rfx_pat_secret',
+                token_prefix: 'rfx_pat_secre',
+                scopes: ['tasks:read'],
+                created_at: '2026-10-18T00:00:00.000Z',
+                last_used_at: null,
+                revoked_at: null,
+              }),
+              { status: 201 },
+            ),
+          );
+        }
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              items: [
+                {
+                  id: 'tok-1',
+                  name: 'Cursor',
+                  token_prefix: 'rfx_pat_secre',
+                  scopes: ['tasks:read'],
+                  created_at: '2026-10-18T00:00:00.000Z',
+                  last_used_at: null,
+                  revoked_at: null,
+                },
+              ],
+              next_cursor: null,
+            }),
+            { status: 200 },
+          ),
+        );
+      },
+    });
+
+    const created = await client.createToken({ name: 'Cursor', scopes: ['tasks:read'] });
+    const listed = await client.listTokens();
+
+    expect(created.token).toBe('rfx_pat_secret');
+    expect(listed.items[0]?.name).toBe('Cursor');
+    expect(requests.map((item) => `${item.method ?? ''} ${item.url}`)).toEqual([
+      'POST http://api.test/api/v1/me/tokens',
+      'GET http://api.test/api/v1/me/tokens',
+    ]);
+  });
 });

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useNavigate, useSearchParams } from 'react-router';
 import { CaptureSheet } from './features/capture/components/CaptureSheet';
 import { HabitsPage } from './features/habits/components/HabitsPage';
+import { TokensPage } from './features/tokens/components/TokensPage';
 import { CommandPalette } from './features/views/components/CommandPalette';
 import { FiltersPage } from './features/views/components/FiltersPage';
 import { SmartListsPage } from './features/views/components/SmartListsPage';
@@ -72,6 +73,7 @@ function Shell() {
           <Route path="/reports/weekly/:week" element={<LaterPage titleKey="reportTitle" />} />
           <Route path="/review/weekly" element={<LaterPage titleKey="reviewTitle" />} />
           <Route path="/search" element={<LaterPage titleKey="searchTitle" />} />
+          <Route path="/tokens" element={<TokensPage />} />
           <Route path="/settings">
             <Route index element={<Navigate to="/settings/appearance" replace />} />
             <Route path="appearance" element={<AppearancePage />} />

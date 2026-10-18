@@ -39,6 +39,8 @@ export const DomainEvent = {
   filterUpdated: 'filter.updated@v1',
   filterDeleted: 'filter.deleted@v1',
   smartListUpdated: 'smart_list.updated@v1',
+  tokenCreated: 'token.created@v1',
+  tokenRevoked: 'token.revoked@v1',
   noteCreated: 'note.created@v1',
   noteUpdated: 'note.updated@v1',
 } as const;

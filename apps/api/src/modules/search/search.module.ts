@@ -5,6 +5,7 @@ import { SearchService } from './search.service';
 @Module({
   controllers: [SearchController],
   providers: [SearchService],
+  exports: [SearchService],
 })
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class -- Nest module is decorator-only
 export class SearchModule {}

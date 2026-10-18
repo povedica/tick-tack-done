@@ -20,7 +20,7 @@ export class EventRecorder {
         ownerId: actor.ownerId,
         type: event.type,
         actorKind: actor.actorKind,
-        actorId: actor.actorId,
+        actorId: actor.tokenId ?? actor.actorId,
         data: event.data,
         previous: event.previous ?? Prisma.DbNull,
       },
@@ -29,6 +29,7 @@ export class EventRecorder {
       data: {
         ownerId: actor.ownerId,
         actorId: actor.actorId,
+        tokenId: actor.tokenId,
         entityType: event.entityType,
         entityId: event.entityId,
         action: event.action,
