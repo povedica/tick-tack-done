@@ -226,7 +226,7 @@ export const extraEs = {
   openFull: 'Abrir completo',
   readOnlyEvent: 'Solo lectura. La API no publica calendarios externos.',
   densityHint: 'La compacta aprieta filas, kanban y calendario.',
-  accentHint: 'El índigo es el acento por defecto.',
+  accentHint: 'El azul es el acento por defecto.',
   weekStartHint: 'Solo cambia cómo se dibuja el calendario en este navegador.',
   captureHint:
     'El idioma del parser se recuerda aquí. La dirección de correo sí vive en el servidor.',
@@ -236,6 +236,9 @@ export const extraEs = {
   planAccept: 'Aceptar',
   planDismiss: 'Descartar',
   suggestionEmpty: 'Cuando haya una propuesta para hoy, aparecerá aquí.',
+  showDetails: 'Mostrar detalles',
+  viewOptions: 'Opciones de vista',
+  contentHint: 'Escribe algo o / para comandos',
 } as const;
 
 export const extraEn = {
@@ -466,7 +469,7 @@ export const extraEn = {
   openFull: 'Open full',
   readOnlyEvent: 'Read only. The API does not publish external calendars.',
   densityHint: 'Compact tightens rows, kanban and the calendar.',
-  accentHint: 'Indigo is the default accent.',
+  accentHint: 'Blue is the default accent.',
   weekStartHint: 'This only changes how the calendar is drawn in this browser.',
   captureHint: 'The parser language is remembered here. The email address lives on the server.',
   smartHint: 'Enabling and ordering is saved with PATCH /api/v1/smart-lists.',
@@ -475,4 +478,7 @@ export const extraEn = {
   planAccept: 'Accept',
   planDismiss: 'Dismiss',
   suggestionEmpty: 'When there is a proposal for today, it will show up here.',
+  showDetails: 'Show details',
+  viewOptions: 'View options',
+  contentHint: 'Write something or / for commands',
 } as const;

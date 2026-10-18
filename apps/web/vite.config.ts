@@ -27,7 +27,7 @@ export default defineConfig(({ mode }) => {
           start_url: '/today',
           display: 'standalone',
           background_color: '#ffffff',
-          theme_color: '#4f46e5',
+          theme_color: '#4772fa',
           share_target: {
             // RF-106: "compartir a la app" desde el móvil vuelca al quick add
             action: '/quick-add',

@@ -1,11 +1,15 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { ArrowUpDown, GripVertical, Lightbulb, Menu, MoreHorizontal } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
+import { PriorityCheck } from '../../components/PriorityCheck';
 import { UndoToastStack } from '../../components/UndoToast';
+import { ViewMenu } from '../../components/ViewMenu';
 import { api } from '../../api';
 import { fill, useMessages, type Messages } from '../../i18n';
 import { warningText } from '../capture/components/CaptureSheet';
 import { useCaptureNotice } from '../capture/notice';
+import { useShellActions } from '../../shell/shell-actions';
 import { isTypingTarget } from '../../shell/shortcuts';
 import { flushOfflineQueue, newMutation, runOrQueue } from '../offline/client';
 import { tasksApi } from './api';
@@ -16,18 +20,17 @@ import {
   formatDueDate,
   groupFromLocation,
   groupTasks,
-  parseGroup,
   partitionToday,
   visibleTasks,
   type TaskGroupKey,
   type TodayTask,
 } from './groups';
-import './today.css';
 
 const GROUP_KEY = 'tick-tack-done.today.group';
 
 export function TodayPage() {
   const messages = useMessages();
+  const shell = useShellActions();
   const locale = navigator.language;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -55,12 +58,16 @@ export function TodayPage() {
     refetchOnWindowFocus: false,
   });
   const tagNames = new Map((tags.data?.items ?? []).map((tag) => [tag.id, tag.name]));
+  const tagColors = new Map((tags.data?.items ?? []).map((tag) => [tag.id, colorOf(tag)]));
   const projectNames = new Map(
     (projects.data?.items ?? []).map((project) => [project.id, project.name]),
   );
   const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set());
   const [toasts, setToasts] = useState<readonly { id: string; title: string }[]>([]);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [details, setDetails] = useState(true);
+  const [hideCompleted, setHideCompleted] = useState(true);
+  const [groupOpen, setGroupOpen] = useState(false);
   const jobs = useRef(new Map<string, CompleteJob>());
   const dateLabel = new Intl.DateTimeFormat(locale, {
     weekday: 'long',
@@ -205,7 +212,10 @@ export function TodayPage() {
       });
   }
 
-  const shown = visibleTasks(tasks.data ?? [], hidden);
+  const inbox = projects.data?.items.find((project) => project.is_inbox);
+  const shown = visibleTasks(tasks.data ?? [], hidden).filter((task) =>
+    hideCompleted ? task.status !== 'completed' : true,
+  );
   const parts = partitionToday(shown, new Date());
   const sections = groupTasks(parts.today, group);
   const empty =
@@ -214,28 +224,147 @@ export function TodayPage() {
   return (
     <section className="today" aria-labelledby="today-heading">
       <header className="today-header">
-        <div>
-          <h1 id="today-heading">{messages.todayTitle}</h1>
-          <p className="today-date">{dateLabel}</p>
-          <p>
-            <Link to="/tokens">{messages.tokensLink}</Link>
-          </p>
+        <div className="page-title">
+          <button
+            type="button"
+            className="icon-button"
+            aria-label={shell.navLabel}
+            onClick={shell.toggleNav}
+          >
+            <Menu size={20} aria-hidden="true" />
+          </button>
+          <div>
+            <h1 id="today-heading">{messages.todayTitle}</h1>
+            <p className="today-date">{dateLabel}</p>
+          </div>
         </div>
-        <label className="group-field">
-          {messages.groupLabel}
-          <select
-            value={group}
-            onChange={(event) => {
-              chooseGroup(parseGroup(event.target.value));
+        <div className="page-actions">
+          <Link className="icon-button" to="/habits" aria-label={messages.suggestions}>
+            <Lightbulb size={20} aria-hidden="true" />
+          </Link>
+          <div className="group-popover">
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={messages.groupLabel}
+              aria-expanded={groupOpen}
+              onClick={() => {
+                setGroupOpen((current) => !current);
+              }}
+            >
+              <ArrowUpDown size={20} aria-hidden="true" />
+            </button>
+            {groupOpen ? (
+              <div className="menu-card" role="menu" aria-label={messages.groupLabel}>
+                <GroupOption
+                  label={messages.groupPriority}
+                  checked={group === 'priority'}
+                  onClick={() => {
+                    chooseGroup('priority');
+                    setGroupOpen(false);
+                  }}
+                />
+                <GroupOption
+                  label={messages.groupDue}
+                  checked={group === 'due'}
+                  onClick={() => {
+                    chooseGroup('due');
+                    setGroupOpen(false);
+                  }}
+                />
+                <GroupOption
+                  label={messages.groupTag}
+                  checked={group === 'tag'}
+                  onClick={() => {
+                    chooseGroup('tag');
+                    setGroupOpen(false);
+                  }}
+                />
+                <GroupOption
+                  label={messages.groupList}
+                  checked={group === 'list'}
+                  onClick={() => {
+                    chooseGroup('list');
+                    setGroupOpen(false);
+                  }}
+                />
+              </div>
+            ) : null}
+          </div>
+          <ViewMenu
+            messages={messages}
+            details={details}
+            onDetails={setDetails}
+            hideCompleted={hideCompleted}
+            onHideCompleted={setHideCompleted}
+            onPrint={() => {
+              window.print();
             }}
           >
-            <option value="priority">{messages.groupPriority}</option>
-            <option value="due">{messages.groupDue}</option>
-            <option value="tag">{messages.groupTag}</option>
-            <option value="list">{messages.groupList}</option>
-          </select>
-        </label>
+            <GroupOption
+              label={messages.groupPriority}
+              checked={group === 'priority'}
+              onClick={() => {
+                chooseGroup('priority');
+              }}
+            />
+            <GroupOption
+              label={messages.groupDue}
+              checked={group === 'due'}
+              onClick={() => {
+                chooseGroup('due');
+              }}
+            />
+            <GroupOption
+              label={messages.groupTag}
+              checked={group === 'tag'}
+              onClick={() => {
+                chooseGroup('tag');
+              }}
+            />
+            <GroupOption
+              label={messages.groupList}
+              checked={group === 'list'}
+              onClick={() => {
+                chooseGroup('list');
+              }}
+            />
+          </ViewMenu>
+        </div>
       </header>
+      <p className="ui-muted">
+        <Link to="/tokens">{messages.tokensLink}</Link>
+      </p>
+      <form
+        className="quick-add"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (inbox === undefined) {
+            return;
+          }
+          const data = new FormData(event.currentTarget);
+          const raw = data.get('title');
+          const title = (typeof raw === 'string' ? raw : '').trim();
+          if (title.length === 0) {
+            return;
+          }
+          const projectId = inbox.id;
+          void runOrQueue(
+            newMutation('create', crypto.randomUUID(), { title, project_id: projectId }),
+            (key) => api.createTask({ title, project_id: projectId }, key),
+          ).then(() => {
+            event.currentTarget.reset();
+            void queryClient.invalidateQueries({ queryKey: ['today-tasks'] });
+          });
+        }}
+      >
+        <input
+          name="title"
+          aria-label={messages.addTask}
+          placeholder={`+ ${messages.addTask}`}
+          disabled={inbox === undefined}
+        />
+      </form>
       <details className="plan" open>
         <summary>{messages.planTitle}</summary>
         <p>{messages.planEmpty}</p>
@@ -280,8 +409,12 @@ export function TodayPage() {
           overdue
           completeLabel={messages.completeLabel}
           repeatLabel={messages.repeatLink}
+          moreLabel={messages.openDetail}
           projectNames={projectNames}
           tagNames={tagNames}
+          tagColors={tagColors}
+          details={details}
+          openTaskId={params.get('task')}
           onComplete={complete}
           onOpen={(id) => {
             const next = new URLSearchParams(params);
@@ -299,8 +432,12 @@ export function TodayPage() {
           overdue={false}
           completeLabel={messages.completeLabel}
           repeatLabel={messages.repeatLink}
+          moreLabel={messages.openDetail}
           projectNames={projectNames}
           tagNames={tagNames}
+          tagColors={tagColors}
+          details={details}
+          openTaskId={params.get('task')}
           onComplete={complete}
           onOpen={(id) => {
             const next = new URLSearchParams(params);
@@ -339,7 +476,7 @@ export function TodayPage() {
           <div className="waiting-actions">
             <button
               type="button"
-              className="sidebar-capture"
+              className="text-button"
               onClick={() => {
                 void navigate('/quick-add');
               }}
@@ -370,8 +507,12 @@ function TaskGroup({
   overdue,
   completeLabel,
   repeatLabel,
+  moreLabel,
   projectNames,
   tagNames,
+  tagColors,
+  details,
+  openTaskId,
   onComplete,
   onOpen,
 }: {
@@ -381,8 +522,12 @@ function TaskGroup({
   readonly overdue: boolean;
   readonly completeLabel: string;
   readonly repeatLabel: string;
+  readonly moreLabel: string;
   readonly projectNames: ReadonlyMap<string, string>;
   readonly tagNames: ReadonlyMap<string, string>;
+  readonly tagColors: ReadonlyMap<string, string | null>;
+  readonly details: boolean;
+  readonly openTaskId: string | null;
   readonly onComplete: (task: TodayTask) => void;
   readonly onOpen: (id: string) => void;
 }) {
@@ -392,54 +537,105 @@ function TaskGroup({
         <span>{label}</span>
         <span className="task-count">{tasks.length}</span>
       </summary>
-      <ul className="task-list">
-        {tasks.map((task) => (
-          <li key={task.id}>
-            <div className="task-row">
-              <label className="task-check-hit">
-                <input
-                  type="checkbox"
-                  className={`task-check prio-${task.priority}`}
-                  aria-label={fill(completeLabel, task.title)}
+      <ul className="task-list" data-details={details ? 'on' : 'off'}>
+        {tasks.map((task) => {
+          const selected = openTaskId === task.id;
+          const listName = projectNames.get(task.projectId) ?? '';
+          return (
+            <li key={task.id}>
+              <div
+                className={selected ? 'task-row is-selected' : 'task-row'}
+                data-selected={selected ? 'true' : undefined}
+              >
+                <GripVertical className="task-grip" size={12} aria-hidden="true" />
+                <PriorityCheck
+                  priority={task.priority}
+                  label={fill(completeLabel, task.title)}
                   onChange={() => {
                     onComplete(task);
                   }}
                 />
-              </label>
-              <button
-                type="button"
-                className="task-title"
-                onClick={() => {
-                  onOpen(task.id);
-                }}
-              >
-                {task.title}
-              </button>
-              <Link className="text-button" to={`/repeat?task=${task.id}`}>
-                {repeatLabel}
-              </Link>
-              <span className="task-meta">
-                {task.tagIds.map((id) => (
-                  <span key={id} className="ui-tag">
-                    {tagNames.get(id) ?? id}
-                  </span>
-                ))}
-                <span>{projectNames.get(task.projectId) ?? ''}</span>
-                {task.dueDate !== null ? (
-                  <time
-                    className={overdue ? 'task-date is-overdue' : 'task-date'}
-                    dateTime={task.dueDate}
-                  >
-                    {formatDueDate(task.dueDate, task.timeZone, locale)}
-                  </time>
-                ) : null}
-              </span>
-            </div>
-          </li>
-        ))}
+                <button
+                  type="button"
+                  className="task-title"
+                  onClick={() => {
+                    onOpen(task.id);
+                  }}
+                >
+                  {task.title}
+                </button>
+                <span className="task-meta">
+                  {task.tagIds.map((id) => (
+                    <span key={id} className="ui-tag" style={tagStyle(tagColors.get(id) ?? null)}>
+                      {tagNames.get(id) ?? id}
+                    </span>
+                  ))}
+                  {listName.length > 0 ? <span className="task-list-name">{listName}</span> : null}
+                  {task.dueDate !== null ? (
+                    <time
+                      className={overdue ? 'task-date is-overdue' : 'task-date'}
+                      dateTime={task.dueDate}
+                    >
+                      {formatDueDate(task.dueDate, task.timeZone, locale)}
+                    </time>
+                  ) : null}
+                  <Link className="task-list-name" to={`/repeat?task=${task.id}`}>
+                    {repeatLabel}
+                  </Link>
+                </span>
+                <button
+                  type="button"
+                  className="task-more"
+                  aria-label={moreLabel}
+                  onClick={() => {
+                    onOpen(task.id);
+                  }}
+                >
+                  <MoreHorizontal size={16} aria-hidden="true" />
+                </button>
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </details>
   );
+}
+
+function GroupOption({
+  label,
+  checked,
+  onClick,
+}: {
+  readonly label: string;
+  readonly checked: boolean;
+  readonly onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="menu-item"
+      role="menuitemradio"
+      aria-checked={checked}
+      onClick={onClick}
+    >
+      {label}
+    </button>
+  );
+}
+
+function colorOf(tag: object): string | null {
+  if (!('color' in tag)) {
+    return null;
+  }
+  return typeof tag.color === 'string' ? tag.color : null;
+}
+
+function tagStyle(color: string | null): CSSProperties | undefined {
+  if (color === null || color.length === 0) {
+    return undefined;
+  }
+  return { '--tag': color } as CSSProperties;
 }
 
 function sectionLabel(

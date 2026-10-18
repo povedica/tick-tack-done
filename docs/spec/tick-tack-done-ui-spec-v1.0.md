@@ -1,7 +1,7 @@
 # Especificación de UI: tick-tack-done
 
-- **Versión del documento:** 1.0
-- **Fecha:** 17 de octubre de 2026
+- **Versión del documento:** 1.1
+- **Fecha:** 18 de octubre de 2026
 - **Estado:** Propuesta inicial completa, lista para implementar por fases
 - **Audiencia:** agente de desarrollo (Cursor) / equipo de ingeniería
 - **Documento base:** especificación de producto v1.1 (`docs/spec/ticktick-clone-spec-v1.1.md`); esta UI spec no la sustituye: detalla **cómo se ve y se comporta** lo que la v1.1 define
@@ -34,10 +34,10 @@ Estas decisiones no estaban en la spec v1.1. Se han elegido defaults sensatos y 
 | # | Decisión | Default elegido | Justificación |
 |---|----------|-----------------|---------------|
 | UI-D1 | Idioma de la UI | **Español por defecto, i18n es/en desde el MVP** | El usuario es hispanohablante; el código ya tiene `i18n/es.ts` y `i18n/en.ts` **[EXISTE]**. La spec exige i18n es+en (sección 16). `navigator.language` decide el arranque, con selector en ajustes que lo sobrescribe. |
-| UI-D2 | Estilo visual | **Continuar el estilo editorial ya iniciado**: tipografía serif para texto de lectura (Iowan/Palatino), fondo cálido `#f6f4ef`, tinta piedra `#1c1917`, acento índigo `#4f46e5` | Es lo que ya está en `styles.css` **[EXISTE]**; da identidad propia frente al azul corporativo de TickTick. |
-| UI-D3 | Tipografía UI vs contenido | **Serif para títulos y lectura larga; sans del sistema para controles densos** (tablas, kanban, calendario, formularios) | La serif cansa en listas densas; la sans de sistema (system-ui) rinde mejor en pantallas pequeñas. Se mantiene la serif como seña de identidad. |
+| UI-D2 | Estilo visual | **Look tipo TickTick medido sobre la app real** (tema `blue-gradient-theme`, 2026-10-18): fondo `#ffffff`, sidebar `#f2f5fe`, rail `#4772fa`, acento `#4772fa`, tinta `#191919`. El nombre visible sigue siendo «tick-tack-done». | Valores medidos del DOM de TickTick. La identidad propia queda en el nombre, no en una paleta crema. |
+| UI-D3 | Tipografía UI vs contenido | **Sans del sistema en toda la UI, títulos incluidos** (`system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`). La serif solo puede usarse en el cuerpo de las notas. | Es la pila exacta de TickTick. Un título serif rompe la densidad de las listas. |
 | UI-D4 | Tema claro/oscuro | **Auto por defecto** (sigue `prefers-color-scheme`), con selector Claro/Oscuro/Auto en ajustes | La spec lo prevé en `User.theme` (5.17) y RF-1903. |
-| UI-D5 | Modo oscuro | **Invertido cálido**: fondo `#1c1917` (stone-900), superficie `#292524`, texto `#f5f5f4`, mismo acento índigo aclarado `#818cf8` | Coherente con la paleta cálida; no un gris azulado genérico. |
+| UI-D5 | Modo oscuro | **Paleta oscura medida** (`night-dark-theme`): fondo `#242424`, sidebar `#1c1c1c`, rail `#242424`, tarjetas `#222222`, texto `#ffffff`, hover `rgba(255,255,255,0.04)`, acento `#4772fa`. Las opacidades de tinta se invierten (blanco con alpha). | Es el oscuro real de TickTick, no un invertido cálido. `--ink-3` sube a 0.65 para contraste AA sobre la sidebar. |
 | UI-D6 | Densidad | **Cómoda por defecto**, opción Compacta en ajustes | TickTick ofrece densidad; la compacta ayuda con listas de 100+ tareas. |
 | UI-D7 | Navegación móvil | **Barra inferior** con 4 destinos + FAB central de captura | Estándar PWA; el pulgar llega a todo. |
 | UI-D8 | Framework de CSS | **CSS plano con custom properties** (tokens en sección 3), sin Tailwind ni CSS-in-JS | Coherente con `styles.css` actual; un archivo de tokens + hojas por feature. Sin nueva dependencia. |
