@@ -30,9 +30,13 @@ export type {
   SmartListPage,
   Token,
   TokenPage,
+  OauthConsentBody,
+  SessionBody,
+  SyncPage,
   UpdateFilterBody,
   UpdateHabitBody,
   UpdateSmartListsBody,
+  UpdateTaskBody,
   ViewOptions,
   ViewPage,
 } from './client';

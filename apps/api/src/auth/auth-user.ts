@@ -7,6 +7,7 @@ export interface AuthUser {
   readonly completeChildren: CompleteChildrenPolicy;
   readonly scopes: readonly string[];
   readonly tokenId: string | null;
+  readonly sessionId: string | null;
 }
 
 export interface EventActor {

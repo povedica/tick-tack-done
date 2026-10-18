@@ -28,6 +28,7 @@ import { DomainEvent } from '../../events/domain-events';
 import { EventRecorder } from '../../events/event-recorder';
 import { DomainException } from '../../http/domain.exception';
 import { asJson } from '../../http/json';
+import { readClocks, selectPatch, stampTerminal } from './field-clocks';
 import { normalizeIdempotencyKey, requestFingerprint } from '../../idempotency/fingerprint';
 import { IdempotencyService } from '../../idempotency/idempotency.service';
 import { placementPlan } from '../../ordering/placement';
@@ -209,6 +210,7 @@ export class TasksService {
       completeChildren: owner.taskCompleteChildren,
       scopes: ['tasks:write'],
       tokenId: null,
+      sessionId: null,
     };
     const metadata: Record<string, unknown> = { capture: 'email' };
     if (messageId !== null) {
@@ -269,6 +271,34 @@ export class TasksService {
   async update(user: AuthUser, id: string, dto: UpdateTaskDto): Promise<TaskDetail> {
     return this.prisma.$transaction(async (tx) => {
       const current = await this.require(tx, user.id, id, false);
+      const receivedAt = new Date().toISOString();
+      const selected = selectPatch(dto, readClocks(current.fieldClocks), receivedAt);
+      if (selected === null) {
+        throw new DomainException(
+          HttpStatus.BAD_REQUEST,
+          'validation_failed',
+          'field_clocks must be ISO-8601',
+        );
+      }
+      if (selected.skipped.length > 0) {
+        await tx.activityLog.create({
+          data: {
+            ownerId: user.id,
+            actorId: user.id,
+            tokenId: user.tokenId,
+            entityType: 'task',
+            entityId: id,
+            action: 'updated',
+            changes: { conflict: true, skipped: [...selected.skipped], rule: 'last_write_wins' },
+          },
+        });
+      }
+      const structural =
+        dto.before_id !== undefined || dto.move_to_end === true || dto.extract_checklist === true;
+      if (!selected.changed && !structural) {
+        return this.load(tx, user.id, id, false);
+      }
+      dto = selected.dto;
       const previous = await this.load(tx, user.id, id, false);
       const title = dto.title === undefined ? current.title : this.title(dto.title);
       const timeZone = dto.time_zone === undefined ? current.timeZone : this.zone(dto.time_zone);
@@ -326,6 +356,7 @@ export class TasksService {
             : {}),
           ...(dto.metadata !== undefined ? { metadata: asJson(dto.metadata) } : {}),
           ...(plan !== null ? { sortOrder: plan } : {}),
+          ...(selected.changed ? { fieldClocks: asJson(selected.clocks) } : {}),
         },
       });
       if (dto.tag_ids !== undefined) {
@@ -358,9 +389,18 @@ export class TasksService {
     await this.prisma.$transaction(async (tx) => {
       await this.require(tx, user.id, id, false);
       const now = new Date();
+      const existing = await this.require(tx, user.id, id, false);
       await tx.task.updateMany({
         where: { ownerId: user.id, OR: [{ id }, { parentId: id }], deletedAt: null },
         data: { deletedAt: now },
+      });
+      await tx.task.update({
+        where: { id },
+        data: {
+          fieldClocks: asJson(
+            stampTerminal(readClocks(existing.fieldClocks), now.toISOString(), 'delete'),
+          ),
+        },
       });
       const detail = await this.load(tx, user.id, id, true);
       await this.events.record(tx, actorOf(user), {
@@ -1434,7 +1474,16 @@ export class TasksService {
         });
       }
     }
-    await tx.task.update({ where: { id }, data: { status: 'completed', completedAt: now } });
+    await tx.task.update({
+      where: { id },
+      data: {
+        status: 'completed',
+        completedAt: now,
+        fieldClocks: asJson(
+          stampTerminal(readClocks(current.fieldClocks), now.toISOString(), 'complete'),
+        ),
+      },
+    });
     const detail = await this.load(tx, user.id, id, false);
     await this.events.record(tx, actorOf(user), {
       type: DomainEvent.taskCompleted,

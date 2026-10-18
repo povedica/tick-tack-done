@@ -23,7 +23,8 @@ export interface AppRoute {
     | 'settingsTitle'
     | 'loginTitle'
     | 'registerTitle'
-    | 'forgotTitle';
+    | 'forgotTitle'
+    | 'repeatTitle';
 }
 
 /** Stable paths from the UI spec map. Direct loads must resolve (UI-101). */
@@ -48,6 +49,7 @@ export const APP_ROUTES: readonly AppRoute[] = [
   { path: '/search', titleKey: 'searchTitle' },
   { path: '/settings/appearance', titleKey: 'appearanceTitle' },
   { path: '/settings/*', titleKey: 'settingsTitle' },
+  { path: '/repeat', titleKey: 'repeatTitle' },
   { path: '/login', titleKey: 'loginTitle' },
   { path: '/register', titleKey: 'registerTitle' },
   { path: '/forgot-password', titleKey: 'forgotTitle' },

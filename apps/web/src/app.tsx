@@ -29,12 +29,10 @@ import {
   HabitDetailPage,
   InboxPage,
   IntegrationSettings,
-  LoginPage,
   MatrixPage,
   NoteRoute,
   NotificationSettings,
   PluginSettings,
-  RegisterPage,
   ReportsPage,
   ReviewPage,
   SearchPage,
@@ -45,6 +43,9 @@ import {
   WebhookSettings,
 } from './features/places/Places';
 import { AppearancePage } from './features/settings/AppearancePage';
+import { ConsentPage } from './features/auth/ConsentPage';
+import { LoginPage, RegisterPage } from './features/auth/AuthPages';
+import { RepeatPage } from './features/repeat/RepeatPage';
 import { TodayPage } from './features/today/TodayPage';
 import { ShortcutHelp } from './shell/ShortcutHelp';
 import { GlobalKeys } from './shell/GlobalKeys';
@@ -146,6 +147,8 @@ function Shell() {
           </Route>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/oauth/consent" element={<ConsentPage />} />
+          <Route path="/repeat" element={<RepeatPage />} />
           <Route path="/forgot-password" element={<ForgotPage />} />
           <Route path="*" element={<Navigate to="/today" replace />} />
         </Route>

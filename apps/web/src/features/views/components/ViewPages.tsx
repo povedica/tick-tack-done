@@ -5,6 +5,7 @@ import { Link, useParams, useSearchParams } from 'react-router';
 import { api } from '../../../api';
 import { Button } from '../../../components/ui';
 import { useMessages, type Messages } from '../../../i18n';
+import { newMutation, runOrQueue } from '../../offline/client';
 import { rowsFromView, smartApiKey } from '../../tasks/model';
 import { TaskList } from '../../tasks/TaskList';
 import { viewsApi } from '../api';
@@ -210,7 +211,9 @@ function Board({
         columns={columns}
         createProjectId={note ? undefined : createProjectId}
         onComplete={(row) => {
-          void api.completeTask(row.id, {}, crypto.randomUUID()).then(() => {
+          void runOrQueue(newMutation('complete', row.id, {}), (key) =>
+            api.completeTask(row.id, {}, key),
+          ).then(() => {
             void queryClient.invalidateQueries({ queryKey: [...queryKey] });
           });
         }}

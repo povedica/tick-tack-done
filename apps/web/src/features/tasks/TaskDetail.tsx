@@ -5,6 +5,7 @@ import { Link } from 'react-router';
 import { api } from '../../api';
 import { Button } from '../../components/ui';
 import { fill, useMessages } from '../../i18n';
+import { newMutation, runOrQueue } from '../offline/client';
 
 const MAX_ATTACHMENT = 25 * 1024 * 1024;
 
@@ -51,11 +52,14 @@ export function TaskDetail({
   }
 
   const save = useMutation({
-    mutationFn: (body: Parameters<typeof api.patchTask>[1]) => api.patchTask(taskId, body),
-    onSuccess: async () => {
+    mutationFn: (body: Parameters<typeof api.patchTask>[1]) =>
+      runOrQueue(newMutation('update', taskId, { ...body }), () => api.patchTask(taskId, body)),
+    onSuccess: async (outcome) => {
       setSaved(true);
       setError(null);
-      await refresh();
+      if (!outcome.queued) {
+        await refresh();
+      }
     },
     onError: () => {
       setError(messages.saveFailed);
@@ -136,7 +140,14 @@ export function TaskDetail({
               setChildren(true);
               return;
             }
-            void api.completeTask(task.id, {}, crypto.randomUUID()).then(refresh);
+            void (async () => {
+              const outcome = await runOrQueue(newMutation('complete', task.id, {}), (key) =>
+                api.completeTask(task.id, {}, key),
+              );
+              if (!outcome.queued) {
+                await refresh();
+              }
+            })();
           }}
         />
       </label>
@@ -438,9 +449,15 @@ export function TaskDetail({
           <Button
             onClick={() => {
               setChildren(false);
-              void api
-                .completeTask(task.id, { complete_children: 'complete' }, crypto.randomUUID())
-                .then(refresh);
+              void (async () => {
+                const outcome = await runOrQueue(
+                  newMutation('complete', task.id, { complete_children: 'complete' }),
+                  (key) => api.completeTask(task.id, { complete_children: 'complete' }, key),
+                );
+                if (!outcome.queued) {
+                  await refresh();
+                }
+              })();
             }}
           >
             {messages.completeChildren}
@@ -449,9 +466,15 @@ export function TaskDetail({
             variant="ghost"
             onClick={() => {
               setChildren(false);
-              void api
-                .completeTask(task.id, { complete_children: 'leave' }, crypto.randomUUID())
-                .then(refresh);
+              void (async () => {
+                const outcome = await runOrQueue(
+                  newMutation('complete', task.id, { complete_children: 'leave' }),
+                  (key) => api.completeTask(task.id, { complete_children: 'leave' }, key),
+                );
+                if (!outcome.queued) {
+                  await refresh();
+                }
+              })();
             }}
           >
             {messages.leaveChildren}

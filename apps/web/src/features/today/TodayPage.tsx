@@ -7,6 +7,7 @@ import { fill, useMessages, type Messages } from '../../i18n';
 import { warningText } from '../capture/components/CaptureSheet';
 import { useCaptureNotice } from '../capture/notice';
 import { isTypingTarget } from '../../shell/shortcuts';
+import { flushOfflineQueue, newMutation, runOrQueue } from '../offline/client';
 import { tasksApi } from './api';
 import { loadTodayTasks } from './board';
 import { requestUndo, settleComplete, pushUndo, type CompleteJob } from './completion';
@@ -73,6 +74,19 @@ export function TodayPage() {
     }
     void queryClient.invalidateQueries({ queryKey: ['today-tasks'] });
   }, [notice, queryClient]);
+
+  useEffect(() => {
+    function onOnline(): void {
+      void flushOfflineQueue().then(() => {
+        void queryClient.invalidateQueries({ queryKey: ['today-tasks'] });
+      });
+    }
+    window.addEventListener('online', onOnline);
+    onOnline();
+    return () => {
+      window.removeEventListener('online', onOnline);
+    };
+  }, [queryClient]);
 
   useEffect(() => {
     if (params.get('group') === group) {
@@ -153,9 +167,14 @@ export function TodayPage() {
     setHidden((current) => new Set(current).add(task.id));
     setToasts((current) => pushUndo(current, { id: task.id, title: task.title }));
     setActionError(null);
-    void tasksApi
-      .completeTask(task.id, {}, crypto.randomUUID())
-      .then(async () => {
+    void runOrQueue(newMutation('complete', task.id, {}), (key) =>
+      tasksApi.completeTask(task.id, {}, key),
+    )
+      .then(async ({ result }) => {
+        if (result === null) {
+          job.phase = 'done';
+          return;
+        }
         try {
           const outcome = await settleComplete(job, () =>
             tasksApi.uncompleteTask(task.id, crypto.randomUUID()),
@@ -260,6 +279,7 @@ export function TodayPage() {
           locale={locale}
           overdue
           completeLabel={messages.completeLabel}
+          repeatLabel={messages.repeatLink}
           projectNames={projectNames}
           tagNames={tagNames}
           onComplete={complete}
@@ -278,6 +298,7 @@ export function TodayPage() {
           locale={locale}
           overdue={false}
           completeLabel={messages.completeLabel}
+          repeatLabel={messages.repeatLink}
           projectNames={projectNames}
           tagNames={tagNames}
           onComplete={complete}
@@ -348,6 +369,7 @@ function TaskGroup({
   locale,
   overdue,
   completeLabel,
+  repeatLabel,
   projectNames,
   tagNames,
   onComplete,
@@ -358,6 +380,7 @@ function TaskGroup({
   readonly locale: string;
   readonly overdue: boolean;
   readonly completeLabel: string;
+  readonly repeatLabel: string;
   readonly projectNames: ReadonlyMap<string, string>;
   readonly tagNames: ReadonlyMap<string, string>;
   readonly onComplete: (task: TodayTask) => void;
@@ -392,6 +415,9 @@ function TaskGroup({
               >
                 {task.title}
               </button>
+              <Link className="text-button" to={`/repeat?task=${task.id}`}>
+                {repeatLabel}
+              </Link>
               <span className="task-meta">
                 {task.tagIds.map((id) => (
                   <span key={id} className="ui-tag">

@@ -249,6 +249,15 @@ export class UpdateTaskDto {
   @IsOptional()
   @IsBoolean()
   move_to_end?: boolean;
+
+  @ApiProperty({
+    required: false,
+    type: Object,
+    description: 'Per-field client clocks for last-write-wins (RF-13012). ISO-8601 values.',
+  })
+  @IsOptional()
+  @IsObject()
+  field_clocks?: Record<string, string>;
 }
 
 export class CompleteTaskDto {

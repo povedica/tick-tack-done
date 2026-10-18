@@ -199,6 +199,9 @@ model User {
   reminderDeliveries    ReminderDelivery[]
   pushSubscriptions     PushSubscription[]
   seriesAdvances        SeriesAdvance[]
+  sessions              Session[]
+  oauthClients          OauthClient[]
+  oauthCodes            OauthAuthorizationCode[]
 
   @@map("users")
 }
@@ -331,6 +334,7 @@ model Task {
   completedAt     DateTime?                @map("completed_at") @db.Timestamptz(6)
   source          TaskSource               @default(manual)
   metadata        Json                     @default("{}")
+  fieldClocks     Json                     @default("{}") @map("field_clocks")
   searchVector    Unsupported("tsvector")? @default(dbgenerated("to_tsvector('simple'::regconfig, (((COALESCE(title, ''::character varying))::text || ' '::text) || COALESCE(content, ''::text)))")) @map("search_vector")
   createdAt       DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -797,4 +801,56 @@ model SeriesAdvance {
 
   @@index([processedAt])
   @@map("series_advances")
+}
+
+// Browser session (section 10.1). The cookie stores the secret; only the hash is kept.
+model Session {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique @map("token_hash")
+  csrfToken  String    @map("csrf_token")
+  userAgent  String?   @map("user_agent")
+  ip         String?
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
+  lastUsedAt DateTime  @default(now()) @map("last_used_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId, createdAt])
+  @@map("sessions")
+}
+
+// Public OAuth client for Authorization Code + PKCE (section 10.1). No client secret.
+model OauthClient {
+  id           String    @id @default(uuid()) @db.Uuid
+  ownerId      String    @map("owner_id") @db.Uuid
+  owner        User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name         String
+  redirectUris String[]  @map("redirect_uris")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
+  codes        OauthAuthorizationCode[]
+
+  @@index([ownerId])
+  @@map("oauth_clients")
+}
+
+model OauthAuthorizationCode {
+  id            String    @id @default(uuid()) @db.Uuid
+  clientId      String    @map("client_id") @db.Uuid
+  client        OauthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId        String    @map("user_id") @db.Uuid
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash      String    @unique @map("code_hash")
+  codeChallenge String    @map("code_challenge")
+  scopes        String[]
+  redirectUri   String    @map("redirect_uri")
+  expiresAt     DateTime  @map("expires_at") @db.Timestamptz(6)
+  consumedAt    DateTime? @map("consumed_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId])
+  @@map("oauth_authorization_codes")
 }

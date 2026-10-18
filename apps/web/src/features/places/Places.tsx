@@ -9,6 +9,7 @@ import { useLocale } from '../../i18n/locale';
 import { usePreferences, type AccentId } from '../../theme/preferences';
 import { useThemePreference } from '../../theme/store';
 import { quadrantOf, rowFromTask, smartApiKey } from '../tasks/model';
+import { newMutation, runOrQueue } from '../offline/client';
 import { TaskList } from '../tasks/TaskList';
 
 const ACCENTS: readonly AccentId[] = ['indigo', 'violet', 'teal', 'amber', 'rose', 'slate'];
@@ -82,7 +83,9 @@ export function InboxPage() {
             });
           }}
           onDone={() => {
-            void api.completeTask(current.id, {}, crypto.randomUUID()).then(() => {
+            void runOrQueue(newMutation('complete', current.id, {}), (key) =>
+              api.completeTask(current.id, {}, key),
+            ).then(() => {
               step();
             });
           }}
@@ -110,7 +113,9 @@ export function InboxPage() {
             view="list"
             createProjectId={inbox?.id}
             onComplete={(row) => {
-              void api.completeTask(row.id, {}, crypto.randomUUID());
+              void runOrQueue(newMutation('complete', row.id, {}), (key) =>
+                api.completeTask(row.id, {}, key),
+              );
             }}
             onCreated={() => {
               void queryClient.invalidateQueries({ queryKey: ['inbox-tasks'] });

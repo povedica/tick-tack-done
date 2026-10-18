@@ -41,6 +41,10 @@ export const DomainEvent = {
   smartListUpdated: 'smart_list.updated@v1',
   tokenCreated: 'token.created@v1',
   tokenRevoked: 'token.revoked@v1',
+  sessionCreated: 'session.created@v1',
+  sessionRevoked: 'session.revoked@v1',
+  accountDeleted: 'account.deleted@v1',
+  oauthTokenIssued: 'oauth.token_issued@v1',
   noteCreated: 'note.created@v1',
   noteUpdated: 'note.updated@v1',
 } as const;

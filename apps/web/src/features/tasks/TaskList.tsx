@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router';
 import { api } from '../../api';
 import { Button, TagChip } from '../../components/ui';
 import { fill, type Messages } from '../../i18n';
+import { newMutation, runOrQueue } from '../offline/client';
 import { isOverdue, isSameDay, type RowModel } from './model';
 
 export function TaskList({
@@ -96,12 +97,16 @@ export function TaskList({
             if (title.length === 0) {
               return;
             }
-            void api
-              .createTask({ title, project_id: createProjectId }, crypto.randomUUID())
-              .then(() => {
-                event.currentTarget.reset();
-                onCreated?.();
-              });
+            void runOrQueue(
+              newMutation('create', crypto.randomUUID(), {
+                title,
+                project_id: createProjectId,
+              }),
+              (key) => api.createTask({ title, project_id: createProjectId }, key),
+            ).then(() => {
+              event.currentTarget.reset();
+              onCreated?.();
+            });
           }}
         >
           <input name="title" aria-label={messages.addTask} placeholder={messages.addTask} />

@@ -12,9 +12,11 @@ import {
 } from '@nestjs/common';
 import { ApiHeader, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
+import { AccountService } from './account.service';
 import { CurrentUser } from './current-user.decorator';
 import type { AuthUser } from './auth-user';
 import {
+  DeleteMeDto,
   InboundEmailAddressDto,
   InboundEmailStatusDto,
   MeResponseDto,
@@ -28,7 +30,24 @@ import { Scopes } from './scopes.decorator';
 @ApiHeader({ name: 'X-Dev-User-Email', required: false })
 @Controller('me')
 export class MeController {
-  constructor(@Inject(MeService) private readonly me: MeService) {}
+  constructor(
+    @Inject(MeService) private readonly me: MeService,
+    @Inject(AccountService) private readonly account: AccountService,
+  ) {}
+
+  @Delete()
+  @Scopes('profile:write')
+  @ApiOperation({
+    summary: 'Delete the account and its data after email confirmation (section 15)',
+  })
+  async deleteMe(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: DeleteMeDto,
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.account.delete(user, dto.confirmation);
+    res.status(204).end();
+  }
 
   @Get()
   @Scopes('profile:read')

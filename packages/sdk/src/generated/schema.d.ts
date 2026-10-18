@@ -15,7 +15,8 @@ export interface paths {
         get: operations["MeController_getMe"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Delete the account and its data after email confirmation (section 15) */
+        delete: operations["MeController_deleteMe"];
         options?: never;
         head?: never;
         /** Update profile settings, including RF-206 completion policy */
@@ -138,6 +139,160 @@ export interface paths {
         get: operations["TokensController_activity"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create the account and a session. Closed after the first user unless REGISTRATION_OPEN. */
+        post: operations["AuthController_register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Open a revocable httpOnly session and return the CSRF token */
+        post: operations["AuthController_login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoke the current session */
+        post: operations["AuthController_logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Current session profile and CSRF token */
+        get: operations["AuthController_current"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Revocable sessions of the current user */
+        get: operations["AuthController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/sessions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke one session immediately */
+        delete: operations["AuthController_revoke"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/oauth/clients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register a public OAuth client (PKCE, no secret) */
+        post: operations["OauthController_createClient"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/oauth/authorize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Consent details for Authorization Code + PKCE */
+        get: operations["OauthController_describe"];
+        put?: never;
+        /** Approve or deny the consent screen and return the redirect */
+        post: operations["OauthController_consent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/oauth/token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Exchange an authorization code and PKCE verifier for a bearer token */
+        post: operations["OauthController_token"];
         delete?: never;
         options?: never;
         head?: never;
@@ -969,6 +1124,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Delta sync since an event id. Tombstones older than 90 days are omitted (RF-13011, RF-13014). */
+        get: operations["SyncController_delta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/export/json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Versioned JSON export of the user state (RF-1703, RF-1705) */
+        get: operations["ExportController_json"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/backups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List backup stamps on this machine (RF-1704) */
+        get: operations["BackupsController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/backups/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verify a backup archive. Applying it stays on the host script (RF-1704). */
+        post: operations["BackupsController_restore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/mcp": {
         parameters: {
             query?: never;
@@ -990,6 +1213,10 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        DeleteMeDto: {
+            /** @description Must equal the account email */
+            confirmation: string;
+        };
         MeResponseDto: {
             id: string;
             email: string;
@@ -1062,6 +1289,69 @@ export interface components {
         ActivityPageDto: {
             items: components["schemas"]["ActivityEntryDto"][];
             next_cursor: string | null;
+        };
+        RegisterDto: {
+            email: string;
+            password: string;
+            display_name: string;
+        };
+        SessionResponseDto: {
+            id: string;
+            email: string;
+            display_name: string;
+            csrf_token: string;
+        };
+        LoginDto: {
+            email: string;
+            password: string;
+        };
+        SessionListItemDto: {
+            id: string;
+            created_at: string;
+            last_used_at: string;
+            user_agent: Record<string, never> | null;
+            current: boolean;
+        };
+        CreateOauthClientDto: {
+            name: string;
+            redirect_uris: string[];
+        };
+        OauthClientDto: {
+            id: string;
+            name: string;
+            redirect_uris: string[];
+        };
+        OauthConsentViewDto: {
+            client_name: string;
+            scopes: string[];
+            redirect_uri: string;
+        };
+        OauthConsentDto: {
+            client_id: string;
+            redirect_uri: string;
+            scope: string;
+            state: string;
+            code_challenge: string;
+            /** @enum {string} */
+            code_challenge_method: "S256";
+            allow: boolean;
+        };
+        OauthRedirectDto: {
+            redirect_to: string;
+        };
+        OauthTokenDto: {
+            /** @enum {string} */
+            grant_type: "authorization_code";
+            code: string;
+            redirect_uri: string;
+            client_id: string;
+            code_verifier: string;
+        };
+        OauthTokenResponseDto: {
+            access_token: string;
+            /** @enum {string} */
+            token_type: "Bearer";
+            scope: string;
         };
         HealthResponseDto: {
             /** @enum {string} */
@@ -1593,6 +1883,8 @@ export interface components {
             extract_as?: "checklist" | "subtask";
             before_id?: Record<string, never> | null;
             move_to_end?: boolean;
+            /** @description Per-field client clocks for last-write-wins (RF-13012). ISO-8601 values. */
+            field_clocks?: Record<string, never>;
         };
         CompleteTaskDto: {
             /** @enum {string} */
@@ -1621,6 +1913,11 @@ export interface components {
             before_id?: Record<string, never> | null;
             move_to_end?: boolean;
         };
+        RestoreBackupDto: {
+            stamp: string;
+            /** @example restore */
+            confirmation: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -1648,6 +1945,29 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MeResponseDto"];
                 };
+            };
+        };
+    };
+    MeController_deleteMe: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeleteMeDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -1888,6 +2208,221 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ActivityPageDto"];
+                };
+            };
+        };
+    };
+    AuthController_register: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponseDto"];
+                };
+            };
+        };
+    };
+    AuthController_login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponseDto"];
+                };
+            };
+        };
+    };
+    AuthController_logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AuthController_current: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponseDto"];
+                };
+            };
+        };
+    };
+    AuthController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionListItemDto"][];
+                };
+            };
+        };
+    };
+    AuthController_revoke: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OauthController_createClient: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateOauthClientDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OauthClientDto"];
+                };
+            };
+        };
+    };
+    OauthController_describe: {
+        parameters: {
+            query: {
+                client_id: string;
+                redirect_uri: string;
+                scope: string;
+                state: string;
+                code_challenge: string;
+                code_challenge_method: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OauthConsentViewDto"];
+                };
+            };
+        };
+    };
+    OauthController_consent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OauthConsentDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OauthRedirectDto"];
+                };
+            };
+        };
+    };
+    OauthController_token: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OauthTokenDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OauthTokenResponseDto"];
                 };
             };
         };
@@ -3598,6 +4133,82 @@ export interface operations {
         };
         responses: {
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SyncController_delta: {
+        parameters: {
+            query: {
+                since: string;
+                limit: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ExportController_json: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description schema_version plus the user state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BackupsController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BackupsController_restore: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RestoreBackupDto"];
+            };
+        };
+        responses: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

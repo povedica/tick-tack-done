@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent, SubmitEvent } from 'react';
 import { captureLanguage, fill, useMessages, type Messages } from '../../../i18n';
+import { newMutation, runOrQueue } from '../../offline/client';
 import { api } from '../api';
 import { canSubmitTitle, removeSpan, textSegments } from '../draft';
 import type { CaptureWarningNotice } from '../notice';
@@ -37,7 +38,13 @@ export function CaptureSheet({
   );
   const ready = canSubmitTitle(parsed.title);
   const create = useMutation({
-    mutationFn: (rawText: string) => api.createTask({ raw_text: rawText }, crypto.randomUUID()),
+    mutationFn: async (rawText: string) => {
+      const outcome = await runOrQueue(
+        newMutation('create', crypto.randomUUID(), { raw_text: rawText }),
+        (key) => api.createTask({ raw_text: rawText }, key),
+      );
+      return outcome.result ?? { id: 'queued', title: rawText, warnings: [] };
+    },
   });
 
   useEffect(() => {

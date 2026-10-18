@@ -9,7 +9,12 @@ echo "[restore-verify] usando $LATEST"
 
 docker run -d --name restore-verify -e POSTGRES_PASSWORD=verify postgres:17-alpine
 trap 'docker rm -f restore-verify >/dev/null 2>&1 || true' EXIT
-sleep 5
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  if docker exec restore-verify pg_isready -U postgres >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
 
 gunzip -c "$LATEST/db.sql.gz" | docker exec -i restore-verify \
   psql -U postgres -d postgres -v ON_ERROR_STOP=1 -f - >/dev/null

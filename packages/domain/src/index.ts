@@ -126,6 +126,17 @@ export { normalizeTaskTitle, resolveSubtaskProject } from './tasks/subtask';
 export type { SubtaskProject, TaskTitle } from './tasks/subtask';
 export { isIanaTimeZone } from './tasks/time-zone';
 
+export { mergeFieldClocks } from './sync/merge';
+export type { MergeFieldClocksInput, MergeFieldClocksResult } from './sync/merge';
+export {
+  isTombstoneType,
+  SYNC_PAGE_DEFAULT,
+  SYNC_PAGE_MAX,
+  syncLimit,
+  TOMBSTONE_RETENTION_DAYS,
+  tombstoneCutoff,
+} from './sync/page';
+
 export { createsTagCycle, normalizeTagName, tagDescendantIds, tagNameKey } from './tags/tags';
 
 export {

@@ -645,7 +645,13 @@ Revisiones asistidas: `GET /api/v1/review/daily`, `GET /api/v1/review/weekly`.
 
 Import/export: `POST /api/v1/import/ticktick` (con credenciales OAuth del usuario o token), `POST /api/v1/import/csv`, `GET /api/v1/export/json | /csv?project_id= | /ical?filter_id=`, `GET /api/v1/backups`, `POST /api/v1/backups/restore`.
 
-Administración: `GET/PATCH /api/v1/me`, `GET/POST/DELETE /api/v1/me/tokens`, `GET /api/v1/me/activity`, `GET /api/v1/me/tokens/{id}/activity`.
+Administración: `GET/PATCH /api/v1/me`, `DELETE /api/v1/me` (confirmación con el correo), `GET/POST/DELETE /api/v1/me/tokens`, `GET /api/v1/me/activity`, `GET /api/v1/me/tokens/{id}/activity`.
+
+Sesión: `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `POST /api/v1/auth/logout`, `GET /api/v1/auth/session`, `GET /api/v1/auth/sessions`, `DELETE /api/v1/auth/sessions/{id}`.
+
+OAuth2 Authorization Code + PKCE: `POST /api/v1/oauth/clients`, `GET /api/v1/oauth/authorize`, `POST /api/v1/oauth/authorize`, `POST /api/v1/oauth/token`.
+
+Sync: `GET /api/v1/sync?since=<event_id>&limit=`.
 
 MCP (RF-2001): `POST /api/v1/mcp`.
 
@@ -671,7 +677,7 @@ folder.created folder.updated folder.deleted
 column.created column.updated column.deleted
 tag.created tag.updated tag.deleted tag.merged
 habit.created habit.updated habit.deleted habit.checkin habit.streak_broken habit.goal_met
-filter.created filter.updated filter.deleted smart_list.updated token.created token.revoked
+filter.created filter.updated filter.deleted smart_list.updated token.created token.revoked session.created session.revoked account.deleted oauth.token_issued
 focus.session_started focus.session_finished focus.session_aborted
 reminder.fired
 note.created note.updated
