@@ -99,6 +99,7 @@ export const en = {
   noDate: 'No date',
   noTag: 'No tag',
   noList: 'No list',
+  addTask: 'Add task',
   todayEmpty: 'Clear. Capture what is next with N, or review your inbox.',
   todayFailed: 'The tasks could not be loaded.',
   retry: 'Retry',

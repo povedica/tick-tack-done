@@ -3,13 +3,14 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { messagesFor } from '../../../i18n';
+import { canonicalSmartKey } from '../../../shell/sidebar-model';
 import { viewsApi } from '../api';
 import { ListView } from './ListView';
 
 export function SmartListViewPage() {
   const messages = messagesFor(navigator.language);
   const { key } = useParams();
-  const listKey = key ?? 'today';
+  const listKey = canonicalSmartKey(key ?? 'today');
   const [groupBy, setGroupBy] = useState<ViewPage['group_by']>('none');
   const [sort, setSort] = useState<ViewPage['sort']>('manual');
   const page = useQuery({

@@ -1,48 +1,47 @@
-# Handoff — shell y Hoy (PR #5)
+# Handoff — pulido de Hoy y la barra
 
-Punto seguro para retomar cuando la PR #5 esté en `main`. El corte funcional de la UI está cerrado: shell, tema y Hoy con tareas reales. La UI todavía no se parece a TickTick. Ese pulido es el siguiente corte, no el punto 7 del roadmap.
+Punto seguro para retomar. El corte visual está en `feat/ui-today-polish`, con PR contra `main`. No está mergeado. No toca el punto 7 (PAT ni MCP) y no despliega.
 
 ## Dónde estamos
 
-En `main` están los puntos 1 a 6 de la fase 1. El punto 6 (smart lists, filtros, vista lista y búsqueda) entró con la PR #7, tag `phase-1.6`. Encima, la PR #5 añade el shell y conecta Hoy al SDK.
+En `main` están los puntos 1 a 6 y el shell de la PR #5: tres paneles, tokens, tema claro/oscuro/auto y Hoy conectado al SDK (UI-401, UI-402, UI-404). Esta rama acerca la barra y Hoy a las secciones 4.5, 7 y 9.2 de `docs/spec/tick-tack-done-ui-spec-v1.0.md`, sin cambiar la paleta (UI-D2: fondo cálido, tinta piedra, acento índigo).
 
-La API pública sigue en `/api/v1`. OpenAPI está en `/api/docs` y el JSON commiteado es `apps/api/openapi.json`. El cliente web llama a la API solo a través de `@reflexionia/sdk`. `apps/api/tsconfig.json` es NodeNext. No revertirlo a CommonJS.
+La API pública sigue en `/api/v1`. El cliente web llama a la API solo a través de `@reflexionia/sdk`. `apps/api/tsconfig.json` es NodeNext. No revertirlo a CommonJS.
 
-Siguiente sesión: pulir Hoy y la barra según `docs/spec/tick-tack-done-ui-spec-v1.0.md`. El prompt está en `docs/prompts/pulir-ui-hoy.md`. El punto 7 (PAT y MCP, RF-2001–2002) sigue en el roadmap y no se abre en esa sesión. Una feature es una PR, y se mergea al terminarla.
+Siguiente sesión: el detalle de `?task=` sigue en aviso. El plan de hoy sigue vacío porque no existe `GET /api/v1/review/daily`. No inventarlo. El punto 7 no se abre aquí. Una feature es una PR, y se mergea al terminarla.
 
-## Qué entra con la PR #5
+## Qué entra en este corte
 
-- Tokens, tema claro/oscuro/auto y layout de tres paneles. Barra colapsable a rail. En móvil, barra inferior con captura.
-- Rutas del mapa de la spec de UI resuelven sin 404. Las que no son de este corte muestran un aviso. `/quick-add` y la captura no se reescriben. `/habits` sigue siendo la pantalla real.
-- Hoy lista tareas (UI-401, UI-402, UI-404): vencidas arriba con la fecha en rojo, agrupación por prioridad y `?group=due|tag|list` recordada por vista, completar con toast de deshacer de 10 s.
-- El plan de hoy está vacío a propósito. No existe `GET /api/v1/review/daily`.
-- `main` ya trae las pantallas de listas inteligentes, filtros y búsqueda. El shell las monta en `/smart/:key`, `/filter/:id` y `/list/:id`, y conserva también `/smart-lists`, `/filters` y `/lists/:id`.
+- Barra más densa (sección 4.5). Las smart lists activas muestran el contador del backend; la papelera queda al final. Las listas de tareas llevan punto de color y contador. La bandeja no se repite: ya es una smart list. Las listas de notas no entran. Los filtros guardados aparecen, en orden de `sort_order`, solo si existen. No hay columna `pinned`: fijar un filtro lo lleva al frente. El pie son tres iconos (tema, apariencia, contraer), no tres botones a ancho completo.
+- Hoy (secciones 7 y 9.2). Cabecera contenida, fila «Añadir tarea» que abre la captura, grupos compactos con el contador junto al nombre, checkbox circular del color de la prioridad, título, nombre de lista y fecha a la derecha. La fecha va en rojo solo si está vencida; si no, es metadato.
+- UI-401, UI-402 y UI-404 se mantienen: vencidas arriba, `?group=` recordado, deshacer 10 s.
 
-## Qué falta pulir en la UI
+## Qué sigue fuera
 
-Comparado con TickTick y con la spec de UI, la pantalla actual es funcional y visualmente pobre. No se pule en esta PR.
-
-- La barra (sección 4.5) es una lista plana de enlaces. No muestra contadores, ni listas con punto de color, ni filtros fijados. El pie son tres botones a ancho completo (tema, apariencia, contraer).
-- Hoy (sección 7 y fila 9.2) tiene un título grande, grupos con mucho aire y filas de checkbox más título. La fecha de una tarea de hoy se pinta como acento, no como metadato. No hay nombre de lista, etiquetas ni fila «Añadir tarea».
-- Agrupar por etiqueta muestra el id. El SDK no lista etiquetas.
-- El panel de `?task=` sigue siendo un aviso. No carga la tarea (UI-801 y siguientes).
+- Agrupar por etiqueta sigue mostrando el id. El SDK no lista etiquetas.
+- El panel de `?task=` sigue siendo un aviso. No carga la tarea.
 - `/inbox` sigue en aviso. La bandeja de la spec (UI-501–503) no está hecha.
-- UI-403 (propuesta del plan de hoy) espera el endpoint de revisión. UI-405 (presupuesto de 200 tareas) no se ha medido.
-- Kanban, timeline, calendario, matriz, notas, dashboard, reportes y Focus siguen fuera. Son V1 o V2 en la spec de UI.
+- UI-403 espera `GET /api/v1/review/daily`. UI-405 (presupuesto de 200 tareas) no se ha medido.
+- Kanban, timeline, calendario, matriz, notas, dashboard, reportes y Focus siguen fuera.
+- Las carpetas de listas no se pliegan: la barra lista los proyectos de tareas en plano.
 
-El prompt de la sesión siguiente acota el primer pulido a la barra y a Hoy. No abre el resto de la spec.
+## Cómo probar
 
-## Cómo probar el shell
-
-Worktree de la PR, sin `pnpm dev` (choca con el checkout principal):
+Worktree, sin `pnpm dev` (choca con otro stack):
 
 ```bash
 pnpm --filter @reflexionia/domain build
-pnpm dev:api
-pnpm --filter web exec vite --port 5273 --strictPort --host 127.0.0.1
+pnpm --filter api dev
+pnpm --filter web exec vite --port 5280 --strictPort --host 127.0.0.1
 ```
 
-Abrir `http://127.0.0.1:5273/today`. La API de ese worktree escucha en el puerto `3100` (`VITE_API_PROXY`). Auth de desarrollo: `AUTH_MODE=dev` y `demo@reflexionia.test`.
+La API de este worktree escuchó en el puerto `3200` (`VITE_API_PROXY` en el `.env` local, que no se commitea). Auth de desarrollo: `AUTH_MODE=dev` y `demo@reflexionia.test`.
+
+Abrir `http://127.0.0.1:5280/today`.
+
+## Corte anterior (PR #5, ya en main)
+
+Shell de tres paneles, tokens, tema y Hoy conectado al SDK. Rutas del mapa sin 404. `/quick-add` y `/habits` no se reescribieron. El plan de hoy ya estaba vacío a propósito.
 
 ## Historial del punto 6
 

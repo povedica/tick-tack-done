@@ -97,6 +97,7 @@ export const es = {
   noDate: 'Sin fecha',
   noTag: 'Sin etiqueta',
   noList: 'Sin lista',
+  addTask: 'Añadir tarea',
   todayEmpty: 'Despejado. Captura lo próximo con N o revisa tu Inbox.',
   todayFailed: 'No se han podido cargar las tareas.',
   retry: 'Reintentar',

@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Plus } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { UndoToastStack } from '../../components/UndoToast';
@@ -183,7 +184,7 @@ export function TodayPage() {
   return (
     <section className="today" aria-labelledby="today-heading">
       <header className="today-header">
-        <div>
+        <div className="today-heading">
           <h1 id="today-heading">{messages.todayTitle}</h1>
           <p className="today-date">{dateLabel}</p>
         </div>
@@ -238,11 +239,24 @@ export function TodayPage() {
           </button>
         </div>
       ) : null}
+      {!tasks.isPending && !tasks.isError ? (
+        <button
+          type="button"
+          className="add-task"
+          onClick={() => {
+            void navigate('/quick-add');
+          }}
+        >
+          <Plus size={16} aria-hidden="true" />
+          <span>{messages.addTask}</span>
+        </button>
+      ) : null}
       {parts.overdue.length > 0 ? (
         <TaskGroup
           label={messages.overdueTitle}
           tasks={parts.overdue}
           locale={locale}
+          projectNames={projectNames}
           overdue
           completeLabel={messages.completeLabel}
           onComplete={complete}
@@ -254,6 +268,7 @@ export function TodayPage() {
           label={sectionLabel(group, section.id, messages, locale, projectNames)}
           tasks={section.tasks}
           locale={locale}
+          projectNames={projectNames}
           overdue={false}
           completeLabel={messages.completeLabel}
           onComplete={complete}
@@ -293,6 +308,7 @@ function TaskGroup({
   label,
   tasks,
   locale,
+  projectNames,
   overdue,
   completeLabel,
   onComplete,
@@ -300,6 +316,7 @@ function TaskGroup({
   readonly label: string;
   readonly tasks: readonly TodayTask[];
   readonly locale: string;
+  readonly projectNames: ReadonlyMap<string, string>;
   readonly overdue: boolean;
   readonly completeLabel: string;
   readonly onComplete: (task: TodayTask) => void;
@@ -307,35 +324,45 @@ function TaskGroup({
   return (
     <details className="task-group" open>
       <summary>
-        <span>{label}</span>
-        <span className="task-count">{tasks.length}</span>
+        <span className="task-group-title">
+          <span className="task-group-name">{label}</span>
+          <span className="task-count">{tasks.length}</span>
+        </span>
       </summary>
       <ul className="task-list">
-        {tasks.map((task) => (
-          <li key={task.id}>
-            <div className="task-row">
-              <label className="task-check-hit">
-                <input
-                  type="checkbox"
-                  className={`task-check prio-${task.priority}`}
-                  aria-label={fill(completeLabel, task.title)}
-                  onChange={() => {
-                    onComplete(task);
-                  }}
-                />
-              </label>
-              <span className="task-title">{task.title}</span>
-              {task.dueDate !== null ? (
-                <time
-                  className={overdue ? 'task-date is-overdue' : 'task-date'}
-                  dateTime={task.dueDate}
-                >
-                  {formatDueDate(task.dueDate, task.timeZone, locale)}
-                </time>
-              ) : null}
-            </div>
-          </li>
-        ))}
+        {tasks.map((task) => {
+          const listName = projectNames.get(task.projectId);
+          return (
+            <li key={task.id}>
+              <div className="task-row">
+                <label className="task-check-hit">
+                  <input
+                    type="checkbox"
+                    className={`task-check prio-${task.priority}`}
+                    aria-label={fill(completeLabel, task.title)}
+                    onChange={() => {
+                      onComplete(task);
+                    }}
+                  />
+                </label>
+                <span className="task-title">{task.title}</span>
+                <span className="task-meta">
+                  {listName !== undefined ? (
+                    <span className="task-list-name">{listName}</span>
+                  ) : null}
+                  {task.dueDate !== null ? (
+                    <time
+                      className={overdue ? 'task-date is-overdue' : 'task-date'}
+                      dateTime={task.dueDate}
+                    >
+                      {formatDueDate(task.dueDate, task.timeZone, locale)}
+                    </time>
+                  ) : null}
+                </span>
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </details>
   );
