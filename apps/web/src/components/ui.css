@@ -730,6 +730,11 @@
   }
 }
 
+.quick-add,
+.inline-add {
+  position: relative;
+}
+
 .quick-add input,
 .inline-add input {
   display: block;
@@ -754,6 +759,67 @@
 .inline-add input:focus {
   outline: none;
   border-color: var(--focus-ring);
+  padding-right: 4.5rem;
+}
+
+.quick-add-tools {
+  position: absolute;
+  top: 0;
+  right: 6px;
+  display: none;
+  align-items: center;
+  height: 39px;
+  gap: 2px;
+}
+
+.quick-add:focus-within .quick-add-tools,
+.inline-add:focus-within .quick-add-tools,
+.quick-add-tools.is-open {
+  display: flex;
+}
+
+.quick-add-tools > button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.quick-add-tools > button:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.quick-add-dates {
+  position: absolute;
+  top: 34px;
+  right: 28px;
+  z-index: 6;
+  display: grid;
+  min-width: 8rem;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+
+.quick-add-dates button {
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  padding: 6px 10px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.quick-add-dates button:hover {
+  background: var(--surface-2);
 }
 
 .menu-card {

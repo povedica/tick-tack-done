@@ -12,6 +12,7 @@ import { noticesFrom, openTaskComposer, useCaptureNotice } from '../capture/noti
 import { useActionToast } from '../../components/action-toast';
 import { quickAddRequest } from '../capture/quick-add';
 import { displayTitle } from '../tasks/displayTitle';
+import { QuickAddTools } from '../tasks/QuickAddTools';
 import { collectTags } from '../tasks/collect';
 import { refreshTaskSurfaces } from '../tasks/refresh';
 import { useShellActions } from '../../shell/shell-actions';
@@ -428,6 +429,12 @@ export function TodayPage() {
           placeholder={`+ ${messages.addTask}`}
           onChange={(event) => {
             setDraft(event.target.value);
+          }}
+        />
+        <QuickAddTools
+          draft={draft}
+          onDraft={(value) => {
+            setDraft(value);
           }}
         />
       </form>

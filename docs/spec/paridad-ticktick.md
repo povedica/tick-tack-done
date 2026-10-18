@@ -34,8 +34,9 @@ Pendiente:
 TickTick: una barra redondeada al inicio de la lista, «+ Add task to "inbox"». Al enfocarla
 aparece el cursor, un icono de calendario y un chevron. No abre un panel lateral.
 
-Pendiente: iconos de fecha y de más opciones dentro de esa barra, y el nombre de la lista
-de destino en el placeholder.
+- Iconos de fecha y de más opciones dentro de esa barra: al enfocar aparecen calendario (Hoy / Mañana) y un chevron que abre el diálogo completo.
+
+Pendiente: el placeholder con el nombre de la lista de destino.
 
 ## Fila de tarea
 

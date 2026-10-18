@@ -12,6 +12,7 @@ import { quickAddRequest, type ViewDay } from '../capture/quick-add';
 import { refreshTaskSurfaces } from './refresh';
 import { newMutation, runOrQueue } from '../offline/client';
 import { displayTitle } from './displayTitle';
+import { QuickAddTools } from './QuickAddTools';
 import { isOverdue, isSameDay, type RowModel } from './model';
 
 export function TaskList({
@@ -198,6 +199,12 @@ export function TaskList({
               placeholder={`+ ${messages.addTask}`}
               onChange={(event) => {
                 setDraft(event.target.value);
+              }}
+            />
+            <QuickAddTools
+              draft={draft}
+              onDraft={(value) => {
+                setDraft(value);
               }}
             />
           </form>
