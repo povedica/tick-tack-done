@@ -35,6 +35,10 @@ export const DomainEvent = {
   habitCheckin: 'habit.checkin@v1',
   habitStreakBroken: 'habit.streak_broken@v1',
   habitGoalMet: 'habit.goal_met@v1',
+  filterCreated: 'filter.created@v1',
+  filterUpdated: 'filter.updated@v1',
+  filterDeleted: 'filter.deleted@v1',
+  smartListUpdated: 'smart_list.updated@v1',
   noteCreated: 'note.created@v1',
   noteUpdated: 'note.updated@v1',
 } as const;

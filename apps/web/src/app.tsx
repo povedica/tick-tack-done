@@ -1,15 +1,16 @@
-import { useEffect } from 'react';
-import {
-  BrowserRouter,
-  Navigate,
-  Route,
-  Routes,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from 'react-router';
+import { useEffect, useState } from 'react';
+import { BrowserRouter, Navigate, Route, Routes, useNavigate, useSearchParams } from 'react-router';
 import { CaptureSheet } from './features/capture/components/CaptureSheet';
 import { HabitsPage } from './features/habits/components/HabitsPage';
+import { CommandPalette } from './features/views/components/CommandPalette';
+import { FiltersPage } from './features/views/components/FiltersPage';
+import { SmartListsPage } from './features/views/components/SmartListsPage';
+import {
+  FilterViewPage,
+  ProjectListPage,
+  SmartListViewPage,
+} from './features/views/components/ViewPages';
+import { isPaletteShortcut } from './features/views/shortcuts';
 import { draftFromShare } from './features/capture/share-target';
 import { isCaptureShortcut } from './features/capture/draft';
 import { useCaptureNotice } from './features/capture/notice';
@@ -23,17 +24,43 @@ export function App() {
   return (
     <BrowserRouter>
       <ThemeSync />
+      <Shell />
+    </BrowserRouter>
+  );
+}
+
+function Shell() {
+  const [palette, setPalette] = useState(false);
+  return (
+    <>
       <CaptureHotkey />
+      <PaletteHotkey
+        onToggle={() => {
+          setPalette((current) => !current);
+        }}
+      />
+      {palette ? (
+        <CommandPalette
+          onClose={() => {
+            setPalette(false);
+          }}
+        />
+      ) : null}
       <Routes>
         <Route element={<AppShell />}>
           <Route path="/" element={<Navigate to="/today" replace />} />
           <Route path="/today" element={<TodayPage />} />
           <Route path="/quick-add" element={<QuickAddRoute />} />
           <Route path="/inbox" element={<LaterPage titleKey="inboxTitle" />} />
-          <Route path="/list/:id" element={<LaterPage titleKey="listTitle" />} />
+          <Route path="/list/:id" element={<ProjectListPage />} />
+          <Route path="/lists/:id" element={<ProjectListPage />} />
           <Route path="/list/:id/note/:taskId" element={<LaterPage titleKey="noteTitle" />} />
-          <Route path="/filter/:id" element={<LaterPage titleKey="filterTitle" />} />
-          <Route path="/smart/:key" element={<SmartRoute />} />
+          <Route path="/filter/:id" element={<FilterViewPage />} />
+          <Route path="/filters" element={<FiltersPage />} />
+          <Route path="/filters/:id" element={<FilterViewPage />} />
+          <Route path="/smart/:key" element={<SmartListViewPage />} />
+          <Route path="/smart-lists" element={<SmartListsPage />} />
+          <Route path="/smart-lists/:key" element={<SmartListViewPage />} />
           <Route path="/task/:id" element={<LaterPage titleKey="taskTitle" />} />
           <Route path="/habits" element={<HabitsPage />} />
           <Route path="/habits/:id" element={<LaterPage titleKey="habitTitle" />} />
@@ -56,13 +83,8 @@ export function App() {
           <Route path="*" element={<Navigate to="/today" replace />} />
         </Route>
       </Routes>
-    </BrowserRouter>
+    </>
   );
-}
-
-function SmartRoute() {
-  const params = useParams();
-  return <LaterPage titleKey="smartTitle" key={params.key ?? ''} />;
 }
 
 function QuickAddRoute() {
@@ -122,6 +144,36 @@ function CaptureHotkey() {
       window.removeEventListener('keydown', onKey);
     };
   }, [navigate]);
+
+  return null;
+}
+
+function PaletteHotkey({ onToggle }: { readonly onToggle: () => void }) {
+  useEffect(() => {
+    function onKey(event: KeyboardEvent): void {
+      const target = event.target;
+      const typing =
+        target instanceof HTMLElement &&
+        (target.isContentEditable || target.tagName === 'INPUT' || target.tagName === 'TEXTAREA');
+      if (
+        !isPaletteShortcut({
+          key: event.key,
+          metaKey: event.metaKey,
+          ctrlKey: event.ctrlKey,
+          altKey: event.altKey,
+          typing,
+        })
+      ) {
+        return;
+      }
+      event.preventDefault();
+      onToggle();
+    }
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [onToggle]);
 
   return null;
 }

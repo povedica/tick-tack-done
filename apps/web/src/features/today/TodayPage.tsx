@@ -37,6 +37,14 @@ export function TodayPage() {
     queryFn: () => loadTodayTasks(tasksApi, new Date()),
     refetchOnWindowFocus: false,
   });
+  const projects = useQuery({
+    queryKey: ['projects'],
+    queryFn: () => tasksApi.listProjects(),
+    refetchOnWindowFocus: false,
+  });
+  const projectNames = new Map(
+    (projects.data?.items ?? []).map((project) => [project.id, project.name]),
+  );
   const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set());
   const [toasts, setToasts] = useState<readonly { id: string; title: string }[]>([]);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -243,7 +251,7 @@ export function TodayPage() {
       {sections.map((section) => (
         <TaskGroup
           key={section.id}
-          label={sectionLabel(group, section.id, messages, locale)}
+          label={sectionLabel(group, section.id, messages, locale, projectNames)}
           tasks={section.tasks}
           locale={locale}
           overdue={false}
@@ -333,7 +341,13 @@ function TaskGroup({
   );
 }
 
-function sectionLabel(group: TaskGroupKey, id: string, messages: Messages, locale: string): string {
+function sectionLabel(
+  group: TaskGroupKey,
+  id: string,
+  messages: Messages,
+  locale: string,
+  projectNames: ReadonlyMap<string, string>,
+): string {
   if (group === 'priority') {
     switch (id) {
       case 'high':
@@ -357,6 +371,9 @@ function sectionLabel(group: TaskGroupKey, id: string, messages: Messages, local
   }
   if (group === 'due') {
     return formatDayId(id, locale);
+  }
+  if (group === 'list') {
+    return projectNames.get(id) ?? messages.noList;
   }
   return id;
 }
