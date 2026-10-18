@@ -30,7 +30,7 @@ volúmenes y `/etc/todo/production.env`. No comparte base de datos ni secretos.
      `node:22-alpine` con el refresh token de la base, sin imprimirlo.
    - `0 5 * * 0` → `deploy/production/cron-restore-verify.sh`
 7. Actualizar: `git pull` en `/opt/todo/app` y `sh deploy/production/deploy.sh`.
-7. Telegram, cuando la API ya responde en público: `bash scripts/with-env.sh node scripts/telegram-webhook.mjs`.
+8. Telegram, cuando la API ya responde en público: `bash scripts/with-env.sh node scripts/telegram-webhook.mjs`.
    El sondeo `scripts/telegram-poll.mjs` es solo local: borra el webhook.
 
 Producción no usa `AUTH_MODE=dev` ni el seed. El compose deja `AUTH_MODE` vacío.

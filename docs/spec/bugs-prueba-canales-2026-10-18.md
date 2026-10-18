@@ -209,9 +209,9 @@ Dentro de la misma transacción que inserta la tarea:
    que salieron del parser (`normalizeTagName` solo recorta y limita a 100),
    `color` null, `folderId` null, `viewMode: 'list'`, `kind: 'TASK'`,
    `isInbox: false`, `sortOrder` = máximo de los proyectos vivos del usuario
-   + 65536, o 65536 si no hay ninguno. Emitir `project.created` con el mismo
-   shape que `ListsService.createProject` (líneas 212–231 de
-   `lists.service.ts`). No importes `ListsModule`.
+   - 65536, o 65536 si no hay ninguno. Emitir `project.created` con el mismo
+     shape que `ListsService.createProject` (líneas 212–231 de
+     `lists.service.ts`). No importes `ListsModule`.
 3. Poner la tarea en ese `id`. Warning `{ code: 'list_created', name }` en
    lugar de `list_not_found`.
 4. Si no viene nombre de lista, seguir en el inbox. Sin warning.
@@ -275,7 +275,7 @@ La celda y la tarea se comparan así:
 
 ```ts
 const key = day.toISOString().slice(0, 10);
-task.due_date.slice(0, 10) === key
+task.due_date.slice(0, 10) === key;
 ```
 
 En un navegador en `Europe/Madrid` (CEST, UTC+2, el 18/10/2026), una tarea de

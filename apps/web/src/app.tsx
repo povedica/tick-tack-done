@@ -100,65 +100,65 @@ function Shell() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPage />} />
         <Route element={<RequireSession />}>
-        <Route element={<AppShell />}>
-          <Route path="/" element={<Navigate to="/today" replace />} />
-          <Route path="/today" element={<TodayPage />} />
-          <Route path="/quick-add" element={<QuickAddRoute />} />
-          <Route path="/inbox" element={<InboxPage />} />
-          <Route path="/list/:id" element={<ProjectListPage />} />
-          <Route path="/lists/:id" element={<ProjectListPage />} />
-          <Route path="/list/:id/note/:taskId" element={<NoteRoute />} />
-          <Route path="/filter/:id" element={<FilterViewPage />} />
-          <Route path="/filters" element={<FiltersPage />} />
-          <Route path="/filters/:id" element={<FilterViewPage />} />
-          <Route path="/smart/:key" element={<SmartListViewPage />} />
-          <Route path="/smart-lists" element={<SmartListsPage />} />
-          <Route path="/smart-lists/:key" element={<SmartListViewPage />} />
-          <Route path="/task/:id" element={<TaskRoute />} />
-          <Route path="/habits" element={<HabitsPage />} />
-          <Route path="/habits/:id" element={<HabitDetailPage />} />
-          <Route path="/calendar" element={<Navigate to="/calendar/month" replace />} />
-          <Route path="/calendar/:view" element={<CalendarPage />} />
-          <Route path="/matrix" element={<MatrixPage />} />
-          <Route path="/focus" element={<FocusPage />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/reports/weekly" element={<ReportsPage />} />
-          <Route path="/reports/weekly/:week" element={<ReportsPage />} />
-          <Route path="/review" element={<ReviewPage />} />
-          <Route path="/review/daily" element={<ReviewPage />} />
-          <Route path="/review/weekly" element={<ReviewPage />} />
-          <Route path="/search" element={<SearchPage />} />
-          <Route path="/sticky" element={<DashboardPage />} />
-          <Route path="/tokens" element={<TokensPage />} />
-          <Route path="/oauth/consent" element={<ConsentPage />} />
-          <Route path="/settings" element={<SettingsLayout />}>
-            <Route index element={<Navigate to="/settings/appearance" replace />} />
-            <Route
-              path="appearance"
-              element={
-                <>
-                  <AppearancePage />
-                  <AppearanceExtras />
-                </>
-              }
-            />
-            <Route path="account" element={<AccountPage />} />
-            <Route path="capture" element={<CaptureSettings />} />
-            <Route path="notifications" element={<NotificationSettings />} />
-            <Route path="smart-lists" element={<SmartListsPage />} />
-            <Route path="calendar" element={<CalendarSettings />} />
-            <Route path="tokens" element={<TokensPage />} />
-            <Route path="integrations" element={<IntegrationSettings />} />
-            <Route path="automations" element={<AutomationSettings />} />
-            <Route path="webhooks" element={<WebhookSettings />} />
-            <Route path="data" element={<DataSettings />} />
-            <Route path="plugins" element={<PluginSettings />} />
-            <Route path="sharing" element={<SharingSettings />} />
-            <Route path="shortcuts" element={<ShortcutSettings />} />
+          <Route element={<AppShell />}>
+            <Route path="/" element={<Navigate to="/today" replace />} />
+            <Route path="/today" element={<TodayPage />} />
+            <Route path="/quick-add" element={<QuickAddRoute />} />
+            <Route path="/inbox" element={<InboxPage />} />
+            <Route path="/list/:id" element={<ProjectListPage />} />
+            <Route path="/lists/:id" element={<ProjectListPage />} />
+            <Route path="/list/:id/note/:taskId" element={<NoteRoute />} />
+            <Route path="/filter/:id" element={<FilterViewPage />} />
+            <Route path="/filters" element={<FiltersPage />} />
+            <Route path="/filters/:id" element={<FilterViewPage />} />
+            <Route path="/smart/:key" element={<SmartListViewPage />} />
+            <Route path="/smart-lists" element={<SmartListsPage />} />
+            <Route path="/smart-lists/:key" element={<SmartListViewPage />} />
+            <Route path="/task/:id" element={<TaskRoute />} />
+            <Route path="/habits" element={<HabitsPage />} />
+            <Route path="/habits/:id" element={<HabitDetailPage />} />
+            <Route path="/calendar" element={<Navigate to="/calendar/month" replace />} />
+            <Route path="/calendar/:view" element={<CalendarPage />} />
+            <Route path="/matrix" element={<MatrixPage />} />
+            <Route path="/focus" element={<FocusPage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/reports/weekly" element={<ReportsPage />} />
+            <Route path="/reports/weekly/:week" element={<ReportsPage />} />
+            <Route path="/review" element={<ReviewPage />} />
+            <Route path="/review/daily" element={<ReviewPage />} />
+            <Route path="/review/weekly" element={<ReviewPage />} />
+            <Route path="/search" element={<SearchPage />} />
+            <Route path="/sticky" element={<DashboardPage />} />
+            <Route path="/tokens" element={<TokensPage />} />
+            <Route path="/oauth/consent" element={<ConsentPage />} />
+            <Route path="/settings" element={<SettingsLayout />}>
+              <Route index element={<Navigate to="/settings/appearance" replace />} />
+              <Route
+                path="appearance"
+                element={
+                  <>
+                    <AppearancePage />
+                    <AppearanceExtras />
+                  </>
+                }
+              />
+              <Route path="account" element={<AccountPage />} />
+              <Route path="capture" element={<CaptureSettings />} />
+              <Route path="notifications" element={<NotificationSettings />} />
+              <Route path="smart-lists" element={<SmartListsPage />} />
+              <Route path="calendar" element={<CalendarSettings />} />
+              <Route path="tokens" element={<TokensPage />} />
+              <Route path="integrations" element={<IntegrationSettings />} />
+              <Route path="automations" element={<AutomationSettings />} />
+              <Route path="webhooks" element={<WebhookSettings />} />
+              <Route path="data" element={<DataSettings />} />
+              <Route path="plugins" element={<PluginSettings />} />
+              <Route path="sharing" element={<SharingSettings />} />
+              <Route path="shortcuts" element={<ShortcutSettings />} />
+            </Route>
+            <Route path="/repeat" element={<RepeatPage />} />
+            <Route path="*" element={<Navigate to="/today" replace />} />
           </Route>
-          <Route path="/repeat" element={<RepeatPage />} />
-          <Route path="*" element={<Navigate to="/today" replace />} />
-        </Route>
         </Route>
       </Routes>
     </>
