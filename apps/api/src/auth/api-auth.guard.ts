@@ -12,6 +12,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import type { AuthUser } from './auth-user';
 import { API_SCOPES, missingScopes } from './scopes';
 import { AUTHENTICATED_KEY, SCOPES_KEY } from './scopes.decorator';
+import { hashSecret, secretsMatch, SESSION_COOKIE } from './session-cookie';
 import { TokenAudit } from './token-audit';
 import { applyRateLimitHeaders, TokenRateLimiter } from './token-rate-limit';
 import { hashPersonalAccessToken, parseBearer } from './token-secret';
@@ -60,7 +61,17 @@ export class ApiAuthGuard implements CanActivate {
       await this.authenticateToken(request, response, bearer.token, scopes);
       return true;
     }
-    request.user = await this.devUser(request.header('x-dev-user-email'));
+    const devEmail = request.header('x-dev-user-email');
+    if (process.env.AUTH_MODE === 'dev' && (devEmail?.trim().length ?? 0) > 0) {
+      request.user = await this.devUser(devEmail);
+      return true;
+    }
+    const cookie = readCookie(request);
+    if (cookie !== null) {
+      request.user = await this.sessionUser(request, cookie);
+      return true;
+    }
+    request.user = await this.devUser(devEmail);
     return true;
   }
 
@@ -77,7 +88,7 @@ export class ApiAuthGuard implements CanActivate {
     const user = await this.loadUser(token.ownerId);
     const decision = this.rateLimit.consume(token.id);
     applyRateLimitHeaders(response, decision);
-    request.user = { ...user, scopes: token.scopes, tokenId: token.id };
+    request.user = { ...user, scopes: token.scopes, tokenId: token.id, sessionId: null };
     await this.prisma.personalAccessToken.update({
       where: { id: token.id },
       data: { lastUsedAt: new Date() },
@@ -126,7 +137,7 @@ export class ApiAuthGuard implements CanActivate {
     return row;
   }
 
-  private async loadUser(id: string): Promise<Omit<AuthUser, 'scopes' | 'tokenId'>> {
+  private async loadUser(id: string): Promise<Omit<AuthUser, 'scopes' | 'tokenId' | 'sessionId'>> {
     const user = await this.prisma.user.findFirst({
       where: { id, deletedAt: null },
       select: { id: true, email: true, timeZone: true, taskCompleteChildren: true },
@@ -168,8 +179,56 @@ export class ApiAuthGuard implements CanActivate {
       completeChildren: user.taskCompleteChildren,
       scopes: [...API_SCOPES],
       tokenId: null,
+      sessionId: null,
     };
   }
+
+  private async sessionUser(
+    request: Request & { csrfToken?: string },
+    secret: string,
+  ): Promise<AuthUser> {
+    const row = await this.prisma.session.findFirst({
+      where: { tokenHash: hashSecret(secret), revokedAt: null, expiresAt: { gt: new Date() } },
+      select: { id: true, userId: true, csrfToken: true },
+    });
+    if (row === null) {
+      throw new DomainException(HttpStatus.UNAUTHORIZED, 'unauthorized', 'Invalid session');
+    }
+    assertCsrf(request, row.csrfToken);
+    request.csrfToken = row.csrfToken;
+    await this.prisma.session.update({ where: { id: row.id }, data: { lastUsedAt: new Date() } });
+    const user = await this.loadUser(row.userId);
+    return { ...user, scopes: [...API_SCOPES], tokenId: null, sessionId: row.id };
+  }
+}
+
+function assertCsrf(request: Request, csrf: string): void {
+  const method = request.method.toUpperCase();
+  if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') {
+    return;
+  }
+  const header = request.header('x-csrf-token');
+  if (header === undefined || header.length === 0) {
+    throw new DomainException(HttpStatus.FORBIDDEN, 'csrf_required', 'CSRF token is required');
+  }
+  if (!secretsMatch(header, csrf)) {
+    throw new DomainException(HttpStatus.FORBIDDEN, 'csrf_invalid', 'CSRF token is invalid');
+  }
+}
+
+function readCookie(request: Request): string | null {
+  const header = request.header('cookie');
+  if (header === undefined) {
+    return null;
+  }
+  for (const part of header.split(';')) {
+    const [name, ...rest] = part.trim().split('=');
+    if (name === SESSION_COOKIE) {
+      const value = rest.join('=');
+      return value.length > 0 ? decodeURIComponent(value) : null;
+    }
+  }
+  return null;
 }
 
 function requestPath(request: Request): string {

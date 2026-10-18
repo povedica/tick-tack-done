@@ -1,6 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 
+export class DeleteMeDto {
+  @ApiProperty({ description: 'Must equal the account email' })
+  @IsString()
+  @MaxLength(200)
+  confirmation!: string;
+}
+
 export class UpdateMeDto {
   @ApiProperty({ required: false, maxLength: 200 })
   @IsOptional()

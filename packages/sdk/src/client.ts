@@ -59,12 +59,44 @@ export interface ApiClientOptions {
   readonly baseUrl: string;
   readonly devUserEmail?: string;
   readonly fetchImpl?: typeof fetch;
+  readonly credentials?: 'include' | 'omit' | 'same-origin';
+  readonly csrfToken?: string | (() => string | undefined);
+}
+
+export interface UpdateTaskBody {
+  readonly title?: string;
+  readonly content?: string;
+  readonly repeat_rule?: string | null;
+  readonly repeat_from?: 'due_date' | 'completion_date';
+  readonly field_clocks?: Readonly<Record<string, string>>;
+}
+
+export interface SessionBody {
+  readonly id: string;
+  readonly email: string;
+  readonly display_name: string;
+  readonly csrf_token: string;
+}
+
+export interface SyncChange {
+  readonly event_id: string;
+  readonly type: string;
+  readonly occurred_at: string;
+  readonly op: 'upsert' | 'tombstone';
+  readonly entity_type: string;
+  readonly entity_id: string | null;
+}
+
+export interface SyncPage {
+  readonly changes: readonly SyncChange[];
+  readonly next_cursor: string | null;
 }
 
 export interface ApiClient {
   createTask(body: CreateTaskBody, idempotencyKey: string): Promise<CreatedTask>;
   listTasks(query?: ListTasksQuery): Promise<TaskPage>;
   getTask(id: string): Promise<Task>;
+  updateTask(id: string, body: UpdateTaskBody): Promise<Task>;
   completeTask(id: string, body: CompleteTaskBody, idempotencyKey: string): Promise<Task>;
   uncompleteTask(id: string, idempotencyKey: string): Promise<Task>;
   listHabits(): Promise<HabitPage>;
@@ -88,6 +120,21 @@ export interface ApiClient {
   createToken(body: CreateTokenBody): Promise<CreatedToken>;
   revokeToken(id: string): Promise<void>;
   tokenActivity(id: string): Promise<ActivityPage>;
+  login(body: { email: string; password: string }): Promise<SessionBody>;
+  register(body: { email: string; password: string; display_name: string }): Promise<SessionBody>;
+  logout(): Promise<void>;
+  sync(since?: string): Promise<SyncPage>;
+  oauthConsent(body: OauthConsentBody): Promise<{ redirect_to: string }>;
+}
+
+export interface OauthConsentBody {
+  readonly client_id: string;
+  readonly redirect_uri: string;
+  readonly scope: string;
+  readonly state: string;
+  readonly code_challenge: string;
+  readonly code_challenge_method: string;
+  readonly allow: boolean;
 }
 
 /** Thin client over the generated OpenAPI types. The web app does not call fetch itself. */
@@ -110,6 +157,9 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     },
     getTask(id) {
       return request(call, options, 'GET', `/api/v1/tasks/${id}`, undefined, undefined, isTask);
+    },
+    updateTask(id, body) {
+      return request(call, options, 'PATCH', `/api/v1/tasks/${id}`, body, undefined, isTask);
     },
     completeTask(id, body, idempotencyKey) {
       return request(
@@ -293,6 +343,31 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         isSearch,
       );
     },
+    login(body) {
+      return request(call, options, 'POST', '/api/v1/auth/login', body, undefined, isSession);
+    },
+    register(body) {
+      return request(call, options, 'POST', '/api/v1/auth/register', body, undefined, isSession);
+    },
+    async logout() {
+      await request(call, options, 'POST', '/api/v1/auth/logout', undefined, undefined, isEmpty);
+    },
+    sync(since) {
+      const query =
+        since === undefined || since.length === 0 ? '' : `?since=${encodeURIComponent(since)}`;
+      return request(
+        call,
+        options,
+        'GET',
+        `/api/v1/sync${query}`,
+        undefined,
+        undefined,
+        isSyncPage,
+      );
+    },
+    oauthConsent(body) {
+      return request(call, options, 'POST', '/api/v1/oauth/authorize', body, undefined, isRedirect);
+    },
   };
 }
 
@@ -310,10 +385,17 @@ async function request<T>(
   if (options.devUserEmail !== undefined && options.devUserEmail.length > 0) {
     headers['X-Dev-User-Email'] = options.devUserEmail;
   }
+  const csrf = typeof options.csrfToken === 'function' ? options.csrfToken() : options.csrfToken;
+  if (csrf !== undefined && csrf.length > 0) {
+    headers['X-CSRF-Token'] = csrf;
+  }
   if (idempotencyKey !== undefined && idempotencyKey.length > 0) {
     headers['Idempotency-Key'] = idempotencyKey;
   }
   const init: RequestInit = { method, headers };
+  if (options.credentials !== undefined) {
+    init.credentials = options.credentials;
+  }
   if (body !== undefined) {
     headers['content-type'] = 'application/json';
     init.body = JSON.stringify(body);
@@ -442,6 +524,38 @@ function isHabitStats(value: unknown): value is HabitStats {
   }
   const row = value as { streak_current?: unknown; heatmap?: unknown };
   return typeof row.streak_current === 'number' && Array.isArray(row.heatmap);
+}
+
+function isSession(value: unknown): value is SessionBody {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const row = value as SessionBody;
+  return (
+    typeof row.id === 'string' &&
+    typeof row.email === 'string' &&
+    typeof row.display_name === 'string' &&
+    typeof row.csrf_token === 'string'
+  );
+}
+
+function isRedirect(value: unknown): value is { redirect_to: string } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { redirect_to?: unknown }).redirect_to === 'string'
+  );
+}
+
+function isSyncPage(value: unknown): value is SyncPage {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const page = value as SyncPage;
+  return (
+    Array.isArray(page.changes) &&
+    (page.next_cursor === null || typeof page.next_cursor === 'string')
+  );
 }
 
 function isEmpty(value: unknown): value is void {
