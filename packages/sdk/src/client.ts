@@ -1,4 +1,6 @@
+import { ApiError } from './errors';
 import type { components } from './generated/schema';
+import { resourceMethods, type ResourceClient } from './resources';
 
 export type CreateTaskBody = components['schemas']['CreateTaskDto'];
 export type CreatedTask = components['schemas']['CreateTaskResponseDto'];
@@ -10,6 +12,11 @@ export interface ListTasksQuery {
   readonly limit?: number;
   readonly cursor?: string;
   readonly status?: 'active' | 'completed' | 'archived';
+  readonly projectId?: string;
+  readonly priority?: 'none' | 'low' | 'medium' | 'high';
+  readonly tag?: string;
+  readonly q?: string;
+  readonly flat?: boolean;
   readonly overdue?: boolean;
   readonly dueBefore?: string;
   readonly dueAfter?: string;
@@ -44,16 +51,7 @@ export interface ViewOptions {
   readonly sort?: ViewPage['sort'];
 }
 
-export class ApiError extends Error {
-  readonly status: number;
-  readonly code: string;
-
-  constructor(status: number, code: string, message: string) {
-    super(message);
-    this.status = status;
-    this.code = code;
-  }
-}
+export { ApiError } from './errors';
 
 export interface ApiClientOptions {
   readonly baseUrl: string;
@@ -61,7 +59,7 @@ export interface ApiClientOptions {
   readonly fetchImpl?: typeof fetch;
 }
 
-export interface ApiClient {
+export interface ApiClient extends ResourceClient {
   createTask(body: CreateTaskBody, idempotencyKey: string): Promise<CreatedTask>;
   listTasks(query?: ListTasksQuery): Promise<TaskPage>;
   getTask(id: string): Promise<Task>;
@@ -293,6 +291,12 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         isSearch,
       );
     },
+    ...resourceMethods({
+      request: (method, path, body, idempotencyKey, parse) =>
+        request(call, options, method, path, body, idempotencyKey, parse),
+      call,
+      options,
+    }),
   };
 }
 
@@ -360,6 +364,21 @@ function taskQuery(query: ListTasksQuery | undefined): string {
   }
   if (query.status !== undefined) {
     params.set('status', query.status);
+  }
+  if (query.projectId !== undefined) {
+    params.set('project_id', query.projectId);
+  }
+  if (query.priority !== undefined) {
+    params.set('priority', query.priority);
+  }
+  if (query.tag !== undefined) {
+    params.set('tag', query.tag);
+  }
+  if (query.q !== undefined && query.q.length > 0) {
+    params.set('q', query.q);
+  }
+  if (query.flat === true) {
+    params.set('flat', 'true');
   }
   if (query.overdue === true) {
     params.set('overdue', 'true');

@@ -1,16 +1,67 @@
-# Handoff — acceso de agentes (fase 1, punto 7)
+# Handoff — spec de UI (feat/ui-spec)
 
-Punto seguro para retomar. Lint, typecheck, tests unitarios y la integración de la API pasan en local. La CI los corre después de compilar `packages/domain`. La rama es `feat/agent-access` y se cierra con el merge de la PR #8 a `main`. El tag `phase-1.7` marca el handoff de antes de traer el shell; la punta de la rama incluye ese merge. No se usa `feat/filters`: el punto 6 ya está en `main` (PR #7, tag `phase-1.6`). La PR #5 (shell y Hoy) también está en `main`; esta rama se actualizó encima para poder mergear.
+La web cubre el mapa de `docs/spec/tick-tack-done-ui-spec-v1.0.md` en una sola rama. Lo que la API ya publica se lee y se escribe por `@reflexionia/sdk`. Lo que la spec pide y la API no publica existe como pantalla con el estado vacío de la spec. No hay endpoints inventados. Esta rama incluye el punto 7 (PAT y MCP), que ya está en `main`.
 
-## Dónde estamos
+`apps/api/tsconfig.json` sigue en NodeNext. No revertirlo.
 
-Cerrado el punto 7 de la fase 1 (`docs/roadmap.md`): PAT con scopes granulares (RF-2002), límite de 1000 peticiones / 15 min por token y servidor MCP (RF-2001, criterio de aceptación 4 de la sección 17). Los puntos 1 a 6 están en `main`, y el shell de la PR #5 también.
+## Cómo probar este worktree
 
-La API pública sigue en `/api/v1`. OpenAPI está en `/api/docs` y el JSON commiteado es `apps/api/openapi.json`. El cliente web llama a la API solo a través de `@reflexionia/sdk`. `apps/api/tsconfig.json` es NodeNext. No revertirlo a CommonJS.
+`~/CodeProjects/todo-ui-spec`, offset 300. Sin `pnpm dev`.
 
-Siguiente producto: el resto de la fase 1, en una sola PR desde `main`. Pablo lo pidió así el 18 oct 2026: offline, export JSON, backup y el despliegue, más los huecos MVP que siguen abiertos. El prompt está en `docs/prompts/cerrar-fase-1.md`. Esta rama no adelanta ese corte.
+```bash
+pnpm --filter @reflexionia/domain build
+pnpm dev:api
+pnpm --filter web exec vite --port 5473 --strictPort --host 127.0.0.1
+```
 
-Este corte añade la pantalla de tokens, enlazada desde el Hoy del shell. OAuth2 Authorization Code no entra: la UI sigue con la sesión de desarrollo. El módulo de notas no se construye. El pulido visual del shell no es este corte; queda anotado más abajo.
+Web en `http://127.0.0.1:5473`. API en `http://127.0.0.1:3300` (`VITE_API_PROXY`). Auth de desarrollo: `AUTH_MODE=dev` y `demo@reflexionia.test`.
+
+## Bloqueado por falta de API
+
+Estas pantallas están hechas y se quedan en el vacío que describe la spec hasta que exista el endpoint:
+
+- Plan de hoy (UI-403): espera `GET /api/v1/review/daily`.
+- Revisión semanal: espera `GET /api/v1/review/weekly`. Los cuatro pasos se ven vacíos.
+- Jardín digital (`/dashboard` y `/sticky`): espera `GET /api/v1/me/dashboard`. Los widgets no se rellenan con listas de tareas.
+- Reportes semanales: la API no publica el histórico.
+- Calendario: no hay eventos de calendarios externos ni feeds iCal que copiar o regenerar.
+- Ajustes de calendario, integraciones, automatizaciones, webhooks, datos (export y backup), plugins (V2) y compartir (V2): la API no publica esos recursos.
+- Cuenta: `GET/PATCH /api/v1/me` guarda nombre y zona horaria. Contraseña, sesiones, 2FA y borrar la cuenta no tienen endpoint. `/login`, `/register` y `/forgot-password` lo dicen.
+- Notificaciones: solo se guarda `daily_reminder_time`. No hay horas silenciosas ni centro de notificaciones.
+- Foco (V2): el temporizador de 25:00 vive solo en el navegador. No hay sesiones de foco en la API.
+- Actividad de una tarea: el log existe, pero el actor es un id. No hay nombre de token.
+- Ordenar la bandeja por creación: `GET /tasks` solo acepta `sort=manual|priority|due` y `limit` hasta 100. La UI pide `sort=manual` y ordena `created_at` en el cliente.
+- Fijar una tarea, límite WIP de columna y la regla de la matriz no están en el modelo. El WIP es un campo local. La matriz clasifica en cliente (vence en 24 h o ya venció; prioridad alta o media) y al soltar hace `PATCH` de prioridad y fecha.
+
+## Hecho con la API que ya existe
+
+- Barra con contadores, listas con color, etiquetas hacia `/search?q=#nombre`, papelera con confirmación. En menos de 1024 px la barra es un cajón (`inert` si está cerrado). En menos de 640 px, barra inferior.
+- Hoy conserva vencidas, agrupación y deshacer. Muestra lista, etiquetas y la tira de hábitos.
+- Bandeja en modo procesar, detalle (`?task=`), checklist, subtareas, recordatorios, RRULE, adjuntos y actividad.
+- Lista, kanban y timeline. Una tarea sin columna cae en «Sin sección».
+- Smart lists, filtros, búsqueda y paleta. `/habits` y `/habits/:id` (racha y mapa del año).
+- Captura en `/quick-add`. El correo entrante se rota y se revoca en Ajustes.
+- Notas: `/list/:id/note/:taskId` abre el detalle de esa tarea. Convertir nota/tarea usa el `kind` que ya guarda la API.
+- Atajos: `?` abre la ayuda. `G` y luego t/i/c/m/s/a/b/n/r/w navega. `.` invalida las queries.
+- Tokens y MCP: la pantalla del punto 7 está en `/tokens` y en Ajustes → Tokens. Crea, revoca y lista la actividad del token.
+
+## Aún corto respecto a la spec, sin endpoint nuevo
+
+- UI-1902: el banner de offline avisa. Completar sin red no encola con `Idempotency-Key`.
+- UI-606: las listas no virtualizan 5000 filas. UI-405 (presupuesto de 2 s) no está medido.
+- El aviso de primera captura sobre `.` y `?` no está cableado.
+- Kanban y timeline no reordenan dentro de la columna. El calendario de mes no crea ni arrastra ocurrencias.
+- La actividad no muestra el nombre del agente.
+
+## Historial anterior
+
+Lo que sigue es el handoff de shell y Hoy (PR #5) y de los puntos 1 a 6. Ya está en `main` y esta rama lo conserva.
+
+## Historial del punto 6
+
+Lo que sigue describe el corte de filtros ya mergeado (PR #7, tag `phase-1.6`). No es el trabajo abierto.
+
+El punto 7 (PAT, límite por token y MCP) ya está en `main`. Su handoff sigue debajo. La pantalla de tokens de ese corte queda montada en `/tokens` y en Ajustes.
 
 ## Tags
 

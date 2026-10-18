@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useNavigate, useSearchParams } from 'react-router';
 import { CaptureSheet } from './features/capture/components/CaptureSheet';
-import { HabitsPage } from './features/habits/components/HabitsPage';
 import { TokensPage } from './features/tokens/components/TokensPage';
 import { CommandPalette } from './features/views/components/CommandPalette';
 import { FiltersPage } from './features/views/components/FiltersPage';
@@ -15,9 +14,40 @@ import { isPaletteShortcut } from './features/views/shortcuts';
 import { draftFromShare } from './features/capture/share-target';
 import { isCaptureShortcut } from './features/capture/draft';
 import { useCaptureNotice } from './features/capture/notice';
-import { LaterPage } from './features/screens/LaterPage';
+import { HabitsPage } from './features/habits/components/HabitsPage';
+import {
+  AccountPage,
+  AppearanceExtras,
+  AutomationSettings,
+  CalendarPage,
+  CalendarSettings,
+  CaptureSettings,
+  DataSettings,
+  ForgotPage,
+  DashboardPage,
+  FocusPage,
+  HabitDetailPage,
+  InboxPage,
+  IntegrationSettings,
+  LoginPage,
+  MatrixPage,
+  NoteRoute,
+  NotificationSettings,
+  PluginSettings,
+  RegisterPage,
+  ReportsPage,
+  ReviewPage,
+  SearchPage,
+  SettingsLayout,
+  SharingSettings,
+  ShortcutSettings,
+  TaskRoute,
+  WebhookSettings,
+} from './features/places/Places';
 import { AppearancePage } from './features/settings/AppearancePage';
 import { TodayPage } from './features/today/TodayPage';
+import { ShortcutHelp } from './shell/ShortcutHelp';
+import { GlobalKeys } from './shell/GlobalKeys';
 import { AppShell } from './shell/AppShell';
 import { ThemeSync } from './theme/ThemeSync';
 
@@ -32,9 +62,22 @@ export function App() {
 
 function Shell() {
   const [palette, setPalette] = useState(false);
+  const [help, setHelp] = useState(false);
   return (
     <>
       <CaptureHotkey />
+      <GlobalKeys
+        onHelp={() => {
+          setHelp(true);
+        }}
+      />
+      {help ? (
+        <ShortcutHelp
+          onClose={() => {
+            setHelp(false);
+          }}
+        />
+      ) : null}
       <PaletteHotkey
         onToggle={() => {
           setPalette((current) => !current);
@@ -52,36 +95,58 @@ function Shell() {
           <Route path="/" element={<Navigate to="/today" replace />} />
           <Route path="/today" element={<TodayPage />} />
           <Route path="/quick-add" element={<QuickAddRoute />} />
-          <Route path="/inbox" element={<LaterPage titleKey="inboxTitle" />} />
+          <Route path="/inbox" element={<InboxPage />} />
           <Route path="/list/:id" element={<ProjectListPage />} />
           <Route path="/lists/:id" element={<ProjectListPage />} />
-          <Route path="/list/:id/note/:taskId" element={<LaterPage titleKey="noteTitle" />} />
+          <Route path="/list/:id/note/:taskId" element={<NoteRoute />} />
           <Route path="/filter/:id" element={<FilterViewPage />} />
           <Route path="/filters" element={<FiltersPage />} />
           <Route path="/filters/:id" element={<FilterViewPage />} />
           <Route path="/smart/:key" element={<SmartListViewPage />} />
           <Route path="/smart-lists" element={<SmartListsPage />} />
           <Route path="/smart-lists/:key" element={<SmartListViewPage />} />
-          <Route path="/task/:id" element={<LaterPage titleKey="taskTitle" />} />
+          <Route path="/task/:id" element={<TaskRoute />} />
           <Route path="/habits" element={<HabitsPage />} />
-          <Route path="/habits/:id" element={<LaterPage titleKey="habitTitle" />} />
-          <Route path="/calendar/:view" element={<LaterPage titleKey="calendarTitle" />} />
-          <Route path="/matrix" element={<LaterPage titleKey="matrixTitle" />} />
-          <Route path="/focus" element={<LaterPage titleKey="focusTitle" />} />
-          <Route path="/dashboard" element={<LaterPage titleKey="dashboardTitle" />} />
-          <Route path="/reports/weekly" element={<LaterPage titleKey="reportsTitle" />} />
-          <Route path="/reports/weekly/:week" element={<LaterPage titleKey="reportTitle" />} />
-          <Route path="/review/weekly" element={<LaterPage titleKey="reviewTitle" />} />
-          <Route path="/search" element={<LaterPage titleKey="searchTitle" />} />
+          <Route path="/habits/:id" element={<HabitDetailPage />} />
+          <Route path="/calendar" element={<Navigate to="/calendar/month" replace />} />
+          <Route path="/calendar/:view" element={<CalendarPage />} />
+          <Route path="/matrix" element={<MatrixPage />} />
+          <Route path="/focus" element={<FocusPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/reports/weekly" element={<ReportsPage />} />
+          <Route path="/reports/weekly/:week" element={<ReportsPage />} />
+          <Route path="/review/weekly" element={<ReviewPage />} />
+          <Route path="/search" element={<SearchPage />} />
+          <Route path="/sticky" element={<DashboardPage />} />
           <Route path="/tokens" element={<TokensPage />} />
-          <Route path="/settings">
+          <Route path="/settings" element={<SettingsLayout />}>
             <Route index element={<Navigate to="/settings/appearance" replace />} />
-            <Route path="appearance" element={<AppearancePage />} />
-            <Route path="*" element={<LaterPage titleKey="settingsTitle" />} />
+            <Route
+              path="appearance"
+              element={
+                <>
+                  <AppearancePage />
+                  <AppearanceExtras />
+                </>
+              }
+            />
+            <Route path="account" element={<AccountPage />} />
+            <Route path="capture" element={<CaptureSettings />} />
+            <Route path="notifications" element={<NotificationSettings />} />
+            <Route path="smart-lists" element={<SmartListsPage />} />
+            <Route path="calendar" element={<CalendarSettings />} />
+            <Route path="tokens" element={<TokensPage />} />
+            <Route path="integrations" element={<IntegrationSettings />} />
+            <Route path="automations" element={<AutomationSettings />} />
+            <Route path="webhooks" element={<WebhookSettings />} />
+            <Route path="data" element={<DataSettings />} />
+            <Route path="plugins" element={<PluginSettings />} />
+            <Route path="sharing" element={<SharingSettings />} />
+            <Route path="shortcuts" element={<ShortcutSettings />} />
           </Route>
-          <Route path="/login" element={<LaterPage titleKey="loginTitle" />} />
-          <Route path="/register" element={<LaterPage titleKey="registerTitle" />} />
-          <Route path="/forgot-password" element={<LaterPage titleKey="forgotTitle" />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPage />} />
           <Route path="*" element={<Navigate to="/today" replace />} />
         </Route>
       </Routes>

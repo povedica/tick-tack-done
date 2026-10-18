@@ -1,11 +1,11 @@
-import { messagesFor } from '../../i18n';
+import { useMessages } from '../../i18n';
 import { useThemePreference } from '../../theme/store';
 import type { ThemePreference } from '../../theme/preference';
 
 const OPTIONS: readonly ThemePreference[] = ['auto', 'light', 'dark'];
 
 export function AppearancePage() {
-  const messages = messagesFor(navigator.language);
+  const messages = useMessages();
   const preference = useThemePreference((state) => state.preference);
   const setPreference = useThemePreference((state) => state.setPreference);
   const labels: Record<ThemePreference, string> = {

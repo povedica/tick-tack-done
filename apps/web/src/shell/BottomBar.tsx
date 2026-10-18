@@ -1,9 +1,9 @@
 import { CalendarDays, List, Plus, Repeat, Search } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router';
-import { messagesFor } from '../i18n';
+import { useMessages } from '../i18n';
 
 export function BottomBar({ onOpenLists }: { readonly onOpenLists: () => void }) {
-  const messages = messagesFor(navigator.language);
+  const messages = useMessages();
   const navigate = useNavigate();
 
   return (

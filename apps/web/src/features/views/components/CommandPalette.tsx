@@ -2,11 +2,11 @@ import type { SearchResponse } from '@reflexionia/sdk';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useId, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { messagesFor, type Messages } from '../../../i18n';
+import { useMessages, type Messages } from '../../../i18n';
 import { viewsApi } from '../api';
 
 export function CommandPalette({ onClose }: { readonly onClose: () => void }) {
-  const messages = messagesFor(navigator.language);
+  const messages = useMessages();
   const navigate = useNavigate();
   const titleId = useId();
   const [query, setQuery] = useState('');
@@ -69,6 +69,38 @@ export function CommandPalette({ onClose }: { readonly onClose: () => void }) {
               {text.length > 0 ? `: ${text}` : ''}
             </button>
           </li>
+          {query.trim().startsWith('>') || query.trim().length === 0 ? (
+            <>
+              <CommandItem
+                label={messages.commandToday}
+                onRun={() => {
+                  void navigate('/today');
+                  onClose();
+                }}
+              />
+              <CommandItem
+                label={messages.commandInbox}
+                onRun={() => {
+                  void navigate('/inbox');
+                  onClose();
+                }}
+              />
+              <CommandItem
+                label={messages.commandSettings}
+                onRun={() => {
+                  void navigate('/settings/appearance');
+                  onClose();
+                }}
+              />
+              <CommandItem
+                label={messages.commandSync}
+                onRun={() => {
+                  void navigate('/today');
+                  onClose();
+                }}
+              />
+            </>
+          ) : null}
           {query.trim().length === 0
             ? (projects.data?.items ?? []).map((project) => (
                 <li key={project.id}>
@@ -117,6 +149,16 @@ function SearchGroups({
         </li>
       ))}
     </>
+  );
+}
+
+function CommandItem({ label, onRun }: { readonly label: string; readonly onRun: () => void }) {
+  return (
+    <li>
+      <button type="button" onClick={onRun}>
+        {label}
+      </button>
+    </li>
   );
 }
 

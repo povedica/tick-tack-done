@@ -4,14 +4,17 @@ import { createRoot } from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
 import { App } from './app';
 import { applyTheme, readThemePreference } from './theme/preference';
+import { applyPreferences, usePreferences } from './theme/preferences';
 import './styles/tokens.css';
 import './styles.css';
 import './shell/shell.css';
+import './components/ui.css';
 
 applyTheme(
   readThemePreference(localStorage),
   window.matchMedia('(prefers-color-scheme: dark)').matches,
 );
+applyPreferences(usePreferences.getState().density, usePreferences.getState().accent);
 
 registerSW({ immediate: true });
 

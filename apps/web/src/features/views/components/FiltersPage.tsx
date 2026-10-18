@@ -2,7 +2,7 @@ import type { ViewPage } from '@reflexionia/sdk';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { messagesFor, type Messages } from '../../../i18n';
+import { useMessages, type Messages } from '../../../i18n';
 import { viewsApi } from '../api';
 import {
   EMPTY_CONDITION,
@@ -24,7 +24,7 @@ const FIELDS: readonly ConditionField[] = [
 ];
 
 export function FiltersPage() {
-  const messages = messagesFor(navigator.language);
+  const messages = useMessages();
   const queryClient = useQueryClient();
   const filters = useQuery({ queryKey: ['filters'], queryFn: () => viewsApi.listFilters() });
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => viewsApi.listProjects() });

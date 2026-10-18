@@ -2,7 +2,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { UndoToastStack } from '../../components/UndoToast';
-import { fill, messagesFor, type Messages } from '../../i18n';
+import { api } from '../../api';
+import { fill, useMessages, type Messages } from '../../i18n';
 import { warningText } from '../capture/components/CaptureSheet';
 import { useCaptureNotice } from '../capture/notice';
 import { isTypingTarget } from '../../shell/shortcuts';
@@ -25,7 +26,7 @@ import './today.css';
 const GROUP_KEY = 'tick-tack-done.today.group';
 
 export function TodayPage() {
-  const messages = messagesFor(navigator.language);
+  const messages = useMessages();
   const locale = navigator.language;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -42,6 +43,17 @@ export function TodayPage() {
     queryFn: () => tasksApi.listProjects(),
     refetchOnWindowFocus: false,
   });
+  const tags = useQuery({
+    queryKey: ['tags'],
+    queryFn: () => api.listTags(),
+    refetchOnWindowFocus: false,
+  });
+  const habits = useQuery({
+    queryKey: ['habits'],
+    queryFn: () => api.listHabits(),
+    refetchOnWindowFocus: false,
+  });
+  const tagNames = new Map((tags.data?.items ?? []).map((tag) => [tag.id, tag.name]));
   const projectNames = new Map(
     (projects.data?.items ?? []).map((project) => [project.id, project.name]),
   );
@@ -248,20 +260,58 @@ export function TodayPage() {
           locale={locale}
           overdue
           completeLabel={messages.completeLabel}
+          projectNames={projectNames}
+          tagNames={tagNames}
           onComplete={complete}
+          onOpen={(id) => {
+            const next = new URLSearchParams(params);
+            next.set('task', id);
+            setParams(next, { replace: true });
+          }}
         />
       ) : null}
       {sections.map((section) => (
         <TaskGroup
           key={section.id}
-          label={sectionLabel(group, section.id, messages, locale, projectNames)}
+          label={sectionLabel(group, section.id, messages, locale, projectNames, tagNames)}
           tasks={section.tasks}
           locale={locale}
           overdue={false}
           completeLabel={messages.completeLabel}
+          projectNames={projectNames}
+          tagNames={tagNames}
           onComplete={complete}
+          onOpen={(id) => {
+            const next = new URLSearchParams(params);
+            next.set('task', id);
+            setParams(next, { replace: true });
+          }}
         />
       ))}
+      <section>
+        <h2>{messages.habitsToday}</h2>
+        <ul className="task-list">
+          {(habits.data?.items ?? [])
+            .filter((habit) => !habit.archived)
+            .map((habit) => (
+              <li key={habit.id}>
+                <Link to={`/habits/${habit.id}`}>{habit.name}</Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void api.checkInHabit(
+                      habit.id,
+                      { date: habit.today.date, count: habit.today.count + 1 },
+                      crypto.randomUUID(),
+                    );
+                  }}
+                >
+                  {habit.today.count}/{habit.goal.target_count}
+                </button>
+              </li>
+            ))}
+        </ul>
+      </section>
       {empty ? (
         <div className="waiting">
           <p>{messages.todayEmpty}</p>
@@ -298,14 +348,20 @@ function TaskGroup({
   locale,
   overdue,
   completeLabel,
+  projectNames,
+  tagNames,
   onComplete,
+  onOpen,
 }: {
   readonly label: string;
   readonly tasks: readonly TodayTask[];
   readonly locale: string;
   readonly overdue: boolean;
   readonly completeLabel: string;
+  readonly projectNames: ReadonlyMap<string, string>;
+  readonly tagNames: ReadonlyMap<string, string>;
   readonly onComplete: (task: TodayTask) => void;
+  readonly onOpen: (id: string) => void;
 }) {
   return (
     <details className="task-group" open>
@@ -327,15 +383,31 @@ function TaskGroup({
                   }}
                 />
               </label>
-              <span className="task-title">{task.title}</span>
-              {task.dueDate !== null ? (
-                <time
-                  className={overdue ? 'task-date is-overdue' : 'task-date'}
-                  dateTime={task.dueDate}
-                >
-                  {formatDueDate(task.dueDate, task.timeZone, locale)}
-                </time>
-              ) : null}
+              <button
+                type="button"
+                className="task-title"
+                onClick={() => {
+                  onOpen(task.id);
+                }}
+              >
+                {task.title}
+              </button>
+              <span className="task-meta">
+                {task.tagIds.map((id) => (
+                  <span key={id} className="ui-tag">
+                    {tagNames.get(id) ?? id}
+                  </span>
+                ))}
+                <span>{projectNames.get(task.projectId) ?? ''}</span>
+                {task.dueDate !== null ? (
+                  <time
+                    className={overdue ? 'task-date is-overdue' : 'task-date'}
+                    dateTime={task.dueDate}
+                  >
+                    {formatDueDate(task.dueDate, task.timeZone, locale)}
+                  </time>
+                ) : null}
+              </span>
             </div>
           </li>
         ))}
@@ -350,6 +422,7 @@ function sectionLabel(
   messages: Messages,
   locale: string,
   projectNames: ReadonlyMap<string, string>,
+  tagNames: ReadonlyMap<string, string>,
 ): string {
   if (group === 'priority') {
     switch (id) {
@@ -378,7 +451,7 @@ function sectionLabel(
   if (group === 'list') {
     return projectNames.get(id) ?? messages.noList;
   }
-  return id;
+  return tagNames.get(id) ?? id;
 }
 
 function readGroup(): string | null {
