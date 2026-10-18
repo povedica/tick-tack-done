@@ -27,7 +27,6 @@ export const es = {
   listCreated: 'Se ha creado la lista {name}',
   tagNotFound: 'La etiqueta «{name}» no existe y no se ha creado.',
   tagCreated: 'Se ha creado la etiqueta {name}',
-  newTag: 'Nueva etiqueta',
   createLabel: 'Crear',
   nameTaken: 'Ese nombre ya existe.',
   nameInvalid: 'El nombre no es válido.',

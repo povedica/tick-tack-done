@@ -6,9 +6,10 @@ import { useSearchParams } from 'react-router';
 import { api } from '../../api';
 import { PriorityCheck } from '../../components/PriorityCheck';
 import { Button, TagChip } from '../../components/ui';
-import { fill, type Messages } from '../../i18n';
+import { captureLanguage, fill, type Messages } from '../../i18n';
 import { noticesFrom, useCaptureNotice } from '../capture/notice';
-import { listCaptureBody } from '../capture/submit';
+import { quickAddRequest, type ViewDay } from '../capture/quick-add';
+import { refreshTaskSurfaces } from './refresh';
 import { newMutation, runOrQueue } from '../offline/client';
 import { isOverdue, isSameDay, type RowModel } from './model';
 
@@ -19,6 +20,7 @@ export function TaskList({
   onComplete,
   onCreated,
   createProjectId,
+  createViewDay = null,
   columns,
   view,
   showDetails = true,
@@ -30,6 +32,7 @@ export function TaskList({
   readonly onComplete: (row: RowModel) => void;
   readonly onCreated?: (() => void) | undefined;
   readonly createProjectId?: string | undefined;
+  readonly createViewDay?: ViewDay | null | undefined;
   readonly columns?:
     | readonly { readonly id: string; readonly name: string; readonly wip_limit?: number | null }[]
     | undefined;
@@ -40,11 +43,12 @@ export function TaskList({
   const queryClient = useQueryClient();
   const [params, setParams] = useSearchParams();
   const setNotice = useCaptureNotice((state) => state.setNotice);
-  const [draft, setDraft] = useState('');
-  const [addError, setAddError] = useState<string | null>(null);
-  const addRef = useRef<HTMLInputElement>(null);
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
   const [limit, setLimit] = useState('');
+  const [draft, setDraft] = useState('');
+  const [pending, setPending] = useState<readonly RowModel[]>([]);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const addRef = useRef<HTMLInputElement>(null);
   const now = useMemo(() => new Date(), []);
 
   function open(id: string): void {
@@ -65,7 +69,10 @@ export function TaskList({
     });
   }
 
-  const visible = hideCompleted ? rows.filter((row) => row.status !== 'completed') : rows;
+  const visible = [
+    ...pending,
+    ...(hideCompleted ? rows.filter((row) => row.status !== 'completed') : rows),
+  ];
   const detailId = params.get('task');
   const body =
     view === 'kanban' ? (
@@ -73,6 +80,7 @@ export function TaskList({
         messages={messages}
         rows={visible}
         columns={columns ?? []}
+        projectId={createProjectId}
         onOpen={open}
         onComplete={onComplete}
       />
@@ -107,51 +115,86 @@ export function TaskList({
   return (
     <div>
       {createProjectId !== undefined ? (
-        <form
-          className="inline-add"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const text = draft;
-            if (text.trim().length === 0) {
-              return;
-            }
-            const body = listCaptureBody(text, createProjectId);
-            void runOrQueue(newMutation('create', crypto.randomUUID(), { ...body }), (key) =>
-              api.createTask(body, key),
-            )
-              .then((outcome) => {
-                setDraft('');
-                setAddError(null);
-                addRef.current?.focus();
-                if (outcome.result !== null) {
-                  const warnings = noticesFrom(outcome.result.warnings);
-                  if (warnings.length > 0) {
-                    setNotice({ title: outcome.result.title, warnings });
-                  }
-                }
-                void queryClient.invalidateQueries({ queryKey: ['tags'] });
-                void queryClient.invalidateQueries({ queryKey: ['projects'] });
-                void queryClient.invalidateQueries({ queryKey: ['smart-lists'] });
-                void queryClient.invalidateQueries({ queryKey: ['today-tasks'] });
-                onCreated?.();
-              })
-              .catch(() => {
-                setAddError(messages.createFailed);
+        <>
+          <form
+            className="inline-add"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const title = draft.trim();
+              if (title.length === 0) {
+                return;
+              }
+              const request = quickAddRequest({
+                text: title,
+                language: captureLanguage(locale),
+                now: new Date().toISOString(),
+                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                viewDay: createViewDay,
+                defaultProjectId: createProjectId,
               });
-          }}
-        >
-          <input
-            ref={addRef}
-            name="title"
-            value={draft}
-            aria-label={messages.addTask}
-            placeholder={`+ ${messages.addTask}`}
-            onChange={(event) => {
-              setDraft(event.target.value);
+              const tempId = `pending-${crypto.randomUUID()}`;
+              const row: RowModel = {
+                id: tempId,
+                title: request.parsed.title.length > 0 ? request.parsed.title : title,
+                priority: request.parsed.priority ?? 'none',
+                dueDate: request.dueDate ?? request.parsed.due?.date ?? null,
+                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                projectId: createProjectId,
+                projectName: '',
+                columnId: null,
+                tags: request.parsed.tagNames.map((name) => ({ id: name, name, color: null })),
+                checklist: { completed: 0, total: 0 },
+                kind: 'task',
+                status: 'active',
+                repeat: false,
+                source: 'manual',
+                content: '',
+              };
+              setDraft('');
+              setCreateError(null);
+              setPending((current) => [row, ...current]);
+              addRef.current?.focus();
+              void runOrQueue(newMutation('create', tempId, { ...request.body }), (key) =>
+                api.createTask(request.body, key),
+              )
+                .then((outcome) => {
+                  if (outcome.result !== null) {
+                    const warnings = noticesFrom(outcome.result.warnings);
+                    if (warnings.length > 0) {
+                      setNotice({ title: outcome.result.title, warnings });
+                    }
+                  }
+                  if (!outcome.queued) {
+                    setPending((current) => current.filter((item) => item.id !== tempId));
+                    void refreshTaskSurfaces(queryClient);
+                  }
+                  onCreated?.();
+                })
+                .catch(() => {
+                  setPending((current) => current.filter((item) => item.id !== tempId));
+                  setDraft(title);
+                  setCreateError(messages.createFailed);
+                  addRef.current?.focus();
+                });
             }}
-          />
-          {addError !== null ? <p className="error">{addError}</p> : null}
-        </form>
+          >
+            <input
+              ref={addRef}
+              name="title"
+              value={draft}
+              aria-label={messages.addTask}
+              placeholder={`+ ${messages.addTask}`}
+              onChange={(event) => {
+                setDraft(event.target.value);
+              }}
+            />
+          </form>
+          {createError !== null ? (
+            <p className="error" role="alert">
+              {createError}
+            </p>
+          ) : null}
+        </>
       ) : null}
       {body}
       {selected.size > 0 ? (
@@ -311,7 +354,9 @@ function TaskRow({
           </span>
         ) : null}
         {row.projectName.length > 0 ? (
-          <span className="task-list-name">{row.projectName}</span>
+          <span className="task-list-name" title={row.projectName}>
+            {row.projectName}
+          </span>
         ) : null}
         {row.source === 'email' ? <span title={messages.sourceEmail}>✉</span> : null}
         {row.source === 'api' ? <span title={messages.sourceApi}>API</span> : null}
@@ -334,6 +379,7 @@ function Kanban({
   messages,
   rows,
   columns,
+  projectId,
   onOpen,
   onComplete,
 }: {
@@ -344,9 +390,12 @@ function Kanban({
     readonly name: string;
     readonly wip_limit?: number | null;
   }[];
+  readonly projectId?: string | undefined;
   readonly onOpen: (id: string) => void;
   readonly onComplete: (row: RowModel) => void;
 }) {
+  const queryClient = useQueryClient();
+  const [section, setSection] = useState('');
   const loose = rows.some((row) => row.columnId === null || row.columnId.length === 0);
   const cols =
     columns.length === 0
@@ -415,6 +464,31 @@ function Kanban({
           </section>
         );
       })}
+      {projectId !== undefined ? (
+        <form
+          className="kanban-col kanban-add"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const name = section.trim();
+            if (name.length === 0) {
+              return;
+            }
+            void api.createColumn(projectId, name, crypto.randomUUID()).then(() => {
+              setSection('');
+              void queryClient.invalidateQueries({ queryKey: ['columns', projectId] });
+            });
+          }}
+        >
+          <input
+            aria-label={messages.noColumns}
+            placeholder={messages.noColumns}
+            value={section}
+            onChange={(event) => {
+              setSection(event.target.value);
+            }}
+          />
+        </form>
+      ) : null}
     </div>
   );
 }

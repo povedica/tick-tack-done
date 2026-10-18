@@ -63,6 +63,7 @@ export interface ViewTask extends ArrangedTask {
   readonly checklist: readonly ViewChecklistJson[];
   readonly assigneeId: string | null;
   readonly deletedAt: string | null;
+  readonly completedAt: string | null;
   readonly subject: FilterSubject;
 }
 
@@ -143,6 +144,7 @@ function toViewTask(row: TaskRow): ViewTask {
     checklist,
     assigneeId: row.assigneeId,
     deletedAt: iso(row.deletedAt),
+    completedAt: iso(row.completedAt),
     createdAt,
     sortOrder: row.sortOrder.toString(),
     subject: {

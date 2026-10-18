@@ -9,24 +9,28 @@ import {
   LayoutDashboard,
   ListTodo,
   MoreHorizontal,
+  Plus,
   PanelLeftClose,
   PanelLeftOpen,
-  Plus,
   Repeat,
   Sparkles,
   Sun,
   UserRound,
   type LucideIcon,
 } from 'lucide-react';
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, NavLink, useLocation, useMatch } from 'react-router';
 import { api } from '../api';
+import { BrandMark } from '../components/BrandMark';
 import { Badge } from '../components/ui';
-import { useMessages, type Messages } from '../i18n';
+import { fill, useMessages, type Messages } from '../i18n';
 import { usePreferences } from '../theme/preferences';
 import { nextTheme, type ThemePreference } from '../theme/preference';
 import { useThemePreference } from '../theme/store';
 import { smartPath } from '../features/tasks/model';
+import { orderedSmartLists, SIDEBAR_SMART_ORDER } from './smart-order';
+
+const LIST_COLORS = ['#4772FA', '#E13E39', '#FAA80C', '#1F9D55', '#7C5CFF', '#F06595'] as const;
 
 const SMART_ICONS: Record<string, LucideIcon> = {
   today: Sun,
@@ -60,12 +64,44 @@ export function Sidebar({
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
   const filters = useQuery({ queryKey: ['filters'], queryFn: () => api.listFilters() });
   const tags = useQuery({ queryKey: ['tags'], queryFn: () => api.listTags() });
+  const [draft, setDraft] = useState('');
+  const [addingList, setAddingList] = useState(false);
+  const [listError, setListError] = useState<string | null>(null);
+  const [addingTag, setAddingTag] = useState(false);
+  const [tagDraft, setTagDraft] = useState('');
+  const [tagError, setTagError] = useState<string | null>(null);
+  const listField = useRef<HTMLInputElement>(null);
+  const tagField = useRef<HTMLInputElement>(null);
+  const [menuId, setMenuId] = useState<string | null>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
   const location = useLocation();
   const [confirmTrash, setConfirmTrash] = useState(false);
   const themeLabel = themeName(messages, preference);
-  const lists = [...(smart.data?.items ?? [])].sort((left, right) =>
-    left.sort_order.localeCompare(right.sort_order),
+  const ordered = orderedSmartLists(smart.data?.items ?? []);
+  const lists = ordered.filter(
+    (item) => item.enabled && (SIDEBAR_SMART_ORDER as readonly string[]).includes(item.key),
   );
+  const trash = ordered.find((item) => item.key === 'trash');
+  const filterItems = filters.data?.items ?? [];
+  const tagItems = tags.data?.items ?? [];
+  const projectItems = (projects.data?.items ?? []).filter((project) => !project.closed);
+
+  useEffect(() => {
+    if (menuId === null) {
+      return;
+    }
+    function onKey(event: KeyboardEvent): void {
+      if (event.key === 'Escape') {
+        setMenuId(null);
+        setAddingList(false);
+        setAddingTag(false);
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [menuId]);
 
   return (
     <aside
@@ -76,6 +112,7 @@ export function Sidebar({
       inert={concealed ? true : undefined}
     >
       <NavLink className="brand" to="/today" onClick={onNavigate}>
+        <BrandMark />
         <span className="brand-name">{messages.appName}</span>
       </NavLink>
       {smart.isPending ? (
@@ -113,9 +150,19 @@ export function Sidebar({
               </li>
             ))}
         </ul>
-        <p className="nav-section">{messages.filtersTitle}</p>
+        <SectionHead title={messages.filtersTitle}>
+          <Link
+            className="nav-add"
+            to="/filters"
+            aria-label={messages.newFilter}
+            onClick={onNavigate}
+          >
+            <Plus size={16} aria-hidden="true" />
+          </Link>
+        </SectionHead>
+        {filterItems.length === 0 ? <p className="nav-empty">{messages.filtersEmpty}</p> : null}
         <ul className="nav-list">
-          {(filters.data?.items ?? []).map((filter) => (
+          {filterItems.map((filter) => (
             <li key={filter.id}>
               <SideLink to={`/filter/${filter.id}`} section onNavigate={onNavigate}>
                 <span
@@ -128,78 +175,187 @@ export function Sidebar({
             </li>
           ))}
         </ul>
-        <SectionCreate
-          title={messages.listsTitle}
-          addLabel={messages.newList}
-          placeholder={messages.newList}
-          createLabel={messages.createLabel}
-          onCreate={async (raw) => {
-            const name = raw.trim();
-            if (name.length === 0 || name.length > 200) {
-              return name.length === 0 ? null : messages.nameInvalid;
-            }
-            const taken = (projects.data?.items ?? []).some(
-              (project) =>
-                project.name.localeCompare(name, undefined, { sensitivity: 'accent' }) === 0,
-            );
-            if (taken) {
-              return messages.nameTaken;
-            }
-            try {
-              await api.createProject({ name, color: '#4772fa' }, crypto.randomUUID());
-            } catch (error) {
-              if (error instanceof ApiError && error.status === 409) {
-                return messages.nameTaken;
+        <SectionHead title={messages.listsTitle}>
+          <button
+            type="button"
+            className="nav-add"
+            aria-label={messages.newList}
+            aria-expanded={addingList}
+            onClick={() => {
+              setAddingList((current) => !current);
+              setDraft('');
+              setListError(null);
+            }}
+          >
+            <Plus size={16} aria-hidden="true" />
+          </button>
+        </SectionHead>
+        {addingList ? (
+          <form
+            className="nav-create"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const name = draft.trim();
+              if (name.length === 0 || name.length > 200) {
+                setListError(name.length === 0 ? null : messages.nameInvalid);
+                return;
               }
-              return messages.nameInvalid;
-            }
-            await queryClient.invalidateQueries({ queryKey: ['projects'] });
-            return null;
-          }}
-        />
+              const taken = projectItems.some(
+                (project) =>
+                  project.name.localeCompare(name, undefined, { sensitivity: 'accent' }) === 0,
+              );
+              if (taken) {
+                setListError(messages.nameTaken);
+                return;
+              }
+              void api.createProject({ name, color: '#4772fa' }, crypto.randomUUID()).then(
+                () => {
+                  setDraft('');
+                  setListError(null);
+                  listField.current?.focus();
+                  void queryClient.invalidateQueries({ queryKey: ['projects'] });
+                },
+                (error: unknown) => {
+                  setListError(
+                    error instanceof ApiError && error.status === 409
+                      ? messages.nameTaken
+                      : messages.nameInvalid,
+                  );
+                },
+              );
+            }}
+          >
+            <input
+              ref={listField}
+              value={draft}
+              aria-label={messages.newList}
+              placeholder={messages.newList}
+              autoFocus
+              onChange={(event) => {
+                setDraft(event.target.value);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                  event.preventDefault();
+                  setAddingList(false);
+                  setDraft('');
+                  setListError(null);
+                }
+              }}
+            />
+            <button type="submit">{messages.createLabel}</button>
+            {listError !== null ? <p className="error">{listError}</p> : null}
+          </form>
+        ) : null}
         <ul className="nav-list">
-          {(projects.data?.items ?? [])
-            .filter((project) => !project.closed)
-            .map((project) => (
-              <li key={project.id}>
-                <SideLink to={`/list/${project.id}`} section onNavigate={onNavigate}>
-                  <span
-                    className="color-dot"
-                    style={project.color === null ? undefined : { background: project.color }}
-                  />
-                  <span className="nav-label">{project.name}</span>
-                  {showCounters ? <Badge value={project.active_task_count} /> : null}
-                </SideLink>
-              </li>
-            ))}
+          {projectItems.map((project) => (
+            <li key={project.id} className="nav-row">
+              <SideLink to={`/list/${project.id}`} section onNavigate={onNavigate}>
+                <span
+                  className="color-dot"
+                  style={project.color === null ? undefined : { background: project.color }}
+                />
+                <span className="nav-label">
+                  {project.is_inbox ? messages.smartInbox : project.name}
+                </span>
+                {showCounters ? <Badge value={project.active_task_count} /> : null}
+              </SideLink>
+              <button
+                type="button"
+                className="nav-more-btn"
+                aria-label={messages.menuLabel}
+                aria-expanded={menuId === project.id}
+                onClick={() => {
+                  setMenuId((current) => (current === project.id ? null : project.id));
+                }}
+              >
+                <MoreHorizontal size={16} aria-hidden="true" />
+              </button>
+              {menuId === project.id ? (
+                <ListMenu
+                  project={project}
+                  messages={messages}
+                  onClose={() => {
+                    setMenuId(null);
+                  }}
+                  onChanged={() => {
+                    void queryClient.invalidateQueries({ queryKey: ['projects'] });
+                  }}
+                />
+              ) : null}
+            </li>
+          ))}
         </ul>
-        <SectionCreate
-          title={messages.tagsTitle}
-          addLabel={messages.newTag}
-          placeholder={messages.newTag}
-          createLabel={messages.createLabel}
-          onCreate={async (raw) => {
-            const name = normalizeTagName(raw);
-            if (name === null) {
-              return raw.trim().length === 0 ? null : messages.nameInvalid;
-            }
-            try {
-              await api.createTag({ name }, crypto.randomUUID());
-            } catch (error) {
-              if (
-                error instanceof ApiError &&
-                (error.status === 409 || error.code === 'tag_name_taken')
-              ) {
-                return messages.nameTaken;
+        <SectionHead title={messages.tagsTitle}>
+          <button
+            type="button"
+            className="nav-add"
+            aria-label={messages.newTag}
+            aria-expanded={addingTag}
+            onClick={() => {
+              setAddingTag((current) => !current);
+              setTagDraft('');
+              setTagError(null);
+            }}
+          >
+            <Plus size={16} aria-hidden="true" />
+          </button>
+        </SectionHead>
+        {tagItems.length === 0 && !addingTag ? (
+          <p className="nav-empty">{messages.tagsEmpty}</p>
+        ) : null}
+        {addingTag ? (
+          <form
+            className="nav-create"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const name = normalizeTagName(tagDraft);
+              if (name === null) {
+                setTagError(tagDraft.trim().length === 0 ? null : messages.nameInvalid);
+                return;
               }
-              return messages.nameInvalid;
-            }
-            await queryClient.invalidateQueries({ queryKey: ['tags'] });
-            return null;
-          }}
-        />
+              void api.createTag({ name, color: '#4772fa' }, crypto.randomUUID()).then(
+                () => {
+                  setTagDraft('');
+                  setTagError(null);
+                  tagField.current?.focus();
+                  void queryClient.invalidateQueries({ queryKey: ['tags'] });
+                },
+                (error: unknown) => {
+                  setTagError(
+                    error instanceof ApiError &&
+                      (error.status === 409 || error.code === 'tag_name_taken')
+                      ? messages.nameTaken
+                      : messages.nameInvalid,
+                  );
+                },
+              );
+            }}
+          >
+            <input
+              ref={tagField}
+              value={tagDraft}
+              aria-label={messages.newTag}
+              placeholder={messages.newTag}
+              autoFocus
+              onChange={(event) => {
+                setTagDraft(event.target.value);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                  event.preventDefault();
+                  setAddingTag(false);
+                  setTagDraft('');
+                  setTagError(null);
+                }
+              }}
+            />
+            <button type="submit">{messages.createLabel}</button>
+            {tagError !== null ? <p className="error">{tagError}</p> : null}
+          </form>
+        ) : null}
         <ul className="nav-list">
-          {(tags.data?.items ?? []).map((tag) => {
+          {tagItems.map((tag) => {
             const href = `/search?q=${encodeURIComponent(`#${tag.name}`)}`;
             const current = `${location.pathname}${location.search}` === href;
             return (
@@ -213,46 +369,59 @@ export function Sidebar({
                 >
                   <span className="nav-label">{tag.name}</span>
                   {showCounters ? <Badge value={tag.active_task_count} /> : null}
-                  <MoreHorizontal className="nav-more" size={16} aria-hidden="true" />
                 </Link>
               </li>
             );
           })}
         </ul>
-        <p className="nav-section">{messages.navMore}</p>
-        <ul className="nav-list">
-          <Item
-            to="/calendar/month"
-            label={messages.navCalendar}
-            onNavigate={onNavigate}
-            icon={CalendarDays}
-          />
-          <Item to="/matrix" label={messages.navMatrix} onNavigate={onNavigate} />
-          <Item
-            to="/dashboard"
-            label={messages.navDashboard}
-            onNavigate={onNavigate}
-            icon={LayoutDashboard}
-          />
-          <Item to="/reports/weekly" label={messages.navReports} onNavigate={onNavigate} />
-          <Item to="/review/weekly" label={messages.navReview} onNavigate={onNavigate} />
-          <Item to="/focus" label={messages.navFocus} onNavigate={onNavigate} />
-          <Item to="/habits" label={messages.navHabits} onNavigate={onNavigate} icon={Repeat} />
-          <Item to="/settings/appearance" label={messages.navSettings} onNavigate={onNavigate} />
-        </ul>
-        <p className="nav-section">{messages.smartTrash}</p>
+        <button
+          type="button"
+          className="nav-section nav-more-toggle"
+          aria-expanded={moreOpen}
+          onClick={() => {
+            setMoreOpen((current) => !current);
+          }}
+        >
+          {moreOpen ? messages.hideMore : messages.showMore}
+        </button>
+        {moreOpen ? (
+          <ul className="nav-list">
+            <Item
+              to="/calendar/month"
+              label={messages.navCalendar}
+              onNavigate={onNavigate}
+              icon={CalendarDays}
+            />
+            <Item to="/matrix" label={messages.navMatrix} onNavigate={onNavigate} />
+            <Item
+              to="/dashboard"
+              label={messages.navDashboard}
+              onNavigate={onNavigate}
+              icon={LayoutDashboard}
+            />
+            <Item to="/reports/weekly" label={messages.navReports} onNavigate={onNavigate} />
+            <Item to="/review/weekly" label={messages.navReview} onNavigate={onNavigate} />
+            <Item to="/focus" label={messages.navFocus} onNavigate={onNavigate} />
+            <Item to="/habits" label={messages.navHabits} onNavigate={onNavigate} icon={Repeat} />
+            <Item to="/settings/appearance" label={messages.navSettings} onNavigate={onNavigate} />
+          </ul>
+        ) : null}
+      </nav>
+      <div className="sidebar-footer">
         <SideLink to="/smart/trash" onNavigate={onNavigate}>
           <span className="nav-label">{messages.smartTrash}</span>
+          {showCounters ? <Badge value={trash?.task_count ?? 0} /> : null}
         </SideLink>
-        <p className="ui-muted">{messages.trashHint}</p>
         {confirmTrash ? (
-          <div>
+          <div className="nav-confirm">
             <p>{messages.emptyTrashBody}</p>
             <button
               type="button"
               onClick={() => {
                 void api.emptyTrash().then(() => {
                   setConfirmTrash(false);
+                  void queryClient.invalidateQueries({ queryKey: ['smart-lists'] });
+                  void queryClient.invalidateQueries({ queryKey: ['smart-list-tasks'] });
                 });
               }}
             >
@@ -262,6 +431,7 @@ export function Sidebar({
         ) : (
           <button
             type="button"
+            className="text-button"
             onClick={() => {
               setConfirmTrash(true);
             }}
@@ -269,8 +439,6 @@ export function Sidebar({
             {messages.emptyTrash}
           </button>
         )}
-      </nav>
-      <div className="sidebar-footer">
         <button
           type="button"
           className="theme-cycle"
@@ -346,93 +514,123 @@ function SideLink({
       onClick={onNavigate}
     >
       {children}
-      <MoreHorizontal className="nav-more" size={16} aria-hidden="true" />
     </NavLink>
   );
 }
 
-function SectionCreate({
+function SectionHead({
   title,
-  addLabel,
-  placeholder,
-  createLabel,
-  onCreate,
+  children,
 }: {
   readonly title: string;
-  readonly addLabel: string;
-  readonly placeholder: string;
-  readonly createLabel: string;
-  readonly onCreate: (name: string) => Promise<string | null>;
+  readonly children: ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const field = useRef<HTMLInputElement>(null);
-
-  function close(): void {
-    setOpen(false);
-    setDraft('');
-    setError(null);
-  }
-
   return (
-    <>
-      <div className="nav-section-head">
-        <p className="nav-section">{title}</p>
-        <button
-          type="button"
-          className="nav-add"
-          aria-label={addLabel}
-          onClick={() => {
-            setOpen(true);
-            setError(null);
-            queueMicrotask(() => {
-              field.current?.focus();
-            });
+    <div className="nav-section-row">
+      <p className="nav-section">{title}</p>
+      {children}
+    </div>
+  );
+}
+
+function ListMenu({
+  project,
+  messages,
+  onClose,
+  onChanged,
+}: {
+  readonly project: { id: string; name: string; is_inbox: boolean };
+  readonly messages: Messages;
+  readonly onClose: () => void;
+  readonly onChanged: () => void;
+}) {
+  const [name, setName] = useState(project.is_inbox ? messages.smartInbox : project.name);
+  const [confirm, setConfirm] = useState(false);
+  return (
+    <div className="list-menu" role="menu">
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          const next = name.trim();
+          if (next.length === 0 || project.is_inbox) {
+            return;
+          }
+          void api.updateProject(project.id, { name: next }).then(() => {
+            onChanged();
+            onClose();
+          });
+        }}
+      >
+        <input
+          aria-label={messages.rename}
+          value={name}
+          disabled={project.is_inbox}
+          onChange={(event) => {
+            setName(event.target.value);
           }}
-        >
-          <Plus size={16} aria-hidden="true" />
-        </button>
-      </div>
-      {open ? (
-        <form
-          className="nav-create"
-          onKeyDown={(event) => {
-            if (event.key === 'Escape') {
-              event.preventDefault();
-              close();
-            }
-          }}
-          onSubmit={(event) => {
-            event.preventDefault();
-            void onCreate(draft).then((problem) => {
-              if (problem === null && draft.trim().length === 0) {
-                return;
-              }
-              if (problem !== null) {
-                setError(problem);
-                return;
-              }
-              setDraft('');
-              setError(null);
-              field.current?.focus();
-            });
-          }}
-        >
-          <input
-            ref={field}
-            value={draft}
-            aria-label={addLabel}
-            placeholder={placeholder}
-            onChange={(event) => {
-              setDraft(event.target.value);
+        />
+      </form>
+      <div className="color-row" role="group" aria-label={messages.listColor}>
+        {LIST_COLORS.map((color) => (
+          <button
+            key={color}
+            type="button"
+            className="color-swatch"
+            style={{ background: color }}
+            aria-label={color}
+            onClick={() => {
+              void api.updateProject(project.id, { color }).then(() => {
+                onChanged();
+                onClose();
+              });
             }}
           />
-          <button type="submit">{createLabel}</button>
-          {error !== null ? <p className="error">{error}</p> : null}
-        </form>
-      ) : null}
-    </>
+        ))}
+      </div>
+      {project.is_inbox ? null : (
+        <>
+          <button
+            type="button"
+            className="menu-item"
+            onClick={() => {
+              void api.archiveProject(project.id, crypto.randomUUID()).then(() => {
+                onChanged();
+                onClose();
+              });
+            }}
+          >
+            {messages.archiveList}
+          </button>
+          {confirm ? (
+            <>
+              <p>{fill(messages.deleteListBody, project.name)}</p>
+              <button
+                type="button"
+                className="menu-item is-danger"
+                onClick={() => {
+                  void api.deleteProject(project.id).then(() => {
+                    onChanged();
+                    onClose();
+                  });
+                }}
+              >
+                {messages.confirmDeleteList}
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="menu-item is-danger"
+              onClick={() => {
+                setConfirm(true);
+              }}
+            >
+              {messages.deleteList}
+            </button>
+          )}
+        </>
+      )}
+    </div>
   );
 }
 

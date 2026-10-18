@@ -28,7 +28,6 @@ export const en = {
   listCreated: 'List {name} was created',
   tagNotFound: 'The tag “{name}” does not exist and was not created.',
   tagCreated: 'Tag {name} was created',
-  newTag: 'New tag',
   createLabel: 'Create',
   nameTaken: 'That name already exists.',
   nameInvalid: 'That name is not valid.',

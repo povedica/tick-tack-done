@@ -26,6 +26,13 @@ export type QuickAddLanguage = 'es' | 'en';
  * p1 is low, p2 medium, p3 high. The public priority stays none|low|medium|high.
  * TickTick's 0/1/3/5 map is a different layer and is not applied here.
  */
+/** TickTick quick-add: !1 is high, !2 medium, !3 low. p1–p3 stay low–high (RF-102). */
+const BANG_LEVEL: Readonly<Record<string, Priority>> = {
+  '1': 'high',
+  '2': 'medium',
+  '3': 'low',
+};
+
 const PRIORITY_WORD: Readonly<Record<string, Priority>> = {
   baja: 'low',
   low: 'low',
@@ -113,11 +120,11 @@ const REMINDER =
   /(?<![\p{L}\p{N}])(?:av[ií]same|remind\s+me)\s+(\d+)\s*(min(?:uto)?s?|h(?:our|ora)?s?|d(?:[ií]as?|ays?))\s+(?:antes|before)(?![\p{L}\p{N}])/giu;
 
 const PRIORITY_TOKEN =
-  /(?<![\p{L}\p{N}])(?:!(alta|media|baja|high|medium|low)|p([123]))(?![\p{L}\p{N}])/giu;
+  /(?<![\p{L}\p{N}])(?:!(alta|media|baja|high|medium|low|[123])|p([123]))(?![\p{L}\p{N}])/giu;
 
 const TAG = /(?<![\p{L}\p{N}])#([\p{L}\p{N}_][\p{L}\p{N}_-]{0,98})(?![\p{L}\p{N}])/giu;
 
-const LIST = /(?<![\p{L}\p{N}])[~^]([\p{L}\p{N}_][\p{L}\p{N}_-]{0,98})(?![\p{L}\p{N}])/giu;
+const LIST = /(?<![\p{L}\p{N}])[~^@]([\p{L}\p{N}_][\p{L}\p{N}_-]{0,98})(?![\p{L}\p{N}])/giu;
 
 interface Clock {
   readonly hour: number;
@@ -160,7 +167,7 @@ export function parseQuickAdd(
   context?: QuickAddContext,
 ): QuickAddParse {
   const clock = readClock(context);
-  const matchers = [...builtinMatchers, ...extraMatchers(context?.patterns ?? [])];
+  const matchers = [...extraMatchers(context?.patterns ?? []), ...builtinMatchers];
   const draft: Draft = {
     priority: null,
     tagNames: [],
@@ -399,7 +406,7 @@ function matchPriority(text: string, from: number): Found | null {
     return null;
   }
   const word = fold(match[1] ?? (match[2] === undefined ? '' : `p${match[2]}`));
-  const priority = PRIORITY_WORD[word];
+  const priority = BANG_LEVEL[word] ?? PRIORITY_WORD[word];
   if (priority === undefined) {
     return null;
   }

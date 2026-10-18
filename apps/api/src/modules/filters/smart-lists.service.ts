@@ -133,12 +133,21 @@ export class SmartListsService {
       AND: [{ ownerId: user.id }, { parentId: null }, whereFromClause(clause)],
     });
     const matched = rows.filter((row) => matchesClause(clause, row.subject, clock));
-    return buildViewPage(
+    const page = buildViewPage(
       matched,
       { groupBy: view.groupBy, sort: view.sort, clock },
       limit,
       this.cursor(cursorRaw),
     );
+    if (key === 'completed') {
+      const when = new Map(matched.map((row) => [row.id, row.completedAt ?? '']));
+      for (const group of page.groups) {
+        group.tasks.sort((left, right) =>
+          (when.get(right.id) ?? '').localeCompare(when.get(left.id) ?? ''),
+        );
+      }
+    }
+    return page;
   }
 
   private async ensure(tx: Tx, ownerId: string): Promise<void> {

@@ -81,10 +81,7 @@ export function FiltersPage() {
   });
 
   return (
-    <main className="screen">
-      <p>
-        <Link to="/today">{messages.backToday}</Link>
-      </p>
+    <main className="screen-page">
       <h1>{messages.filtersTitle}</h1>
       <p>{messages.filtersHint}</p>
       {error !== null ? <p className="error">{error}</p> : null}

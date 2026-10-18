@@ -17,21 +17,84 @@ function isRow(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
+function idCount(value: unknown, key: string): number {
+  if (typeof value !== 'object' || value === null) {
+    return 0;
+  }
+  const ids = (value as Record<string, unknown>)[key];
+  return Array.isArray(ids) ? ids.length : 0;
+}
+
+function CountCard({ label, value }: { readonly label: string; readonly value: number }) {
+  return (
+    <article className="widget">
+      <h3>{label}</h3>
+      <p className="detail-title">{value}</p>
+    </article>
+  );
+}
+
 function clock(seconds: number): string {
   return `${String(Math.floor(seconds / 60))}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
-function widgetText(value: unknown): string {
-  if (typeof value === 'string') {
-    return value;
+const WIDGET_LABEL = {
+  completed_today: 'widgetCompletedToday',
+  completed_week: 'widgetCompletedWeek',
+  overdue: 'widgetOverdue',
+  next_7_days: 'widgetNext7',
+  flow: 'widgetCreated',
+  habits: 'widgetHabit',
+  load: 'widgetTrend',
+  calendar: 'calendarTitle',
+  integrations: 'settingsIntegrations',
+  focus: 'navFocus',
+} as const;
+
+function widgetLabel(messages: ReturnType<typeof useMessages>, key: string): string {
+  if (!Object.hasOwn(WIDGET_LABEL, key)) {
+    return key;
   }
-  if (typeof value === 'number' || typeof value === 'boolean') {
+  return messages[WIDGET_LABEL[key as keyof typeof WIDGET_LABEL]];
+}
+
+function asText(value: unknown): string {
+  if (typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean') {
     return String(value);
   }
-  if (value === null || value === undefined) {
+  return '0';
+}
+
+function widgetText(messages: ReturnType<typeof useMessages>, key: string, value: unknown): string {
+  if (typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean') {
+    return String(value);
+  }
+  if (typeof value !== 'object' || value === null) {
     return '';
   }
-  return JSON.stringify(value);
+  const row = value as Record<string, unknown>;
+  if (key === 'completed_week') {
+    return `${asText(row.value)} · ${messages.widgetTrend} ${asText(row.trend)}`;
+  }
+  if (key === 'flow') {
+    return `${messages.widgetCreated} ${asText(row.created)} · ${messages.widgetCompleted} ${asText(row.completed)} · ${messages.widgetNet} ${asText(row.net)}`;
+  }
+  if (key === 'habits') {
+    return `${asText(row.percent)}%`;
+  }
+  if (key === 'focus') {
+    const seconds = typeof row.seconds === 'number' ? row.seconds : 0;
+    return clock(seconds);
+  }
+  if (key === 'calendar') {
+    return asText(row.upcoming);
+  }
+  if (key === 'integrations') {
+    return Object.entries(row)
+      .map(([name, on]) => `${name}: ${on === true ? messages.online : messages.offline}`)
+      .join(' · ');
+  }
+  return '';
 }
 
 function text(value: unknown): string {
@@ -49,8 +112,8 @@ export function DashboardPage() {
       <div className="widget-grid">
         {Object.entries(widgets).map(([key, value]) => (
           <article key={key} className="widget">
-            <h3>{key}</h3>
-            <p>{widgetText(value)}</p>
+            <h3>{widgetLabel(messages, key)}</h3>
+            <p>{widgetText(messages, key, value)}</p>
           </article>
         ))}
       </div>
@@ -104,10 +167,7 @@ export function ReportsPage() {
         ))}
       </ul>
       {current !== undefined ? (
-        <p>
-          {text((current.payload as { summary?: unknown } | undefined)?.summary) ||
-            JSON.stringify(current.payload)}
-        </p>
+        <p>{text((current.payload as { summary?: unknown } | undefined)?.summary)}</p>
       ) : null}
     </section>
   );
@@ -121,13 +181,13 @@ export function ReviewPage() {
     <section className="screen-page">
       <h1>{messages.reviewTitle}</h1>
       <p>{messages.reviewLead}</p>
-      <h2>{text(daily.data?.rule)}</h2>
-      <ul>
-        {Array.isArray(daily.data?.task_ids)
-          ? (daily.data.task_ids as unknown[]).map((id) => <li key={String(id)}>{String(id)}</li>)
-          : null}
+      <ul className="widget-grid">
+        <CountCard label={messages.reviewProposed} value={idCount(daily.data, 'task_ids')} />
+        <CountCard label={messages.reviewOverdue} value={idCount(weekly.data, 'overdue_ids')} />
+        <CountCard label={messages.reviewUndated} value={idCount(weekly.data, 'undated_ids')} />
+        <CountCard label={messages.reviewStale} value={idCount(weekly.data, 'stale_list_ids')} />
+        <CountCard label={messages.reviewHabits} value={idCount(weekly.data, 'habits_at_risk')} />
       </ul>
-      <p>{JSON.stringify(weekly.data ?? {})}</p>
     </section>
   );
 }
@@ -203,12 +263,19 @@ export function DataSettings() {
       <p>{messages.backupEmpty}</p>
       <Button
         onClick={() => {
-          void api.exportJson().then(() => {
+          void api.exportJson().then((body) => {
+            const blob = new Blob([JSON.stringify(body, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'tick-tack-done.json';
+            link.click();
+            URL.revokeObjectURL(url);
             setExported(true);
           });
         }}
       >
-        JSON
+        {messages.exportJson}
       </Button>
       {exported ? <p role="status">{messages.saved}</p> : null}
       <ul>
@@ -258,7 +325,7 @@ export function IntegrationSettings() {
   return (
     <section>
       <h1>{messages.settingsIntegrations}</h1>
-      <p>Telegram: {telegram.data?.configured === true ? messages.online : messages.gpsMissing}</p>
+      <p>Telegram: {telegram.data?.configured === true ? messages.online : messages.offline}</p>
       <p>Drive: {drive.data?.configured === true ? messages.online : messages.offline}</p>
       <p>Google: {google.data?.connected === true ? account : messages.offline}</p>
       <Button
@@ -379,24 +446,17 @@ export function SharingSettings() {
 }
 
 export function LocationWatch() {
-  const messages = useMessages();
-  const [note, setNote] = useState<string | null>(null);
   useEffect(() => {
     if (!('geolocation' in navigator)) {
-      setNote(messages.gpsMissing);
       return;
     }
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        void api.reportLocation(position.coords.latitude, position.coords.longitude).then(() => {
-          setNote(messages.gpsChecked);
-        });
+        void api.reportLocation(position.coords.latitude, position.coords.longitude);
       },
-      () => {
-        setNote(messages.gpsMissing);
-      },
+      () => undefined,
       { enableHighAccuracy: false, maximumAge: 60_000, timeout: 8_000 },
     );
-  }, [messages.gpsChecked, messages.gpsMissing]);
-  return note === null ? null : <p className="ui-muted">{note}</p>;
+  }, []);
+  return null;
 }

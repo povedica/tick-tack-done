@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { useMessages, type Messages } from '../../../i18n';
+import { orderedSmartLists } from '../../../shell/smart-order';
 import { viewsApi } from '../api';
 
 export function SmartListsPage() {
@@ -12,7 +13,7 @@ export function SmartListsPage() {
   const [order, setOrder] = useState<string[] | null>(null);
   const [enabled, setEnabled] = useState<Record<string, boolean> | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const items = lists.data?.items ?? [];
+  const items = orderedSmartLists(lists.data?.items ?? []);
   const keys = order ?? items.map((item) => item.key);
   const flags =
     enabled ?? Object.fromEntries(items.map((item) => [item.key, item.enabled] as const));
@@ -36,10 +37,7 @@ export function SmartListsPage() {
   });
 
   return (
-    <main className="screen">
-      <p>
-        <Link to="/today">{messages.backToday}</Link>
-      </p>
+    <main className="screen-page">
       <h1>{messages.smartListsTitle}</h1>
       <p>{messages.smartListsHint}</p>
       {lists.isError || error !== null ? <p className="error">{messages.smartFailed}</p> : null}
