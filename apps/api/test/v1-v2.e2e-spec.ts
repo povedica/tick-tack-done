@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaClient } from '@prisma/client';
@@ -179,6 +179,113 @@ describe('V1 and V2 product', () => {
       .send({ text: '/today' })
       .expect(503);
     expect(denied.body.error.code).toBe('telegram_not_configured');
+  });
+
+  it('RF-2003: the webhook creates the task, completes by title and stores a photo', async () => {
+    process.env.TELEGRAM_BOT_TOKEN = 'test-token';
+    process.env.TELEGRAM_VOICE_PROVIDER = 'https://voice.test/transcribe';
+    const paths: string[] = [];
+    const original = globalThis.fetch;
+    globalThis.fetch = async (
+      input: Parameters<typeof fetch>[0],
+      init?: Parameters<typeof fetch>[1],
+    ) => {
+      const url =
+        input instanceof URL ? input.toString() : typeof input === 'string' ? input : input.url;
+      const path = new URL(url).pathname;
+      paths.push(path);
+      if (url.startsWith('https://voice.test/')) {
+        return new Response(JSON.stringify({ text: 'llamar a Ana manana' }), { status: 200 });
+      }
+      if (url.includes('/file/bot')) {
+        return new Response(Buffer.from('jpeg-bytes'), { status: 200 });
+      }
+      if (url.startsWith('https://api.telegram.org/')) {
+        return new Response(JSON.stringify({ ok: true, result: { file_path: 'photos/a.jpg' } }), {
+          status: 200,
+        });
+      }
+      return original(input, init);
+    };
+    const secret = createHash('sha256').update('test-token').digest('hex');
+    const stamp = randomUUID().slice(0, 8);
+    const title = `planta-${stamp}`;
+    try {
+      await session()
+        .post('/api/v1/integrations/telegram/link')
+        .send({ chat_id: '4242' })
+        .expect(201);
+      const created = await request(server)
+        .post('/api/v1/integrations/telegram/webhook')
+        .set('x-telegram-bot-api-secret-token', secret)
+        .send({
+          update_id: 11,
+          message: { chat: { id: 4242 }, text: `/capturar ${title} manana` },
+        })
+        .expect(200);
+      expect(created.body).toEqual({ called_telegram: true, action: 'text' });
+      const listed = await session().get(`/api/v1/tasks?q=${title}`).expect(200);
+      const task = (listed.body.items as { id: string; title: string }[]).find((item) =>
+        item.title.includes(stamp),
+      );
+      expect(task).toBeDefined();
+      const done = await request(server)
+        .post('/api/v1/integrations/telegram/webhook')
+        .set('x-telegram-bot-api-secret-token', secret)
+        .send({
+          update_id: 12,
+          message: { chat: { id: 4242 }, text: `completar ${title}` },
+        })
+        .expect(200);
+      expect(done.body.action).toBe('text');
+      const after = await session()
+        .get(`/api/v1/tasks/${task?.id ?? ''}`)
+        .expect(200);
+      expect(after.body.status).toBe('completed');
+
+      const voice = await request(server)
+        .post('/api/v1/integrations/telegram/webhook')
+        .set('x-telegram-bot-api-secret-token', secret)
+        .send({
+          update_id: 13,
+          message: { chat: { id: 4242 }, voice: { file_id: 'voice-1' } },
+        })
+        .expect(200);
+      expect(voice.body).toEqual({ called_telegram: true, action: 'voice' });
+
+      const photo = await request(server)
+        .post('/api/v1/integrations/telegram/webhook')
+        .set('x-telegram-bot-api-secret-token', secret)
+        .send({
+          update_id: 14,
+          message: {
+            chat: { id: 4242 },
+            caption: `foto-${stamp}`,
+            photo: [{ file_id: 'small' }, { file_id: 'large' }],
+          },
+        })
+        .expect(200);
+      expect(photo.body.action).toBe('photo');
+      const photos = await session().get(`/api/v1/tasks?q=foto-${stamp}`).expect(200);
+      const photoTask = (photos.body.items as { id: string }[])[0];
+      expect(photoTask).toBeDefined();
+      const files = await session()
+        .get(`/api/v1/tasks/${photoTask?.id ?? ''}/attachments`)
+        .expect(200);
+      expect(files.body.items.length).toBeGreaterThan(0);
+      expect(paths.some((item) => item.endsWith('/sendMessage'))).toBe(true);
+
+      const denied = await request(server)
+        .post('/api/v1/integrations/telegram/webhook')
+        .set('x-telegram-bot-api-secret-token', 'nope')
+        .send({ update_id: 15, message: { chat: { id: 4242 }, text: 'hola' } })
+        .expect(401);
+      expect(denied.body.error.code).toBe('unauthorized');
+    } finally {
+      globalThis.fetch = original;
+      delete process.env.TELEGRAM_BOT_TOKEN;
+      delete process.env.TELEGRAM_VOICE_PROVIDER;
+    }
   });
 
   it('RF-2005: a Drive link is stored and nothing is copied', async () => {

@@ -248,4 +248,4 @@ export { allows, parseMentions } from './collaboration/access';
 export type { ShareAction, SharePermission } from './collaboration/access';
 export { isRasterImage } from './attachments/image';
 export { matchTaskByTitle, parseTelegramCommand } from './integrations/telegram';
-export type { TaskTitle, TelegramCommand, TitleMatch } from './integrations/telegram';
+export type { TelegramCommand, TelegramTaskRef, TitleMatch } from './integrations/telegram';

@@ -11,7 +11,7 @@ export type TelegramCommand =
   | { readonly kind: 'complete'; readonly query: string }
   | { readonly kind: 'capture'; readonly text: string };
 
-export interface TaskTitle {
+export interface TelegramTaskRef {
   readonly id: string;
   readonly title: string;
 }
@@ -57,7 +57,7 @@ export function parseTelegramCommand(text: string): TelegramCommand {
 }
 
 /** RF-2003. Completes by title or by 1-based position. The caller never asks for a UUID. */
-export function matchTaskByTitle(tasks: readonly TaskTitle[], query: string): TitleMatch {
+export function matchTaskByTitle(tasks: readonly TelegramTaskRef[], query: string): TitleMatch {
   const wanted = fold(query);
   if (wanted.length === 0) {
     return { status: 'none' };

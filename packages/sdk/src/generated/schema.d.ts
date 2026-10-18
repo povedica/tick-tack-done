@@ -2116,7 +2116,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Remember a chat id. The bot still does not call Telegram without a token. */
+        /** Remember a chat id so the bot can act as this user (RF-2003). */
         post: operations["IntegrationsController_link"];
         delete?: never;
         options?: never;
@@ -2133,7 +2133,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Inbound Telegram update. Refuses to run when the bot token is missing. */
+        /** Inbound Telegram update. Creates the task and replies in the chat (RF-2003). Refuses to run when the bot token is missing. */
         post: operations["IntegrationsController_webhook"];
         delete?: never;
         options?: never;
@@ -3154,9 +3154,6 @@ export interface components {
         };
         LinkDto: {
             chat_id: string;
-        };
-        TelegramUpdateDto: {
-            text?: string;
         };
         DriveDto: {
             task_id: string;
@@ -6787,7 +6784,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["TelegramUpdateDto"];
+                "application/json": {
+                    [key: string]: unknown;
+                };
             };
         };
         responses: {

@@ -1,0 +1,600 @@
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { matchTaskByTitle, parseTelegramCommand, type TelegramCommand } from '@reflexionia/domain';
+import { type AuthUser } from '../../auth/auth-user';
+import { API_SCOPES } from '../../auth/scopes';
+import { DomainEvent } from '../../events/domain-events';
+import { EventRecorder } from '../../events/event-recorder';
+import { asJson } from '../../http/json';
+import { DomainException } from '../../http/domain.exception';
+import { readTelegramUpdate, type TelegramIncoming } from '../../integrations/telegram-update';
+import { PrismaService } from '../../prisma/prisma.service';
+import { ATTACHMENT_MAX_BYTES } from '../tasks/attachment-storage';
+import type { TaskSummaryJson } from '../tasks/task.mapper';
+import { TasksService, type TaskListQuery } from '../tasks/tasks.service';
+import { TelegramApi } from './telegram-api';
+
+const TASK_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export interface TelegramOutcome {
+  readonly called_telegram: boolean;
+  readonly action: string;
+}
+
+interface Reply {
+  readonly text: string;
+  readonly html: boolean;
+  readonly buttons: readonly { readonly text: string; readonly data: string }[];
+}
+
+@Injectable()
+export class TelegramBotService {
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(EventRecorder) private readonly events: EventRecorder,
+    @Inject(TasksService) private readonly tasks: TasksService,
+    @Inject(TelegramApi) private readonly telegram: TelegramApi,
+  ) {}
+
+  async handle(body: unknown): Promise<TelegramOutcome> {
+    const incoming = readTelegramUpdate(body);
+    if (incoming === null) {
+      return { called_telegram: false, action: 'ignored' };
+    }
+    const user = await this.userFor(incoming.chatId);
+    if (user === null) {
+      await this.send(incoming.chatId, plain('Este chat no está vinculado a una cuenta.'));
+      return { called_telegram: true, action: 'unlinked' };
+    }
+    try {
+      if (incoming.kind === 'callback') {
+        await this.completeButton(user, incoming);
+        return { called_telegram: true, action: 'complete' };
+      }
+      if (incoming.kind === 'voice') {
+        const text = await this.transcribe(incoming.fileId);
+        await this.send(incoming.chatId, await this.capture(user, text, incoming.updateId));
+        return { called_telegram: true, action: 'voice' };
+      }
+      if (incoming.kind === 'photo') {
+        await this.photo(user, incoming);
+        return { called_telegram: true, action: 'photo' };
+      }
+      await this.send(incoming.chatId, await this.replyFor(user, incoming.text, incoming.updateId));
+      return { called_telegram: true, action: 'text' };
+    } catch (error) {
+      if (incoming.kind === 'callback' && incoming.callbackId.length > 0) {
+        await this.telegram.call('answerCallbackQuery', {
+          callback_query_id: incoming.callbackId,
+          text: 'No he podido completarla',
+          show_alert: true,
+        });
+      } else {
+        await this.send(incoming.chatId, plain(failureText(error)));
+      }
+      return { called_telegram: true, action: 'error' };
+    }
+  }
+
+  private async replyFor(user: AuthUser, text: string, updateId: string): Promise<Reply> {
+    const cleaned = text.trim().replace(/^\/([a-z_]+)@\w+/i, '/$1');
+    if (cleaned === '/start') {
+      return plain('Escribe una tarea, o usa /capturar, /hoy, /manana, /semana, /lista y /hecho.');
+    }
+    if (cleaned === '/hecho' || cleaned === '/completar') {
+      return plain('Escribe el título: /hecho comprar leche');
+    }
+    const command = parseTelegramCommand(cleaned);
+    if (command.kind === 'capture' && command.text.length === 0) {
+      return plain('Escribe la tarea detrás: /capturar comprar leche mañana');
+    }
+    if (command.kind === 'capture' && command.text.startsWith('/')) {
+      return plain(
+        'Ese comando no existe. Usa /capturar, /hoy, /manana, /semana, /lista o /hecho.',
+      );
+    }
+    if (command.kind === 'capture') {
+      return this.capture(user, command.text, updateId);
+    }
+    if (command.kind === 'complete') {
+      return this.completeByTitle(user, command, updateId);
+    }
+    if (command.kind === 'today' || command.kind === 'tomorrow' || command.kind === 'week') {
+      return this.datedList(user, command.kind);
+    }
+    if (command.kind === 'lists') {
+      return this.projectList(user);
+    }
+    if (command.kind === 'tag') {
+      return this.tagList(user, command.name);
+    }
+    if (command.kind === 'priority') {
+      return this.priorityList(user, command.level);
+    }
+    return this.namedList(user, command.name);
+  }
+
+  private async capture(user: AuthUser, text: string, updateId: string): Promise<Reply> {
+    const created = await this.tasks.create(user, { raw_text: text }, `telegram-${updateId}`);
+    const missed = created.body.warnings?.find((item) => item.code === 'list_not_found');
+    const listNote =
+      missed === undefined
+        ? ''
+        : ` La lista «${missed.name ?? ''}» no existe, así que quedó en la bandeja.`;
+    return plain(`Guardada: ${created.body.title}.${listNote}`);
+  }
+
+  private async completeByTitle(
+    user: AuthUser,
+    command: Extract<TelegramCommand, { kind: 'complete' }>,
+    updateId: string,
+  ): Promise<Reply> {
+    const numbered = /^\d+$/.test(command.query.trim());
+    const rows = numbered
+      ? await this.dated(user, daySpan(0))
+      : (await this.tasks.list(user, this.query({ limit: 50, flat: true }))).items;
+    const match = matchTaskByTitle(rows, command.query);
+    if (match.status === 'none') {
+      return plain('No encuentro esa tarea.');
+    }
+    if (match.status === 'many') {
+      return plain(`Hay varias: ${match.titles.join(', ')}. Escribe el título completo.`);
+    }
+    await this.tasks.complete(user, match.id, {}, `telegram-done-${updateId}`);
+    return plain(`Completada: ${match.title}.`);
+  }
+
+  private async completeButton(user: AuthUser, incoming: TelegramIncoming): Promise<void> {
+    const data = incoming.callbackData;
+    const id = data.startsWith('c:') ? data.slice(2) : '';
+    if (!TASK_UUID.test(id)) {
+      await this.telegram.call('answerCallbackQuery', {
+        callback_query_id: incoming.callbackId,
+        text: 'No reconozco esa tarea',
+        show_alert: true,
+      });
+      return;
+    }
+    await this.tasks.complete(user, id, {}, `telegram-cb-${incoming.callbackId}`);
+    await this.telegram.call('answerCallbackQuery', {
+      callback_query_id: incoming.callbackId,
+      text: 'Completada',
+    });
+  }
+
+  private async photo(user: AuthUser, incoming: TelegramIncoming): Promise<void> {
+    const file = await this.telegram.download(incoming.fileId);
+    if (file.bytes.length > ATTACHMENT_MAX_BYTES) {
+      await this.send(incoming.chatId, plain('La foto pasa de 25 MB.'));
+      return;
+    }
+    const caption = incoming.caption.trim();
+    const created = await this.tasks.create(
+      user,
+      caption.length > 0 ? { raw_text: caption } : await this.inboxTask(user.id, 'Foto'),
+      `telegram-${incoming.updateId}`,
+    );
+    if (!created.replayed) {
+      const name = file.filePath.split('/').pop() ?? 'foto.jpg';
+      await this.tasks.addAttachment(user, created.body.id, {
+        originalname: name,
+        mimetype: mimeOf(name),
+        size: file.bytes.length,
+        buffer: file.bytes,
+      });
+    }
+    await this.send(incoming.chatId, plain(`Guardada con foto: ${created.body.title}.`));
+  }
+
+  private async datedList(user: AuthUser, kind: 'today' | 'tomorrow' | 'week'): Promise<Reply> {
+    const span = kind === 'today' ? daySpan(0) : kind === 'tomorrow' ? daySpan(1) : weekSpan();
+    const rows = await this.dated(user, span);
+    const empty =
+      kind === 'today'
+        ? 'Hoy no hay tareas con fecha.'
+        : kind === 'tomorrow'
+          ? 'Mañana no hay tareas con fecha.'
+          : 'Esta semana no hay tareas con fecha.';
+    if (rows.length === 0) {
+      return plain(empty);
+    }
+    const title = kind === 'today' ? 'Hoy' : kind === 'tomorrow' ? 'Mañana' : 'Esta semana';
+    const path =
+      kind === 'today' ? '/today' : kind === 'tomorrow' ? '/smart/tomorrow' : '/calendar/week';
+    return this.checklist(title, rows, await this.projectNames(user.id), true, path);
+  }
+
+  private async projectList(user: AuthUser): Promise<Reply> {
+    const projects = await this.prisma.project.findMany({
+      where: { ownerId: user.id, deletedAt: null },
+      orderBy: { sortOrder: 'asc' },
+      take: 100,
+      select: { name: true },
+    });
+    if (projects.length === 0) {
+      return plain('No hay listas.');
+    }
+    const lines = projects.map((row) => `☐ ${escapeHtml(row.name)}`).join('\n');
+    return {
+      text: `${lines}\n\n<a href="${webBase()}/today">Ver en la app</a>`,
+      html: true,
+      buttons: [],
+    };
+  }
+
+  private async tagList(user: AuthUser, name: string): Promise<Reply> {
+    if (name.length === 0) {
+      return plain('Escribe la etiqueta: /lista #5min');
+    }
+    const tag = await this.prisma.tag.findFirst({
+      where: { ownerId: user.id, deletedAt: null, name: { equals: name, mode: 'insensitive' } },
+      select: { id: true, name: true },
+    });
+    if (tag === null) {
+      return plain(`No encuentro la etiqueta «${name}».`);
+    }
+    const rows = (
+      await this.tasks.list(user, this.query({ tagId: tag.id, includeDescendants: true }))
+    ).items;
+    if (rows.length === 0) {
+      return plain(`No hay tareas con #${tag.name}.`);
+    }
+    return this.checklist(
+      `#${tag.name}`,
+      rows,
+      await this.projectNames(user.id),
+      true,
+      `/search?q=${encodeURIComponent(tag.name)}`,
+    );
+  }
+
+  private async priorityList(user: AuthUser, level: 'high' | 'medium' | 'low'): Promise<Reply> {
+    const label = level === 'high' ? 'alta' : level === 'medium' ? 'media' : 'baja';
+    const rows = (await this.tasks.list(user, this.query({ priority: level }))).items;
+    if (rows.length === 0) {
+      return plain(`No hay tareas con prioridad ${label}.`);
+    }
+    return this.checklist(
+      `Prioridad ${label}`,
+      rows,
+      await this.projectNames(user.id),
+      true,
+      '/matrix',
+    );
+  }
+
+  private async namedList(user: AuthUser, name: string): Promise<Reply> {
+    const project = await this.prisma.project.findFirst({
+      where: { ownerId: user.id, deletedAt: null, name: { equals: name, mode: 'insensitive' } },
+      select: { id: true, name: true, isInbox: true },
+    });
+    if (project === null) {
+      return plain(`No encuentro la lista «${name}».`);
+    }
+    const rows = (await this.tasks.list(user, this.query({ projectId: project.id }))).items;
+    if (rows.length === 0) {
+      return plain(`«${project.name}» no tiene tareas activas.`);
+    }
+    const path = project.isInbox ? '/inbox' : `/list/${project.id}`;
+    return this.checklist(project.name, rows, new Map(), false, path);
+  }
+
+  private async dated(
+    user: AuthUser,
+    span: { after: string; before: string },
+  ): Promise<TaskSummaryJson[]> {
+    const page = await this.tasks.list(
+      user,
+      this.query({ dueAfter: span.after, dueBefore: span.before }),
+    );
+    return page.items;
+  }
+
+  private async inboxTask(
+    ownerId: string,
+    title: string,
+  ): Promise<{ project_id: string; title: string }> {
+    const inbox = await this.prisma.project.findFirst({
+      where: { ownerId, isInbox: true, deletedAt: null },
+      select: { id: true },
+    });
+    if (inbox === null) {
+      throw new DomainException(HttpStatus.NOT_FOUND, 'project_not_found', 'Inbox was not found');
+    }
+    return { project_id: inbox.id, title };
+  }
+
+  private async projectNames(ownerId: string): Promise<Map<string, string>> {
+    const projects = await this.prisma.project.findMany({
+      where: { ownerId, deletedAt: null },
+      select: { id: true, name: true },
+    });
+    return new Map(projects.map((row) => [row.id, row.name]));
+  }
+
+  private checklist(
+    title: string,
+    rows: readonly TaskSummaryJson[],
+    names: ReadonlyMap<string, string>,
+    withList: boolean,
+    path: string,
+  ): Reply {
+    const lines = rows.map((row, index) => {
+      const list = names.get(row.project_id);
+      const name = withList && list !== undefined ? `${row.title} — ${list}` : row.title;
+      return `${String(index + 1)}. ☐ ${escapeHtml(name)}`;
+    });
+    return {
+      text: `${escapeHtml(title)}\n${lines.join('\n')}\n\n<a href="${webBase()}${path}">Ver en la app</a>`,
+      html: true,
+      buttons: rows.map((row) => ({ text: `☐ ${row.title}`.slice(0, 64), data: `c:${row.id}` })),
+    };
+  }
+
+  private async userFor(chatId: string): Promise<AuthUser | null> {
+    const link = await this.prisma.telegramLink.findFirst({
+      where: { chatId, deletedAt: null },
+      select: { ownerId: true },
+    });
+    const ownerId = link?.ownerId ?? (await this.soleOwner());
+    if (ownerId === null) {
+      return null;
+    }
+    if (link === null) {
+      await this.remember(ownerId, chatId);
+    }
+    const user = await this.prisma.user.findFirst({
+      where: { id: ownerId, deletedAt: null },
+      select: { id: true, email: true, timeZone: true, taskCompleteChildren: true },
+    });
+    if (user === null) {
+      return null;
+    }
+    return {
+      id: user.id,
+      email: user.email,
+      timeZone: user.timeZone,
+      completeChildren: user.taskCompleteChildren,
+      scopes: [...API_SCOPES],
+      tokenId: null,
+      sessionId: null,
+    };
+  }
+
+  private async soleOwner(): Promise<string | null> {
+    const rows = await this.prisma.user.findMany({
+      where: { deletedAt: null },
+      select: { id: true },
+      take: 2,
+    });
+    return rows.length === 1 ? (rows[0]?.id ?? null) : null;
+  }
+
+  private async remember(ownerId: string, chatId: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      const saved = await tx.telegramLink.upsert({
+        where: { chatId },
+        create: { ownerId, chatId },
+        update: { ownerId, deletedAt: null },
+      });
+      await this.events.record(
+        tx,
+        { ownerId, actorId: ownerId, actorKind: 'user', tokenId: null },
+        {
+          type: DomainEvent.telegramLinked,
+          entityType: 'telegram_link',
+          entityId: saved.id,
+          action: 'created',
+          data: asJson({ chat_id: chatId, bot_configured: true }),
+          previous: null,
+        },
+      );
+    });
+  }
+
+  private async transcribe(fileId: string): Promise<string> {
+    const provider = process.env.TELEGRAM_VOICE_PROVIDER?.trim() ?? '';
+    let url: URL;
+    try {
+      url = new URL(provider);
+    } catch {
+      throw new DomainException(
+        HttpStatus.SERVICE_UNAVAILABLE,
+        'voice_not_configured',
+        'Set TELEGRAM_VOICE_PROVIDER to a transcription URL',
+      );
+    }
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+      throw new DomainException(
+        HttpStatus.SERVICE_UNAVAILABLE,
+        'voice_not_configured',
+        'Set TELEGRAM_VOICE_PROVIDER to a transcription URL',
+      );
+    }
+    const file = await this.telegram.download(fileId);
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/octet-stream' },
+      body: file.bytes,
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!response.ok) {
+      throw new DomainException(HttpStatus.BAD_GATEWAY, 'voice_failed', 'Transcription failed');
+    }
+    const body = (await response.json()) as { text?: unknown };
+    if (typeof body.text !== 'string' || body.text.trim().length === 0) {
+      throw new DomainException(HttpStatus.BAD_GATEWAY, 'voice_failed', 'Transcription was empty');
+    }
+    return body.text.trim();
+  }
+
+  private async send(chatId: string, reply: Reply): Promise<void> {
+    await this.telegram.call('sendMessage', {
+      chat_id: chatId,
+      text: reply.text,
+      ...(reply.html ? { parse_mode: 'HTML' } : {}),
+      ...(reply.buttons.length === 0
+        ? {}
+        : {
+            reply_markup: {
+              inline_keyboard: reply.buttons.map((button) => [
+                { text: button.text, callback_data: button.data },
+              ]),
+            },
+          }),
+    });
+  }
+
+  private query(extra: Partial<TaskListQuery>): TaskListQuery {
+    return {
+      limit: 8,
+      status: 'active',
+      includeDescendants: true,
+      flat: false,
+      sort: 'manual',
+      deleted: false,
+      overdue: false,
+      ...extra,
+    };
+  }
+}
+
+function plain(text: string): Reply {
+  return { text, html: false, buttons: [] };
+}
+
+function webBase(): string {
+  const configured = process.env.APP_WEB_URL?.trim();
+  if (configured !== undefined && configured.length > 0) {
+    return configured.replace(/\/$/, '');
+  }
+  return 'http://127.0.0.1:5173';
+}
+
+function escapeHtml(value: string): string {
+  return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+}
+
+function mimeOf(name: string): string {
+  const lower = name.toLowerCase();
+  if (lower.endsWith('.png')) {
+    return 'image/png';
+  }
+  if (lower.endsWith('.webp')) {
+    return 'image/webp';
+  }
+  if (lower.endsWith('.gif')) {
+    return 'image/gif';
+  }
+  return 'image/jpeg';
+}
+
+function failureText(error: unknown): string {
+  if (!(error instanceof DomainException)) {
+    return 'No he podido hacerlo.';
+  }
+  const body = error.getResponse();
+  if (typeof body !== 'object') {
+    return 'No he podido hacerlo.';
+  }
+  const record = body as { code?: unknown; message?: unknown };
+  if (record.code === 'children_need_decision') {
+    return 'Tiene subtareas activas. Complétala en la app.';
+  }
+  if (record.code === 'voice_not_configured') {
+    return 'La voz aún no tiene transcripción configurada.';
+  }
+  if (
+    typeof record.message === 'string' &&
+    record.message.length > 0 &&
+    record.message.length < 180
+  ) {
+    return `No he podido hacerlo. ${record.message}`;
+  }
+  return 'No he podido hacerlo.';
+}
+
+function madridParts(instant: Date): {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+} {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Europe/Madrid',
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(instant);
+  const value = (type: Intl.DateTimeFormatPartTypes): number =>
+    Number(parts.find((part) => part.type === type)?.value);
+  return {
+    year: value('year'),
+    month: value('month'),
+    day: value('day'),
+    hour: value('hour'),
+    minute: value('minute'),
+    second: value('second'),
+  };
+}
+
+function madridOffsetMs(instant: Date): number {
+  const parts = madridParts(instant);
+  const wall = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second,
+  );
+  return wall - Math.floor(instant.getTime() / 1000) * 1000;
+}
+
+function madridMidnight(year: number, month: number, day: number): Date {
+  const wall = Date.UTC(year, month - 1, day);
+  const corrected = wall - madridOffsetMs(new Date(wall - madridOffsetMs(new Date(wall))));
+  return new Date(corrected);
+}
+
+function addCalendarDays(
+  year: number,
+  month: number,
+  day: number,
+  offset: number,
+): { year: number; month: number; day: number } {
+  const shifted = new Date(Date.UTC(year, month - 1, day + offset));
+  return {
+    year: shifted.getUTCFullYear(),
+    month: shifted.getUTCMonth() + 1,
+    day: shifted.getUTCDate(),
+  };
+}
+
+function spanFrom(startOffsetDays: number, lengthDays: number): { after: string; before: string } {
+  const today = madridParts(new Date());
+  const startDate = addCalendarDays(today.year, today.month, today.day, startOffsetDays);
+  const endDate = addCalendarDays(startDate.year, startDate.month, startDate.day, lengthDays);
+  const start = madridMidnight(startDate.year, startDate.month, startDate.day);
+  const end = madridMidnight(endDate.year, endDate.month, endDate.day);
+  return {
+    after: new Date(start.getTime() - 1).toISOString(),
+    before: end.toISOString(),
+  };
+}
+
+function daySpan(offsetDays: number): { after: string; before: string } {
+  return spanFrom(offsetDays, 1);
+}
+
+function weekSpan(): { after: string; before: string } {
+  const today = madridParts(new Date());
+  const weekday = new Date(Date.UTC(today.year, today.month - 1, today.day)).getUTCDay();
+  const mondayOffset = weekday === 0 ? -6 : 1 - weekday;
+  return spanFrom(mondayOffset, 7);
+}
