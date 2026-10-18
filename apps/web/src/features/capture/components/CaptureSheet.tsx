@@ -99,7 +99,7 @@ export function CaptureSheet({
   const segments = textSegments(text, parsed.spans);
 
   return (
-    <main className="sheet">
+    <div className="sheet">
       <form onSubmit={onSubmit}>
         <h1>{messages.captureTitle}</h1>
         <label className="capture-label" htmlFor="capture-input">
@@ -180,7 +180,7 @@ export function CaptureSheet({
         </div>
         {!speech.supported ? <p className="hint">{messages.voiceUnsupported}</p> : null}
       </form>
-    </main>
+    </div>
   );
 }
 
