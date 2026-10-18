@@ -8,6 +8,7 @@ import { PriorityCheck } from '../../components/PriorityCheck';
 import { Button } from '../../components/ui';
 import { DueField } from './DueField';
 import { fill, useMessages } from '../../i18n';
+import { collectTags } from './collect';
 import { newMutation, runOrQueue } from '../offline/client';
 
 const MAX_ATTACHMENT = 25 * 1024 * 1024;
@@ -43,7 +44,7 @@ export function TaskDetail({
     enabled: detail.data?.repeat_rule !== null && detail.data?.repeat_rule !== undefined,
   });
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
-  const tags = useQuery({ queryKey: ['tags'], queryFn: () => api.listTags() });
+  const tags = useQuery({ queryKey: ['tags'], queryFn: collectTags, staleTime: 5 * 60_000 });
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
   const serverDue = detail.data?.due_date ?? null;
   const [dueDraft, setDueDraft] = useState('');

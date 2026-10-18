@@ -82,7 +82,7 @@
 
   --sidebar-w: 15rem;
   --sidebar-rail: 3.125rem;
-  --detail-w: 36%;
+  --detail-w: clamp(340px, 30vw, 440px);
   --content-max: 46rem;
   --bottombar-h: 3.5rem;
   --tap: 2.75rem;

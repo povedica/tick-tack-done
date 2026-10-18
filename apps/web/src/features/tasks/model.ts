@@ -20,6 +20,7 @@ export interface RowModel {
   readonly repeat: boolean;
   readonly source: string;
   readonly content: string;
+  readonly completedAt: string | null;
 }
 
 type ViewTask = ViewPage['groups'][number]['tasks'][number];
@@ -49,13 +50,14 @@ export function rowFromTask(
     projectId: task.project_id,
     projectName: names.get(task.project_id) ?? '',
     columnId: task.column_id,
-    tags: task.tag_ids.map((id) => ({ id, name: tags.get(id) ?? id, color: null })),
+    tags: namedTags(task.tag_ids, tags),
     checklist: progressOf(task.checklist_progress),
     kind: task.kind,
     status: task.status,
     repeat: task.repeat_rule !== null && task.repeat_rule.length > 0,
     source: task.source,
     content: task.content,
+    completedAt: task.completed_at,
   };
 }
 
@@ -73,10 +75,21 @@ export function rowFromView(task: ViewTask): RowModel {
     checklist: progressOf(task.checklist_progress),
     kind: task.kind,
     status: task.status,
-    repeat: false,
-    source: 'manual',
+    repeat: task.repeat_rule !== null && task.repeat_rule.length > 0,
+    source: task.source,
     content: task.content,
+    completedAt: task.completed_at,
   };
+}
+
+function namedTags(ids: readonly string[], tags: ReadonlyMap<string, string>): RowModel['tags'] {
+  return ids.flatMap((id) => {
+    const name = tags.get(id);
+    if (name === undefined || name === id) {
+      return [];
+    }
+    return [{ id, name, color: null }];
+  });
 }
 
 function colorOf(value: object): string | null {

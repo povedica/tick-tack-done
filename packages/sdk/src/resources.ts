@@ -1,6 +1,6 @@
 import { ApiError } from './errors';
 import type { components } from './generated/schema';
-import type { ApiClientOptions, Task } from './client';
+import type { ApiClientOptions, PageQuery, Task } from './client';
 
 export type Me = components['schemas']['MeResponseDto'];
 export interface UpdateMeBody {
@@ -61,6 +61,7 @@ export interface TaskPatch {
   readonly tag_ids?: readonly string[];
   readonly column_id?: string | null;
   readonly extract_checklist?: boolean;
+  readonly before_id?: string | null;
 }
 
 export interface ChecklistItem {
@@ -158,7 +159,7 @@ export interface ResourceClient {
   inboundEmail(): Promise<InboundEmailStatus>;
   rotateInboundEmail(): Promise<InboundEmailAddress>;
   revokeInboundEmail(): Promise<void>;
-  listTags(): Promise<TagPage>;
+  listTags(query?: PageQuery): Promise<TagPage>;
   createTag(body: NamedWrite, idempotencyKey: string): Promise<Tag>;
   updateTag(id: string, body: Partial<NamedWrite>): Promise<Tag>;
   deleteTag(id: string): Promise<void>;
@@ -243,6 +244,21 @@ export interface ResourceClient {
   ): Promise<JsonObject>;
 }
 
+function pageQuery(query: PageQuery | undefined): string {
+  if (query === undefined) {
+    return '';
+  }
+  const params = new URLSearchParams();
+  if (query.limit !== undefined) {
+    params.set('limit', String(query.limit));
+  }
+  if (query.cursor !== undefined && query.cursor.length > 0) {
+    params.set('cursor', query.cursor);
+  }
+  const text = params.toString();
+  return text.length === 0 ? '' : `?${text}`;
+}
+
 export function resourceMethods(http: Http): ResourceClient {
   const ask = http.request.bind(http);
   return {
@@ -255,7 +271,8 @@ export function resourceMethods(http: Http): ResourceClient {
     async revokeInboundEmail() {
       await ask('DELETE', '/api/v1/me/inbound-email', undefined, undefined, isEmpty);
     },
-    listTags: () => ask('GET', '/api/v1/tags', undefined, undefined, isTagPage),
+    listTags: (query) =>
+      ask('GET', `/api/v1/tags${pageQuery(query)}`, undefined, undefined, isTagPage),
     createTag: (body, key) => ask('POST', '/api/v1/tags', body, key, isTag),
     updateTag: (id, body) => ask('PATCH', `/api/v1/tags/${id}`, body, undefined, isTag),
     async deleteTag(id) {

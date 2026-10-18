@@ -8,6 +8,8 @@ import {
   Inbox,
   LayoutDashboard,
   ListTodo,
+  Monitor,
+  Moon,
   MoreHorizontal,
   Plus,
   PanelLeftClose,
@@ -15,6 +17,7 @@ import {
   Repeat,
   Sparkles,
   Sun,
+  Trash2,
   UserRound,
   type LucideIcon,
 } from 'lucide-react';
@@ -27,6 +30,7 @@ import { fill, useMessages, type Messages } from '../i18n';
 import { usePreferences } from '../theme/preferences';
 import { nextTheme, type ThemePreference } from '../theme/preference';
 import { useThemePreference } from '../theme/store';
+import { collectProjects, collectTags } from '../features/tasks/collect';
 import { smartPath } from '../features/tasks/model';
 import { orderedSmartLists, SIDEBAR_SMART_ORDER } from './smart-order';
 
@@ -60,10 +64,11 @@ export function Sidebar({
   const setPreference = useThemePreference((state) => state.setPreference);
   const showCounters = usePreferences((state) => state.showCounters);
   const queryClient = useQueryClient();
+  const catalog = { staleTime: 5 * 60_000 };
   const smart = useQuery({ queryKey: ['smart-lists'], queryFn: () => api.listSmartLists() });
-  const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
-  const filters = useQuery({ queryKey: ['filters'], queryFn: () => api.listFilters() });
-  const tags = useQuery({ queryKey: ['tags'], queryFn: () => api.listTags() });
+  const projects = useQuery({ queryKey: ['projects'], queryFn: collectProjects, ...catalog });
+  const filters = useQuery({ queryKey: ['filters'], queryFn: () => api.listFilters(), ...catalog });
+  const tags = useQuery({ queryKey: ['tags'], queryFn: collectTags, ...catalog });
   const [draft, setDraft] = useState('');
   const [addingList, setAddingList] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
@@ -160,7 +165,9 @@ export function Sidebar({
             <Plus size={16} aria-hidden="true" />
           </Link>
         </SectionHead>
-        {filterItems.length === 0 ? <p className="nav-empty">{messages.filtersEmpty}</p> : null}
+        {filters.isSuccess && filterItems.length === 0 ? (
+          <p className="nav-empty">{messages.filtersEmpty}</p>
+        ) : null}
         <ul className="nav-list">
           {filterItems.map((filter) => (
             <li key={filter.id}>
@@ -301,7 +308,7 @@ export function Sidebar({
             <Plus size={16} aria-hidden="true" />
           </button>
         </SectionHead>
-        {tagItems.length === 0 && !addingTag ? (
+        {tags.isSuccess && tagItems.length === 0 && !addingTag ? (
           <p className="nav-empty">{messages.tagsEmpty}</p>
         ) : null}
         {addingTag ? (
@@ -356,7 +363,7 @@ export function Sidebar({
         ) : null}
         <ul className="nav-list">
           {tagItems.map((tag) => {
-            const href = `/search?q=${encodeURIComponent(`#${tag.name}`)}`;
+            const href = `/tag/${tag.id}`;
             const current = `${location.pathname}${location.search}` === href;
             return (
               <li key={tag.id}>
@@ -410,7 +417,8 @@ export function Sidebar({
       <div className="sidebar-footer">
         <SideLink to="/smart/trash" onNavigate={onNavigate}>
           <span className="nav-label">{messages.smartTrash}</span>
-          {showCounters ? <Badge value={trash?.task_count ?? 0} /> : null}
+          {showCounters && smart.isPending ? <span className="ui-badge">—</span> : null}
+          {showCounters && smart.isSuccess ? <Badge value={trash?.task_count ?? 0} /> : null}
         </SideLink>
         {confirmTrash ? (
           <div className="nav-confirm">
@@ -428,43 +436,44 @@ export function Sidebar({
               {messages.confirmEmpty}
             </button>
           </div>
-        ) : (
-          <button
-            type="button"
-            className="text-button"
-            onClick={() => {
-              setConfirmTrash(true);
-            }}
-          >
-            {messages.emptyTrash}
-          </button>
-        )}
+        ) : null}
         <button
           type="button"
-          className="theme-cycle"
+          className="icon-btn"
+          aria-label={messages.emptyTrash}
+          title={messages.emptyTrash}
+          disabled={!smart.isSuccess || (trash?.task_count ?? 0) === 0}
+          onClick={() => {
+            setConfirmTrash(true);
+          }}
+        >
+          <Trash2 size={16} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className="icon-btn"
           aria-label={`${messages.themeLabel}: ${themeLabel}`}
+          title={`${messages.themeLabel}: ${themeLabel}`}
           onClick={() => {
             setPreference(nextTheme(preference));
           }}
         >
-          <span>
-            {messages.themeLabel}: {themeLabel}
-          </span>
+          <ThemeIcon preference={preference} />
         </button>
         <button
           type="button"
-          className="collapse-button"
+          className="icon-btn collapse-button"
           aria-keyshortcuts="["
           aria-expanded={!collapsed}
           aria-label={collapsed ? messages.expandSidebar : messages.collapseSidebar}
+          title={collapsed ? messages.expandSidebar : messages.collapseSidebar}
           onClick={onToggleCollapsed}
         >
           {collapsed ? (
-            <PanelLeftOpen size={18} aria-hidden="true" />
+            <PanelLeftOpen size={16} aria-hidden="true" />
           ) : (
-            <PanelLeftClose size={18} aria-hidden="true" />
+            <PanelLeftClose size={16} aria-hidden="true" />
           )}
-          <span>{collapsed ? messages.expandSidebar : messages.collapseSidebar}</span>
         </button>
       </div>
     </aside>
@@ -490,6 +499,16 @@ function Item({
       </SideLink>
     </li>
   );
+}
+
+function ThemeIcon({ preference }: { readonly preference: ThemePreference }) {
+  if (preference === 'light') {
+    return <Sun size={16} aria-hidden="true" />;
+  }
+  if (preference === 'dark') {
+    return <Moon size={16} aria-hidden="true" />;
+  }
+  return <Monitor size={16} aria-hidden="true" />;
 }
 
 function SideLink({

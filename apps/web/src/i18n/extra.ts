@@ -1,4 +1,5 @@
 export const extraEs = {
+  completedOn: 'Completada {date}',
   skip: 'Saltar al contenido',
   offline: 'Sin conexión',
   online: 'Conectado',
@@ -287,6 +288,7 @@ export const extraEs = {
 } as const;
 
 export const extraEn = {
+  completedOn: 'Completed {date}',
   skip: 'Skip to content',
   offline: 'Offline',
   online: 'Online',

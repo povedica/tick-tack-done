@@ -111,6 +111,7 @@ export const es = {
   todayFailed: 'No se han podido cargar las tareas.',
   retry: 'Reintentar',
   completeLabel: 'Completar «{name}»',
+  reopenLabel: 'Reabrir «{name}»',
   completedToast: 'Completada: {name}',
   undo: 'Deshacer',
   completeFailed: 'No se ha podido completar la tarea.',

@@ -9,6 +9,7 @@ import { fill, useMessages, type Messages } from '../../i18n';
 import { useLocale } from '../../i18n/locale';
 import { usePreferences, type AccentId } from '../../theme/preferences';
 import { useThemePreference } from '../../theme/store';
+import { collectTags } from '../tasks/collect';
 import { quadrantOf, rowFromTask, smartApiKey } from '../tasks/model';
 import { refreshTaskSurfaces } from '../tasks/refresh';
 import { newMutation, runOrQueue } from '../offline/client';
@@ -43,7 +44,7 @@ export function InboxPage() {
       }),
     enabled: inbox !== undefined,
   });
-  const tags = useQuery({ queryKey: ['tags'], queryFn: () => api.listTags() });
+  const tags = useQuery({ queryKey: ['tags'], queryFn: collectTags, staleTime: 5 * 60_000 });
   const [process, setProcess] = useState(false);
   const [cursor, setCursor] = useState(0);
   const names = new Map((projects.data?.items ?? []).map((project) => [project.id, project.name]));

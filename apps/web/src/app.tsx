@@ -9,6 +9,7 @@ import {
   FilterViewPage,
   ProjectListPage,
   SmartListViewPage,
+  TagViewPage,
 } from './features/views/components/ViewPages';
 import { isPaletteShortcut } from './features/views/shortcuts';
 import { draftFromShare } from './features/capture/share-target';
@@ -111,6 +112,8 @@ function Shell() {
             <Route path="/filter/:id" element={<FilterViewPage />} />
             <Route path="/filters" element={<FiltersPage />} />
             <Route path="/filters/:id" element={<FilterViewPage />} />
+            <Route path="/tag/:id" element={<TagViewPage />} />
+            <Route path="/trash" element={<Navigate to="/smart/trash" replace />} />
             <Route path="/smart/:key" element={<SmartListViewPage />} />
             <Route path="/smart-lists" element={<SmartListsPage />} />
             <Route path="/smart-lists/:key" element={<SmartListViewPage />} />

@@ -112,6 +112,7 @@ export const en = {
   todayFailed: 'The tasks could not be loaded.',
   retry: 'Retry',
   completeLabel: 'Complete “{name}”',
+  reopenLabel: 'Reopen “{name}”',
   completedToast: 'Completed: {name}',
   undo: 'Undo',
   completeFailed: 'The task could not be completed.',

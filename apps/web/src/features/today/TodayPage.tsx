@@ -10,6 +10,7 @@ import { captureLanguage, fill, useMessages, type Messages } from '../../i18n';
 import { warningText } from '../capture/components/CaptureSheet';
 import { noticesFrom, useCaptureNotice } from '../capture/notice';
 import { quickAddRequest } from '../capture/quick-add';
+import { collectTags } from '../tasks/collect';
 import { refreshTaskSurfaces } from '../tasks/refresh';
 import { useShellActions } from '../../shell/shell-actions';
 import { isTypingTarget } from '../../shell/shortcuts';
@@ -54,7 +55,8 @@ export function TodayPage() {
   });
   const tags = useQuery({
     queryKey: ['tags'],
-    queryFn: () => api.listTags(),
+    queryFn: collectTags,
+    staleTime: 5 * 60_000,
     refetchOnWindowFocus: false,
   });
   const habits = useQuery({
@@ -461,7 +463,6 @@ export function TodayPage() {
           locale={locale}
           overdue
           completeLabel={messages.completeLabel}
-          repeatLabel={messages.repeatLink}
           moreLabel={messages.openDetail}
           untitled={messages.untitled}
           projectNames={projectNames}
@@ -485,7 +486,6 @@ export function TodayPage() {
           locale={locale}
           overdue={false}
           completeLabel={messages.completeLabel}
-          repeatLabel={messages.repeatLink}
           moreLabel={messages.openDetail}
           untitled={messages.untitled}
           projectNames={projectNames}
@@ -572,7 +572,6 @@ function TaskGroup({
   locale,
   overdue,
   completeLabel,
-  repeatLabel,
   moreLabel,
   untitled,
   projectNames,
@@ -588,7 +587,6 @@ function TaskGroup({
   readonly locale: string;
   readonly overdue: boolean;
   readonly completeLabel: string;
-  readonly repeatLabel: string;
   readonly moreLabel: string;
   readonly untitled: string;
   readonly projectNames: ReadonlyMap<string, string>;
@@ -618,6 +616,7 @@ function TaskGroup({
                 <GripVertical className="task-grip" size={12} aria-hidden="true" />
                 <PriorityCheck
                   priority={task.priority}
+                  checked={task.status === 'completed'}
                   label={fill(completeLabel, task.title)}
                   onChange={() => {
                     onComplete(task);
@@ -633,23 +632,36 @@ function TaskGroup({
                   {task.title.trim().length === 0 ? untitled : task.title}
                 </button>
                 <span className="task-meta">
-                  {task.tagIds.map((id) => (
-                    <span key={id} className="ui-tag" style={tagStyle(tagColors.get(id) ?? null)}>
-                      {tagNames.get(id) ?? id}
-                    </span>
-                  ))}
+                  {task.tagIds.flatMap((id) => {
+                    const name = tagNames.get(id);
+                    if (name === undefined) {
+                      return [];
+                    }
+                    return [
+                      <Link
+                        key={id}
+                        to={`/tag/${id}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                        }}
+                      >
+                        <span className="ui-tag" style={tagStyle(tagColors.get(id) ?? null)}>
+                          {name}
+                        </span>
+                      </Link>,
+                    ];
+                  })}
                   {listName.length > 0 ? <span className="task-list-name">{listName}</span> : null}
                   {task.dueDate !== null ? (
                     <time
-                      className={overdue ? 'task-date is-overdue' : 'task-date'}
+                      className={
+                        overdue && task.status === 'active' ? 'task-date is-overdue' : 'task-date'
+                      }
                       dateTime={task.dueDate}
                     >
                       {formatDueDate(task.dueDate, task.timeZone, locale)}
                     </time>
                   ) : null}
-                  <Link className="task-list-name" to={`/repeat?task=${task.id}`}>
-                    {repeatLabel}
-                  </Link>
                 </span>
                 <button
                   type="button"

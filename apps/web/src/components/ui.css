@@ -413,14 +413,21 @@
 
 .task-meta {
   display: flex;
-  flex: none;
+  flex: 0 1 auto;
   flex-wrap: nowrap;
   gap: 4px;
   align-items: center;
+  max-width: 45%;
   min-width: 0;
   margin-left: auto;
+  overflow: hidden;
   color: var(--ink-3);
   font-size: 12px;
+}
+
+.task-meta a {
+  color: inherit;
+  text-decoration: none;
 }
 
 .task-date.is-overdue {
@@ -445,7 +452,7 @@
 .detail-panel textarea:not(.detail-title):not(.detail-content),
 .detail-panel input:not(.task-check),
 .detail-panel select,
-.settings-layout input,
+.settings-layout input:not([type='radio']):not([type='checkbox']),
 .settings-layout select,
 .settings-layout textarea {
   width: 100%;

@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { GripVertical, MoreHorizontal } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { ApiError } from '@reflexionia/sdk';
-import { useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { api } from '../../api';
 import { PriorityCheck } from '../../components/PriorityCheck';
 import { Button, TagChip } from '../../components/ui';
@@ -25,6 +25,7 @@ export function TaskList({
   view,
   showDetails = true,
   hideCompleted = true,
+  manualOrder = false,
 }: {
   readonly messages: Messages;
   readonly rows: readonly RowModel[];
@@ -39,6 +40,7 @@ export function TaskList({
   readonly view: 'list' | 'kanban' | 'timeline';
   readonly showDetails?: boolean | undefined;
   readonly hideCompleted?: boolean | undefined;
+  readonly manualOrder?: boolean | undefined;
 }) {
   const queryClient = useQueryClient();
   const [params, setParams] = useSearchParams();
@@ -87,7 +89,11 @@ export function TaskList({
     ) : view === 'timeline' ? (
       <Timeline messages={messages} rows={visible} onOpen={open} />
     ) : (
-      <ul className="task-list" data-details={showDetails ? 'on' : 'off'}>
+      <ul
+        className="task-list"
+        data-details={showDetails ? 'on' : 'off'}
+        data-order={manualOrder ? 'manual' : 'auto'}
+      >
         {visible.map((row) => (
           <li key={row.id}>
             <TaskRow
@@ -95,6 +101,7 @@ export function TaskList({
               row={row}
               locale={locale}
               now={now}
+              manualOrder={manualOrder}
               selected={selected.has(row.id)}
               open={detailId === row.id}
               onOpen={() => {
@@ -149,6 +156,7 @@ export function TaskList({
                 repeat: false,
                 source: 'manual',
                 content: '',
+                completedAt: null,
               };
               setDraft('');
               setCreateError(null);
@@ -285,6 +293,7 @@ function TaskRow({
   row,
   locale,
   now,
+  manualOrder,
   selected,
   open,
   onOpen,
@@ -295,19 +304,47 @@ function TaskRow({
   readonly row: RowModel;
   readonly locale: string;
   readonly now: Date;
+  readonly manualOrder: boolean;
   readonly selected: boolean;
   readonly open: boolean;
   readonly onOpen: () => void;
   readonly onComplete: () => void;
   readonly onSelect: (extend: boolean) => void;
 }) {
-  const overdue = isOverdue(row.dueDate, now);
-  const today = isSameDay(row.dueDate, now, row.timeZone);
+  const queryClient = useQueryClient();
+  const done = row.status === 'completed';
+  const overdue = !done && isOverdue(row.dueDate, now);
+  const today = !done && isSameDay(row.dueDate, now, row.timeZone);
   const dateClass = overdue ? 'task-date is-overdue' : today ? 'task-date is-today' : 'task-date';
+  const named = row.tags.filter((tag) => tag.name.length > 0 && tag.name !== tag.id);
+  const shown = named.slice(0, 2);
+  const extra = named.length - shown.length;
+  const when = done && row.completedAt !== null ? row.completedAt : row.dueDate;
   return (
     <div
-      className={`task-row${open ? ' is-selected' : ''}${selected ? ' is-batch' : ''}`}
+      className={`task-row${open ? ' is-selected' : ''}${selected ? ' is-batch' : ''}${done ? ' is-done' : ''}`}
       data-selected={open ? 'true' : undefined}
+      draggable={manualOrder}
+      onDragStart={(event) => {
+        if (!manualOrder) {
+          return;
+        }
+        event.dataTransfer.setData('text/plain', row.id);
+        event.dataTransfer.effectAllowed = 'move';
+      }}
+      onDragOver={(event) => {
+        if (manualOrder) {
+          event.preventDefault();
+        }
+      }}
+      onDrop={(event) => {
+        const id = event.dataTransfer.getData('text/plain');
+        if (!manualOrder || id.length === 0 || id === row.id) {
+          return;
+        }
+        event.preventDefault();
+        void api.patchTask(id, { before_id: row.id }).then(() => refreshTaskSurfaces(queryClient));
+      }}
       onTouchEnd={(event) => {
         const touch = event.changedTouches[0];
         if (touch === undefined) {
@@ -328,7 +365,8 @@ function TaskRow({
       <GripVertical className="task-grip" size={12} aria-hidden="true" />
       <PriorityCheck
         priority={row.priority}
-        label={fill(messages.completeLabel, row.title)}
+        label={fill(done ? messages.reopenLabel : messages.completeLabel, row.title)}
+        checked={done}
         onChange={(event) => {
           if (
             event.nativeEvent instanceof MouseEvent &&
@@ -344,9 +382,28 @@ function TaskRow({
         {row.title.trim().length === 0 ? messages.untitled : row.title}
       </button>
       <span className="task-meta">
-        {row.tags.map((tag) => (
-          <TagChip key={tag.id} label={tag.name} color={tag.color} />
+        {shown.map((tag) => (
+          <Link
+            key={tag.id}
+            to={`/tag/${tag.id}`}
+            onClick={(event) => {
+              event.stopPropagation();
+            }}
+          >
+            <TagChip label={tag.name} color={tag.color} />
+          </Link>
         ))}
+        {extra > 0 ? (
+          <span
+            className="ui-tag"
+            title={named
+              .slice(2)
+              .map((tag) => tag.name)
+              .join(', ')}
+          >
+            +{extra}
+          </span>
+        ) : null}
         {row.repeat ? <span title={messages.recurrence}>↻</span> : null}
         {row.checklist.total > 0 ? (
           <span>
@@ -360,11 +417,9 @@ function TaskRow({
         ) : null}
         {row.source === 'email' ? <span title={messages.sourceEmail}>✉</span> : null}
         {row.source === 'api' ? <span title={messages.sourceApi}>API</span> : null}
-        {row.dueDate !== null ? (
-          <time className={dateClass} dateTime={row.dueDate}>
-            {new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' }).format(
-              new Date(row.dueDate),
-            )}
+        {when !== null ? (
+          <time className={dateClass} dateTime={when} title={new Date(when).toLocaleString(locale)}>
+            {formatRowDate(when, locale, now, done, messages)}
           </time>
         ) : null}
       </span>
@@ -396,6 +451,7 @@ function Kanban({
 }) {
   const queryClient = useQueryClient();
   const [section, setSection] = useState('');
+  const [boardError, setBoardError] = useState<string | null>(null);
   const loose = rows.some((row) => row.columnId === null || row.columnId.length === 0);
   const cols =
     columns.length === 0
@@ -403,6 +459,7 @@ function Kanban({
       : [...columns, ...(loose ? [{ id: 'none', name: messages.noSection }] : [])];
   return (
     <div className="kanban">
+      {boardError !== null ? <p className="error">{boardError}</p> : null}
       {cols.map((column) => {
         const items = rows.filter((row) =>
           column.id === 'none'
@@ -418,14 +475,19 @@ function Kanban({
             }}
             onDrop={(event) => {
               const id = event.dataTransfer.getData('text/plain');
-              if (id.length === 0 || column.id === 'none') {
+              if (id.length === 0) {
                 return;
               }
-              void api.patchTask(id, { column_id: column.id }).catch((error: unknown) => {
-                if (error instanceof ApiError && error.code === 'wip_exceeded') {
-                  window.alert(messages.wipExceeded);
-                }
-              });
+              void api
+                .patchTask(id, { column_id: column.id === 'none' ? null : column.id })
+                .then(() => refreshTaskSurfaces(queryClient))
+                .catch((error: unknown) => {
+                  if (error instanceof ApiError && error.code === 'wip_exceeded') {
+                    setBoardError(messages.wipExceeded);
+                    return;
+                  }
+                  setBoardError(messages.saveFailed);
+                });
             }}
           >
             <h3>
@@ -502,6 +564,7 @@ function Timeline({
   readonly rows: readonly RowModel[];
   readonly onOpen: (id: string) => void;
 }) {
+  const queryClient = useQueryClient();
   const [zoom, setZoom] = useState<'day' | 'week' | 'month'>('week');
   const planned = rows.filter((row) => row.dueDate !== null);
   const loose = rows.filter((row) => row.dueDate === null);
@@ -535,10 +598,12 @@ function Timeline({
               </button>
               <Button
                 onClick={() => {
-                  void api.patchTask(row.id, {
-                    due_date: new Date().toISOString(),
-                    start_date: new Date().toISOString(),
-                  });
+                  void api
+                    .patchTask(row.id, {
+                      due_date: new Date().toISOString(),
+                      start_date: new Date().toISOString(),
+                    })
+                    .then(() => refreshTaskSurfaces(queryClient));
                 }}
               >
                 {messages.placeToday}
@@ -560,8 +625,35 @@ function Timeline({
             {row.title}
           </button>
         ))}
-        {planned.length === 0 ? <p>{messages.unscheduled}</p> : null}
+        {planned.length === 0 && loose.length === 0 ? <p>{messages.unscheduled}</p> : null}
       </div>
     </div>
   );
+}
+
+function formatRowDate(
+  value: string,
+  locale: string,
+  now: Date,
+  done: boolean,
+  messages: Messages,
+): string {
+  const date = new Date(value);
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  const day = new Date(date);
+  day.setHours(0, 0, 0, 0);
+  const diff = Math.round((day.getTime() - start.getTime()) / 86_400_000);
+  if (!done && diff === 0) {
+    return messages.dateToday;
+  }
+  if (!done && diff === 1) {
+    return messages.dateTomorrow;
+  }
+  const formatted = new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+    ...(date.getFullYear() === now.getFullYear() ? {} : { year: 'numeric' }),
+  }).format(date);
+  return done ? messages.completedOn.replace('{date}', formatted) : formatted;
 }
