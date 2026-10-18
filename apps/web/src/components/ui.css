@@ -477,6 +477,42 @@
   color: var(--ink-3);
 }
 
+.nav-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.nav-section-head .nav-section {
+  margin-bottom: 0;
+}
+
+.nav-add {
+  margin-right: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+}
+
+.nav-create {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 12px 8px;
+}
+
+.nav-create input {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
 .nav-section {
   margin: 14px 0 4px;
   padding: 0 12px;

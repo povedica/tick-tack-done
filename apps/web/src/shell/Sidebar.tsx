@@ -1,4 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { normalizeTagName } from '@reflexionia/domain';
+import { ApiError } from '@reflexionia/sdk';
 import {
   CalendarDays,
   CalendarRange,
@@ -9,13 +11,14 @@ import {
   MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
+  Plus,
   Repeat,
   Sparkles,
   Sun,
   UserRound,
   type LucideIcon,
 } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { Link, NavLink, useLocation, useMatch } from 'react-router';
 import { api } from '../api';
 import { Badge } from '../components/ui';
@@ -57,7 +60,6 @@ export function Sidebar({
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
   const filters = useQuery({ queryKey: ['filters'], queryFn: () => api.listFilters() });
   const tags = useQuery({ queryKey: ['tags'], queryFn: () => api.listTags() });
-  const [draft, setDraft] = useState('');
   const location = useLocation();
   const [confirmTrash, setConfirmTrash] = useState(false);
   const themeLabel = themeName(messages, preference);
@@ -126,7 +128,35 @@ export function Sidebar({
             </li>
           ))}
         </ul>
-        <p className="nav-section">{messages.listsTitle}</p>
+        <SectionCreate
+          title={messages.listsTitle}
+          addLabel={messages.newList}
+          placeholder={messages.newList}
+          createLabel={messages.createLabel}
+          onCreate={async (raw) => {
+            const name = raw.trim();
+            if (name.length === 0 || name.length > 200) {
+              return name.length === 0 ? null : messages.nameInvalid;
+            }
+            const taken = (projects.data?.items ?? []).some(
+              (project) =>
+                project.name.localeCompare(name, undefined, { sensitivity: 'accent' }) === 0,
+            );
+            if (taken) {
+              return messages.nameTaken;
+            }
+            try {
+              await api.createProject({ name, color: '#4772fa' }, crypto.randomUUID());
+            } catch (error) {
+              if (error instanceof ApiError && error.status === 409) {
+                return messages.nameTaken;
+              }
+              return messages.nameInvalid;
+            }
+            await queryClient.invalidateQueries({ queryKey: ['projects'] });
+            return null;
+          }}
+        />
         <ul className="nav-list">
           {(projects.data?.items ?? [])
             .filter((project) => !project.closed)
@@ -143,29 +173,31 @@ export function Sidebar({
               </li>
             ))}
         </ul>
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            const name = draft.trim();
-            if (name.length === 0) {
-              return;
+        <SectionCreate
+          title={messages.tagsTitle}
+          addLabel={messages.newTag}
+          placeholder={messages.newTag}
+          createLabel={messages.createLabel}
+          onCreate={async (raw) => {
+            const name = normalizeTagName(raw);
+            if (name === null) {
+              return raw.trim().length === 0 ? null : messages.nameInvalid;
             }
-            void api.createProject({ name, color: '#4772fa' }, crypto.randomUUID()).then(() => {
-              setDraft('');
-              void queryClient.invalidateQueries({ queryKey: ['projects'] });
-            });
+            try {
+              await api.createTag({ name }, crypto.randomUUID());
+            } catch (error) {
+              if (
+                error instanceof ApiError &&
+                (error.status === 409 || error.code === 'tag_name_taken')
+              ) {
+                return messages.nameTaken;
+              }
+              return messages.nameInvalid;
+            }
+            await queryClient.invalidateQueries({ queryKey: ['tags'] });
+            return null;
           }}
-        >
-          <input
-            value={draft}
-            aria-label={messages.newList}
-            placeholder={messages.newList}
-            onChange={(event) => {
-              setDraft(event.target.value);
-            }}
-          />
-        </form>
-        <p className="nav-section">{messages.tagsTitle}</p>
+        />
         <ul className="nav-list">
           {(tags.data?.items ?? []).map((tag) => {
             const href = `/search?q=${encodeURIComponent(`#${tag.name}`)}`;
@@ -316,6 +348,91 @@ function SideLink({
       {children}
       <MoreHorizontal className="nav-more" size={16} aria-hidden="true" />
     </NavLink>
+  );
+}
+
+function SectionCreate({
+  title,
+  addLabel,
+  placeholder,
+  createLabel,
+  onCreate,
+}: {
+  readonly title: string;
+  readonly addLabel: string;
+  readonly placeholder: string;
+  readonly createLabel: string;
+  readonly onCreate: (name: string) => Promise<string | null>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const field = useRef<HTMLInputElement>(null);
+
+  function close(): void {
+    setOpen(false);
+    setDraft('');
+    setError(null);
+  }
+
+  return (
+    <>
+      <div className="nav-section-head">
+        <p className="nav-section">{title}</p>
+        <button
+          type="button"
+          className="nav-add"
+          aria-label={addLabel}
+          onClick={() => {
+            setOpen(true);
+            setError(null);
+            queueMicrotask(() => {
+              field.current?.focus();
+            });
+          }}
+        >
+          <Plus size={16} aria-hidden="true" />
+        </button>
+      </div>
+      {open ? (
+        <form
+          className="nav-create"
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              event.preventDefault();
+              close();
+            }
+          }}
+          onSubmit={(event) => {
+            event.preventDefault();
+            void onCreate(draft).then((problem) => {
+              if (problem === null && draft.trim().length === 0) {
+                return;
+              }
+              if (problem !== null) {
+                setError(problem);
+                return;
+              }
+              setDraft('');
+              setError(null);
+              field.current?.focus();
+            });
+          }}
+        >
+          <input
+            ref={field}
+            value={draft}
+            aria-label={addLabel}
+            placeholder={placeholder}
+            onChange={(event) => {
+              setDraft(event.target.value);
+            }}
+          />
+          <button type="submit">{createLabel}</button>
+          {error !== null ? <p className="error">{error}</p> : null}
+        </form>
+      ) : null}
+    </>
   );
 }
 

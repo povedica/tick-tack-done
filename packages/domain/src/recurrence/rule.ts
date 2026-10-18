@@ -75,7 +75,10 @@ export function parseRepeatRule(
   };
 }
 
-/** Keep the original DTSTART when the rule already has one; otherwise anchor it on the due instant. */
+/**
+ * In-memory form for the recurrence engine. Callers that persist a rule must keep the
+ * original string: this prepends DTSTART and drops INTERVAL=1.
+ */
 export function canonicalizeRepeatRule(
   rule: string,
   anchorIso: string | null,
@@ -119,13 +122,10 @@ export function excludeOccurrence(
   }
   const existing = new Set(parsed.rule.exdates.map((iso) => basicUtc(iso)));
   if (existing.has(stamp)) {
-    return { ok: true, rule: serialize(parsed.rule) };
+    return { ok: true, rule };
   }
-  const iso = new Date(occurrenceIso).toISOString();
-  return {
-    ok: true,
-    rule: serialize({ ...parsed.rule, exdates: [...parsed.rule.exdates, iso] }),
-  };
+  const separator = rule.endsWith('\n') ? '' : '\n';
+  return { ok: true, rule: `${rule}${separator}EXDATE:${stamp}` };
 }
 
 export interface RepeatDraft {
@@ -237,23 +237,6 @@ function joinEs(items: readonly string[]): string {
     return items[0] ?? '';
   }
   return `${items.slice(0, -1).join(', ')} y ${items[items.length - 1] ?? ''}`;
-}
-
-function serialize(rule: ParsedRule): string {
-  const lines = [`RRULE:${rule.rruleBody}`];
-  if (rule.dtstart !== null) {
-    const wall = wallClock(rule.dtstart, 'UTC');
-    if (wall !== null) {
-      lines.unshift(`DTSTART:${basicLocal(wall)}Z`);
-    }
-  }
-  for (const iso of rule.exdates) {
-    const stamp = basicUtc(iso);
-    if (stamp !== null) {
-      lines.push(`EXDATE:${stamp}`);
-    }
-  }
-  return lines.join('\n');
 }
 
 function parseBody(body: string): Omit<ParsedRule, 'exdates' | 'dtstart' | 'rruleBody'> | null {

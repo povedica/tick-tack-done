@@ -201,8 +201,9 @@ export function TaskDetail({
           aria-label={messages.titlePreview}
           defaultValue={task.title}
           key={task.title}
+          placeholder={messages.untitled}
           onBlur={(event) => {
-            if (event.target.value.trim().length > 0 && event.target.value !== task.title) {
+            if (event.target.value !== task.title) {
               save.mutate({ title: event.target.value });
             }
           }}

@@ -1,4 +1,4 @@
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { matchTaskByTitle, parseTelegramCommand, type TelegramCommand } from '@reflexionia/domain';
 import { type AuthUser } from '../../auth/auth-user';
 import { API_SCOPES } from '../../auth/scopes';
@@ -10,8 +10,20 @@ import { readTelegramUpdate, type TelegramIncoming } from '../../integrations/te
 import { PrismaService } from '../../prisma/prisma.service';
 import { ATTACHMENT_MAX_BYTES } from '../tasks/attachment-storage';
 import type { TaskSummaryJson } from '../tasks/task.mapper';
+import { ListsService } from '../lists/lists.service';
 import { TasksService, type TaskListQuery } from '../tasks/tasks.service';
 import { TelegramApi } from './telegram-api';
+
+const LIST_NAME_MAX = 200;
+export const TELEGRAM_BOT_COMMANDS: readonly { command: string; description: string }[] = [
+  { command: 'capturar', description: 'Guardar una tarea' },
+  { command: 'hoy', description: 'Tareas de hoy' },
+  { command: 'manana', description: 'Tareas de mañana' },
+  { command: 'semana', description: 'Tareas de la semana' },
+  { command: 'lista', description: 'Ver listas o filtrar' },
+  { command: 'nuevalista', description: 'Crear una lista' },
+  { command: 'hecho', description: 'Completar una tarea' },
+];
 
 const TASK_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -27,13 +39,27 @@ interface Reply {
 }
 
 @Injectable()
-export class TelegramBotService {
+export class TelegramBotService implements OnModuleInit {
+  private readonly logger = new Logger(TelegramBotService.name);
+
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
     @Inject(TasksService) private readonly tasks: TasksService,
+    @Inject(ListsService) private readonly lists: ListsService,
     @Inject(TelegramApi) private readonly telegram: TelegramApi,
   ) {}
+
+  async onModuleInit(): Promise<void> {
+    if (process.env.VITEST === 'true' || (process.env.TELEGRAM_BOT_TOKEN ?? '').length === 0) {
+      return;
+    }
+    try {
+      await this.telegram.call('setMyCommands', { commands: [...TELEGRAM_BOT_COMMANDS] });
+    } catch {
+      this.logger.warn('setMyCommands failed');
+    }
+  }
 
   async handle(body: unknown): Promise<TelegramOutcome> {
     const incoming = readTelegramUpdate(body);
@@ -78,7 +104,9 @@ export class TelegramBotService {
   private async replyFor(user: AuthUser, text: string, updateId: string): Promise<Reply> {
     const cleaned = text.trim().replace(/^\/([a-z_]+)@\w+/i, '/$1');
     if (cleaned === '/start') {
-      return plain('Escribe una tarea, o usa /capturar, /hoy, /manana, /semana, /lista y /hecho.');
+      return plain(
+        'Escribe una tarea, o usa /capturar, /hoy, /manana, /semana, /lista, /nuevalista y /hecho.',
+      );
     }
     if (cleaned === '/hecho' || cleaned === '/completar') {
       return plain('Escribe el título: /hecho comprar leche');
@@ -89,7 +117,7 @@ export class TelegramBotService {
     }
     if (command.kind === 'capture' && command.text.startsWith('/')) {
       return plain(
-        'Ese comando no existe. Usa /capturar, /hoy, /manana, /semana, /lista o /hecho.',
+        'Ese comando no existe. Usa /capturar, /hoy, /manana, /semana, /lista, /nuevalista o /hecho.',
       );
     }
     if (command.kind === 'capture') {
@@ -110,17 +138,45 @@ export class TelegramBotService {
     if (command.kind === 'priority') {
       return this.priorityList(user, command.level);
     }
+    if (command.kind === 'create_list') {
+      return this.createList(user, command.name, updateId);
+    }
     return this.namedList(user, command.name);
   }
 
   private async capture(user: AuthUser, text: string, updateId: string): Promise<Reply> {
     const created = await this.tasks.create(user, { raw_text: text }, `telegram-${updateId}`);
-    const missed = created.body.warnings?.find((item) => item.code === 'list_not_found');
-    const listNote =
-      missed === undefined
-        ? ''
-        : ` La lista «${missed.name ?? ''}» no existe, así que quedó en la bandeja.`;
-    return plain(`Guardada: ${created.body.title}.${listNote}`);
+    const notes: string[] = [];
+    for (const warning of created.body.warnings ?? []) {
+      if (warning.code === 'list_created' && warning.name !== undefined) {
+        notes.push(`Lista creada: ${warning.name}.`);
+      } else if (warning.code === 'tag_created' && warning.name !== undefined) {
+        notes.push(`Etiqueta creada: ${warning.name}.`);
+      } else if (warning.code === 'list_not_found') {
+        notes.push(`La lista «${warning.name ?? ''}» no existe, así que quedó en la bandeja.`);
+      }
+    }
+    const extra = notes.length === 0 ? '' : ` ${notes.join(' ')}`;
+    return plain(`Guardada: ${created.body.title}.${extra}`);
+  }
+
+  private async createList(user: AuthUser, rawName: string, updateId: string): Promise<Reply> {
+    const name = rawName.trim();
+    if (name.length === 0) {
+      return plain('Falta el nombre de la lista.');
+    }
+    if (name.length > LIST_NAME_MAX) {
+      return plain('El nombre de la lista es demasiado largo.');
+    }
+    const existing = await this.prisma.project.findFirst({
+      where: { ownerId: user.id, deletedAt: null, name: { equals: name, mode: 'insensitive' } },
+      select: { id: true },
+    });
+    if (existing !== null) {
+      return plain(`La lista «${name}» ya existe.`);
+    }
+    await this.lists.createProject(user, { name }, `telegram-list-${updateId}`);
+    return plain(`Lista creada: ${name}.`);
   }
 
   private async completeByTitle(

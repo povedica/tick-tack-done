@@ -30,6 +30,15 @@ export function wallClock(iso: string, timeZone: string): WallClock | null {
   };
 }
 
+/** UTC instant of local midnight for the calendar day of `iso` in `timeZone`. */
+export function startOfZonedDay(iso: string, timeZone: string): string | null {
+  const wall = wallClock(iso, timeZone);
+  if (wall === null) {
+    return null;
+  }
+  return instantFromWall({ ...wall, hour: 0, minute: 0, second: 0 }, timeZone);
+}
+
 /** Interpret wall-clock fields as local time in `timeZone` and return UTC ISO. */
 export function instantFromWall(wall: WallClock, timeZone: string): string | null {
   if (!isIanaTimeZone(timeZone)) {

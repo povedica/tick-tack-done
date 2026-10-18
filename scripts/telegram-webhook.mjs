@@ -30,3 +30,25 @@ if (payload.ok !== true) {
   process.exit(1);
 }
 console.log(`[telegram] webhook set on ${publicUrl}`);
+
+const commands = await fetch(`https://api.telegram.org/bot${token}/setMyCommands`, {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({
+    commands: [
+      { command: 'capturar', description: 'Guardar una tarea' },
+      { command: 'hoy', description: 'Tareas de hoy' },
+      { command: 'manana', description: 'Tareas de mañana' },
+      { command: 'semana', description: 'Tareas de la semana' },
+      { command: 'lista', description: 'Ver listas o filtrar' },
+      { command: 'nuevalista', description: 'Crear una lista' },
+      { command: 'hecho', description: 'Completar una tarea' },
+    ],
+  }),
+});
+const menu = await commands.json();
+if (menu.ok !== true) {
+  console.error('[telegram] setMyCommands failed');
+  process.exit(1);
+}
+console.log('[telegram] commands set, including /nuevalista');

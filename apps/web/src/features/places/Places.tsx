@@ -11,7 +11,18 @@ import { usePreferences, type AccentId } from '../../theme/preferences';
 import { useThemePreference } from '../../theme/store';
 import { quadrantOf, rowFromTask, smartApiKey } from '../tasks/model';
 import { newMutation, runOrQueue } from '../offline/client';
+import { collectTasks } from '../today/board';
 import { TaskList } from '../tasks/TaskList';
+import {
+  dayFromParam,
+  localDateParam,
+  localToday,
+  monthCells,
+  monthQueryRange,
+  overflowHref,
+  tasksOnCell,
+  yearQueryRange,
+} from './month';
 
 const ACCENTS: readonly AccentId[] = ['indigo', 'violet', 'teal', 'amber', 'rose', 'slate'];
 const CAL_VIEWS = ['day', 'week', 'multi-day', 'multi-week', 'month', 'year', 'agenda'] as const;
@@ -190,16 +201,27 @@ function ProcessCard({
 export function CalendarPage() {
   const messages = useMessages();
   const { view } = useParams();
+  const [params] = useSearchParams();
   const current = CAL_VIEWS.includes(view as (typeof CAL_VIEWS)[number]) ? view : 'month';
   const navigate = useNavigate();
   const weekStart = usePreferences((state) => state.weekStart);
+  const now = new Date();
+  const cells = monthCells(now, weekStart);
+  const range = current === 'year' ? yearQueryRange(now) : monthQueryRange(cells);
   const tasks = useQuery({
-    queryKey: ['calendar-tasks'],
-    queryFn: () => api.listTasks({ status: 'active', limit: 100, sort: 'due' }),
+    queryKey: ['calendar-tasks', range.dueAfter, range.dueBefore],
+    queryFn: () =>
+      collectTasks((query) => api.listTasks(query), {
+        status: 'active',
+        limit: 100,
+        sort: 'due',
+        dueAfter: range.dueAfter,
+        dueBefore: range.dueBefore,
+      }),
   });
-  const dated = (tasks.data?.items ?? []).filter(
-    (task) => task.due_date !== null && task.kind === 'task',
-  );
+  const dated = (tasks.data ?? []).filter((task) => task.due_date !== null && task.kind === 'task');
+  const selected = params.get('date');
+  const day = current === 'day' ? (dayFromParam(selected ?? '') ?? localToday(now)) : null;
   return (
     <section className="screen-page is-wide">
       <header className="page-toolbar">
@@ -219,8 +241,18 @@ export function CalendarPage() {
       </header>
       <CalendarExtras messages={messages} />
       {current === 'year' ? <Year tasks={dated} /> : null}
+      {current === 'day' && day !== null ? (
+        <ul>
+          {tasksOnCell(dated, day).map((task) => (
+            <li key={task.id}>
+              <Link to={`/list/${task.project_id}?task=${task.id}`}>
+                {task.title.trim().length === 0 ? messages.untitled : task.title} · {task.due_date}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {current === 'agenda' ||
-      current === 'day' ||
       current === 'week' ||
       current === 'multi-day' ||
       current === 'multi-week' ? (
@@ -234,35 +266,37 @@ export function CalendarPage() {
           ))}
         </ul>
       ) : null}
-      {current === 'month' ? <Month tasks={dated} weekStart={weekStart} /> : null}
+      {current === 'month' ? <Month tasks={dated} messages={messages} cells={cells} /> : null}
     </section>
   );
 }
 
 function Month({
   tasks,
-  weekStart,
+  messages,
+  cells,
 }: {
   readonly tasks: readonly Task[];
-  readonly weekStart: 'monday' | 'sunday';
+  readonly messages: Messages;
+  readonly cells: readonly Date[];
 }) {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const shift = (start.getDay() - (weekStart === 'monday' ? 1 : 0) + 7) % 7;
-  const cells = Array.from({ length: 42 }, (_, index) => {
-    const day = new Date(start);
-    day.setDate(index - shift + 1);
-    return day;
-  });
+  const locale = navigator.language;
   return (
     <div className="cal-month">
       {cells.map((day) => {
-        const key = day.toISOString().slice(0, 10);
-        const items = tasks.filter((task) => (task.due_date ?? '').slice(0, 10) === key);
+        const items = tasksOnCell(tasks, day);
         const weekend = day.getDay() === 0 || day.getDay() === 6;
+        const href = overflowHref(day);
+        const hidden = items.length - 3;
+        const when = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' }).format(day);
+        const moreLabel = (hidden === 1 ? messages.moreTask : messages.moreTasks)
+          .replace('{count}', String(hidden))
+          .replace('{date}', when);
         return (
-          <div key={key} className={weekend ? 'cal-cell is-weekend' : 'cal-cell'}>
-            <strong>{day.getDate()}</strong>
+          <div key={localDateParam(day)} className={weekend ? 'cal-cell is-weekend' : 'cal-cell'}>
+            <strong>
+              <Link to={href}>{day.getDate()}</Link>
+            </strong>
             {items.slice(0, 3).map((task) => (
               <Link
                 key={task.id}
@@ -273,10 +307,14 @@ function Month({
                 }
                 to={`/list/${task.project_id}?task=${task.id}`}
               >
-                {task.title}
+                {task.title.trim().length === 0 ? messages.untitled : task.title}
               </Link>
             ))}
-            {items.length > 3 ? <span>+{items.length - 3}</span> : null}
+            {hidden > 0 ? (
+              <Link to={href} aria-label={moreLabel}>
+                +{hidden}
+              </Link>
+            ) : null}
           </div>
         );
       })}

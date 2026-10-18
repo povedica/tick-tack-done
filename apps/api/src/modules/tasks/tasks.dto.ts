@@ -42,11 +42,11 @@ export class CreateTaskDto {
   @ApiProperty({
     required: false,
     maxLength: 500,
-    description: 'Required unless raw_text yields a title. An explicit title overrides the parse.',
+    description:
+      'Required unless raw_text yields a title. Stored as sent, including edge spaces. Empty is valid. An explicit title overrides the parse.',
   })
   @ValidateIf((dto: CreateTaskDto) => dto.raw_text === undefined || dto.title !== undefined)
   @IsString()
-  @MinLength(1)
   @MaxLength(500)
   title?: string;
 
@@ -54,7 +54,7 @@ export class CreateTaskDto {
     required: false,
     maxLength: 2000,
     description:
-      'Quick add text. The server parses it (RF-102). Explicit fields in this body override the parse.',
+      'Quick add text. The server parses it (RF-102). A missing ^list or #tag is created. Explicit fields in this body override the parse and do not create the parsed list or tags.',
   })
   @IsOptional()
   @IsString()
@@ -159,7 +159,6 @@ export class UpdateTaskDto {
   @ApiProperty({ required: false, maxLength: 500 })
   @IsOptional()
   @IsString()
-  @MinLength(1)
   @MaxLength(500)
   title?: string;
 
@@ -576,8 +575,21 @@ export class TaskPageDto {
 }
 
 export class CaptureWarningDto {
-  @ApiProperty({ enum: ['list_not_found', 'tag_not_found', 'reminder_without_date'] })
-  code!: 'list_not_found' | 'tag_not_found' | 'reminder_without_date';
+  @ApiProperty({
+    enum: [
+      'list_not_found',
+      'list_created',
+      'tag_not_found',
+      'tag_created',
+      'reminder_without_date',
+    ],
+  })
+  code!:
+    | 'list_not_found'
+    | 'list_created'
+    | 'tag_not_found'
+    | 'tag_created'
+    | 'reminder_without_date';
 
   @ApiProperty({ required: false })
   name?: string;

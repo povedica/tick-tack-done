@@ -9,6 +9,7 @@ export type TelegramCommand =
   | { readonly kind: 'tag'; readonly name: string }
   | { readonly kind: 'priority'; readonly level: 'high' | 'medium' | 'low' }
   | { readonly kind: 'complete'; readonly query: string }
+  | { readonly kind: 'create_list'; readonly name: string }
   | { readonly kind: 'capture'; readonly text: string };
 
 export interface TelegramTaskRef {
@@ -40,6 +41,10 @@ export function parseTelegramCommand(text: string): TelegramCommand {
   }
   if (lower === '/lista') {
     return { kind: 'lists' };
+  }
+  const created = matchCreateList(trimmed);
+  if (created !== null) {
+    return created;
   }
   const list = /^(?:\/lista|qué hay en|que hay en)\s+(.+)$/i.exec(trimmed);
   if (list?.[1] !== undefined) {
@@ -81,6 +86,23 @@ export function matchTaskByTitle(tasks: readonly TelegramTaskRef[], query: strin
 
 function fold(value: string): string {
   return value.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
+}
+
+function matchCreateList(trimmed: string): TelegramCommand | null {
+  const patterns = [
+    /^\/nuevalista(?:\s+([\s\S]*))?$/i,
+    /^\/lista\s+nueva(?:\s+([\s\S]*))?$/i,
+    /^\/lista\s+crear(?:\s+([\s\S]*))?$/i,
+    /^nueva\s+lista(?:\s+([\s\S]*))?$/i,
+    /^crear\s+lista(?:\s+([\s\S]*))?$/i,
+  ];
+  for (const pattern of patterns) {
+    const match = pattern.exec(trimmed);
+    if (match !== null) {
+      return { kind: 'create_list', name: (match[1] ?? '').trim() };
+    }
+  }
+  return null;
 }
 
 function listFilter(raw: string): TelegramCommand {

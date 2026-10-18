@@ -6,9 +6,10 @@ import { PriorityCheck } from '../../components/PriorityCheck';
 import { UndoToastStack } from '../../components/UndoToast';
 import { ViewMenu } from '../../components/ViewMenu';
 import { api } from '../../api';
-import { fill, useMessages, type Messages } from '../../i18n';
+import { captureLanguage, fill, useMessages, type Messages } from '../../i18n';
 import { warningText } from '../capture/components/CaptureSheet';
-import { useCaptureNotice } from '../capture/notice';
+import { noticesFrom, useCaptureNotice } from '../capture/notice';
+import { todayCaptureBody } from '../capture/submit';
 import { useShellActions } from '../../shell/shell-actions';
 import { isTypingTarget } from '../../shell/shortcuts';
 import { flushOfflineQueue, newMutation, runOrQueue } from '../offline/client';
@@ -35,6 +36,9 @@ export function TodayPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const notice = useCaptureNotice((state) => state.notice);
+  const setNotice = useCaptureNotice((state) => state.setNotice);
+  const [draft, setDraft] = useState('');
+  const addRef = useRef<HTMLInputElement>(null);
   const [params, setParams] = useSearchParams();
   const group = groupFromLocation(params.get('group'), readGroup());
   const tasks = useQuery({
@@ -212,7 +216,6 @@ export function TodayPage() {
       });
   }
 
-  const inbox = projects.data?.items.find((project) => project.is_inbox);
   const shown = visibleTasks(tasks.data ?? [], hidden).filter((task) =>
     hideCompleted ? task.status !== 'completed' : true,
   );
@@ -339,30 +342,50 @@ export function TodayPage() {
         className="quick-add"
         onSubmit={(event) => {
           event.preventDefault();
-          if (inbox === undefined) {
+          const text = draft;
+          if (text.trim().length === 0) {
             return;
           }
-          const data = new FormData(event.currentTarget);
-          const raw = data.get('title');
-          const title = (typeof raw === 'string' ? raw : '').trim();
-          if (title.length === 0) {
-            return;
-          }
-          const projectId = inbox.id;
-          void runOrQueue(
-            newMutation('create', crypto.randomUUID(), { title, project_id: projectId }),
-            (key) => api.createTask({ title, project_id: projectId }, key),
-          ).then(() => {
-            event.currentTarget.reset();
-            void queryClient.invalidateQueries({ queryKey: ['today-tasks'] });
-          });
+          const zone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Madrid';
+          const body = todayCaptureBody(
+            text,
+            new Date(),
+            zone,
+            captureLanguage(navigator.language),
+          );
+          void runOrQueue(newMutation('create', crypto.randomUUID(), { ...body }), (key) =>
+            api.createTask(body, key),
+          )
+            .then((outcome) => {
+              setDraft('');
+              addRef.current?.focus();
+              setActionError(null);
+              if (outcome.result !== null) {
+                const warnings = noticesFrom(outcome.result.warnings);
+                if (warnings.length > 0) {
+                  setNotice({ title: outcome.result.title, warnings });
+                }
+              }
+              void queryClient.invalidateQueries({ queryKey: ['today-tasks'] });
+              void queryClient.invalidateQueries({ queryKey: ['projects'] });
+              void queryClient.invalidateQueries({ queryKey: ['tags'] });
+              void queryClient.invalidateQueries({ queryKey: ['smart-lists'] });
+              void queryClient.invalidateQueries({ queryKey: ['project-tasks'] });
+            })
+            .catch(() => {
+              setActionError(messages.createFailed);
+            });
         }}
       >
         <input
+          ref={addRef}
           name="title"
+          value={draft}
           aria-label={messages.addTask}
           placeholder={`+ ${messages.addTask}`}
-          disabled={inbox === undefined}
+          onChange={(event) => {
+            setDraft(event.target.value);
+          }}
         />
       </form>
       <details className="plan" open>
@@ -410,6 +433,7 @@ export function TodayPage() {
           completeLabel={messages.completeLabel}
           repeatLabel={messages.repeatLink}
           moreLabel={messages.openDetail}
+          untitled={messages.untitled}
           projectNames={projectNames}
           tagNames={tagNames}
           tagColors={tagColors}
@@ -433,6 +457,7 @@ export function TodayPage() {
           completeLabel={messages.completeLabel}
           repeatLabel={messages.repeatLink}
           moreLabel={messages.openDetail}
+          untitled={messages.untitled}
           projectNames={projectNames}
           tagNames={tagNames}
           tagColors={tagColors}
@@ -508,6 +533,7 @@ function TaskGroup({
   completeLabel,
   repeatLabel,
   moreLabel,
+  untitled,
   projectNames,
   tagNames,
   tagColors,
@@ -523,6 +549,7 @@ function TaskGroup({
   readonly completeLabel: string;
   readonly repeatLabel: string;
   readonly moreLabel: string;
+  readonly untitled: string;
   readonly projectNames: ReadonlyMap<string, string>;
   readonly tagNames: ReadonlyMap<string, string>;
   readonly tagColors: ReadonlyMap<string, string | null>;
@@ -562,7 +589,7 @@ function TaskGroup({
                     onOpen(task.id);
                   }}
                 >
-                  {task.title}
+                  {task.title.trim().length === 0 ? untitled : task.title}
                 </button>
                 <span className="task-meta">
                   {task.tagIds.map((id) => (

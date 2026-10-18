@@ -1,29 +1,27 @@
-export type SubtaskProject =
-  | { readonly ok: true; readonly projectId: string }
-  | { readonly ok: false; readonly reason: 'project_mismatch' };
+export interface SubtaskProject {
+  readonly ok: true;
+  readonly projectId: string;
+}
 
-/** RF-205: a subtask inherits its parent's list and is not filed elsewhere. */
+/**
+ * RF-205: a subtask may live in a different list from its parent.
+ * A missing parent, another owner's parent, or a cycle is rejected by the API, not here.
+ */
 export function resolveSubtaskProject(input: {
   readonly requestedProjectId: string;
   readonly parentProjectId: string | null;
 }): SubtaskProject {
-  if (input.parentProjectId === null) {
-    return { ok: true, projectId: input.requestedProjectId };
-  }
-  if (input.requestedProjectId !== input.parentProjectId) {
-    return { ok: false, reason: 'project_mismatch' };
-  }
-  return { ok: true, projectId: input.parentProjectId };
+  return { ok: true, projectId: input.requestedProjectId };
 }
 
 const TITLE_MAX = 500;
 
 export type TaskTitle = { readonly ok: true; readonly title: string } | { readonly ok: false };
 
+/** Persists the title as received, including edge spaces. Empty is valid. Max 500 on the raw text. */
 export function normalizeTaskTitle(title: string): TaskTitle {
-  const trimmed = title.trim();
-  if (trimmed.length === 0 || trimmed.length > TITLE_MAX) {
+  if (title.length > TITLE_MAX) {
     return { ok: false };
   }
-  return { ok: true, title: trimmed };
+  return { ok: true, title };
 }

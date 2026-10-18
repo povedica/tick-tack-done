@@ -1,11 +1,14 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { GripVertical, MoreHorizontal } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { ApiError } from '@reflexionia/sdk';
 import { useSearchParams } from 'react-router';
 import { api } from '../../api';
 import { PriorityCheck } from '../../components/PriorityCheck';
 import { Button, TagChip } from '../../components/ui';
 import { fill, type Messages } from '../../i18n';
+import { noticesFrom, useCaptureNotice } from '../capture/notice';
+import { listCaptureBody } from '../capture/submit';
 import { newMutation, runOrQueue } from '../offline/client';
 import { isOverdue, isSameDay, type RowModel } from './model';
 
@@ -34,7 +37,12 @@ export function TaskList({
   readonly showDetails?: boolean | undefined;
   readonly hideCompleted?: boolean | undefined;
 }) {
+  const queryClient = useQueryClient();
   const [params, setParams] = useSearchParams();
+  const setNotice = useCaptureNotice((state) => state.setNotice);
+  const [draft, setDraft] = useState('');
+  const [addError, setAddError] = useState<string | null>(null);
+  const addRef = useRef<HTMLInputElement>(null);
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
   const [limit, setLimit] = useState('');
   const now = useMemo(() => new Date(), []);
@@ -103,25 +111,46 @@ export function TaskList({
           className="inline-add"
           onSubmit={(event) => {
             event.preventDefault();
-            const data = new FormData(event.currentTarget);
-            const raw = data.get('title');
-            const title = (typeof raw === 'string' ? raw : '').trim();
-            if (title.length === 0) {
+            const text = draft;
+            if (text.trim().length === 0) {
               return;
             }
-            void runOrQueue(
-              newMutation('create', crypto.randomUUID(), {
-                title,
-                project_id: createProjectId,
-              }),
-              (key) => api.createTask({ title, project_id: createProjectId }, key),
-            ).then(() => {
-              event.currentTarget.reset();
-              onCreated?.();
-            });
+            const body = listCaptureBody(text, createProjectId);
+            void runOrQueue(newMutation('create', crypto.randomUUID(), { ...body }), (key) =>
+              api.createTask(body, key),
+            )
+              .then((outcome) => {
+                setDraft('');
+                setAddError(null);
+                addRef.current?.focus();
+                if (outcome.result !== null) {
+                  const warnings = noticesFrom(outcome.result.warnings);
+                  if (warnings.length > 0) {
+                    setNotice({ title: outcome.result.title, warnings });
+                  }
+                }
+                void queryClient.invalidateQueries({ queryKey: ['tags'] });
+                void queryClient.invalidateQueries({ queryKey: ['projects'] });
+                void queryClient.invalidateQueries({ queryKey: ['smart-lists'] });
+                void queryClient.invalidateQueries({ queryKey: ['today-tasks'] });
+                onCreated?.();
+              })
+              .catch(() => {
+                setAddError(messages.createFailed);
+              });
           }}
         >
-          <input name="title" aria-label={messages.addTask} placeholder={`+ ${messages.addTask}`} />
+          <input
+            ref={addRef}
+            name="title"
+            value={draft}
+            aria-label={messages.addTask}
+            placeholder={`+ ${messages.addTask}`}
+            onChange={(event) => {
+              setDraft(event.target.value);
+            }}
+          />
+          {addError !== null ? <p className="error">{addError}</p> : null}
         </form>
       ) : null}
       {body}
@@ -269,7 +298,7 @@ function TaskRow({
         }}
       />
       <button type="button" className="task-title" onClick={onOpen}>
-        {row.title}
+        {row.title.trim().length === 0 ? messages.untitled : row.title}
       </button>
       <span className="task-meta">
         {row.tags.map((tag) => (

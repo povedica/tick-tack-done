@@ -5,22 +5,23 @@ import { normalizeTaskTitle, resolveSubtaskProject } from './subtask';
 import { isIanaTimeZone } from './time-zone';
 
 describe('tasks', () => {
-  it('RF-205: a subtask keeps the parent list', () => {
+  it('RF-205: a subtask may live in a different list from its parent', () => {
     expect(
       resolveSubtaskProject({ requestedProjectId: 'list-a', parentProjectId: 'list-a' }),
     ).toEqual({ ok: true, projectId: 'list-a' });
     expect(
       resolveSubtaskProject({ requestedProjectId: 'list-b', parentProjectId: 'list-a' }),
-    ).toEqual({ ok: false, reason: 'project_mismatch' });
+    ).toEqual({ ok: true, projectId: 'list-b' });
     expect(resolveSubtaskProject({ requestedProjectId: 'list-b', parentProjectId: null })).toEqual({
       ok: true,
       projectId: 'list-b',
     });
   });
 
-  it('RF-201: titles are trimmed and rejected when empty or over 500 characters', () => {
-    expect(normalizeTaskTitle('  comprar  ')).toEqual({ ok: true, title: 'comprar' });
-    expect(normalizeTaskTitle('   ')).toEqual({ ok: false });
+  it('RF-201: titles keep edge spaces, allow empty, and reject more than 500 characters', () => {
+    expect(normalizeTaskTitle('  comprar  ')).toEqual({ ok: true, title: '  comprar  ' });
+    expect(normalizeTaskTitle('')).toEqual({ ok: true, title: '' });
+    expect(normalizeTaskTitle('   ')).toEqual({ ok: true, title: '   ' });
     expect(normalizeTaskTitle('a'.repeat(501))).toEqual({ ok: false });
   });
 

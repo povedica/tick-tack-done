@@ -44,6 +44,7 @@ export {
 } from './recurrence/rule';
 export type { ParsedRule, RepeatDraft, RuleFailure, Weekday } from './recurrence/rule';
 
+export { startOfZonedDay } from './dates/zoned';
 export { isOverdue, snoozeDue } from './dates/schedule';
 export type { DateSnoozePreset, ScheduleFailure, SnoozedDates } from './dates/schedule';
 

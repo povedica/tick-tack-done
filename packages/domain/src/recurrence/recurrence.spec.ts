@@ -152,6 +152,19 @@ describe('recurrence', () => {
     });
   });
 
+  it('RF-705: excluding an occurrence appends EXDATE and keeps INTERVAL=1', () => {
+    const original = 'RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=MO';
+    const excluded = excludeOccurrence(original, '2026-05-04T11:10:00.000Z');
+    expect(excluded).toEqual({
+      ok: true,
+      rule: 'RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=MO\nEXDATE:20260504T111000Z',
+    });
+    if (!excluded.ok) {
+      return;
+    }
+    expect(excludeOccurrence(excluded.rule, '2026-05-04T11:10:00.000Z')).toEqual(excluded);
+  });
+
   it('RF-705: an EXDATE drops that occurrence and leaves the rest of the series', () => {
     const excluded = excludeOccurrence('RRULE:FREQ=DAILY', '2026-10-20T07:00:00.000Z');
     expect(excluded.ok).toBe(true);

@@ -5,7 +5,7 @@ import { IdempotencyService } from './idempotency.service';
 
 describe('IdempotencyService.run', () => {
   it('gives the interactive transaction 15 seconds', async () => {
-    const transaction = vi.fn(async (work: (tx: unknown) => Promise<unknown>) => work({}));
+    const transaction = vi.fn((work: (tx: unknown) => Promise<unknown>) => work({}));
     const prisma = {
       idempotencyRecord: { findUnique: vi.fn() },
       $transaction: transaction,
@@ -16,7 +16,7 @@ describe('IdempotencyService.run', () => {
       key: undefined,
       fingerprint: 'fingerprint',
       statusCode: 201,
-      execute: async () => ({ ok: true }),
+      execute: () => Promise.resolve({ ok: true }),
     });
     expect(transaction).toHaveBeenCalledWith(expect.any(Function), { timeout: 15_000 });
   });
@@ -28,7 +28,7 @@ describe('IdempotencyService.run', () => {
     });
     const prisma = {
       idempotencyRecord: { findUnique: vi.fn() },
-      $transaction: vi.fn(async () => {
+      $transaction: vi.fn(() => {
         throw error;
       }),
     };
@@ -40,12 +40,10 @@ describe('IdempotencyService.run', () => {
         key: undefined,
         fingerprint: 'fingerprint',
         statusCode: 201,
-        execute: async () => ({ secret: 'do-not-log' }),
+        execute: () => Promise.resolve({ secret: 'do-not-log' }),
       }),
     ).rejects.toBe(error);
-    expect(logged).toHaveBeenCalledWith(
-      'interactive transaction timed out IdempotencyService.run',
-    );
+    expect(logged).toHaveBeenCalledWith('interactive transaction timed out IdempotencyService.run');
     const text = logged.mock.calls.map((call) => String(call[0])).join('\n');
     expect(text).not.toContain('do-not-log');
     logged.mockRestore();
