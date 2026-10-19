@@ -226,7 +226,9 @@ describe('parseQuickAdd', () => {
     expect(later.due).toEqual({ date: localDue(0, 15, 35), isAllDay: false });
     const earlier = parsed('recoger a las 11:00');
     expect(earlier.due).toEqual({ date: localDue(1, 11, 0), isAllDay: false });
-    expect(parsed('a las 3 y media').due).toEqual({ date: localDue(1, 3, 30), isAllDay: false });
+    const half = parsed('a las 3 y media');
+    expect(half.title).toBe('y media');
+    expect(half.due).toEqual({ date: localDue(1, 3, 0), isAllDay: false });
     expect(parsed('stand up 15:35').due?.isAllDay).toBe(false);
   });
 
@@ -309,5 +311,141 @@ describe('parseQuickAdd', () => {
     });
     expect(longer.tagNames).toEqual(['tarde']);
     expect(longer.due).toBeNull();
+  });
+});
+
+const GOLDEN_NOW = '2026-10-19T14:39:00.000Z';
+
+describe('parseQuickAdd golden capture (Q.9)', () => {
+  function golden(text: string) {
+    return parseQuickAdd(text, 'es', { now: GOLDEN_NOW, timeZone: ZONE });
+  }
+
+  const cases: readonly {
+    text: string;
+    title: string;
+    due: string | null;
+    allDay: boolean | null;
+  }[] = [
+    {
+      text: 'Recoger mañana a Markus del cole a las 16:00 !high #cole',
+      title: 'Recoger a Markus del cole',
+      due: '2026-10-20T14:00:00.000Z',
+      allDay: false,
+    },
+    {
+      text: 'dentista mañana a las 9:30',
+      title: 'dentista',
+      due: '2026-10-20T07:30:00.000Z',
+      allDay: false,
+    },
+    {
+      text: 'llamar a Ana a las 18:00',
+      title: 'llamar a Ana',
+      due: '2026-10-19T16:00:00.000Z',
+      allDay: false,
+    },
+    {
+      text: 'llamar a Ana a las 9:00',
+      title: 'llamar a Ana',
+      due: '2026-10-20T07:00:00.000Z',
+      allDay: false,
+    },
+    {
+      text: 'el lunes recoger paquete',
+      title: 'recoger paquete',
+      due: '2026-10-25T23:00:00.000Z',
+      allDay: true,
+    },
+    {
+      text: 'el martes recoger paquete a las 10:00',
+      title: 'recoger paquete',
+      due: '2026-10-20T08:00:00.000Z',
+      allDay: false,
+    },
+    {
+      text: 'revisión en 2 horas',
+      title: 'revisión',
+      due: '2026-10-19T16:39:00.000Z',
+      allDay: false,
+    },
+    {
+      text: 'revisión dentro de 3 días',
+      title: 'revisión',
+      due: '2026-10-21T22:00:00.000Z',
+      allDay: true,
+    },
+    {
+      text: 'cita el 24/10 a las 12:30',
+      title: 'cita',
+      due: '2026-10-24T10:30:00.000Z',
+      allDay: false,
+    },
+    {
+      text: 'a las 4 de la tarde llamar al banco',
+      title: 'llamar al banco',
+      due: '2026-10-19T14:00:00.000Z',
+      allDay: false,
+    },
+    {
+      text: 'a las 3 de la tarde llamar',
+      title: 'llamar',
+      due: '2026-10-20T13:00:00.000Z',
+      allDay: false,
+    },
+    {
+      text: 'salir a correr pasado mañana a las 8',
+      title: 'salir a correr',
+      due: '2026-10-21T06:00:00.000Z',
+      allDay: false,
+    },
+    {
+      text: 'cita el 29/3/2026 a las 2:30',
+      title: 'cita',
+      due: '2026-03-29T01:30:00.000Z',
+      allDay: false,
+    },
+    {
+      text: 'cita el 25/10/2026 a las 2:30',
+      title: 'cita',
+      due: '2026-10-25T00:30:00.000Z',
+      allDay: false,
+    },
+    { text: 'comprar 16 velas', title: 'comprar 16 velas', due: null, allDay: null },
+    {
+      text: 'mañana a las 9:30 y a las 18:00',
+      title: 'y a las 18:00',
+      due: '2026-10-20T07:30:00.000Z',
+      allDay: false,
+    },
+    {
+      text: 'cita a las 9 de la tarde',
+      title: 'cita a las 9 de la tarde',
+      due: null,
+      allDay: null,
+    },
+  ];
+
+  it.each(cases)('RF-102: $text', ({ text, title, due, allDay }) => {
+    const result = golden(text);
+    expect(result.title).toBe(title);
+    if (due === null) {
+      expect(result.due).toBeNull();
+      return;
+    }
+    expect(result.due).toEqual({ date: due, isAllDay: allDay });
+  });
+
+  it('RF-102: the Markus capture keeps high priority and the cole tag', () => {
+    const result = golden('Recoger mañana a Markus del cole a las 16:00 !high #cole');
+    expect(result.priority).toBe('high');
+    expect(result.tagNames).toEqual(['cole']);
+  });
+
+  it('RF-102: a bare number or a time glued to other tokens stays in the title', () => {
+    expect(golden('x16:00').due).toBeNull();
+    expect(golden('x16:00').title).toBe('x16:00');
+    expect(golden('116:000').due).toBeNull();
+    expect(golden('116:000').title).toBe('116:000');
   });
 });

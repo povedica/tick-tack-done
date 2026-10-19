@@ -143,10 +143,29 @@ interface Draft {
   repeatRule: string | null;
   reminderTrigger: string | null;
   spans: QuickAddSpan[];
+  dates: DateAnchor[];
+  clocks: ClockAnchor[];
+}
+
+interface DateAnchor {
+  readonly start: number;
+  readonly end: number;
+  readonly day: WallClock;
+  readonly clock: Clock | null;
+  readonly repeatRule: string | null;
+  readonly weekday: Weekday | null;
+  readonly resolved: QuickAddDue | null;
+}
+
+interface ClockAnchor {
+  readonly start: number;
+  readonly end: number;
+  readonly clock: Clock;
 }
 
 interface ClockContext {
   readonly now: WallClock;
+  readonly nowIso: string;
   readonly timeZone: string;
 }
 
@@ -173,6 +192,8 @@ export function parseQuickAdd(
     repeatRule: null,
     reminderTrigger: null,
     spans: [],
+    dates: [],
+    clocks: [],
   };
   let cursor = 0;
   while (cursor < text.length) {
@@ -188,7 +209,10 @@ export function parseQuickAdd(
     draft.spans.push({ start: found.start, end: found.end, kind: found.kind });
     cursor = found.end;
   }
-  const spans = [...draft.spans].sort((left, right) => left.start - right.start);
+  const dropped = settleSchedule(draft, clock);
+  const spans = [...draft.spans]
+    .filter((span) => !dropped.some((item) => item.start === span.start && item.end === span.end))
+    .sort((left, right) => left.start - right.start);
   return {
     title: titleWithout(text, spans),
     spans,
@@ -206,8 +230,14 @@ const builtinMatchers: readonly Matcher[] = [
   matchEvery,
   matchNumericDate,
   matchMonthWord,
-  matchHalfHour,
+  matchWeekday,
+  matchOffset,
+  matchDayPart,
+  matchMeridiem,
+  matchAmPm,
+  matchHourMark,
   matchBareTime,
+  matchLooseHour,
   matchReminder,
   matchPriority,
   matchTag,
@@ -222,7 +252,7 @@ function readClock(context: QuickAddContext | undefined): ClockContext | null {
   if (now === null) {
     return null;
   }
-  return { now, timeZone: context.timeZone };
+  return { now, nowIso: context.now, timeZone: context.timeZone };
 }
 
 function earliest(
@@ -272,9 +302,19 @@ function matchRelative(
 }
 
 const BARE_TIME = /(?:(?:a\s+las|at)\s+)?(\d{1,2}):(\d{2})(?!\d)/giu;
-const HALF_HOUR = /a\s+las\s+(\d{1,2})\s+y\s+media(?!\p{L})/giu;
+const LOOSE_HOUR = /(?:a\s+las|at)\s+(\d{1,2})(?![:\d])/giu;
+const HOUR_MARK = /(?<![\p{L}\p{N}])(\d{1,2})(?::(\d{2}))?h(?![\p{L}\p{N}])/giu;
+const DAY_PART =
+  /(?:a\s+las|at)\s+(\d{1,2})(?::(\d{2}))?\s+de\s+la\s+(mañana|tarde|noche)(?![\p{L}\p{N}])/giu;
+const MERIDIEM = /(?<![\p{L}\p{N}])(?:a\s+las\s+)?(mediod[ií]a|medianoche)(?![\p{L}\p{N}])/giu;
+const AM_PM =
+  /(?<![\p{L}\p{N}])(?:(?:a\s+las|at)\s+)?(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m\.?(?![\p{L}\p{N}])/giu;
+const WEEKDAY_WORD =
+  /(?<![\p{L}\p{N}])(?:(?:el|on)\s+)?(lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo|monday|tuesday|wednesday|thursday|friday|saturday|sunday)(?![\p{L}\p{N}])/giu;
+const OFFSET =
+  /(?<![\p{L}\p{N}])(?:en|dentro\s+de)\s+(un|una|\d+)\s+(minutos?|horas?|d[ií]as?|semanas?)(?![\p{L}\p{N}])/giu;
 
-function matchHalfHour(
+function matchWeekday(
   text: string,
   from: number,
   _language: QuickAddLanguage,
@@ -283,15 +323,131 @@ function matchHalfHour(
   if (clock === null) {
     return null;
   }
-  return scan(text, from, HALF_HOUR, (match) => {
-    if (!opensAtBoundary(text, match.index)) {
+  const match = firstMatch(text, from, WEEKDAY_WORD);
+  if (match?.[1] === undefined) {
+    return null;
+  }
+  const weekday = WEEKDAY[fold(match[1])];
+  if (weekday === undefined) {
+    return null;
+  }
+  const timed = extendWithTime(text, match.index + match[0].length);
+  return dateFound(match.index, timed, clock.now, null, clock.timeZone, weekday);
+}
+
+function matchOffset(
+  text: string,
+  from: number,
+  _language: QuickAddLanguage,
+  clock: ClockContext | null,
+): Found | null {
+  if (clock === null) {
+    return null;
+  }
+  return scan(text, from, OFFSET, (match) => {
+    if (match[1] === undefined || match[2] === undefined) {
       return null;
     }
-    const hour = Number(match[1]);
-    if (!Number.isInteger(hour) || hour < 1 || hour > 12) {
+    const amount = offsetAmount(match[1]);
+    const unit = offsetUnit(match[2]);
+    if (amount === null || unit === null || amount < 1 || amount > 999) {
       return null;
     }
-    return bareDue(match.index, match.index + match[0].length, hour, 30, clock);
+    const due = offsetDue(clock, amount, unit);
+    if (due === null) {
+      return null;
+    }
+    return {
+      start: match.index,
+      end: match.index + match[0].length,
+      kind: 'date',
+      apply: (draft) => {
+        draft.dates.push({
+          start: match.index,
+          end: match.index + match[0].length,
+          day: clock.now,
+          clock: null,
+          repeatRule: null,
+          weekday: null,
+          resolved: due,
+        });
+      },
+    };
+  });
+}
+
+function matchDayPart(
+  text: string,
+  from: number,
+  _language: QuickAddLanguage,
+  clock: ClockContext | null,
+): Found | null {
+  if (clock === null) {
+    return null;
+  }
+  return scan(text, from, DAY_PART, (match) => {
+    const parsed = dayPartClock(
+      Number(match[1]),
+      match[2] === undefined ? 0 : Number(match[2]),
+      match[3],
+    );
+    if (parsed === null) {
+      return null;
+    }
+    return looseClock(match.index, match.index + match[0].length, parsed);
+  });
+}
+
+function matchMeridiem(
+  text: string,
+  from: number,
+  _language: QuickAddLanguage,
+  clock: ClockContext | null,
+): Found | null {
+  if (clock === null) {
+    return null;
+  }
+  const match = firstMatch(text, from, MERIDIEM);
+  if (match?.[1] === undefined) {
+    return null;
+  }
+  const hour = fold(match[1]).startsWith('medianoche') ? 0 : 12;
+  return looseClock(match.index, match.index + match[0].length, { hour, minute: 0 });
+}
+
+function matchAmPm(
+  text: string,
+  from: number,
+  _language: QuickAddLanguage,
+  clock: ClockContext | null,
+): Found | null {
+  if (clock === null) {
+    return null;
+  }
+  return scan(text, from, AM_PM, (match) => {
+    const parsed = clockFrom(match[1], match[2], match[3]);
+    if (parsed === null || dayPartFollows(text, match.index + match[0].length)) {
+      return null;
+    }
+    return looseClock(match.index, match.index + match[0].length, parsed);
+  });
+}
+
+function matchHourMark(
+  text: string,
+  from: number,
+  _language: QuickAddLanguage,
+  clock: ClockContext | null,
+): Found | null {
+  if (clock === null) {
+    return null;
+  }
+  return scan(text, from, HOUR_MARK, (match) => {
+    const parsed = clockFrom(match[1], match[2], undefined);
+    if (parsed === null) {
+      return null;
+    }
+    return looseClock(match.index, match.index + match[0].length, parsed);
   });
 }
 
@@ -317,32 +473,43 @@ function matchBareTime(
     if (next !== undefined && /[\p{L}\p{N}]/u.test(next)) {
       return null;
     }
-    return bareDue(match.index, end, parsed.hour, parsed.minute, clock);
+    if (dayPartFollows(text, end)) {
+      return null;
+    }
+    return looseClock(match.index, end, parsed);
   });
 }
 
-function bareDue(
-  start: number,
-  end: number,
-  hour: number,
-  minute: number,
-  clock: ClockContext,
+function matchLooseHour(
+  text: string,
+  from: number,
+  _language: QuickAddLanguage,
+  clock: ClockContext | null,
 ): Found | null {
-  const past =
-    hour < clock.now.hour || (hour === clock.now.hour && minute <= clock.now.minute);
-  const day = past ? addCalendarDays(clock.now, 1) : clock.now;
-  const date = instantFromWall({ ...day, hour, minute, second: 0 }, clock.timeZone);
-  if (date === null) {
+  if (clock === null) {
     return null;
   }
-  const due: QuickAddDue = { date, isAllDay: false };
+  return scan(text, from, LOOSE_HOUR, (match) => {
+    const parsed = clockFrom(match[1], undefined, undefined);
+    if (parsed === null || dayPartFollows(text, match.index + match[0].length)) {
+      return null;
+    }
+    const end = match.index + match[0].length;
+    const mark = /^\s*h(?![\p{L}\p{N}])/iu.exec(text.slice(end));
+    if (mark !== null) {
+      return null;
+    }
+    return looseClock(match.index, end, parsed);
+  });
+}
+
+function looseClock(start: number, end: number, clock: Clock): Found {
   return {
     start,
     end,
     kind: 'date',
     apply: (draft) => {
-      draft.due = due;
-      draft.repeatRule = null;
+      draft.clocks.push({ start, end, clock });
     },
   };
 }
@@ -639,24 +806,23 @@ function dateFound(
   timed: { readonly end: number; readonly clock: Clock | null },
   day: WallClock,
   repeatRule: string | null,
-  timeZone: string,
+  _timeZone: string,
+  weekday: Weekday | null = null,
 ): Found | null {
-  const wall =
-    timed.clock === null
-      ? { ...day, hour: 0, minute: 0, second: 0 }
-      : { ...day, hour: timed.clock.hour, minute: timed.clock.minute, second: 0 };
-  const date = instantFromWall(wall, timeZone);
-  if (date === null) {
-    return null;
-  }
-  const due: QuickAddDue = { date, isAllDay: timed.clock === null };
   return {
     start,
     end: timed.end,
     kind: 'date',
     apply: (draft) => {
-      draft.due = due;
-      draft.repeatRule = repeatRule;
+      draft.dates.push({
+        start,
+        end: timed.end,
+        day,
+        clock: timed.clock,
+        repeatRule,
+        weekday,
+        resolved: null,
+      });
     },
   };
 }
@@ -805,6 +971,183 @@ function nextWeekdayDelta(wall: WallClock): number {
     return 2;
   }
   return 0;
+}
+
+function settleSchedule(draft: Draft, clock: ClockContext | null): QuickAddSpan[] {
+  if (clock === null) {
+    return [];
+  }
+  if (draft.dates.length === 0) {
+    return settleBareClock(draft, clock);
+  }
+  const winning = draft.dates[draft.dates.length - 1];
+  if (winning === undefined) {
+    return [];
+  }
+  if (winning.resolved !== null) {
+    draft.due = winning.resolved;
+    draft.repeatRule = winning.repeatRule;
+    return draft.clocks.map((item) => ({
+      start: item.start,
+      end: item.end,
+      kind: 'date' as const,
+    }));
+  }
+  if (winning.clock !== null) {
+    draft.due = dueForAnchor(winning, winning.clock, clock);
+    draft.repeatRule = winning.repeatRule;
+    return draft.clocks.map((item) => ({
+      start: item.start,
+      end: item.end,
+      kind: 'date' as const,
+    }));
+  }
+  if (draft.clocks.length === 0) {
+    draft.due = dueForAnchor(winning, null, clock);
+    draft.repeatRule = winning.repeatRule;
+    return [];
+  }
+  const chosen = closestClock(winning, draft.clocks);
+  draft.due = dueForAnchor(winning, chosen.clock, clock);
+  draft.repeatRule = winning.repeatRule;
+  return draft.clocks
+    .filter((item) => item !== chosen)
+    .map((item) => ({ start: item.start, end: item.end, kind: 'date' as const }));
+}
+
+function settleBareClock(draft: Draft, clock: ClockContext): QuickAddSpan[] {
+  const chosen = draft.clocks[draft.clocks.length - 1];
+  if (chosen === undefined) {
+    return [];
+  }
+  const day = chosen.clock.hour < clock.now.hour ? addCalendarDays(clock.now, 1) : clock.now;
+  const date = instantFromWall(
+    { ...day, hour: chosen.clock.hour, minute: chosen.clock.minute, second: 0 },
+    clock.timeZone,
+  );
+  draft.due = date === null ? null : { date, isAllDay: false };
+  draft.repeatRule = null;
+  return draft.clocks
+    .filter((item) => item !== chosen)
+    .map((item) => ({ start: item.start, end: item.end, kind: 'date' as const }));
+}
+
+function dueForAnchor(
+  anchor: DateAnchor,
+  time: Clock | null,
+  clock: ClockContext,
+): QuickAddDue | null {
+  const day = anchor.weekday === null ? anchor.day : weekdayAhead(clock.now, anchor.weekday, time);
+  const wall =
+    time === null
+      ? { ...day, hour: 0, minute: 0, second: 0 }
+      : { ...day, hour: time.hour, minute: time.minute, second: 0 };
+  const date = instantFromWall(wall, clock.timeZone);
+  return date === null ? null : { date, isAllDay: time === null };
+}
+
+function weekdayAhead(now: WallClock, weekday: Weekday, time: Clock | null): WallClock {
+  const target = weekdayIndex(weekday);
+  const today = weekdayIndexOf(now);
+  let delta = (target - today + 7) % 7;
+  if (delta === 0) {
+    const stillAhead =
+      time !== null &&
+      (time.hour > now.hour || (time.hour === now.hour && time.minute > now.minute));
+    if (!stillAhead) {
+      delta = 7;
+    }
+  }
+  return addCalendarDays(now, delta);
+}
+
+function closestClock(date: DateAnchor, clocks: readonly ClockAnchor[]): ClockAnchor {
+  let best = clocks[0];
+  if (best === undefined) {
+    throw new Error('expected a clock');
+  }
+  let bestDistance = Math.abs(best.start - date.end);
+  for (const item of clocks.slice(1)) {
+    const distance = Math.abs(item.start - date.end);
+    if (distance < bestDistance || (distance === bestDistance && item.start < best.start)) {
+      best = item;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
+
+function offsetAmount(raw: string): number | null {
+  const key = fold(raw);
+  if (key === 'un' || key === 'una') {
+    return 1;
+  }
+  const value = Number(raw);
+  return Number.isInteger(value) ? value : null;
+}
+
+function offsetUnit(raw: string): 'minute' | 'hour' | 'day' | 'week' | null {
+  const key = fold(raw);
+  if (key.startsWith('min')) {
+    return 'minute';
+  }
+  if (key.startsWith('hora')) {
+    return 'hour';
+  }
+  if (key.startsWith('d')) {
+    return 'day';
+  }
+  if (key.startsWith('semana')) {
+    return 'week';
+  }
+  return null;
+}
+
+function offsetDue(
+  clock: ClockContext,
+  amount: number,
+  unit: 'minute' | 'hour' | 'day' | 'week',
+): QuickAddDue | null {
+  if (unit === 'minute' || unit === 'hour') {
+    const ms = amount * (unit === 'minute' ? 60_000 : 3_600_000);
+    return { date: new Date(Date.parse(clock.nowIso) + ms).toISOString(), isAllDay: false };
+  }
+  const day = addCalendarDays(clock.now, unit === 'week' ? amount * 7 : amount);
+  const date = instantFromWall({ ...day, hour: 0, minute: 0, second: 0 }, clock.timeZone);
+  return date === null ? null : { date, isAllDay: true };
+}
+
+function dayPartClock(hour: number, minute: number, part: string | undefined): Clock | null {
+  if (
+    part === undefined ||
+    !Number.isInteger(hour) ||
+    !Number.isInteger(minute) ||
+    minute < 0 ||
+    minute > 59
+  ) {
+    return null;
+  }
+  const key = fold(part);
+  if (key === 'mañana') {
+    if (hour === 12) {
+      return { hour: 0, minute };
+    }
+    return hour >= 1 && hour <= 11 ? { hour, minute } : null;
+  }
+  if (key === 'tarde') {
+    return hour >= 1 && hour <= 7 ? { hour: hour + 12, minute } : null;
+  }
+  if (key === 'noche') {
+    if (hour === 12) {
+      return { hour: 0, minute };
+    }
+    return hour >= 8 && hour <= 11 ? { hour: hour + 12, minute } : null;
+  }
+  return null;
+}
+
+function dayPartFollows(text: string, index: number): boolean {
+  return /^\s+de\s+la\s+(?:mañana|tarde|noche)(?![\p{L}\p{N}])/iu.test(text.slice(index));
 }
 
 function titleWithout(text: string, spans: readonly QuickAddSpan[]): string {

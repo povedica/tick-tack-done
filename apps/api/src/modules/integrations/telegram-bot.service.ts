@@ -1,5 +1,10 @@
 import { HttpStatus, Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
-import { matchTaskByTitle, parseTelegramCommand, type TelegramCommand } from '@reflexionia/domain';
+import {
+  formatCaptureReply,
+  matchTaskByTitle,
+  parseTelegramCommand,
+  type TelegramCommand,
+} from '@reflexionia/domain';
 import { type AuthUser } from '../../auth/auth-user.js';
 import { API_SCOPES } from '../../auth/scopes.js';
 import { DomainEvent } from '../../events/domain-events.js';
@@ -11,6 +16,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { ATTACHMENT_MAX_BYTES } from '../tasks/attachment-storage.js';
 import type { TaskSummaryJson } from '../tasks/task.mapper.js';
 import { ListsService } from '../lists/lists.service.js';
+import type { CaptureWarning } from '../tasks/quick-add.js';
 import { TasksService, type TaskListQuery } from '../tasks/tasks.service.js';
 import { TelegramApi } from './telegram-api.js';
 
@@ -145,19 +151,12 @@ export class TelegramBotService implements OnModuleInit {
   }
 
   private async capture(user: AuthUser, text: string, updateId: string): Promise<Reply> {
-    const created = await this.tasks.create(user, { raw_text: text }, `telegram-${updateId}`);
-    const notes: string[] = [];
-    for (const warning of created.body.warnings ?? []) {
-      if (warning.code === 'list_created' && warning.name !== undefined) {
-        notes.push(`Lista creada: ${warning.name}.`);
-      } else if (warning.code === 'tag_created' && warning.name !== undefined) {
-        notes.push(`Etiqueta creada: ${warning.name}.`);
-      } else if (warning.code === 'list_not_found') {
-        notes.push(`La lista «${warning.name ?? ''}» no existe, así que quedó en la bandeja.`);
-      }
-    }
-    const extra = notes.length === 0 ? '' : ` ${notes.join(' ')}`;
-    return plain(`Guardada: ${created.body.title}.${extra}`);
+    const created = await this.tasks.create(
+      user,
+      { raw_text: text, metadata: { capture: 'telegram' } },
+      `telegram-${updateId}`,
+    );
+    return plain(await this.confirmation(user, created.body, created.body.warnings));
   }
 
   private async createList(user: AuthUser, rawName: string, updateId: string): Promise<Reply> {
@@ -279,9 +278,11 @@ export class TelegramBotService implements OnModuleInit {
       return;
     }
     const caption = incoming.caption.trim();
+    const draft =
+      caption.length > 0 ? { raw_text: caption } : await this.inboxTask(user.id, 'Foto');
     const created = await this.tasks.create(
       user,
-      caption.length > 0 ? { raw_text: caption } : await this.inboxTask(user.id, 'Foto'),
+      { ...draft, metadata: { capture: 'telegram' } },
       `telegram-${incoming.updateId}`,
     );
     if (!created.replayed) {
@@ -293,7 +294,48 @@ export class TelegramBotService implements OnModuleInit {
         buffer: file.bytes,
       });
     }
-    await this.send(incoming.chatId, plain(`Guardada con foto: ${created.body.title}.`));
+    await this.send(
+      incoming.chatId,
+      plain(
+        await this.confirmation(user, created.body, created.body.warnings, 'Guardada con foto'),
+      ),
+    );
+  }
+
+  private async confirmation(
+    user: AuthUser,
+    task: TaskSummaryJson,
+    warnings: readonly CaptureWarning[] | undefined,
+    lead = 'Guardada',
+  ): Promise<string> {
+    const list = await this.prisma.project.findFirst({
+      where: { id: task.project_id, ownerId: user.id, deletedAt: null },
+      select: { name: true },
+    });
+    const tags =
+      task.tag_ids.length === 0
+        ? []
+        : await this.prisma.tag.findMany({
+            where: { ownerId: user.id, id: { in: task.tag_ids }, deletedAt: null },
+            select: { id: true, name: true },
+          });
+    const names = task.tag_ids.flatMap((id) => {
+      const name = tags.find((tag) => tag.id === id)?.name;
+      return name === undefined ? [] : [name];
+    });
+    const message = formatCaptureReply({
+      title: task.title,
+      dueDate: task.due_date,
+      isAllDay: task.is_all_day,
+      priority: task.priority,
+      tags: names,
+      listName: list?.name ?? '',
+      timeZone: user.timeZone,
+      now: new Date().toISOString(),
+      lead,
+    });
+    const notes = captureNotes(warnings);
+    return notes.length === 0 ? message : `${message}\n${notes.join(' ')}`;
   }
 
   private async datedList(user: AuthUser, kind: 'today' | 'tomorrow' | 'week'): Promise<Reply> {
@@ -571,6 +613,20 @@ export class TelegramBotService implements OnModuleInit {
 
 function plain(text: string): Reply {
   return { text, html: false, buttons: [] };
+}
+
+function captureNotes(warnings: readonly CaptureWarning[] | undefined): string[] {
+  const notes: string[] = [];
+  for (const warning of warnings ?? []) {
+    if (warning.code === 'list_created' && warning.name !== undefined) {
+      notes.push(`Lista creada: ${warning.name}.`);
+    } else if (warning.code === 'tag_created' && warning.name !== undefined) {
+      notes.push(`Etiqueta creada: ${warning.name}.`);
+    } else if (warning.code === 'list_not_found') {
+      notes.push(`La lista «${warning.name ?? ''}» no existe, así que quedó en la bandeja.`);
+    }
+  }
+  return notes;
 }
 
 function webBase(): string {
