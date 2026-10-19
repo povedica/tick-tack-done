@@ -23,10 +23,7 @@ import type {
 export type QuickAddLanguage = 'es' | 'en';
 
 /**
- * p1 is low, p2 medium, p3 high. The public priority stays none|low|medium|high.
- * TickTick's 0/1/3/5 map is a different layer and is not applied here.
- */
-/** TickTick quick-add: !1 is high, !2 medium, !3 low. p1–p3 stay low–high (RF-102). */
+ * TickTick quick-add: !1 and p1 are high, !2 and p2 medium, !3 and p3 low. */
 const BANG_LEVEL: Readonly<Record<string, Priority>> = {
   '1': 'high',
   '2': 'medium',
@@ -36,13 +33,13 @@ const BANG_LEVEL: Readonly<Record<string, Priority>> = {
 const PRIORITY_WORD: Readonly<Record<string, Priority>> = {
   baja: 'low',
   low: 'low',
-  p1: 'low',
+  p3: 'low',
   media: 'medium',
   medium: 'medium',
   p2: 'medium',
   alta: 'high',
   high: 'high',
-  p3: 'high',
+  p1: 'high',
 };
 
 const WEEKDAY: Readonly<Record<string, Weekday>> = {
@@ -108,7 +105,7 @@ const RELATIVE =
   /(?<![\p{L}\p{N}])(pasado\s+mañana|day\s+after\s+tomorrow|mañana|tomorrow|hoy|today)(?![\p{L}\p{N}])/giu;
 
 const EVERY =
-  /(?<![\p{L}\p{N}])(?:cada|todos\s+los|every)\s+(lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo|d[ií]a|semana|mes|a[nñ]o|monday|tuesday|wednesday|thursday|friday|saturday|sunday|day|week|month|year)(?![\p{L}\p{N}])/giu;
+  /(?<![\p{L}\p{N}])(?:cada|todos\s+los|every)\s+(lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo|d[ií]a|semana|mes|a[nñ]o|monday|tuesday|wednesday|thursday|friday|saturday|sunday|weekday|weekdays|day|week|month|year)(?![\p{L}\p{N}])/giu;
 
 const NUMERIC_DATE =
   /(?<![\p{L}\p{N}])(?:(el|on)\s+)?(\d{1,2})[/-](\d{1,2})(?:[/-](\d{4}))?(?![\p{L}\p{N}])/giu;
@@ -287,6 +284,12 @@ function matchEvery(
   }
   const word = fold(match[1]);
   const timed = extendWithTime(text, match.index + match[0].length);
+  if (word === 'weekday' || word === 'weekdays') {
+    const rule = ruleOf({ freq: 'weekly', weekdays: ['MO', 'TU', 'WE', 'TH', 'FR'] });
+    const delta = nextWeekdayDelta(clock.now);
+    const day = addCalendarDays(clock.now, delta);
+    return rule === null ? null : dateFound(match.index, timed, day, rule, clock.timeZone);
+  }
   const weekday = WEEKDAY[word];
   if (weekday !== undefined) {
     const delta = (weekdayIndex(weekday) - weekdayIndexOf(clock.now) + 7) % 7;
@@ -705,6 +708,17 @@ function weekdayIndex(day: Weekday): number {
 
 function weekdayIndexOf(wall: WallClock): number {
   return new Date(Date.UTC(wall.year, wall.month - 1, wall.day)).getUTCDay();
+}
+
+function nextWeekdayDelta(wall: WallClock): number {
+  const day = weekdayIndexOf(wall);
+  if (day === 0) {
+    return 1;
+  }
+  if (day === 6) {
+    return 2;
+  }
+  return 0;
 }
 
 function titleWithout(text: string, spans: readonly QuickAddSpan[]): string {

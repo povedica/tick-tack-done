@@ -48,6 +48,9 @@ export interface ViewTaskJson {
   sort_order: string;
   assignee_id: string | null;
   created_at: string;
+  completed_at: string | null;
+  repeat_rule: string | null;
+  source: 'manual' | 'import' | 'api' | 'automation' | 'plugin';
   deleted_at: string | null;
 }
 
@@ -64,6 +67,8 @@ export interface ViewTask extends ArrangedTask {
   readonly assigneeId: string | null;
   readonly deletedAt: string | null;
   readonly completedAt: string | null;
+  readonly repeatRule: string | null;
+  readonly source: 'manual' | 'import' | 'api' | 'automation' | 'plugin';
   readonly subject: FilterSubject;
 }
 
@@ -101,6 +106,9 @@ export function toViewJson(task: ViewTask): ViewTaskJson {
     sort_order: task.sortOrder,
     assignee_id: task.assigneeId,
     created_at: task.createdAt,
+    completed_at: task.completedAt,
+    repeat_rule: task.repeatRule,
+    source: task.source,
     deleted_at: task.deletedAt,
   };
 }
@@ -145,6 +153,8 @@ function toViewTask(row: TaskRow): ViewTask {
     assigneeId: row.assigneeId,
     deletedAt: iso(row.deletedAt),
     completedAt: iso(row.completedAt),
+    repeatRule: row.repeatRule,
+    source: row.source,
     createdAt,
     sortOrder: row.sortOrder.toString(),
     subject: {

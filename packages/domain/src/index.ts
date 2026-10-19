@@ -73,6 +73,7 @@ export {
   parseTaskView,
   RECENT_WINDOW_DAYS,
   savedFilterClause,
+  shiftLocalDays,
   SMART_LIST_KEYS,
   smartListClause,
 } from './filters/index';
@@ -230,12 +231,20 @@ export type {
   OpenTaskWrite,
 } from './open/ticktick';
 export {
+  cappedFocusSeconds,
   DEFAULT_FOCUS_SETTINGS,
+  focusSessionStatus,
   focusStats,
   nextFocusPhase,
   remainingSeconds,
 } from './focus/cycle';
-export type { FocusPhase, FocusSettings, FocusStatSession, FocusStats } from './focus/cycle';
+export type {
+  FocusListStatus,
+  FocusPhase,
+  FocusSettings,
+  FocusStatSession,
+  FocusStats,
+} from './focus/cycle';
 export { achievementScore } from './achievements/score';
 export type { AchievementInput, AchievementScore } from './achievements/score';
 export { parsePluginManifest, PLUGIN_PERMISSIONS, pluginMay } from './plugins/manifest';

@@ -106,6 +106,18 @@ export class TasksController {
     );
   }
 
+  @Delete('trash/:id')
+  @Scopes('tasks:write')
+  @ApiOperation({ summary: 'Permanently delete one trashed task' })
+  async purge(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.tasks.purge(user, id);
+    res.status(204).end();
+  }
+
   @Delete('trash')
   @Scopes('tasks:write')
   @ApiOperation({ summary: 'Empty the trash (RF-306)' })

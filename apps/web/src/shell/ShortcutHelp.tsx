@@ -1,21 +1,10 @@
 import { Kbd } from '../components/ui';
 import { useMessages } from '../i18n';
+import { SHORTCUT_ROWS } from './shortcuts';
 
 export function ShortcutHelp({ onClose }: { readonly onClose: () => void }) {
   const messages = useMessages();
-  const rows = [
-    ['N', messages.fab],
-    ['?', messages.shortcutsTitle],
-    ['Ctrl/Cmd+K', messages.paletteTitle],
-    ['/', messages.searchTitle],
-    ['Esc', messages.close],
-    ['.', messages.syncNow],
-    ['G T', messages.navToday],
-    ['G I', messages.navInbox],
-    ['G C', messages.navCalendar],
-    ['G M', messages.navMatrix],
-    ['G S', messages.navSettings],
-  ];
+  const rows = SHORTCUT_ROWS.map(([keys, label]) => [keys, messages[label]]);
   return (
     <div className="ui-scrim" role="presentation" onMouseDown={onClose}>
       <div

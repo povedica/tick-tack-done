@@ -1,10 +1,13 @@
-import { Body, Controller, Inject, Post, Res } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Delete, Get, HttpStatus, Inject, Post, Res } from '@nestjs/common';
+import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import type { AuthUser } from '../auth/auth-user';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Authenticated } from '../auth/scopes.decorator';
 import { McpService } from './mcp.service';
+
+const POST_SUMMARY =
+  'Stateless Streamable HTTP JSON-RPC (RF-2001). POST returns application/json; a notification returns 202 with an empty body. GET and DELETE on this path return 405 with Allow: POST until a server-sent stream exists. No Mcp-Session-Id. A tool is listed only when the token holds every scope it declares.';
 
 @ApiTags('mcp')
 @Controller('mcp')
@@ -13,10 +16,10 @@ export class McpController {
 
   @Post()
   @Authenticated()
-  @ApiOperation({
-    summary:
-      'MCP JSON-RPC (RF-2001). Tools use API v1 and cannot exceed the bearer token scopes. Notes are not exposed.',
-  })
+  @ApiOperation({ summary: POST_SUMMARY })
+  @ApiResponse({ status: 200, description: 'JSON-RPC result as application/json.' })
+  @ApiResponse({ status: 202, description: 'Notification accepted. Empty body.' })
+  @ApiResponse({ status: 401, description: 'Missing credential or invalid bearer token.' })
   @ApiBody({
     schema: {
       type: 'object',
@@ -36,9 +39,50 @@ export class McpController {
   ): Promise<void> {
     const result = await this.mcp.handle(user, body);
     if (result === null) {
-      res.status(202).end();
+      res.status(HttpStatus.ACCEPTED).end();
       return;
     }
-    res.status(200).json(result);
+    res.status(HttpStatus.OK).json(result);
+  }
+
+  @Get()
+  @Authenticated()
+  @ApiOperation({
+    summary:
+      'SSE is not offered. Returns 405 so a Streamable HTTP client keeps using POST (RF-2001).',
+  })
+  @ApiResponse({
+    status: 405,
+    description:
+      'Method Not Allowed. Empty body, Allow: POST, no Mcp-Session-Id. A 404 would mean the session ended.',
+    headers: {
+      Allow: { description: 'POST', schema: { type: 'string', example: 'POST' } },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Missing credential or invalid bearer token.' })
+  get(@Res() res: Response): void {
+    this.methodNotAllowed(res);
+  }
+
+  @Delete()
+  @Authenticated()
+  @ApiOperation({
+    summary: 'There is no MCP session to close. Returns 405 with Allow: POST (RF-2001).',
+  })
+  @ApiResponse({
+    status: 405,
+    description: 'Method Not Allowed. Empty body, Allow: POST, no Mcp-Session-Id.',
+    headers: {
+      Allow: { description: 'POST', schema: { type: 'string', example: 'POST' } },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Missing credential or invalid bearer token.' })
+  remove(@Res() res: Response): void {
+    this.methodNotAllowed(res);
+  }
+
+  private methodNotAllowed(res: Response): void {
+    res.setHeader('Allow', 'POST');
+    res.status(HttpStatus.METHOD_NOT_ALLOWED).end();
   }
 }

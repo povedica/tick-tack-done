@@ -907,6 +907,28 @@ export class TasksService {
     });
   }
 
+  async purge(user: AuthUser, id: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      const current = await tx.task.findFirst({ where: { id, ownerId: user.id } });
+      if (current?.deletedAt == null) {
+        throw new DomainException(
+          HttpStatus.NOT_FOUND,
+          'task_not_found',
+          'Trashed task was not found',
+        );
+      }
+      await this.events.record(tx, actorOf(user), {
+        type: DomainEvent.taskDeleted,
+        entityType: 'task',
+        entityId: id,
+        action: 'deleted',
+        data: { task: { id, purged: true } },
+        previous: { deleted_at: current.deletedAt.toISOString() },
+      });
+      await tx.task.delete({ where: { id } });
+    });
+  }
+
   async emptyTrash(user: AuthUser): Promise<{ deleted: number }> {
     return this.prisma.$transaction(async (tx) => {
       await tx.task.updateMany({

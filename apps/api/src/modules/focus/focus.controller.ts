@@ -12,14 +12,17 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
-import { ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiProperty, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 import type { Request, Response } from 'express';
 import {
+  cappedFocusSeconds,
   DEFAULT_FOCUS_SETTINGS,
+  focusSessionStatus,
   focusStats,
   nextFocusPhase,
   remainingSeconds,
+  type FocusListStatus,
   type FocusSessionType,
 } from '@reflexionia/domain';
 import { actorOf, type AuthUser } from '../../auth/auth-user';
@@ -167,13 +170,17 @@ export class FocusController {
   @Get('sessions')
   @Scopes('focus:read')
   @ApiOperation({ summary: 'List focus sessions (RF-1204)' })
+  @ApiQuery({ name: 'status', required: false, enum: ['active', 'completed', 'aborted'] })
   async list(
     @CurrentUser() user: AuthUser,
     @Query('from') from: string | undefined,
     @Query('to') to: string | undefined,
+    @Query('status') status: string | undefined,
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
+    const filter = sessionFilter(status);
+    const now = new Date();
     const rows = await this.prisma.focusSession.findMany({
       where: {
         ownerId: user.id,
@@ -181,11 +188,17 @@ export class FocusController {
         ...(from !== undefined && to !== undefined
           ? { startedAt: { gte: new Date(from), lt: new Date(to) } }
           : {}),
+        ...(filter === 'completed' ? { completed: true, endedAt: { not: null } } : {}),
+        ...(filter === 'aborted' ? { completed: false, endedAt: { not: null } } : {}),
+        ...(filter === 'active' ? { endedAt: null } : {}),
       },
       orderBy: { startedAt: 'desc' },
       take: 100,
     });
-    respondJson(req, res, 200, { items: rows.map((row) => this.json(row, new Date())) }, false);
+    const items = rows
+      .map((row) => this.json(row, now))
+      .filter((row) => filter === undefined || listedStatus(row, now) === filter);
+    respondJson(req, res, 200, { items }, false);
   }
 
   @Get('stats')
@@ -297,7 +310,11 @@ export class FocusController {
       throw new DomainException(HttpStatus.NOT_FOUND, 'session_not_found', 'Session was not found');
     }
     const now = new Date();
-    const actual = Math.max(0, Math.round((now.getTime() - current.startedAt.getTime()) / 1000));
+    const actual = cappedFocusSeconds(
+      current.startedAt.toISOString(),
+      current.plannedMinutes,
+      now.toISOString(),
+    );
     const finished = await this.prisma.focusSession.count({
       where: { ownerId: user.id, type: 'focus', completed: true, deletedAt: null },
     });
@@ -362,4 +379,36 @@ export class FocusController {
           : 0,
     };
   }
+}
+
+function sessionFilter(status: string | undefined): 'active' | 'completed' | 'aborted' | undefined {
+  if (status === undefined || status.length === 0) {
+    return undefined;
+  }
+  if (status === 'active' || status === 'completed' || status === 'aborted') {
+    return status;
+  }
+  throw new DomainException(
+    HttpStatus.BAD_REQUEST,
+    'validation_failed',
+    'status must be active, completed or aborted',
+  );
+}
+
+function listedStatus(
+  row: {
+    readonly ended_at: string | null;
+    readonly completed: boolean;
+    readonly started_at: string;
+    readonly planned_minutes: number;
+  },
+  now: Date,
+): FocusListStatus {
+  return focusSessionStatus({
+    endedAt: row.ended_at,
+    completed: row.completed,
+    startedAt: row.started_at,
+    plannedMinutes: row.planned_minutes,
+    now: now.toISOString(),
+  });
 }

@@ -1,6 +1,6 @@
 import { ApiError } from './errors';
 import type { components } from './generated/schema';
-import type { ApiClientOptions, Task } from './client';
+import type { ApiClientOptions, PageQuery, Task } from './client';
 
 export type Me = components['schemas']['MeResponseDto'];
 export interface UpdateMeBody {
@@ -61,6 +61,7 @@ export interface TaskPatch {
   readonly tag_ids?: readonly string[];
   readonly column_id?: string | null;
   readonly extract_checklist?: boolean;
+  readonly before_id?: string | null;
 }
 
 export interface ChecklistItem {
@@ -158,7 +159,7 @@ export interface ResourceClient {
   inboundEmail(): Promise<InboundEmailStatus>;
   rotateInboundEmail(): Promise<InboundEmailAddress>;
   revokeInboundEmail(): Promise<void>;
-  listTags(): Promise<TagPage>;
+  listTags(query?: PageQuery): Promise<TagPage>;
   createTag(body: NamedWrite, idempotencyKey: string): Promise<Tag>;
   updateTag(id: string, body: Partial<NamedWrite>): Promise<Tag>;
   deleteTag(id: string): Promise<void>;
@@ -192,6 +193,7 @@ export interface ResourceClient {
   listTrash(): Promise<{ items: Task[]; next_cursor: string | null }>;
   emptyTrash(): Promise<CountResult>;
   restoreTask(id: string): Promise<Task>;
+  purgeTask(id: string): Promise<void>;
   snoozeTask(
     id: string,
     preset: 'tomorrow' | 'next_week' | 'date',
@@ -215,20 +217,27 @@ export interface ResourceClient {
   calendarEvents(from: string, to: string): Promise<JsonObject>;
   matrixRules(): Promise<JsonObject>;
   saveMatrixRule(body: JsonObject): Promise<JsonObject>;
-  startFocus(): Promise<JsonObject>;
-  listFocusSessions(): Promise<JsonObject>;
+  startFocus(body?: JsonObject): Promise<JsonObject>;
+  listFocusSessions(status?: 'active' | 'completed' | 'aborted'): Promise<JsonObject>;
+  focusStats(): Promise<JsonObject>;
   finishFocus(id: string): Promise<JsonObject>;
+  abortFocus(id: string): Promise<JsonObject>;
+  getFocusSettings(): Promise<JsonObject>;
+  updateFocusSettings(body: JsonObject): Promise<JsonObject>;
   listNotes(): Promise<JsonObject>;
   listStickies(): Promise<JsonObject>;
   createSticky(text: string): Promise<JsonObject>;
   integrationStatus(kind: 'telegram' | 'drive' | 'google'): Promise<JsonObject>;
   googleConnect(): Promise<JsonObject>;
   listWebhooks(): Promise<JsonObject>;
+  createWebhook(body: JsonObject): Promise<JsonObject>;
   listAutomations(): Promise<JsonObject>;
+  createAutomation(body: JsonObject): Promise<JsonObject>;
   listPlugins(): Promise<JsonObject>;
   deleteAccount(confirmation: string): Promise<void>;
   exportJson(): Promise<JsonObject>;
   listBackups(): Promise<JsonObject>;
+  restoreBackup(stamp: string): Promise<JsonObject>;
   achievements(): Promise<JsonObject>;
   setAchievements(enabled: boolean): Promise<JsonObject>;
   beginTotp(): Promise<JsonObject>;
@@ -243,6 +252,21 @@ export interface ResourceClient {
   ): Promise<JsonObject>;
 }
 
+function pageQuery(query: PageQuery | undefined): string {
+  if (query === undefined) {
+    return '';
+  }
+  const params = new URLSearchParams();
+  if (query.limit !== undefined) {
+    params.set('limit', String(query.limit));
+  }
+  if (query.cursor !== undefined && query.cursor.length > 0) {
+    params.set('cursor', query.cursor);
+  }
+  const text = params.toString();
+  return text.length === 0 ? '' : `?${text}`;
+}
+
 export function resourceMethods(http: Http): ResourceClient {
   const ask = http.request.bind(http);
   return {
@@ -255,7 +279,8 @@ export function resourceMethods(http: Http): ResourceClient {
     async revokeInboundEmail() {
       await ask('DELETE', '/api/v1/me/inbound-email', undefined, undefined, isEmpty);
     },
-    listTags: () => ask('GET', '/api/v1/tags', undefined, undefined, isTagPage),
+    listTags: (query) =>
+      ask('GET', `/api/v1/tags${pageQuery(query)}`, undefined, undefined, isTagPage),
     createTag: (body, key) => ask('POST', '/api/v1/tags', body, key, isTag),
     updateTag: (id, body) => ask('PATCH', `/api/v1/tags/${id}`, body, undefined, isTag),
     async deleteTag(id) {
@@ -322,6 +347,9 @@ export function resourceMethods(http: Http): ResourceClient {
     batchTasks: (body) => ask('POST', '/api/v1/tasks/batch', body, undefined, isCount),
     listTrash: () => ask('GET', '/api/v1/tasks/trash', undefined, undefined, isTaskPage),
     emptyTrash: () => ask('DELETE', '/api/v1/tasks/trash', undefined, undefined, isCount),
+    async purgeTask(id) {
+      await ask('DELETE', `/api/v1/tasks/trash/${id}`, undefined, undefined, isEmpty);
+    },
     restoreTask: (id) =>
       ask('POST', `/api/v1/tasks/trash/${id}/restore`, undefined, undefined, isTask),
     snoozeTask: (id, preset, date) =>
@@ -387,11 +415,24 @@ export function resourceMethods(http: Http): ResourceClient {
       ),
     matrixRules: () => ask('GET', '/api/v1/matrix/rules', undefined, undefined, isJsonObject),
     saveMatrixRule: (body) => ask('PUT', '/api/v1/matrix/rules', body, undefined, isJsonObject),
-    startFocus: () => ask('POST', '/api/v1/focus/sessions', {}, undefined, isJsonObject),
-    listFocusSessions: () =>
-      ask('GET', '/api/v1/focus/sessions', undefined, undefined, isJsonObject),
+    startFocus: (body = {}) => ask('POST', '/api/v1/focus/sessions', body, undefined, isJsonObject),
+    listFocusSessions: (status) =>
+      ask(
+        'GET',
+        status === undefined ? '/api/v1/focus/sessions' : `/api/v1/focus/sessions?status=${status}`,
+        undefined,
+        undefined,
+        isJsonObject,
+      ),
+    focusStats: () => ask('GET', '/api/v1/focus/stats', undefined, undefined, isJsonObject),
     finishFocus: (id) =>
       ask('POST', `/api/v1/focus/sessions/${id}/finish`, undefined, undefined, isJsonObject),
+    abortFocus: (id) =>
+      ask('POST', `/api/v1/focus/sessions/${id}/abort`, undefined, undefined, isJsonObject),
+    getFocusSettings: () =>
+      ask('GET', '/api/v1/focus/settings', undefined, undefined, isJsonObject),
+    updateFocusSettings: (body) =>
+      ask('PATCH', '/api/v1/focus/settings', body, undefined, isJsonObject),
     listNotes: () => ask('GET', '/api/v1/notes', undefined, undefined, isJsonObject),
     listStickies: () => ask('GET', '/api/v1/sticky-notes', undefined, undefined, isJsonObject),
     createSticky: (text) => ask('POST', '/api/v1/sticky-notes', { text }, undefined, isJsonObject),
@@ -400,13 +441,23 @@ export function resourceMethods(http: Http): ResourceClient {
     googleConnect: () =>
       ask('GET', '/api/v1/integrations/google/start', undefined, undefined, isJsonObject),
     listWebhooks: () => ask('GET', '/api/v1/webhooks', undefined, undefined, isJsonObject),
+    createWebhook: (body) => ask('POST', '/api/v1/webhooks', body, undefined, isJsonObject),
     listAutomations: () => ask('GET', '/api/v1/automations', undefined, undefined, isJsonObject),
+    createAutomation: (body) => ask('POST', '/api/v1/automations', body, undefined, isJsonObject),
     listPlugins: () => ask('GET', '/api/v1/plugins', undefined, undefined, isJsonObject),
     async deleteAccount(confirmation) {
       await ask('DELETE', '/api/v1/me', { confirmation }, undefined, isEmpty);
     },
     exportJson: () => ask('GET', '/api/v1/export/json', undefined, undefined, isJsonObject),
     listBackups: () => ask('GET', '/api/v1/backups', undefined, undefined, isJsonObject),
+    restoreBackup: (stamp) =>
+      ask(
+        'POST',
+        '/api/v1/backups/restore',
+        { stamp, confirmation: 'restore' },
+        undefined,
+        isJsonObject,
+      ),
     achievements: () => ask('GET', '/api/v1/me/achievements', undefined, undefined, isJsonObject),
     setAchievements: (enabled) =>
       ask('PATCH', '/api/v1/me/achievements', { enabled }, undefined, isJsonObject),

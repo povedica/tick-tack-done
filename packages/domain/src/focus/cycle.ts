@@ -71,6 +71,36 @@ export interface FocusStats {
   readonly best_hour: number | null;
 }
 
+export function cappedFocusSeconds(startedAt: string, plannedMinutes: number, now: string): number {
+  const started = Date.parse(startedAt);
+  const clock = Date.parse(now);
+  if (Number.isNaN(started) || Number.isNaN(clock)) {
+    return 0;
+  }
+  const elapsed = Math.max(0, Math.round((clock - started) / 1000));
+  return Math.min(elapsed, Math.max(0, plannedMinutes) * 60);
+}
+
+export type FocusListStatus = 'active' | 'completed' | 'aborted' | 'expired';
+
+/** A session still open after its planned end is expired, not active. */
+export function focusSessionStatus(input: {
+  readonly endedAt: string | null;
+  readonly completed: boolean;
+  readonly startedAt: string;
+  readonly plannedMinutes: number;
+  readonly now: string;
+}): FocusListStatus {
+  if (input.endedAt !== null) {
+    return input.completed ? 'completed' : 'aborted';
+  }
+  const end = Date.parse(input.startedAt) + input.plannedMinutes * 60_000;
+  if (Number.isNaN(end) || Date.parse(input.now) >= end) {
+    return 'expired';
+  }
+  return 'active';
+}
+
 export function focusStats(
   sessions: readonly FocusStatSession[],
   timeZoneOffsetMinutes = 0,

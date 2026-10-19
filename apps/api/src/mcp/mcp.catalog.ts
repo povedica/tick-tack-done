@@ -24,18 +24,20 @@ const objectSchema = (
 
 const id = { type: 'string', format: 'uuid' };
 const limit = { type: 'integer', minimum: 1, maximum: 100 };
+const cursor = { type: 'string', minLength: 1 };
 const name = { type: 'string', minLength: 1 };
 
 /**
- * Tools for resources that already exist. Notes are V1 and are not exposed.
- * A tool is visible only when the caller holds every scope it declares (RF-2001).
+ * Single catalog of MCP tools. A tool is visible only when the caller holds
+ * every scope it declares (RF-2001). Listings that return next_cursor accept
+ * the same cursor string as API v1.
  */
 export const MCP_TOOLS: readonly McpTool[] = [
   {
     name: 'list_tasks',
     description: 'List active tasks.',
     scopes: ['tasks:read'],
-    inputSchema: objectSchema({ limit, project_id: id }),
+    inputSchema: objectSchema({ limit, cursor, project_id: id }),
   },
   {
     name: 'get_task',
@@ -62,7 +64,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: 'list_projects',
     description: 'List task lists.',
     scopes: ['lists:read'],
-    inputSchema: objectSchema({ limit }),
+    inputSchema: objectSchema({ limit, cursor }),
   },
   {
     name: 'create_project',
@@ -74,7 +76,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: 'list_tags',
     description: 'List tags.',
     scopes: ['tags:read'],
-    inputSchema: objectSchema({ limit }),
+    inputSchema: objectSchema({ limit, cursor }),
   },
   {
     name: 'create_tag',
@@ -86,7 +88,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: 'list_filters',
     description: 'List saved filters.',
     scopes: ['filters:read'],
-    inputSchema: objectSchema({ limit }),
+    inputSchema: objectSchema({ limit, cursor }),
   },
   {
     name: 'create_filter',
@@ -107,13 +109,13 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: 'list_smart_list_tasks',
     description: 'List tasks in one smart list.',
     scopes: ['filters:read'],
-    inputSchema: objectSchema({ key: { type: 'string', minLength: 1 }, limit }, ['key']),
+    inputSchema: objectSchema({ key: { type: 'string', minLength: 1 }, limit, cursor }, ['key']),
   },
   {
     name: 'list_habits',
     description: 'List habits.',
     scopes: ['habits:read'],
-    inputSchema: objectSchema({ limit }),
+    inputSchema: objectSchema({ limit, cursor }),
   },
   {
     name: 'create_habit',

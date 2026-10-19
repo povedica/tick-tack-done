@@ -231,6 +231,15 @@ export class ViewTaskDto {
   created_at!: string;
 
   @ApiProperty({ nullable: true, type: String })
+  completed_at!: string | null;
+
+  @ApiProperty({ nullable: true, type: String })
+  repeat_rule!: string | null;
+
+  @ApiProperty({ enum: ['manual', 'import', 'api', 'automation', 'plugin'] })
+  source!: 'manual' | 'import' | 'api' | 'automation' | 'plugin';
+
+  @ApiProperty({ nullable: true, type: String })
   deleted_at!: string | null;
 }
 

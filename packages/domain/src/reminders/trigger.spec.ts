@@ -11,6 +11,7 @@ import {
 
 describe('reminders', () => {
   it('RF-801: relative triggers and an absolute instant', () => {
+    expect(parseTrigger('-PT30M')).toMatchObject({ ok: true, offsetMs: -30 * 60_000 });
     expect(parseTrigger('TRIGGER:-PT5M')).toEqual({
       ok: true,
       kind: 'relative',

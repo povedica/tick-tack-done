@@ -99,6 +99,8 @@ export interface OpenTaskWrite {
   readonly dueDate?: string | null;
   readonly timeZone?: string;
   readonly repeatRule?: string | null;
+  readonly status?: 'active' | 'completed';
+  readonly completedAt?: string | null;
 }
 
 export function fromOpenTask(value: unknown): OpenTaskWrite | null {
@@ -119,6 +121,8 @@ function fill(body: Record<string, unknown>): OpenTaskWrite {
     dueDate?: string | null;
     timeZone?: string;
     repeatRule?: string | null;
+    status?: 'active' | 'completed';
+    completedAt?: string | null;
   } = {};
   if (typeof body.title === 'string') {
     Object.assign(next, { title: body.title });
@@ -146,6 +150,14 @@ function fill(body: Record<string, unknown>): OpenTaskWrite {
   }
   if (typeof body.repeatFlag === 'string' || body.repeatFlag === null) {
     Object.assign(next, { repeatRule: body.repeatFlag });
+  }
+  if (body.status === 2) {
+    Object.assign(next, { status: 'completed' });
+  } else if (body.status === 0) {
+    Object.assign(next, { status: 'active' });
+  }
+  if (typeof body.completedTime === 'string' || body.completedTime === null) {
+    Object.assign(next, { completedAt: body.completedTime });
   }
   return next;
 }

@@ -15,7 +15,7 @@ export type TriggerParse =
   | { readonly ok: false; readonly reason: 'invalid_trigger' };
 
 const DURATION =
-  /^TRIGGER(?:;([^:]*))?:(-)?P(?:(\d+)W)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/;
+  /^(?:TRIGGER(?:;([^:]*))?:)?(-)?P(?:(\d+)W)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/;
 
 /** RF-801. Relative offsets use a signed iCalendar duration. Absolute instants use VALUE=DATE-TIME. */
 export function parseTrigger(trigger: string): TriggerParse {

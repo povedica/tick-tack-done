@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { focusStats, nextFocusPhase, remainingSeconds, DEFAULT_FOCUS_SETTINGS } from './cycle';
+import {
+  cappedFocusSeconds,
+  focusSessionStatus,
+  focusStats,
+  nextFocusPhase,
+  remainingSeconds,
+  DEFAULT_FOCUS_SETTINGS,
+} from './cycle';
 
 describe('focus', () => {
   it('RF-1201: four finished focus sessions lead to the long break', () => {
@@ -14,6 +21,44 @@ describe('focus', () => {
     );
     expect(remainingSeconds('2026-10-18T12:00:00.000Z', 25, '2026-10-18T13:00:00.000Z')).toBe(0);
     expect(remainingSeconds('nope', 25, '2026-10-18T12:00:00.000Z')).toBe(0);
+  });
+
+  it('RF-1204: finish never records more than the planned duration', () => {
+    expect(cappedFocusSeconds('2026-10-18T08:00:00.000Z', 25, '2026-10-18T12:11:00.000Z')).toBe(
+      25 * 60,
+    );
+    expect(cappedFocusSeconds('2026-10-18T08:00:00.000Z', 25, '2026-10-18T08:10:00.000Z')).toBe(
+      10 * 60,
+    );
+  });
+
+  it('RF-1201: an open session past its plan is expired, not active', () => {
+    const base = {
+      completed: false,
+      startedAt: '2026-10-18T08:00:00.000Z',
+      plannedMinutes: 25,
+    };
+    expect(focusSessionStatus({ ...base, endedAt: null, now: '2026-10-18T08:10:00.000Z' })).toBe(
+      'active',
+    );
+    expect(focusSessionStatus({ ...base, endedAt: null, now: '2026-10-18T12:00:00.000Z' })).toBe(
+      'expired',
+    );
+    expect(
+      focusSessionStatus({
+        ...base,
+        completed: true,
+        endedAt: '2026-10-18T08:25:00.000Z',
+        now: '2026-10-18T12:00:00.000Z',
+      }),
+    ).toBe('completed');
+    expect(
+      focusSessionStatus({
+        ...base,
+        endedAt: '2026-10-18T08:10:00.000Z',
+        now: '2026-10-18T12:00:00.000Z',
+      }),
+    ).toBe('aborted');
   });
 
   it('RF-1204: stats sum focus, ignore breaks and pick the busiest hour', () => {

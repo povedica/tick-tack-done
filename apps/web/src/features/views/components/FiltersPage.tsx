@@ -38,6 +38,7 @@ export function FiltersPage() {
   const [groupBy, setGroupBy] = useState<ViewPage['group_by']>('none');
   const [sort, setSort] = useState<ViewPage['sort']>('manual');
   const [error, setError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const rules = () => rulesWithOuter(mode, outer, groups);
 
@@ -101,10 +102,15 @@ export function FiltersPage() {
             <button
               type="button"
               onClick={() => {
+                if (confirmDelete !== filter.id) {
+                  setConfirmDelete(filter.id);
+                  return;
+                }
                 remove.mutate(filter.id);
+                setConfirmDelete(null);
               }}
             >
-              {messages.filterDelete}
+              {confirmDelete === filter.id ? messages.filterDeleteBody : messages.filterDelete}
             </button>
           </li>
         ))}

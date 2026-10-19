@@ -8,6 +8,11 @@ export type Task = components['schemas']['TaskResponseDto'];
 export type TaskPage = components['schemas']['TaskPageDto'];
 export type CompleteTaskBody = components['schemas']['CompleteTaskDto'];
 
+export interface PageQuery {
+  readonly limit?: number;
+  readonly cursor?: string;
+}
+
 export interface ListTasksQuery {
   readonly limit?: number;
   readonly cursor?: string;
@@ -49,6 +54,8 @@ export type ActivityPage = components['schemas']['ActivityPageDto'];
 export interface ViewOptions {
   readonly groupBy?: ViewPage['group_by'];
   readonly sort?: ViewPage['sort'];
+  readonly limit?: number;
+  readonly cursor?: string;
 }
 
 export { ApiError } from './errors';
@@ -103,7 +110,7 @@ export interface ApiClient extends ResourceClient {
   deleteHabit(id: string): Promise<void>;
   checkInHabit(id: string, body: CheckInBody, idempotencyKey: string): Promise<CheckInResult>;
   habitStats(id: string, year?: number): Promise<HabitStats>;
-  listProjects(): Promise<ProjectPage>;
+  listProjects(query?: PageQuery): Promise<ProjectPage>;
   listSmartLists(): Promise<SmartListPage>;
   updateSmartLists(body: UpdateSmartListsBody): Promise<SmartListPage>;
   smartListTasks(key: string, options?: ViewOptions): Promise<ViewPage>;
@@ -217,8 +224,16 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         isHabitStats,
       );
     },
-    listProjects() {
-      return request(call, options, 'GET', '/api/v1/projects', undefined, undefined, isProjectPage);
+    listProjects(query) {
+      return request(
+        call,
+        options,
+        'GET',
+        `/api/v1/projects${pageQuery(query)}`,
+        undefined,
+        undefined,
+        isProjectPage,
+      );
     },
     listSmartLists() {
       return request(
@@ -648,6 +663,21 @@ function hasItems(value: unknown): boolean {
   return Array.isArray((value as { items?: unknown }).items);
 }
 
+function pageQuery(query: PageQuery | undefined): string {
+  if (query === undefined) {
+    return '';
+  }
+  const params = new URLSearchParams();
+  if (query.limit !== undefined) {
+    params.set('limit', String(query.limit));
+  }
+  if (query.cursor !== undefined && query.cursor.length > 0) {
+    params.set('cursor', query.cursor);
+  }
+  const text = params.toString();
+  return text.length === 0 ? '' : `?${text}`;
+}
+
 function viewQuery(view: ViewOptions | undefined): string {
   const params = new URLSearchParams();
   if (view?.groupBy !== undefined) {
@@ -655,6 +685,12 @@ function viewQuery(view: ViewOptions | undefined): string {
   }
   if (view?.sort !== undefined) {
     params.set('sort', view.sort);
+  }
+  if (view?.limit !== undefined) {
+    params.set('limit', String(view.limit));
+  }
+  if (view?.cursor !== undefined) {
+    params.set('cursor', view.cursor);
   }
   const query = params.toString();
   return query.length === 0 ? '' : `?${query}`;

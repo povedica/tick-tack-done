@@ -3,6 +3,7 @@ import { HABIT_WEEKDAYS, type HabitWeekday } from '@reflexionia/domain';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link } from 'react-router';
+import { Button, EmptyState } from '../../../components/ui';
 import { useMessages, type Messages } from '../../../i18n';
 import { habitsApi } from '../api';
 import { HABIT_SUGGESTIONS, buildHabitBody, canCreateHabit, type HabitDraft } from '../suggestions';
@@ -33,9 +34,12 @@ export function HabitsPage() {
     queryFn: () => habitsApi.listHabits(),
   });
   const [picked, setPicked] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [confirmArchive, setConfirmArchive] = useState<string | null>(null);
   const [draft, setDraft] = useState<HabitDraft>(EMPTY_DRAFT);
   const [error, setError] = useState<string | null>(null);
   const active = (habits.data?.items ?? []).filter((habit) => !habit.archived);
+  const archived = (habits.data?.items ?? []).filter((habit) => habit.archived);
   const selected = picked ?? active[0]?.id ?? null;
   const stats = useQuery({
     queryKey: ['habit-stats', selected],
@@ -56,9 +60,11 @@ export function HabitsPage() {
   };
 
   const create = useMutation({
-    mutationFn: () => habitsApi.createHabit(buildHabitBody(draft), crypto.randomUUID()),
+    mutationFn: (body: HabitDraft) =>
+      habitsApi.createHabit(buildHabitBody(body), crypto.randomUUID()),
     onSuccess: async (created) => {
       setDraft(EMPTY_DRAFT);
+      setAdding(false);
       setPicked(created.id);
       setError(null);
       await refresh();
@@ -96,10 +102,31 @@ export function HabitsPage() {
     },
   });
 
+  const week = weekDays(new Date());
   return (
     <main className="habits screen-page">
-      <h1>{messages.habitsTitle}</h1>
-      <p>{messages.habitsHint}</p>
+      <header className="habit-head">
+        <div>
+          <h1>{messages.habitsTitle}</h1>
+          <p className="lede">{messages.habitsHint}</p>
+        </div>
+        <Button
+          variant="primary"
+          onClick={() => {
+            setAdding((current) => !current);
+          }}
+        >
+          {messages.habitCreate}
+        </Button>
+      </header>
+      <ol className="habit-week">
+        {week.map((day) => (
+          <li key={day.key} data-today={day.today ? 'true' : undefined}>
+            <span>{day.label}</span>
+            <i />
+          </li>
+        ))}
+      </ol>
       {error !== null ? <p className="error">{error}</p> : null}
       {stats.data !== undefined ? (
         <Heatmap
@@ -111,21 +138,24 @@ export function HabitsPage() {
         />
       ) : null}
 
-      <section>
+      <section className="habit-suggest">
         <h2>{messages.suggestions}</h2>
-        <ul className="chips">
+        <ul>
           {HABIT_SUGGESTIONS.map((suggestion) => (
             <li key={suggestion.id}>
               <button
                 type="button"
+                disabled={create.isPending}
                 onClick={() => {
-                  setDraft({
+                  const body: HabitDraft = {
                     name: messages[suggestion.label],
                     period: suggestion.period,
                     times: suggestion.times,
                     days: suggestion.days,
                     reminderTime: suggestion.reminderTime,
-                  });
+                  };
+                  setDraft(body);
+                  create.mutate(body);
                 }}
               >
                 {messages[suggestion.label]}
@@ -133,84 +163,94 @@ export function HabitsPage() {
             </li>
           ))}
         </ul>
-        <form
-          className="habit-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (canCreateHabit(draft)) {
-              create.mutate();
-            }
-          }}
-        >
-          <label>
-            {messages.habitName}
-            <input
-              value={draft.name}
-              onChange={(event) => {
-                setDraft({ ...draft, name: event.target.value });
-              }}
-            />
-          </label>
-          <label>
-            {messages.habitPeriod}
-            <select
-              value={draft.period}
-              onChange={(event) => {
-                const period = event.target.value === 'week' ? 'week' : 'day';
-                setDraft({ ...draft, period });
+        {adding ? (
+          <>
+            <form
+              className="habit-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (canCreateHabit(draft)) {
+                  create.mutate(draft);
+                }
               }}
             >
-              <option value="day">{messages.periodDay}</option>
-              <option value="week">{messages.periodWeek}</option>
-            </select>
-          </label>
-          <label>
-            {messages.habitTimes}
-            <input
-              type="number"
-              min={1}
-              value={draft.times}
-              onChange={(event) => {
-                setDraft({ ...draft, times: Number(event.target.value) });
-              }}
-            />
-          </label>
-          <fieldset>
-            <legend>{messages.habitDays}</legend>
-            {HABIT_WEEKDAYS.map((day) => (
-              <label key={day}>
+              <label>
+                {messages.habitName}
                 <input
-                  type="checkbox"
-                  checked={draft.days.includes(day)}
-                  onChange={() => {
-                    const days = draft.days.includes(day)
-                      ? draft.days.filter((item) => item !== day)
-                      : [...draft.days, day];
-                    setDraft({ ...draft, days });
+                  value={draft.name}
+                  onChange={(event) => {
+                    setDraft({ ...draft, name: event.target.value });
                   }}
                 />
-                {messages[DAY_LABEL[day]]}
               </label>
-            ))}
-          </fieldset>
-          <label>
-            {messages.habitReminder}
-            <input
-              type="time"
-              value={draft.reminderTime}
-              onChange={(event) => {
-                setDraft({ ...draft, reminderTime: event.target.value });
-              }}
-            />
-          </label>
-          <button type="submit" disabled={!canCreateHabit(draft) || create.isPending}>
-            {create.isPending ? messages.habitSaving : messages.habitCreate}
-          </button>
-        </form>
+              <label>
+                {messages.habitPeriod}
+                <select
+                  value={draft.period}
+                  onChange={(event) => {
+                    const period = event.target.value === 'week' ? 'week' : 'day';
+                    setDraft({ ...draft, period });
+                  }}
+                >
+                  <option value="day">{messages.periodDay}</option>
+                  <option value="week">{messages.periodWeek}</option>
+                </select>
+              </label>
+              <label>
+                {messages.habitTimes}
+                <input
+                  type="number"
+                  min={1}
+                  value={draft.times}
+                  onChange={(event) => {
+                    setDraft({ ...draft, times: Number(event.target.value) });
+                  }}
+                />
+              </label>
+              <fieldset>
+                <legend>{messages.habitDays}</legend>
+                {HABIT_WEEKDAYS.map((day) => (
+                  <label key={day}>
+                    <input
+                      type="checkbox"
+                      checked={draft.days.includes(day)}
+                      onChange={() => {
+                        const days = draft.days.includes(day)
+                          ? draft.days.filter((item) => item !== day)
+                          : [...draft.days, day];
+                        setDraft({ ...draft, days });
+                      }}
+                    />
+                    {messages[DAY_LABEL[day]]}
+                  </label>
+                ))}
+              </fieldset>
+              <label>
+                {messages.habitReminder}
+                <input
+                  type="time"
+                  value={draft.reminderTime}
+                  onChange={(event) => {
+                    setDraft({ ...draft, reminderTime: event.target.value });
+                  }}
+                />
+              </label>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={!canCreateHabit(draft) || create.isPending}
+              >
+                {create.isPending ? messages.habitSaving : messages.habitCreate}
+              </Button>
+            </form>
+          </>
+        ) : null}
       </section>
 
       {habits.isPending ? <p>{messages.habitSaving}</p> : null}
-      {active.length === 0 && !habits.isPending ? <p>{messages.habitEmpty}</p> : null}
+      {active.length === 0 && !habits.isPending ? (
+        <EmptyState title={messages.habitsTitle} body={messages.habitEmpty} />
+      ) : null}
       <ul className="habit-list">
         {active.map((habit) => (
           <li key={habit.id} className="habit-card">
@@ -254,14 +294,39 @@ export function HabitsPage() {
             <button
               type="button"
               onClick={() => {
+                if (confirmArchive !== habit.id) {
+                  setConfirmArchive(habit.id);
+                  return;
+                }
                 archive.mutate(habit.id);
+                setConfirmArchive(null);
               }}
             >
-              {messages.archive}
+              {confirmArchive === habit.id ? messages.confirmArchive : messages.archive}
             </button>
           </li>
         ))}
       </ul>
+      {archived.length > 0 ? (
+        <section>
+          <h2>{messages.habitArchived}</h2>
+          <ul>
+            {archived.map((habit) => (
+              <li key={habit.id}>
+                {habit.name}
+                <button
+                  type="button"
+                  onClick={() => {
+                    void habitsApi.updateHabit(habit.id, { archived: false }).then(() => refresh());
+                  }}
+                >
+                  {messages.habitUnarchive}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       {stats.data !== undefined && selected !== null ? (
         <StatsPanel messages={messages} stats={stats.data} />
       ) : null}
@@ -293,6 +358,21 @@ function StatsPanel({ messages, stats }: { messages: Messages; stats: HabitStats
       />
     </section>
   );
+}
+
+function weekDays(now: Date): { key: string; label: string; today: boolean }[] {
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const shift = (start.getDay() + 6) % 7;
+  start.setDate(start.getDate() - shift);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toDateString();
+  return Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(start.getFullYear(), start.getMonth(), start.getDate() + index);
+    return {
+      key: day.toDateString(),
+      label: new Intl.DateTimeFormat('es', { weekday: 'narrow' }).format(day),
+      today: day.toDateString() === today,
+    };
+  });
 }
 
 function habitLevel(cell: { scheduled: boolean; met: boolean }): 'off' | 'miss' | 'met' {

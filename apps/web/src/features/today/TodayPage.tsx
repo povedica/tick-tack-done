@@ -1,15 +1,20 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowUpDown, GripVertical, Lightbulb, Menu, MoreHorizontal } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { PriorityCheck } from '../../components/PriorityCheck';
 import { UndoToastStack } from '../../components/UndoToast';
 import { ViewMenu } from '../../components/ViewMenu';
 import { api } from '../../api';
 import { captureLanguage, fill, useMessages, type Messages } from '../../i18n';
+import { useAppLocale } from '../../i18n/locale';
 import { warningText } from '../capture/components/CaptureSheet';
-import { noticesFrom, useCaptureNotice } from '../capture/notice';
+import { noticesFrom, openTaskComposer, useCaptureNotice } from '../capture/notice';
+import { useActionToast } from '../../components/action-toast';
 import { quickAddRequest } from '../capture/quick-add';
+import { displayTitle } from '../tasks/displayTitle';
+import { QuickAddTools } from '../tasks/QuickAddTools';
+import { collectTags } from '../tasks/collect';
 import { refreshTaskSurfaces } from '../tasks/refresh';
 import { useShellActions } from '../../shell/shell-actions';
 import { isTypingTarget } from '../../shell/shortcuts';
@@ -33,11 +38,24 @@ const GROUP_KEY = 'tick-tack-done.today.group';
 export function TodayPage() {
   const messages = useMessages();
   const shell = useShellActions();
-  const locale = navigator.language;
-  const navigate = useNavigate();
+  const locale = useAppLocale();
   const queryClient = useQueryClient();
   const notice = useCaptureNotice((state) => state.notice);
   const setNotice = useCaptureNotice((state) => state.setNotice);
+  const clearNotice = useCaptureNotice((state) => state.clear);
+  const showToast = useActionToast((state) => state.show);
+  useEffect(() => {
+    if (notice === null) {
+      return;
+    }
+    const extra = notice.warnings.map((warning) => warningText(messages, warning)).join(' ');
+    showToast(
+      extra.length > 0
+        ? `${messages.created}: ${notice.title}. ${extra}`
+        : `${messages.created}: ${notice.title}`,
+    );
+    clearNotice();
+  }, [clearNotice, messages, notice, showToast]);
   const [draft, setDraft] = useState('');
   const addRef = useRef<HTMLInputElement>(null);
   const [params, setParams] = useSearchParams();
@@ -54,7 +72,8 @@ export function TodayPage() {
   });
   const tags = useQuery({
     queryKey: ['tags'],
-    queryFn: () => api.listTags(),
+    queryFn: collectTags,
+    staleTime: 5 * 60_000,
     refetchOnWindowFocus: false,
   });
   const habits = useQuery({
@@ -413,21 +432,17 @@ export function TodayPage() {
             setDraft(event.target.value);
           }}
         />
+        <QuickAddTools
+          draft={draft}
+          onDraft={(value) => {
+            setDraft(value);
+          }}
+        />
       </form>
       <details className="plan" open>
         <summary>{messages.planTitle}</summary>
         <p>{messages.planEmpty}</p>
       </details>
-      {notice !== null ? (
-        <div className="notice" role="status">
-          <p>
-            {messages.created}: {notice.title}
-          </p>
-          {notice.warnings.map((warning) => (
-            <p key={`${warning.code}-${warning.name ?? ''}`}>{warningText(messages, warning)}</p>
-          ))}
-        </div>
-      ) : null}
       {actionError !== null ? (
         <p className="error" role="alert">
           {actionError}
@@ -459,9 +474,10 @@ export function TodayPage() {
           label={messages.overdueTitle}
           tasks={parts.overdue}
           locale={locale}
+          todayLabel={messages.dateToday}
+          tomorrowLabel={messages.dateTomorrow}
           overdue
           completeLabel={messages.completeLabel}
-          repeatLabel={messages.repeatLink}
           moreLabel={messages.openDetail}
           untitled={messages.untitled}
           projectNames={projectNames}
@@ -483,9 +499,10 @@ export function TodayPage() {
           label={sectionLabel(group, section.id, messages, locale, projectNames, tagNames)}
           tasks={section.tasks}
           locale={locale}
+          todayLabel={messages.dateToday}
+          tomorrowLabel={messages.dateTomorrow}
           overdue={false}
           completeLabel={messages.completeLabel}
-          repeatLabel={messages.repeatLink}
           moreLabel={messages.openDetail}
           untitled={messages.untitled}
           projectNames={projectNames}
@@ -544,7 +561,7 @@ export function TodayPage() {
               type="button"
               className="text-button"
               onClick={() => {
-                void navigate('/quick-add');
+                openTaskComposer();
               }}
             >
               {messages.fab}
@@ -570,9 +587,10 @@ function TaskGroup({
   label,
   tasks,
   locale,
+  todayLabel,
+  tomorrowLabel,
   overdue,
   completeLabel,
-  repeatLabel,
   moreLabel,
   untitled,
   projectNames,
@@ -586,9 +604,10 @@ function TaskGroup({
   readonly label: string;
   readonly tasks: readonly TodayTask[];
   readonly locale: string;
+  readonly todayLabel: string;
+  readonly tomorrowLabel: string;
   readonly overdue: boolean;
   readonly completeLabel: string;
-  readonly repeatLabel: string;
   readonly moreLabel: string;
   readonly untitled: string;
   readonly projectNames: ReadonlyMap<string, string>;
@@ -609,6 +628,14 @@ function TaskGroup({
         {tasks.map((task) => {
           const selected = openTaskId === task.id;
           const listName = projectNames.get(task.projectId) ?? '';
+          const namedTags = task.tagIds.flatMap((id) => {
+            const name = tagNames.get(id);
+            return name === undefined ? [] : [{ id, name }];
+          });
+          const title = displayTitle(
+            task.title,
+            namedTags.map((tag) => tag.name),
+          );
           return (
             <li key={task.id}>
               <div
@@ -618,6 +645,7 @@ function TaskGroup({
                 <GripVertical className="task-grip" size={12} aria-hidden="true" />
                 <PriorityCheck
                   priority={task.priority}
+                  checked={task.status === 'completed'}
                   label={fill(completeLabel, task.title)}
                   onChange={() => {
                     onComplete(task);
@@ -630,26 +658,39 @@ function TaskGroup({
                     onOpen(task.id);
                   }}
                 >
-                  {task.title.trim().length === 0 ? untitled : task.title}
+                  {title.length === 0 ? untitled : title}
                 </button>
                 <span className="task-meta">
-                  {task.tagIds.map((id) => (
-                    <span key={id} className="ui-tag" style={tagStyle(tagColors.get(id) ?? null)}>
-                      {tagNames.get(id) ?? id}
-                    </span>
+                  {namedTags.slice(0, 2).map((tag) => (
+                    <Link
+                      key={tag.id}
+                      to={`/tag/${tag.id}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                      }}
+                    >
+                      <span className="ui-tag" style={tagStyle(tagColors.get(tag.id) ?? null)}>
+                        {tag.name}
+                      </span>
+                    </Link>
                   ))}
+                  {namedTags.length > 2 ? (
+                    <span className="task-tag-more">+{namedTags.length - 2}</span>
+                  ) : null}
                   {listName.length > 0 ? <span className="task-list-name">{listName}</span> : null}
                   {task.dueDate !== null ? (
                     <time
-                      className={overdue ? 'task-date is-overdue' : 'task-date'}
+                      className={
+                        overdue && task.status === 'active' ? 'task-date is-overdue' : 'task-date'
+                      }
                       dateTime={task.dueDate}
                     >
-                      {formatDueDate(task.dueDate, task.timeZone, locale)}
+                      {formatDueDate(task.dueDate, task.timeZone, locale, {
+                        today: todayLabel,
+                        tomorrow: tomorrowLabel,
+                      })}
                     </time>
                   ) : null}
-                  <Link className="task-list-name" to={`/repeat?task=${task.id}`}>
-                    {repeatLabel}
-                  </Link>
                 </span>
                 <button
                   type="button"

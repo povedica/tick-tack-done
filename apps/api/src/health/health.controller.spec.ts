@@ -26,7 +26,7 @@ describe('HealthController', () => {
     const response = await request(app.getHttpServer() as App)
       .get('/api/v1/health')
       .expect(200);
-    expect(response.body).toEqual({ status: 'ok' });
+    expect(response.body).toEqual({ status: 'ok', commit: 'unknown' });
     expect(response.headers['x-request-id']).toEqual(expect.any(String));
   });
 

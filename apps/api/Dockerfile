@@ -16,7 +16,9 @@ RUN pnpm --filter api build && pnpm --filter api exec prisma generate
 
 FROM node:22-alpine AS runner
 WORKDIR /app
+ARG GIT_COMMIT=unknown
 ENV NODE_ENV=production
+ENV GIT_COMMIT=$GIT_COMMIT
 RUN corepack enable
 COPY --from=build /app ./
 RUN chown -R node:node /app

@@ -40,4 +40,16 @@ describe('whereFromClause', () => {
       id: '00000000-0000-0000-0000-000000000000',
     });
   });
+
+  it('RF-604: overdue with a clock excludes future timed tasks and all-day tasks due today', () => {
+    const clock = { now: '2026-10-17T10:00:00.000Z', timeZone: 'Europe/Madrid' };
+    expect(whereFromClause({ op: 'overdue' }, clock)).toEqual({
+      status: 'active',
+      dueDate: { not: null },
+      OR: [
+        { isAllDay: false, dueDate: { lt: new Date(clock.now) } },
+        { isAllDay: true, dueDate: { lt: new Date('2026-10-16T22:00:00.000Z') } },
+      ],
+    });
+  });
 });

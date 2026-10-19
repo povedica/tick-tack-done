@@ -1,5 +1,8 @@
 .auth-screen {
+  width: 100%;
+  max-width: none;
   min-height: 100dvh;
+  margin: 0;
   display: grid;
   place-items: center;
   padding: 24px;
@@ -30,7 +33,6 @@
 .auth-brand .brand-mark {
   width: 64px;
   height: 64px;
-  border-radius: 16px;
 }
 
 .auth-brand h1 {

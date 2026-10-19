@@ -23,11 +23,16 @@
 		reverse_proxy todo-api:3000
 	}
 
+	handle /manifest.json {
+		redir /manifest.webmanifest 308
+	}
+
 	handle {
 		reverse_proxy todo-web:8080
 	}
 
 	header {
+		+Vary "Accept-Encoding"
 		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
 		X-Content-Type-Options nosniff
 		X-Frame-Options DENY

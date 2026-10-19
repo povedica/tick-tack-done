@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { visibleTools } from './mcp.catalog';
+import { MCP_TOOLS, visibleTools } from './mcp.catalog';
 
 describe('MCP tool catalog', () => {
   it('RF-2001: a tasks token cannot see tools outside its scopes', () => {
@@ -16,6 +16,21 @@ describe('MCP tool catalog', () => {
       'start_focus',
     ]) {
       expect(names).not.toContain(hidden);
+    }
+  });
+
+  it('RF-2001: paged listings accept the API v1 cursor', () => {
+    for (const name of [
+      'list_tasks',
+      'list_projects',
+      'list_tags',
+      'list_filters',
+      'list_smart_list_tasks',
+      'list_habits',
+    ]) {
+      const tool = MCP_TOOLS.find((item) => item.name === name);
+      expect(tool?.inputSchema.properties).toHaveProperty('cursor');
+      expect(tool?.inputSchema.additionalProperties).toBe(false);
     }
   });
 

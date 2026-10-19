@@ -1,13 +1,18 @@
-import type { TaskDetail as Detail } from '@reflexionia/sdk';
+import { ApiError, type TaskDetail as Detail } from '@reflexionia/sdk';
+import { describeRepeatRule, parseTrigger } from '@reflexionia/domain';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Bell, Flag } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { api } from '../../api';
 import { PriorityCheck } from '../../components/PriorityCheck';
 import { Button } from '../../components/ui';
 import { DueField } from './DueField';
 import { fill, useMessages } from '../../i18n';
+import { useAppLocale } from '../../i18n/locale';
+import { useActionToast } from '../../components/action-toast';
+import { collectTags } from './collect';
+import { refreshTaskSurfaces } from './refresh';
 import { newMutation, runOrQueue } from '../offline/client';
 
 const MAX_ATTACHMENT = 25 * 1024 * 1024;
@@ -20,8 +25,12 @@ export function TaskDetail({
   readonly onClose: () => void;
 }) {
   const messages = useMessages();
+  const locale = useAppLocale();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
+  const [, setParams] = useSearchParams();
+  const showToast = useActionToast((state) => state.show);
   const [saved, setSaved] = useState(false);
   const [series, setSeries] = useState<string | null>(null);
   const [children, setChildren] = useState(false);
@@ -43,7 +52,7 @@ export function TaskDetail({
     enabled: detail.data?.repeat_rule !== null && detail.data?.repeat_rule !== undefined,
   });
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
-  const tags = useQuery({ queryKey: ['tags'], queryFn: () => api.listTags() });
+  const tags = useQuery({ queryKey: ['tags'], queryFn: collectTags, staleTime: 5 * 60_000 });
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
   const serverDue = detail.data?.due_date ?? null;
   const [dueDraft, setDueDraft] = useState('');
@@ -69,8 +78,8 @@ export function TaskDetail({
         await refresh();
       }
     },
-    onError: () => {
-      setError(messages.saveFailed);
+    onError: (caught: unknown) => {
+      setError(caught instanceof ApiError ? caught.message : messages.saveFailed);
     },
   });
 
@@ -160,10 +169,13 @@ export function TaskDetail({
             void api
               .createReminder(
                 task.id,
-                { trigger: '-PT30M', type: 'relative', channel: 'push' },
+                { trigger: 'TRIGGER:-PT30M', type: 'relative', channel: 'push' },
                 crypto.randomUUID(),
               )
-              .then(() => queryClient.invalidateQueries({ queryKey: ['reminders', taskId] }));
+              .then(() => queryClient.invalidateQueries({ queryKey: ['reminders', taskId] }))
+              .catch((caught: unknown) => {
+                setError(caught instanceof ApiError ? caught.message : messages.saveFailed);
+              });
           }}
         >
           <Bell size={20} aria-hidden="true" />
@@ -202,15 +214,41 @@ export function TaskDetail({
           <Button
             variant="ghost"
             onClick={() => {
-              void api.duplicateTask(task.id, crypto.randomUUID()).then(refresh);
+              void api.duplicateTask(task.id, crypto.randomUUID()).then((copy) => {
+                const next = new URLSearchParams(window.location.search);
+                next.set('task', copy.id);
+                setParams(next, { replace: true });
+                showToast(messages.duplicated);
+                return refreshTaskSurfaces(queryClient);
+              });
             }}
           >
             {messages.duplicate}
           </Button>
           <Button
+            variant="ghost"
+            onClick={() => {
+              void api
+                .startFocus({ task_id: task.id })
+                .then(() => {
+                  void navigate('/focus');
+                })
+                .catch((caught: unknown) => {
+                  setError(caught instanceof ApiError ? caught.message : messages.saveFailed);
+                });
+            }}
+          >
+            {messages.focusOnTask}
+          </Button>
+          <Button
             variant="danger"
             onClick={() => {
-              void api.deleteTask(task.id).then(() => {
+              const id = task.id;
+              void api.deleteTask(id).then(() => {
+                showToast(messages.movedToTrash, () => {
+                  void api.restoreTask(id).then(() => refreshTaskSurfaces(queryClient));
+                });
+                void refreshTaskSurfaces(queryClient);
                 onClose();
               });
             }}
@@ -351,7 +389,7 @@ export function TaskDetail({
           <ul>
             {(reminders.data ?? []).map((reminder) => (
               <li key={reminder.id}>
-                {reminder.trigger} · {reminder.channel}
+                {humanTrigger(reminder.trigger, reminder.channel, messages, locale)}
                 <Button
                   variant="ghost"
                   onClick={() => {
@@ -367,34 +405,48 @@ export function TaskDetail({
               </li>
             ))}
           </ul>
-          <Button
-            onClick={() => {
+          <ReminderAdd
+            label={messages.addReminder}
+            options={[
+              ['TRIGGER:-PT30M', messages.reminder30],
+              ['TRIGGER:-PT1H', messages.reminderHour],
+              ['TRIGGER:-P1D', messages.reminderDay],
+            ]}
+            onAdd={(trigger) => {
               void api
                 .createReminder(
                   task.id,
-                  { trigger: '-PT30M', type: 'relative', channel: 'push' },
+                  { trigger, type: 'relative', channel: 'push' },
                   crypto.randomUUID(),
                 )
-                .then(() => queryClient.invalidateQueries({ queryKey: ['reminders', taskId] }));
+                .then(() => queryClient.invalidateQueries({ queryKey: ['reminders', taskId] }))
+                .catch((caught: unknown) => {
+                  setError(caught instanceof ApiError ? caught.message : messages.saveFailed);
+                });
             }}
-          >
-            {messages.addReminder}
-          </Button>
+          />
         </section>
         <section>
           <h3>{messages.recurrence}</h3>
-          <p>{task.repeat_rule ?? messages.noRecurrence}</p>
+          <p>
+            {task.repeat_rule === null
+              ? messages.noRecurrence
+              : (describeRepeatRule(task.repeat_rule) ?? task.repeat_rule)}
+          </p>
           <div className="page-toolbar">
             <Button
               onClick={() => {
-                save.mutate({ repeat_rule: 'FREQ=DAILY', repeat_from: 'due_date' });
+                save.mutate({ repeat_rule: 'RRULE:FREQ=DAILY', repeat_from: 'due_date' });
               }}
             >
               {messages.repeatDaily}
             </Button>
             <Button
               onClick={() => {
-                save.mutate({ repeat_rule: 'FREQ=WEEKLY', repeat_from: 'due_date' });
+                save.mutate({
+                  repeat_rule: weeklyRule(task.due_date, task.time_zone),
+                  repeat_from: 'due_date',
+                });
               }}
             >
               {messages.repeatWeekly}
@@ -402,7 +454,7 @@ export function TaskDetail({
             <Button
               onClick={() => {
                 save.mutate({
-                  repeat_rule: 'FREQ=MONTHLY;BYDAY=1MO;COUNT=6',
+                  repeat_rule: 'RRULE:FREQ=MONTHLY;BYDAY=1MO;COUNT=6',
                   repeat_from: 'due_date',
                 });
               }}
@@ -462,7 +514,7 @@ export function TaskDetail({
             {task.activity.map((entry) => (
               <li key={entry.id}>
                 {entry.actor_id === me.data?.id ? messages.actorYou : messages.actorOther} ·{' '}
-                {entry.action} · {relativeTime(entry.created_at, navigator.language)}
+                {entry.action} · {relativeTime(entry.created_at, locale)}
               </li>
             ))}
           </ul>
@@ -582,6 +634,36 @@ function priorityColor(priority: string): string {
   }
 }
 
+function humanTrigger(
+  trigger: string,
+  channel: string,
+  messages: ReturnType<typeof useMessages>,
+  locale: string,
+): string {
+  const parsed = parseTrigger(trigger);
+  let label = trigger;
+  if (parsed.ok && parsed.kind === 'relative') {
+    const minutes = Math.round(Math.abs(parsed.offsetMs) / 60_000);
+    if (minutes === 30) {
+      label = messages.reminder30;
+    } else if (minutes === 60) {
+      label = messages.reminderHour;
+    } else if (minutes === 1440) {
+      label = messages.reminderDay;
+    } else if (minutes > 0 && minutes % 60 === 0) {
+      label = `${String(minutes / 60)} h`;
+    } else if (minutes > 0) {
+      label = `${String(minutes)} min`;
+    }
+  } else if (parsed.ok) {
+    label = new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(
+      new Date(parsed.at),
+    );
+  }
+  const shown = channel.trim();
+  return shown.length > 0 && shown !== 'push' ? `${label} · ${shown}` : label;
+}
+
 function relativeTime(iso: string, locale: string): string {
   const delta = Date.now() - new Date(iso).getTime();
   if (Number.isNaN(delta)) {
@@ -597,6 +679,61 @@ function relativeTime(iso: string, locale: string): string {
     return format.format(-hours, 'hour');
   }
   return format.format(-Math.round(hours / 24), 'day');
+}
+
+function ReminderAdd({
+  label,
+  options,
+  onAdd,
+}: {
+  readonly label: string;
+  readonly options: readonly (readonly [string, string])[];
+  readonly onAdd: (trigger: string) => void;
+}) {
+  const [trigger, setTrigger] = useState(options[0]?.[0] ?? 'TRIGGER:-PT30M');
+  return (
+    <div className="page-toolbar">
+      <select
+        value={trigger}
+        aria-label={label}
+        onChange={(event) => {
+          setTrigger(event.target.value);
+        }}
+      >
+        {options.map(([value, text]) => (
+          <option key={value} value={value}>
+            {text}
+          </option>
+        ))}
+      </select>
+      <Button
+        onClick={() => {
+          onAdd(trigger);
+        }}
+      >
+        {label}
+      </Button>
+    </div>
+  );
+}
+
+function weeklyRule(due: string | null, timeZone: string): string {
+  if (due === null) {
+    return 'RRULE:FREQ=WEEKLY;BYDAY=MO';
+  }
+  const name = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone }).format(
+    new Date(due),
+  );
+  const codes: Readonly<Record<string, string>> = {
+    Sun: 'SU',
+    Mon: 'MO',
+    Tue: 'TU',
+    Wed: 'WE',
+    Thu: 'TH',
+    Fri: 'FR',
+    Sat: 'SA',
+  };
+  return `RRULE:FREQ=WEEKLY;BYDAY=${codes[name] ?? 'MO'}`;
 }
 
 function toLocal(value: string | null): string {

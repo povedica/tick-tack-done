@@ -285,6 +285,7 @@ describe('filter grammar', () => {
     expect(matchesClause(clause, subject({ deleted: true }), clock)).toBe(false);
     expect(matchesClause(clause, subject({ status: 'archived' }), clock)).toBe(false);
     expect(matchesClause(clause, subject(), clock)).toBe(true);
+    expect(matchesClause(clause, subject({ status: 'completed' }), clock)).toBe(false);
   });
 });
 
@@ -293,9 +294,19 @@ describe('smart lists', () => {
 
   it('RF-901: today, inbox, assigned, completed, no date and all use the shared grammar', () => {
     expect(matchesSmartList('today', subject(), input)).toBe(true);
+    expect(matchesSmartList('today', subject({ dueDate: '2026-10-16T08:00:00.000Z' }), input)).toBe(
+      true,
+    );
     expect(matchesSmartList('today', subject({ dueDate: '2026-10-17T22:30:00.000Z' }), input)).toBe(
       false,
     );
+    expect(
+      matchesSmartList(
+        'today',
+        subject({ dueDate: '2026-10-16T08:00:00.000Z', status: 'completed' }),
+        input,
+      ),
+    ).toBe(false);
     expect(matchesSmartList('inbox', subject({ listId: 'inbox-1' }), input)).toBe(true);
     expect(matchesSmartList('inbox', subject({ listId: 'other' }), input)).toBe(false);
     expect(matchesSmartList('inbox', subject(), { ...input, inboxProjectId: null })).toBe(false);
@@ -315,6 +326,7 @@ describe('smart lists', () => {
     expect(
       matchesSmartList('recently_added', subject({ createdAt: '2026-09-16T22:00:00.000Z' }), input),
     ).toBe(true);
+    expect(matchesSmartList('recently_added', subject({ status: 'completed' }), input)).toBe(false);
     expect(
       matchesSmartList('recently_added', subject({ createdAt: '2026-09-16T21:59:59.000Z' }), input),
     ).toBe(false);

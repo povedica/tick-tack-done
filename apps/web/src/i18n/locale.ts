@@ -11,14 +11,23 @@ function read(): LocaleChoice {
       return value;
     }
   } catch {
-    return 'auto';
+    return 'es';
   }
-  return 'auto';
+  return 'es';
 }
 
 interface LocaleStore {
   choice: LocaleChoice;
   setChoice: (choice: LocaleChoice) => void;
+}
+
+export function resolveLocale(choice: LocaleChoice): string {
+  return choice === 'auto' ? navigator.language : choice;
+}
+
+export function useAppLocale(): string {
+  const choice = useLocale((state) => state.choice);
+  return resolveLocale(choice);
 }
 
 export const useLocale = create<LocaleStore>((set) => ({
