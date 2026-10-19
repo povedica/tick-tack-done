@@ -1,4 +1,4 @@
-import { fromZonedTime, toZonedTime } from 'date-fns-tz';
+import { formatInTimeZone, fromZonedTime, toZonedTime } from 'date-fns-tz';
 import { isIanaTimeZone } from '../tasks/time-zone';
 
 /** Wall-clock fields in a capture time zone. Month is 1–12. */
@@ -41,22 +41,80 @@ export function startOfZonedDay(iso: string, timeZone: string): string | null {
 
 /** Interpret wall-clock fields as local time in `timeZone` and return UTC ISO. */
 export function instantFromWall(wall: WallClock, timeZone: string): string | null {
-  if (!isIanaTimeZone(timeZone)) {
+  if (!isIanaTimeZone(timeZone) || !calendarDayExists(wall)) {
     return null;
   }
-  const local = new Date(wall.year, wall.month - 1, wall.day, wall.hour, wall.minute, wall.second);
   if (
-    local.getFullYear() !== wall.year ||
-    local.getMonth() !== wall.month - 1 ||
-    local.getDate() !== wall.day
+    wall.hour < 0 ||
+    wall.hour > 23 ||
+    wall.minute < 0 ||
+    wall.minute > 59 ||
+    wall.second < 0 ||
+    wall.second > 59
   ) {
     return null;
   }
-  const instant = fromZonedTime(local, timeZone);
+  const stamp = `${pad(wall.year, 4)}-${pad(wall.month, 2)}-${pad(wall.day, 2)} ${pad(wall.hour, 2)}:${pad(wall.minute, 2)}:${pad(wall.second, 2)}`;
+  let instant: Date;
+  try {
+    instant = fromZonedTime(stamp, timeZone);
+  } catch {
+    return null;
+  }
   if (Number.isNaN(instant.getTime())) {
     return null;
   }
-  return instant.toISOString();
+  const back = formatInTimeZone(instant, timeZone, 'yyyy-MM-dd HH:mm:ss');
+  if (back === stamp) {
+    const earlier = new Date(instant.getTime() - 3_600_000);
+    if (formatInTimeZone(earlier, timeZone, 'yyyy-MM-dd HH:mm:ss') === stamp) {
+      return earlier.toISOString();
+    }
+    return instant.toISOString();
+  }
+  const shifted = shiftedGap(instant, stamp, back);
+  return shifted;
+}
+
+function calendarDayExists(wall: WallClock): boolean {
+  const probe = new Date(Date.UTC(wall.year, wall.month - 1, wall.day));
+  return (
+    probe.getUTCFullYear() === wall.year &&
+    probe.getUTCMonth() === wall.month - 1 &&
+    probe.getUTCDate() === wall.day
+  );
+}
+
+function shiftedGap(instant: Date, wanted: string, actual: string): string | null {
+  const left = stampParts(wanted);
+  const right = stampParts(actual);
+  if (left === null || right === null) {
+    return null;
+  }
+  if (left.day !== right.day || left.seconds === right.seconds) {
+    return null;
+  }
+  return new Date(instant.getTime() + (left.seconds - right.seconds) * 1000).toISOString();
+}
+
+function stampParts(stamp: string): { day: string; seconds: number } | null {
+  const match = /^(\d{4}-\d{2}-\d{2}) (\d{2}):(\d{2}):(\d{2})$/.exec(stamp);
+  if (
+    match?.[1] === undefined ||
+    match[2] === undefined ||
+    match[3] === undefined ||
+    match[4] === undefined
+  ) {
+    return null;
+  }
+  return {
+    day: match[1],
+    seconds: Number(match[2]) * 3600 + Number(match[3]) * 60 + Number(match[4]),
+  };
+}
+
+function pad(value: number, width: number): string {
+  return String(value).padStart(width, '0');
 }
 
 export function addCalendarDays(wall: WallClock, days: number): WallClock {

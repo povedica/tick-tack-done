@@ -24,6 +24,23 @@ enum TaskStatus {
   active
   completed
   archived
+  cancelled
+}
+
+enum PlanSessionState {
+  draft
+  applying
+  applied
+  discarded
+}
+
+enum PlanDecisionKind {
+  done
+  plan_day
+  later
+  cancel
+  trash
+  skip
 }
 
 enum Priority {
@@ -84,6 +101,8 @@ enum ReminderDeliveryStatus {
   scheduled
   fired
   late
+  failed
+  cancelled
 }
 
 enum ReminderDeliveryKind {
@@ -207,6 +226,10 @@ model User {
   defaultReminderTrigger String?                @map("default_reminder_trigger")
   inboundEmailTokenHash  String?                @unique @map("inbound_email_token_hash")
   dailyReminderTime     String?                @map("daily_reminder_time")
+  quietHoursStart       String?                @map("quiet_hours_start")
+  quietHoursEnd         String?                @map("quiet_hours_end")
+  telegramEnabled       Boolean                @default(true) @map("telegram_enabled")
+  focusNotifications    Boolean                @default(true) @map("focus_notifications")
   weeklyReportSettings  Json                   @default("{}") @map("weekly_report_settings")
   achievementScore      Int                    @default(0) @map("achievement_score")
   achievementsEnabled   Boolean                @default(true) @map("achievements_enabled")
@@ -266,6 +289,9 @@ model User {
   plugins               PluginInstall[]
   recoveryCodes         RecoveryCode[]
   telegramLinks         TelegramLink[]
+  dayPlans              DayPlan[]
+  planSessions          PlanSession[]
+  planOperations        PlanOperation[]
 
   @@map("users")
 }
@@ -421,6 +447,7 @@ model Task {
   comments       Comment[]
   focusSessions  FocusSession[]
   stickyNotes    StickyNote[]
+  planMembers    PlanMember[]
 
   @@index([projectId, status, sortOrder], map: "tasks_project_status_sort_idx")
   @@index([dueDate], map: "tasks_due_date_idx")
@@ -879,10 +906,13 @@ model ReminderDelivery {
   kind       ReminderDeliveryKind
   payload    Json                   @default("{}")
   firedAt    DateTime?              @map("fired_at") @db.Timestamptz(6)
+  attempts   Int                    @default(0)
+  nextRetryAt DateTime?             @map("next_retry_at") @db.Timestamptz(6)
   createdAt  DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt  DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@index([status, fireAt])
+  @@index([status, nextRetryAt])
   @@map("reminder_deliveries")
 }
 
@@ -1149,4 +1179,84 @@ model TelegramLink {
 
   @@index([ownerId])
   @@map("telegram_links")
+}
+
+model DayPlan {
+  id        String       @id @default(uuid()) @db.Uuid
+  ownerId   String       @map("owner_id") @db.Uuid
+  owner     User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  localDate String       @map("local_date") @db.VarChar(10)
+  timeZone  String       @map("time_zone")
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  members   PlanMember[]
+  sessions  PlanSession[]
+
+  @@unique([ownerId, localDate, timeZone])
+  @@map("day_plans")
+}
+
+model PlanMember {
+  id        String   @id @default(uuid()) @db.Uuid
+  planId    String   @map("plan_id") @db.Uuid
+  plan      DayPlan  @relation(fields: [planId], references: [id], onDelete: Cascade)
+  taskId    String   @map("task_id") @db.Uuid
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  rank      Int
+  source    String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([planId, taskId])
+  @@index([taskId])
+  @@map("plan_members")
+}
+
+model PlanSession {
+  id         String           @id @default(uuid()) @db.Uuid
+  planId     String           @map("plan_id") @db.Uuid
+  plan       DayPlan          @relation(fields: [planId], references: [id], onDelete: Cascade)
+  ownerId    String           @map("owner_id") @db.Uuid
+  owner      User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  state      PlanSessionState @default(draft)
+  revision   Int              @default(1)
+  sources    Json
+  snapshot   Json
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  decisions  PlanDecision[]
+  operations PlanOperation[]
+
+  @@index([ownerId, state])
+  @@map("plan_sessions")
+}
+
+model PlanDecision {
+  id         String           @id @default(uuid()) @db.Uuid
+  sessionId  String           @map("session_id") @db.Uuid
+  session    PlanSession      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  taskId     String           @map("task_id") @db.Uuid
+  decision   PlanDecisionKind
+  targetDate String?          @map("target_date") @db.VarChar(10)
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([sessionId, taskId])
+  @@map("plan_decisions")
+}
+
+model PlanOperation {
+  id             String      @id @default(uuid()) @db.Uuid
+  ownerId        String      @map("owner_id") @db.Uuid
+  owner          User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  sessionId      String      @map("session_id") @db.Uuid
+  session        PlanSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  idempotencyKey String      @map("idempotency_key")
+  revision       Int
+  status         String
+  result         Json        @default("{}")
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([ownerId, idempotencyKey])
+  @@map("plan_operations")
 }

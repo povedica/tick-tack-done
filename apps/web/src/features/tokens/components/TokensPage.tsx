@@ -342,109 +342,131 @@ export function TokensPage() {
         {tokens.isSuccess && items.length === 0 ? (
           <p className="token-empty">{messages.tokenEmpty}</p>
         ) : null}
-        {items.map((token) => {
-          const revoked = token.revoked_at !== null;
-          const open = selected === token.id;
-          return (
-            <article key={token.id} className={revoked ? 'token-row is-revoked' : 'token-row'}>
-              <div className="token-head">
-                <div>
-                  <h2>{token.name}</h2>
-                  <code className="token-prefix">{token.token_prefix}</code>
+        {items
+          .filter((token) => token.revoked_at === null)
+          .map((token) => {
+            const revoked = token.revoked_at !== null;
+            const open = selected === token.id;
+            return (
+              <article key={token.id} className={revoked ? 'token-row is-revoked' : 'token-row'}>
+                <div className="token-head">
+                  <div>
+                    <h2>{token.name}</h2>
+                    <code className="token-prefix">{token.token_prefix}</code>
+                  </div>
+                  <span className={revoked ? 'token-pill is-revoked' : 'token-pill'}>
+                    {revoked ? messages.tokenRevoked : messages.tokenActive}
+                  </span>
                 </div>
-                <span className={revoked ? 'token-pill is-revoked' : 'token-pill'}>
-                  {revoked ? messages.tokenRevoked : messages.tokenActive}
-                </span>
-              </div>
-              <ul className="token-chips">
-                {token.scopes.map((scope) => (
-                  <li key={scope} className="token-chip">
-                    {scopeLabel(messages, scope)}
-                  </li>
-                ))}
-              </ul>
-              <p className="token-meta">
-                {messages.tokenCreatedOn} {when(token.created_at, locale)}
-                {' · '}
-                {token.last_used_at === null
-                  ? messages.tokenNeverUsed
-                  : `${messages.tokenLastUsed} ${when(token.last_used_at, locale)}`}
-              </p>
-              <div className="token-actions">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  aria-expanded={open}
-                  onClick={() => {
-                    setSelected(open ? null : token.id);
-                    setSecret(null);
-                  }}
-                >
-                  {open ? messages.tokenHideActivity : messages.tokenActivity}
-                </Button>
-                {revoked ? null : (
+                <ul className="token-chips">
+                  {token.scopes.map((scope) => (
+                    <li key={scope} className="token-chip">
+                      {scopeLabel(messages, scope)}
+                    </li>
+                  ))}
+                </ul>
+                <p className="token-meta">
+                  {messages.tokenCreatedOn} {when(token.created_at, locale)}
+                  {' · '}
+                  {token.last_used_at === null
+                    ? messages.tokenNeverUsed
+                    : `${messages.tokenLastUsed} ${when(token.last_used_at, locale)}`}
+                </p>
+                <div className="token-actions">
                   <Button
                     type="button"
                     size="sm"
                     variant="ghost"
+                    aria-expanded={open}
                     onClick={() => {
-                      setConfirmId(token.id);
+                      setSelected(open ? null : token.id);
+                      setSecret(null);
                     }}
                   >
-                    {messages.tokenRevoke}
+                    {open ? messages.tokenHideActivity : messages.tokenActivity}
                   </Button>
-                )}
-              </div>
-              {confirmId === token.id ? (
-                <div className="token-confirm">
-                  <p>{fill(messages.tokenRevokeBody, token.name)}</p>
-                  <span className="token-actions">
+                  {revoked ? null : (
                     <Button
                       type="button"
                       size="sm"
                       variant="ghost"
                       onClick={() => {
-                        setConfirmId(null);
-                      }}
-                    >
-                      {messages.cancel}
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="danger"
-                      loading={revoke.isPending}
-                      onClick={() => {
-                        revoke.mutate(token.id);
+                        setConfirmId(token.id);
                       }}
                     >
                       {messages.tokenRevoke}
                     </Button>
-                  </span>
+                  )}
                 </div>
-              ) : null}
-              {open ? (
-                <div>
-                  {activity.isSuccess && activity.data.items.length === 0 ? (
-                    <p className="token-meta">{messages.tokenActivityEmpty}</p>
-                  ) : null}
-                  <ul className="token-activity">
-                    {(activity.data?.items ?? []).map((entry) => (
-                      <li key={entry.id}>
-                        <span>
-                          {actionLabel(messages, entry.action)} ·{' '}
-                          {entityLabel(messages, entry.entity_type)}
-                        </span>
-                        <time dateTime={entry.created_at}>{when(entry.created_at, locale)}</time>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-            </article>
-          );
-        })}
+                {confirmId === token.id ? (
+                  <div className="token-confirm">
+                    <p>{fill(messages.tokenRevokeBody, token.name)}</p>
+                    <span className="token-actions">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setConfirmId(null);
+                        }}
+                      >
+                        {messages.cancel}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="danger"
+                        loading={revoke.isPending}
+                        onClick={() => {
+                          revoke.mutate(token.id);
+                        }}
+                      >
+                        {messages.tokenRevoke}
+                      </Button>
+                    </span>
+                  </div>
+                ) : null}
+                {open ? (
+                  <div>
+                    {activity.isSuccess && activity.data.items.length === 0 ? (
+                      <p className="token-meta">{messages.tokenActivityEmpty}</p>
+                    ) : null}
+                    <ul className="token-activity">
+                      {(activity.data?.items ?? []).map((entry) => (
+                        <li key={entry.id}>
+                          <span>
+                            {actionLabel(messages, entry.action)} ·{' '}
+                            {entityLabel(messages, entry.entity_type)}
+                          </span>
+                          <time dateTime={entry.created_at}>{when(entry.created_at, locale)}</time>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </article>
+            );
+          })}
+        {items.some((token) => token.revoked_at !== null) ? (
+          <details className="token-revoked">
+            <summary>
+              {messages.tokensRevokedFold} (
+              {String(items.filter((token) => token.revoked_at !== null).length)})
+            </summary>
+            <ul>
+              {items
+                .filter((token) => token.revoked_at !== null)
+                .map((token) => (
+                  <li key={token.id}>
+                    {token.name}
+                    {token.revoked_at !== null ? (
+                      <time dateTime={token.revoked_at}> · {when(token.revoked_at, locale)}</time>
+                    ) : null}
+                  </li>
+                ))}
+            </ul>
+          </details>
+        ) : null}
       </section>
     </section>
   );

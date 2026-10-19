@@ -9,6 +9,7 @@ import {
   reminderDisposition,
   reminderFireAt,
   resolveDefaultReminder,
+  afternoonInstant,
   snoozeReminder,
 } from './trigger';
 
@@ -93,6 +94,16 @@ describe('reminders', () => {
   it('RF-803: a constant reminder schedules the next interval', () => {
     expect(nextConstantFire('2026-10-17T10:00:00.000Z', 15)).toBe('2026-10-17T10:15:00.000Z');
     expect(nextConstantFire('2026-10-17T10:00:00.000Z', 0)).toBeNull();
+  });
+
+  it('NT-08: esta tarde is the next local 18:00', () => {
+    expect(afternoonInstant('2026-10-19T12:00:00.000Z', 'Europe/Madrid')).toBe(
+      '2026-10-19T16:00:00.000Z',
+    );
+    expect(afternoonInstant('2026-10-19T16:30:00.000Z', 'Europe/Madrid')).toBe(
+      '2026-10-20T16:00:00.000Z',
+    );
+    expect(afternoonInstant('2026-10-19T12:00:00.000Z', 'Mars/Olympus')).toBeNull();
   });
 
   it('RF-804: snooze presets are 10 minutes, 1 hour, tomorrow or a custom instant', () => {

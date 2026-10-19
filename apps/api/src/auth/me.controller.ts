@@ -21,6 +21,7 @@ import {
   InboundEmailAddressDto,
   InboundEmailStatusDto,
   MeResponseDto,
+  NotificationHealthDto,
   PushSubscriptionDto,
   UpdateMeDto,
 } from './me.dto.js';
@@ -87,6 +88,14 @@ export class MeController {
   @ApiOkResponse({ type: InboundEmailStatusDto })
   inboundEmail(@CurrentUser() user: AuthUser): Promise<InboundEmailStatusDto> {
     return this.me.inboundEmailStatus(user);
+  }
+
+  @Get('notifications/health')
+  @Scopes('profile:read')
+  @ApiOperation({ summary: 'Last 20 reminder deliveries, with channel and result (NT-09)' })
+  @ApiOkResponse({ type: NotificationHealthDto })
+  notificationHealth(@CurrentUser() user: AuthUser): Promise<NotificationHealthDto> {
+    return this.me.notificationHealth(user);
   }
 
   @Post('inbound-email')

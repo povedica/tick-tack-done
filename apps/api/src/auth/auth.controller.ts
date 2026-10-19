@@ -14,7 +14,13 @@ import {
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import type { AuthUser } from './auth-user.js';
-import { LoginDto, RegisterDto, SessionListItemDto, SessionResponseDto } from './auth.dto.js';
+import {
+  LoginDto,
+  RegisterDto,
+  RegistrationStatusDto,
+  SessionListItemDto,
+  SessionResponseDto,
+} from './auth.dto.js';
 import { AuthService } from './auth.service.js';
 import { CurrentUser } from './current-user.decorator.js';
 import { Authenticated, Public } from './scopes.decorator.js';
@@ -24,6 +30,14 @@ import { SESSION_COOKIE, sessionCookieOptions } from './session-cookie.js';
 @Controller('auth')
 export class AuthController {
   constructor(@Inject(AuthService) private readonly auth: AuthService) {}
+
+  @Get('registration')
+  @Public()
+  @ApiOperation({ summary: 'Whether a new account can still be created' })
+  @ApiOkResponse({ type: RegistrationStatusDto })
+  async registration(): Promise<RegistrationStatusDto> {
+    return { open: await this.auth.registrationOpen() };
+  }
 
   @Post('register')
   @Public()

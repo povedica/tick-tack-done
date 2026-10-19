@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { countdownsApi } from '../countdowns/api';
@@ -231,14 +231,14 @@ export function FocusPage() {
     queryFn: () => api.getFocusSettings(),
   });
   const stats = useQuery({ queryKey: ['focus-stats'], queryFn: () => api.focusStats() });
-  const watched = useRef<string | null>(null);
-  const closing = useRef<string | null>(null);
   const rows = itemsOf(sessions.data);
   const live = rows.find((row) => row.ended_at === null && numberOf(row.remaining_seconds) > 0);
-  const stale = rows.find((row) => row.ended_at === null && numberOf(row.remaining_seconds) <= 0);
-  if (typeof live?.id === 'string') {
-    watched.current = live.id;
-  }
+  const taskId = typeof live?.task_id === 'string' ? live.task_id : '';
+  const focused = useQuery({
+    queryKey: ['task', taskId],
+    queryFn: () => api.taskDetail(taskId),
+    enabled: taskId.length > 0,
+  });
   const started = typeof live?.started_at === 'string' ? live.started_at : null;
   const planned =
     typeof live?.planned_minutes === 'number'
@@ -263,29 +263,6 @@ export function FocusPage() {
       ? planned * 60
       : Math.max(0, planned * 60 - Math.floor((now - Date.parse(started)) / 1000));
   useEffect(() => {
-    const id = typeof stale?.id === 'string' ? stale.id : null;
-    if (id === null || closing.current === id) {
-      return;
-    }
-    closing.current = id;
-    const close = watched.current === id ? api.finishFocus(id) : api.abortFocus(id);
-    void close.then(() => {
-      void queryClient.invalidateQueries({ queryKey: ['focus-sessions'] });
-      void queryClient.invalidateQueries({ queryKey: ['focus-stats'] });
-    });
-  }, [queryClient, stale]);
-  useEffect(() => {
-    const id = typeof live?.id === 'string' ? live.id : null;
-    if (id === null || remaining > 0 || closing.current === id) {
-      return;
-    }
-    closing.current = id;
-    void api.finishFocus(id).then(() => {
-      void queryClient.invalidateQueries({ queryKey: ['focus-sessions'] });
-      void queryClient.invalidateQueries({ queryKey: ['focus-stats'] });
-    });
-  }, [live, queryClient, remaining]);
-  useEffect(() => {
     if (started === null || remaining > 0) {
       return;
     }
@@ -305,6 +282,13 @@ export function FocusPage() {
         {messages.streakLabel} {String(streak)} · {messages.focusPomodoros} {String(pomodoros)} ·{' '}
         {messages.focusMinutes} {String(minutes)}
       </p>
+      {focused.data !== undefined ? (
+        <p>
+          <Link to={`/list/${focused.data.project_id}?task=${focused.data.id}`}>
+            {focused.data.title}
+          </Link>
+        </p>
+      ) : null}
       <p className="detail-title">{clock(remaining)}</p>
       {started === null ? (
         <div className="page-toolbar">

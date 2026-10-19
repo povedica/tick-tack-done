@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { ACCOUNT_REMINDER_TRIGGERS } from '@reflexionia/domain';
-import { IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 const REMINDER_CHOICES = [...ACCOUNT_REMINDER_TRIGGERS];
 
@@ -90,6 +90,28 @@ export class UpdateMeDto {
   @IsOptional()
   @IsIn(REMINDER_CHOICES)
   default_reminder_trigger?: (typeof REMINDER_CHOICES)[number] | null;
+
+  @ApiProperty({ required: false, nullable: true, example: '22:00' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(5)
+  quiet_hours_start?: string | null;
+
+  @ApiProperty({ required: false, nullable: true, example: '07:00' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(5)
+  quiet_hours_end?: string | null;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  telegram_enabled?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  focus_notifications?: boolean;
 }
 
 export class ChangePasswordDto {
@@ -121,6 +143,40 @@ export class PushSubscriptionDto {
   @IsString()
   @MaxLength(200)
   auth!: string;
+}
+
+export class NotificationDeliveryDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty({ nullable: true, type: String })
+  task_id!: string | null;
+
+  @ApiProperty()
+  kind!: string;
+
+  @ApiProperty()
+  status!: string;
+
+  @ApiProperty()
+  channel!: string;
+
+  @ApiProperty()
+  attempts!: number;
+
+  @ApiProperty()
+  fire_at!: string;
+
+  @ApiProperty({ nullable: true, type: String })
+  fired_at!: string | null;
+
+  @ApiProperty({ nullable: true, type: String })
+  next_retry_at!: string | null;
+}
+
+export class NotificationHealthDto {
+  @ApiProperty({ type: [NotificationDeliveryDto] })
+  items!: NotificationDeliveryDto[];
 }
 
 export class InboundEmailStatusDto {
@@ -175,4 +231,16 @@ export class MeResponseDto {
 
   @ApiProperty({ nullable: true, type: String })
   default_reminder_trigger!: string | null;
+
+  @ApiProperty({ nullable: true, type: String })
+  quiet_hours_start!: string | null;
+
+  @ApiProperty({ nullable: true, type: String })
+  quiet_hours_end!: string | null;
+
+  @ApiProperty()
+  telegram_enabled!: boolean;
+
+  @ApiProperty()
+  focus_notifications!: boolean;
 }

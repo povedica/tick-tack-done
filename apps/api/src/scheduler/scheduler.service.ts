@@ -5,8 +5,11 @@ import {
   calendarDate,
   countdownDaysLabel,
   deriveDurationMinutes,
+  dueSignal,
+  formatDailyDigest,
   instantFromWall,
-  isOverdue,
+  isAtDueTrigger,
+  OVERDUE_GRACE_MS,
   nextConstantFire,
   nextDailyReminder,
   nextHabitReminder,
@@ -14,8 +17,11 @@ import {
   readStoredHabit,
   streakBreakOn,
   REMINDER_HORIZON_MS,
+  quietUntil,
   reminderDisposition,
   reminderFireAt,
+  retryDelayMs,
+  skipPastEnqueue,
 } from '@reflexionia/domain';
 import type { EventActor } from '../auth/auth-user.js';
 import { DomainEvent } from '../events/domain-events.js';
@@ -81,7 +87,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     await this.enqueueHabitReminders(now, catchUp);
     await this.enqueueCountdownReminders(now, catchUp);
     await this.recordHabitStreakBreaks(now);
-    await this.enqueueSignals(now);
+    await this.enqueueSignals(now, catchUp);
     await this.syncCalendars(now, catchUp);
     const fired = await this.fire(now, catchUp);
     return { materialized, fired: fired.fired, late: fired.late };
@@ -368,20 +374,22 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         take: 20,
         select: { title: true, dueDate: true, isAllDay: true, timeZone: true, status: true },
       });
-      const lines = tasks
-        .filter(
-          (task) =>
-            task.dueDate !== null &&
-            (isOverdue({
-              status: 'active',
-              dueDate: task.dueDate.toISOString(),
-              isAllDay: task.isAllDay,
-              timeZone: task.timeZone,
-              now: now.toISOString(),
-            }) ||
-              sameLocalDay(task.dueDate.toISOString(), next.fireAt, task.timeZone)),
-        )
-        .map((task) => `- ${task.title}`);
+      const body = formatDailyDigest({
+        now: next.fireAt,
+        fireAt: next.fireAt,
+        tasks: tasks.flatMap((task) =>
+          task.dueDate === null
+            ? []
+            : [
+                {
+                  title: task.title,
+                  dueDate: task.dueDate.toISOString(),
+                  isAllDay: task.isAllDay,
+                  timeZone: task.timeZone,
+                },
+              ],
+        ),
+      });
       await this.queue({
         ownerId: user.id,
         reminderId: null,
@@ -394,7 +402,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         catchUp,
         payload: {
           title: 'Planifica tu día',
-          body: lines.length === 0 ? 'No hay tareas con fecha para hoy.' : lines.join('\n'),
+          body,
           email: user.email,
         },
       });
@@ -671,10 +679,16 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private async enqueueSignals(now: Date): Promise<void> {
+  private async enqueueSignals(now: Date, catchUp: boolean): Promise<void> {
     const horizon = new Date(now.getTime() + DUE_SOON_MS);
+    const grace = new Date(now.getTime() - (catchUp ? REMINDER_HORIZON_MS : OVERDUE_GRACE_MS));
     const tasks = await this.prisma.task.findMany({
-      where: { status: 'active', deletedAt: null, dueDate: { not: null, lte: horizon } },
+      where: {
+        status: 'active',
+        deletedAt: null,
+        isAllDay: false,
+        dueDate: { not: null, lte: horizon, gte: grace },
+      },
       select: {
         id: true,
         ownerId: true,
@@ -682,7 +696,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         dueDate: true,
         isAllDay: true,
         timeZone: true,
-        status: true,
+        reminders: { where: { deletedAt: null }, select: { trigger: true } },
       },
     });
     for (const task of tasks) {
@@ -690,25 +704,29 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         continue;
       }
       const due = task.dueDate.toISOString();
-      const overdue = isOverdue({
-        status: 'active',
-        dueDate: due,
-        isAllDay: task.isAllDay,
-        timeZone: task.timeZone,
+      const kind = dueSignal({
+        due,
         now: now.toISOString(),
+        isAllDay: task.isAllDay,
+        catchUp,
       });
-      const kind = overdue ? 'overdue' : 'due_soon';
+      if (kind === 'skip') {
+        continue;
+      }
+      if (kind === 'due_soon' && task.reminders.some((item) => isAtDueTrigger(item.trigger))) {
+        continue;
+      }
       await this.queue({
         ownerId: task.ownerId,
         reminderId: null,
         taskId: task.id,
         dedupeKey: `${kind}:${task.id}:${due}`,
-        fireAt: overdue ? now.toISOString() : due,
+        fireAt: kind === 'overdue' && !catchUp ? now.toISOString() : due,
         channel: 'push',
         kind,
         now,
-        catchUp: false,
-        payload: { title: task.title, due },
+        catchUp: kind === 'overdue' && catchUp,
+        payload: { title: task.title, due, time_zone: task.timeZone },
       });
     }
   }
@@ -729,6 +747,13 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
   }): Promise<void> {
     const at = Date.parse(input.fireAt);
     if (Number.isNaN(at)) {
+      return;
+    }
+    if (
+      input.kind === 'task' &&
+      !input.catchUp &&
+      skipPastEnqueue(input.fireAt, input.now.toISOString())
+    ) {
       return;
     }
     const tooOld = input.now.getTime() - at > REMINDER_HORIZON_MS;
@@ -767,11 +792,20 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
 
   private async fire(now: Date, catchUp: boolean): Promise<{ fired: number; late: number }> {
     const due = await this.prisma.reminderDelivery.findMany({
-      where: { status: 'scheduled', fireAt: { lte: now } },
+      where: {
+        OR: [
+          { status: 'scheduled', fireAt: { lte: now } },
+          { status: 'failed', nextRetryAt: { lte: now }, attempts: { lt: 3 } },
+        ],
+      },
       include: {
         owner: {
           select: {
             email: true,
+            timeZone: true,
+            quietHoursStart: true,
+            quietHoursEnd: true,
+            telegramEnabled: true,
             pushSubscriptions: { where: { deletedAt: null } },
             telegramLinks: { where: { deletedAt: null }, select: { chatId: true }, take: 1 },
           },
@@ -783,10 +817,10 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     let fired = 0;
     let late = 0;
     for (const row of due) {
-      const mark = catchUp && row.fireAt.getTime() < now.getTime() ? 'late' : 'fired';
       const payload = asRecord(row.payload);
-      if (row.kind === 'task' || row.kind === 'daily_digest' || row.kind === 'countdown') {
-        const reached = row.kind === 'countdown' && payload.reached === true;
+      if (row.kind === 'countdown') {
+        const mark = catchUp && row.fireAt.getTime() < now.getTime() ? 'late' : 'fired';
+        const reached = payload.reached === true;
         const result = reached
           ? { email: 'skipped' as const, push: 'skipped' as const, telegram: 'skipped' as const }
           : await this.transport.deliver({
@@ -794,6 +828,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
               email: typeof payload.email === 'string' ? payload.email : row.owner.email,
               subscriptions: row.owner.pushSubscriptions,
               telegramChatId: row.owner.telegramLinks[0]?.chatId ?? null,
+              allowTelegram: row.owner.telegramEnabled,
               title: typeof payload.title === 'string' ? payload.title : 'Recordatorio',
               body: typeof payload.body === 'string' ? payload.body : '',
             });
@@ -802,74 +837,115 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
             where: { id: row.id },
             data: { status: mark, firedAt: now, payload: asJson({ ...payload, delivery: result }) },
           });
-          if (row.kind === 'countdown' && row.countdownId !== null) {
-            if (reached) {
-              await this.events.record(tx, automation(row.ownerId), {
-                type: DomainEvent.countdownReached,
-                entityType: 'countdown',
-                entityId: row.countdownId,
-                action: 'updated',
-                data: asJson({
-                  countdown_id: row.countdownId,
-                  occurrence_date: payload.occurrence_date,
-                  status: mark,
-                }),
-                previous: null,
-              });
-            } else {
-              await this.events.record(tx, automation(row.ownerId), {
-                type: DomainEvent.countdownReminderDue,
-                entityType: 'countdown',
-                entityId: row.countdownId,
-                action: 'updated',
-                data: asJson({
-                  countdown_id: row.countdownId,
-                  occurrence_date: payload.occurrence_date,
-                  offset_days: payload.offset_days,
-                  delivery_id: row.id,
-                  status: mark,
-                }),
-                previous: null,
-              });
-            }
-          }
-          const habitId = typeof payload.habit_id === 'string' ? payload.habit_id : null;
-          if (row.kind !== 'countdown')
+          if (row.countdownId !== null) {
             await this.events.record(tx, automation(row.ownerId), {
-              type: DomainEvent.reminderFired,
-              entityType: habitId === null ? 'reminder' : 'habit',
-              entityId: habitId ?? row.reminderId ?? row.id,
+              type: reached ? DomainEvent.countdownReached : DomainEvent.countdownReminderDue,
+              entityType: 'countdown',
+              entityId: row.countdownId,
               action: 'updated',
               data: asJson({
+                countdown_id: row.countdownId,
+                occurrence_date: payload.occurrence_date,
                 delivery_id: row.id,
-                kind: habitId === null ? row.kind : 'habit',
                 status: mark,
-                task_id: row.taskId,
-                ...(habitId === null ? {} : { habit_id: habitId }),
+                ...(reached ? {} : { offset_days: payload.offset_days }),
               }),
               previous: null,
             });
-        });
-        if (row.kind === 'task' && row.reminder?.constant === true && row.taskId !== null) {
-          await this.scheduleConstant(row, now);
-        }
-      } else {
-        await this.prisma.$transaction(async (tx) => {
-          await tx.reminderDelivery.update({
-            where: { id: row.id },
-            data: { status: mark, firedAt: now },
-          });
-          if (row.taskId !== null) {
-            await this.events.record(tx, automation(row.ownerId), {
-              type: row.kind === 'overdue' ? DomainEvent.taskOverdue : DomainEvent.taskDueSoon,
-              entityType: 'task',
-              entityId: row.taskId,
-              action: 'updated',
-              data: asJson({ task: { id: row.taskId, title: payload.title }, status: mark }),
-              previous: null,
-            });
           }
         });
+        if (mark === 'late') {
+          late += 1;
+        } else {
+          fired += 1;
+        }
+        continue;
+      }
+      if (await this.deliveryStale(row.taskId, payload)) {
+        await this.prisma.reminderDelivery.update({
+          where: { id: row.id },
+          data: { status: 'cancelled', firedAt: now },
+        });
+        continue;
+      }
+      const resume = quietUntil(
+        now.toISOString(),
+        row.owner.timeZone,
+        row.owner.quietHoursStart,
+        row.owner.quietHoursEnd,
+      );
+      if (resume !== null) {
+        await this.prisma.reminderDelivery.update({
+          where: { id: row.id },
+          data: { status: 'scheduled', fireAt: new Date(resume) },
+        });
+        continue;
+      }
+      const notice = noticeCopy(row.kind, payload, now);
+      const result = await this.transport.deliver({
+        channel: row.channel,
+        email: typeof payload.email === 'string' ? payload.email : row.owner.email,
+        subscriptions: row.owner.pushSubscriptions,
+        telegramChatId: row.owner.telegramLinks[0]?.chatId ?? null,
+        allowTelegram: row.owner.telegramEnabled,
+        title: notice.title,
+        body: notice.body,
+        ...(row.taskId === null
+          ? {}
+          : {
+              buttons: [
+                [
+                  { text: '✅ Hecho', callback_data: `c:${row.taskId}` },
+                  { text: '😴 +10 min', callback_data: `s:${row.id}:10` },
+                  { text: '😴 +1 h', callback_data: `s:${row.id}:60` },
+                ],
+                [{ text: '😴 Esta tarde', callback_data: `s:${row.id}:afternoon` }],
+              ],
+            }),
+      });
+      if (result.telegram === 'failed') {
+        const attempts = row.attempts + 1;
+        const delay = retryDelayMs(attempts);
+        await this.prisma.reminderDelivery.update({
+          where: { id: row.id },
+          data: {
+            status: 'failed',
+            attempts,
+            nextRetryAt: delay === null ? null : new Date(now.getTime() + delay),
+            payload: asJson({ ...payload, delivery: result }),
+          },
+        });
+        continue;
+      }
+      const mark = catchUp && row.fireAt.getTime() < now.getTime() ? 'late' : 'fired';
+      await this.prisma.$transaction(async (tx) => {
+        await tx.reminderDelivery.update({
+          where: { id: row.id },
+          data: { status: mark, firedAt: now, payload: asJson({ ...payload, delivery: result }) },
+        });
+        const habitId = typeof payload.habit_id === 'string' ? payload.habit_id : null;
+        const signal = row.kind === 'overdue' || row.kind === 'due_soon';
+        await this.events.record(tx, automation(row.ownerId), {
+          type: signal
+            ? row.kind === 'overdue'
+              ? DomainEvent.taskOverdue
+              : DomainEvent.taskDueSoon
+            : DomainEvent.reminderFired,
+          entityType: habitId === null ? (signal ? 'task' : 'reminder') : 'habit',
+          entityId: habitId ?? (signal ? row.taskId : row.reminderId) ?? row.id,
+          action: 'updated',
+          data: asJson({
+            delivery_id: row.id,
+            kind: habitId === null ? row.kind : 'habit',
+            status: mark,
+            task_id: row.taskId,
+            ...(habitId === null ? {} : { habit_id: habitId }),
+          }),
+          previous: null,
+        });
+      });
+      if (row.kind === 'task' && row.reminder?.constant === true && row.taskId !== null) {
+        await this.scheduleConstant(row, now);
       }
       if (mark === 'late') {
         late += 1;
@@ -878,6 +954,24 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       }
     }
     return { fired, late };
+  }
+
+  private async deliveryStale(
+    taskId: string | null,
+    payload: Record<string, unknown>,
+  ): Promise<boolean> {
+    if (taskId === null) {
+      return false;
+    }
+    const task = await this.prisma.task.findFirst({
+      where: { id: taskId },
+      select: { status: true, deletedAt: true, dueDate: true },
+    });
+    if (task?.deletedAt !== null || task.status !== 'active') {
+      return true;
+    }
+    const due = typeof payload.due === 'string' ? payload.due : null;
+    return due !== null && task.dueDate?.toISOString() !== due;
   }
 
   private async scheduleConstant(
@@ -991,6 +1085,30 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
   }
 }
 
+function noticeCopy(
+  kind: string,
+  payload: Record<string, unknown>,
+  now: Date,
+): { title: string; body: string } {
+  const rawTitle = typeof payload.title === 'string' ? payload.title : 'Recordatorio';
+  const rawBody = typeof payload.body === 'string' ? payload.body : '';
+  if (kind !== 'due_soon' && kind !== 'overdue') {
+    return { title: rawTitle, body: rawBody };
+  }
+  const due = typeof payload.due === 'string' ? payload.due : now.toISOString();
+  const zone = typeof payload.time_zone === 'string' ? payload.time_zone : 'UTC';
+  const clock = new Intl.DateTimeFormat('es-ES', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: zone,
+  }).format(new Date(due));
+  if (kind === 'overdue') {
+    return { title: `⚠️ Vencida: ${rawTitle}`, body: `Venció a las ${clock}` };
+  }
+  return { title: `⏰ ${rawTitle}`, body: `Vence ahora (${clock})` };
+}
+
 export function schedulerAutostart(): boolean {
   if (process.env.SCHEDULER_AUTOSTART === 'false') {
     return false;
@@ -1015,13 +1133,6 @@ function asRecord(value: Prisma.JsonValue): Record<string, unknown> {
   }
   return {};
 }
-
-function sameLocalDay(dueIso: string, fireIso: string, timeZone: string): boolean {
-  const due = new Date(dueIso).toLocaleDateString('en-CA', { timeZone });
-  const fire = new Date(fireIso).toLocaleDateString('en-CA', { timeZone });
-  return due === fire;
-}
-
 function atLocalNine(date: string, timeZone: string): string | null {
   const [year, month, day] = date.split('-').map(Number);
   if (year === undefined || month === undefined || day === undefined) {

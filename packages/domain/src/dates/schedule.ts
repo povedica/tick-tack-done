@@ -12,7 +12,7 @@ export interface SnoozedDates {
 
 /** RF-603. An all-day task is overdue only once its local date has passed. */
 export function isOverdue(input: {
-  readonly status: 'active' | 'completed' | 'archived';
+  readonly status: 'active' | 'completed' | 'archived' | 'cancelled';
   readonly dueDate: string | null;
   readonly isAllDay: boolean;
   readonly timeZone: string;

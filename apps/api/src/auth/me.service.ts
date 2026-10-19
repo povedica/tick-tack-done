@@ -8,6 +8,7 @@ import type {
   InboundEmailAddressDto,
   InboundEmailStatusDto,
   MeResponseDto,
+  NotificationHealthDto,
   PushSubscriptionDto,
   UpdateMeDto,
 } from './me.dto.js';
@@ -49,6 +50,16 @@ export class MeService {
         ...(dto.default_reminder_trigger !== undefined
           ? { defaultReminderTrigger: dto.default_reminder_trigger }
           : {}),
+        ...(dto.quiet_hours_start !== undefined
+          ? { quietHoursStart: this.clock(dto.quiet_hours_start) }
+          : {}),
+        ...(dto.quiet_hours_end !== undefined
+          ? { quietHoursEnd: this.clock(dto.quiet_hours_end) }
+          : {}),
+        ...(dto.telegram_enabled !== undefined ? { telegramEnabled: dto.telegram_enabled } : {}),
+        ...(dto.focus_notifications !== undefined
+          ? { focusNotifications: dto.focus_notifications }
+          : {}),
       },
     });
     return this.toJson(row);
@@ -68,6 +79,10 @@ export class MeService {
     defaultReminderTrigger: string | null;
     taskCompleteChildren: 'ask' | 'complete' | 'leave';
     dailyReminderTime: string | null;
+    quietHoursStart: string | null;
+    quietHoursEnd: string | null;
+    telegramEnabled: boolean;
+    focusNotifications: boolean;
   }> {
     const row = await this.prisma.user.findFirst({
       where: { id, deletedAt: null },
@@ -85,6 +100,10 @@ export class MeService {
         defaultReminderTrigger: true,
         taskCompleteChildren: true,
         dailyReminderTime: true,
+        quietHoursStart: true,
+        quietHoursEnd: true,
+        telegramEnabled: true,
+        focusNotifications: true,
       },
     });
     if (row === null) {
@@ -107,6 +126,10 @@ export class MeService {
     defaultReminderTrigger: string | null;
     taskCompleteChildren: 'ask' | 'complete' | 'leave';
     dailyReminderTime: string | null;
+    quietHoursStart: string | null;
+    quietHoursEnd: string | null;
+    telegramEnabled: boolean;
+    focusNotifications: boolean;
   }): MeResponseDto {
     return {
       id: row.id,
@@ -122,6 +145,10 @@ export class MeService {
       default_reminder_trigger: row.defaultReminderTrigger,
       task_complete_children: row.taskCompleteChildren,
       daily_reminder_time: row.dailyReminderTime,
+      quiet_hours_start: row.quietHoursStart,
+      quiet_hours_end: row.quietHoursEnd,
+      telegram_enabled: row.telegramEnabled,
+      focus_notifications: row.focusNotifications,
     };
   }
 
@@ -207,6 +234,52 @@ export class MeService {
         HttpStatus.BAD_REQUEST,
         'validation_failed',
         'daily_reminder_time must be HH:mm',
+      );
+    }
+    return value;
+  }
+
+  async notificationHealth(user: AuthUser): Promise<NotificationHealthDto> {
+    const rows = await this.prisma.reminderDelivery.findMany({
+      where: { ownerId: user.id },
+      orderBy: { updatedAt: 'desc' },
+      take: 20,
+      select: {
+        id: true,
+        taskId: true,
+        kind: true,
+        status: true,
+        channel: true,
+        attempts: true,
+        fireAt: true,
+        firedAt: true,
+        nextRetryAt: true,
+      },
+    });
+    return {
+      items: rows.map((row) => ({
+        id: row.id,
+        task_id: row.taskId,
+        kind: row.kind,
+        status: row.status,
+        channel: row.channel,
+        attempts: row.attempts,
+        fire_at: row.fireAt.toISOString(),
+        fired_at: row.firedAt?.toISOString() ?? null,
+        next_retry_at: row.nextRetryAt?.toISOString() ?? null,
+      })),
+    };
+  }
+
+  private clock(value: string | null): string | null {
+    if (value === null || value.trim().length === 0) {
+      return null;
+    }
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'quiet hours must be HH:mm',
       );
     }
     return value;

@@ -1,10 +1,12 @@
 .shell {
   display: grid;
   grid-template-columns: var(--sidebar-rail) var(--sidebar-w) minmax(0, 1fr) 0;
+  grid-template-rows: minmax(0, 1fr);
   width: 100%;
   max-width: 100vw;
-  min-height: 100dvh;
-  overflow-x: clip;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
   background: var(--bg);
   color: var(--ink);
 }
@@ -36,11 +38,45 @@
   grid-row: 1;
 }
 
-.shell > .detail-panel {
+.shell > .detail-panel,
+.shell > .detail-slot {
   grid-column: 4;
   grid-row: 1;
   min-width: 0;
   max-width: 100%;
+}
+
+.detail-slot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.shell > .detail-slot > .detail-panel {
+  flex: 1;
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+}
+
+.detail-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -3px;
+  z-index: 5;
+  width: 6px;
+  cursor: col-resize;
+  background: transparent;
+}
+
+.detail-resizer:hover,
+.detail-resizer:focus-visible {
+  background: var(--accent);
 }
 
 .shell > .sheet {
@@ -51,7 +87,7 @@
 .sidebar,
 .detail,
 .detail-panel {
-  min-height: 100dvh;
+  min-height: 0;
 }
 
 .sidebar {
@@ -67,9 +103,26 @@
 
 .sidebar > nav {
   flex: 1;
+  min-width: 0;
   min-height: 0;
-  overflow-x: hidden;
+  overflow-x: clip;
   overflow-y: auto;
+}
+
+.sidebar input.nav-create,
+.sidebar .nav-create {
+  box-sizing: border-box;
+  width: calc(100% - 24px);
+  max-width: 100%;
+}
+
+.nav-folder {
+  min-width: 0;
+}
+
+.nav-folder summary {
+  padding: 6px 12px;
+  cursor: pointer;
 }
 
 .brand {
@@ -232,10 +285,20 @@
 }
 
 .center {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
-  min-height: 100dvh;
-  overflow-x: clip;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
   background: var(--bg);
+}
+
+.outlet {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .outlet {
@@ -408,7 +471,8 @@
 
   .sidebar,
   .center,
-  .shell > .detail-panel {
+  .shell > .detail-panel,
+  .shell > .detail-slot {
     grid-column: 1;
   }
 
@@ -441,11 +505,12 @@
     background: rgb(25 25 25 / 0.4);
   }
 
-  .shell[data-detail='open'] > .detail-panel {
+  .shell[data-detail='open'] > .detail-panel,
+  .shell[data-detail='open'] > .detail-slot {
     position: fixed;
     z-index: 40;
     inset: 0 0 0 auto;
-    width: min(420px, 100%);
+    width: min(var(--detail-w), 100%);
     background: var(--surface);
     box-shadow: var(--shadow-lg);
   }
@@ -467,7 +532,8 @@
 }
 
 @media (max-width: 639px) {
-  .shell[data-detail='open'] > .detail-panel {
+  .shell[data-detail='open'] > .detail-panel,
+  .shell[data-detail='open'] > .detail-slot {
     inset: 0;
     width: 100%;
   }
@@ -549,7 +615,8 @@
   align-items: center;
   gap: 8px;
   width: var(--sidebar-rail);
-  min-height: 100dvh;
+  height: 100%;
+  min-height: 0;
   padding: 12px 0;
   background: var(--rail-bg);
   color: var(--ink-inverse);
@@ -595,8 +662,45 @@
   margin-top: 4px;
 }
 
-.rail-toggle {
-  margin-top: auto;
+.rail-spacer {
+  flex: 1;
+}
+
+.rail-focus,
+.rail-bell {
+  position: relative;
+}
+
+.focus-ring {
+  position: absolute;
+  inset: 0;
+  width: 36px;
+  height: 36px;
+  transform: rotate(-90deg);
+}
+
+.focus-ring circle {
+  fill: none;
+  stroke: rgb(255 255 255 / 0.35);
+  stroke-width: 2;
+}
+
+.focus-ring circle + circle {
+  stroke: #fff;
+  stroke-dasharray: 94;
+}
+
+.rail-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: 14px;
+  padding: 0 3px;
+  border-radius: 99px;
+  background: #e13e39;
+  color: #fff;
+  font-size: 9px;
+  line-height: 14px;
 }
 
 .page-title {

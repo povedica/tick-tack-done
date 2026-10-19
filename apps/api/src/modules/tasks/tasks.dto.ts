@@ -505,8 +505,8 @@ export class TaskResponseDto {
   @ApiProperty({ enum: KINDS })
   kind!: 'task' | 'note';
 
-  @ApiProperty({ enum: ['active', 'completed', 'archived'] })
-  status!: 'active' | 'completed' | 'archived';
+  @ApiProperty({ enum: ['active', 'completed', 'archived', 'cancelled'] })
+  status!: 'active' | 'completed' | 'archived' | 'cancelled';
 
   @ApiProperty({ enum: PRIORITIES })
   priority!: 'none' | 'low' | 'medium' | 'high';

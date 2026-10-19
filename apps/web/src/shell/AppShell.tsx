@@ -1,5 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { Outlet, useSearchParams } from 'react-router';
+import { api } from '../api';
+import { dismissPopover } from '../components/popover-stack';
 import { LocationWatch } from '../features/product/ProductPages';
 import { TaskDetail } from '../features/tasks/TaskDetail';
 import { useQueryClient } from '@tanstack/react-query';
@@ -13,6 +16,8 @@ import { BottomBar } from './BottomBar';
 import { IconRail } from './IconRail';
 import { readSidebarCollapsed, writeSidebarCollapsed } from './sidebar-state';
 import { ShellActionsProvider } from './shell-actions';
+import { DetailResizer, readDetailWidth, storeDetailWidth } from './DetailResizer';
+import { FocusCloser, formatClock, useActiveFocus } from './useActiveFocus';
 import { Sidebar } from './Sidebar';
 import { isSidebarShortcut, isTypingTarget } from './shortcuts';
 
@@ -24,6 +29,7 @@ export function AppShell() {
   const [drawer, setDrawer] = useState(false);
   const narrow = useNarrow();
   const [online, setOnline] = useState(() => navigator.onLine);
+  const [detailWidth, setDetailWidth] = useState(() => readDetailWidth(localStorage));
 
   useEffect(() => {
     const on = (): void => {
@@ -62,6 +68,9 @@ export function AppShell() {
     function onKey(event: KeyboardEvent): void {
       const typing = isTypingTarget(event.target);
       if (event.key === 'Escape') {
+        if (dismissPopover()) {
+          return;
+        }
         if (drawer) {
           setDrawer(false);
           return;
@@ -116,7 +125,9 @@ export function AppShell() {
         data-sidebar={collapsed ? 'collapsed' : 'expanded'}
         data-drawer={drawer ? 'open' : 'closed'}
         data-detail={taskId === null ? 'closed' : 'open'}
+        style={{ '--detail-w': `${String(detailWidth)}px` } as CSSProperties}
       >
+        <FocusTitle />
         <IconRail
           collapsed={collapsed}
           onToggleCollapsed={toggleNav}
@@ -156,7 +167,19 @@ export function AppShell() {
             <Outlet />
           </div>
         </div>
-        {taskId !== null ? <TaskDetail taskId={taskId} onClose={closeDetail} /> : null}
+        {taskId !== null ? (
+          <div className="detail-slot">
+            <DetailResizer
+              width={detailWidth}
+              onWidth={(next) => {
+                setDetailWidth(next);
+                storeDetailWidth(localStorage, next);
+              }}
+            />
+            <TaskDetail taskId={taskId} onClose={closeDetail} />
+          </div>
+        ) : null}
+        <FocusCloser />
         <BottomBar
           onOpenLists={() => {
             setDrawer(true);
@@ -167,6 +190,26 @@ export function AppShell() {
       </div>
     </ShellActionsProvider>
   );
+}
+
+function FocusTitle() {
+  const focus = useActiveFocus();
+  const task = useQuery({
+    queryKey: ['task', focus?.taskId],
+    queryFn: () => api.taskDetail(focus?.taskId ?? ''),
+    enabled: focus?.taskId !== null && focus?.taskId !== undefined,
+  });
+  const remaining = focus?.remaining ?? null;
+  const taskTitle = task.data?.title ?? '';
+  useEffect(() => {
+    if (remaining === null) {
+      document.title = 'tick-tack-done';
+      return;
+    }
+    document.title =
+      taskTitle.length > 0 ? `${formatClock(remaining)} · ${taskTitle}` : formatClock(remaining);
+  }, [remaining, taskTitle]);
+  return null;
 }
 
 function CaptureHost() {

@@ -17,6 +17,7 @@ export function TaskContextMenu({
   onDuplicate,
   onCopy,
   onConvert,
+  onWontDo,
   onDelete,
 }: {
   readonly x: number;
@@ -34,6 +35,7 @@ export function TaskContextMenu({
   readonly onDuplicate: () => void;
   readonly onCopy: () => void;
   readonly onConvert: () => void;
+  readonly onWontDo: () => void;
   readonly onDelete: () => void;
 }) {
   return (
@@ -208,6 +210,16 @@ export function TaskContextMenu({
         }}
       >
         {messages.convertNote}
+      </button>
+      <button
+        type="button"
+        className="popover-row"
+        onClick={() => {
+          onWontDo();
+          onClose();
+        }}
+      >
+        {messages.wontDoTask}
       </button>
       <button
         type="button"

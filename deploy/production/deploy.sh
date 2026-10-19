@@ -11,8 +11,8 @@ test -r "$env_file"
 
 cd "$root"
 
-# El árbol de /opt/todo/app no es un clon git. Una sustitución que falle
-# dejaría GIT_COMMIT vacío y ${VAR:-default} no lo recupera.
+# The app directory is not a git clone. A failed substitution would leave
+# GIT_COMMIT empty, and ${VAR:-default} does not recover it.
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   GIT_COMMIT=$(git rev-parse --short HEAD)
 fi

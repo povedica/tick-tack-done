@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ListsModule } from '../lists/lists.module.js';
 import { TasksModule } from '../tasks/tasks.module.js';
+import { FocusTelegramListener } from './focus-telegram.listener.js';
 import { IntegrationsController } from './integrations.controller.js';
 import { TelegramApi } from './telegram-api.js';
 import { TelegramBotService } from './telegram-bot.service.js';
@@ -10,7 +11,7 @@ import { TelegramBotService } from './telegram-bot.service.js';
 @Module({
   imports: [TasksModule, ListsModule],
   controllers: [IntegrationsController],
-  providers: [TelegramBotService, TelegramApi],
+  providers: [TelegramBotService, TelegramApi, FocusTelegramListener],
 })
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class -- Nest module is decorator-only
 export class IntegrationsModule {}

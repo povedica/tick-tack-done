@@ -1,5 +1,11 @@
 import { HttpStatus, Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
-import { matchTaskByTitle, parseTelegramCommand, type TelegramCommand } from '@reflexionia/domain';
+import {
+  afternoonInstant,
+  formatCaptureReply,
+  matchTaskByTitle,
+  parseTelegramCommand,
+  type TelegramCommand,
+} from '@reflexionia/domain';
 import { type AuthUser } from '../../auth/auth-user.js';
 import { API_SCOPES } from '../../auth/scopes.js';
 import { DomainEvent } from '../../events/domain-events.js';
@@ -11,6 +17,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { ATTACHMENT_MAX_BYTES } from '../tasks/attachment-storage.js';
 import type { TaskSummaryJson } from '../tasks/task.mapper.js';
 import { ListsService } from '../lists/lists.service.js';
+import type { CaptureWarning } from '../tasks/quick-add.js';
 import { TasksService, type TaskListQuery } from '../tasks/tasks.service.js';
 import { TelegramApi } from './telegram-api.js';
 
@@ -73,8 +80,8 @@ export class TelegramBotService implements OnModuleInit {
     }
     try {
       if (incoming.kind === 'callback') {
-        await this.completeButton(user, incoming);
-        return { called_telegram: true, action: 'complete' };
+        const action = await this.callback(user, incoming);
+        return { called_telegram: true, action };
       }
       if (incoming.kind === 'voice') {
         const text = await this.transcribe(incoming.fileId);
@@ -145,19 +152,12 @@ export class TelegramBotService implements OnModuleInit {
   }
 
   private async capture(user: AuthUser, text: string, updateId: string): Promise<Reply> {
-    const created = await this.tasks.create(user, { raw_text: text }, `telegram-${updateId}`);
-    const notes: string[] = [];
-    for (const warning of created.body.warnings ?? []) {
-      if (warning.code === 'list_created' && warning.name !== undefined) {
-        notes.push(`Lista creada: ${warning.name}.`);
-      } else if (warning.code === 'tag_created' && warning.name !== undefined) {
-        notes.push(`Etiqueta creada: ${warning.name}.`);
-      } else if (warning.code === 'list_not_found') {
-        notes.push(`La lista «${warning.name ?? ''}» no existe, así que quedó en la bandeja.`);
-      }
-    }
-    const extra = notes.length === 0 ? '' : ` ${notes.join(' ')}`;
-    return plain(`Guardada: ${created.body.title}.${extra}`);
+    const created = await this.tasks.create(
+      user,
+      { raw_text: text, metadata: { capture: 'telegram' } },
+      `telegram-${updateId}`,
+    );
+    return plain(await this.confirmation(user, created.body, created.body.warnings));
   }
 
   private async createList(user: AuthUser, rawName: string, updateId: string): Promise<Reply> {
@@ -199,6 +199,122 @@ export class TelegramBotService implements OnModuleInit {
     return plain(`Completada: ${match.title}.`);
   }
 
+  private async callback(user: AuthUser, incoming: TelegramIncoming): Promise<string> {
+    if (incoming.callbackData.startsWith('s:')) {
+      await this.snoozeButton(user, incoming);
+      return 'snooze';
+    }
+    await this.completeButton(user, incoming);
+    return 'complete';
+  }
+
+  private async snoozeButton(user: AuthUser, incoming: TelegramIncoming): Promise<void> {
+    const match = /^s:([0-9a-f-]{36}):(\d+|afternoon)$/i.exec(incoming.callbackData);
+    const deliveryId = match?.[1];
+    const token = match?.[2]?.toLowerCase();
+    const minutes = token === undefined || token === 'afternoon' ? null : Number(token);
+    if (
+      deliveryId === undefined ||
+      !TASK_UUID.test(deliveryId) ||
+      token === undefined ||
+      (minutes !== null && !Number.isInteger(minutes))
+    ) {
+      await this.telegram.call('answerCallbackQuery', {
+        callback_query_id: incoming.callbackId,
+        text: 'No reconozco ese aviso',
+        show_alert: true,
+      });
+      return;
+    }
+    const delivery = await this.prisma.reminderDelivery.findFirst({
+      where: { id: deliveryId, ownerId: user.id },
+      select: { id: true, taskId: true, reminderId: true },
+    });
+    if (delivery?.taskId == null) {
+      await this.telegram.call('answerCallbackQuery', {
+        callback_query_id: incoming.callbackId,
+        text: 'Ese aviso ya no está',
+        show_alert: true,
+      });
+      return;
+    }
+    const until = await this.snoozeUntil(user, delivery.taskId, token, minutes);
+    if (until === null) {
+      await this.telegram.call('answerCallbackQuery', {
+        callback_query_id: incoming.callbackId,
+        text: 'No puedo aplazar ese aviso',
+        show_alert: true,
+      });
+      return;
+    }
+    if (delivery.reminderId !== null) {
+      await this.tasks.snoozeReminder(
+        user,
+        delivery.taskId,
+        delivery.reminderId,
+        until.preset,
+        until.preset === 'custom' ? until.at : null,
+      );
+    } else {
+      await this.tasks.createReminder(
+        user,
+        delivery.taskId,
+        { trigger: until.at, type: 'absolute', absolute_at: until.at, channel: 'push' },
+        `telegram-snooze-${incoming.callbackId}`,
+      );
+    }
+    await this.prisma.reminderDelivery.update({
+      where: { id: delivery.id },
+      data: { status: 'cancelled' },
+    });
+    await this.telegram.call('answerCallbackQuery', {
+      callback_query_id: incoming.callbackId,
+      text: until.reply,
+    });
+    await this.strike(incoming);
+  }
+
+  private async snoozeUntil(
+    user: AuthUser,
+    taskId: string,
+    token: string,
+    minutes: number | null,
+  ): Promise<{ preset: '10m' | '1h' | 'custom'; at: string; reply: string } | null> {
+    if (token === '10' || minutes === 10) {
+      return {
+        preset: '10m',
+        at: new Date(Date.now() + 10 * 60_000).toISOString(),
+        reply: 'Avisaré en 10 minutos',
+      };
+    }
+    if (token === '60' || minutes === 60) {
+      return {
+        preset: '1h',
+        at: new Date(Date.now() + 60 * 60_000).toISOString(),
+        reply: 'Avisaré en 1 hora',
+      };
+    }
+    const task = await this.prisma.task.findFirst({
+      where: { id: taskId, ownerId: user.id, deletedAt: null },
+      select: { timeZone: true },
+    });
+    if (task === null) {
+      return null;
+    }
+    if (token === 'afternoon') {
+      const at = afternoonInstant(new Date().toISOString(), task.timeZone);
+      return at === null ? null : { preset: 'custom', at, reply: 'Avisaré esta tarde' };
+    }
+    if (minutes === null || minutes < 1) {
+      return null;
+    }
+    return {
+      preset: 'custom',
+      at: new Date(Date.now() + minutes * 60_000).toISOString(),
+      reply: `Avisaré en ${String(minutes)} minutos`,
+    };
+  }
+
   private async completeButton(user: AuthUser, incoming: TelegramIncoming): Promise<void> {
     const data = incoming.callbackData;
     const id = data.startsWith('c:') ? data.slice(2) : '';
@@ -215,6 +331,31 @@ export class TelegramBotService implements OnModuleInit {
       callback_query_id: incoming.callbackId,
       text: 'Completada',
     });
+    await this.strike(incoming);
+  }
+
+  private async strike(incoming: TelegramIncoming): Promise<void> {
+    if (
+      incoming.messageId === null ||
+      incoming.messageText === null ||
+      incoming.messageText.length === 0
+    ) {
+      return;
+    }
+    const safe = incoming.messageText
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;');
+    try {
+      await this.telegram.call('editMessageText', {
+        chat_id: incoming.chatId,
+        message_id: incoming.messageId,
+        text: `<s>${safe}</s>`,
+        parse_mode: 'HTML',
+      });
+    } catch {
+      // The task change already landed. A failed edit must not undo it.
+    }
   }
 
   private async photo(user: AuthUser, incoming: TelegramIncoming): Promise<void> {
@@ -224,9 +365,11 @@ export class TelegramBotService implements OnModuleInit {
       return;
     }
     const caption = incoming.caption.trim();
+    const draft =
+      caption.length > 0 ? { raw_text: caption } : await this.inboxTask(user.id, 'Foto');
     const created = await this.tasks.create(
       user,
-      caption.length > 0 ? { raw_text: caption } : await this.inboxTask(user.id, 'Foto'),
+      { ...draft, metadata: { capture: 'telegram' } },
       `telegram-${incoming.updateId}`,
     );
     if (!created.replayed) {
@@ -238,7 +381,48 @@ export class TelegramBotService implements OnModuleInit {
         buffer: file.bytes,
       });
     }
-    await this.send(incoming.chatId, plain(`Guardada con foto: ${created.body.title}.`));
+    await this.send(
+      incoming.chatId,
+      plain(
+        await this.confirmation(user, created.body, created.body.warnings, 'Guardada con foto'),
+      ),
+    );
+  }
+
+  private async confirmation(
+    user: AuthUser,
+    task: TaskSummaryJson,
+    warnings: readonly CaptureWarning[] | undefined,
+    lead = 'Guardada',
+  ): Promise<string> {
+    const list = await this.prisma.project.findFirst({
+      where: { id: task.project_id, ownerId: user.id, deletedAt: null },
+      select: { name: true },
+    });
+    const tags =
+      task.tag_ids.length === 0
+        ? []
+        : await this.prisma.tag.findMany({
+            where: { ownerId: user.id, id: { in: task.tag_ids }, deletedAt: null },
+            select: { id: true, name: true },
+          });
+    const names = task.tag_ids.flatMap((id) => {
+      const name = tags.find((tag) => tag.id === id)?.name;
+      return name === undefined ? [] : [name];
+    });
+    const message = formatCaptureReply({
+      title: task.title,
+      dueDate: task.due_date,
+      isAllDay: task.is_all_day,
+      priority: task.priority,
+      tags: names,
+      listName: list?.name ?? '',
+      timeZone: user.timeZone,
+      now: new Date().toISOString(),
+      lead,
+    });
+    const notes = captureNotes(warnings);
+    return notes.length === 0 ? message : `${message}\n${notes.join(' ')}`;
   }
 
   private async datedList(user: AuthUser, kind: 'today' | 'tomorrow' | 'week'): Promise<Reply> {
@@ -516,6 +700,20 @@ export class TelegramBotService implements OnModuleInit {
 
 function plain(text: string): Reply {
   return { text, html: false, buttons: [] };
+}
+
+function captureNotes(warnings: readonly CaptureWarning[] | undefined): string[] {
+  const notes: string[] = [];
+  for (const warning of warnings ?? []) {
+    if (warning.code === 'list_created' && warning.name !== undefined) {
+      notes.push(`Lista creada: ${warning.name}.`);
+    } else if (warning.code === 'tag_created' && warning.name !== undefined) {
+      notes.push(`Etiqueta creada: ${warning.name}.`);
+    } else if (warning.code === 'list_not_found') {
+      notes.push(`La lista «${warning.name ?? ''}» no existe, así que quedó en la bandeja.`);
+    }
+  }
+  return notes;
 }
 
 function webBase(): string {

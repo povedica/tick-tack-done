@@ -5,7 +5,7 @@ export interface DashboardTask {
   readonly createdAt: string;
   readonly completedAt: string | null;
   readonly dueDate: string | null;
-  readonly status: 'active' | 'completed' | 'archived';
+  readonly status: 'active' | 'completed' | 'archived' | 'cancelled';
   readonly listId: string;
   readonly listName: string;
   readonly tagNames: readonly string[];

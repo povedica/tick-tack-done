@@ -4,7 +4,7 @@
  */
 
 export type TaskKind = 'task' | 'note';
-export type TaskStatus = 'active' | 'completed' | 'archived';
+export type TaskStatus = 'active' | 'completed' | 'archived' | 'cancelled';
 export type Priority = 'none' | 'low' | 'medium' | 'high';
 export type RepeatFrom = 'due_date' | 'completion_date';
 export type TaskSource = 'manual' | 'import' | 'api' | 'automation' | 'plugin';

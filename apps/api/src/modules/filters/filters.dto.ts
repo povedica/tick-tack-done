@@ -185,8 +185,8 @@ export class ViewTaskDto {
   @ApiProperty({ enum: ['task', 'note'] })
   kind!: 'task' | 'note';
 
-  @ApiProperty({ enum: ['active', 'completed', 'archived'] })
-  status!: 'active' | 'completed' | 'archived';
+  @ApiProperty({ enum: ['active', 'completed', 'archived', 'cancelled'] })
+  status!: 'active' | 'completed' | 'archived' | 'cancelled';
 
   @ApiProperty({ enum: ['none', 'low', 'medium', 'high'] })
   priority!: 'none' | 'low' | 'medium' | 'high';

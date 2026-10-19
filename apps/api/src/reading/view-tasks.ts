@@ -33,7 +33,7 @@ export interface ViewTaskJson {
   title: string;
   content: string;
   kind: 'task' | 'note';
-  status: 'active' | 'completed' | 'archived';
+  status: 'active' | 'completed' | 'archived' | 'cancelled';
   priority: 'none' | 'low' | 'medium' | 'high';
   due_date: string | null;
   is_all_day: boolean;
@@ -57,7 +57,7 @@ export interface ViewTaskJson {
 export interface ViewTask extends ArrangedTask {
   readonly content: string;
   readonly kind: 'task' | 'note';
-  readonly status: 'active' | 'completed' | 'archived';
+  readonly status: 'active' | 'completed' | 'archived' | 'cancelled';
   readonly isAllDay: boolean;
   readonly zone: string;
   readonly projectId: string;

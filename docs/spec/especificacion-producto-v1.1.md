@@ -676,7 +676,7 @@ Capa de compatibilidad `GET /open/v1/...` compatible con la forma de la Open API
 Todos versionados (`task.created@v1`). Mínimo:
 
 ```
-task.created task.updated task.completed task.uncompleted task.deleted task.restored task.moved task.due_soon task.overdue
+task.created task.updated task.completed task.uncompleted task.cancelled task.deleted task.restored task.moved task.due_soon task.overdue plan.applied
 checklist_item.created checklist_item.updated checklist_item.completed checklist_item.uncompleted checklist_item.deleted
 project.created project.updated project.archived project.unarchived project.deleted
 folder.created folder.updated folder.deleted
