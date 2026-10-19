@@ -210,6 +210,84 @@ h1 {
   padding: 1.5rem 1.25rem 6rem;
 }
 
+.habit-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 1rem 1.5rem;
+}
+
+.habit-head h1,
+.habit-suggest h2 {
+  margin: 0;
+  font-family: var(--font-sans);
+}
+
+.habit-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.habit-week li {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 8px 0;
+  border-radius: 12px;
+  color: var(--ink-3);
+  font-size: var(--fs-sm);
+}
+
+.habit-week li[data-today='true'] {
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.habit-week i {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--border-strong);
+  border-radius: 50%;
+}
+
+.habit-suggest ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.habit-suggest button {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.habit-suggest button:hover {
+  border-color: var(--accent);
+}
+
+.habit-form {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+}
+
 .habit-form,
 .habit-list {
   display: grid;
@@ -239,8 +317,10 @@ h1 {
 .habit-list li {
   display: grid;
   gap: 0.5rem;
-  padding: 0.75rem 0;
-  border-top: 1px solid var(--border);
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
 }
 
 .habit-list button.selected {

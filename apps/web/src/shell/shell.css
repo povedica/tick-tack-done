@@ -90,9 +90,12 @@
 
 .brand-mark {
   display: block;
+  flex: none;
   width: 28px;
   height: 28px;
-  border-radius: 8px;
+  background-color: currentColor;
+  -webkit-mask: url('/android-chrome-192x192.png') center / contain no-repeat;
+  mask: url('/android-chrome-192x192.png') center / contain no-repeat;
 }
 
 .sidebar-capture,
@@ -573,9 +576,7 @@
   width: 28px;
   height: 28px;
   padding: 0;
-  border-radius: 8px;
   background: transparent;
-  overflow: hidden;
 }
 
 .rail-avatar .brand-mark {
@@ -680,6 +681,25 @@
   opacity: 1;
 }
 
+.nav-unused {
+  display: flex;
+  width: 100%;
+  margin: 0;
+  padding: 6px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  font: inherit;
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.nav-unused:hover,
+.nav-unused[aria-pressed='true'] {
+  color: var(--ink);
+}
+
 .nav-create input {
   box-sizing: border-box;
   width: 100%;
@@ -714,6 +734,17 @@
   border-radius: 12px;
   background: var(--surface);
   box-shadow: var(--shadow-md);
+}
+
+.list-menu select,
+.list-menu input[type='color'] {
+  width: 100%;
+  min-height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
 }
 
 .list-menu input,

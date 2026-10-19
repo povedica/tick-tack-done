@@ -90,6 +90,7 @@ export function Sidebar({
     (item) => item.enabled && (SIDEBAR_SMART_ORDER as readonly string[]).includes(item.key),
   );
   const trash = ordered.find((item) => item.key === 'trash');
+  const trashVisible = trash === undefined || trash.enabled;
   const filterItems = filters.data?.items ?? [];
   const tagItems = tags.data?.items ?? [];
   const tagNeedle = tagQuery.trim().toLowerCase();
@@ -386,7 +387,8 @@ export function Sidebar({
         />
         <button
           type="button"
-          className="nav-section nav-more-toggle"
+          className="nav-unused"
+          aria-pressed={showUnused}
           onClick={() => {
             setShowUnused((current) => !current);
           }}
@@ -398,7 +400,7 @@ export function Sidebar({
             const href = `/tag/${tag.id}`;
             const current = `${location.pathname}${location.search}` === href;
             return (
-              <li key={tag.id}>
+              <li key={tag.id} className="nav-row">
                 <Link
                   aria-current={current ? 'page' : undefined}
                   className={current ? 'nav-link is-active is-section' : 'nav-link is-section'}
@@ -411,8 +413,9 @@ export function Sidebar({
                 </Link>
                 <button
                   type="button"
-                  className="nav-menu"
+                  className="nav-more-btn"
                   aria-label={messages.tagRename}
+                  aria-expanded={tagMenuId === tag.id}
                   onClick={() => {
                     setTagMenuId((current) => (current === tag.id ? null : tag.id));
                   }}
@@ -467,12 +470,14 @@ export function Sidebar({
         ) : null}
       </nav>
       <div className="sidebar-footer">
-        <SideLink to="/smart/trash" onNavigate={onNavigate}>
-          <span className="nav-label">{messages.smartTrash}</span>
-          {showCounters && smart.isPending ? <span className="ui-badge">—</span> : null}
-          {showCounters && smart.isSuccess ? <Badge value={trash?.task_count ?? 0} /> : null}
-        </SideLink>
-        {confirmTrash ? (
+        {trashVisible ? (
+          <SideLink to="/smart/trash" onNavigate={onNavigate}>
+            <span className="nav-label">{messages.smartTrash}</span>
+            {showCounters && smart.isPending ? <span className="ui-badge">—</span> : null}
+            {showCounters && smart.isSuccess ? <Badge value={trash?.task_count ?? 0} /> : null}
+          </SideLink>
+        ) : null}
+        {confirmTrash && trashVisible ? (
           <div className="nav-confirm">
             <p>{messages.emptyTrashBody}</p>
             <button
@@ -489,18 +494,20 @@ export function Sidebar({
             </button>
           </div>
         ) : null}
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label={messages.emptyTrash}
-          title={messages.emptyTrash}
-          disabled={!smart.isSuccess || (trash?.task_count ?? 0) === 0}
-          onClick={() => {
-            setConfirmTrash(true);
-          }}
-        >
-          <Trash2 size={16} aria-hidden="true" />
-        </button>
+        {trashVisible ? (
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label={messages.emptyTrash}
+            title={messages.emptyTrash}
+            disabled={!smart.isSuccess || (trash?.task_count ?? 0) === 0}
+            onClick={() => {
+              setConfirmTrash(true);
+            }}
+          >
+            <Trash2 size={16} aria-hidden="true" />
+          </button>
+        ) : null}
         <button
           type="button"
           className="icon-btn"
@@ -623,7 +630,7 @@ function TagMenu({
     onClose();
   };
   return (
-    <div className="nav-menu-panel">
+    <div className="list-menu" role="menu">
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -641,7 +648,9 @@ function TagMenu({
             setName(event.target.value);
           }}
         />
-        <button type="submit">{messages.tagRename}</button>
+        <button type="submit" className="menu-item">
+          {messages.tagRename}
+        </button>
       </form>
       <input
         type="color"
@@ -675,6 +684,7 @@ function TagMenu({
       </label>
       <button
         type="button"
+        className="menu-item is-danger"
         onClick={() => {
           if (!confirm) {
             setConfirm(true);
