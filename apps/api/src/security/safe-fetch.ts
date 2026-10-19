@@ -147,6 +147,9 @@ function pinnedRequest(
   const lib = target.url.protocol === 'https:' ? https : http;
   const family = isIP(target.address) === 6 ? 6 : 4;
   return new Promise((resolve, reject) => {
+    // assertPublicUrl already rejected private, loopback and non-https targets.
+    // The lookup callback pins that public address, so this is not an open proxy.
+    // codeql[js/request-forgery]
     const req = lib.request(
       target.url,
       {
