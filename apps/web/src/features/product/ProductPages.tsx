@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useParams, useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
 import { Button, EmptyState } from '../../components/ui';
+import { InboundEmailCard } from '../settings/InboundEmailCard';
 import { useMessages } from '../../i18n';
 
 function itemsOf(value: unknown): readonly Record<string, unknown>[] {
@@ -342,261 +343,239 @@ export function FocusPage() {
   );
 }
 
-export function DataSettings() {
-  const messages = useMessages();
-  const backups = useQuery({ queryKey: ['backups'], queryFn: () => api.listBackups() });
-  const [exported, setExported] = useState(false);
-  return (
-    <section>
-      <h1>{messages.settingsData}</h1>
-      <p>{messages.backupEmpty}</p>
-      <Button
-        onClick={() => {
-          void api.exportJson().then((body) => {
-            const blob = new Blob([JSON.stringify(body, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = 'tick-tack-done.json';
-            link.click();
-            URL.revokeObjectURL(url);
-            setExported(true);
-          });
-        }}
-      >
-        {messages.exportJson}
-      </Button>
-      {exported ? <p role="status">{messages.saved}</p> : null}
-      <ul>
-        {itemsOf(backups.data).map((row) => (
-          <li key={text(row.stamp)}>
-            {text(row.stamp)}
-            <Button
-              onClick={() => {
-                void api.restoreBackup(text(row.stamp)).then((body) => {
-                  setExported(text(body.detail).length > 0);
-                });
-              }}
-            >
-              {messages.backupRestore}
-            </Button>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
 export function CalendarSettings() {
   const messages = useMessages();
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
+  const google = useQuery({ queryKey: ['google'], queryFn: () => api.integrationStatus('google') });
+  const lists = projects.data?.items ?? [];
+  const [picked, setPicked] = useState('');
   const [url, setUrl] = useState<string | null>(null);
-  const first = projects.data?.items[0];
+  const [copied, setCopied] = useState(false);
+  const projectId = picked.length > 0 ? picked : (lists[0]?.id ?? '');
+  const googleOn = flag(google.data, 'connected');
   return (
-    <section>
-      <h1>{messages.settingsCalendar}</h1>
-      <Button
-        disabled={first === undefined}
-        onClick={() => {
-          if (first === undefined) {
-            return;
-          }
-          void api.createCalendarFeed(first.id).then((body) => {
-            setUrl(text(body.url));
-          });
-        }}
-      >
-        {messages.feedCreate}
-      </Button>
-      {url !== null ? <p>{url}</p> : null}
+    <section className="token-settings">
+      <header className="page-header">
+        <div>
+          <h1>{messages.settingsCalendar}</h1>
+          <p className="lede">{messages.calendarLede}</p>
+        </div>
+      </header>
+      <section className="token-panel">
+        <div className="token-panel-head">
+          <div>
+            <h2>{messages.feedCreate}</h2>
+            <p>{messages.calendarFeedHint}</p>
+          </div>
+        </div>
+        <form
+          className="token-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (projectId.length === 0) {
+              return;
+            }
+            void api.createCalendarFeed(projectId).then((body) => {
+              setUrl(text(body.url));
+              setCopied(false);
+            });
+          }}
+        >
+          <label className="token-label" htmlFor="calendar-list">
+            {messages.shareList}
+          </label>
+          <select
+            id="calendar-list"
+            className="token-name is-short"
+            value={projectId}
+            onChange={(event) => {
+              setPicked(event.target.value);
+            }}
+          >
+            {lists.map((list) => (
+              <option key={list.id} value={list.id}>
+                {list.name}
+              </option>
+            ))}
+          </select>
+          <Button type="submit" variant="primary" size="sm" disabled={projectId.length === 0}>
+            {messages.feedCreate}
+          </Button>
+        </form>
+        {url !== null && url.length > 0 ? (
+          <div className="token-secret">
+            <p>{messages.calendarFeedHint}</p>
+            <code>{url}</code>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                void navigator.clipboard.writeText(url).then(
+                  () => {
+                    setCopied(true);
+                  },
+                  () => {
+                    setCopied(false);
+                  },
+                );
+              }}
+            >
+              {copied ? messages.copied : messages.webhookCopySecret}
+            </Button>
+          </div>
+        ) : null}
+      </section>
+      <section className="token-panel" aria-labelledby="calendar-google-title">
+        <div className="token-panel-head">
+          <div>
+            <h2 id="calendar-google-title">Google</h2>
+            <p>{messages.calendarGoogleHint}</p>
+          </div>
+          {google.isFetched ? (
+            <StatusPill
+              on={googleOn}
+              onLabel={messages.integrationConnected}
+              offLabel={
+                flag(google.data, 'configured') ? messages.integrationIdle : messages.integrationOff
+              }
+            />
+          ) : null}
+        </div>
+        {text(google.data?.account).length > 0 ? (
+          <p className="token-meta">{text(google.data?.account)}</p>
+        ) : null}
+        <Link className="ui-button is-sm" to="/settings/integrations">
+          {messages.calendarOpenIntegrations}
+        </Link>
+      </section>
     </section>
   );
 }
 
 export function IntegrationSettings() {
   const messages = useMessages();
+  const [params] = useSearchParams();
+  const googleFlag = params.get('google');
   const telegram = useQuery({
     queryKey: ['telegram'],
     queryFn: () => api.integrationStatus('telegram'),
   });
   const drive = useQuery({ queryKey: ['drive'], queryFn: () => api.integrationStatus('drive') });
   const google = useQuery({ queryKey: ['google'], queryFn: () => api.integrationStatus('google') });
+  const googleOn = flag(google.data, 'connected');
+  const googleReady = flag(google.data, 'configured');
   const account = text(google.data?.account);
+  const voice = flag(telegram.data, 'voice');
+  const photo = flag(telegram.data, 'photo');
   return (
-    <section>
-      <h1>{messages.settingsIntegrations}</h1>
-      <p>Telegram: {telegram.data?.configured === true ? messages.online : messages.offline}</p>
-      <p>Drive: {drive.data?.configured === true ? messages.online : messages.offline}</p>
-      <p>Google: {google.data?.connected === true ? account : messages.offline}</p>
-      <Button
-        disabled={google.data?.configured !== true || google.data.connected === true}
-        onClick={() => {
-          void api.googleConnect().then((body) => {
-            const url = text(body.url);
-            if (url.startsWith('https://accounts.google.com/')) {
-              window.location.assign(url);
-            }
-          });
-        }}
-      >
-        {messages.googleConnect}
-      </Button>
-    </section>
-  );
-}
-
-export function AutomationSettings() {
-  const messages = useMessages();
-  const queryClient = useQueryClient();
-  const rows = useQuery({ queryKey: ['automations'], queryFn: () => api.listAutomations() });
-  const items = itemsOf(rows.data);
-  const [name, setName] = useState('');
-  return (
-    <section>
-      <h1>{messages.settingsAutomations}</h1>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (name.trim().length === 0) {
-            return;
-          }
-          void api
-            .createAutomation({
-              name: name.trim(),
-              trigger: { event: 'task.completed@v1' },
-              actions: [{ type: 'notify' }],
-              enabled: true,
-            })
-            .then(() => {
-              setName('');
-              void queryClient.invalidateQueries({ queryKey: ['automations'] });
-            });
-        }}
-      >
-        <input
-          value={name}
-          aria-label={messages.automationCreate}
-          placeholder={messages.automationCreate}
-          onChange={(event) => {
-            setName(event.target.value);
-          }}
-        />
-        <Button type="submit">{messages.automationCreate}</Button>
-      </form>
-      {items.length === 0 ? (
-        <EmptyState title={messages.settingsAutomations} body={messages.automationsEmpty} />
+    <section className="token-settings">
+      <header className="page-header">
+        <div>
+          <h1>{messages.settingsIntegrations}</h1>
+          <p className="lede">{messages.integrationsHint}</p>
+        </div>
+      </header>
+      {googleFlag === 'connected' ? (
+        <p className="token-meta" role="status">
+          {messages.googleConnectedNote}
+        </p>
       ) : null}
-      <ul>
-        {items.map((row) => (
-          <li key={text(row.id)}>{text(row.name)}</li>
-        ))}
-      </ul>
+      {googleFlag === 'error' ? <p role="alert">{messages.googleErrorNote}</p> : null}
+
+      <section className="token-panel" aria-labelledby="google-title">
+        <div className="token-panel-head">
+          <div>
+            <h2 id="google-title">Google</h2>
+            <p>{messages.googleHint}</p>
+          </div>
+          {google.isFetched ? (
+            <StatusPill
+              on={googleOn}
+              onLabel={messages.integrationConnected}
+              offLabel={googleReady ? messages.integrationIdle : messages.integrationOff}
+            />
+          ) : null}
+        </div>
+        {account.length > 0 ? <p className="token-meta">{account}</p> : null}
+        {googleReady && !googleOn ? (
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            onClick={() => {
+              void api.googleConnect().then((body) => {
+                const url = text(body.url);
+                if (url.startsWith('https://accounts.google.com/')) {
+                  window.location.assign(url);
+                }
+              });
+            }}
+          >
+            {messages.googleConnect}
+          </Button>
+        ) : null}
+      </section>
+
+      <section className="token-panel" aria-labelledby="drive-title">
+        <div className="token-panel-head">
+          <div>
+            <h2 id="drive-title">Drive</h2>
+            <p>{messages.driveHint}</p>
+          </div>
+          {drive.isFetched ? (
+            <StatusPill
+              on={flag(drive.data, 'configured')}
+              onLabel={messages.integrationReady}
+              offLabel={messages.integrationOff}
+            />
+          ) : null}
+        </div>
+      </section>
+
+      <section className="token-panel" aria-labelledby="telegram-title">
+        <div className="token-panel-head">
+          <div>
+            <h2 id="telegram-title">Telegram</h2>
+            <p>{messages.telegramHint}</p>
+          </div>
+          {telegram.isFetched ? (
+            <StatusPill
+              on={flag(telegram.data, 'configured')}
+              onLabel={messages.integrationReady}
+              offLabel={messages.integrationOff}
+            />
+          ) : null}
+        </div>
+        {voice || photo ? (
+          <ul className="token-chips">
+            {voice ? <li className="token-chip">{messages.telegramVoice}</li> : null}
+            {photo ? <li className="token-chip">{messages.telegramPhoto}</li> : null}
+          </ul>
+        ) : null}
+      </section>
+
+      <InboundEmailCard />
     </section>
   );
 }
 
-export function WebhookSettings() {
-  const messages = useMessages();
-  const queryClient = useQueryClient();
-  const rows = useQuery({ queryKey: ['webhooks'], queryFn: () => api.listWebhooks() });
-  const items = itemsOf(rows.data);
-  const [url, setUrl] = useState('');
+function StatusPill({
+  on,
+  onLabel,
+  offLabel,
+}: {
+  readonly on: boolean;
+  readonly onLabel: string;
+  readonly offLabel: string;
+}) {
   return (
-    <section>
-      <h1>{messages.settingsWebhooks}</h1>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (!url.startsWith('https://')) {
-            return;
-          }
-          void api.createWebhook({ url, events: ['task.completed@v1'] }).then(() => {
-            setUrl('');
-            void queryClient.invalidateQueries({ queryKey: ['webhooks'] });
-          });
-        }}
-      >
-        <input
-          value={url}
-          aria-label={messages.webhookCreate}
-          placeholder="https://"
-          onChange={(event) => {
-            setUrl(event.target.value);
-          }}
-        />
-        <Button type="submit">{messages.webhookCreate}</Button>
-      </form>
-      {items.length === 0 ? (
-        <EmptyState title={messages.settingsWebhooks} body={messages.webhooksEmpty} />
-      ) : null}
-      <ul>
-        {items.map((row) => (
-          <li key={text(row.id)}>{text(row.url)}</li>
-        ))}
-      </ul>
-    </section>
+    <span className={on ? 'token-pill' : 'token-pill is-revoked'}>{on ? onLabel : offLabel}</span>
   );
 }
 
-export function PluginSettings() {
-  const messages = useMessages();
-  const rows = useQuery({ queryKey: ['plugins'], queryFn: () => api.listPlugins() });
-  const items = itemsOf(rows.data);
+function flag(value: unknown, key: string): boolean {
   return (
-    <section>
-      <h1>{messages.settingsPlugins}</h1>
-      <p>{messages.pluginEmpty}</p>
-      <ul>
-        {items.map((row) => (
-          <li key={text(row.id)}>{text(row.plugin_id)}</li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-export function SharingSettings() {
-  const messages = useMessages();
-  const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
-  const first = projects.data?.items[0];
-  const members = useQuery({
-    queryKey: ['members', first?.id],
-    queryFn: () => api.listMembers(first?.id ?? ''),
-    enabled: first !== undefined,
-  });
-  const [email, setEmail] = useState('');
-  return (
-    <section>
-      <h1>{messages.settingsSharing}</h1>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (first === undefined || email.length === 0) {
-            return;
-          }
-          void api.addMember(first.id, email, 'write').then(() => {
-            setEmail('');
-            void members.refetch();
-          });
-        }}
-      >
-        <input
-          value={email}
-          onChange={(event) => {
-            setEmail(event.target.value);
-          }}
-          type="email"
-        />
-        <Button type="submit">{messages.shareAdd}</Button>
-      </form>
-      <ul>
-        {itemsOf(members.data).map((row) => (
-          <li key={text(row.id)}>
-            {text(row.email)} · {text(row.permission)}
-          </li>
-        ))}
-      </ul>
-    </section>
+    typeof value === 'object' && value !== null && (value as Record<string, unknown>)[key] === true
   );
 }
 

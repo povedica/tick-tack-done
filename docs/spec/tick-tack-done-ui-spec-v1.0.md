@@ -600,7 +600,7 @@ Full width (la sidebar se colapsa a rail de iconos, como en TickTick). Cabecera:
 - Clic en celda/hueco: crear tarea con esa fecha (inline mini-popover, no la hoja completa).
 - Eventos externos (iCal/Google, RF-1103): color de su calendario, icono de candado en tooltip ("solo lectura · Google Calendar"), no editables ni arrastrables.
 - Clic en tarea: detalle en popover con "Abrir completo" (en calendario no abrimos el panel entero para no perder el contexto de mes).
-- Vista año: 12 minimeses con puntos de densidad por día. Vista agenda: lista cronológica infinita.
+- Vista año: 12 minimeses con el número de cada día (como el calendario de macOS y Google Calendar) y un punto del color de la lista en los días con tareas. Vista agenda: lista cronológica por día, fecha a la izquierda y cada tarea en una tarjeta del color de su lista.
 - Suscripciones y feeds se gestionan en Ajustes (§20.6); el feed iCal propio por lista/filtro (RF-1104) muestra su URL secreta con botón copiar y "regenerar" (revoca la anterior, confirmación).
 
 ### 13.3 Criterios de aceptación

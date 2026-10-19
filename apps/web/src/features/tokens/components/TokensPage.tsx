@@ -1,10 +1,472 @@
 import type { CreateTokenBody } from '@reflexionia/sdk';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { useMessages, type Messages } from '../../../i18n';
+import { useLocation } from 'react-router';
+import { Button, SkeletonRows } from '../../../components/ui';
+import { fill, useMessages, type Messages } from '../../../i18n';
 import { tokensApi } from '../api';
 
 type Scope = CreateTokenBody['scopes'][number];
+
+interface ScopeChoice {
+  readonly id: Scope;
+  readonly label: keyof Messages;
+}
+
+interface ScopeGroup {
+  readonly name: keyof Messages;
+  readonly choices: readonly ScopeChoice[];
+}
+
+const GROUPS: readonly ScopeGroup[] = [
+  {
+    name: 'tokenGroupTasks',
+    choices: [
+      { id: 'tasks:read', label: 'scopeRead' },
+      { id: 'tasks:write', label: 'scopeWrite' },
+    ],
+  },
+  {
+    name: 'tokenGroupLists',
+    choices: [
+      { id: 'lists:read', label: 'scopeRead' },
+      { id: 'lists:write', label: 'scopeWrite' },
+    ],
+  },
+  {
+    name: 'tokenGroupTags',
+    choices: [
+      { id: 'tags:read', label: 'scopeRead' },
+      { id: 'tags:write', label: 'scopeWrite' },
+    ],
+  },
+  {
+    name: 'tokenGroupFilters',
+    choices: [
+      { id: 'filters:read', label: 'scopeRead' },
+      { id: 'filters:write', label: 'scopeWrite' },
+    ],
+  },
+  {
+    name: 'tokenGroupHabits',
+    choices: [
+      { id: 'habits:read', label: 'scopeRead' },
+      { id: 'habits:write', label: 'scopeWrite' },
+    ],
+  },
+  {
+    name: 'tokenGroupFocus',
+    choices: [
+      { id: 'focus:read', label: 'scopeRead' },
+      { id: 'focus:write', label: 'scopeWrite' },
+    ],
+  },
+  {
+    name: 'tokenGroupNotes',
+    choices: [
+      { id: 'notes:read', label: 'scopeRead' },
+      { id: 'notes:write', label: 'scopeWrite' },
+    ],
+  },
+  {
+    name: 'tokenGroupCalendar',
+    choices: [
+      { id: 'calendar:read', label: 'scopeRead' },
+      { id: 'calendar:write', label: 'scopeWrite' },
+    ],
+  },
+  {
+    name: 'tokenGroupReminders',
+    choices: [{ id: 'reminders:write', label: 'scopeWrite' }],
+  },
+  {
+    name: 'tokenGroupWebhooks',
+    choices: [{ id: 'webhooks:manage', label: 'scopeManage' }],
+  },
+  {
+    name: 'tokenGroupAutomations',
+    choices: [{ id: 'automations:manage', label: 'scopeManage' }],
+  },
+  {
+    name: 'tokenGroupProfile',
+    choices: [
+      { id: 'profile:read', label: 'scopeRead' },
+      { id: 'profile:write', label: 'scopeWrite' },
+    ],
+  },
+  {
+    name: 'tokenGroupBackup',
+    choices: [{ id: 'backup:read', label: 'scopeRead' }],
+  },
+];
+
+const SCOPE_LABEL: Record<string, keyof Messages> = {
+  'tasks:read': 'scopeTasksRead',
+  'tasks:write': 'scopeTasksWrite',
+  'lists:read': 'scopeListsRead',
+  'lists:write': 'scopeListsWrite',
+  'tags:read': 'scopeTagsRead',
+  'tags:write': 'scopeTagsWrite',
+  'filters:read': 'scopeFiltersRead',
+  'filters:write': 'scopeFiltersWrite',
+  'habits:read': 'scopeHabitsRead',
+  'habits:write': 'scopeHabitsWrite',
+  'focus:read': 'scopeFocusRead',
+  'focus:write': 'scopeFocusWrite',
+  'notes:read': 'scopeNotesRead',
+  'notes:write': 'scopeNotesWrite',
+  'calendar:read': 'scopeCalendarRead',
+  'calendar:write': 'scopeCalendarWrite',
+  'reminders:write': 'scopeRemindersWrite',
+  'webhooks:manage': 'scopeWebhooksManage',
+  'automations:manage': 'scopeAutomationsManage',
+  'profile:read': 'scopeProfileRead',
+  'profile:write': 'scopeProfileWrite',
+  'backup:read': 'scopeBackupRead',
+};
+
+export function TokensPage() {
+  const messages = useMessages();
+  const inSettings = useLocation().pathname.startsWith('/settings');
+  const queryClient = useQueryClient();
+  const tokens = useQuery({ queryKey: ['tokens'], queryFn: () => tokensApi.listTokens() });
+  const [composer, setComposer] = useState(false);
+  const [name, setName] = useState('');
+  const [scopes, setScopes] = useState<Scope[]>([]);
+  const [secret, setSecret] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const activity = useQuery({
+    queryKey: ['token-activity', selected],
+    enabled: selected !== null,
+    queryFn: () => {
+      if (selected === null) {
+        throw new Error('token');
+      }
+      return tokensApi.tokenActivity(selected);
+    },
+  });
+  const create = useMutation({
+    mutationFn: () => tokensApi.createToken({ name: name.trim(), scopes }),
+    onSuccess: async (created) => {
+      setSecret(created.token);
+      setSelected(created.id);
+      setName('');
+      setScopes([]);
+      setComposer(false);
+      setError(null);
+      await queryClient.invalidateQueries({ queryKey: ['tokens'] });
+    },
+    onError: () => {
+      setError(messages.tokenFailed);
+    },
+  });
+  const revoke = useMutation({
+    mutationFn: (id: string) => tokensApi.revokeToken(id),
+    onSuccess: async () => {
+      setSecret(null);
+      setConfirmId(null);
+      await queryClient.invalidateQueries({ queryKey: ['tokens'] });
+    },
+    onError: () => {
+      setError(messages.tokenFailed);
+    },
+  });
+  const items = tokens.data?.items ?? [];
+  const endpoint = `${window.location.origin}/api/v1/mcp`;
+  const snippet = mcpSnippet(endpoint);
+
+  function rememberCopy(key: string) {
+    setCopied(key);
+    window.setTimeout(() => {
+      setCopied((current) => (current === key ? null : current));
+    }, 2000);
+  }
+
+  async function copyText(key: string, value: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      rememberCopy(key);
+    } catch {
+      setCopied(null);
+    }
+  }
+
+  return (
+    <section className={inSettings ? 'token-settings' : 'screen-page token-settings'}>
+      <header className="page-header">
+        <div>
+          <h1>{inSettings ? messages.settingsTokens : messages.tokensTitle}</h1>
+          <p className="lede">{messages.tokensHint}</p>
+        </div>
+      </header>
+
+      <section className="token-panel" aria-labelledby="mcp-title">
+        <div className="token-panel-head">
+          <div>
+            <h2 id="mcp-title">{messages.mcpTitle}</h2>
+            <p>{messages.mcpHint}</p>
+          </div>
+        </div>
+        <div className="token-url">
+          <code>{endpoint}</code>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => {
+              void copyText('url', endpoint);
+            }}
+          >
+            {copied === 'url' ? messages.copied : messages.mcpCopyUrl}
+          </Button>
+        </div>
+        <p className="token-kicker">{messages.mcpCursor}</p>
+        <pre className="token-snippet">{snippet}</pre>
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => {
+            void copyText('snippet', snippet);
+          }}
+        >
+          {copied === 'snippet' ? messages.copied : messages.mcpCopyConfig}
+        </Button>
+      </section>
+
+      {secret !== null ? (
+        <div className="token-secret" role="status">
+          <p>{messages.tokenSecret}</p>
+          <code>{secret}</code>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => {
+              void copyText('secret', secret);
+            }}
+          >
+            {copied === 'secret' ? messages.copied : messages.tokenCopySecret}
+          </Button>
+        </div>
+      ) : null}
+
+      <section className="token-panel" aria-labelledby="token-new-title">
+        <div className="token-panel-head">
+          <div>
+            <h2 id="token-new-title">{messages.tokenNew}</h2>
+            <p>{messages.tokenNewHint}</p>
+          </div>
+          <Button
+            type="button"
+            variant={composer ? 'ghost' : 'primary'}
+            aria-expanded={composer}
+            onClick={() => {
+              setComposer((current) => !current);
+              setError(null);
+            }}
+          >
+            {composer ? messages.cancel : messages.tokenNew}
+          </Button>
+        </div>
+        {composer ? (
+          <form
+            className="token-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (name.trim().length === 0 || scopes.length === 0 || create.isPending) {
+                return;
+              }
+              create.mutate();
+            }}
+          >
+            <label className="token-label" htmlFor="token-name">
+              {messages.tokenName}
+            </label>
+            <input
+              id="token-name"
+              className="token-name"
+              value={name}
+              maxLength={80}
+              onChange={(event) => {
+                setName(event.target.value);
+              }}
+            />
+            <div className="token-resources" role="group" aria-label={messages.tokenScopes}>
+              {GROUPS.map((group) => (
+                <div key={group.name} className="token-resource">
+                  <span>{messages[group.name]}</span>
+                  <span className="token-choices">
+                    {group.choices.map((choice) => {
+                      const on = scopes.includes(choice.id);
+                      return (
+                        <button
+                          key={choice.id}
+                          type="button"
+                          className={on ? 'token-scope is-on' : 'token-scope'}
+                          aria-pressed={on}
+                          onClick={() => {
+                            setScopes((current) =>
+                              current.includes(choice.id)
+                                ? current.filter((item) => item !== choice.id)
+                                : [...current, choice.id],
+                            );
+                          }}
+                        >
+                          {messages[choice.label]}
+                        </button>
+                      );
+                    })}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {error !== null ? <p role="alert">{error}</p> : null}
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={name.trim().length === 0 || scopes.length === 0}
+              loading={create.isPending}
+            >
+              {create.isPending ? messages.tokenSaving : messages.tokenCreate}
+            </Button>
+          </form>
+        ) : null}
+      </section>
+
+      <section className="token-panel is-list" aria-label={messages.tokensTitle}>
+        {tokens.isPending ? <SkeletonRows /> : null}
+        {tokens.isError ? <p role="alert">{messages.tokenFailed}</p> : null}
+        {tokens.isSuccess && items.length === 0 ? <p className="token-empty">{messages.tokenEmpty}</p> : null}
+        {items.map((token) => {
+          const revoked = token.revoked_at !== null;
+          const open = selected === token.id;
+          return (
+            <article key={token.id} className={revoked ? 'token-row is-revoked' : 'token-row'}>
+              <div className="token-head">
+                <div>
+                  <h2>{token.name}</h2>
+                  <code className="token-prefix">{token.token_prefix}</code>
+                </div>
+                <span className={revoked ? 'token-pill is-revoked' : 'token-pill'}>
+                  {revoked ? messages.tokenRevoked : messages.tokenActive}
+                </span>
+              </div>
+              <ul className="token-chips">
+                {token.scopes.map((scope) => (
+                  <li key={scope} className="token-chip">
+                    {scopeLabel(messages, scope)}
+                  </li>
+                ))}
+              </ul>
+              <p className="token-meta">
+                {messages.tokenCreatedOn} {when(token.created_at)}
+                {' · '}
+                {token.last_used_at === null
+                  ? messages.tokenNeverUsed
+                  : `${messages.tokenLastUsed} ${when(token.last_used_at)}`}
+              </p>
+              <div className="token-actions">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  aria-expanded={open}
+                  onClick={() => {
+                    setSelected(open ? null : token.id);
+                    setSecret(null);
+                  }}
+                >
+                  {open ? messages.tokenHideActivity : messages.tokenActivity}
+                </Button>
+                {revoked ? null : (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setConfirmId(token.id);
+                    }}
+                  >
+                    {messages.tokenRevoke}
+                  </Button>
+                )}
+              </div>
+              {confirmId === token.id ? (
+                <div className="token-confirm">
+                  <p>{fill(messages.tokenRevokeBody, token.name)}</p>
+                  <span className="token-actions">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setConfirmId(null);
+                      }}
+                    >
+                      {messages.cancel}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="danger"
+                      loading={revoke.isPending}
+                      onClick={() => {
+                        revoke.mutate(token.id);
+                      }}
+                    >
+                      {messages.tokenRevoke}
+                    </Button>
+                  </span>
+                </div>
+              ) : null}
+              {open ? (
+                <div>
+                  {activity.isSuccess && activity.data.items.length === 0 ? (
+                    <p className="token-meta">{messages.tokenActivityEmpty}</p>
+                  ) : null}
+                  <ul className="token-activity">
+                    {(activity.data?.items ?? []).map((entry) => (
+                      <li key={entry.id}>
+                        <span>
+                          {actionLabel(messages, entry.action)} ·{' '}
+                          {entityLabel(messages, entry.entity_type)}
+                        </span>
+                        <time dateTime={entry.created_at}>{when(entry.created_at)}</time>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </article>
+          );
+        })}
+      </section>
+    </section>
+  );
+}
+
+function mcpSnippet(url: string): string {
+  return `{
+  "mcpServers": {
+    "tick-tack-done": {
+      "url": ${JSON.stringify(url)},
+      "headers": {
+        "Authorization": "Bearer <token>"
+      }
+    }
+  }
+}`;
+}
+
+function when(iso: string): string {
+  return new Date(iso).toLocaleString();
+}
+
+function scopeLabel(messages: Messages, scope: string): string {
+  const key = SCOPE_LABEL[scope];
+  return key === undefined ? scope : messages[key];
+}
 
 function actionLabel(messages: Messages, action: string): string {
   switch (action) {
@@ -38,185 +500,4 @@ function entityLabel(messages: Messages, entity: string): string {
     default:
       return entity;
   }
-}
-
-const SCOPES: readonly { id: Scope; label: keyof Messages }[] = [
-  { id: 'tasks:read', label: 'scopeTasksRead' },
-  { id: 'tasks:write', label: 'scopeTasksWrite' },
-  { id: 'lists:read', label: 'scopeListsRead' },
-  { id: 'lists:write', label: 'scopeListsWrite' },
-  { id: 'tags:read', label: 'scopeTagsRead' },
-  { id: 'tags:write', label: 'scopeTagsWrite' },
-  { id: 'filters:read', label: 'scopeFiltersRead' },
-  { id: 'filters:write', label: 'scopeFiltersWrite' },
-  { id: 'habits:read', label: 'scopeHabitsRead' },
-  { id: 'habits:write', label: 'scopeHabitsWrite' },
-  { id: 'focus:read', label: 'scopeFocusRead' },
-  { id: 'focus:write', label: 'scopeFocusWrite' },
-  { id: 'notes:read', label: 'scopeNotesRead' },
-  { id: 'notes:write', label: 'scopeNotesWrite' },
-  { id: 'calendar:read', label: 'scopeCalendarRead' },
-  { id: 'calendar:write', label: 'scopeCalendarWrite' },
-  { id: 'reminders:write', label: 'scopeRemindersWrite' },
-  { id: 'webhooks:manage', label: 'scopeWebhooksManage' },
-  { id: 'automations:manage', label: 'scopeAutomationsManage' },
-  { id: 'profile:read', label: 'scopeProfileRead' },
-  { id: 'profile:write', label: 'scopeProfileWrite' },
-  { id: 'backup:read', label: 'scopeBackupRead' },
-];
-
-export function TokensPage() {
-  const messages = useMessages();
-  const queryClient = useQueryClient();
-  const tokens = useQuery({ queryKey: ['tokens'], queryFn: () => tokensApi.listTokens() });
-  const [name, setName] = useState('');
-  const [scopes, setScopes] = useState<Scope[]>([]);
-  const [secret, setSecret] = useState<string | null>(null);
-  const [selected, setSelected] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const activity = useQuery({
-    queryKey: ['token-activity', selected],
-    enabled: selected !== null,
-    queryFn: () => {
-      if (selected === null) {
-        throw new Error('token');
-      }
-      return tokensApi.tokenActivity(selected);
-    },
-  });
-  const create = useMutation({
-    mutationFn: () => tokensApi.createToken({ name: name.trim(), scopes }),
-    onSuccess: async (created) => {
-      setSecret(created.token);
-      setSelected(created.id);
-      setName('');
-      setScopes([]);
-      setError(null);
-      await queryClient.invalidateQueries({ queryKey: ['tokens'] });
-    },
-    onError: () => {
-      setError(messages.tokenFailed);
-    },
-  });
-  const revoke = useMutation({
-    mutationFn: (id: string) => tokensApi.revokeToken(id),
-    onSuccess: async () => {
-      setSecret(null);
-      await queryClient.invalidateQueries({ queryKey: ['tokens'] });
-    },
-    onError: () => {
-      setError(messages.tokenFailed);
-    },
-  });
-  const items = tokens.data?.items ?? [];
-
-  return (
-    <main className="screen-page">
-      <h1>{messages.tokensTitle}</h1>
-      <p>{messages.tokensHint}</p>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (name.trim().length === 0 || scopes.length === 0 || create.isPending) {
-            return;
-          }
-          create.mutate();
-        }}
-      >
-        <label>
-          {messages.tokenName}
-          <input
-            value={name}
-            maxLength={80}
-            onChange={(event) => {
-              setName(event.target.value);
-            }}
-          />
-        </label>
-        <fieldset className="scope-list">
-          <legend>{messages.tokenScopes}</legend>
-          {SCOPES.map((scope) => (
-            <label key={scope.id}>
-              <input
-                type="checkbox"
-                checked={scopes.includes(scope.id)}
-                onChange={() => {
-                  setScopes((current) =>
-                    current.includes(scope.id)
-                      ? current.filter((item) => item !== scope.id)
-                      : [...current, scope.id],
-                  );
-                }}
-              />
-              {messages[scope.label]}
-            </label>
-          ))}
-        </fieldset>
-        <button
-          type="submit"
-          disabled={name.trim().length === 0 || scopes.length === 0 || create.isPending}
-        >
-          {create.isPending ? messages.tokenSaving : messages.tokenCreate}
-        </button>
-      </form>
-      {error !== null ? <p role="alert">{error}</p> : null}
-      {secret !== null ? (
-        <p className="token-secret" role="status">
-          {messages.tokenSecret}
-          <br />
-          <code>{secret}</code>
-        </p>
-      ) : null}
-      {tokens.isSuccess && items.length === 0 ? <p>{messages.tokenEmpty}</p> : null}
-      <ul className="token-list">
-        {items.map((token) => (
-          <li key={token.id}>
-            <button
-              type="button"
-              onClick={() => {
-                setSelected(token.id);
-                setSecret(null);
-              }}
-            >
-              {token.name}
-            </button>
-            <span>
-              {token.token_prefix} ·{' '}
-              {token.revoked_at !== null
-                ? messages.tokenRevoked
-                : token.last_used_at === null
-                  ? messages.tokenNeverUsed
-                  : `${messages.tokenLastUsed}: ${new Date(token.last_used_at).toLocaleString()}`}
-            </span>
-            {token.revoked_at === null ? (
-              <button
-                type="button"
-                onClick={() => {
-                  revoke.mutate(token.id);
-                }}
-              >
-                {messages.tokenRevoke}
-              </button>
-            ) : null}
-          </li>
-        ))}
-      </ul>
-      {selected !== null ? (
-        <section>
-          <h2>{messages.tokenActivity}</h2>
-          {activity.isSuccess && activity.data.items.length === 0 ? (
-            <p>{messages.tokenActivityEmpty}</p>
-          ) : null}
-          <ul>
-            {(activity.data?.items ?? []).map((entry) => (
-              <li key={entry.id}>
-                {actionLabel(messages, entry.action)} · {entityLabel(messages, entry.entity_type)} ·{' '}
-                {new Date(entry.created_at).toLocaleString()}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-    </main>
-  );
 }

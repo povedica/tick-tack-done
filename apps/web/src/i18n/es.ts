@@ -192,7 +192,7 @@ export const es = {
   entityToken: 'Token',
   paletteHint: 'Busca con / o con Ctrl/Cmd+K.',
   smartListsTitle: 'Listas inteligentes',
-  smartListsHint: 'Son del sistema: se pueden activar y ordenar, no borrar.',
+  smartListsHint: 'Elige cuáles salen en la barra y arrástralas para ordenarlas. El cambio se guarda solo.',
   smartEnabled: 'Visible',
   smartMoveUp: 'Subir',
   smartMoveDown: 'Bajar',

@@ -18,7 +18,6 @@ import { useCaptureNotice, openTaskComposer, useCaptureOpen } from './features/c
 import { HabitsPage } from './features/habits/components/HabitsPage';
 import {
   AccountPage,
-  AppearanceExtras,
   CalendarPage,
   CaptureSettings,
   ForgotPage,
@@ -30,22 +29,24 @@ import {
   SearchPage,
   SettingsHome,
   SettingsLayout,
-  ShortcutSettings,
   TaskRoute,
 } from './features/places/Places';
 import {
-  AutomationSettings,
   CalendarSettings,
   DashboardPage,
-  DataSettings,
   FocusPage,
   IntegrationSettings,
-  PluginSettings,
   ReportsPage,
   ReviewPage,
-  SharingSettings,
-  WebhookSettings,
 } from './features/product/ProductPages';
+import {
+  AutomationSettings,
+  DataSettings,
+  PluginSettings,
+  SharingSettings,
+  ShortcutSettings,
+  WebhookSettings,
+} from './features/settings/MoreSettings';
 import { AppearancePage } from './features/settings/AppearancePage';
 import { ConsentPage } from './features/auth/ConsentPage';
 import { LoginPage, RegisterPage } from './features/auth/AuthPages';
@@ -137,15 +138,7 @@ function Shell() {
             <Route path="/oauth/consent" element={<ConsentPage />} />
             <Route path="/settings" element={<SettingsLayout />}>
               <Route index element={<SettingsHome />} />
-              <Route
-                path="appearance"
-                element={
-                  <>
-                    <AppearancePage />
-                    <AppearanceExtras />
-                  </>
-                }
-              />
+              <Route path="appearance" element={<AppearancePage />} />
               <Route path="account" element={<AccountPage />} />
               <Route path="capture" element={<CaptureSettings />} />
               <Route path="notifications" element={<NotificationSettings />} />

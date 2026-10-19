@@ -9,6 +9,73 @@ export interface DatedTask {
   readonly is_all_day?: boolean;
 }
 
+/** First month of the calendar quarter that contains `day` (Jan, Apr, Jul or Oct). */
+export function quarterStart(day: Date): Date {
+  const month = Math.floor(day.getMonth() / 3) * 3;
+  return new Date(day.getFullYear(), month, 1);
+}
+
+export function quarterMonths(day: Date): Date[] {
+  const start = quarterStart(day);
+  return [0, 1, 2].map((offset) => new Date(start.getFullYear(), start.getMonth() + offset, 1));
+}
+
+export function startOfWeek(day: Date, weekStart: 'monday' | 'sunday'): Date {
+  const shift = (day.getDay() - (weekStart === 'monday' ? 1 : 0) + 7) % 7;
+  return new Date(day.getFullYear(), day.getMonth(), day.getDate() - shift);
+}
+
+export function spanDays(start: Date, count: number): Date[] {
+  return Array.from({ length: count }, (_, index) => {
+    return new Date(start.getFullYear(), start.getMonth(), start.getDate() + index);
+  });
+}
+
+export function viewDays(
+  view: string,
+  cursor: Date,
+  weekStart: 'monday' | 'sunday',
+): Date[] {
+  const day = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate());
+  if (view === 'day') {
+    return [day];
+  }
+  if (view === 'week') {
+    return spanDays(startOfWeek(day, weekStart), 7);
+  }
+  if (view === 'multi-day') {
+    return spanDays(day, 3);
+  }
+  if (view === 'multi-week') {
+    return spanDays(startOfWeek(day, weekStart), 14);
+  }
+  if (view === 'quarter') {
+    return quarterMonths(day).flatMap((month) => monthCells(month, weekStart));
+  }
+  return monthCells(new Date(day.getFullYear(), day.getMonth(), 1), weekStart);
+}
+
+export function shiftView(
+  cursor: Date,
+  view: string,
+  delta: number,
+  weekStart: 'monday' | 'sunday',
+): Date {
+  if (view === 'year') {
+    return new Date(cursor.getFullYear() + delta, cursor.getMonth(), 1);
+  }
+  if (view === 'quarter') {
+    const start = quarterStart(cursor);
+    return new Date(start.getFullYear(), start.getMonth() + delta * 3, 1);
+  }
+  if (view === 'month' || view === 'agenda') {
+    return new Date(cursor.getFullYear(), cursor.getMonth() + delta, 1);
+  }
+  const step = view === 'week' ? 7 : view === 'multi-week' ? 14 : view === 'multi-day' ? 3 : 1;
+  const origin = view === 'week' || view === 'multi-week' ? startOfWeek(cursor, weekStart) : cursor;
+  return new Date(origin.getFullYear(), origin.getMonth(), origin.getDate() + delta * step);
+}
+
 export function monthCells(now: Date, weekStart: 'monday' | 'sunday'): Date[] {
   const start = new Date(now.getFullYear(), now.getMonth(), 1);
   const shift = (start.getDay() - (weekStart === 'monday' ? 1 : 0) + 7) % 7;
@@ -104,4 +171,48 @@ export function yearQueryRange(now: Date): {
 
 export function overflowHref(day: Date): string {
   return `/calendar/day?date=${localDateParam(day)}`;
+}
+
+const LEADING_DATE =
+  /^(\d{1,2})[/.\\-](\d{1,2})(?:[/.\\-](\d{2,4}))?(?:[.,])?(?:\s*[-–—:]\s*|\s+|$)/u;
+
+/** Drops a leading day/month that repeats the due date. The calendar cell already shows that day. */
+export function calendarTaskLabel(
+  title: string,
+  dueDate: string | null,
+  timeZone: string | null | undefined,
+  untitled: string,
+): string {
+  const stripped = stripLeadingDueDate(title.trim(), dueDate, timeZone);
+  return stripped.length === 0 ? untitled : stripped;
+}
+
+function stripLeadingDueDate(
+  title: string,
+  dueDate: string | null,
+  timeZone: string | null | undefined,
+): string {
+  if (dueDate === null || dueDate.length === 0) {
+    return title;
+  }
+  const zone = timeZone !== undefined && timeZone !== null && timeZone.length > 0 ? timeZone : 'UTC';
+  const parts = /^(\d{4})-(\d{2})-(\d{2})/.exec(calendarDateKey(dueDate, zone));
+  if (parts === null) {
+    return title;
+  }
+  const year = Number(parts[1]);
+  const month = Number(parts[2]);
+  const day = Number(parts[3]);
+  const match = LEADING_DATE.exec(title);
+  if (match === null || Number(match[1]) !== day || Number(match[2]) !== month) {
+    return title;
+  }
+  const leadYear = match[3];
+  if (leadYear !== undefined) {
+    const full = leadYear.length === 2 ? 2000 + Number(leadYear) : Number(leadYear);
+    if (full !== year) {
+      return title;
+    }
+  }
+  return title.slice(match[0].length).trim();
 }

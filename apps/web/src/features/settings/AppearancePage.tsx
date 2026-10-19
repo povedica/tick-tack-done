@@ -1,3 +1,4 @@
+import { AppearanceExtras } from '../places/Places';
 import { useMessages } from '../../i18n';
 import { useThemePreference } from '../../theme/store';
 import type { ThemePreference } from '../../theme/preference';
@@ -15,15 +16,17 @@ export function AppearancePage() {
   };
 
   return (
-    <section className="page">
+    <section className="token-settings">
       <header className="page-header">
         <div>
           <h1>{messages.appearanceTitle}</h1>
           <p className="lede">{messages.appearanceHint}</p>
         </div>
       </header>
-      <div className="settings-choice">
-        <p>{messages.themeLabel}</p>
+      <section className="token-panel">
+        <div className="token-panel-head">
+          <h2>{messages.themeLabel}</h2>
+        </div>
         <div className="segmented" role="radiogroup" aria-label={messages.themeLabel}>
           {OPTIONS.map((option) => (
             <button
@@ -39,7 +42,8 @@ export function AppearancePage() {
             </button>
           ))}
         </div>
-      </div>
+      </section>
+      <AppearanceExtras />
     </section>
   );
 }

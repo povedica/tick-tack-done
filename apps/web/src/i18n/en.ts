@@ -193,7 +193,7 @@ export const en = {
   entityToken: 'Token',
   paletteHint: 'Search with / or Ctrl/Cmd+K.',
   smartListsTitle: 'Smart lists',
-  smartListsHint: 'They belong to the system: you can enable and reorder them, not delete them.',
+  smartListsHint: 'Choose which lists appear in the sidebar and drag them to reorder. Changes save on their own.',
   smartEnabled: 'Visible',
   smartMoveUp: 'Move up',
   smartMoveDown: 'Move down',
