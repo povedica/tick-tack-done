@@ -10,7 +10,7 @@ se parezca y se comporte como TickTick. Esto no reescribe tareas ya importadas.
   «+ Añadir tarea» de la lista. Ya no abren el formulario de captura en la columna
   derecha del grid, sin caja ni fondo.
 - Si la vista no tiene ese campo, la captura se abre como diálogo centrado.
-- El lateral pasa a un azul continuo, con la fila activa en pastilla clara, como TickTick.
+- El lateral claro es `#f2f5fe` y el carril de iconos `#4772fa`, como el tema medido de TickTick. La fila activa es una pastilla clara.
 - En Hoy, una tarea de hoy dice «Hoy» y no la fecha numérica. Como mucho se ven dos etiquetas.
 
 ## Sidebar

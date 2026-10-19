@@ -1,5 +1,6 @@
+import type { ViewPage } from '@reflexionia/sdk';
 import { describe, expect, it } from 'vitest';
-import { quadrantOf, smartApiKey, type RowModel } from './model';
+import { quadrantOf, rowFromView, rowsFromView, smartApiKey, type RowModel } from './model';
 
 const row = {
   priority: 'high',
@@ -19,5 +20,25 @@ describe('task view helpers', () => {
     expect(
       quadrantOf('low', '2026-10-30T12:00:00.000Z', new Date('2026-10-18T12:00:00.000Z')),
     ).toBe('drop');
+  });
+
+  it('does not crash when a smart-list task omits repeat_rule and tags', () => {
+    const task = {
+      id: '1',
+      title: 'Mañana',
+      priority: 'none',
+      due_date: null,
+      time_zone: 'Europe/Madrid',
+      project_id: 'inbox',
+      project_name: 'Bandeja',
+      column_id: null,
+      kind: 'task',
+      status: 'active',
+      checklist_progress: null,
+    } as unknown as ViewPage['groups'][number]['tasks'][number];
+    expect(rowFromView(task).repeat).toBe(false);
+    expect(rowFromView(task).tags).toEqual([]);
+    const page = { groups: [{ tasks: [task] }] } as ViewPage;
+    expect(rowsFromView(page)).toHaveLength(1);
   });
 });

@@ -22,23 +22,24 @@ export function AppearancePage() {
           <p className="lede">{messages.appearanceHint}</p>
         </div>
       </header>
-      <fieldset className="theme-options">
-        <legend>{messages.themeLabel}</legend>
-        {OPTIONS.map((option) => (
-          <label key={option}>
-            <input
-              type="radio"
-              name="theme"
-              value={option}
-              checked={preference === option}
-              onChange={() => {
+      <div className="settings-choice">
+        <p>{messages.themeLabel}</p>
+        <div className="segmented" role="radiogroup" aria-label={messages.themeLabel}>
+          {OPTIONS.map((option) => (
+            <button
+              key={option}
+              type="button"
+              className={preference === option ? 'is-active' : undefined}
+              aria-pressed={preference === option}
+              onClick={() => {
                 setPreference(option);
               }}
-            />
-            {labels[option]}
-          </label>
-        ))}
-      </fieldset>
+            >
+              {labels[option]}
+            </button>
+          ))}
+        </div>
+      </div>
     </section>
   );
 }

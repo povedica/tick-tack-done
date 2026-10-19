@@ -11,6 +11,9 @@ test -r "$env_file"
 
 cd "$root"
 
+GIT_COMMIT=$(git rev-parse --short HEAD)
+export GIT_COMMIT
+
 docker compose \
   -f deploy/production/docker-compose.yml \
   --env-file "$env_file" \

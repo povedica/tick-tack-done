@@ -245,7 +245,7 @@ a.task-title {
 }
 
 .task-date.is-today {
-  color: var(--ink-2);
+  color: var(--success);
 }
 
 .task-list-name {

@@ -3,6 +3,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
 import { App } from './app';
+import { ScreenBoundary } from './shell/ErrorBoundary';
 import { applyTheme, readThemePreference } from './theme/preference';
 import { applyPreferences, usePreferences } from './theme/preferences';
 import './styles/tokens.css';
@@ -37,7 +38,9 @@ if (root === null) {
 createRoot(root).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <App />
+      <ScreenBoundary>
+        <App />
+      </ScreenBoundary>
     </QueryClientProvider>
   </StrictMode>,
 );

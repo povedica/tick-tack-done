@@ -305,10 +305,48 @@
 
 .kanban-col {
   flex: 0 0 16rem;
+  min-width: 0;
   padding: var(--sp-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--surface-2);
+}
+
+.kanban-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px;
+  border-radius: 10px;
+  background: var(--surface);
+  text-align: left;
+}
+
+.kanban-card-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.kanban-card-title button {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.kanban-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  color: var(--ink-3);
+  font-size: 12px;
 }
 
 .kanban-col.is-over {
@@ -561,7 +599,7 @@
 }
 
 .task-date.is-today {
-  color: var(--ink-2);
+  color: var(--success);
 }
 
 .detail-panel {
@@ -570,14 +608,15 @@
   gap: 0;
   height: 100dvh;
   padding: 0;
+  position: relative;
   overflow: hidden;
   background: var(--surface);
   border-left: 1px solid var(--border);
 }
 
 .detail-panel textarea:not(.detail-title):not(.detail-content),
-.detail-panel input:not(.task-check),
-.detail-panel select,
+.detail-panel input:not(.task-check):not(.sr-only),
+.detail-panel select:not(.sr-only),
 .settings-layout input:not([type='radio']):not([type='checkbox']),
 .settings-layout select,
 .settings-layout textarea {
@@ -981,7 +1020,7 @@
   cursor: pointer;
 }
 
-.detail-panel select,
+.detail-panel select:not(.sr-only),
 .page-toolbar select {
   box-sizing: border-box;
   min-height: 40px;
@@ -1093,6 +1132,58 @@
   background: var(--surface);
   color: inherit;
   font: inherit;
+}
+
+.kanban-add input {
+  max-width: 100%;
+}
+
+.segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.segmented button {
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  padding: 6px 14px;
+  cursor: pointer;
+}
+
+.segmented button.is-active {
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.accent-swatches {
+  display: flex;
+  gap: 8px;
+}
+
+.accent-swatches button {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.accent-swatches button.is-active {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.settings-choice {
+  margin: 0 0 var(--sp-4);
+}
+
+.settings-choice > p {
+  margin: 0 0 var(--sp-2);
 }
 
 .screen-page label,
@@ -1208,7 +1299,7 @@
 
 .kanban-add input {
   width: 100%;
-  max-width: none;
+  max-width: 100%;
 }
 
 mark {

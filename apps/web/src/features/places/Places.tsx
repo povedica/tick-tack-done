@@ -16,7 +16,7 @@ import { useActionToast } from '../../components/action-toast';
 import { Button, EmptyState, ErrorState, Kbd, SkeletonRows } from '../../components/ui';
 import { fill, useMessages, type Messages } from '../../i18n';
 import { SHORTCUT_ROWS } from '../../shell/shortcuts';
-import { useLocale } from '../../i18n/locale';
+import { useAppLocale, useLocale } from '../../i18n/locale';
 import { usePreferences, type AccentId } from '../../theme/preferences';
 import { collectTags } from '../tasks/collect';
 import { quadrantOf, rowFromTask, smartApiKey, type RowModel } from '../tasks/model';
@@ -26,6 +26,7 @@ import { collectTasks } from '../today/board';
 import { TaskList } from '../tasks/TaskList';
 import {
   dayFromParam,
+  isCalendarOverdue,
   localToday,
   monthCells,
   monthQueryRange,
@@ -35,10 +36,19 @@ import {
 } from './month';
 
 const ACCENTS: readonly AccentId[] = ['indigo', 'violet', 'teal', 'amber', 'rose', 'slate'];
+const ACCENT_COLOR: Readonly<Record<AccentId, string>> = {
+  indigo: '#4772fa',
+  violet: '#7c3aed',
+  teal: '#0f766e',
+  amber: '#b45309',
+  rose: '#be123c',
+  slate: '#44403c',
+};
 const CAL_VIEWS = ['day', 'week', 'multi-day', 'multi-week', 'month', 'year', 'agenda'] as const;
 
 export function InboxPage() {
   const messages = useMessages();
+  const locale = useAppLocale();
   const queryClient = useQueryClient();
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
   const inbox = projects.data?.items.find((project) => project.is_inbox);
@@ -135,7 +145,7 @@ export function InboxPage() {
           <TaskList
             messages={messages}
             rows={rows}
-            locale={navigator.language}
+            locale={locale}
             view="list"
             createProjectId={inbox?.id}
             onComplete={(row) => {
@@ -246,6 +256,7 @@ function ProcessCard({
 
 export function CalendarPage() {
   const messages = useMessages();
+  const locale = useAppLocale();
   const queryClient = useQueryClient();
   const { view } = useParams();
   const [params] = useSearchParams();
@@ -268,9 +279,7 @@ export function CalendarPage() {
   const dated = (tasks.data ?? []).filter((task) => task.due_date !== null && task.kind === 'task');
   const selected = params.get('date');
   const day = current === 'day' ? (dayFromParam(selected ?? '') ?? localToday(new Date())) : null;
-  const title = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(
-    cursor,
-  );
+  const title = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(cursor);
   return (
     <section className="screen-page is-wide">
       <header className="cal-toolbar">
@@ -317,7 +326,7 @@ export function CalendarPage() {
         <TaskList
           messages={messages}
           rows={tasksOnCell(dated, day).map((task) => rowFromTask(task, new Map(), new Map()))}
-          locale={navigator.language}
+          locale={locale}
           view="list"
           hideCompleted={false}
           onComplete={(row) => {
@@ -377,10 +386,10 @@ function Month({
   readonly weekStart: 'monday' | 'sunday';
   readonly cursor: Date;
 }) {
-  const locale = navigator.language;
+  const locale = useAppLocale();
   const todayKey = localKey(new Date());
   const cells = monthCells(cursor, weekStart);
-  const weekday = new Intl.DateTimeFormat(undefined, { weekday: 'short' });
+  const weekday = new Intl.DateTimeFormat(locale, { weekday: 'short' });
   const heads = Array.from({ length: 7 }, (_, index) => {
     const day = new Date(2026, 0, weekStart === 'monday' ? 5 + index : 4 + index);
     return weekday.format(day);
@@ -420,13 +429,13 @@ function Month({
               <Link
                 key={task.id}
                 className={
-                  new Date(task.due_date ?? '').getTime() < Date.now()
+                  isCalendarOverdue(task.due_date, task.time_zone, new Date())
                     ? 'cal-pill is-overdue'
                     : 'cal-pill'
                 }
                 to={`/list/${task.project_id}?task=${task.id}`}
               >
-                {task.title.trim().length === 0 ? messages.untitled : task.title}
+                {chipLabel(task, messages.untitled, locale)}
               </Link>
             ))}
             {hidden > 0 ? (
@@ -468,7 +477,11 @@ function CalendarExtras({ messages }: { readonly messages: Messages }) {
   const external = Array.isArray(events.data?.external) ? events.data.external : [];
   return (
     <>
-      <p className="ui-muted">{messages.externalEmpty}</p>
+      {external.length === 0 ? (
+        <p className="ui-muted">
+          <Link to="/settings/calendar">{messages.externalEmpty}</Link>
+        </p>
+      ) : null}
       {external.filter(isRecord).map((event) => (
         <p key={typeof event.id === 'string' ? event.id : 'event'}>
           {typeof event.title === 'string' ? event.title : ''}
@@ -476,6 +489,20 @@ function CalendarExtras({ messages }: { readonly messages: Messages }) {
       ))}
     </>
   );
+}
+
+function chipLabel(task: Task, untitled: string, locale: string): string {
+  const title = task.title.trim().length === 0 ? untitled : task.title;
+  if (task.is_all_day || task.due_date === null) {
+    return title;
+  }
+  const time = new Intl.DateTimeFormat(locale, {
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+    timeZone: task.time_zone,
+  }).format(new Date(task.due_date));
+  return `${time} ${title}`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -668,6 +695,7 @@ function searchRow(item: unknown): RowModel | null {
 
 export function SearchPage() {
   const messages = useMessages();
+  const locale = useAppLocale();
   const queryClient = useQueryClient();
   const [params, setParams] = useSearchParams();
   const q = params.get('q') ?? '';
@@ -703,7 +731,7 @@ export function SearchPage() {
                 const row = searchRow(item);
                 return row === null ? [] : [row];
               })}
-              locale={navigator.language}
+              locale={locale}
               view="list"
               hideCompleted={false}
               onComplete={(row) => {
@@ -1305,47 +1333,49 @@ export function AppearanceExtras() {
   const setWeek = usePreferences((state) => state.setWeekStart);
   return (
     <section>
-      <p>{messages.appearanceSaved}</p>
-      <fieldset>
-        <legend>{messages.density}</legend>
-        <p>{messages.densityHint}</p>
-        <label>
-          <input
-            type="radio"
-            checked={density === 'comfortable'}
-            onChange={() => {
+      <div className="settings-choice">
+        <p>{messages.density}</p>
+        <div className="segmented" role="radiogroup" aria-label={messages.density}>
+          <button
+            type="button"
+            className={density === 'comfortable' ? 'is-active' : undefined}
+            aria-pressed={density === 'comfortable'}
+            onClick={() => {
               setDensity('comfortable');
             }}
-          />
-          {messages.densityComfortable}
-        </label>
-        <label>
-          <input
-            type="radio"
-            checked={density === 'compact'}
-            onChange={() => {
+          >
+            {messages.densityComfortable}
+          </button>
+          <button
+            type="button"
+            className={density === 'compact' ? 'is-active' : undefined}
+            aria-pressed={density === 'compact'}
+            onClick={() => {
               setDensity('compact');
             }}
-          />
-          {messages.densityCompact}
-        </label>
-      </fieldset>
-      <fieldset>
-        <legend>{messages.accent}</legend>
-        <p>{messages.accentHint}</p>
-        {ACCENTS.map((item) => (
-          <label key={item}>
-            <input
-              type="radio"
-              checked={accent === item}
-              onChange={() => {
+          >
+            {messages.densityCompact}
+          </button>
+        </div>
+      </div>
+      <div className="settings-choice">
+        <p>{messages.accent}</p>
+        <div className="accent-swatches" role="radiogroup" aria-label={messages.accent}>
+          {ACCENTS.map((item) => (
+            <button
+              key={item}
+              type="button"
+              className={accent === item ? 'is-active' : undefined}
+              style={{ background: ACCENT_COLOR[item] }}
+              aria-label={item}
+              aria-pressed={accent === item}
+              onClick={() => {
                 setAccent(item);
               }}
             />
-            {item}
-          </label>
-        ))}
-      </fieldset>
+          ))}
+        </div>
+      </div>
       <fieldset>
         <legend>{messages.weekStart}</legend>
         <p>{messages.weekStartHint}</p>

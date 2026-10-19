@@ -354,6 +354,7 @@ describe('recurrence', () => {
     expect(describeRepeatRule('RRULE:FREQ=WEEKLY;BYDAY=MO,WE')).toBe(
       'Cada semana los lunes y miércoles',
     );
+    expect(describeRepeatRule('RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR')).toBe('Cada día laborable');
     expect(describeRepeatRule('RRULE:FREQ=YEARLY;INTERVAL=2')).toBe('Cada 2 años');
     expect(describeRepeatRule('nope')).toBeNull();
     expect(

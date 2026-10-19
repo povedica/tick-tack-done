@@ -2549,6 +2549,38 @@
         ]
       }
     },
+    "/api/v1/tasks/trash/{id}": {
+      "delete": {
+        "operationId": "TasksController_purge",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Permanently delete one trashed task",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
     "/api/v1/tasks/trash/{id}/restore": {
       "post": {
         "operationId": "TasksController_restore",
@@ -4471,7 +4503,21 @@
       },
       "get": {
         "operationId": "FocusController_list",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "active",
+                "completed",
+                "aborted"
+              ],
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -6066,10 +6112,15 @@
             "enum": [
               "ok"
             ]
+          },
+          "commit": {
+            "type": "object",
+            "example": "unknown"
           }
         },
         "required": [
-          "status"
+          "status",
+          "commit"
         ]
       },
       "HabitGoalDto": {

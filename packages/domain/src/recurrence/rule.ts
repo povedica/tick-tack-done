@@ -210,9 +210,19 @@ export function describeRepeatRule(rule: string): string | null {
   if (freq === 'DAILY') {
     label = interval === 1 ? 'Cada día' : `Cada ${String(interval)} días`;
   } else if (freq === 'WEEKLY') {
-    const days = byDay.map((item) => WEEKDAY_ES[item.day]);
-    const when = days.length > 0 ? ` los ${joinEs(days)}` : '';
-    label = interval === 1 ? `Cada semana${when}` : `Cada ${String(interval)} semanas${when}`;
+    const codes = byDay.map((item) => item.day);
+    const workdays: readonly Weekday[] = ['MO', 'TU', 'WE', 'TH', 'FR'];
+    if (
+      interval === 1 &&
+      codes.length === workdays.length &&
+      workdays.every((day) => codes.includes(day))
+    ) {
+      label = 'Cada día laborable';
+    } else {
+      const days = codes.map((day) => WEEKDAY_ES[day]);
+      const when = days.length > 0 ? ` los ${joinEs(days)}` : '';
+      label = interval === 1 ? `Cada semana${when}` : `Cada ${String(interval)} semanas${when}`;
+    }
   } else if (freq === 'MONTHLY') {
     const nth = byDay[0];
     if (nth?.nth !== null && nth !== undefined) {

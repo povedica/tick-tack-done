@@ -375,7 +375,9 @@ function TaskRow({
         }
       }}
     >
-      {trash ? null : <GripVertical className="task-grip" size={12} aria-hidden="true" />}
+      {trash || !manualOrder ? null : (
+        <GripVertical className="task-grip" size={12} aria-hidden="true" />
+      )}
       {trash ? (
         <span className="task-trash-actions">
           <button
@@ -416,7 +418,11 @@ function TaskRow({
       )}
       <button type="button" className="task-title" onClick={onOpen}>
         {row.kind === 'note' ? <span className="ui-badge">{messages.noteBadge}</span> : null}{' '}
-        {shownTitle(row.title, named.map((tag) => tag.name), messages.untitled)}
+        {shownTitle(
+          row.title,
+          named.map((tag) => tag.name),
+          messages.untitled,
+        )}
       </button>
       <span className="task-meta">
         {shown.map((tag) => (
@@ -455,7 +461,22 @@ function TaskRow({
         {row.source === 'email' ? <span title={messages.sourceEmail}>✉</span> : null}
         {row.source === 'api' ? <span title={messages.sourceApi}>API</span> : null}
         {when !== null ? (
-          <time className={dateClass} dateTime={when} title={new Date(when).toLocaleString(locale)}>
+          <time
+            className={dateClass}
+            dateTime={when}
+            title={
+              done
+                ? messages.completedOn.replace(
+                    '{date}',
+                    new Date(when).toLocaleDateString(locale, {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    }),
+                  )
+                : new Date(when).toLocaleString(locale)
+            }
+          >
             {formatRowDate(when, locale, now, done, messages)}
           </time>
         ) : null}
@@ -538,30 +559,43 @@ function Kanban({
             {items.map((row) => (
               <article
                 key={row.id}
+                className="kanban-card"
                 draggable
                 onDragStart={(event) => {
                   event.dataTransfer.setData('text/plain', row.id);
                 }}
               >
-                <PriorityCheck
-                  priority={row.priority}
-                  label={fill(messages.completeLabel, row.title)}
-                  onChange={() => {
-                    onComplete(row);
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    onOpen(row.id);
-                  }}
-                >
-                  {shownTitle(
-                    row.title,
-                    row.tags.map((tag) => tag.name),
-                    messages.untitled,
-                  )}
-                </button>
+                <div className="kanban-card-title">
+                  <PriorityCheck
+                    priority={row.priority}
+                    label={fill(messages.completeLabel, row.title)}
+                    onChange={() => {
+                      onComplete(row);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onOpen(row.id);
+                    }}
+                  >
+                    {shownTitle(
+                      row.title,
+                      row.tags.map((tag) => tag.name),
+                      messages.untitled,
+                    )}
+                  </button>
+                </div>
+                <p className="kanban-card-meta">
+                  {row.tags.slice(0, 2).map((tag) => (
+                    <TagChip key={tag.id} label={tag.name} color={tag.color} />
+                  ))}
+                  {row.dueDate !== null ? (
+                    <time dateTime={row.dueDate}>
+                      {formatRowDate(row.dueDate, navigator.language, new Date(), false, messages)}
+                    </time>
+                  ) : null}
+                </p>
               </article>
             ))}
           </section>
@@ -751,7 +785,7 @@ function formatRowDate(
     month: 'short',
     ...(date.getFullYear() === now.getFullYear() ? {} : { year: 'numeric' }),
   }).format(date);
-  return done ? messages.completedOn.replace('{date}', formatted) : formatted;
+  return formatted;
 }
 
 function shownTitle(title: string, tagNames: readonly string[], untitled: string): string {

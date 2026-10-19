@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
@@ -15,6 +15,10 @@ function itemsOf(value: unknown): readonly Record<string, unknown>[] {
 
 function isRow(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
+}
+
+function numberOf(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
 function idCount(value: unknown, key: string): number {
@@ -204,11 +208,19 @@ export function FocusPage() {
     queryKey: ['focus-settings'],
     queryFn: () => api.getFocusSettings(),
   });
-  const open = itemsOf(sessions.data).find((row) => row.ended_at === null);
-  const started = typeof open?.started_at === 'string' ? open.started_at : null;
+  const stats = useQuery({ queryKey: ['focus-stats'], queryFn: () => api.focusStats() });
+  const watched = useRef<string | null>(null);
+  const closing = useRef<string | null>(null);
+  const rows = itemsOf(sessions.data);
+  const live = rows.find((row) => row.ended_at === null && numberOf(row.remaining_seconds) > 0);
+  const stale = rows.find((row) => row.ended_at === null && numberOf(row.remaining_seconds) <= 0);
+  if (typeof live?.id === 'string') {
+    watched.current = live.id;
+  }
+  const started = typeof live?.started_at === 'string' ? live.started_at : null;
   const planned =
-    typeof open?.planned_minutes === 'number'
-      ? open.planned_minutes
+    typeof live?.planned_minutes === 'number'
+      ? live.planned_minutes
       : typeof settings.data?.pomodoroMinutes === 'number'
         ? settings.data.pomodoroMinutes
         : 25;
@@ -229,6 +241,29 @@ export function FocusPage() {
       ? planned * 60
       : Math.max(0, planned * 60 - Math.floor((now - Date.parse(started)) / 1000));
   useEffect(() => {
+    const id = typeof stale?.id === 'string' ? stale.id : null;
+    if (id === null || closing.current === id) {
+      return;
+    }
+    closing.current = id;
+    const close = watched.current === id ? api.finishFocus(id) : api.abortFocus(id);
+    void close.then(() => {
+      void queryClient.invalidateQueries({ queryKey: ['focus-sessions'] });
+      void queryClient.invalidateQueries({ queryKey: ['focus-stats'] });
+    });
+  }, [queryClient, stale]);
+  useEffect(() => {
+    const id = typeof live?.id === 'string' ? live.id : null;
+    if (id === null || remaining > 0 || closing.current === id) {
+      return;
+    }
+    closing.current = id;
+    void api.finishFocus(id).then(() => {
+      void queryClient.invalidateQueries({ queryKey: ['focus-sessions'] });
+      void queryClient.invalidateQueries({ queryKey: ['focus-stats'] });
+    });
+  }, [live, queryClient, remaining]);
+  useEffect(() => {
     if (started === null || remaining > 0) {
       return;
     }
@@ -237,10 +272,17 @@ export function FocusPage() {
     }
     document.title = messages.focusDone;
   }, [messages.focusDone, remaining, started]);
+  const pomodoros = numberOf(stats.data?.completed_pomodoros);
+  const minutes = Math.round(numberOf(stats.data?.focus_seconds) / 60);
+  const streak = numberOf(stats.data?.streak_days);
   return (
     <section className="screen-page">
       <h1>{messages.focusTitle}</h1>
       <p>{messages.focusHint}</p>
+      <p className="ui-muted">
+        {messages.streakLabel} {String(streak)} · {messages.focusPomodoros} {String(pomodoros)} ·{' '}
+        {messages.focusMinutes} {String(minutes)}
+      </p>
       <p className="detail-title">{clock(remaining)}</p>
       {started === null ? (
         <div className="page-toolbar">
@@ -259,13 +301,14 @@ export function FocusPage() {
         </div>
       ) : null}
       <div className="page-toolbar">
-        {typeof open?.id === 'string' ? (
+        {typeof live?.id === 'string' ? (
           <>
             <Button
               variant="primary"
               onClick={() => {
-                void api.finishFocus(open.id as string).then(() => {
+                void api.finishFocus(live.id as string).then(() => {
                   void queryClient.invalidateQueries({ queryKey: ['focus-sessions'] });
+                  void queryClient.invalidateQueries({ queryKey: ['focus-stats'] });
                 });
               }}
             >
@@ -273,8 +316,9 @@ export function FocusPage() {
             </Button>
             <Button
               onClick={() => {
-                void api.abortFocus(open.id as string).then(() => {
+                void api.abortFocus(live.id as string).then(() => {
                   void queryClient.invalidateQueries({ queryKey: ['focus-sessions'] });
+                  void queryClient.invalidateQueries({ queryKey: ['focus-stats'] });
                 });
               }}
             >

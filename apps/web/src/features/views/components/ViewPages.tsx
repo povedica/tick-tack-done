@@ -6,6 +6,7 @@ import { useParams, useSearchParams } from 'react-router';
 import { api } from '../../../api';
 import { ViewMenu } from '../../../components/ViewMenu';
 import { useMessages, type Messages } from '../../../i18n';
+import { useAppLocale } from '../../../i18n/locale';
 import { useShellActions } from '../../../shell/shell-actions';
 import { newMutation, runOrQueue } from '../../offline/client';
 import {
@@ -41,6 +42,7 @@ export function SmartListViewPage() {
       createViewDay={viewDayFor(listKey)}
       viewKey={`smart:${listKey}`}
       revealCompleted={listKey === 'completed' || listKey === 'trash'}
+      initialGroup={listKey === 'completed' || listKey === 'trash' ? 'section' : 'priority'}
     />
   );
 }
@@ -122,6 +124,7 @@ function Board({
   note = false,
   viewKey,
   revealCompleted = false,
+  initialGroup = 'section',
 }: {
   readonly messages: Messages;
   readonly title: string;
@@ -135,11 +138,13 @@ function Board({
   readonly note?: boolean | undefined;
   readonly viewKey: string;
   readonly revealCompleted?: boolean | undefined;
+  readonly initialGroup?: GroupBy | undefined;
 }) {
   const queryClient = useQueryClient();
+  const locale = useAppLocale();
   const shell = useShellActions();
   const [params, setParams] = useSearchParams();
-  const [groupBy, setGroupBy] = useState<GroupBy>('section');
+  const [groupBy, setGroupBy] = useState<GroupBy>(initialGroup);
   const [sort, setSort] = useState<Sort>('manual');
   const [details, setDetails] = useState(true);
   const [hideCompleted, setHideCompleted] = useState(!revealCompleted);
@@ -152,8 +157,10 @@ function Board({
     enabled,
     placeholderData: keepPreviousData,
   });
+  const showNotes = note || viewKey.startsWith('smart:');
+  const canCapture = !note && viewKey !== 'smart:trash' && viewKey !== 'smart:completed';
   const rows = rowsFromView(page.data)
-    .filter((row) => (note || viewKey === 'smart:trash' ? true : row.kind === 'task'))
+    .filter((row) => (showNotes ? true : row.kind === 'task'))
     .filter((row) => row.status !== 'archived')
     .map((row) =>
       inboxId !== undefined && row.projectId === inboxId
@@ -239,14 +246,14 @@ function Board({
       <TaskList
         messages={messages}
         rows={rows}
-        locale={navigator.language}
+        locale={locale}
         view={view}
         columns={columns}
         showDetails={details}
         hideCompleted={hideCompleted}
         manualOrder={sort === 'manual'}
         trash={viewKey === 'smart:trash'}
-        createProjectId={note ? undefined : createProjectId}
+        createProjectId={canCapture ? (createProjectId ?? inboxId) : undefined}
         createViewDay={createViewDay}
         onComplete={(row) => {
           if (row.status === 'completed') {
@@ -271,6 +278,7 @@ function Board({
 
 export function TagViewPage() {
   const messages = useMessages();
+  const locale = useAppLocale();
   const { id = '' } = useParams();
   const queryClient = useQueryClient();
   const tags = useQuery({ queryKey: ['tags'], queryFn: collectTags, staleTime: 5 * 60_000 });
@@ -287,9 +295,7 @@ export function TagViewPage() {
   const tag = tags.data?.items.find((item) => item.id === id);
   const names = new Map((projects.data?.items ?? []).map((project) => [project.id, project.name]));
   const tagNames = new Map((tags.data?.items ?? []).map((item) => [item.id, item.name]));
-  const rows = (tasks.data ?? [])
-    .filter((task) => task.kind === 'task')
-    .map((task) => rowFromTask(task, names, tagNames));
+  const rows = (tasks.data ?? []).map((task) => rowFromTask(task, names, tagNames));
   return (
     <main className="screen-page">
       <header className="today-header">
@@ -301,7 +307,7 @@ export function TagViewPage() {
       <TaskList
         messages={messages}
         rows={rows}
-        locale={navigator.language}
+        locale={locale}
         view="list"
         onComplete={(row) => {
           void api.completeTask(row.id, {}, crypto.randomUUID()).then(() => {

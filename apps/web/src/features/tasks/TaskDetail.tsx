@@ -1,13 +1,15 @@
 import { ApiError, type TaskDetail as Detail } from '@reflexionia/sdk';
+import { describeRepeatRule, parseTrigger } from '@reflexionia/domain';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Bell, Flag } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { api } from '../../api';
 import { PriorityCheck } from '../../components/PriorityCheck';
 import { Button } from '../../components/ui';
 import { DueField } from './DueField';
 import { fill, useMessages } from '../../i18n';
+import { useAppLocale } from '../../i18n/locale';
 import { useActionToast } from '../../components/action-toast';
 import { collectTags } from './collect';
 import { refreshTaskSurfaces } from './refresh';
@@ -23,9 +25,10 @@ export function TaskDetail({
   readonly onClose: () => void;
 }) {
   const messages = useMessages();
+  const locale = useAppLocale();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const [, setParams] = useSearchParams();
   const showToast = useActionToast((state) => state.show);
   const [saved, setSaved] = useState(false);
@@ -223,12 +226,23 @@ export function TaskDetail({
             {messages.duplicate}
           </Button>
           <Button
+            variant="ghost"
+            onClick={() => {
+              void api
+                .startFocus({ task_id: task.id })
+                .then(() => {
+                  void navigate('/focus');
+                })
+                .catch((caught: unknown) => {
+                  setError(caught instanceof ApiError ? caught.message : messages.saveFailed);
+                });
+            }}
+          >
+            {messages.focusOnTask}
+          </Button>
+          <Button
             variant="danger"
             onClick={() => {
-              if (!confirmDelete) {
-                setConfirmDelete(true);
-                return;
-              }
               const id = task.id;
               void api.deleteTask(id).then(() => {
                 showToast(messages.movedToTrash, () => {
@@ -239,7 +253,7 @@ export function TaskDetail({
               });
             }}
           >
-            {confirmDelete ? messages.confirmDelete : messages.batchDelete}
+            {messages.batchDelete}
           </Button>
         </div>
         {error !== null ? <p role="alert">{error}</p> : null}
@@ -375,7 +389,7 @@ export function TaskDetail({
           <ul>
             {(reminders.data ?? []).map((reminder) => (
               <li key={reminder.id}>
-                {reminder.trigger} · {reminder.channel}
+                {humanTrigger(reminder.trigger, reminder.channel, messages, locale)}
                 <Button
                   variant="ghost"
                   onClick={() => {
@@ -414,7 +428,11 @@ export function TaskDetail({
         </section>
         <section>
           <h3>{messages.recurrence}</h3>
-          <p>{task.repeat_rule ?? messages.noRecurrence}</p>
+          <p>
+            {task.repeat_rule === null
+              ? messages.noRecurrence
+              : (describeRepeatRule(task.repeat_rule) ?? task.repeat_rule)}
+          </p>
           <div className="page-toolbar">
             <Button
               onClick={() => {
@@ -496,7 +514,7 @@ export function TaskDetail({
             {task.activity.map((entry) => (
               <li key={entry.id}>
                 {entry.actor_id === me.data?.id ? messages.actorYou : messages.actorOther} ·{' '}
-                {entry.action} · {relativeTime(entry.created_at, navigator.language)}
+                {entry.action} · {relativeTime(entry.created_at, locale)}
               </li>
             ))}
           </ul>
@@ -614,6 +632,36 @@ function priorityColor(priority: string): string {
     default:
       return 'var(--prio-none)';
   }
+}
+
+function humanTrigger(
+  trigger: string,
+  channel: string,
+  messages: ReturnType<typeof useMessages>,
+  locale: string,
+): string {
+  const parsed = parseTrigger(trigger);
+  let label = trigger;
+  if (parsed.ok && parsed.kind === 'relative') {
+    const minutes = Math.round(Math.abs(parsed.offsetMs) / 60_000);
+    if (minutes === 30) {
+      label = messages.reminder30;
+    } else if (minutes === 60) {
+      label = messages.reminderHour;
+    } else if (minutes === 1440) {
+      label = messages.reminderDay;
+    } else if (minutes > 0 && minutes % 60 === 0) {
+      label = `${String(minutes / 60)} h`;
+    } else if (minutes > 0) {
+      label = `${String(minutes)} min`;
+    }
+  } else if (parsed.ok) {
+    label = new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(
+      new Date(parsed.at),
+    );
+  }
+  const shown = channel.trim();
+  return shown.length > 0 && shown !== 'push' ? `${label} · ${shown}` : label;
 }
 
 function relativeTime(iso: string, locale: string): string {

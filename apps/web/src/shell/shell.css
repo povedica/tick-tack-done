@@ -1,7 +1,10 @@
 .shell {
   display: grid;
   grid-template-columns: var(--sidebar-rail) var(--sidebar-w) minmax(0, 1fr) 0;
+  width: 100%;
+  max-width: 100vw;
   min-height: 100dvh;
+  overflow-x: clip;
   background: var(--bg);
   color: var(--ink);
 }
@@ -36,6 +39,8 @@
 .shell > .detail-panel {
   grid-column: 4;
   grid-row: 1;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .shell > .sheet {
@@ -63,7 +68,8 @@
 .sidebar > nav {
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .brand {
@@ -134,9 +140,18 @@
   list-style: none;
 }
 
+.nav-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .nav-link {
   display: flex;
   align-items: center;
+  min-width: 0;
   gap: 8px;
   height: 36px;
   min-height: 36px;

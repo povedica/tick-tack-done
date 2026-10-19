@@ -1,8 +1,12 @@
+import { calendarDateKey } from '@reflexionia/domain';
+
 export interface DatedTask {
   readonly id: string;
   readonly title: string;
   readonly due_date: string | null;
   readonly project_id: string;
+  readonly time_zone?: string | null;
+  readonly is_all_day?: boolean;
 }
 
 export function monthCells(now: Date, weekStart: 'monday' | 'sunday'): Date[] {
@@ -46,12 +50,26 @@ export function localToday(now: Date): Date {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate());
 }
 
-export function tasksOnCell<T extends { due_date: string | null }>(
+export function tasksOnCell<T extends { due_date: string | null; time_zone?: string | null }>(
   tasks: readonly T[],
   day: Date,
+  timeZone = 'Europe/Madrid',
 ): T[] {
-  const key = cellKey(day);
-  return tasks.filter((task) => (task.due_date ?? '').slice(0, 10) === key);
+  const key = localDateParam(day);
+  return tasks.filter((task) => {
+    if (task.due_date === null || task.due_date.length === 0) {
+      return false;
+    }
+    return calendarDateKey(task.due_date, task.time_zone ?? timeZone) === key;
+  });
+}
+
+/** A task is overdue only when its local day is before today. Today stays neutral. */
+export function isCalendarOverdue(due: string | null, timeZone: string, now: Date): boolean {
+  if (due === null || due.length === 0) {
+    return false;
+  }
+  return calendarDateKey(due, timeZone) < localDateParam(now);
 }
 
 /** dueAfter is exclusive (gt) and dueBefore is exclusive (lt). Covers every cell, including padding. */

@@ -21,6 +21,15 @@ interface LocaleStore {
   setChoice: (choice: LocaleChoice) => void;
 }
 
+export function resolveLocale(choice: LocaleChoice): string {
+  return choice === 'auto' ? navigator.language : choice;
+}
+
+export function useAppLocale(): string {
+  const choice = useLocale((state) => state.choice);
+  return resolveLocale(choice);
+}
+
 export const useLocale = create<LocaleStore>((set) => ({
   choice: read(),
   setChoice: (choice) => {

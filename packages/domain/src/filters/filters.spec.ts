@@ -326,6 +326,7 @@ describe('smart lists', () => {
     expect(
       matchesSmartList('recently_added', subject({ createdAt: '2026-09-16T22:00:00.000Z' }), input),
     ).toBe(true);
+    expect(matchesSmartList('recently_added', subject({ status: 'completed' }), input)).toBe(false);
     expect(
       matchesSmartList('recently_added', subject({ createdAt: '2026-09-16T21:59:59.000Z' }), input),
     ).toBe(false);

@@ -88,8 +88,9 @@ function rulesFor(key: SmartListKey, input: SmartListInput): FilterRules {
     case 'completed':
       return and(completed());
     case 'trash':
-    case 'recently_added':
       return { combinator: 'AND', groups: [{ combinator: 'AND', conditions: [] }] };
+    case 'recently_added':
+      return and(active());
     case 'no_date':
       return and(date('no_date'), active());
     default: {

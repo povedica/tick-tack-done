@@ -11,6 +11,7 @@
 
 body {
   margin: 0;
+  overflow-x: clip;
   font-size: var(--fs-base);
   line-height: var(--lh-base);
 }
@@ -274,8 +275,12 @@ h1 {
   position: absolute;
   width: 1px;
   height: 1px;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
   overflow: hidden;
   clip: rect(0 0 0 0);
+  border: 0;
 }
 
 .screen {

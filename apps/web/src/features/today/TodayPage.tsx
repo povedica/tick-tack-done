@@ -7,6 +7,7 @@ import { UndoToastStack } from '../../components/UndoToast';
 import { ViewMenu } from '../../components/ViewMenu';
 import { api } from '../../api';
 import { captureLanguage, fill, useMessages, type Messages } from '../../i18n';
+import { useAppLocale } from '../../i18n/locale';
 import { warningText } from '../capture/components/CaptureSheet';
 import { noticesFrom, openTaskComposer, useCaptureNotice } from '../capture/notice';
 import { useActionToast } from '../../components/action-toast';
@@ -37,7 +38,7 @@ const GROUP_KEY = 'tick-tack-done.today.group';
 export function TodayPage() {
   const messages = useMessages();
   const shell = useShellActions();
-  const locale = navigator.language;
+  const locale = useAppLocale();
   const queryClient = useQueryClient();
   const notice = useCaptureNotice((state) => state.notice);
   const setNotice = useCaptureNotice((state) => state.setNotice);
@@ -661,18 +662,18 @@ function TaskGroup({
                 </button>
                 <span className="task-meta">
                   {namedTags.slice(0, 2).map((tag) => (
-                      <Link
-                        key={tag.id}
-                        to={`/tag/${tag.id}`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                        }}
-                      >
-                        <span className="ui-tag" style={tagStyle(tagColors.get(tag.id) ?? null)}>
-                          {tag.name}
-                        </span>
-                      </Link>
-                    ))}
+                    <Link
+                      key={tag.id}
+                      to={`/tag/${tag.id}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                      }}
+                    >
+                      <span className="ui-tag" style={tagStyle(tagColors.get(tag.id) ?? null)}>
+                        {tag.name}
+                      </span>
+                    </Link>
+                  ))}
                   {namedTags.length > 2 ? (
                     <span className="task-tag-more">+{namedTags.length - 2}</span>
                   ) : null}
