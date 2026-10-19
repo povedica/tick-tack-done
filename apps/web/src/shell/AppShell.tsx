@@ -4,6 +4,7 @@ import { LocationWatch } from '../features/product/ProductPages';
 import { TaskDetail } from '../features/tasks/TaskDetail';
 import { useQueryClient } from '@tanstack/react-query';
 import { useActionToast } from '../components/action-toast';
+import '../components/toast.css';
 import { CaptureSheet } from '../features/capture/components/CaptureSheet';
 import { openTaskComposer, useCaptureOpen } from '../features/capture/notice';
 import { refreshTaskSurfaces } from '../features/tasks/refresh';
@@ -203,7 +204,7 @@ function ActionToast() {
     if (text === null) {
       return;
     }
-    const id = window.setTimeout(clear, 6000);
+    const id = window.setTimeout(clear, 4000);
     return () => {
       window.clearTimeout(id);
     };
@@ -212,20 +213,22 @@ function ActionToast() {
     return null;
   }
   return (
-    <p className="action-toast" role="status">
-      {text}
-      {undo === null ? null : (
-        <button
-          type="button"
-          onClick={() => {
-            undo();
-            clear();
-          }}
-        >
-          {messages.undo}
-        </button>
-      )}
-    </p>
+    <div className="toast-stack">
+      <p className="toast" role="status">
+        <span>{text}</span>
+        {undo === null ? null : (
+          <button
+            type="button"
+            onClick={() => {
+              undo();
+              clear();
+            }}
+          >
+            {messages.undo}
+          </button>
+        )}
+      </p>
+    </div>
   );
 }
 
