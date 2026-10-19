@@ -55,6 +55,7 @@ import { TaskContextMenu } from './TaskContextMenu';
 import { TaskGroup } from './TaskGroup';
 import { countdownsApi } from '../countdowns/api';
 import { countdownLabel } from '../countdowns/presentation';
+import { TodayAgenda } from './TodayAgenda';
 
 const GROUP_KEY = 'tick-tack-done.today.group';
 const SORT_KEY = 'tick-tack-done.today.sort';
@@ -627,6 +628,7 @@ export function TodayPage() {
           </ViewMenu>
         </div>
       </header>
+      <TodayAgenda />
       <form
         className="quick-add"
         onSubmit={(event) => {

@@ -242,6 +242,71 @@ export const MCP_TOOLS: readonly McpTool[] = [
     scopes: ['tasks:read'],
     inputSchema: objectSchema({}),
   },
+  {
+    name: 'list_external_calendars',
+    description:
+      'List read-only external calendars. Events cannot be edited. With include_available, also list Google calendars that can be added. Times elsewhere are ISO 8601 with an offset.',
+    scopes: ['calendar:read'],
+    inputSchema: objectSchema({ include_available: { type: 'boolean' } }),
+  },
+  {
+    name: 'list_calendar_events',
+    description:
+      'List tasks and read-only external events in a range. External events cannot be edited. Times are ISO 8601 with an offset, in the user time zone when the event is all-day.',
+    scopes: ['calendar:read'],
+    inputSchema: objectSchema(
+      {
+        from: { type: 'string', format: 'date-time' },
+        to: { type: 'string', format: 'date-time' },
+        include_external: { type: 'boolean' },
+        subscription_id: id,
+      },
+      ['from', 'to'],
+    ),
+  },
+  {
+    name: 'add_external_calendar',
+    description:
+      'Subscribe to a Google calendar or an iCal URL and run the initial read-only sync. External events cannot be edited.',
+    scopes: ['calendar:write'],
+    inputSchema: objectSchema(
+      {
+        provider: { type: 'string', enum: ['google', 'ical'] },
+        calendar_id: { type: 'string', minLength: 1, maxLength: 1024 },
+        url: { type: 'string', minLength: 1, maxLength: 2000 },
+        color: { type: 'string' },
+        visible: { type: 'boolean' },
+      },
+      ['provider'],
+    ),
+  },
+  {
+    name: 'sync_calendar',
+    description:
+      'Sync one external calendar, or every external calendar when subscription_id is omitted. Read-only for Google events.',
+    scopes: ['calendar:write'],
+    inputSchema: objectSchema({ subscription_id: id }),
+  },
+  {
+    name: 'update_external_calendar',
+    description: 'Rename, recolor or hide an external calendar. Hiding keeps the events stored.',
+    scopes: ['calendar:write'],
+    inputSchema: objectSchema(
+      {
+        id,
+        summary: { type: 'string', minLength: 1, maxLength: 200 },
+        color: { type: 'string' },
+        visible: { type: 'boolean' },
+      },
+      ['id'],
+    ),
+  },
+  {
+    name: 'remove_external_calendar',
+    description: 'Soft-delete an external calendar and its events.',
+    scopes: ['calendar:write'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
 ];
 
 export function findTool(name: string): McpTool | undefined {

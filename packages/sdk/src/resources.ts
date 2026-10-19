@@ -233,6 +233,13 @@ export interface ResourceClient {
   applyPlan(id: string, body: JsonObject, idempotencyKey: string): Promise<JsonObject>;
   dayPlan(date: string, timeZone: string): Promise<JsonObject>;
   calendarEvents(from: string, to: string): Promise<JsonObject>;
+  listGoogleCalendars(): Promise<readonly JsonObject[]>;
+  listCalendarSubscriptions(): Promise<JsonObject>;
+  createCalendarSubscription(body: JsonObject): Promise<JsonObject>;
+  updateCalendarSubscription(id: string, body: JsonObject): Promise<JsonObject>;
+  refreshCalendarSubscription(id: string): Promise<JsonObject>;
+  deleteCalendarSubscription(id: string): Promise<void>;
+  syncCalendars(): Promise<JsonObject>;
   matrixRules(): Promise<JsonObject>;
   saveMatrixRule(body: JsonObject): Promise<JsonObject>;
   startFocus(body?: JsonObject): Promise<JsonObject>;
@@ -476,6 +483,26 @@ export function resourceMethods(http: Http): ResourceClient {
         undefined,
         isJsonObject,
       ),
+    listGoogleCalendars: () =>
+      ask('GET', '/api/v1/calendar/google/calendars', undefined, undefined, isJsonList),
+    listCalendarSubscriptions: () =>
+      ask('GET', '/api/v1/calendar/subscriptions', undefined, undefined, isJsonObject),
+    createCalendarSubscription: (body) =>
+      ask('POST', '/api/v1/calendar/subscriptions', body, crypto.randomUUID(), isJsonObject),
+    updateCalendarSubscription: (id, body) =>
+      ask('PATCH', `/api/v1/calendar/subscriptions/${id}`, body, crypto.randomUUID(), isJsonObject),
+    refreshCalendarSubscription: (id) =>
+      ask(
+        'POST',
+        `/api/v1/calendar/subscriptions/${id}/refresh`,
+        undefined,
+        undefined,
+        isJsonObject,
+      ),
+    async deleteCalendarSubscription(id) {
+      await ask('DELETE', `/api/v1/calendar/subscriptions/${id}`, undefined, undefined, isEmpty);
+    },
+    syncCalendars: () => ask('POST', '/api/v1/calendar/sync', undefined, undefined, isJsonObject),
     matrixRules: () => ask('GET', '/api/v1/matrix/rules', undefined, undefined, isJsonObject),
     saveMatrixRule: (body) => ask('PUT', '/api/v1/matrix/rules', body, undefined, isJsonObject),
     startFocus: (body = {}) => ask('POST', '/api/v1/focus/sessions', body, undefined, isJsonObject),
@@ -742,6 +769,10 @@ function isCount(value: unknown): value is CountResult {
 
 function isJsonObject(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isJsonList(value: unknown): value is readonly JsonObject[] {
+  return Array.isArray(value) && value.every(isJsonObject);
 }
 
 function isEmpty(value: unknown): value is void {

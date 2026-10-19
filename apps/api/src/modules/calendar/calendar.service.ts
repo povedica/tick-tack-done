@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { formatInTimeZone } from 'date-fns-tz';
 import { parseIcal, tasksToIcal, type IcalTask } from '@reflexionia/domain';
 import { actorOf, type AuthUser } from '../../auth/auth-user.js';
 import { DomainEvent } from '../../events/domain-events.js';
@@ -11,15 +12,17 @@ import { ICAL_MAX_BYTES, safeFetch } from '../../security/safe-fetch.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { googleConfigured } from '../../integrations/config.js';
 import { exchangeGoogleRefreshToken } from '../../integrations/google-token.js';
+import { GoogleSyncService, type SubscriptionJson } from './google-sync.service.js';
 
 @Injectable()
 export class CalendarService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
+    @Inject(GoogleSyncService) private readonly googleSync: GoogleSyncService,
   ) {}
 
-  async range(user: AuthUser, fromIso: string, toIso: string) {
+  async range(user: AuthUser, fromIso: string, toIso: string, subscriptionId?: string) {
     const from = this.instant(fromIso, 'from');
     const to = this.instant(toIso, 'to');
     const tasks = await this.prisma.task.findMany({
@@ -32,8 +35,19 @@ export class CalendarService {
       orderBy: { dueDate: 'asc' },
     });
     const external = await this.prisma.externalEvent.findMany({
-      where: { ownerId: user.id, deletedAt: null, startsAt: { gte: from, lt: to } },
-      include: { subscription: { select: { color: true, provider: true } } },
+      where: {
+        ownerId: user.id,
+        deletedAt: null,
+        ...(subscriptionId === undefined ? {} : { subscriptionId }),
+        startsAt: { lt: to },
+        OR: [{ endsAt: { gte: from } }, { endsAt: null, startsAt: { gte: from } }],
+        subscription: { deletedAt: null, visible: true },
+      },
+      include: {
+        subscription: {
+          select: { color: true, provider: true, calendarId: true, summary: true },
+        },
+      },
     });
     return {
       tasks: tasks.map((task) => ({
@@ -48,19 +62,48 @@ export class CalendarService {
       external: external.map((event) => ({
         id: event.id,
         title: event.title,
-        starts_at: event.startsAt.toISOString(),
-        ends_at: event.endsAt?.toISOString() ?? null,
+        starts_at: isoInZone(event.startsAt, event.timeZone),
+        ends_at: event.endsAt === null ? null : isoInZone(event.endsAt, event.timeZone),
         is_all_day: event.isAllDay,
+        time_zone: event.timeZone,
         color: event.subscription.color,
         provider: event.subscription.provider,
+        calendar_id: event.subscription.calendarId,
+        summary: event.subscription.summary,
+        location: rawText(event.raw, 'location'),
+        description: rawText(event.raw, 'description'),
+        status:
+          event.status === 'tentative' || event.status === 'cancelled' ? event.status : 'confirmed',
         editable: false,
       })),
     };
   }
 
+  listGoogleCalendars(user: AuthUser) {
+    return this.googleSync.listRemote(user);
+  }
+
+  subscribeGoogle(
+    user: AuthUser,
+    body: { calendar_id?: string; color?: string },
+    keyRaw: string | undefined,
+  ) {
+    return this.googleSync.subscribe(user, body, keyRaw);
+  }
+
+  syncAll(user: AuthUser) {
+    return this.googleSync.syncAll(user);
+  }
+
   async subscribe(
     user: AuthUser,
-    body: { url?: string; provider?: string; color?: string; sync_direction?: 'read' | 'two_way' },
+    body: {
+      url?: string;
+      provider?: string;
+      color?: string;
+      calendar_id?: string;
+      sync_direction?: 'read' | 'two_way';
+    },
   ) {
     const provider = body.provider ?? 'ical';
     const direction = body.sync_direction ?? 'read';
@@ -121,17 +164,44 @@ export class CalendarService {
       where: { ownerId: user.id, deletedAt: null },
       orderBy: { createdAt: 'asc' },
     });
+    const counts =
+      rows.length === 0
+        ? []
+        : await this.prisma.externalEvent.groupBy({
+            by: ['subscriptionId'],
+            where: {
+              ownerId: user.id,
+              deletedAt: null,
+              subscriptionId: { in: rows.map((row) => row.id) },
+            },
+            _count: { _all: true },
+          });
+    const countOf = new Map(counts.map((row) => [row.subscriptionId, row._count._all]));
     return {
       items: rows.map((row) => ({
         id: row.id,
         provider: row.provider,
         url: row.url,
+        calendar_id: row.calendarId,
+        summary: row.summary,
         sync_direction: row.syncDirection,
         color: row.color,
+        visible: row.visible,
         last_synced_at: row.lastSyncedAt?.toISOString() ?? null,
+        last_error: row.lastError,
+        event_count: countOf.get(row.id) ?? 0,
       })),
       google_configured: googleConfigured(),
     };
+  }
+
+  updateSubscription(
+    user: AuthUser,
+    id: string,
+    body: { summary?: string; color?: string | null; visible?: boolean },
+    keyRaw: string | undefined,
+  ): Promise<{ statusCode: number; body: SubscriptionJson }> {
+    return this.googleSync.patch(user, id, body, keyRaw);
   }
 
   async removeSubscription(user: AuthUser, id: string): Promise<void> {
@@ -145,9 +215,24 @@ export class CalendarService {
         'Subscription was not found',
       );
     }
-    await this.prisma.calendarSubscription.update({
-      where: { id },
-      data: { deletedAt: new Date() },
+    const now = new Date();
+    await this.prisma.$transaction(async (tx) => {
+      await tx.externalEvent.updateMany({
+        where: { subscriptionId: id, deletedAt: null },
+        data: { deletedAt: now },
+      });
+      await tx.calendarSubscription.update({
+        where: { id },
+        data: { deletedAt: now },
+      });
+      await this.events.record(tx, actorOf(user), {
+        type: DomainEvent.calendarSubscriptionDeleted,
+        entityType: 'calendar_subscription',
+        entityId: id,
+        action: 'deleted',
+        data: asJson({ provider: row.provider, calendar_id: row.calendarId }),
+        previous: null,
+      });
     });
   }
 
@@ -214,7 +299,10 @@ export class CalendarService {
     return { pushed };
   }
 
-  async refresh(user: AuthUser, id: string): Promise<{ imported: number }> {
+  async refresh(
+    user: AuthUser,
+    id: string,
+  ): Promise<{ imported: number; updated: number; deleted: number; synced_at: string }> {
     const row = await this.prisma.calendarSubscription.findFirst({
       where: { id, ownerId: user.id, deletedAt: null },
     });
@@ -224,6 +312,15 @@ export class CalendarService {
         'subscription_not_found',
         'Subscription was not found',
       );
+    }
+    if (row.provider === 'google' && row.syncDirection !== 'two_way') {
+      const stats = await this.googleSync.syncOne(user, row.id);
+      return {
+        imported: stats.imported,
+        updated: stats.updated,
+        deleted: stats.deleted,
+        synced_at: stats.synced_at,
+      };
     }
     if (row.provider === 'google') {
       return this.refreshGoogle(user, row.id);
@@ -239,7 +336,7 @@ export class CalendarService {
     user: AuthUser,
     subscriptionId: string,
     text: string,
-  ): Promise<{ imported: number }> {
+  ): Promise<{ imported: number; updated: number; deleted: number; synced_at: string }> {
     const parsed = parseIcal(text);
     await this.prisma.$transaction(async (tx) => {
       for (const event of parsed) {
@@ -278,7 +375,7 @@ export class CalendarService {
         });
       }
     });
-    return { imported: parsed.length };
+    return { imported: parsed.length, updated: 0, deleted: 0, synced_at: new Date().toISOString() };
   }
 
   async createFeed(user: AuthUser, body: { project_id?: string; filter_id?: string }) {
@@ -404,6 +501,60 @@ export class CalendarService {
     return tasksToIcal('Reflexionia', icalTasks, new Date().toISOString());
   }
 
+  /** RF-2513. iCal subscriptions share the 15 minute cycle. Failures stay on the row. */
+  async syncIcalDue(now: Date, catchUp: boolean): Promise<void> {
+    const quarter = now.getMinutes() % 15 === 0;
+    if (!catchUp && !quarter) {
+      return;
+    }
+    const rows = await this.prisma.calendarSubscription.findMany({
+      where: { deletedAt: null, provider: 'ical' },
+    });
+    for (const row of rows) {
+      if (row.retryAfter !== null && row.retryAfter.getTime() > now.getTime()) {
+        continue;
+      }
+      const stale =
+        row.lastSyncedAt === null || now.getTime() - row.lastSyncedAt.getTime() >= 15 * 60 * 1000;
+      if (catchUp && !quarter && !stale) {
+        continue;
+      }
+      const owner = await this.prisma.user.findUnique({
+        where: { id: row.ownerId },
+        select: { id: true, email: true, timeZone: true, taskCompleteChildren: true },
+      });
+      if (owner === null || row.url === null) {
+        continue;
+      }
+      const user: AuthUser = {
+        id: owner.id,
+        email: owner.email,
+        timeZone: owner.timeZone,
+        completeChildren: owner.taskCompleteChildren,
+        scopes: ['calendar:write'],
+        tokenId: null,
+        sessionId: null,
+      };
+      try {
+        await this.refresh(user, row.id);
+        await this.prisma.calendarSubscription.update({
+          where: { id: row.id },
+          data: { lastError: null, syncFailures: 0, retryAfter: null },
+        });
+      } catch {
+        const failures = row.syncFailures + 1;
+        await this.prisma.calendarSubscription.update({
+          where: { id: row.id },
+          data: {
+            lastError: 'calendar_fetch_failed',
+            syncFailures: failures,
+            retryAfter: failures >= 3 ? new Date(now.getTime() + 60 * 60 * 1000) : row.retryAfter,
+          },
+        });
+      }
+    }
+  }
+
   private instant(value: string, name: string): Date {
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) {
@@ -419,7 +570,7 @@ export class CalendarService {
   private async refreshGoogle(
     user: AuthUser,
     subscriptionId: string,
-  ): Promise<{ imported: number }> {
+  ): Promise<{ imported: number; updated: number; deleted: number; synced_at: string }> {
     const token = await this.googleAccessToken(user.id);
     const now = new Date();
     const timeMin = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -478,7 +629,12 @@ export class CalendarService {
         });
       }
     });
-    return { imported: parsed.length };
+    return {
+      imported: parsed.length,
+      updated: 0,
+      deleted: 0,
+      synced_at: new Date().toISOString(),
+    };
   }
 
   private async googleAccessToken(userId: string): Promise<string> {
@@ -600,4 +756,20 @@ function googleEvent(
       isAllDay: typeof item.start?.date === 'string',
     },
   ];
+}
+
+function isoInZone(value: Date, timeZone: string): string {
+  try {
+    return formatInTimeZone(value, timeZone, "yyyy-MM-dd'T'HH:mm:ssXXX");
+  } catch {
+    return value.toISOString();
+  }
+}
+
+function rawText(raw: unknown, key: string): string | null {
+  if (typeof raw !== 'object' || raw === null || !(key in raw)) {
+    return null;
+  }
+  const value = (raw as Record<string, unknown>)[key];
+  return typeof value === 'string' && value.length > 0 ? value : null;
 }

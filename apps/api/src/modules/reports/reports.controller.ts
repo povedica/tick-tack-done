@@ -166,7 +166,15 @@ export class ReportsController {
     });
     const focusMinutes =
       focus._sum.actualSeconds === null ? null : Math.round(focus._sum.actualSeconds / 60);
-    const narrative = weeklyNarrative(snapshot, settings.tone, focusMinutes);
+    const upcomingExternal = await this.prisma.externalEvent.count({
+      where: {
+        ownerId: user.id,
+        deletedAt: null,
+        startsAt: { gte: now, lt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) },
+        subscription: { deletedAt: null, visible: true },
+      },
+    });
+    const narrative = weeklyNarrative(snapshot, settings.tone, focusMinutes, upcomingExternal);
     const countdowns = await this.prisma.countdown.findMany({
       where: { ownerId: user.id, deletedAt: null, archivedAt: null },
       select: { id: true, title: true, emoji: true, targetDate: true },

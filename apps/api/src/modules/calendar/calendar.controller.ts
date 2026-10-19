@@ -3,58 +3,24 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   Inject,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   Req,
   Res,
 } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
-import { IsIn, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import type { AuthUser } from '../../auth/auth-user.js';
 import { CurrentUser } from '../../auth/current-user.decorator.js';
 import { Public, Scopes } from '../../auth/scopes.decorator.js';
 import { respondJson } from '../../http/respond.js';
+import { FeedDto, SubscribeDto, UpdateSubscriptionDto } from './calendar.dto.js';
 import { CalendarService } from './calendar.service.js';
-
-export class SubscribeDto {
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsString()
-  @MaxLength(2000)
-  url?: string;
-
-  @ApiProperty({ required: false, enum: ['ical', 'google'] })
-  @IsOptional()
-  @IsIn(['ical', 'google'])
-  provider?: 'ical' | 'google';
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsString()
-  @MaxLength(20)
-  color?: string;
-
-  @ApiProperty({ required: false, enum: ['read', 'two_way'] })
-  @IsOptional()
-  @IsIn(['read', 'two_way'])
-  sync_direction?: 'read' | 'two_way';
-}
-
-export class FeedDto {
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsUUID()
-  project_id?: string;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsUUID()
-  filter_id?: string;
-}
 
 @ApiTags('calendar')
 @Controller('calendar')
@@ -63,7 +29,7 @@ export class CalendarController {
 
   @Get('events')
   @Scopes('calendar:read')
-  @ApiOperation({ summary: 'Tasks with a date plus external events (RF-1101, RF-1102)' })
+  @ApiOperation({ summary: 'Tasks with a date plus external events (RF-1101, RF-2520)' })
   async events(
     @CurrentUser() user: AuthUser,
     @Query('from') from: string,
@@ -74,9 +40,20 @@ export class CalendarController {
     respondJson(req, res, 200, await this.calendar.range(user, from, to), false);
   }
 
+  @Get('google/calendars')
+  @Scopes('calendar:read')
+  @ApiOperation({ summary: 'List Google calendars the account can subscribe to (RF-2501)' })
+  async googleCalendars(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(req, res, 200, await this.calendar.listGoogleCalendars(user), false);
+  }
+
   @Get('subscriptions')
   @Scopes('calendar:read')
-  @ApiOperation({ summary: 'List calendar subscriptions (RF-1103)' })
+  @ApiOperation({ summary: 'List calendar subscriptions (RF-1103, RF-2505)' })
   async list(
     @CurrentUser() user: AuthUser,
     @Req() req: Request,
@@ -87,19 +64,51 @@ export class CalendarController {
 
   @Post('subscriptions')
   @Scopes('calendar:write')
-  @ApiOperation({ summary: 'Subscribe to an iCal URL or Google Calendar read (RF-1103, RF-2004)' })
+  @ApiOperation({ summary: 'Subscribe to an iCal URL or a Google calendar (RF-1103, RF-2502)' })
   async subscribe(
     @CurrentUser() user: AuthUser,
     @Body() dto: SubscribeDto,
+    @Headers('idempotency-key') key: string | undefined,
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
+    if (dto.provider === 'google' && dto.sync_direction !== 'two_way') {
+      const result = await this.calendar.subscribeGoogle(user, dto, key);
+      respondJson(req, res, result.statusCode, result.body, false);
+      return;
+    }
     respondJson(req, res, 201, await this.calendar.subscribe(user, dto), false);
+  }
+
+  @Patch('subscriptions/:id')
+  @Scopes('calendar:write')
+  @ApiOperation({ summary: 'Rename, recolor or hide a calendar subscription (RF-2503)' })
+  async update(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateSubscriptionDto,
+    @Headers('idempotency-key') key: string | undefined,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    const result = await this.calendar.updateSubscription(user, id, dto, key);
+    respondJson(req, res, result.statusCode, result.body, false);
+  }
+
+  @Post('sync')
+  @Scopes('calendar:write')
+  @ApiOperation({ summary: 'Sync every external calendar subscription (RF-2521)' })
+  async syncAll(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(req, res, 200, await this.calendar.syncAll(user), false);
   }
 
   @Post('subscriptions/:id/refresh')
   @Scopes('calendar:write')
-  @ApiOperation({ summary: 'Fetch an iCal subscription (RF-1103)' })
+  @ApiOperation({ summary: 'Sync one subscription now (RF-1103, RF-2514)' })
   async refresh(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,

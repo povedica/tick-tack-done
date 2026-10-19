@@ -4945,7 +4945,27 @@
             "description": ""
           }
         },
-        "summary": "Tasks with a date plus external events (RF-1101, RF-1102)",
+        "summary": "Tasks with a date plus external events (RF-1101, RF-2520)",
+        "tags": [
+          "calendar"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/calendar/google/calendars": {
+      "get": {
+        "operationId": "CalendarController_googleCalendars",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "List Google calendars the account can subscribe to (RF-2501)",
         "tags": [
           "calendar"
         ],
@@ -4965,7 +4985,7 @@
             "description": ""
           }
         },
-        "summary": "List calendar subscriptions (RF-1103)",
+        "summary": "List calendar subscriptions (RF-1103, RF-2505)",
         "tags": [
           "calendar"
         ],
@@ -4993,7 +5013,93 @@
             "description": ""
           }
         },
-        "summary": "Subscribe to an iCal URL or Google Calendar read (RF-1103, RF-2004)",
+        "summary": "Subscribe to an iCal URL or a Google calendar (RF-1103, RF-2502)",
+        "tags": [
+          "calendar"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/calendar/subscriptions/{id}": {
+      "patch": {
+        "operationId": "CalendarController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSubscriptionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Rename, recolor or hide a calendar subscription (RF-2503)",
+        "tags": [
+          "calendar"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "CalendarController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Remove a calendar subscription",
+        "tags": [
+          "calendar"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/calendar/sync": {
+      "post": {
+        "operationId": "CalendarController_syncAll",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Sync every external calendar subscription (RF-2521)",
         "tags": [
           "calendar"
         ],
@@ -5022,7 +5128,7 @@
             "description": ""
           }
         },
-        "summary": "Fetch an iCal subscription (RF-1103)",
+        "summary": "Sync one subscription now (RF-1103, RF-2514)",
         "tags": [
           "calendar"
         ],
@@ -5052,35 +5158,6 @@
           }
         },
         "summary": "Google Calendar two-way write (V2). Stops without credentials.",
-        "tags": [
-          "calendar"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ]
-      }
-    },
-    "/api/v1/calendar/subscriptions/{id}": {
-      "delete": {
-        "operationId": "CalendarController_remove",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Remove a calendar subscription",
         "tags": [
           "calendar"
         ],
@@ -10904,6 +10981,10 @@
               "google"
             ]
           },
+          "calendar_id": {
+            "type": "string",
+            "description": "Real Google calendar id (RF-2502)"
+          },
           "color": {
             "type": "string"
           },
@@ -10913,6 +10994,21 @@
               "read",
               "two_way"
             ]
+          }
+        }
+      },
+      "UpdateSubscriptionDto": {
+        "type": "object",
+        "properties": {
+          "summary": {
+            "type": "string"
+          },
+          "color": {
+            "type": "object",
+            "nullable": true
+          },
+          "visible": {
+            "type": "boolean"
           }
         }
       },
