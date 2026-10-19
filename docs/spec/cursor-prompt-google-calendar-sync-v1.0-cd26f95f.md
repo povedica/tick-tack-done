@@ -299,7 +299,7 @@ Respuesta 201:
 
 ```json
 {
-  "tasks": [ { "id": "...", "title": "Recoger a los niños...", "editable": true } ],
+  "tasks": [{ "id": "...", "title": "Recoger a los niños...", "editable": true }],
   "external": [
     {
       "id": "evt-1",

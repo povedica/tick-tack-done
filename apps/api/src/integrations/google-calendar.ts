@@ -114,7 +114,12 @@ export async function tokenHasCalendarScope(accessToken: string): Promise<boolea
   }
   const body = (await response.json()) as { scope?: unknown };
   const scope = typeof body.scope === 'string' ? body.scope : '';
-  return scope.split(' ').includes(CALENDAR_SCOPE);
+  for (const item of scope.split(' ')) {
+    if (item === CALENDAR_SCOPE) {
+      return true;
+    }
+  }
+  return false;
 }
 
 export function primaryCalendar(
