@@ -1062,6 +1062,314 @@
         "security": []
       }
     },
+    "/api/v1/countdowns": {
+      "get": {
+        "operationId": "CountdownsController_list",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CountdownPageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List countdowns with timezone-calculated days (RF-2431)",
+        "tags": [
+          "countdowns"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "CountdownsController_create",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCountdownDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CountdownResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create a countdown (RF-2401)",
+        "tags": [
+          "countdowns"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/countdowns/{id}": {
+      "get": {
+        "operationId": "CountdownsController_get",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get a countdown (RF-2431)",
+        "tags": [
+          "countdowns"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "CountdownsController_update",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCountdownDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Update a countdown (RF-2402)",
+        "tags": [
+          "countdowns"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "CountdownsController_remove",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Delete a countdown (RF-2405)",
+        "tags": [
+          "countdowns"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/countdowns/{id}/archive": {
+      "post": {
+        "operationId": "CountdownsController_archive",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Archive a countdown (RF-2403)",
+        "tags": [
+          "countdowns"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/countdowns/{id}/unarchive": {
+      "post": {
+        "operationId": "CountdownsController_unarchive",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Unarchive a countdown (RF-2403)",
+        "tags": [
+          "countdowns"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/countdowns/{id}/restore": {
+      "post": {
+        "operationId": "CountdownsController_restore",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Restore a deleted countdown (RF-2405)",
+        "tags": [
+          "countdowns"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/habits": {
       "get": {
         "operationId": "HabitsController_list",
@@ -7463,6 +7771,8 @@
                 "filters:write",
                 "habits:read",
                 "habits:write",
+                "countdowns:read",
+                "countdowns:write",
                 "focus:read",
                 "focus:write",
                 "notes:read",
@@ -7883,6 +8193,314 @@
           "status",
           "commit"
         ]
+      },
+      "CountdownReminderDto": {
+        "type": "object",
+        "properties": {
+          "offset_days": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 365
+          },
+          "constant": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "offset_days"
+        ]
+      },
+      "CountdownResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "target_date": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "countdown",
+              "anniversary",
+              "birthday",
+              "holiday"
+            ]
+          },
+          "emoji": {
+            "type": "object",
+            "nullable": true
+          },
+          "repeat_rule": {
+            "type": "string",
+            "enum": [
+              "none",
+              "daily",
+              "weekly",
+              "monthly",
+              "yearly"
+            ]
+          },
+          "day_mode": {
+            "type": "string",
+            "enum": [
+              "standard",
+              "plus_one"
+            ]
+          },
+          "kind": {
+            "type": "string"
+          },
+          "days": {
+            "type": "number"
+          },
+          "effective_date": {
+            "type": "string"
+          },
+          "pinned": {
+            "type": "boolean"
+          },
+          "sort_order": {
+            "type": "string"
+          },
+          "reminders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CountdownReminderDto"
+            }
+          },
+          "show_in_sidebar": {
+            "type": "boolean"
+          },
+          "show_in_smart_list": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "object",
+            "nullable": true
+          },
+          "notes": {
+            "type": "object",
+            "nullable": true
+          },
+          "archived_at": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "target_date",
+          "type",
+          "emoji",
+          "repeat_rule",
+          "day_mode",
+          "kind",
+          "days",
+          "effective_date",
+          "pinned",
+          "sort_order",
+          "reminders",
+          "show_in_sidebar",
+          "show_in_smart_list",
+          "color",
+          "notes",
+          "archived_at"
+        ]
+      },
+      "CountdownPageDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CountdownResponseDto"
+            }
+          },
+          "next_cursor": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ]
+      },
+      "CreateCountdownDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "target_date": {
+            "type": "string",
+            "example": "2027-01-01"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "countdown",
+              "anniversary",
+              "birthday",
+              "holiday"
+            ]
+          },
+          "emoji": {
+            "type": "object",
+            "nullable": true
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "none",
+              "blue",
+              "teal",
+              "green",
+              "lime",
+              "orange",
+              "red",
+              "pink",
+              "purple",
+              "navy",
+              "brown",
+              "black",
+              "rainbow"
+            ],
+            "nullable": true
+          },
+          "repeat_rule": {
+            "type": "string",
+            "enum": [
+              "none",
+              "daily",
+              "weekly",
+              "monthly",
+              "yearly"
+            ]
+          },
+          "day_mode": {
+            "type": "string",
+            "enum": [
+              "standard",
+              "plus_one"
+            ]
+          },
+          "reminders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CountdownReminderDto"
+            }
+          },
+          "notes": {
+            "type": "object"
+          },
+          "show_in_sidebar": {
+            "type": "boolean"
+          },
+          "show_in_smart_list": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "title",
+          "target_date"
+        ]
+      },
+      "UpdateCountdownDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "target_date": {
+            "type": "string",
+            "example": "2027-01-01"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "countdown",
+              "anniversary",
+              "birthday",
+              "holiday"
+            ]
+          },
+          "emoji": {
+            "type": "object",
+            "nullable": true
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "none",
+              "blue",
+              "teal",
+              "green",
+              "lime",
+              "orange",
+              "red",
+              "pink",
+              "purple",
+              "navy",
+              "brown",
+              "black",
+              "rainbow"
+            ],
+            "nullable": true
+          },
+          "repeat_rule": {
+            "type": "string",
+            "enum": [
+              "none",
+              "daily",
+              "weekly",
+              "monthly",
+              "yearly"
+            ]
+          },
+          "day_mode": {
+            "type": "string",
+            "enum": [
+              "standard",
+              "plus_one"
+            ]
+          },
+          "reminders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CountdownReminderDto"
+            }
+          },
+          "notes": {
+            "type": "object"
+          },
+          "show_in_sidebar": {
+            "type": "boolean"
+          },
+          "show_in_smart_list": {
+            "type": "boolean"
+          },
+          "pinned": {
+            "type": "boolean"
+          },
+          "sort_order": {
+            "type": "number"
+          },
+          "style": {
+            "type": "object",
+            "nullable": true
+          }
+        }
       },
       "HabitGoalDto": {
         "type": "object",

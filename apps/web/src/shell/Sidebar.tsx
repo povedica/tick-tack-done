@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   CircleDot,
   Grid2x2,
+  Hourglass,
   Inbox,
   LayoutDashboard,
   ListTodo,
@@ -38,6 +39,7 @@ import { calendarDay, shiftDayKey, zonedWallTime } from '../features/today/group
 import { refreshTaskSurfaces } from '../features/tasks/refresh';
 import { smartPath } from '../features/tasks/model';
 import { orderedSmartLists, SIDEBAR_SMART_ORDER } from './smart-order';
+import { countdownsApi } from '../features/countdowns/api';
 
 const LIST_COLORS = ['#4772FA', '#E13E39', '#FAA80C', '#1F9D55', '#7C5CFF', '#F06595'] as const;
 
@@ -74,6 +76,11 @@ export function Sidebar({
   const projects = useQuery({ queryKey: ['projects'], queryFn: collectProjects, ...catalog });
   const filters = useQuery({ queryKey: ['filters'], queryFn: () => api.listFilters(), ...catalog });
   const tags = useQuery({ queryKey: ['tags'], queryFn: collectTags, ...catalog });
+  const countdowns = useQuery({
+    queryKey: ['countdowns', 'sidebar'],
+    queryFn: () => countdownsApi.list(false),
+    staleTime: 5 * 60_000,
+  });
   const [draft, setDraft] = useState('');
   const [addingList, setAddingList] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
@@ -86,6 +93,7 @@ export function Sidebar({
   const [tagMenuId, setTagMenuId] = useState<string | null>(null);
   const [tagQuery, setTagQuery] = useState('');
   const [showUnused, setShowUnused] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const folders = useQuery({ queryKey: ['folders'], queryFn: () => api.listFolders() });
   const location = useLocation();
   const [confirmTrash, setConfirmTrash] = useState(false);
@@ -114,6 +122,7 @@ export function Sidebar({
   const projectItems = (projects.data?.items ?? []).filter(
     (project) => !project.closed && (folderItems.length === 0 || folderId(project) === null),
   );
+  const showCountdowns = (countdowns.data?.items ?? []).some((item) => item.showInSidebar);
 
   useEffect(() => {
     if (menuId === null) {
@@ -526,24 +535,51 @@ export function Sidebar({
             );
           })}
         </ul>
-        <ul className="nav-list">
-          <Item to="/matrix" label={messages.navMatrix} onNavigate={onNavigate} icon={Grid2x2} />
-          <Item to="/focus" label={messages.navFocus} onNavigate={onNavigate} icon={CircleDot} />
-          <Item
-            to="/habits"
-            label={messages.navHabits}
-            onNavigate={onNavigate}
-            icon={CalendarCheck}
-          />
-          <Item
-            to="/reports/weekly"
-            label={messages.navSummary}
-            onNavigate={onNavigate}
-            icon={LayoutDashboard}
-          />
-          <Item to="/dashboard" label={messages.navDashboard} onNavigate={onNavigate} />
-          <Item to="/review/weekly" label={messages.navReview} onNavigate={onNavigate} />
-        </ul>
+        <button
+          type="button"
+          className="nav-section nav-more-toggle"
+          aria-expanded={moreOpen}
+          onClick={() => {
+            setMoreOpen((current) => !current);
+          }}
+        >
+          {moreOpen ? messages.hideMore : messages.showMore}
+        </button>
+        {moreOpen ? (
+          <ul className="nav-list">
+            <Item
+              to="/calendar/month"
+              label={messages.navCalendar}
+              onNavigate={onNavigate}
+              icon={CalendarDays}
+            />
+            <Item to="/matrix" label={messages.navMatrix} onNavigate={onNavigate} icon={Grid2x2} />
+            <Item
+              to="/dashboard"
+              label={messages.navDashboard}
+              onNavigate={onNavigate}
+              icon={LayoutDashboard}
+            />
+            <Item to="/reports/weekly" label={messages.navReports} onNavigate={onNavigate} />
+            <Item to="/review/weekly" label={messages.navReview} onNavigate={onNavigate} />
+            <Item to="/focus" label={messages.navFocus} onNavigate={onNavigate} icon={CircleDot} />
+            <Item
+              to="/habits"
+              label={messages.navHabits}
+              onNavigate={onNavigate}
+              icon={CalendarCheck}
+            />
+            {showCountdowns ? (
+              <Item
+                to="/countdowns"
+                label="Cuenta atrás"
+                onNavigate={onNavigate}
+                icon={Hourglass}
+              />
+            ) : null}
+            <Item to="/settings/appearance" label={messages.navSettings} onNavigate={onNavigate} />
+          </ul>
+        ) : null}
       </nav>
       <div className="sidebar-footer">
         <SideLink to="/tasks/cancelled" onNavigate={onNavigate}>

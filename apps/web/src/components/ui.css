@@ -178,6 +178,25 @@
   max-width: none;
 }
 
+.countdown-widget {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.countdown-widget li {
+  display: flex;
+  gap: var(--sp-1);
+  align-items: center;
+}
+
+.countdown-widget strong {
+  margin-left: auto;
+  color: var(--accent);
+}
+
 .page-toolbar,
 .batch-bar,
 .settings-grid,

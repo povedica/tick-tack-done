@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { countdownsApi } from '../countdowns/api';
+import { countdownNumber } from '../countdowns/presentation';
 import { api } from '../../api';
 import { Button, EmptyState } from '../../components/ui';
 import { InboundEmailCard } from '../settings/InboundEmailCard';
@@ -111,12 +113,29 @@ export function DashboardPage() {
   const messages = useMessages();
   const data = useQuery({ queryKey: ['dashboard'], queryFn: () => api.dashboardData() });
   const score = useQuery({ queryKey: ['achievements'], queryFn: () => api.achievements() });
+  const countdowns = useQuery({
+    queryKey: ['countdowns', 'dashboard'],
+    queryFn: () => countdownsApi.list(false, 365),
+  });
   const widgets = isRow(data.data?.widgets) ? data.data.widgets : {};
   return (
     <section className="screen-page is-wide">
       <h1>{messages.dashboardTitle}</h1>
       <p>{messages.gardenImportHint}</p>
       <div className="widget-grid">
+        {(countdowns.data?.items.length ?? 0) > 0 ? (
+          <article className="widget">
+            <h3>Cuenta atrás</h3>
+            <ul className="countdown-widget">
+              {countdowns.data?.items.slice(0, 3).map((item) => (
+                <li key={item.id}>
+                  <span aria-hidden="true">{item.emoji ?? '⏳'}</span> {item.title}
+                  <strong>{countdownNumber(item)}</strong>
+                </li>
+              ))}
+            </ul>
+          </article>
+        ) : null}
         {Object.entries(widgets).map(([key, value]) => (
           <article key={key} className="widget">
             <h3>{widgetLabel(messages, key)}</h3>

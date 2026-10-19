@@ -15,6 +15,8 @@ export const API_SCOPES = [
   'filters:write',
   'habits:read',
   'habits:write',
+  'countdowns:read',
+  'countdowns:write',
   'focus:read',
   'focus:write',
   'notes:read',

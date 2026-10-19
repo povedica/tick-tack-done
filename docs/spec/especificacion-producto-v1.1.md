@@ -283,7 +283,11 @@ ActivityLog: `id`, `actor_id`, `entity_type`, `entity_id`, `action` (created/upd
 
 ### 5.15 Countdown
 
-`id`, `title`, `target_date`, `color`, `show_in_sidebar`. Cuenta atrás para fechas importantes (cuenta atrás).
+Cuenta atrás para fechas importantes, entidad independiente de las tareas. Incluye tipo, emoji,
+fecha civil, repetición, modo de cálculo, color/estilo, notas, orden/fijación, archivado y
+recordatorios. El cálculo respeta la zona horaria del usuario y se entrega por API ya resuelto.
+La especificación funcional y sus RF-2401–RF-2460 están en
+[`countdown-spec-v1.0-6cb37c7c.md`](./countdown-spec-v1.0-6cb37c7c.md).
 
 ### 5.16 Template (plantilla de lista/tarea)
 

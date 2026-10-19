@@ -2,9 +2,12 @@ import { randomUUID } from 'node:crypto';
 import { Inject, Injectable, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { Prisma, type ReminderChannel } from '@prisma/client';
 import {
+  calendarDate,
+  countdownDaysLabel,
   deriveDurationMinutes,
   dueSignal,
   formatDailyDigest,
+  instantFromWall,
   isAtDueTrigger,
   OVERDUE_GRACE_MS,
   nextConstantFire,
@@ -78,6 +81,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     await this.enqueueReminders(now, catchUp);
     await this.enqueueDigests(now, catchUp);
     await this.enqueueHabitReminders(now, catchUp);
+    await this.enqueueCountdownReminders(now, catchUp);
     await this.recordHabitStreakBreaks(now);
     await this.enqueueSignals(now, catchUp);
     const fired = await this.fire(now, catchUp);
@@ -439,6 +443,164 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  private async enqueueCountdownReminders(now: Date, catchUp: boolean): Promise<void> {
+    const countdowns = await this.prisma.countdown.findMany({
+      where: { deletedAt: null, archivedAt: null },
+      include: {
+        reminders: true,
+        owner: { select: { email: true, timeZone: true } },
+      },
+    });
+    for (const countdown of countdowns) {
+      const today = calendarDate(now.toISOString(), countdown.owner.timeZone);
+      if (today === null) {
+        continue;
+      }
+      const occurrence = countdownDaysLabel(
+        {
+          targetDate: countdown.targetDate.toISOString().slice(0, 10),
+          repeatRule: countdown.repeatRule,
+          dayMode: countdown.dayMode,
+        },
+        today,
+        countdown.owner.timeZone,
+      ).effectiveDate;
+
+      for (const reminder of countdown.reminders) {
+        if (reminder.constant) {
+          await this.enqueueConstantCountdownReminder({
+            countdown,
+            reminder,
+            occurrence,
+            today,
+            now,
+            catchUp,
+          });
+          continue;
+        }
+        const reminderDate = shiftCalendarDate(occurrence, -reminder.offsetDays);
+        await this.queueCountdownReminder({
+          countdown,
+          reminder,
+          occurrence,
+          fireDate: reminderDate,
+          now,
+          catchUp,
+        });
+      }
+
+      if (occurrence === today) {
+        const fireAt = atLocalNine(occurrence, countdown.owner.timeZone);
+        if (fireAt !== null) {
+          await this.queue({
+            ownerId: countdown.ownerId,
+            reminderId: null,
+            taskId: null,
+            countdownId: countdown.id,
+            countdownReminderId: null,
+            dedupeKey: `countdown:${countdown.id}:${occurrence}:reached`,
+            fireAt,
+            channel: 'both',
+            kind: 'countdown',
+            now,
+            catchUp,
+            payload: {
+              countdown_id: countdown.id,
+              occurrence_date: occurrence,
+              reached: true,
+              title: countdown.title,
+            },
+          });
+        }
+      }
+    }
+  }
+
+  private async enqueueConstantCountdownReminder(input: {
+    countdown: {
+      id: string;
+      ownerId: string;
+      title: string;
+      emoji: string | null;
+      dayMode: 'standard' | 'plus_one';
+      targetDate: Date;
+      repeatRule: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+      owner: { email: string; timeZone: string };
+    };
+    reminder: { id: string };
+    occurrence: string;
+    today: string;
+    now: Date;
+    catchUp: boolean;
+  }): Promise<void> {
+    const start = shiftCalendarDate(input.occurrence, -3);
+    const first = input.today > start ? input.today : start;
+    for (let date = first; date <= input.occurrence; date = shiftCalendarDate(date, 1)) {
+      await this.queueCountdownReminder({ ...input, fireDate: date, constantDate: date });
+    }
+  }
+
+  private async queueCountdownReminder(input: {
+    countdown: {
+      id: string;
+      ownerId: string;
+      title: string;
+      emoji: string | null;
+      dayMode: 'standard' | 'plus_one';
+      targetDate: Date;
+      repeatRule: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+      owner: { email: string; timeZone: string };
+    };
+    reminder: { id: string; offsetDays?: number };
+    occurrence: string;
+    fireDate: string;
+    constantDate?: string;
+    now: Date;
+    catchUp: boolean;
+  }): Promise<void> {
+    const fireAt = atLocalNine(input.fireDate, input.countdown.owner.timeZone);
+    const today = calendarDate(input.now.toISOString(), input.countdown.owner.timeZone);
+    if (fireAt === null || today === null || input.fireDate < today) {
+      return;
+    }
+    const label = countdownDaysLabel(
+      {
+        targetDate: input.countdown.targetDate.toISOString().slice(0, 10),
+        repeatRule: input.countdown.repeatRule,
+        dayMode: input.countdown.dayMode,
+      },
+      input.fireDate,
+      input.countdown.owner.timeZone,
+    );
+    const prefix = input.countdown.emoji === null ? '⏳' : `⏳ ${input.countdown.emoji}`;
+    const body =
+      label.kind === 'today'
+        ? `${prefix} ${input.countdown.title}: ¡es hoy!`
+        : `${prefix} ${input.countdown.title}: quedan ${String(label.days)} días`;
+    const offset = input.reminder.offsetDays ?? 3;
+    await this.queue({
+      ownerId: input.countdown.ownerId,
+      reminderId: null,
+      taskId: null,
+      countdownId: input.countdown.id,
+      countdownReminderId: input.reminder.id,
+      dedupeKey: `countdown:${input.countdown.id}:${input.occurrence}:${String(input.constantDate ?? offset)}`,
+      fireAt,
+      channel: 'both',
+      kind: 'countdown',
+      now: input.now,
+      catchUp: input.catchUp,
+      payload: {
+        countdown_id: input.countdown.id,
+        occurrence_date: input.occurrence,
+        offset_days: offset,
+        title: `${prefix} ${input.countdown.title}`,
+        body,
+        email: input.countdown.owner.email,
+      },
+    });
+  }
+
   private async recordHabitStreakBreaks(now: Date): Promise<void> {
     const habits = await this.prisma.habit.findMany({
       where: { deletedAt: null, archived: false },
@@ -554,10 +716,12 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     ownerId: string;
     reminderId: string | null;
     taskId: string | null;
+    countdownId?: string | null;
+    countdownReminderId?: string | null;
     dedupeKey: string;
     fireAt: string;
     channel: ReminderChannel;
-    kind: 'task' | 'daily_digest' | 'overdue' | 'due_soon';
+    kind: 'task' | 'daily_digest' | 'overdue' | 'due_soon' | 'countdown';
     now: Date;
     catchUp: boolean;
     payload: Prisma.InputJsonObject;
@@ -594,6 +758,8 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         ownerId: input.ownerId,
         reminderId: input.reminderId,
         taskId: input.taskId,
+        countdownId: input.countdownId ?? null,
+        countdownReminderId: input.countdownReminderId ?? null,
         dedupeKey: input.dedupeKey,
         fireAt: new Date(input.fireAt),
         channel: input.channel,
@@ -626,12 +792,56 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
           },
         },
         reminder: { select: { constant: true, constantIntervalMinutes: true, taskId: true } },
+        countdown: { select: { id: true } },
       },
     });
     let fired = 0;
     let late = 0;
     for (const row of due) {
       const payload = asRecord(row.payload);
+      if (row.kind === 'countdown') {
+        const mark = catchUp && row.fireAt.getTime() < now.getTime() ? 'late' : 'fired';
+        const reached = payload.reached === true;
+        const result = reached
+          ? { email: 'skipped' as const, push: 'skipped' as const, telegram: 'skipped' as const }
+          : await this.transport.deliver({
+              channel: row.channel,
+              email: typeof payload.email === 'string' ? payload.email : row.owner.email,
+              subscriptions: row.owner.pushSubscriptions,
+              telegramChatId: row.owner.telegramLinks[0]?.chatId ?? null,
+              allowTelegram: row.owner.telegramEnabled,
+              title: typeof payload.title === 'string' ? payload.title : 'Recordatorio',
+              body: typeof payload.body === 'string' ? payload.body : '',
+            });
+        await this.prisma.$transaction(async (tx) => {
+          await tx.reminderDelivery.update({
+            where: { id: row.id },
+            data: { status: mark, firedAt: now, payload: asJson({ ...payload, delivery: result }) },
+          });
+          if (row.countdownId !== null) {
+            await this.events.record(tx, automation(row.ownerId), {
+              type: reached ? DomainEvent.countdownReached : DomainEvent.countdownReminderDue,
+              entityType: 'countdown',
+              entityId: row.countdownId,
+              action: 'updated',
+              data: asJson({
+                countdown_id: row.countdownId,
+                occurrence_date: payload.occurrence_date,
+                delivery_id: row.id,
+                status: mark,
+                ...(reached ? {} : { offset_days: payload.offset_days }),
+              }),
+              previous: null,
+            });
+          }
+        });
+        if (mark === 'late') {
+          late += 1;
+        } else {
+          fired += 1;
+        }
+        continue;
+      }
       if (await this.deliveryStale(row.taskId, payload)) {
         await this.prisma.reminderDelivery.update({
           where: { id: row.id },
@@ -903,4 +1113,17 @@ function asRecord(value: Prisma.JsonValue): Record<string, unknown> {
     return value;
   }
   return {};
+}
+function atLocalNine(date: string, timeZone: string): string | null {
+  const [year, month, day] = date.split('-').map(Number);
+  if (year === undefined || month === undefined || day === undefined) {
+    return null;
+  }
+  return instantFromWall({ year, month, day, hour: 9, minute: 0, second: 0 }, timeZone);
+}
+
+function shiftCalendarDate(date: string, amount: number): string {
+  const value = new Date(`${date}T00:00:00.000Z`);
+  value.setUTCDate(value.getUTCDate() + amount);
+  return value.toISOString().slice(0, 10);
 }

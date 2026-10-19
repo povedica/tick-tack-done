@@ -167,12 +167,38 @@ export class ReportsController {
     const focusMinutes =
       focus._sum.actualSeconds === null ? null : Math.round(focus._sum.actualSeconds / 60);
     const narrative = weeklyNarrative(snapshot, settings.tone, focusMinutes);
+    const countdowns = await this.prisma.countdown.findMany({
+      where: { ownerId: user.id, deletedAt: null, archivedAt: null },
+      select: { id: true, title: true, emoji: true, targetDate: true },
+    });
+    const upcomingCountdowns = countdowns.filter(
+      (countdown) =>
+        countdown.targetDate >= now &&
+        countdown.targetDate <= new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
+    );
+    const reachedCountdowns = countdowns.filter(
+      (countdown) =>
+        countdown.targetDate >= new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) &&
+        countdown.targetDate < now,
+    );
     const week = weekStart(now);
     const payload = {
       summary: narrative.summary,
       observations: narrative.observations,
       snapshot,
       weak: narrative.weak,
+      countdowns: {
+        upcoming: upcomingCountdowns.map((countdown) => ({
+          id: countdown.id,
+          title: countdown.title,
+          emoji: countdown.emoji,
+        })),
+        reached: reachedCountdowns.map((countdown) => ({
+          id: countdown.id,
+          title: countdown.title,
+          emoji: countdown.emoji,
+        })),
+      },
     };
     const row = await this.prisma.$transaction(async (tx) => {
       const saved = await tx.weeklyReport.upsert({
