@@ -29,10 +29,12 @@ import { asJson } from '../../http/json';
 import { DomainException } from '../../http/domain.exception';
 import { respondJson } from '../../http/respond';
 import { PrismaService } from '../../prisma/prisma.service';
+import { openField, sealField } from '../../security/field-cipher';
+import { assertPublicUrl, safeFetch } from '../../security/safe-fetch';
 
 class WebhookDto {
   @ApiProperty()
-  @IsUrl({ protocols: ['https'], require_protocol: true })
+  @IsUrl({ protocols: ['https'], require_protocol: true, require_tld: true })
   url!: string;
 
   @ApiProperty({ required: false })
@@ -91,9 +93,9 @@ export class WebhookDispatcher implements OnModuleInit {
     });
   }
 
-  async deliverOne(id: string): Promise<{ state: string; status: number | null }> {
+  async deliverOne(id: string, ownerId: string): Promise<{ state: string; status: number | null }> {
     const delivery = await this.prisma.webhookDelivery.findFirst({
-      where: { id },
+      where: { id, endpoint: { ownerId } },
       include: { endpoint: true },
     });
     if (delivery === null) {
@@ -104,21 +106,23 @@ export class WebhookDispatcher implements OnModuleInit {
       );
     }
     const payload = JSON.stringify({ id: delivery.eventId, type: delivery.eventType });
-    const signature = createHmac('sha256', delivery.endpoint.secret).update(payload).digest('hex');
+    const signature = createHmac('sha256', openField(delivery.endpoint.secret))
+      .update(payload)
+      .digest('hex');
     let status: number | null = null;
     let ok = false;
     try {
-      const response = await fetch(delivery.endpoint.url, {
+      const response = await safeFetch(delivery.endpoint.url, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
           'X-Signature-256': `sha256=${signature}`,
         },
         body: payload,
-        signal: AbortSignal.timeout(8_000),
+        maxBytes: 64 * 1024,
       });
       status = response.status;
-      ok = response.ok;
+      ok = response.status >= 200 && response.status < 300;
     } catch {
       ok = false;
     }
@@ -199,13 +203,14 @@ export class WebhooksController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
+    await assertPublicUrl(dto.url);
     const secret = dto.secret ?? randomBytes(24).toString('base64url');
     const row = await this.prisma.$transaction(async (tx) => {
       const created = await tx.webhookEndpoint.create({
         data: {
           ownerId: user.id,
           url: dto.url,
-          secret,
+          secret: sealField(secret),
           events: dto.events,
           active: dto.active ?? true,
         },
@@ -237,7 +242,10 @@ export class WebhooksController {
     if (row === null) {
       throw new DomainException(HttpStatus.NOT_FOUND, 'webhook_not_found', 'Webhook was not found');
     }
-    await this.prisma.webhookEndpoint.update({ where: { id }, data: { deletedAt: new Date() } });
+    await this.prisma.webhookEndpoint.updateMany({
+      where: { id, ownerId: user.id, deletedAt: null },
+      data: { deletedAt: new Date() },
+    });
     res.status(204).end();
   }
 
@@ -260,7 +268,7 @@ export class WebhooksController {
         nextAttempt: new Date(),
       },
     });
-    respondJson(req, res, 200, await this.dispatcher.deliverOne(delivery.id), false);
+    respondJson(req, res, 200, await this.dispatcher.deliverOne(delivery.id, user.id), false);
   }
 
   @Post('deliveries/:deliveryId/retry')
@@ -282,7 +290,7 @@ export class WebhooksController {
         'Delivery was not found',
       );
     }
-    respondJson(req, res, 200, await this.dispatcher.deliverOne(delivery.id), false);
+    respondJson(req, res, 200, await this.dispatcher.deliverOne(delivery.id, user.id), false);
   }
 
   private async owned(ownerId: string, id: string) {

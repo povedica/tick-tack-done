@@ -15,6 +15,7 @@ import type {
   TokenPageDto,
 } from './tokens.dto';
 import { isApiScope } from './scopes';
+import { requireBrowserSession } from './session-access';
 import { newPersonalAccessToken } from './token-secret';
 
 interface TokenRow {
@@ -65,6 +66,7 @@ export class TokensService {
     nameRaw: string,
     scopes: readonly string[],
   ): Promise<TokenCreatedDto> {
+    requireBrowserSession(user);
     const name = nameRaw.trim();
     if (name.length === 0 || name.length > 80) {
       throw new DomainException(
@@ -118,6 +120,7 @@ export class TokensService {
   }
 
   async revoke(user: AuthUser, id: string): Promise<void> {
+    requireBrowserSession(user);
     await this.prisma.$transaction(async (tx) => {
       const current = await tx.personalAccessToken.findFirst({
         where: { id, ownerId: user.id, deletedAt: null },

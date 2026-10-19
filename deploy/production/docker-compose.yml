@@ -1,6 +1,6 @@
-# Pila propia de todo.reflexionia.com en el mismo host que ia.turugby.
-# No publica 80 ni 443: el Caddy de turugby-production ya los tiene.
-# Los alias todo-api y todo-web son los nombres que usa deploy/production/todo.caddy.
+# Application stack. It does not publish 80 or 443: an edge Caddy already has them.
+# Aliases todo-api and todo-web are the names used by deploy/production/todo.caddy.
+# Set EDGE_NETWORK to the Docker network the edge proxy is attached to.
 name: todo
 
 services:
@@ -12,7 +12,7 @@ services:
         GIT_COMMIT: ${GIT_COMMIT:-unknown}
     restart: unless-stopped
     env_file:
-      - ${RUNTIME_ENV_FILE:-/etc/todo/production.env}
+      - ${RUNTIME_ENV_FILE:?Set RUNTIME_ENV_FILE}
     environment:
       NODE_ENV: production
       GIT_COMMIT: ${GIT_COMMIT:-unknown}
@@ -21,9 +21,18 @@ services:
       SCHEDULER_AUTOSTART: 'true'
       ATTACHMENT_DIR: /data/attachments
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?connection_limit=10&pool_timeout=20
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
     volumes:
       - attachments:/data/attachments
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 768m
+    pids_limit: 256
     depends_on:
       postgres:
         condition: service_healthy
@@ -40,6 +49,17 @@ services:
       context: ../..
       dockerfile: apps/web/Dockerfile
     restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+      - /var/run
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 256m
+    pids_limit: 128
     networks:
       private: {}
       edge:
@@ -47,7 +67,7 @@ services:
           - todo-web
 
   postgres:
-    image: postgres:17-alpine
+    image: postgres:17.6-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -64,9 +84,9 @@ services:
       - private
 
   redis:
-    image: redis:7-alpine
+    image: redis:7.4-alpine
     restart: unless-stopped
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
     volumes:
       - redisdata:/data
     networks:
@@ -77,7 +97,7 @@ networks:
     internal: true
   edge:
     external: true
-    name: turugby-production_public
+    name: ${EDGE_NETWORK:-todo_edge}
 
 volumes:
   pgdata:

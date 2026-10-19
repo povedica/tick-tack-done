@@ -5,7 +5,7 @@ import { IsBoolean, IsOptional, IsString, IsUUID, MaxLength } from 'class-valida
 import type { Request, Response } from 'express';
 import { actorOf, type AuthUser } from '../../auth/auth-user';
 import { CurrentUser } from '../../auth/current-user.decorator';
-import { Scopes } from '../../auth/scopes.decorator';
+import { Public, Scopes } from '../../auth/scopes.decorator';
 import { DomainEvent } from '../../events/domain-events';
 import { EventRecorder } from '../../events/event-recorder';
 import { driveConfigured, googleConfigured, telegramConfigured } from '../../integrations/config';
@@ -18,6 +18,7 @@ import { asJson } from '../../http/json';
 import { DomainException } from '../../http/domain.exception';
 import { respondJson } from '../../http/respond';
 import { PrismaService } from '../../prisma/prisma.service';
+import { openField, sealField } from '../../security/field-cipher';
 import { ATTACHMENT_MAX_BYTES } from '../tasks/attachment-storage';
 import { TasksService } from '../tasks/tasks.service';
 
@@ -112,6 +113,7 @@ export class IntegrationsController {
   }
 
   @Post('telegram/webhook')
+  @Public()
   @ApiOperation({
     summary:
       'Inbound Telegram update. Creates the task and replies in the chat (RF-2003). Refuses to run when the bot token is missing.',
@@ -131,7 +133,7 @@ export class IntegrationsController {
         'Set TELEGRAM_BOT_TOKEN. The bot is not calling Telegram.',
       );
     }
-    if (!telegramSecretMatches(req.header('x-telegram-bot-api-secret-token'), botToken())) {
+    if (!telegramSecretMatches(req.header('x-telegram-bot-api-secret-token'))) {
       throw new DomainException(HttpStatus.UNAUTHORIZED, 'unauthorized', 'Invalid bot secret');
     }
     respondJson(req, res, 200, await this.telegram.handle(req.body), false);
@@ -188,6 +190,7 @@ export class IntegrationsController {
   }
 
   @Get('google/callback')
+  @Public()
   @ApiOperation({ summary: 'Google redirects here with the authorization code (RF-2004).' })
   async callback(
     @Query('code') code: string | undefined,
@@ -195,8 +198,12 @@ export class IntegrationsController {
     @Res() res: Response,
   ): Promise<void> {
     const parsed = state === undefined ? null : readState(state);
-    const back =
-      parsed === null ? 'http://127.0.0.1:5173' : parsed.redirect.replace(/\/api\/v1.*$/, '');
+    const fallback = (
+      process.env.APP_WEB_URL ??
+      process.env.PUBLIC_URL ??
+      'http://127.0.0.1:5173'
+    ).replace(/\/$/, '');
+    const back = parsed === null ? fallback : parsed.redirect.replace(/\/api\/v1.*$/, '');
     if (parsed === null || code === undefined || code.length === 0) {
       res.redirect(302, `${back}/settings/integrations?google=error`);
       return;
@@ -225,7 +232,7 @@ export class IntegrationsController {
     await this.prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { id: parsed.uid },
-        data: { googleRefreshToken: refreshToken, googleAccountEmail: account },
+        data: { googleRefreshToken: sealField(refreshToken), googleAccountEmail: account },
       });
       await this.events.record(
         tx,
@@ -312,7 +319,11 @@ export class IntegrationsController {
       where: { id: user.id },
       select: { googleRefreshToken: true },
     });
-    const refresh = row?.googleRefreshToken ?? process.env.GOOGLE_REFRESH_TOKEN ?? '';
+    const stored = row?.googleRefreshToken ?? null;
+    const refresh =
+      stored === null || stored.length === 0
+        ? (process.env.GOOGLE_REFRESH_TOKEN ?? '')
+        : openField(stored);
     const access = await exchangeGoogleRefreshToken(refresh);
     const file = await downloadDriveFile(access, dto.file_id);
     if (file.bytes.length > ATTACHMENT_MAX_BYTES) {
@@ -379,10 +390,6 @@ async function googleAccount(accessToken: string): Promise<string | null> {
   }
   const body = (await response.json()) as { email?: unknown };
   return typeof body.email === 'string' ? body.email : null;
-}
-
-function botToken(): string {
-  return process.env.TELEGRAM_BOT_TOKEN ?? '';
 }
 
 function present(name: string): boolean {

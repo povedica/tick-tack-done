@@ -6,11 +6,11 @@ import { DomainEvent } from '../../events/domain-events';
 import { EventRecorder } from '../../events/event-recorder';
 import { asJson } from '../../http/json';
 import { DomainException } from '../../http/domain.exception';
+import { openField } from '../../security/field-cipher';
+import { ICAL_MAX_BYTES, safeFetch } from '../../security/safe-fetch';
 import { PrismaService } from '../../prisma/prisma.service';
 import { googleConfigured } from '../../integrations/config';
 import { exchangeGoogleRefreshToken } from '../../integrations/google-token';
-
-const MAX_ICAL_BYTES = 1_000_000;
 
 @Injectable()
 export class CalendarService {
@@ -81,6 +81,8 @@ export class CalendarService {
         'two_way is only available for Google Calendar',
       );
     }
+    const preview =
+      provider === 'google' || body.url === undefined ? null : await this.fetchIcal(body.url);
     const row = await this.prisma.$transaction(async (tx) => {
       const created = await tx.calendarSubscription.create({
         data: {
@@ -101,8 +103,8 @@ export class CalendarService {
       });
       return created;
     });
-    if (row.url !== null) {
-      await this.refresh(user, row.id);
+    if (preview !== null) {
+      await this.storeIcal(user, row.id, preview);
     }
     return {
       id: row.id,
@@ -230,14 +232,22 @@ export class CalendarService {
       throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'Nothing to fetch');
     }
     const text = await this.fetchIcal(row.url);
+    return this.storeIcal(user, row.id, text);
+  }
+
+  private async storeIcal(
+    user: AuthUser,
+    subscriptionId: string,
+    text: string,
+  ): Promise<{ imported: number }> {
     const parsed = parseIcal(text);
     await this.prisma.$transaction(async (tx) => {
       for (const event of parsed) {
         await tx.externalEvent.upsert({
-          where: { subscriptionId_externalUid: { subscriptionId: row.id, externalUid: event.uid } },
+          where: { subscriptionId_externalUid: { subscriptionId, externalUid: event.uid } },
           create: {
             ownerId: user.id,
-            subscriptionId: row.id,
+            subscriptionId,
             externalUid: event.uid,
             title: event.title,
             startsAt: new Date(event.startsAt),
@@ -254,14 +264,14 @@ export class CalendarService {
         });
       }
       await tx.calendarSubscription.update({
-        where: { id: row.id },
+        where: { id: subscriptionId },
         data: { lastSyncedAt: new Date() },
       });
       if (parsed.length > 0) {
         await this.events.record(tx, actorOf(user), {
           type: DomainEvent.calendarEventImported,
           entityType: 'calendar_subscription',
-          entityId: row.id,
+          entityId: subscriptionId,
           action: 'updated',
           data: { imported: parsed.length },
           previous: null,
@@ -299,7 +309,7 @@ export class CalendarService {
       });
       return created;
     });
-    const base = process.env.PUBLIC_URL ?? 'https://todo.reflexionia.com';
+    const base = (process.env.PUBLIC_URL ?? 'http://127.0.0.1:5173').replace(/\/$/, '');
     return { id: row.id, url: `${base}/feeds/${token}.ics` };
   }
 
@@ -427,7 +437,11 @@ export class CalendarService {
       where: { id: userId },
       select: { googleRefreshToken: true },
     });
-    const refresh = row?.googleRefreshToken ?? process.env.GOOGLE_REFRESH_TOKEN ?? '';
+    const stored = row?.googleRefreshToken ?? null;
+    const refresh =
+      stored === null || stored.length === 0
+        ? (process.env.GOOGLE_REFRESH_TOKEN ?? '')
+        : openField(stored);
     if (!googleConfigured() || refresh.length === 0) {
       throw new DomainException(
         HttpStatus.SERVICE_UNAVAILABLE,
@@ -439,32 +453,33 @@ export class CalendarService {
   }
 
   private async fetchIcal(url: string): Promise<string> {
-    let parsed: URL;
     try {
-      parsed = new URL(url);
-    } catch {
-      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'url is invalid');
-    }
-    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'url must be http(s)');
-    }
-    const response = await fetch(parsed, { signal: AbortSignal.timeout(8_000) });
-    if (!response.ok) {
+      const response = await safeFetch(url, { maxBytes: ICAL_MAX_BYTES });
+      if (response.status < 200 || response.status >= 300) {
+        throw new DomainException(
+          HttpStatus.BAD_GATEWAY,
+          'calendar_fetch_failed',
+          'Calendar URL failed',
+        );
+      }
+      return response.body.toString('utf8');
+    } catch (error) {
+      if (error instanceof DomainException && error.getStatus() === 400) {
+        throw error;
+      }
+      if (error instanceof DomainException && error.getStatus() === 502) {
+        throw new DomainException(
+          HttpStatus.BAD_GATEWAY,
+          'calendar_fetch_failed',
+          'Calendar URL failed',
+        );
+      }
       throw new DomainException(
         HttpStatus.BAD_GATEWAY,
         'calendar_fetch_failed',
         'Calendar URL failed',
       );
     }
-    const text = await response.text();
-    if (text.length > MAX_ICAL_BYTES) {
-      throw new DomainException(
-        HttpStatus.BAD_REQUEST,
-        'validation_failed',
-        'Calendar is too large',
-      );
-    }
-    return text;
   }
 }
 

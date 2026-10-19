@@ -16,8 +16,10 @@ import type {
   OauthTokenDto,
   OauthTokenResponseDto,
 } from './oauth.dto';
+import { AttemptLimiter } from './attempt-limiter';
 import { pkceMatches } from './pkce';
 import { isApiScope } from './scopes';
+import { requireBrowserSession } from './session-access';
 import { hashSecret } from './session-cookie';
 import { TokensService } from './tokens.service';
 
@@ -29,9 +31,11 @@ export class OauthService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(TokensService) private readonly tokens: TokensService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
+    @Inject(AttemptLimiter) private readonly attempts: AttemptLimiter,
   ) {}
 
   async createClient(user: AuthUser, dto: CreateOauthClientDto): Promise<OauthClientDto> {
+    requireBrowserSession(user);
     const row = await this.prisma.oauthClient.create({
       data: { ownerId: user.id, name: dto.name.trim(), redirectUris: dto.redirect_uris },
     });
@@ -72,7 +76,9 @@ export class OauthService {
     return { redirect_to: url.toString() };
   }
 
-  async token(dto: OauthTokenDto): Promise<OauthTokenResponseDto> {
+  async token(dto: OauthTokenDto, ip: string): Promise<OauthTokenResponseDto> {
+    await this.attempts.assertAllowed(ip, `oauth:${dto.client_id}`);
+    await this.attempts.recordAttempt(ip);
     const row = await this.prisma.oauthAuthorizationCode.findFirst({
       where: { codeHash: hashSecret(dto.code), consumedAt: null, expiresAt: { gt: new Date() } },
     });

@@ -1302,11 +1302,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** SSE is not offered. Returns 405 so a Streamable HTTP client keeps using POST (RF-2001). */
+        get: operations["McpController_get"];
         put?: never;
-        /** MCP JSON-RPC (RF-2001). Tools use API v1 and cannot exceed the bearer token scopes. Notes are not exposed. */
+        /** Stateless Streamable HTTP JSON-RPC (RF-2001). POST returns application/json; a notification returns 202 with an empty body. GET and DELETE on this path return 405 with Allow: POST until a server-sent stream exists. No Mcp-Session-Id. A tool is listed only when the token holds every scope it declares. */
         post: operations["McpController_handle"];
-        delete?: never;
+        /** There is no MCP session to close. Returns 405 with Allow: POST (RF-2001). */
+        delete: operations["McpController_remove"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2370,6 +2372,10 @@ export interface components {
         DeleteMeDto: {
             /** @description Must equal the account email */
             confirmation: string;
+            /** @description Current password */
+            password: string;
+            totp_code?: string;
+            recovery_code?: string;
         };
         MeResponseDto: {
             id: string;
@@ -5630,6 +5636,33 @@ export interface operations {
             };
         };
     };
+    McpController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Missing credential or invalid bearer token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Method Not Allowed. Empty body, Allow: POST, no Mcp-Session-Id. A 404 would mean the session ended. */
+            405: {
+                headers: {
+                    /** @description POST */
+                    Allow?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     McpController_handle: {
         parameters: {
             query?: never;
@@ -5650,8 +5683,50 @@ export interface operations {
             };
         };
         responses: {
-            201: {
+            /** @description JSON-RPC result as application/json. */
+            200: {
                 headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Notification accepted. Empty body. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing credential or invalid bearer token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    McpController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Missing credential or invalid bearer token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Method Not Allowed. Empty body, Allow: POST, no Mcp-Session-Id. */
+            405: {
+                headers: {
+                    /** @description POST */
+                    Allow?: string;
                     [name: string]: unknown;
                 };
                 content?: never;

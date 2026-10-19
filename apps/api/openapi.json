@@ -32,6 +32,11 @@
         "summary": "Delete the account and its data after email confirmation (section 15)",
         "tags": [
           "me"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "get": {
@@ -61,6 +66,11 @@
         "summary": "Current user profile",
         "tags": [
           "me"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "patch": {
@@ -100,6 +110,11 @@
         "summary": "Update profile settings, including RF-206 completion policy",
         "tags": [
           "me"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -131,6 +146,11 @@
         "summary": "Whether the email-to-task address is active (RF-105). The token is not returned.",
         "tags": [
           "me"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "post": {
@@ -160,6 +180,11 @@
         "summary": "Create or regenerate the email-to-task address (RF-105). The token is shown once.",
         "tags": [
           "me"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "delete": {
@@ -182,6 +207,11 @@
         "summary": "Revoke the email-to-task address immediately (RF-105)",
         "tags": [
           "me"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -216,6 +246,11 @@
         "summary": "Register a Web Push subscription (RF-802)",
         "tags": [
           "me"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -248,6 +283,11 @@
         "summary": "Remove a Web Push subscription",
         "tags": [
           "me"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -279,6 +319,11 @@
         "summary": "List personal access tokens. The secret is never returned (RF-2002).",
         "tags": [
           "me"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "post": {
@@ -318,6 +363,11 @@
         "summary": "Create one token for an agent. The secret is shown once (RF-2002).",
         "tags": [
           "me"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -357,6 +407,11 @@
         "summary": "Activity performed with one token (RF-2002)",
         "tags": [
           "me"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -389,6 +444,11 @@
         "summary": "Revoke a personal access token immediately (RF-2002)",
         "tags": [
           "me"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -420,6 +480,11 @@
         "summary": "Account activity log",
         "tags": [
           "me"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -452,7 +517,8 @@
         "summary": "Create the account and a session. Closed after the first user unless REGISTRATION_OPEN.",
         "tags": [
           "auth"
-        ]
+        ],
+        "security": []
       }
     },
     "/api/v1/auth/login": {
@@ -484,7 +550,8 @@
         "summary": "Open a revocable httpOnly session and return the CSRF token",
         "tags": [
           "auth"
-        ]
+        ],
+        "security": []
       }
     },
     "/api/v1/auth/logout": {
@@ -499,6 +566,11 @@
         "summary": "Revoke the current session",
         "tags": [
           "auth"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -521,6 +593,11 @@
         "summary": "Current session profile and CSRF token",
         "tags": [
           "auth"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -546,6 +623,11 @@
         "summary": "Revocable sessions of the current user",
         "tags": [
           "auth"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -570,6 +652,11 @@
         "summary": "Revoke one session immediately",
         "tags": [
           "auth"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -602,6 +689,11 @@
         "summary": "Register a public OAuth client (PKCE, no secret)",
         "tags": [
           "oauth"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -673,6 +765,11 @@
         "summary": "Consent details for Authorization Code + PKCE",
         "tags": [
           "oauth"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "post": {
@@ -703,6 +800,11 @@
         "summary": "Approve or deny the consent screen and return the redirect",
         "tags": [
           "oauth"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -735,7 +837,8 @@
         "summary": "Exchange an authorization code and PKCE verifier for a bearer token",
         "tags": [
           "oauth"
-        ]
+        ],
+        "security": []
       }
     },
     "/api/v1/me/totp": {
@@ -750,6 +853,11 @@
         "summary": "Start TOTP. It is not forced on the dev user.",
         "tags": [
           "me"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -775,6 +883,11 @@
         "summary": "Confirm TOTP and show recovery codes once",
         "tags": [
           "me"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -800,6 +913,11 @@
         "summary": "Turn off TOTP",
         "tags": [
           "me"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -822,7 +940,8 @@
         "summary": "Liveness probe",
         "tags": [
           "health"
-        ]
+        ],
+        "security": []
       }
     },
     "/api/v1/habits": {
@@ -853,6 +972,11 @@
         "summary": "List habits (RF-1301)",
         "tags": [
           "habits"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "post": {
@@ -892,6 +1016,11 @@
         "summary": "Create a habit (RF-1301)",
         "tags": [
           "habits"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -931,6 +1060,11 @@
         "summary": "Habit streaks, completion and heatmaps (RF-1303)",
         "tags": [
           "habits"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -980,6 +1114,11 @@
         "summary": "Record a daily check-in with a counter and an optional note (RF-1302)",
         "tags": [
           "habits"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -1019,6 +1158,11 @@
         "summary": "Get a habit (RF-1301)",
         "tags": [
           "habits"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "patch": {
@@ -1066,6 +1210,11 @@
         "summary": "Update a habit (RF-1301)",
         "tags": [
           "habits"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "delete": {
@@ -1096,6 +1245,11 @@
         "summary": "Move a habit to the trash (RF-1301, RF-1304)",
         "tags": [
           "habits"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -1127,6 +1281,11 @@
         "summary": "List folders",
         "tags": [
           "lists"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "post": {
@@ -1166,6 +1325,11 @@
         "summary": "Create a folder",
         "tags": [
           "lists"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -1205,6 +1369,11 @@
         "summary": "Get a folder",
         "tags": [
           "lists"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "patch": {
@@ -1252,6 +1421,11 @@
         "summary": "Update a folder",
         "tags": [
           "lists"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "delete": {
@@ -1282,6 +1456,11 @@
         "summary": "Move a folder to the trash and detach its lists",
         "tags": [
           "lists"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -1313,6 +1492,11 @@
         "summary": "List projects, with the active task count (RF-305)",
         "tags": [
           "lists"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "post": {
@@ -1352,6 +1536,11 @@
         "summary": "Create a list",
         "tags": [
           "lists"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -1391,6 +1580,11 @@
         "summary": "Get a list",
         "tags": [
           "lists"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "patch": {
@@ -1438,6 +1632,11 @@
         "summary": "Update a list",
         "tags": [
           "lists"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "delete": {
@@ -1468,6 +1667,11 @@
         "summary": "Move a list and its tasks to the trash",
         "tags": [
           "lists"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -1500,6 +1704,11 @@
         "summary": "List plus its sections and active tasks",
         "tags": [
           "lists"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -1539,6 +1748,11 @@
         "summary": "Archive a list",
         "tags": [
           "lists"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -1578,6 +1792,11 @@
         "summary": "Unarchive a list",
         "tags": [
           "lists"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -1610,6 +1829,11 @@
         "summary": "Archive every completed task in a list (RF-306)",
         "tags": [
           "lists"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -1649,6 +1873,11 @@
         "summary": "List sections of a list",
         "tags": [
           "lists"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "post": {
@@ -1696,6 +1925,11 @@
         "summary": "Create a section",
         "tags": [
           "lists"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -1753,6 +1987,11 @@
         "summary": "Rename, collapse or reorder a section (RF-304)",
         "tags": [
           "lists"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "delete": {
@@ -1791,6 +2030,11 @@
         "summary": "Delete a section and detach its tasks",
         "tags": [
           "lists"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -1806,6 +2050,11 @@
         "summary": "Eisenhower rules. Missing rows use the spec defaults (RF-1004).",
         "tags": [
           "matrix"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "put": {
@@ -1829,6 +2078,11 @@
         "summary": "Replace one quadrant rule (RF-1004)",
         "tags": [
           "matrix"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -1860,6 +2114,11 @@
         "summary": "List saved filters with task counts (RF-903)",
         "tags": [
           "filters"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "post": {
@@ -1899,6 +2158,11 @@
         "summary": "Save a normal or advanced filter (RF-902)",
         "tags": [
           "filters"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -1940,6 +2204,11 @@
         "summary": "Preview filter rules without saving (RF-902)",
         "tags": [
           "filters"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -1979,6 +2248,11 @@
         "summary": "List view of a saved filter (RF-903, RF-1001)",
         "tags": [
           "filters"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -2018,6 +2292,11 @@
         "summary": "Get a saved filter (RF-902)",
         "tags": [
           "filters"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "patch": {
@@ -2065,6 +2344,11 @@
         "summary": "Update, pin or reorder a filter (RF-902, RF-903)",
         "tags": [
           "filters"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "delete": {
@@ -2095,6 +2379,11 @@
         "summary": "Move a filter to the trash (RF-902)",
         "tags": [
           "filters"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -2126,6 +2415,11 @@
         "summary": "System smart lists for the current user (RF-901)",
         "tags": [
           "smart-lists"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "patch": {
@@ -2165,6 +2459,11 @@
         "summary": "Enable and reorder system smart lists (RF-901)",
         "tags": [
           "smart-lists"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -2204,6 +2503,11 @@
         "summary": "List view of a system smart list (RF-901, RF-1001)",
         "tags": [
           "smart-lists"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -2235,6 +2539,11 @@
         "summary": "Search tasks, notes, lists and tags (RF-1501)",
         "tags": [
           "search"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -2266,6 +2575,11 @@
         "summary": "List tags with active task counts (RF-403)",
         "tags": [
           "tags"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "post": {
@@ -2305,6 +2619,11 @@
         "summary": "Create a tag",
         "tags": [
           "tags"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -2346,6 +2665,11 @@
         "summary": "Merge one tag into another",
         "tags": [
           "tags"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -2385,6 +2709,11 @@
         "summary": "Get a tag",
         "tags": [
           "tags"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "patch": {
@@ -2432,6 +2761,11 @@
         "summary": "Rename, recolor, reparent or reorder a tag",
         "tags": [
           "tags"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "delete": {
@@ -2462,6 +2796,11 @@
         "summary": "Delete a tag. Filters keep working because they store ids (RF-403).",
         "tags": [
           "tags"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -2493,6 +2832,11 @@
         "summary": "Completed tasks",
         "tags": [
           "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -2524,6 +2868,11 @@
         "summary": "Trashed tasks",
         "tags": [
           "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "delete": {
@@ -2546,6 +2895,11 @@
         "summary": "Empty the trash (RF-306)",
         "tags": [
           "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -2578,6 +2932,11 @@
         "summary": "Permanently delete one trashed task",
         "tags": [
           "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -2617,6 +2976,11 @@
         "summary": "Restore a trashed task",
         "tags": [
           "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -2651,6 +3015,11 @@
         "summary": "Bulk complete, move, tag, prioritize, reschedule or delete (RF-208)",
         "tags": [
           "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -2682,6 +3051,11 @@
         "summary": "List tasks. Subtasks stay nested unless flat=true (RF-205).",
         "tags": [
           "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "post": {
@@ -2721,6 +3095,11 @@
         "summary": "Create a task. raw_text is parsed on the server (RF-102); explicit fields override it. Checklist lines can be extracted from Markdown (RF-202).",
         "tags": [
           "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -2760,6 +3139,11 @@
         "summary": "Task detail, checklist progress, subtasks and activity (RF-207, RF-209)",
         "tags": [
           "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "patch": {
@@ -2807,6 +3191,11 @@
         "summary": "Update a task, including kind task/note and priority (RF-204, RF-501)",
         "tags": [
           "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "delete": {
@@ -2837,6 +3226,11 @@
         "summary": "Move a task and its subtasks to the trash",
         "tags": [
           "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -2869,6 +3263,11 @@
         "summary": "Theoretical occurrences of a repeating task (RF-704). Nothing is stored.",
         "tags": [
           "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -2918,6 +3317,11 @@
         "summary": "Detach one occurrence from the series with an EXDATE (RF-705)",
         "tags": [
           "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -2967,6 +3371,11 @@
         "summary": "Move the due date to tomorrow, next week or a chosen date (RF-605)",
         "tags": [
           "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -2999,6 +3408,11 @@
         "summary": "Reminders on a task (RF-801)",
         "tags": [
           "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "post": {
@@ -3039,6 +3453,11 @@
         "summary": "Add a relative, absolute or location reminder (RF-801)",
         "tags": [
           "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -3089,6 +3508,11 @@
         "summary": "Snooze a reminder for 10 minutes, 1 hour, tomorrow or a custom time (RF-804)",
         "tags": [
           "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -3129,6 +3553,11 @@
         "summary": "Delete a reminder",
         "tags": [
           "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -3178,6 +3607,11 @@
         "summary": "Complete a task. Active children require a choice unless a policy is set (RF-206).",
         "tags": [
           "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -3217,6 +3651,11 @@
         "summary": "Mark a task active again",
         "tags": [
           "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -3266,6 +3705,11 @@
         "summary": "Move a task between lists or sections (RF-204)",
         "tags": [
           "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -3305,6 +3749,11 @@
         "summary": "Duplicate a task with its checklist and subtasks (RF-204)",
         "tags": [
           "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -3347,6 +3796,11 @@
         "summary": "Add a checklist item",
         "tags": [
           "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -3397,6 +3851,11 @@
         "summary": "Update a checklist item",
         "tags": [
           "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "delete": {
@@ -3435,6 +3894,11 @@
         "summary": "Delete a checklist item",
         "tags": [
           "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -3475,6 +3939,11 @@
         "summary": "Complete a checklist item",
         "tags": [
           "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -3523,6 +3992,11 @@
         "summary": "Attach a file to a task (RF-203)",
         "tags": [
           "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "get": {
@@ -3553,6 +4027,11 @@
         "summary": "List attachments of a task",
         "tags": [
           "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -3593,6 +4072,11 @@
         "summary": "Download the image thumbnail (RF-203)",
         "tags": [
           "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -3633,6 +4117,11 @@
         "summary": "Download an attachment",
         "tags": [
           "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "delete": {
@@ -3671,6 +4160,11 @@
         "summary": "Delete an attachment",
         "tags": [
           "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -3721,7 +4215,8 @@
         "summary": "Deliver an email-to-task message (RF-105). The recipient token authenticates the call. Content is stored and never executed.",
         "tags": [
           "inbound"
-        ]
+        ],
+        "security": []
       }
     },
     "/api/v1/sync": {
@@ -3753,6 +4248,11 @@
         "summary": "Delta sync since an event id. Tombstones older than 90 days are omitted (RF-13011, RF-13014).",
         "tags": [
           "sync"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -3768,6 +4268,11 @@
         "summary": "Versioned JSON export of the user state (RF-1703, RF-1705)",
         "tags": [
           "export"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -3783,6 +4288,11 @@
         "summary": "List backup stamps on this machine (RF-1704)",
         "tags": [
           "backups"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -3808,6 +4318,11 @@
         "summary": "Verify a backup archive. Applying it stays on the host script (RF-1704).",
         "tags": [
           "backups"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -3866,6 +4381,11 @@
         "summary": "Stateless Streamable HTTP JSON-RPC (RF-2001). POST returns application/json; a notification returns 202 with an empty body. GET and DELETE on this path return 405 with Allow: POST until a server-sent stream exists. No Mcp-Session-Id. A tool is listed only when the token holds every scope it declares.",
         "tags": [
           "mcp"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "get": {
@@ -3891,6 +4411,11 @@
         "summary": "SSE is not offered. Returns 405 so a Streamable HTTP client keeps using POST (RF-2001).",
         "tags": [
           "mcp"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "delete": {
@@ -3916,6 +4441,11 @@
         "summary": "There is no MCP session to close. Returns 405 with Allow: POST (RF-2001).",
         "tags": [
           "mcp"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -3948,6 +4478,11 @@
         "summary": "Tasks with a date plus external events (RF-1101, RF-1102)",
         "tags": [
           "calendar"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -3963,6 +4498,11 @@
         "summary": "List calendar subscriptions (RF-1103)",
         "tags": [
           "calendar"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "post": {
@@ -3986,6 +4526,11 @@
         "summary": "Subscribe to an iCal URL or Google Calendar read (RF-1103, RF-2004)",
         "tags": [
           "calendar"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4010,6 +4555,11 @@
         "summary": "Fetch an iCal subscription (RF-1103)",
         "tags": [
           "calendar"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4034,6 +4584,11 @@
         "summary": "Google Calendar two-way write (V2). Stops without credentials.",
         "tags": [
           "calendar"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4058,6 +4613,11 @@
         "summary": "Remove a calendar subscription",
         "tags": [
           "calendar"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4083,6 +4643,11 @@
         "summary": "Create a secret iCal feed for a list or filter (RF-1104)",
         "tags": [
           "calendar"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4107,6 +4672,11 @@
         "summary": "Revoke an iCal feed (RF-1104)",
         "tags": [
           "calendar"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4131,7 +4701,8 @@
         "summary": "Read-only iCal feed (RF-1104)",
         "tags": [
           "Feeds"
-        ]
+        ],
+        "security": []
       }
     },
     "/api/v1/dashboard/widgets": {
@@ -4146,6 +4717,11 @@
         "summary": "Widget catalog (RF-2101, RF-2104)",
         "tags": [
           "dashboard"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4161,6 +4737,11 @@
         "summary": "KPI for one widget (RF-2102, RF-2104)",
         "tags": [
           "dashboard"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4176,6 +4757,11 @@
         "summary": "Dashboard layout (RF-2103)",
         "tags": [
           "dashboard"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "patch": {
@@ -4199,6 +4785,11 @@
         "summary": "Save the dashboard layout (RF-2103)",
         "tags": [
           "dashboard"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4214,6 +4805,11 @@
         "summary": "Weekly report history (RF-2204)",
         "tags": [
           "reports"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "post": {
@@ -4227,6 +4823,11 @@
         "summary": "Build this week’s honest report (RF-2201, RF-2203)",
         "tags": [
           "reports"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4251,6 +4852,11 @@
         "summary": "One weekly report (RF-2204)",
         "tags": [
           "reports"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4266,6 +4872,11 @@
         "summary": "Weekly report settings (RF-2202)",
         "tags": [
           "reports"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "patch": {
@@ -4289,6 +4900,11 @@
         "summary": "Update weekly report settings (RF-2202)",
         "tags": [
           "reports"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4304,6 +4920,11 @@
         "summary": "Propose today’s short list. The UI does not decide (RF-2301)",
         "tags": [
           "review"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4319,6 +4940,11 @@
         "summary": "Guided weekly review (RF-2302, RF-2303)",
         "tags": [
           "review"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4334,6 +4960,11 @@
         "summary": "List webhook endpoints (RF-11010)",
         "tags": [
           "webhooks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "post": {
@@ -4357,6 +4988,11 @@
         "summary": "Create a signed webhook (RF-11010)",
         "tags": [
           "webhooks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4381,6 +5017,11 @@
         "summary": "Remove a webhook",
         "tags": [
           "webhooks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4405,6 +5046,11 @@
         "summary": "Send a test ping (RF-11010)",
         "tags": [
           "webhooks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4429,6 +5075,11 @@
         "summary": "Retry a delivery (RF-11010)",
         "tags": [
           "webhooks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4444,6 +5095,11 @@
         "summary": "List automations (section 11.3)",
         "tags": [
           "automations"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "post": {
@@ -4467,6 +5123,11 @@
         "summary": "Create an automation (section 11.3)",
         "tags": [
           "automations"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4491,6 +5152,11 @@
         "summary": "Run an automation now, including the weekly report template (RF-2203)",
         "tags": [
           "automations"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4515,6 +5181,11 @@
         "summary": "Delete an automation",
         "tags": [
           "automations"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4530,6 +5201,11 @@
         "summary": "Push domain events to open clients (RF-13013)",
         "tags": [
           "sync"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4555,6 +5231,11 @@
         "summary": "Start a server-side focus session (RF-1201, RF-1205)",
         "tags": [
           "focus"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "get": {
@@ -4582,6 +5263,11 @@
         "summary": "List focus sessions (RF-1204)",
         "tags": [
           "focus"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4606,6 +5292,11 @@
         "summary": "Finish a session and name the next phase (RF-1201)",
         "tags": [
           "focus"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4630,6 +5321,11 @@
         "summary": "Abort a session (RF-1205)",
         "tags": [
           "focus"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4645,6 +5341,11 @@
         "summary": "Focus statistics (RF-1204)",
         "tags": [
           "focus"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4660,6 +5361,11 @@
         "summary": "Focus settings (RF-1201)",
         "tags": [
           "focus"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "patch": {
@@ -4683,6 +5389,11 @@
         "summary": "Update focus settings (RF-1201)",
         "tags": [
           "focus"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4717,6 +5428,11 @@
         "summary": "Optional pomodoro estimate on a task (RF-1202)",
         "tags": [
           "focus"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4741,6 +5457,11 @@
         "summary": "List members of a shared list (RF-1801)",
         "tags": [
           "collaboration"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "post": {
@@ -4773,6 +5494,11 @@
         "summary": "Share a list with a user or a token (RF-1801, RF-1805)",
         "tags": [
           "collaboration"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4805,6 +5531,11 @@
         "summary": "Remove a member (RF-1801)",
         "tags": [
           "collaboration"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4829,6 +5560,11 @@
         "summary": "Mark that you are looking at the list (RF-1804)",
         "tags": [
           "collaboration"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4853,6 +5589,11 @@
         "summary": "Activity of a shared list (RF-1803)",
         "tags": [
           "collaboration"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4877,6 +5618,11 @@
         "summary": "Comments on a task (RF-1803)",
         "tags": [
           "collaboration"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "post": {
@@ -4909,6 +5655,11 @@
         "summary": "Comment, with @mentions (RF-1803)",
         "tags": [
           "collaboration"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4943,6 +5694,11 @@
         "summary": "Assign a task (RF-1802)",
         "tags": [
           "collaboration"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4958,6 +5714,11 @@
         "summary": "Installed plugins (section 12)",
         "tags": [
           "plugins"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "post": {
@@ -4971,6 +5732,11 @@
         "summary": "Install a plugin from its manifest. It does not run inside the API.",
         "tags": [
           "plugins"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -4986,6 +5752,11 @@
         "summary": "Widgets registered by plugins (RF-2105)",
         "tags": [
           "plugins"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -5010,6 +5781,11 @@
         "summary": "Remove a plugin",
         "tags": [
           "plugins"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -5025,6 +5801,11 @@
         "summary": "Notes, which are tasks with kind note (RF-1401)",
         "tags": [
           "notes"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -5059,6 +5840,11 @@
         "summary": "Convert a note into a task or the other way (RF-1402)",
         "tags": [
           "notes"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -5074,6 +5860,11 @@
         "summary": "Sticky notes (RF-1403)",
         "tags": [
           "notes"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "post": {
@@ -5097,6 +5888,11 @@
         "summary": "Pin a sticky note (RF-1403)",
         "tags": [
           "notes"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -5131,6 +5927,11 @@
         "summary": "Update a sticky note (RF-1403)",
         "tags": [
           "notes"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "delete": {
@@ -5153,6 +5954,11 @@
         "summary": "Delete a sticky note (RF-1403)",
         "tags": [
           "notes"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -5178,6 +5984,11 @@
         "summary": "Import a CSV with a column map (RF-1702). TickTick import stays deferred.",
         "tags": [
           "import"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -5193,6 +6004,11 @@
         "summary": "CSV export of a list (RF-1703)",
         "tags": [
           "import"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -5208,6 +6024,11 @@
         "summary": "iCal export of a list or filter (RF-1703)",
         "tags": [
           "import"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -5223,6 +6044,11 @@
         "summary": "Telegram bot status. Without TELEGRAM_BOT_TOKEN it stays stopped (RF-2003).",
         "tags": [
           "integrations"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -5248,6 +6074,11 @@
         "summary": "Remember a chat id so the bot can act as this user (RF-2003).",
         "tags": [
           "integrations"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -5275,7 +6106,8 @@
         "summary": "Inbound Telegram update. Creates the task and replies in the chat (RF-2003). Refuses to run when the bot token is missing.",
         "tags": [
           "integrations"
-        ]
+        ],
+        "security": []
       }
     },
     "/api/v1/integrations/google": {
@@ -5290,6 +6122,11 @@
         "summary": "Google connection status. The refresh token is stored after consent (RF-2004).",
         "tags": [
           "integrations"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -5305,6 +6142,11 @@
         "summary": "Build the Google consent URL. The browser completes it (RF-2004).",
         "tags": [
           "integrations"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -5320,7 +6162,8 @@
         "summary": "Google redirects here with the authorization code (RF-2004).",
         "tags": [
           "integrations"
-        ]
+        ],
+        "security": []
       }
     },
     "/api/v1/integrations/drive": {
@@ -5335,6 +6178,11 @@
         "summary": "Google Drive status. No call is made without credentials (RF-2005).",
         "tags": [
           "integrations"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -5360,6 +6208,11 @@
         "summary": "Attach a Drive file by link. Copying bytes needs credentials (RF-2005).",
         "tags": [
           "integrations"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -5385,6 +6238,11 @@
         "summary": "Fire location reminders when the browser supplies a position (RF-806)",
         "tags": [
           "me"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -5400,6 +6258,11 @@
         "summary": "Achievement score from the dashboard KPIs (RF-1602). Off means null.",
         "tags": [
           "me"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       },
       "patch": {
@@ -5423,6 +6286,11 @@
         "summary": "Turn the achievement score on or off (RF-1602)",
         "tags": [
           "me"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -5438,6 +6306,11 @@
         "summary": "TickTick-shaped project list",
         "tags": [
           "open"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -5462,6 +6335,11 @@
         "summary": "TickTick-shaped project data",
         "tags": [
           "open"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -5477,6 +6355,11 @@
         "summary": "Create a task with TickTick field names",
         "tags": [
           "open"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -5509,6 +6392,11 @@
         "summary": "Complete a task with the TickTick path",
         "tags": [
           "open"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     },
@@ -5541,6 +6429,11 @@
         "summary": "Delete a task with the TickTick path",
         "tags": [
           "open"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
         ]
       }
     }
@@ -5557,7 +6450,7 @@
     "securitySchemes": {
       "bearer": {
         "scheme": "bearer",
-        "bearerFormat": "JWT",
+        "bearerFormat": "PAT",
         "type": "http"
       }
     },
@@ -5568,10 +6461,21 @@
           "confirmation": {
             "type": "string",
             "description": "Must equal the account email"
+          },
+          "password": {
+            "type": "string",
+            "description": "Current password"
+          },
+          "totp_code": {
+            "type": "string"
+          },
+          "recovery_code": {
+            "type": "string"
           }
         },
         "required": [
-          "confirmation"
+          "confirmation",
+          "password"
         ]
       },
       "MeResponseDto": {

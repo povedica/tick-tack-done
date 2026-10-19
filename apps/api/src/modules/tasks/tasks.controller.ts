@@ -34,6 +34,7 @@ import { CurrentUser } from '../../auth/current-user.decorator';
 import { Scopes } from '../../auth/scopes.decorator';
 import { pageLimit } from '../../http/cursor';
 import { DomainException } from '../../http/domain.exception';
+import { optionalUuid } from '../../http/uuid-query';
 import { respondJson } from '../../http/respond';
 import { ATTACHMENT_MAX_BYTES } from './attachment-storage';
 import { parseTaskSort, type TaskSort } from './task-cursor';
@@ -175,13 +176,15 @@ export class TasksController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
+    const project = optionalUuid(projectId, 'project_id');
+    const tagId = optionalUuid(tag, 'tag');
     const page = await this.tasks.list(
       user,
       this.query(limit, cursor, {
-        ...(projectId === undefined ? {} : { projectId }),
+        ...(project === undefined ? {} : { projectId: project }),
         status: this.status(status),
         ...(priority === undefined ? {} : { priority: this.priority(priority) }),
-        ...(tag === undefined ? {} : { tagId: tag }),
+        ...(tagId === undefined ? {} : { tagId }),
         includeDescendants: includeDescendants !== 'false',
         ...(dueBefore === undefined ? {} : { dueBefore }),
         ...(dueAfter === undefined ? {} : { dueAfter }),

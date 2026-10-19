@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { AccountService } from './account.service';
+import { AttemptLimiter } from './attempt-limiter';
 import { ApiAuthGuard } from './api-auth.guard';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
@@ -25,6 +26,7 @@ import { TokensService } from './tokens.service';
     TotpService,
     TokenAudit,
     TokenRateLimiter,
+    AttemptLimiter,
     { provide: APP_GUARD, useClass: ApiAuthGuard },
   ],
 })

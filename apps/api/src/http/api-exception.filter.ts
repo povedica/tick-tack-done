@@ -27,8 +27,8 @@ const CODE_BY_STATUS: Readonly<Record<number, string>> = {
   [HttpStatus.TOO_MANY_REQUESTS]: 'rate_limited',
 };
 
-function isRecord(value: object): value is Record<string, unknown> {
-  return !Array.isArray(value);
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function messageFrom(body: string | object): string {
@@ -76,6 +76,41 @@ function errorBody(exception: HttpException): ApiErrorBody {
   };
 }
 
+function transportStatus(error: unknown): number | null {
+  if (typeof error !== 'object' || error === null) {
+    return null;
+  }
+  const record = error as { status?: unknown; statusCode?: unknown };
+  if (typeof record.status === 'number') {
+    return record.status;
+  }
+  if (typeof record.statusCode === 'number') {
+    return record.statusCode;
+  }
+  return null;
+}
+
+function isParseError(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) {
+    return false;
+  }
+  const type = (error as { type?: unknown }).type;
+  return type === 'entity.parse.failed' || error instanceof SyntaxError;
+}
+
+function retryAfter(exception: HttpException): number | null {
+  const body = exception.getResponse();
+  if (!isRecord(body)) {
+    return null;
+  }
+  const details = body.details;
+  if (!isRecord(details)) {
+    return null;
+  }
+  const retry = details.retry_after;
+  return typeof retry === 'number' ? retry : null;
+}
+
 @Catch()
 export class ApiExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(ApiExceptionFilter.name);
@@ -92,7 +127,30 @@ export class ApiExceptionFilter implements ExceptionFilter {
       } satisfies ApiErrorBody);
       return;
     }
+    const transport = transportStatus(exception);
+    if (transport === HttpStatus.PAYLOAD_TOO_LARGE) {
+      response.status(HttpStatus.PAYLOAD_TOO_LARGE).json({
+        error: {
+          code: 'payload_too_large',
+          message: 'Request body is too large',
+          details: null,
+        },
+      } satisfies ApiErrorBody);
+      return;
+    }
+    if (transport === HttpStatus.BAD_REQUEST && isParseError(exception)) {
+      response.status(HttpStatus.BAD_REQUEST).json({
+        error: { code: 'validation_failed', message: 'Request body is invalid', details: null },
+      } satisfies ApiErrorBody);
+      return;
+    }
     if (exception instanceof HttpException) {
+      if (exception.getStatus() === 429) {
+        const retry = retryAfter(exception);
+        if (retry !== null) {
+          response.setHeader('Retry-After', String(retry));
+        }
+      }
       response.status(exception.getStatus()).json(errorBody(exception));
       return;
     }

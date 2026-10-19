@@ -4,7 +4,7 @@ Usa este plan para acotar cada tarea de Cursor: cita la fase y los RF-xx.
 
 ## MVP / fase 1 (4-6 semanas de agente)
 
-Estado al cerrar la PR #14 (18 oct 2026): la fase 1 está en `main` (PR #11, tag `phase-1`). La web de la spec de UI entró en la PR #10. El look medido de TickTick entró en la PR #13. V1 y V2 están en `main` (PR #12). Telegram, Calendar, Drive, el backup a Drive y el despliegue se cierran en la PR #14. El sitio es `https://todo.reflexionia.com`, con sesión real y sin `AUTH_MODE=dev`. `BACKUP_REMOTE` sigue vacío; el cron de las 04:00 vuelca a `GOOGLE_DRIVE_FOLDER_ID` cuando el usuario de producción tiene refresh token. La PR #9 se cerró sin merge y no se resucita. RF-1701 sigue aplazado.
+Estado al cerrar la PR #14 (18 oct 2026): la fase 1 está en `main` (PR #11, tag `phase-1`). La web de la spec de UI entró en la PR #10. El sistema visual entró en la PR #13. V1 y V2 están en `main` (PR #12). Telegram, Calendar, Drive, el backup a Drive y el despliegue se cierran en la PR #14. El sitio es `https://todo.reflexionia.com`, con sesión real y sin `AUTH_MODE=dev`. `BACKUP_REMOTE` sigue vacío; el cron de las 04:00 vuelca a `GOOGLE_DRIVE_FOLDER_ID` cuando el usuario de producción tiene refresh token. La PR #9 se cerró sin merge y no se resucita. RF-1701 sigue aplazado.
 
 1. **Base**: monorepo, CI, Docker Compose, modelo de datos completo (sección 5), migraciones, seed.
 2. **Tareas núcleo**: CRUD + checklist + subtareas (RF-201–210), listas/carpetas/secciones

@@ -21,5 +21,7 @@ ENV NODE_ENV=production
 ENV GIT_COMMIT=$GIT_COMMIT
 RUN corepack enable
 COPY --from=build /app ./
-# El entrypoint aplica `prisma migrate deploy` antes de arrancar (ver docker-compose.yml)
+RUN chown -R node:node /app
+USER node
+# The entrypoint applies `prisma migrate deploy` before the process listens.
 CMD ["sh", "-c", "pnpm --filter api exec prisma migrate deploy && node apps/api/dist/main.js"]

@@ -24,7 +24,7 @@ export class SearchService {
     if (query.length > 200) {
       throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'query is too long');
     }
-    const types = this.types(typesRaw);
+    const types = this.allowedTypes(user, this.types(typesRaw));
     const parsed = parseSearchQuery(query);
     const groups: SearchGroupDto[] = [];
     if (types.has('task') || types.has('note')) {
@@ -182,6 +182,22 @@ export class SearchService {
             take: LIMIT,
           });
     return rows.map((row) => ({ id: row.id, name: row.name }));
+  }
+
+  private allowedTypes(user: AuthUser, types: Set<SearchType>): Set<SearchType> {
+    const scopeByType: Record<SearchType, string> = {
+      task: 'tasks:read',
+      note: 'notes:read',
+      list: 'lists:read',
+      tag: 'tags:read',
+    };
+    const allowed = new Set<SearchType>();
+    for (const type of types) {
+      if (user.scopes.includes(scopeByType[type])) {
+        allowed.add(type);
+      }
+    }
+    return allowed;
   }
 
   private types(raw: string | undefined): Set<SearchType> {

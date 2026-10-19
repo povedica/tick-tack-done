@@ -49,8 +49,12 @@ export class ReminderTransport {
         secure: false,
         ...(user.length > 0 ? { auth: { user, pass } } : {}),
       });
+      const from = process.env.SMTP_FROM ?? '';
+      if (from.length === 0) {
+        return 'skipped';
+      }
       await transport.sendMail({
-        from: process.env.SMTP_FROM ?? 'todo@reflexionia.com',
+        from,
         to: message.email,
         subject: message.title,
         text: message.body,
@@ -68,11 +72,11 @@ export class ReminderTransport {
       return 'skipped';
     }
     try {
-      webpush.setVapidDetails(
-        process.env.VAPID_SUBJECT ?? 'mailto:todo@reflexionia.com',
-        publicKey,
-        privateKey,
-      );
+      const subject = process.env.VAPID_SUBJECT ?? '';
+      if (subject.length === 0) {
+        return 'skipped';
+      }
+      webpush.setVapidDetails(subject, publicKey, privateKey);
       const payload = JSON.stringify({ title: message.title, body: message.body });
       for (const subscription of message.subscriptions) {
         await webpush.sendNotification(

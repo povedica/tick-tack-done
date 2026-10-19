@@ -22,6 +22,7 @@ import type { Request, Response } from 'express';
 import { respondJson } from '../http/respond';
 import type { AuthUser } from './auth-user';
 import { CurrentUser } from './current-user.decorator';
+import { ACCOUNT_ADMIN_SCOPE } from './scopes';
 import { Scopes } from './scopes.decorator';
 import { ActivityPageDto, CreateTokenDto, TokenCreatedDto, TokenPageDto } from './tokens.dto';
 import { TokensService } from './tokens.service';
@@ -47,7 +48,7 @@ export class TokensController {
   }
 
   @Post('tokens')
-  @Scopes('profile:write')
+  @Scopes(ACCOUNT_ADMIN_SCOPE)
   @ApiOperation({
     summary: 'Create one token for an agent. The secret is shown once (RF-2002).',
   })
@@ -77,7 +78,7 @@ export class TokensController {
   }
 
   @Delete('tokens/:id')
-  @Scopes('profile:write')
+  @Scopes(ACCOUNT_ADMIN_SCOPE)
   @ApiOperation({ summary: 'Revoke a personal access token immediately (RF-2002)' })
   async revoke(
     @CurrentUser() user: AuthUser,

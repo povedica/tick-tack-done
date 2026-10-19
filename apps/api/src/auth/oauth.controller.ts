@@ -1,4 +1,15 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Inject, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Inject,
+  Post,
+  Query,
+  Req,
+} from '@nestjs/common';
+import type { Request } from 'express';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { DomainException } from '../http/domain.exception';
 import type { AuthUser } from './auth-user';
@@ -13,7 +24,8 @@ import {
   OauthTokenResponseDto,
 } from './oauth.dto';
 import { OauthService } from './oauth.service';
-import { Scopes } from './scopes.decorator';
+import { Public, Scopes } from './scopes.decorator';
+import { ACCOUNT_ADMIN_SCOPE } from './scopes';
 
 @ApiTags('oauth')
 @Controller('oauth')
@@ -21,7 +33,7 @@ export class OauthController {
   constructor(@Inject(OauthService) private readonly oauth: OauthService) {}
 
   @Post('clients')
-  @Scopes('profile:write')
+  @Scopes(ACCOUNT_ADMIN_SCOPE)
   @ApiOperation({ summary: 'Register a public OAuth client (PKCE, no secret)' })
   @ApiOkResponse({ type: OauthClientDto })
   createClient(
@@ -63,10 +75,11 @@ export class OauthController {
   }
 
   @Post('token')
+  @Public()
   @HttpCode(200)
   @ApiOperation({ summary: 'Exchange an authorization code and PKCE verifier for a bearer token' })
   @ApiOkResponse({ type: OauthTokenResponseDto })
-  token(@Body() dto: OauthTokenDto): Promise<OauthTokenResponseDto> {
-    return this.oauth.token(dto);
+  token(@Body() dto: OauthTokenDto, @Req() req: Request): Promise<OauthTokenResponseDto> {
+    return this.oauth.token(dto, req.ip ?? 'unknown');
   }
 }

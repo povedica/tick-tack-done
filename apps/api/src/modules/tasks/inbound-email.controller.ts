@@ -13,6 +13,7 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { memoryStorage } from 'multer';
+import { Public } from '../../auth/scopes.decorator';
 import { applyRateLimitHeaders } from '../../auth/token-rate-limit';
 import { DomainException } from '../../http/domain.exception';
 import { InboundRateLimiter } from '../../inbound/inbound-rate-limit';
@@ -29,6 +30,7 @@ export class InboundEmailController {
   ) {}
 
   @Post('email')
+  @Public()
   @ApiOperation({
     summary:
       'Deliver an email-to-task message (RF-105). The recipient token authenticates the call. Content is stored and never executed.',

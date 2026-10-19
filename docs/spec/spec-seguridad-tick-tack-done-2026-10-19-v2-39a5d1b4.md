@@ -387,3 +387,16 @@ Añade `.gitleaks.toml` con `[allowlist]` para los valores de test conocidos (`c
 | No probado                                                                | IDOR con dos usuarios (registro cerrado: solo código), 429 de PAT (límite 1000 por ventana, cabeceras `x-ratelimit-*` presentes; no lo inundé), logout e invalidación de sesión en vivo (no cerré tu sesión; PAT revocado sí verificado), ejecución de acciones `webhook` de automatizaciones, protección de rama de GitHub, detalle de Observatory |
 
 **Limpieza**: tarea, lista, etiqueta y 5 adjuntos `ZZ TEST` borrados (la tarea también de la papelera, solo por id, sin vaciar tu papelera); 3 webhooks y 2 suscripciones iCal borrados; 5 tokens de prueba revocados (solo queda activo `chato_agent`, no tocado); nombre de usuario restaurado a "Pablo Poveda". Este documento no contiene secretos (los tokens de prueba están revocados y no se reproducen).
+
+## 7. Limpieza del relato público (alcance añadido el 19 oct 2026)
+
+Además de la sección 5 (identificadores de infraestructura, nivel A: no se reescribe el historial), el árbol público no debe presentarse como una copia medida de otro producto. El texto normativo está en `docs/spec/cursor-prompt-limpieza-repo-publico-2026-10-19.md` y forma parte de esta spec.
+
+Decisiones ya cerradas, para no reabrirlas:
+
+- Licencia: MIT, copyright Pablo Poveda, año 2026. Ya no está pendiente.
+- Historial git: nivel A de la sección 5. No `filter-repo` ni force-push.
+- Paso 9 (cambiar el acento `#4772fa`): no se hace.
+- `scripts/init-harness.sh`: se elimina. El remoto ya es la instantánea.
+- Se conserva la interoperabilidad nominativa: sección 10.4, sección 22, RF-503, RF-1701 y las URLs públicas de la Open API.
+- Código ejecutable, campos de API, endpoints, variables de entorno e identificadores TypeScript no se renombran por este apartado.

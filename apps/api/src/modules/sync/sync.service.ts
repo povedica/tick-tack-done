@@ -1,6 +1,7 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { isTombstoneType, syncLimit, tombstoneCutoff } from '@reflexionia/domain';
 import type { AuthUser } from '../../auth/auth-user';
+import { patEventPrefixes } from './sync-visibility';
 import { DomainException } from '../../http/domain.exception';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -37,6 +38,7 @@ export class SyncService {
     const rows = await this.prisma.outboxEvent.findMany({
       where: {
         ownerId: user.id,
+        ...eventTypeFilter(user),
         ...(cursor === null
           ? {}
           : {
@@ -86,6 +88,17 @@ export class SyncService {
     }
     return row;
   }
+}
+
+function eventTypeFilter(user: AuthUser): { OR?: { type: { startsWith: string } }[] } {
+  if (user.tokenId === null) {
+    return {};
+  }
+  const prefixes = patEventPrefixes(user.scopes);
+  if (prefixes.length === 0) {
+    return { OR: [{ type: { startsWith: 'never.' } }] };
+  }
+  return { OR: prefixes.map((prefix) => ({ type: { startsWith: prefix } })) };
 }
 
 function entityId(data: unknown): string | null {

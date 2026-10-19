@@ -4,9 +4,9 @@ Pega esto en un chat nuevo de Cursor, con el repo en `main` ya actualizado (PR #
 
 ---
 
-Cierra la fase 1 de `docs/spec/ticktick-clone-spec-v1.1.md` (sección 19, MVP). Los puntos 1 a 7 ya están en `main`. Esta PR es la excepción pedida el 18 oct 2026: el resto del MVP va junto, en una sola rama y una sola PR. No abras V1 ni V2. No reabras la sección 21. No publiques la spec como v1.2.
+Cierra la fase 1 de `docs/spec/especificacion-producto-v1.1.md` (sección 19, MVP). Los puntos 1 a 7 ya están en `main`. Esta PR es la excepción pedida el 18 oct 2026: el resto del MVP va junto, en una sola rama y una sola PR. No abras V1 ni V2. No reabras la sección 21. No publiques la spec como v1.2.
 
-Lee primero `docs/handoff.md`, `docs/roadmap.md`, `AGENTS.md`, `.cursor/rules/` y, de la spec, las secciones 9.7 (RF-702), 9.17 (RF-1703 JSON y RF-1704, RF-1705), 10.1, 10.2, 10.3 (export, backups, `DELETE /api/v1/me`), 13 (RF-13010 a RF-13012 y RF-13014), 14 en lo que ya esté a medias de push/email, 15, 16 y 17 (criterios 1 y 5). La fuente de verdad es esa spec. No leas ni cites `docs/spec/tick-tack-done-ui-spec-v1.0*.md` ni `docs/spec/cursor-prompt-ui-look-ticktick-v1.2.md`: el look TickTick es otro corte.
+Lee primero `docs/handoff.md`, `docs/roadmap.md`, `AGENTS.md`, `.cursor/rules/` y, de la spec, las secciones 9.7 (RF-702), 9.17 (RF-1703 JSON y RF-1704, RF-1705), 10.1, 10.2, 10.3 (export, backups, `DELETE /api/v1/me`), 13 (RF-13010 a RF-13012 y RF-13014), 14 en lo que ya esté a medias de push/email, 15, 16 y 17 (criterios 1 y 5). La fuente de verdad es esa spec. No leas ni cites `docs/spec/tick-tack-done-ui-spec-v1.0*.md` ni `docs/spec/cursor-prompt-ui-look-v1.2.md`: el look es otro corte.
 
 Abre `feat/fase-1` desde `main`. En cuanto haya un commit, abre el PR contra `main`. Al dejarlo cerrado, la CI tiene que estar en verde. No mergees salvo que te lo pida. Español en docs y UI, inglés en el código.
 
@@ -28,7 +28,7 @@ El shell y Hoy de la PR #5 se quedan. No pulas la barra ni Hoy, y no hagas el re
 
 5. **Bus.** Hoy el outbox se escribe con `published_at` null y BullMQ no está cableado. Publícalo en el bus. No construyas el dispatcher de webhooks ni el motor de automatizaciones: la sección 11 es V1.
 
-6. **Despliegue de la sección 19.** Docker Compose + Caddy en el Hetzner existente, dominio `todo.reflexionia.com`, siguiendo `docs/deployment.md`. Producción sin `AUTH_MODE=dev` y sin datos de mentira. Antes de exponer `POST /api/v1/inbound/email`, confirma el límite de tamaño (25 MB) y añade límite de ritmo: es un endpoint público. El cron de `scripts/backup.sh` (04:00) y `scripts/restore-verify.sh` (domingo 05:00) entra con RF-1704. Si falta acceso al servidor o un secreto, no lo inventes: dilo y deja el corte desplegable a falta de ese dato.
+6. **Despliegue de la sección 19.** Docker Compose + Caddy en un VPS con Docker, dominio `todo.reflexionia.com`, siguiendo `docs/deployment.md`. Producción sin `AUTH_MODE=dev` y sin datos de mentira. Antes de exponer `POST /api/v1/inbound/email`, confirma el límite de tamaño (25 MB) y añade límite de ritmo: es un endpoint público. El cron de `scripts/backup.sh` (04:00) y `scripts/restore-verify.sh` (domingo 05:00) entra con RF-1704. Si falta acceso al servidor o un secreto, no lo inventes: dilo y deja el corte desplegable a falta de ese dato.
 
 7. **Pruebas de la sección 16.** e2e del flujo crear → recordar → completar, y del flujo offline → reconectar → converge sin duplicados. Tests con el RF en el nombre.
 
@@ -38,7 +38,7 @@ V1: Kanban, timeline, Eisenhower, calendario, Telegram, Google Drive, Google Cal
 
 V2: colaboración, Pomodoro, plugins, widgets nativos, logros, WIP limits, Calendar two-way.
 
-RF-1701 (importador TickTick) sigue aplazado. No pulir el look. No ejecutar el prompt de UI TickTick.
+RF-1701 (importador externo) sigue aplazado. No pulir el look. No ejecutar el prompt de look de UI.
 
 ## Reglas de cierre
 

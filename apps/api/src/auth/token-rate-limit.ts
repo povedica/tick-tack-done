@@ -23,18 +23,42 @@ export class SlidingWindowRateLimit {
 
   consume(tokenId: string): RateLimitDecision {
     const now = this.now();
+    const previous = this.prune(tokenId, now);
+    const decision = this.decide(previous, now);
+    if (!decision.allowed) {
+      this.hits.set(tokenId, previous);
+      return decision;
+    }
+    previous.push(now);
+    this.hits.set(tokenId, previous);
+    return {
+      ...decision,
+      remaining: this.limit - previous.length,
+    };
+  }
+
+  /** Current window without recording a hit. */
+  peek(tokenId: string): RateLimitDecision {
+    return this.decide(this.prune(tokenId, this.now()), this.now());
+  }
+
+  reset(tokenId: string): void {
+    this.hits.delete(tokenId);
+  }
+
+  private prune(tokenId: string, now: number): number[] {
     const start = now - this.windowMs;
-    const previous = (this.hits.get(tokenId) ?? []).filter((at) => at > start);
+    return (this.hits.get(tokenId) ?? []).filter((at) => at > start);
+  }
+
+  private decide(previous: readonly number[], now: number): RateLimitDecision {
     const oldest = previous[0];
     const resetAtMs = oldest === undefined ? now + this.windowMs : oldest + this.windowMs;
     const resetAt = Math.ceil(resetAtMs / 1000);
     const retryAfter = Math.max(1, Math.ceil((resetAtMs - now) / 1000));
     if (previous.length >= this.limit) {
-      this.hits.set(tokenId, previous);
       return { allowed: false, limit: this.limit, remaining: 0, resetAt, retryAfter };
     }
-    previous.push(now);
-    this.hits.set(tokenId, previous);
     return {
       allowed: true,
       limit: this.limit,

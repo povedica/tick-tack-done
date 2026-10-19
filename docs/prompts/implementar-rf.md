@@ -1,7 +1,7 @@
 # Plantilla: implementar un RF
 
 ```
-Implementa <RF-XXX> de la especificación (docs/spec/ticktick-clone-spec-v1.1.md, sección <X.Y>).
+Implementa <RF-XXX> de la especificación (docs/spec/especificacion-producto-v1.1.md, sección <X.Y>).
 
 Alcance: <qué entra y qué NO entra>.
 Fase: <MVP/V1/V2>.

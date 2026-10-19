@@ -24,6 +24,7 @@ import {
   UpdateMeDto,
 } from './me.dto';
 import { MeService } from './me.service';
+import { ACCOUNT_ADMIN_SCOPE } from './scopes';
 import { Scopes } from './scopes.decorator';
 
 @ApiTags('me')
@@ -36,7 +37,7 @@ export class MeController {
   ) {}
 
   @Delete()
-  @Scopes('profile:write')
+  @Scopes(ACCOUNT_ADMIN_SCOPE)
   @ApiOperation({
     summary: 'Delete the account and its data after email confirmation (section 15)',
   })
@@ -45,7 +46,7 @@ export class MeController {
     @Body() dto: DeleteMeDto,
     @Res() res: Response,
   ): Promise<void> {
-    await this.account.delete(user, dto.confirmation);
+    await this.account.delete(user, dto);
     res.status(204).end();
   }
 

@@ -4,17 +4,17 @@ alwaysApply: true
 
 # Proyecto: gestor de tareas personal (todo.reflexionia.com)
 
-Clon extensible de TickTick. La especificación completa está en
-`docs/spec/ticktick-clone-spec-v1.1.md`; los RF-xx son requisitos identificables y testeables.
+Gestor de tareas personal extensible. La especificación completa está en
+`docs/spec/especificacion-producto-v1.1.md`; los RF-xx son requisitos identificables y testeables.
 
 ## Decisiones fijas (sección 21 de la spec, no reabrir)
 
 - Cliente único en fase 1: PWA web (React + TypeScript), cuidada en móvil y escritorio, offline-first.
 - Backend: TypeScript extremo a extremo, NestJS + PostgreSQL + Prisma. Redis (BullMQ) para bus de eventos y colas.
-- Despliegue: Docker Compose + Caddy en un Hetzner existente, dominio `todo.reflexionia.com`.
+- Despliegue: Docker Compose + Caddy en un VPS con Docker, dominio `todo.reflexionia.com`.
 - Multiusuario en el modelo de datos desde el inicio; un solo usuario activo al lanzar.
 - Servidor MCP + PATs con scopes granulares son requisito de fase 1, no una mejora.
-- Hábitos entran en el MVP; Pomodoro en V2; importador TickTick aplazado.
+- Hábitos entran en el MVP; Pomodoro en V2; importador desde la Open API de TickTick aplazado (RF-1701).
 
 ## Principios de diseño (sección 3)
 

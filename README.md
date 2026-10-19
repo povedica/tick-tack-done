@@ -1,10 +1,12 @@
 # Reflexionia Tasks
 
-Gestor de tareas personal extensible (clon de TickTick) en `todo.reflexionia.com`.
+Gestor de tareas personal extensible en todo.reflexionia.com: listas, etiquetas, filtros inteligentes, prioridades, subtareas, recurrencias, recordatorios, calendario, vistas Kanban/Timeline, hábitos, Pomodoro, offline-first, servidor MCP y API REST con tokens por scopes.
 TypeScript extremo a extremo: NestJS + PostgreSQL + Prisma + Redis/BullMQ, PWA en React,
 servidor MCP y API REST con PATs de scopes granulares desde la fase 1.
 
-La fuente de verdad del producto es `docs/spec/ticktick-clone-spec-v1.1.md`.
+Proyecto personal, sin afiliación con TickTick ni Appest. La capa /open/v1 solo ofrece compatibilidad con su Open API pública.
+
+La fuente de verdad del producto es `docs/spec/especificacion-producto-v1.1.md`.
 Las normas para agentes de codificación están en `AGENTS.md` y `.cursor/rules/`.
 
 ## Requisitos
@@ -49,5 +51,6 @@ docs/             arquitectura, migraciones, testing, seguridad, roadmap, prompt
 
 ## Despliegue
 
-`docs/deployment.md`: Docker Compose + Caddy (HTTPS automático) en el Hetzner,
+`docs/deployment.md`: Docker Compose + Caddy (HTTPS automático) en un VPS con Docker,
 migraciones al arrancar, backup diario externo y prueba de restauración semanal por cron.
+La política de avisos está en `SECURITY.md`. Licencia MIT.

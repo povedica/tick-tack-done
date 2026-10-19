@@ -2,11 +2,18 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 
 const CALLBACK_PATH = '/api/v1/integrations/google/callback';
 
-const REDIRECTS = new Set([
-  `http://127.0.0.1:5173${CALLBACK_PATH}`,
-  `http://localhost:5173${CALLBACK_PATH}`,
-  `https://todo.reflexionia.com${CALLBACK_PATH}`,
-]);
+function allowedRedirects(): ReadonlySet<string> {
+  const values = [`http://127.0.0.1:5173${CALLBACK_PATH}`, `http://localhost:5173${CALLBACK_PATH}`];
+  const pub = (process.env.PUBLIC_URL ?? '').replace(/\/$/, '');
+  if (pub.length > 0) {
+    values.push(`${pub}${CALLBACK_PATH}`);
+  }
+  const web = (process.env.APP_WEB_URL ?? '').replace(/\/$/, '');
+  if (web.length > 0) {
+    values.push(`${web}${CALLBACK_PATH}`);
+  }
+  return new Set(values);
+}
 
 export const GOOGLE_SCOPES = [
   'openid',
@@ -26,7 +33,7 @@ export function redirectFor(origin: string | undefined): string | null {
     return null;
   }
   const candidate = `${origin}${CALLBACK_PATH}`;
-  return REDIRECTS.has(candidate) ? candidate : null;
+  return allowedRedirects().has(candidate) ? candidate : null;
 }
 
 export function signState(state: GoogleState): string {
@@ -50,7 +57,11 @@ export function readState(token: string): GoogleState | null {
   }
   try {
     const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as GoogleState;
-    if (parsed.exp < Date.now() || !REDIRECTS.has(parsed.redirect) || parsed.uid.length === 0) {
+    if (
+      parsed.exp < Date.now() ||
+      !allowedRedirects().has(parsed.redirect) ||
+      parsed.uid.length === 0
+    ) {
       return null;
     }
     return parsed;
