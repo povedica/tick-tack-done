@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { ListsController } from './lists.controller';
-import { ListsService } from './lists.service';
+import { ListsController } from './lists.controller.js';
+import { ListsService } from './lists.service.js';
 
 @Module({
   controllers: [ListsController],

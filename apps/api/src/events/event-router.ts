@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { DomainBusEvent } from './event-bus';
+import type { DomainBusEvent } from './event-bus.js';
 
 type Handler = (event: DomainBusEvent) => Promise<void>;
 

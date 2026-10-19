@@ -5,8 +5,8 @@ import {
   type TaskGroupBy,
   type TaskSort,
 } from '@reflexionia/domain';
-import { encodeCursor } from '../http/cursor';
-import { toViewJson, type ViewTask, type ViewTaskJson } from './view-tasks';
+import { encodeCursor } from '../http/cursor.js';
+import { toViewJson, type ViewTask, type ViewTaskJson } from './view-tasks.js';
 
 export interface ViewGroupJson {
   key: string;

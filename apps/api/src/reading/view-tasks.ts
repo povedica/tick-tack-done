@@ -1,8 +1,8 @@
 import type { Prisma } from '@prisma/client';
 import { checklistProgress, type ArrangedTask, type FilterSubject } from '@reflexionia/domain';
-import { iso } from '../http/json';
-import type { PrismaService } from '../prisma/prisma.service';
-import type { Tx } from '../prisma/tx';
+import { iso } from '../http/json.js';
+import type { PrismaService } from '../prisma/prisma.service.js';
+import type { Tx } from '../prisma/tx.js';
 
 const include = {
   tags: { include: { tag: { select: { id: true, name: true, deletedAt: true } } } },

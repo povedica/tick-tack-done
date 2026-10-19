@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import { isSealed, sealField } from './field-cipher';
+import { isSealed, sealField } from './field-cipher.js';
 
 /** Encrypts legacy plaintext secrets already stored in the database (S-08). */
 export async function sealStoredSecrets(prisma: PrismaClient): Promise<void> {

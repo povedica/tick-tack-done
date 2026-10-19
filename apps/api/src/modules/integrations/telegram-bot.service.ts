@@ -1,18 +1,18 @@
 import { HttpStatus, Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { matchTaskByTitle, parseTelegramCommand, type TelegramCommand } from '@reflexionia/domain';
-import { type AuthUser } from '../../auth/auth-user';
-import { API_SCOPES } from '../../auth/scopes';
-import { DomainEvent } from '../../events/domain-events';
-import { EventRecorder } from '../../events/event-recorder';
-import { asJson } from '../../http/json';
-import { DomainException } from '../../http/domain.exception';
-import { readTelegramUpdate, type TelegramIncoming } from '../../integrations/telegram-update';
-import { PrismaService } from '../../prisma/prisma.service';
-import { ATTACHMENT_MAX_BYTES } from '../tasks/attachment-storage';
-import type { TaskSummaryJson } from '../tasks/task.mapper';
-import { ListsService } from '../lists/lists.service';
-import { TasksService, type TaskListQuery } from '../tasks/tasks.service';
-import { TelegramApi } from './telegram-api';
+import { type AuthUser } from '../../auth/auth-user.js';
+import { API_SCOPES } from '../../auth/scopes.js';
+import { DomainEvent } from '../../events/domain-events.js';
+import { EventRecorder } from '../../events/event-recorder.js';
+import { asJson } from '../../http/json.js';
+import { DomainException } from '../../http/domain.exception.js';
+import { readTelegramUpdate, type TelegramIncoming } from '../../integrations/telegram-update.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { ATTACHMENT_MAX_BYTES } from '../tasks/attachment-storage.js';
+import type { TaskSummaryJson } from '../tasks/task.mapper.js';
+import { ListsService } from '../lists/lists.service.js';
+import { TasksService, type TaskListQuery } from '../tasks/tasks.service.js';
+import { TelegramApi } from './telegram-api.js';
 
 const LIST_NAME_MAX = 200;
 export const TELEGRAM_BOT_COMMANDS: readonly { command: string; description: string }[] = [

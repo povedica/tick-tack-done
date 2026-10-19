@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { HttpStatus } from '@nestjs/common';
-import { DomainException } from './domain.exception';
+import { DomainException } from './domain.exception.js';
 
 export interface Page<T> {
   items: T[];

@@ -122,7 +122,7 @@ function parseDate(
     const days = stringArray(value);
     const start = days?.[0];
     const end = days?.[1];
-    if (days === null || days.length !== 2 || start === undefined || end === undefined) {
+    if (days?.length !== 2 || start === undefined || end === undefined) {
       return fail('invalid_condition');
     }
     if (!isDay(start) || !isDay(end) || start > end) {
@@ -186,12 +186,7 @@ function normalShape(
   groups: readonly FilterGroup[],
 ): { ok: true } | { ok: false; reason: string } {
   const group = groups[0];
-  if (
-    combinator !== 'AND' ||
-    groups.length !== 1 ||
-    group === undefined ||
-    group.combinator !== 'AND'
-  ) {
+  if (combinator !== 'AND' || groups.length !== 1 || group?.combinator !== 'AND') {
     return fail('normal_shape');
   }
   return { ok: true };

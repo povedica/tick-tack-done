@@ -1,6 +1,6 @@
 import { HttpStatus } from '@nestjs/common';
-import { DomainException } from '../http/domain.exception';
-import { googleConfigured } from './config';
+import { DomainException } from '../http/domain.exception.js';
+import { googleConfigured } from './config.js';
 
 /** Exchanges the stored refresh token. The env var is only a fallback for the caller. */
 export async function exchangeGoogleRefreshToken(refreshToken: string): Promise<string> {

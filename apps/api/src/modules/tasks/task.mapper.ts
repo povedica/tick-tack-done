@@ -1,5 +1,5 @@
 import { checklistProgress } from '@reflexionia/domain';
-import { iso } from '../../http/json';
+import { iso } from '../../http/json.js';
 
 export interface TaskRow {
   id: string;

@@ -92,9 +92,18 @@ export async function sha256Hex(value: string): Promise<string> {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
+function isBase32Alphabet(value: string): boolean {
+  for (const char of value) {
+    if (!ALPHABET.includes(char)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function decodeBase32(source: string): Uint8Array | null {
   const cleaned = source.replace(/=+$/g, '').replace(/\s/g, '').toUpperCase();
-  if (cleaned.length === 0 || [...cleaned].some((char) => !ALPHABET.includes(char))) {
+  if (cleaned.length === 0 || !isBase32Alphabet(cleaned)) {
     return null;
   }
   let bits = 0;

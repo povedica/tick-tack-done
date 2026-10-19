@@ -1,9 +1,9 @@
 import { Controller, Get, Inject } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import type { AuthUser } from '../../auth/auth-user';
-import { CurrentUser } from '../../auth/current-user.decorator';
-import { Scopes } from '../../auth/scopes.decorator';
-import { ExportService } from './export.service';
+import type { AuthUser } from '../../auth/auth-user.js';
+import { CurrentUser } from '../../auth/current-user.decorator.js';
+import { Scopes } from '../../auth/scopes.decorator.js';
+import { ExportService } from './export.service.js';
 
 @ApiTags('export')
 @Controller('export')

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readTelegramUpdate } from './telegram-update';
+import { readTelegramUpdate } from './telegram-update.js';
 
 describe('telegram updates', () => {
   it('RF-2003: reads text, voice, photo and a completion button', () => {

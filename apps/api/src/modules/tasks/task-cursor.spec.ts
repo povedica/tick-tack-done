@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { encodeTaskCursor, parseTaskSort, taskKeyset } from './task-cursor';
+import { encodeTaskCursor, parseTaskSort, taskKeyset } from './task-cursor.js';
 
 describe('task cursors', () => {
   it('RF-502: priority order continues after the cursor priority', () => {

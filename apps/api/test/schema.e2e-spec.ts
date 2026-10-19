@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { loadRootEnv } from '../src/load-env';
+import { loadRootEnv } from '../src/load-env.js';
 
 loadRootEnv();
 

@@ -1,6 +1,6 @@
 import { mergeFieldClocks } from '@reflexionia/domain';
 import type { Prisma } from '@prisma/client';
-import type { UpdateTaskDto } from './tasks.dto';
+import type { UpdateTaskDto } from './tasks.dto.js';
 
 const WATCHED = [
   'title',

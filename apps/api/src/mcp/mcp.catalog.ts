@@ -1,4 +1,4 @@
-import { missingScopes } from '../auth/scopes';
+import { missingScopes } from '../auth/scopes.js';
 
 export interface McpTool {
   readonly name: string;

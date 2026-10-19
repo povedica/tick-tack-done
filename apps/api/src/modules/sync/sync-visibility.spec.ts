@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { eventVisibleToCaller } from './sync-visibility';
+import { eventVisibleToCaller } from './sync-visibility.js';
 
 describe('sync visibility', () => {
   it('hides sessions and tokens from a tasks:read PAT and keeps task events', () => {

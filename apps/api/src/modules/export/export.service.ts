@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { AuthUser } from '../../auth/auth-user';
-import { PrismaService } from '../../prisma/prisma.service';
-import { buildExportDocument, type ExportDocument } from './export-document';
+import type { AuthUser } from '../../auth/auth-user.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { buildExportDocument, type ExportDocument } from './export-document.js';
 
 @Injectable()
 export class ExportService {

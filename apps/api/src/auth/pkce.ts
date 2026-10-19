@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { secretsMatch } from './session-cookie';
+import { secretsMatch } from './session-cookie.js';
 
 /** S256: BASE64URL(SHA256(verifier)) equals the challenge. */
 export function pkceMatches(verifier: string, challenge: string): boolean {

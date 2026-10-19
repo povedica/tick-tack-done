@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hashPersonalAccessToken, newPersonalAccessToken, parseBearer } from './token-secret';
+import { hashPersonalAccessToken, newPersonalAccessToken, parseBearer } from './token-secret.js';
 
 describe('personal access token secret', () => {
   it('RF-2002: the stored hash is not the token', () => {

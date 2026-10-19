@@ -1,6 +1,6 @@
 import { SORT_ORDER_GAP } from '@reflexionia/domain';
 import { describe, expect, it } from 'vitest';
-import { planPlacement } from './plan-sort-order';
+import { planPlacement } from './plan-sort-order.js';
 
 describe('planPlacement', () => {
   it('appends one gap after the last sibling', () => {

@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
-import { ListsModule } from '../lists/lists.module';
-import { TasksModule } from '../tasks/tasks.module';
-import { IntegrationsController } from './integrations.controller';
-import { TelegramApi } from './telegram-api';
-import { TelegramBotService } from './telegram-bot.service';
+import { ListsModule } from '../lists/lists.module.js';
+import { TasksModule } from '../tasks/tasks.module.js';
+import { IntegrationsController } from './integrations.controller.js';
+import { TelegramApi } from './telegram-api.js';
+import { TelegramBotService } from './telegram-bot.service.js';
 
 // The bot is an inbound adapter. Task writes go through TasksService so NLP and events stay one path.
 // List creation uses ListsService the same way. TasksModule does not import ListsModule.

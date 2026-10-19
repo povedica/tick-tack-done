@@ -1,10 +1,10 @@
 import { Controller, Get, Header, Inject, Query, Req, Res } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
-import type { AuthUser } from '../../auth/auth-user';
-import { CurrentUser } from '../../auth/current-user.decorator';
-import { Scopes } from '../../auth/scopes.decorator';
-import { PrismaService } from '../../prisma/prisma.service';
+import type { AuthUser } from '../../auth/auth-user.js';
+import { CurrentUser } from '../../auth/current-user.decorator.js';
+import { Scopes } from '../../auth/scopes.decorator.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
 
 /** RF-13013. SSE of bus events. The offline queue and delta sync stay. */
 @ApiTags('sync')

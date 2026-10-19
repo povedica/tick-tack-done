@@ -585,11 +585,7 @@ export class CaptureWarningDto {
     ],
   })
   code!:
-    | 'list_not_found'
-    | 'list_created'
-    | 'tag_not_found'
-    | 'tag_created'
-    | 'reminder_without_date';
+    'list_not_found' | 'list_created' | 'tag_not_found' | 'tag_created' | 'reminder_without_date';
 
   @ApiProperty({ required: false })
   name?: string;

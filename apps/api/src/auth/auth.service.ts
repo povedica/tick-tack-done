@@ -1,15 +1,15 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
-import { actorOf, type AuthUser } from './auth-user';
-import { DomainEvent } from '../events/domain-events';
-import { EventRecorder } from '../events/event-recorder';
-import { DomainException } from '../http/domain.exception';
-import { PrismaService } from '../prisma/prisma.service';
-import type { LoginDto, RegisterDto, SessionListItemDto, SessionResponseDto } from './auth.dto';
-import { AttemptLimiter } from './attempt-limiter';
-import { hashPassword, verifyPresentedPassword } from './passwords';
-import { requireBrowserSession } from './session-access';
-import { newSessionSecret, SESSION_MAX_AGE_MS } from './session-cookie';
-import { TotpService } from './totp.controller';
+import { actorOf, type AuthUser } from './auth-user.js';
+import { DomainEvent } from '../events/domain-events.js';
+import { EventRecorder } from '../events/event-recorder.js';
+import { DomainException } from '../http/domain.exception.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+import type { LoginDto, RegisterDto, SessionListItemDto, SessionResponseDto } from './auth.dto.js';
+import { AttemptLimiter } from './attempt-limiter.js';
+import { hashPassword, verifyPresentedPassword } from './passwords.js';
+import { requireBrowserSession } from './session-access.js';
+import { newSessionSecret, SESSION_MAX_AGE_MS } from './session-cookie.js';
+import { TotpService } from './totp.controller.js';
 
 @Injectable()
 export class AuthService {
@@ -209,10 +209,5 @@ function normalizeEmail(email: string): string {
 }
 
 function isUnique(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as { code: unknown }).code === 'P2002'
-  );
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002';
 }

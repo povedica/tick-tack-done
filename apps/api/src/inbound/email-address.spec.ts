@@ -4,7 +4,7 @@ import {
   inboundAddress,
   inboundLocalPart,
   newInboundToken,
-} from './email-address';
+} from './email-address.js';
 
 describe('inbound email address', () => {
   it('RF-105: hashes the token and keeps the address on the inbound domain', () => {
