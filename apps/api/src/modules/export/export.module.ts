@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
-import { BackupsController } from './backups.controller';
-import { BackupsService } from './backups.service';
-import { ExportController } from './export.controller';
-import { ExportService } from './export.service';
+import { BackupsController } from './backups.controller.js';
+import { BackupsService } from './backups.service.js';
+import { ExportController } from './export.controller.js';
+import { ExportService } from './export.service.js';
 
 @Module({
   controllers: [ExportController, BackupsController],

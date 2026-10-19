@@ -2,16 +2,20 @@ import { Body, Controller, Get, Inject, Patch, Query, Req, Res } from '@nestjs/c
 import { ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsArray, IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
 import type { Request, Response } from 'express';
-import { actorOf, type AuthUser } from '../../auth/auth-user';
-import { CurrentUser } from '../../auth/current-user.decorator';
-import { Scopes } from '../../auth/scopes.decorator';
-import { DomainEvent } from '../../events/domain-events';
-import { EventRecorder } from '../../events/event-recorder';
-import { asJson } from '../../http/json';
-import { respondJson } from '../../http/respond';
-import { PrismaService } from '../../prisma/prisma.service';
-import { loadDashboardSnapshot } from '../../reading/snapshot';
-import { driveConfigured, googleConfigured, telegramConfigured } from '../../integrations/config';
+import { actorOf, type AuthUser } from '../../auth/auth-user.js';
+import { CurrentUser } from '../../auth/current-user.decorator.js';
+import { Scopes } from '../../auth/scopes.decorator.js';
+import { DomainEvent } from '../../events/domain-events.js';
+import { EventRecorder } from '../../events/event-recorder.js';
+import { asJson } from '../../http/json.js';
+import { respondJson } from '../../http/respond.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { loadDashboardSnapshot } from '../../reading/snapshot.js';
+import {
+  driveConfigured,
+  googleConfigured,
+  telegramConfigured,
+} from '../../integrations/config.js';
 
 export const WIDGET_KEYS = [
   'completed_today',

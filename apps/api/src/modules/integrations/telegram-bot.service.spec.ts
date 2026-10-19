@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { TelegramBotService } from './telegram-bot.service';
+import { TelegramBotService } from './telegram-bot.service.js';
 
 describe('TelegramBotService', () => {
   it('RF-2003: nueva lista creates a project and no task', async () => {

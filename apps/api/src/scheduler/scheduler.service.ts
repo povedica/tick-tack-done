@@ -14,13 +14,13 @@ import {
   reminderDisposition,
   reminderFireAt,
 } from '@reflexionia/domain';
-import type { EventActor } from '../auth/auth-user';
-import { DomainEvent } from '../events/domain-events';
-import { EventRecorder } from '../events/event-recorder';
-import { asJson } from '../http/json';
-import { PrismaService } from '../prisma/prisma.service';
-import type { Tx } from '../prisma/tx';
-import { ReminderTransport } from './reminder.transport';
+import type { EventActor } from '../auth/auth-user.js';
+import { DomainEvent } from '../events/domain-events.js';
+import { EventRecorder } from '../events/event-recorder.js';
+import { asJson } from '../http/json.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+import type { Tx } from '../prisma/tx.js';
+import { ReminderTransport } from './reminder.transport.js';
 
 const TICK_MS = 60_000;
 const DUE_SOON_MS = 24 * 60 * 60 * 1000;

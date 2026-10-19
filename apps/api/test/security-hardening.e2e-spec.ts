@@ -5,13 +5,14 @@ import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaClient } from '@prisma/client';
 import request from 'supertest';
-import type { App } from 'supertest/types';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { AppModule } from '../src/app.module';
-import { hashPassword } from '../src/auth/passwords';
-import { configureApp } from '../src/configure-app';
-import { loadRootEnv } from '../src/load-env';
-import { isPublicOperation } from '../src/security/public-operations';
+import { AppModule } from '../src/app.module.js';
+import { hashPassword } from '../src/auth/passwords.js';
+import { configureApp } from '../src/configure-app.js';
+import { loadRootEnv } from '../src/load-env.js';
+import { isPublicOperation } from '../src/security/public-operations.js';
+
+type SuperTestApp = Parameters<typeof request>[0];
 
 loadRootEnv();
 process.env.AUTH_MODE = 'dev';
@@ -20,7 +21,7 @@ const prisma = new PrismaClient();
 
 describe('security hardening', () => {
   let app: INestApplication;
-  let server: App;
+  let server: SuperTestApp;
   let ownerId = '';
   let email = '';
 
@@ -41,7 +42,7 @@ describe('security hardening', () => {
     app = moduleRef.createNestApplication();
     configureApp(app);
     await app.init();
-    server = app.getHttpServer() as App;
+    server = app.getHttpServer() as SuperTestApp;
   });
 
   afterAll(async () => {

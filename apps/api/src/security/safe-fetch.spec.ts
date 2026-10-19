@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assertPublicUrl, isBlockedAddress, type LookupAddress } from './safe-fetch';
+import { assertPublicUrl, isBlockedAddress, type LookupAddress } from './safe-fetch.js';
 
 const lookup =
   (address: string): LookupAddress =>

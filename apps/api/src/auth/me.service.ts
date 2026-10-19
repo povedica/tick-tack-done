@@ -1,16 +1,16 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { isIanaTimeZone } from '@reflexionia/domain';
-import { hashInboundToken, inboundAddress, newInboundToken } from '../inbound/email-address';
-import { DomainException } from '../http/domain.exception';
-import { PrismaService } from '../prisma/prisma.service';
-import type { AuthUser } from './auth-user';
+import { hashInboundToken, inboundAddress, newInboundToken } from '../inbound/email-address.js';
+import { DomainException } from '../http/domain.exception.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+import type { AuthUser } from './auth-user.js';
 import type {
   InboundEmailAddressDto,
   InboundEmailStatusDto,
   MeResponseDto,
   PushSubscriptionDto,
   UpdateMeDto,
-} from './me.dto';
+} from './me.dto.js';
 
 @Injectable()
 export class MeService {

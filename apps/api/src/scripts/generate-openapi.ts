@@ -1,9 +1,9 @@
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from '../app.module';
-import { configureApp, createOpenApiDocument } from '../configure-app';
-import { loadRootEnv } from '../load-env';
+import { AppModule } from '../app.module.js';
+import { configureApp, createOpenApiDocument } from '../configure-app.js';
+import { loadRootEnv } from '../load-env.js';
 
 loadRootEnv();
 

@@ -1,16 +1,16 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import type { Column, Folder, Project } from '@prisma/client';
-import { actorOf, type AuthUser } from '../../auth/auth-user';
-import { DomainEvent } from '../../events/domain-events';
-import { EventRecorder } from '../../events/event-recorder';
-import { asJson, iso } from '../../http/json';
-import { decodeCursor, slicePage, type Page } from '../../http/cursor';
-import { DomainException } from '../../http/domain.exception';
-import { IdempotencyService } from '../../idempotency/idempotency.service';
-import { normalizeIdempotencyKey, requestFingerprint } from '../../idempotency/fingerprint';
-import { placementPlan } from '../../ordering/placement';
-import { PrismaService } from '../../prisma/prisma.service';
-import type { Tx } from '../../prisma/tx';
+import { actorOf, type AuthUser } from '../../auth/auth-user.js';
+import { DomainEvent } from '../../events/domain-events.js';
+import { EventRecorder } from '../../events/event-recorder.js';
+import { asJson, iso } from '../../http/json.js';
+import { decodeCursor, slicePage, type Page } from '../../http/cursor.js';
+import { DomainException } from '../../http/domain.exception.js';
+import { IdempotencyService } from '../../idempotency/idempotency.service.js';
+import { normalizeIdempotencyKey, requestFingerprint } from '../../idempotency/fingerprint.js';
+import { placementPlan } from '../../ordering/placement.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import type { Tx } from '../../prisma/tx.js';
 import type {
   ColumnResponseDto,
   CreateColumnDto,
@@ -21,8 +21,8 @@ import type {
   UpdateColumnDto,
   UpdateFolderDto,
   UpdateProjectDto,
-} from './lists.dto';
-import { toColumnJson, toFolderJson, toProjectJson } from './lists.mapper';
+} from './lists.dto.js';
+import { toColumnJson, toFolderJson, toProjectJson } from './lists.mapper.js';
 
 interface Result<T> {
   statusCode: number;

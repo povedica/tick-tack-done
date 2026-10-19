@@ -1,6 +1,6 @@
 import type { DashboardHabit, DashboardSnapshot, DashboardTask } from '@reflexionia/domain';
 import { dashboardSnapshot } from '@reflexionia/domain';
-import type { PrismaService } from '../prisma/prisma.service';
+import type { PrismaService } from '../prisma/prisma.service.js';
 
 /** Shared read of the user's tasks and habits. Widgets and the weekly report use this, not a second formula. */
 export async function loadDashboardSnapshot(

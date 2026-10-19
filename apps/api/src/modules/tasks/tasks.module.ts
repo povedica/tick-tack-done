@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
-import { InboundRateLimiter } from '../../inbound/inbound-rate-limit';
-import { InboundEmailController } from './inbound-email.controller';
-import { TasksController } from './tasks.controller';
-import { TasksService } from './tasks.service';
+import { InboundRateLimiter } from '../../inbound/inbound-rate-limit.js';
+import { InboundEmailController } from './inbound-email.controller.js';
+import { TasksController } from './tasks.controller.js';
+import { TasksService } from './tasks.service.js';
 
 @Module({
   controllers: [TasksController, InboundEmailController],

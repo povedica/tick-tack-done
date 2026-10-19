@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { telegramSecretMatches, telegramWebhookSecret } from './telegram-secret';
+import { telegramSecretMatches, telegramWebhookSecret } from './telegram-secret.js';
 
 describe('telegram webhook secret', () => {
   const previous = process.env.TELEGRAM_WEBHOOK_SECRET;

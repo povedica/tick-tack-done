@@ -3,7 +3,7 @@ import http from 'node:http';
 import https from 'node:https';
 import { BlockList, isIP } from 'node:net';
 import { HttpStatus } from '@nestjs/common';
-import { DomainException } from '../http/domain.exception';
+import { DomainException } from '../http/domain.exception.js';
 
 const block = new BlockList();
 block.addSubnet('0.0.0.0', 8, 'ipv4');

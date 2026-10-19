@@ -24,20 +24,20 @@ import {
   type FilterRules,
   type FilterSubject,
 } from '@reflexionia/domain';
-import { type AuthUser, type EventActor } from '../../auth/auth-user';
-import { telegramConfigured } from '../../integrations/config';
-import { CurrentUser } from '../../auth/current-user.decorator';
-import { Scopes } from '../../auth/scopes.decorator';
-import { safeFetch } from '../../security/safe-fetch';
-import type { DomainBusEvent } from '../../events/event-bus';
-import { DomainEvent } from '../../events/domain-events';
-import { EventRecorder } from '../../events/event-recorder';
-import { EventRouter } from '../../events/event-router';
-import { asJson } from '../../http/json';
-import { DomainException } from '../../http/domain.exception';
-import { respondJson } from '../../http/respond';
-import { PrismaService } from '../../prisma/prisma.service';
-import { loadDashboardSnapshot } from '../../reading/snapshot';
+import { type AuthUser, type EventActor } from '../../auth/auth-user.js';
+import { telegramConfigured } from '../../integrations/config.js';
+import { CurrentUser } from '../../auth/current-user.decorator.js';
+import { Scopes } from '../../auth/scopes.decorator.js';
+import { safeFetch } from '../../security/safe-fetch.js';
+import type { DomainBusEvent } from '../../events/event-bus.js';
+import { DomainEvent } from '../../events/domain-events.js';
+import { EventRecorder } from '../../events/event-recorder.js';
+import { EventRouter } from '../../events/event-router.js';
+import { asJson } from '../../http/json.js';
+import { DomainException } from '../../http/domain.exception.js';
+import { respondJson } from '../../http/respond.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { loadDashboardSnapshot } from '../../reading/snapshot.js';
 
 class AutomationDto {
   @ApiProperty()

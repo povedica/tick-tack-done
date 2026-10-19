@@ -12,11 +12,11 @@ import {
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { fromOpenTask, toOpenProject, toOpenTask } from '@reflexionia/domain';
-import type { AuthUser } from '../auth/auth-user';
-import { CurrentUser } from '../auth/current-user.decorator';
-import { Scopes } from '../auth/scopes.decorator';
-import { DomainException } from '../http/domain.exception';
-import { PrismaService } from '../prisma/prisma.service';
+import type { AuthUser } from '../auth/auth-user.js';
+import { CurrentUser } from '../auth/current-user.decorator.js';
+import { Scopes } from '../auth/scopes.decorator.js';
+import { DomainException } from '../http/domain.exception.js';
+import { PrismaService } from '../prisma/prisma.service.js';
 
 /** Section 10.4. TickTick field names on top of the same tables. */
 @ApiTags('open')

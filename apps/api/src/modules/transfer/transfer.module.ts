@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { TransferController } from './transfer.controller';
+import { TransferController } from './transfer.controller.js';
 
 @Module({ controllers: [TransferController] })
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class -- Nest module is decorator-only
