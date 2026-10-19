@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router';
 import { createApiClient } from '@reflexionia/sdk';
 import { sessionMode } from '../../api';
@@ -16,6 +16,7 @@ export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const registrationOpen = useRegistrationOpen();
 
   async function submit(): Promise<void> {
     setError(null);
@@ -69,7 +70,7 @@ export function LoginPage() {
           </p>
         ) : null}
       </form>
-      <Link to="/register">{messages.registerTitle}</Link>
+      {registrationOpen ? <Link to="/register">{messages.registerTitle}</Link> : null}
     </AuthCard>
   );
 }
@@ -82,6 +83,7 @@ export function RegisterPage() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const registrationOpen = useRegistrationOpen();
 
   async function submit(): Promise<void> {
     setError(null);
@@ -96,6 +98,19 @@ export function RegisterPage() {
 
   if (sessionMode && status === 'authenticated') {
     return <Navigate to="/today" replace />;
+  }
+
+  if (registrationOpen !== true) {
+    return (
+      <AuthCard title={messages.registerTitle}>
+        {registrationOpen === false ? (
+          <>
+            <p>{messages.registerDev}</p>
+            <Link to="/login">{messages.loginTitle}</Link>
+          </>
+        ) : null}
+      </AuthCard>
+    );
   }
 
   return (
@@ -145,6 +160,29 @@ export function RegisterPage() {
       <Link to="/login">{messages.loginTitle}</Link>
     </AuthCard>
   );
+}
+
+function useRegistrationOpen(): boolean | null {
+  const [open, setOpen] = useState<boolean | null>(null);
+  useEffect(() => {
+    let live = true;
+    void sessionApi
+      .registrationOpen()
+      .then((value) => {
+        if (live) {
+          setOpen(value);
+        }
+      })
+      .catch(() => {
+        if (live) {
+          setOpen(false);
+        }
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
+  return open;
 }
 
 function AuthCard({ title, children }: { readonly title: string; readonly children: ReactNode }) {

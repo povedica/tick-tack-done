@@ -123,6 +123,26 @@ export function reminderFireAt(input: {
   return { ok: true, fireAt: new Date(Date.parse(anchor) + parsed.offsetMs).toISOString() };
 }
 
+/** NT-08. "Esta tarde" means the next local 18:00. */
+export const AFTERNOON_HOUR = 18;
+
+/**
+ * NT-08. Instant of the next local 18:00.
+ * At or after 18:00, that is 18:00 on the following local day.
+ */
+export function afternoonInstant(nowIso: string, timeZone: string): string | null {
+  if (!isIanaTimeZone(timeZone)) {
+    return null;
+  }
+  const wall = wallClock(nowIso, timeZone);
+  if (wall === null) {
+    return null;
+  }
+  const today = { ...wall, hour: AFTERNOON_HOUR, minute: 0, second: 0 };
+  const target = wall.hour >= AFTERNOON_HOUR ? addCalendarDays(today, 1) : today;
+  return instantFromWall(target, timeZone);
+}
+
 export type ReminderSnoozePreset = '10m' | '1h' | 'tomorrow' | 'custom';
 
 /** RF-804. Snooze moves the next fire time; it does not change the task due date. */

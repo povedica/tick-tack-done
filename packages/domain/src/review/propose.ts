@@ -10,7 +10,7 @@ export interface ReviewCandidate {
   readonly dueDate: string | null;
   readonly listId: string;
   readonly listName: string;
-  readonly status: 'active' | 'completed' | 'archived';
+  readonly status: 'active' | 'completed' | 'archived' | 'cancelled';
   readonly updatedAt: string;
   readonly tagNames: readonly string[];
   readonly assigneeId: string | null;

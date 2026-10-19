@@ -25,6 +25,7 @@ import { quadrantOf, rowFromTask, smartApiKey, type RowModel } from '../tasks/mo
 import { refreshTaskSurfaces } from '../tasks/refresh';
 import { newMutation, runOrQueue } from '../offline/client';
 import { collectTasks } from '../today/board';
+import { formatDueTime } from '../today/groups';
 import { TaskList } from '../tasks/TaskList';
 import {
   calendarTaskLabel,
@@ -116,40 +117,52 @@ export function InboxPage() {
         />
       ) : null}
       {process && current !== undefined ? (
-        <ProcessCard
-          messages={messages}
-          taskTitle={current.title}
-          projects={projects.data?.items ?? []}
-          onDate={(preset, date) => {
-            void api.snoozeTask(current.id, preset, date).then(() => {
-              step(messages.processDate);
-            });
-          }}
-          onMove={(projectId) => {
-            void api.moveTask(current.id, projectId).then(() => {
-              step(messages.processMove);
-            });
-          }}
-          onDone={() => {
-            void runOrQueue(newMutation('complete', current.id, {}), (key) =>
-              api.completeTask(current.id, {}, key),
-            ).then(() => {
-              step(messages.processDoneAction);
-            });
-          }}
-          onDelete={() => {
-            const id = current.id;
-            void api.deleteTask(id).then(() => {
-              useActionToast.getState().show(messages.movedToTrash, () => {
-                void api.restoreTask(id).then(() => refreshTaskSurfaces(queryClient));
+        <>
+          <p>{fill(messages.processOf, `${String(cursor + 1)}/${String(rows.length)}`)}</p>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setProcess(false);
+            }}
+          >
+            {messages.processExit}
+          </Button>
+          <ProcessCard
+            messages={messages}
+            locale={locale}
+            taskTitle={current.title}
+            projects={projects.data?.items ?? []}
+            onDate={(preset, date) => {
+              void api.snoozeTask(current.id, preset, date).then(() => {
+                step(messages.processDate);
               });
-              step(messages.movedToTrash);
-            });
-          }}
-          onSkip={() => {
-            step();
-          }}
-        />
+            }}
+            onMove={(projectId) => {
+              void api.moveTask(current.id, projectId).then(() => {
+                step(messages.processMove);
+              });
+            }}
+            onDone={() => {
+              void runOrQueue(newMutation('complete', current.id, {}), (key) =>
+                api.completeTask(current.id, {}, key),
+              ).then(() => {
+                step(messages.processDoneAction);
+              });
+            }}
+            onDelete={() => {
+              const id = current.id;
+              void api.deleteTask(id).then(() => {
+                useActionToast.getState().show(messages.movedToTrash, () => {
+                  void api.restoreTask(id).then(() => refreshTaskSurfaces(queryClient));
+                });
+                step(messages.movedToTrash);
+              });
+            }}
+            onSkip={() => {
+              step();
+            }}
+          />
+        </>
       ) : null}
       {process && current === undefined && !tasks.isPending ? (
         <EmptyState title={messages.processDone} body={messages.emptyInbox} />
@@ -189,6 +202,7 @@ export function InboxPage() {
 
 function ProcessCard({
   messages,
+  locale,
   taskTitle,
   projects,
   onDate,
@@ -198,6 +212,7 @@ function ProcessCard({
   onSkip,
 }: {
   readonly messages: Messages;
+  readonly locale: string;
   readonly taskTitle: string;
   readonly projects: readonly Project[];
   readonly onDate: (preset: 'tomorrow' | 'next_week' | 'date', date?: string) => void;
@@ -233,6 +248,7 @@ function ProcessCard({
         </Button>
         <input
           type="date"
+          lang={locale.toLowerCase().startsWith('en') ? 'en-CA' : 'es-ES'}
           aria-label={messages.processDate}
           onChange={(event) => {
             if (event.target.value.length > 0) {
@@ -320,37 +336,38 @@ export function CalendarPage() {
   return (
     <section className="screen-page is-wide">
       <header className="cal-toolbar">
-        <h1>{messages.calendarTitle}</h1>
-        <Button
-          onClick={() => {
-            const today = localToday(new Date());
-            setCursor(today);
-            if (current === 'day') {
-              const query = new URLSearchParams(params);
-              query.set('date', localDateParam(today));
-              setParams(query, { replace: true });
-            }
-          }}
-        >
-          {messages.calToday}
-        </Button>
-        <Button
-          aria-label={messages.calPrev}
-          onClick={() => {
-            move(-1);
-          }}
-        >
-          ‹
-        </Button>
-        <Button
-          aria-label={messages.calNext}
-          onClick={() => {
-            move(1);
-          }}
-        >
-          ›
-        </Button>
-        <p className="cal-title">{title}</p>
+        <h1>{title}</h1>
+        <div className="cal-nav">
+          <Button
+            onClick={() => {
+              const today = localToday(new Date());
+              setCursor(today);
+              if (current === 'day') {
+                const query = new URLSearchParams(params);
+                query.set('date', localDateParam(today));
+                setParams(query, { replace: true });
+              }
+            }}
+          >
+            {messages.calToday}
+          </Button>
+          <Button
+            aria-label={messages.calPrev}
+            onClick={() => {
+              move(-1);
+            }}
+          >
+            ‹
+          </Button>
+          <Button
+            aria-label={messages.calNext}
+            onClick={() => {
+              move(1);
+            }}
+          >
+            ›
+          </Button>
+        </div>
         <div className="cal-views">
           {CAL_VIEWS.map((item) => (
             <Link
@@ -547,7 +564,7 @@ function DayGrid({
                 }
                 to={`/list/${task.project_id}?task=${task.id}`}
               >
-                {chipLabel(task, messages.untitled)}
+                {chipLabel(task, messages.untitled, locale)}
               </Link>
             ))}
             {hidden > 0 ? (
@@ -787,7 +804,7 @@ function CalendarExtras({ messages }: { readonly messages: Messages }) {
   return (
     <>
       {external.length === 0 ? (
-        <p className="ui-muted">
+        <p className="cal-empty">
           <Link to="/settings/calendar">{messages.externalEmpty}</Link>
         </p>
       ) : null}
@@ -810,8 +827,13 @@ function cardPaint(color: string | undefined): CSSProperties | undefined {
   };
 }
 
-function chipLabel(task: Task, untitled: string): string {
-  return calendarTaskLabel(task.title, task.due_date, task.time_zone, untitled);
+function chipLabel(task: Task, untitled: string, locale: string): string {
+  const title = calendarTaskLabel(task.title, task.due_date, task.time_zone, untitled);
+  if (task.due_date === null || task.is_all_day) {
+    return title;
+  }
+  const zone = task.time_zone.length > 0 ? task.time_zone : 'UTC';
+  return `${formatDueTime(task.due_date, zone, locale)} ${title}`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

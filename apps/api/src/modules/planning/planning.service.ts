@@ -1,0 +1,671 @@
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { Prisma, type PlanDecision, type PlanSession } from '@prisma/client';
+import {
+  isIanaTimeZone,
+  planQueue,
+  previewPlan,
+  staleTaskIds,
+  type PlanCard,
+  type PlanDecisionKind,
+  type PlanQueue,
+  type PlanSources,
+} from '@reflexionia/domain';
+import { actorOf, type AuthUser } from '../../auth/auth-user.js';
+import { DomainEvent } from '../../events/domain-events.js';
+import { EventRecorder } from '../../events/event-recorder.js';
+import { DomainException } from '../../http/domain.exception.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { TasksService } from '../tasks/tasks.service.js';
+
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const DECISIONS = ['done', 'plan_day', 'later', 'cancel', 'trash', 'skip'] as const;
+
+interface SnapshotFile {
+  readonly cards: readonly PlanCard[];
+  readonly hiddenOverdue: number;
+  readonly totals: PlanQueue['totals'];
+}
+
+interface AppliedEffect {
+  readonly task_id: string;
+  readonly decision: PlanDecisionKind;
+  readonly effect: string;
+}
+
+interface StoredResult {
+  readonly applied: readonly AppliedEffect[];
+}
+
+type SessionRow = PlanSession & {
+  readonly plan: { readonly id: string; readonly localDate: string; readonly timeZone: string };
+  readonly decisions: readonly PlanDecision[];
+};
+
+@Injectable()
+export class PlanningService {
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(TasksService) private readonly tasks: TasksService,
+    @Inject(EventRecorder) private readonly events: EventRecorder,
+  ) {}
+
+  async start(
+    user: AuthUser,
+    input: {
+      readonly localDate: string;
+      readonly timeZone: string;
+      readonly sources: PlanSources;
+      readonly limit: number | null;
+    },
+  ): Promise<Record<string, unknown>> {
+    this.assertDate(input.localDate);
+    this.assertZone(input.timeZone);
+    const rows = await this.prisma.task.findMany({
+      where: { ownerId: user.id, deletedAt: null, status: 'active', kind: 'task', parentId: null },
+      include: { project: { select: { name: true, isInbox: true } } },
+    });
+    const queue = planQueue(
+      rows.map((row) => ({
+        id: row.id,
+        title: row.title,
+        priority: row.priority,
+        dueDate: row.dueDate?.toISOString() ?? null,
+        isAllDay: row.isAllDay,
+        timeZone: row.timeZone,
+        status: row.status,
+        kind: row.kind,
+        parentId: row.parentId,
+        projectId: row.projectId,
+        projectName: row.project.name,
+        inbox: row.project.isInbox,
+        updatedAt: row.updatedAt.toISOString(),
+        createdAt: row.createdAt.toISOString(),
+      })),
+      input,
+    );
+    const plan = await this.prisma.dayPlan.upsert({
+      where: {
+        ownerId_localDate_timeZone: {
+          ownerId: user.id,
+          localDate: input.localDate,
+          timeZone: input.timeZone,
+        },
+      },
+      create: { ownerId: user.id, localDate: input.localDate, timeZone: input.timeZone },
+      update: {},
+    });
+    const session = await this.prisma.planSession.create({
+      data: {
+        planId: plan.id,
+        ownerId: user.id,
+        sources: jsonValue(input.sources),
+        snapshot: jsonValue({
+          cards: queue.cards,
+          hiddenOverdue: queue.hiddenOverdue,
+          totals: queue.totals,
+        }),
+      },
+      include: { decisions: true, plan: true },
+    });
+    await this.prisma.planSession.updateMany({
+      where: { ownerId: user.id, planId: plan.id, state: 'draft', id: { not: session.id } },
+      data: { state: 'discarded' },
+    });
+    return this.view(session);
+  }
+
+  async get(user: AuthUser, id: string): Promise<Record<string, unknown>> {
+    return this.view(await this.owned(user.id, id));
+  }
+
+  async decide(
+    user: AuthUser,
+    sessionId: string,
+    taskId: string,
+    decision: PlanDecisionKind,
+    targetDate: string | null,
+  ): Promise<Record<string, unknown>> {
+    const session = await this.requireOpen(user.id, sessionId);
+    if (!this.snapshot(session).cards.some((card) => card.taskId === taskId)) {
+      throw new DomainException(
+        HttpStatus.NOT_FOUND,
+        'task_not_in_plan',
+        'Task is not in this plan',
+      );
+    }
+    const target = this.targetFor(session.plan.localDate, decision, targetDate);
+    await this.prisma.planDecision.upsert({
+      where: { sessionId_taskId: { sessionId, taskId } },
+      create: { sessionId, taskId, decision, targetDate: target },
+      update: { decision, targetDate: target },
+    });
+    return this.view(await this.bump(sessionId));
+  }
+
+  async clear(user: AuthUser, sessionId: string, taskId: string): Promise<Record<string, unknown>> {
+    await this.requireOpen(user.id, sessionId);
+    await this.prisma.planDecision.deleteMany({ where: { sessionId, taskId } });
+    return this.view(await this.bump(sessionId));
+  }
+
+  async apply(
+    user: AuthUser,
+    sessionId: string,
+    expectedRevision: number,
+    key: string | undefined,
+  ): Promise<Record<string, unknown>> {
+    if (key === undefined || key.trim() === '') {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'idempotency_key_required',
+        'Idempotency-Key is required',
+      );
+    }
+    const session = await this.owned(user.id, sessionId);
+    const operation = await this.begin(user.id, session, key.trim(), expectedRevision);
+    if (operation.status === 'applied') {
+      return this.appliedBody(operation.id, session, readResult(operation.result));
+    }
+    const stored = readResult(operation.result);
+    const done = new Set(stored.applied.map((item) => item.task_id));
+    const pending = session.decisions.filter(
+      (decision) => decision.decision !== 'skip' && !done.has(decision.taskId),
+    );
+    await this.assertFresh(user.id, session, pending);
+    await this.prisma.planSession.update({
+      where: { id: session.id },
+      data: { state: 'applying' },
+    });
+    const applied = [...stored.applied];
+    for (const decision of pending) {
+      const effect = await this.applyOne(
+        user,
+        session,
+        decision,
+        `${key.trim()}:${decision.taskId}`,
+      );
+      applied.push({ task_id: decision.taskId, decision: decision.decision, effect });
+      await this.prisma.planOperation.update({
+        where: { id: operation.id },
+        data: { result: jsonValue({ applied }) },
+      });
+    }
+    await this.prisma.planOperation.update({
+      where: { id: operation.id },
+      data: { status: 'applied', result: jsonValue({ applied }) },
+    });
+    await this.prisma.planSession.update({
+      where: { id: session.id },
+      data: { state: 'applied' },
+    });
+    await this.prisma.$transaction((tx) =>
+      this.events.record(tx, actorOf(user), {
+        type: DomainEvent.planApplied,
+        entityType: 'plan_session',
+        entityId: session.id,
+        action: 'updated',
+        data: {
+          session_id: session.id,
+          plan_id: session.planId,
+          task_ids: applied.map((item) => item.task_id),
+        },
+        previous: null,
+      }),
+    );
+    return this.appliedBody(operation.id, session, { applied });
+  }
+
+  async day(user: AuthUser, localDate: string, timeZone: string): Promise<Record<string, unknown>> {
+    this.assertDate(localDate);
+    this.assertZone(timeZone);
+    const plan = await this.prisma.dayPlan.findUnique({
+      where: {
+        ownerId_localDate_timeZone: { ownerId: user.id, localDate, timeZone },
+      },
+      include: {
+        members: {
+          orderBy: { rank: 'asc' },
+          include: {
+            task: {
+              select: {
+                id: true,
+                title: true,
+                status: true,
+                dueDate: true,
+                isAllDay: true,
+                priority: true,
+                deletedAt: true,
+                project: { select: { name: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+    const members = (plan?.members ?? []).filter(
+      (member) => member.task.deletedAt === null && member.task.status === 'active',
+    );
+    return {
+      id: plan?.id ?? null,
+      local_date: localDate,
+      time_zone: timeZone,
+      members: members.map((member) => ({
+        task_id: member.task.id,
+        title: member.task.title,
+        status: member.task.status,
+        priority: member.task.priority,
+        due_date: member.task.dueDate?.toISOString() ?? null,
+        is_all_day: member.task.isAllDay,
+        project_name: member.task.project.name,
+        rank: member.rank,
+        source: member.source,
+      })),
+    };
+  }
+
+  private async applyOne(
+    user: AuthUser,
+    session: SessionRow,
+    decision: PlanDecision,
+    key: string,
+  ): Promise<string> {
+    const card = this.snapshot(session).cards.find((item) => item.taskId === decision.taskId);
+    const rank = card?.rank ?? 0;
+    if (decision.decision === 'done') {
+      await this.tasks.complete(user, decision.taskId, { complete_children: 'complete' }, key);
+      await this.clearMemberships(user.id, decision.taskId);
+      return 'completed';
+    }
+    if (decision.decision === 'cancel') {
+      await this.tasks.cancel(user, decision.taskId);
+      await this.clearMemberships(user.id, decision.taskId);
+      return 'cancelled';
+    }
+    if (decision.decision === 'trash') {
+      const row = await this.prisma.task.findFirst({
+        where: { id: decision.taskId, ownerId: user.id },
+        select: { deletedAt: true },
+      });
+      if (row?.deletedAt === null) {
+        await this.tasks.remove(user, decision.taskId);
+      }
+      await this.clearMemberships(user.id, decision.taskId);
+      return 'trashed';
+    }
+    if (decision.decision === 'plan_day') {
+      await this.place(
+        user.id,
+        session.plan.localDate,
+        session.plan.timeZone,
+        decision.taskId,
+        rank,
+        'plan_day',
+      );
+      return 'planned_today';
+    }
+    if (decision.decision === 'later') {
+      const target = decision.targetDate ?? nextCivil(session.plan.localDate);
+      await this.prisma.planMember.deleteMany({
+        where: {
+          taskId: decision.taskId,
+          plan: {
+            ownerId: user.id,
+            localDate: session.plan.localDate,
+            timeZone: session.plan.timeZone,
+          },
+        },
+      });
+      await this.place(user.id, target, session.plan.timeZone, decision.taskId, rank, 'later');
+      return 'planned_later';
+    }
+    return 'skipped';
+  }
+
+  private async place(
+    ownerId: string,
+    localDate: string,
+    timeZone: string,
+    taskId: string,
+    rank: number,
+    source: string,
+  ): Promise<void> {
+    const plan = await this.prisma.dayPlan.upsert({
+      where: { ownerId_localDate_timeZone: { ownerId, localDate, timeZone } },
+      create: { ownerId, localDate, timeZone },
+      update: {},
+    });
+    await this.prisma.planMember.upsert({
+      where: { planId_taskId: { planId: plan.id, taskId } },
+      create: { planId: plan.id, taskId, rank, source },
+      update: { rank, source },
+    });
+  }
+
+  private async clearMemberships(ownerId: string, taskId: string): Promise<void> {
+    await this.prisma.planMember.deleteMany({
+      where: { taskId, plan: { ownerId } },
+    });
+  }
+
+  private async assertFresh(
+    ownerId: string,
+    session: SessionRow,
+    pending: readonly PlanDecision[],
+  ): Promise<void> {
+    if (pending.length === 0) {
+      return;
+    }
+    const ids = pending.map((decision) => decision.taskId);
+    const current = await this.prisma.task.findMany({
+      where: { ownerId, id: { in: ids } },
+      select: { id: true, updatedAt: true, deletedAt: true },
+    });
+    const stale = staleTaskIds(
+      this.snapshot(session).cards.filter((card) => ids.includes(card.taskId)),
+      current
+        .filter((row) => row.deletedAt === null)
+        .map((row) => ({ id: row.id, updatedAt: row.updatedAt.toISOString() })),
+    );
+    if (stale.length > 0) {
+      throw new DomainException(
+        HttpStatus.CONFLICT,
+        'plan_conflict',
+        'A task changed since the preview',
+        { task_ids: stale },
+      );
+    }
+  }
+
+  private async begin(
+    ownerId: string,
+    session: SessionRow,
+    key: string,
+    expectedRevision: number,
+  ): Promise<{ id: string; status: string; result: Prisma.JsonValue }> {
+    if (session.state === 'applied' || session.state === 'discarded') {
+      const closed = await this.prisma.planOperation.findUnique({
+        where: { ownerId_idempotencyKey: { ownerId, idempotencyKey: key } },
+      });
+      if (closed?.sessionId === session.id && closed.status === 'applied') {
+        return closed;
+      }
+      throw new DomainException(
+        HttpStatus.CONFLICT,
+        'plan_closed',
+        'This planning session is already closed',
+      );
+    }
+    if (session.revision !== expectedRevision) {
+      throw new DomainException(
+        HttpStatus.CONFLICT,
+        'plan_revision',
+        'The plan changed. Review the preview again',
+        { revision: session.revision },
+      );
+    }
+    try {
+      return await this.prisma.planOperation.create({
+        data: {
+          ownerId,
+          sessionId: session.id,
+          idempotencyKey: key,
+          revision: expectedRevision,
+          status: 'pending',
+          result: { applied: [] },
+        },
+      });
+    } catch (error) {
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
+        throw error;
+      }
+      const existing = await this.prisma.planOperation.findUnique({
+        where: { ownerId_idempotencyKey: { ownerId, idempotencyKey: key } },
+      });
+      if (existing?.sessionId !== session.id || existing.revision !== expectedRevision) {
+        throw new DomainException(
+          HttpStatus.CONFLICT,
+          'idempotency_mismatch',
+          'This Idempotency-Key was already used for a different plan',
+        );
+      }
+      return existing;
+    }
+  }
+
+  private async owned(ownerId: string, id: string): Promise<SessionRow> {
+    const session = await this.prisma.planSession.findFirst({
+      where: { id, ownerId },
+      include: { decisions: true, plan: true },
+    });
+    if (session === null) {
+      throw new DomainException(
+        HttpStatus.NOT_FOUND,
+        'plan_not_found',
+        'Plan session was not found',
+      );
+    }
+    return session;
+  }
+
+  private async requireOpen(ownerId: string, id: string): Promise<SessionRow> {
+    const session = await this.owned(ownerId, id);
+    if (session.state !== 'draft') {
+      throw new DomainException(
+        HttpStatus.CONFLICT,
+        'plan_closed',
+        'This planning session is already closed',
+      );
+    }
+    return session;
+  }
+
+  private async bump(id: string): Promise<SessionRow> {
+    return this.prisma.planSession.update({
+      where: { id },
+      data: { revision: { increment: 1 } },
+      include: { decisions: true, plan: true },
+    });
+  }
+
+  private view(session: SessionRow): Record<string, unknown> {
+    const snapshot = this.snapshot(session);
+    const decisions = session.decisions.map((decision) => ({
+      taskId: decision.taskId,
+      decision: decision.decision,
+      targetDate: decision.targetDate,
+    }));
+    const preview = previewPlan(snapshot.cards, decisions);
+    return {
+      id: session.id,
+      plan_id: session.planId,
+      local_date: session.plan.localDate,
+      time_zone: session.plan.timeZone,
+      state: session.state,
+      revision: session.revision,
+      hidden_overdue: snapshot.hiddenOverdue,
+      totals: snapshot.totals,
+      cards: snapshot.cards.map((card) => ({
+        task_id: card.taskId,
+        title: card.title,
+        section: card.section,
+        reason: card.reason,
+        reason_text: card.reasonText,
+        priority: card.priority,
+        due_date: card.dueDate,
+        is_all_day: card.isAllDay,
+        time_zone: card.timeZone,
+        project_id: card.projectId,
+        project_name: card.projectName,
+        updated_at: card.updatedAt,
+        rank: card.rank,
+      })),
+      decisions: decisions.map((decision) => ({
+        task_id: decision.taskId,
+        decision: decision.decision,
+        target_date: decision.targetDate,
+      })),
+      preview: {
+        complete: preview.complete,
+        planned_today: preview.plannedToday,
+        planned_later: preview.plannedLater,
+        cancel: preview.cancel,
+        trash: preview.trash,
+        skip: preview.skip,
+        untouched: preview.untouched,
+        effects: preview.effects.map((effect) => ({
+          task_id: effect.taskId,
+          title: effect.title,
+          decision: effect.decision,
+          summary: effect.summary,
+          changes_due: effect.changesDue,
+        })),
+      },
+    };
+  }
+
+  private appliedBody(
+    operationId: string,
+    session: SessionRow,
+    result: StoredResult,
+  ): Record<string, unknown> {
+    return {
+      operation_id: operationId,
+      session_id: session.id,
+      plan_id: session.planId,
+      applied: result.applied,
+    };
+  }
+
+  private snapshot(session: PlanSession): SnapshotFile {
+    const value = session.snapshot;
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+      throw new DomainException(
+        HttpStatus.CONFLICT,
+        'plan_snapshot_invalid',
+        'The plan snapshot cannot be read',
+      );
+    }
+    const cards = value.cards;
+    if (!isCardList(cards)) {
+      throw new DomainException(
+        HttpStatus.CONFLICT,
+        'plan_snapshot_invalid',
+        'The plan snapshot cannot be read',
+      );
+    }
+    const totals = value.totals;
+    return {
+      cards,
+      hiddenOverdue: typeof value.hiddenOverdue === 'number' ? value.hiddenOverdue : 0,
+      totals:
+        totals !== null && typeof totals === 'object' && !Array.isArray(totals)
+          ? {
+              today: numberField(totals, 'today'),
+              overdue: numberField(totals, 'overdue'),
+              inbox: numberField(totals, 'inbox'),
+              undated: numberField(totals, 'undated'),
+            }
+          : { today: 0, overdue: 0, inbox: 0, undated: 0 },
+    };
+  }
+
+  private targetFor(
+    localDate: string,
+    decision: PlanDecisionKind,
+    targetDate: string | null,
+  ): string | null {
+    if (decision !== 'later') {
+      return null;
+    }
+    const target = targetDate ?? nextCivil(localDate);
+    this.assertDate(target);
+    if (target <= localDate) {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'target_date must be after the plan day',
+      );
+    }
+    return target;
+  }
+
+  private assertDate(value: string): void {
+    if (!DATE.test(value)) {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'local_date is invalid',
+      );
+    }
+  }
+
+  private assertZone(value: string): void {
+    if (!isIanaTimeZone(value)) {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'time_zone is invalid',
+      );
+    }
+  }
+}
+
+function nextCivil(localDate: string): string {
+  const [year, month, day] = localDate.split('-').map((part) => Number(part));
+  const date = new Date(Date.UTC(year ?? 0, (month ?? 1) - 1, day ?? 1));
+  date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
+function readResult(value: Prisma.JsonValue): StoredResult {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return { applied: [] };
+  }
+  const applied = value.applied;
+  if (!Array.isArray(applied)) {
+    return { applied: [] };
+  }
+  return {
+    applied: applied.flatMap((item) => {
+      if (item === null || typeof item !== 'object' || Array.isArray(item)) {
+        return [];
+      }
+      if (typeof item.task_id !== 'string' || typeof item.effect !== 'string') {
+        return [];
+      }
+      if (!isDecision(item.decision)) {
+        return [];
+      }
+      return [{ task_id: item.task_id, decision: item.decision, effect: item.effect }];
+    }),
+  };
+}
+
+function jsonValue(value: unknown): Prisma.InputJsonValue {
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+}
+
+function isCardList(value: unknown): value is PlanCard[] {
+  return Array.isArray(value) && value.every((card) => isCard(card));
+}
+
+function isCard(value: unknown): value is PlanCard {
+  if (value === null || typeof value !== 'object') {
+    return false;
+  }
+  const card = value as { taskId?: unknown; updatedAt?: unknown; title?: unknown };
+  return (
+    typeof card.taskId === 'string' &&
+    typeof card.updatedAt === 'string' &&
+    typeof card.title === 'string'
+  );
+}
+
+function isDecision(value: unknown): value is PlanDecisionKind {
+  return typeof value === 'string' && DECISIONS.some((decision) => decision === value);
+}
+
+function numberField(value: object, key: string): number {
+  const raw = (value as Record<string, unknown>)[key];
+  return typeof raw === 'number' ? raw : 0;
+}

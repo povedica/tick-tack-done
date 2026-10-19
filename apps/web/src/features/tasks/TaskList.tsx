@@ -50,7 +50,6 @@ export function TaskList({
   const [params, setParams] = useSearchParams();
   const setNotice = useCaptureNotice((state) => state.setNotice);
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
-  const [limit, setLimit] = useState('');
   const [draft, setDraft] = useState('');
   const [pending, setPending] = useState<readonly RowModel[]>([]);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -87,6 +86,7 @@ export function TaskList({
         rows={visible}
         columns={columns ?? []}
         projectId={createProjectId}
+        locale={locale}
         onOpen={open}
         onComplete={onComplete}
       />
@@ -272,29 +272,6 @@ export function TaskList({
           </Button>
         </div>
       ) : null}
-      {view === 'kanban' && (columns?.length ?? 0) > 0 ? (
-        <label>
-          {messages.columnLimit}
-          <input
-            value={limit}
-            onChange={(event) => {
-              setLimit(event.target.value);
-            }}
-            onBlur={() => {
-              const column = columns?.[0];
-              const value = Number(limit);
-              if (
-                createProjectId !== undefined &&
-                column !== undefined &&
-                Number.isInteger(value) &&
-                value > 0
-              ) {
-                void api.updateColumn(createProjectId, column.id, { wip_limit: value });
-              }
-            }}
-          />
-        </label>
-      ) : null}
     </div>
   );
 }
@@ -379,26 +356,18 @@ function TaskRow({
         <GripVertical className="task-grip" size={12} aria-hidden="true" />
       )}
       {trash ? (
-        <span className="task-trash-actions">
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              void api.restoreTask(row.id).then(() => refreshTaskSurfaces(queryClient));
-            }}
-          >
-            {messages.restore}
-          </button>
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              void api.purgeTask(row.id).then(() => refreshTaskSurfaces(queryClient));
-            }}
-          >
-            {messages.purge}
-          </button>
-        </span>
+        <TrashActions
+          restoreLabel={messages.restore}
+          purgeLabel={messages.purge}
+          confirmLabel={messages.confirmDelete}
+          cancelLabel={messages.cancel}
+          onRestore={() => {
+            void api.restoreTask(row.id).then(() => refreshTaskSurfaces(queryClient));
+          }}
+          onPurge={() => {
+            void api.purgeTask(row.id).then(() => refreshTaskSurfaces(queryClient));
+          }}
+        />
       ) : (
         <PriorityCheck
           priority={row.priority}
@@ -493,6 +462,7 @@ function Kanban({
   rows,
   columns,
   projectId,
+  locale,
   onOpen,
   onComplete,
 }: {
@@ -504,6 +474,7 @@ function Kanban({
     readonly wip_limit?: number | null;
   }[];
   readonly projectId?: string | undefined;
+  readonly locale: string;
   readonly onOpen: (id: string) => void;
   readonly onComplete: (row: RowModel) => void;
 }) {
@@ -516,116 +487,132 @@ function Kanban({
       ? [{ id: 'none', name: messages.noSection }]
       : [...columns, ...(loose ? [{ id: 'none', name: messages.noSection }] : [])];
   return (
-    <div className="kanban">
-      {boardError !== null ? <p className="error">{boardError}</p> : null}
-      {cols.map((column) => {
-        const items = rows.filter((row) =>
-          column.id === 'none'
-            ? row.columnId === null || row.columnId.length === 0
-            : row.columnId === column.id,
-        );
-        return (
-          <section
-            key={column.id}
-            className="kanban-col"
-            onDragOver={(event) => {
-              event.preventDefault();
-            }}
-            onDrop={(event) => {
-              const id = event.dataTransfer.getData('text/plain');
-              if (id.length === 0) {
-                return;
-              }
-              void api
-                .patchTask(id, { column_id: column.id === 'none' ? null : column.id })
-                .then(() => refreshTaskSurfaces(queryClient))
-                .catch((error: unknown) => {
-                  if (error instanceof ApiError && error.code === 'wip_exceeded') {
-                    setBoardError(messages.wipExceeded);
-                    return;
-                  }
-                  setBoardError(messages.saveFailed);
-                });
-            }}
-          >
-            <h3>
-              {column.name}{' '}
-              <span className="ui-badge">
-                {items.length}
-                {column.wip_limit != null ? `/${String(column.wip_limit)}` : ''}
-              </span>
-            </h3>
-            {items.length === 0 ? <p>{messages.kanbanEmpty}</p> : null}
-            {items.map((row) => (
-              <article
-                key={row.id}
-                className="kanban-card"
-                draggable
-                onDragStart={(event) => {
-                  event.dataTransfer.setData('text/plain', row.id);
-                }}
-              >
-                <div className="kanban-card-title">
-                  <PriorityCheck
-                    priority={row.priority}
-                    label={fill(messages.completeLabel, row.title)}
-                    onChange={() => {
-                      onComplete(row);
+    <div className="kanban-wrap">
+      {boardError !== null ? (
+        <p className="error kanban-error" role="alert">
+          {boardError}
+        </p>
+      ) : null}
+      <div className="kanban">
+        {cols.map((column) => {
+          const items = rows.filter((row) =>
+            column.id === 'none'
+              ? row.columnId === null || row.columnId.length === 0
+              : row.columnId === column.id,
+          );
+          return (
+            <section
+              key={column.id}
+              className="kanban-col"
+              onDragOver={(event) => {
+                event.preventDefault();
+              }}
+              onDrop={(event) => {
+                const id = event.dataTransfer.getData('text/plain');
+                if (id.length === 0) {
+                  return;
+                }
+                void api
+                  .patchTask(id, { column_id: column.id === 'none' ? null : column.id })
+                  .then(() => refreshTaskSurfaces(queryClient))
+                  .catch((error: unknown) => {
+                    if (error instanceof ApiError && error.code === 'wip_exceeded') {
+                      setBoardError(messages.wipExceeded);
+                      return;
+                    }
+                    setBoardError(messages.saveFailed);
+                  });
+              }}
+            >
+              <h3>
+                {column.name}{' '}
+                <span className="ui-badge">
+                  {items.length}
+                  {column.wip_limit != null ? `/${String(column.wip_limit)}` : ''}
+                </span>
+                {projectId !== undefined && column.id !== 'none' ? (
+                  <ColumnLimit
+                    label={messages.columnMenu}
+                    limitLabel={messages.columnLimitShort}
+                    current={column.wip_limit ?? null}
+                    onSave={(value) => {
+                      void api.updateColumn(projectId, column.id, { wip_limit: value });
                     }}
                   />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onOpen(row.id);
-                    }}
-                  >
-                    {shownTitle(
-                      row.title,
-                      row.tags.map((tag) => tag.name),
-                      messages.untitled,
-                    )}
-                  </button>
-                </div>
-                <p className="kanban-card-meta">
-                  {row.tags.slice(0, 2).map((tag) => (
-                    <TagChip key={tag.id} label={tag.name} color={tag.color} />
-                  ))}
-                  {row.dueDate !== null ? (
-                    <time dateTime={row.dueDate}>
-                      {formatRowDate(row.dueDate, navigator.language, new Date(), false, messages)}
-                    </time>
-                  ) : null}
-                </p>
-              </article>
-            ))}
-          </section>
-        );
-      })}
-      {projectId !== undefined ? (
-        <form
-          className="kanban-col kanban-add"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const name = section.trim();
-            if (name.length === 0) {
-              return;
-            }
-            void api.createColumn(projectId, name, crypto.randomUUID()).then(() => {
-              setSection('');
-              void queryClient.invalidateQueries({ queryKey: ['columns', projectId] });
-            });
-          }}
-        >
-          <input
-            aria-label={messages.noColumns}
-            placeholder={messages.noColumns}
-            value={section}
-            onChange={(event) => {
-              setSection(event.target.value);
+                ) : null}
+              </h3>
+              {items.length === 0 ? <p>{messages.kanbanEmpty}</p> : null}
+              {items.map((row) => (
+                <article
+                  key={row.id}
+                  className="kanban-card"
+                  draggable
+                  onDragStart={(event) => {
+                    event.dataTransfer.setData('text/plain', row.id);
+                  }}
+                >
+                  <div className="kanban-card-title">
+                    <PriorityCheck
+                      priority={row.priority}
+                      label={fill(messages.completeLabel, row.title)}
+                      onChange={() => {
+                        onComplete(row);
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onOpen(row.id);
+                      }}
+                    >
+                      {shownTitle(
+                        row.title,
+                        row.tags.map((tag) => tag.name),
+                        messages.untitled,
+                      )}
+                    </button>
+                  </div>
+                  <p className="kanban-card-meta">
+                    {row.tags.slice(0, 2).map((tag) => (
+                      <TagChip key={tag.id} label={tag.name} color={tag.color} />
+                    ))}
+                    {row.dueDate !== null ? (
+                      <time dateTime={row.dueDate}>
+                        {formatRowDate(row.dueDate, locale, new Date(), false, messages)}
+                      </time>
+                    ) : null}
+                  </p>
+                </article>
+              ))}
+            </section>
+          );
+        })}
+        {projectId !== undefined ? (
+          <form
+            className="kanban-col kanban-add"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const name = section.trim();
+              if (name.length === 0) {
+                return;
+              }
+              void api.createColumn(projectId, name, crypto.randomUUID()).then(() => {
+                setSection('');
+                void queryClient.invalidateQueries({ queryKey: ['columns', projectId] });
+              });
             }}
-          />
-        </form>
-      ) : null}
+          >
+            <input
+              aria-label={messages.noColumns}
+              placeholder={messages.sectionAdd}
+              value={section}
+              onChange={(event) => {
+                setSection(event.target.value);
+              }}
+            />
+          </form>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -755,6 +742,124 @@ function timelineDays(zoom: 'day' | 'week' | 'month'): Date[] {
     day.setDate(start.getDate() + index);
     return day;
   });
+}
+
+function TrashActions({
+  restoreLabel,
+  purgeLabel,
+  confirmLabel,
+  cancelLabel,
+  onRestore,
+  onPurge,
+}: {
+  readonly restoreLabel: string;
+  readonly purgeLabel: string;
+  readonly confirmLabel: string;
+  readonly cancelLabel: string;
+  readonly onRestore: () => void;
+  readonly onPurge: () => void;
+}) {
+  const [confirm, setConfirm] = useState(false);
+  if (confirm) {
+    return (
+      <span className="task-trash-actions">
+        <Button
+          type="button"
+          size="sm"
+          variant="danger"
+          onClick={(event) => {
+            event.stopPropagation();
+            onPurge();
+          }}
+        >
+          {confirmLabel}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          onClick={(event) => {
+            event.stopPropagation();
+            setConfirm(false);
+          }}
+        >
+          {cancelLabel}
+        </Button>
+      </span>
+    );
+  }
+  return (
+    <span className="task-trash-actions">
+      <Button
+        type="button"
+        size="sm"
+        onClick={(event) => {
+          event.stopPropagation();
+          onRestore();
+        }}
+      >
+        {restoreLabel}
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        onClick={(event) => {
+          event.stopPropagation();
+          setConfirm(true);
+        }}
+      >
+        {purgeLabel}
+      </Button>
+    </span>
+  );
+}
+
+function ColumnLimit({
+  label,
+  limitLabel,
+  current,
+  onSave,
+}: {
+  readonly label: string;
+  readonly limitLabel: string;
+  readonly current: number | null;
+  readonly onSave: (value: number | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState(current === null ? '' : String(current));
+  return (
+    <span className="column-limit">
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        aria-label={label}
+        aria-expanded={open}
+        onClick={() => {
+          setOpen((item) => !item);
+        }}
+      >
+        …
+      </Button>
+      {open ? (
+        <label>
+          {limitLabel}
+          <input
+            value={value}
+            inputMode="numeric"
+            onChange={(event) => {
+              setValue(event.target.value);
+            }}
+            onBlur={() => {
+              const next = value.trim().length === 0 ? null : Number(value);
+              onSave(next !== null && Number.isInteger(next) && next > 0 ? next : null);
+            }}
+          />
+        </label>
+      ) : null}
+    </span>
+  );
 }
 
 function formatRowDate(

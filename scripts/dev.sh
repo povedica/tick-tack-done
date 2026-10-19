@@ -5,9 +5,16 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+compose_file="docker-compose.dev.yml"
+compose_project=()
+if [[ -f "$ROOT/docker-compose.worktree.local.yml" ]]; then
+  compose_file="docker-compose.worktree.local.yml"
+  compose_project=(-p "${COMPOSE_PROJECT_NAME:-ttd-audit}")
+fi
+
 if [[ -n "${HOST_NODE:-}" ]]; then
-  docker compose -f docker-compose.dev.yml up -d postgres redis mailpit
+  docker compose "${compose_project[@]}" -f "$compose_file" up -d postgres redis mailpit
   exec pnpm --filter api --filter web --parallel dev
 fi
 
-exec docker compose -f docker-compose.dev.yml up "$@"
+exec docker compose "${compose_project[@]}" -f "$compose_file" up "$@"

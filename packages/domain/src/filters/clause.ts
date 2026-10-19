@@ -105,7 +105,12 @@ export function matchesClause(
       return subject.dueDate === null;
     case 'overdue':
       return isOverdue({
-        status: subject.status === 'active' ? 'active' : 'completed',
+        status:
+          subject.status === 'active' ||
+          subject.status === 'archived' ||
+          subject.status === 'cancelled'
+            ? subject.status
+            : 'completed',
         dueDate: subject.dueDate,
         isAllDay: subject.isAllDay,
         timeZone: subject.timeZone,

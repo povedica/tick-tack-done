@@ -492,7 +492,7 @@ export function TodayPage() {
       todayLabel: messages.dateToday,
       tomorrowLabel: messages.dateTomorrow,
       completeLabel: messages.completeLabel,
-      moreLabel: messages.openDetail,
+      moreLabel: messages.moreActions,
       untitled: messages.untitled,
       groupKind: overdueLabel ? 'due' : group,
       collapsed: collapsed.has(overdueLabel ? 'overdue' : sectionId),
@@ -671,11 +671,12 @@ export function TodayPage() {
       </form>
       {planIds.length === 0 || accepted ? (
         <p className="plan-line">
-          <Link to="/review">{messages.planMyDay}</Link>
+          <Link to="/plan/day">{messages.planMyDay}</Link>
         </p>
       ) : (
         <section className="plan">
           <h2>{messages.planTitle}</h2>
+          <p>{messages.planHideHint}</p>
           <ul>
             {(planTasks.length > 0 ? planTasks : planIds.map((id) => ({ id, title: id }))).map(
               (item) => (
@@ -692,7 +693,7 @@ export function TodayPage() {
               setPlanAccepted(true);
             }}
           >
-            {messages.planAcceptToday}
+            {messages.planHide}
           </button>
         </section>
       )}
@@ -939,6 +940,9 @@ export function TodayPage() {
           }}
           onConvert={() => {
             patchTask(menuTask.id, { kind: 'note' });
+          }}
+          onWontDo={() => {
+            void api.cancelTask(menuTask.id).then(() => refreshTaskSurfaces(queryClient));
           }}
           onDelete={() => {
             removeTask(menuTask.id);

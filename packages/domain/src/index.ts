@@ -75,8 +75,20 @@ export {
   reminderDisposition,
   reminderFireAt,
   resolveDefaultReminder,
+  afternoonInstant,
   snoozeReminder,
 } from './reminders/trigger';
+export { formatDailyDigest } from './reminders/digest';
+export type { DigestTask } from './reminders/digest';
+export {
+  allDayClockConflict,
+  dueSignal,
+  isAtDueTrigger,
+  OVERDUE_GRACE_MS,
+  quietUntil,
+  retryDelayMs,
+  skipPastEnqueue,
+} from './reminders/delivery';
 export type {
   AccountReminderTrigger,
   ReminderSnoozePreset,
@@ -233,6 +245,19 @@ export type {
   ReportTone,
   WeeklyNarrative,
 } from './dashboard/kpis';
+export { planQueue, previewPlan, staleTaskIds } from './planning/day-plan';
+export type {
+  PlanCard,
+  PlanDecisionInput,
+  PlanDecisionKind,
+  PlanEffect,
+  PlanPreview,
+  PlanQueue,
+  PlanReason,
+  PlanSection,
+  PlanSources,
+  PlanTaskInput,
+} from './planning/day-plan';
 export { proposeDaily, proposeWeekly } from './review/propose';
 export type { DailyProposal, HabitRisk, ReviewCandidate, WeeklyReview } from './review/propose';
 export {
@@ -281,5 +306,7 @@ export type {
 export { allows, parseMentions } from './collaboration/access';
 export type { ShareAction, SharePermission } from './collaboration/access';
 export { isRasterImage } from './attachments/image';
+export { formatCaptureReply } from './integrations/capture-reply';
+export type { CaptureReply } from './integrations/capture-reply';
 export { matchTaskByTitle, parseTelegramCommand } from './integrations/telegram';
 export type { TelegramCommand, TelegramTaskRef, TitleMatch } from './integrations/telegram';

@@ -162,6 +162,7 @@ export type JsonObject = Readonly<Record<string, unknown>>;
 
 export interface ResourceClient {
   getMe(): Promise<Me>;
+  notificationHealth(): Promise<JsonObject>;
   updateMe(body: UpdateMeBody): Promise<Me>;
   inboundEmail(): Promise<InboundEmailStatus>;
   rotateInboundEmail(): Promise<InboundEmailAddress>;
@@ -199,6 +200,7 @@ export interface ResourceClient {
   deleteTask(id: string): Promise<void>;
   moveTask(id: string, projectId: string, columnId?: string | null): Promise<Task>;
   duplicateTask(id: string, idempotencyKey: string): Promise<Task>;
+  cancelTask(id: string): Promise<Task>;
   batchTasks(body: BatchBody): Promise<CountResult>;
   listTrash(): Promise<{ items: Task[]; next_cursor: string | null }>;
   emptyTrash(): Promise<CountResult>;
@@ -224,6 +226,12 @@ export interface ResourceClient {
   buildWeeklyReport(): Promise<JsonObject>;
   reviewDaily(): Promise<JsonObject>;
   reviewWeekly(): Promise<JsonObject>;
+  startPlan(body: JsonObject): Promise<JsonObject>;
+  planSession(id: string): Promise<JsonObject>;
+  decidePlan(id: string, taskId: string, body: JsonObject): Promise<JsonObject>;
+  clearPlanDecision(id: string, taskId: string): Promise<JsonObject>;
+  applyPlan(id: string, body: JsonObject, idempotencyKey: string): Promise<JsonObject>;
+  dayPlan(date: string, timeZone: string): Promise<JsonObject>;
   calendarEvents(from: string, to: string): Promise<JsonObject>;
   matrixRules(): Promise<JsonObject>;
   saveMatrixRule(body: JsonObject): Promise<JsonObject>;
@@ -294,6 +302,8 @@ export function resourceMethods(http: Http): ResourceClient {
   const ask = http.request.bind(http);
   return {
     getMe: () => ask('GET', '/api/v1/me', undefined, undefined, isMe),
+    notificationHealth: () =>
+      ask('GET', '/api/v1/me/notifications/health', undefined, undefined, isJsonObject),
     updateMe: (body) => ask('PATCH', '/api/v1/me', body, undefined, isMe),
     inboundEmail: () =>
       ask('GET', '/api/v1/me/inbound-email', undefined, undefined, isInboundStatus),
@@ -367,6 +377,7 @@ export function resourceMethods(http: Http): ResourceClient {
       ),
     duplicateTask: (id, key) =>
       ask('POST', `/api/v1/tasks/${id}/duplicate`, undefined, key, isTask),
+    cancelTask: (id) => ask('POST', `/api/v1/tasks/${id}/cancel`, undefined, undefined, isTask),
     batchTasks: (body) => ask('POST', '/api/v1/tasks/batch', body, undefined, isCount),
     listTrash: () => ask('GET', '/api/v1/tasks/trash', undefined, undefined, isTaskPage),
     emptyTrash: () => ask('DELETE', '/api/v1/tasks/trash', undefined, undefined, isCount),
@@ -428,6 +439,35 @@ export function resourceMethods(http: Http): ResourceClient {
       ask('POST', '/api/v1/reports/weekly', undefined, undefined, isJsonObject),
     reviewDaily: () => ask('GET', '/api/v1/review/daily', undefined, undefined, isJsonObject),
     reviewWeekly: () => ask('GET', '/api/v1/review/weekly', undefined, undefined, isJsonObject),
+    startPlan: (body) => ask('POST', '/api/v1/planning/sessions', body, undefined, isJsonObject),
+    planSession: (id) =>
+      ask('GET', `/api/v1/planning/sessions/${id}`, undefined, undefined, isJsonObject),
+    decidePlan: (id, taskId, body) =>
+      ask(
+        'PUT',
+        `/api/v1/planning/sessions/${id}/decisions/${taskId}`,
+        body,
+        undefined,
+        isJsonObject,
+      ),
+    clearPlanDecision: (id, taskId) =>
+      ask(
+        'DELETE',
+        `/api/v1/planning/sessions/${id}/decisions/${taskId}`,
+        undefined,
+        undefined,
+        isJsonObject,
+      ),
+    applyPlan: (id, body, key) =>
+      ask('POST', `/api/v1/planning/sessions/${id}/apply`, body, key, isJsonObject),
+    dayPlan: (date, timeZone) =>
+      ask(
+        'GET',
+        `/api/v1/plans?date=${encodeURIComponent(date)}&time_zone=${encodeURIComponent(timeZone)}`,
+        undefined,
+        undefined,
+        isJsonObject,
+      ),
     calendarEvents: (from, to) =>
       ask(
         'GET',

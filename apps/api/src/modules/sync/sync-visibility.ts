@@ -41,6 +41,17 @@ export function eventVisibleToCaller(
   return required !== undefined && scopes.includes(required);
 }
 
+/** Keeps the scope filter and the cursor as siblings under AND. Two OR keys in one object overwrite each other (S-22). */
+export function syncAndFilters(
+  typeFilter: { OR?: readonly { type: { startsWith: string } }[] },
+  cursorFilter: { OR: readonly Record<string, unknown>[] } | null,
+): readonly Record<string, unknown>[] {
+  return [
+    ...(typeFilter.OR === undefined ? [] : [typeFilter]),
+    ...(cursorFilter === null ? [] : [cursorFilter]),
+  ];
+}
+
 export function patEventPrefixes(scopes: readonly string[]): string[] {
   return Object.entries(PREFIX_SCOPE)
     .filter(([, scope]) => scopes.includes(scope))

@@ -20,6 +20,11 @@ export class RegisterDto {
   display_name!: string;
 }
 
+export class RegistrationStatusDto {
+  @ApiProperty()
+  open!: boolean;
+}
+
 export class LoginDto {
   @ApiProperty()
   @IsEmail()

@@ -1,49 +1,74 @@
-import { Bell, Paperclip, Repeat, X } from 'lucide-react';
-import type { CSSProperties, KeyboardEvent } from 'react';
+import { Bell, GripVertical, Paperclip, Plus, Repeat, X } from 'lucide-react';
+import { useState, type CSSProperties, type KeyboardEvent, type RefObject } from 'react';
 import { Link } from 'react-router';
+import { PriorityCheck } from '../../components/PriorityCheck';
+import { attachmentHref } from './task-http';
 
 export function DetailBody({
+  taskId,
   title,
   content,
   titleLabel,
   untitled,
   contentLabel,
   contentHint,
+  contentRef,
   checklistLabel,
   checklistAdd,
+  checklistEdit,
+  checklistDelete,
   tagAdd,
   items,
   subtasks,
+  subtasksLabel,
   tags,
   reminder,
   repeat,
-  attachmentCount,
+  attachments,
   attachmentLabel,
+  attachmentDownload,
+  attachmentDelete,
+  attachmentDrop,
   onTitle,
   onTitleKey,
   onContent,
   onToggleItem,
   onAddItem,
+  onEditItem,
+  onDeleteItem,
+  onReorderItem,
   onRemoveTag,
   onOpenTags,
   onClearReminder,
   onClearRepeat,
+  onToggleSubtask,
+  onDeleteAttachment,
+  onDropFiles,
 }: {
+  readonly taskId: string;
   readonly title: string;
   readonly content: string;
   readonly titleLabel: string;
   readonly untitled: string;
   readonly contentLabel: string;
   readonly contentHint: string;
+  readonly contentRef: RefObject<HTMLTextAreaElement | null>;
   readonly checklistLabel: string;
   readonly checklistAdd: string;
+  readonly checklistEdit: string;
+  readonly checklistDelete: string;
   readonly tagAdd: string;
   readonly items: readonly {
     readonly id: string;
     readonly title: string;
     readonly done: boolean;
   }[];
-  readonly subtasks: readonly { readonly id: string; readonly title: string }[];
+  readonly subtasks: readonly {
+    readonly id: string;
+    readonly title: string;
+    readonly done: boolean;
+  }[];
+  readonly subtasksLabel: string;
   readonly tags: readonly {
     readonly id: string;
     readonly name: string;
@@ -51,20 +76,58 @@ export function DetailBody({
   }[];
   readonly reminder: string | null;
   readonly repeat: string | null;
-  readonly attachmentCount: number;
+  readonly attachments: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly size: number;
+  }[];
   readonly attachmentLabel: string;
+  readonly attachmentDownload: string;
+  readonly attachmentDelete: string;
+  readonly attachmentDrop: string;
   readonly onTitle: (value: string) => void;
   readonly onTitleKey: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
   readonly onContent: (value: string) => void;
   readonly onToggleItem: (id: string, done: boolean) => void;
   readonly onAddItem: (title: string) => void;
+  readonly onEditItem: (id: string, title: string) => void;
+  readonly onDeleteItem: (id: string) => void;
+  readonly onReorderItem: (id: string, beforeId: string) => void;
   readonly onRemoveTag: (id: string) => void;
   readonly onOpenTags: () => void;
   readonly onClearReminder: () => void;
   readonly onClearRepeat: () => void;
+  readonly onToggleSubtask: (id: string, done: boolean) => void;
+  readonly onDeleteAttachment: (id: string) => void;
+  readonly onDropFiles: (files: FileList) => void;
 }) {
+  const [editing, setEditing] = useState<string | null>(null);
+  const done = items.filter((item) => item.done).length;
+  const subtaskDone = subtasks.filter((item) => item.done).length;
   return (
-    <div className="detail-body">
+    <div
+      className="detail-body"
+      onDragOver={(event) => {
+        if (event.dataTransfer.types.includes('Files')) {
+          event.preventDefault();
+        }
+      }}
+      onDrop={(event) => {
+        if (event.dataTransfer.files.length === 0) {
+          return;
+        }
+        event.preventDefault();
+        onDropFiles(event.dataTransfer.files);
+      }}
+      onPaste={(event) => {
+        const files = event.clipboardData.files;
+        if (files.length === 0) {
+          return;
+        }
+        event.preventDefault();
+        onDropFiles(files);
+      }}
+    >
       <textarea
         className="detail-title"
         aria-label={titleLabel}
@@ -73,9 +136,7 @@ export function DetailBody({
         rows={1}
         placeholder={untitled}
         onInput={(event) => {
-          const field = event.currentTarget;
-          field.style.height = 'auto';
-          field.style.height = `${String(field.scrollHeight)}px`;
+          fit(event.currentTarget);
         }}
         onKeyDown={onTitleKey}
         onBlur={(event) => {
@@ -83,35 +144,109 @@ export function DetailBody({
         }}
       />
       <textarea
+        ref={contentRef}
         className="detail-content"
         aria-label={contentLabel}
         placeholder={contentHint}
         defaultValue={content}
-        key={content}
+        key={taskId}
         rows={3}
+        onInput={(event) => {
+          fit(event.currentTarget);
+        }}
         onBlur={(event) => {
           onContent(event.target.value);
         }}
       />
-      <section className="detail-block">
-        <h3 className="sr-only">{checklistLabel}</h3>
+      <section className="detail-block detail-checks">
+        <div className="detail-block-head">
+          <h3>
+            {checklistLabel} {items.length > 0 ? `${String(done)}/${String(items.length)}` : ''}
+          </h3>
+          {items.length > 0 ? (
+            <span className="check-progress" aria-hidden="true">
+              <span style={{ width: `${String(Math.round((done / items.length) * 100))}%` }} />
+            </span>
+          ) : null}
+        </div>
         <ul className="detail-check">
           {items.map((item) => (
-            <li key={item.id}>
-              <label>
+            <li
+              key={item.id}
+              onDragOver={(event) => {
+                event.preventDefault();
+              }}
+              onDrop={(event) => {
+                const id = event.dataTransfer.getData('text/checklist');
+                if (id.length > 0 && id !== item.id) {
+                  onReorderItem(id, item.id);
+                }
+              }}
+            >
+              <button
+                type="button"
+                className="check-grip"
+                draggable
+                aria-label={checklistEdit}
+                onDragStart={(event) => {
+                  event.dataTransfer.setData('text/checklist', item.id);
+                }}
+              >
+                <GripVertical size={14} aria-hidden="true" />
+              </button>
+              <PriorityCheck
+                priority="none"
+                label={item.title}
+                checked={item.done}
+                onChange={() => {
+                  onToggleItem(item.id, item.done);
+                }}
+              />
+              {editing === item.id ? (
                 <input
-                  type="checkbox"
-                  checked={item.done}
-                  onChange={() => {
-                    onToggleItem(item.id, item.done);
+                  className="check-edit"
+                  aria-label={checklistEdit}
+                  defaultValue={item.title}
+                  autoFocus
+                  onBlur={(event) => {
+                    setEditing(null);
+                    const next = event.target.value.trim();
+                    if (next.length > 0 && next !== item.title) {
+                      onEditItem(item.id, next);
+                    }
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.currentTarget.blur();
+                    }
                   }}
                 />
-                <span>{item.title}</span>
-              </label>
+              ) : (
+                <button
+                  type="button"
+                  className={item.done ? 'check-title is-done' : 'check-title'}
+                  onClick={() => {
+                    setEditing(item.id);
+                  }}
+                >
+                  {item.title}
+                </button>
+              )}
+              <button
+                type="button"
+                className="icon-button check-remove"
+                aria-label={checklistDelete}
+                onClick={() => {
+                  onDeleteItem(item.id);
+                }}
+              >
+                <X size={14} aria-hidden="true" />
+              </button>
             </li>
           ))}
         </ul>
         <form
+          className="check-add"
           onSubmit={(event) => {
             event.preventDefault();
             const data = new FormData(event.currentTarget);
@@ -124,17 +259,40 @@ export function DetailBody({
             event.currentTarget.reset();
           }}
         >
-          <input name="item" aria-label={checklistAdd} placeholder={`+ ${checklistAdd}`} />
+          <input
+            className="check-add-input"
+            name="item"
+            aria-label={checklistAdd}
+            placeholder={`+ ${checklistAdd}`}
+          />
         </form>
       </section>
       {subtasks.length > 0 ? (
-        <ul className="detail-subtasks">
-          {subtasks.map((child) => (
-            <li key={child.id}>
-              <Link to={`?task=${child.id}`}>{child.title}</Link>
-            </li>
-          ))}
-        </ul>
+        <section className="detail-block detail-checks">
+          <h3>
+            {subtasksLabel} {subtaskDone}/{subtasks.length}
+          </h3>
+          <ul className="detail-check">
+            {subtasks.map((child) => (
+              <li key={child.id}>
+                <PriorityCheck
+                  priority="none"
+                  label={child.title}
+                  checked={child.done}
+                  onChange={() => {
+                    onToggleSubtask(child.id, child.done);
+                  }}
+                />
+                <Link
+                  className={child.done ? 'check-title is-done' : 'check-title'}
+                  to={`?task=${child.id}`}
+                >
+                  {child.title}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : null}
       <div className="detail-tags">
         {tags.map((tag) => (
@@ -147,12 +305,17 @@ export function DetailBody({
               onRemoveTag(tag.id);
             }}
           >
+            <span
+              className="tag-dot"
+              style={tag.color === null ? undefined : { background: tag.color }}
+            />
             {tag.name}
             <X size={12} aria-hidden="true" />
           </button>
         ))}
-        <button type="button" className="tag-add" aria-label={tagAdd} onClick={onOpenTags}>
-          +
+        <button type="button" className="tag-add" onClick={onOpenTags}>
+          <Plus size={14} aria-hidden="true" />
+          {tagAdd}
         </button>
       </div>
       {reminder !== null ? (
@@ -178,21 +341,57 @@ export function DetailBody({
           </button>
         </p>
       ) : null}
-      {attachmentCount > 0 ? (
-        <p className="detail-row">
-          <Paperclip size={14} aria-hidden="true" />
-          <span>
-            {attachmentCount} {attachmentLabel}
-          </span>
-        </p>
-      ) : null}
+      <section className="detail-block">
+        <h3>
+          {attachmentLabel}
+          {attachments.length > 0 ? ` (${String(attachments.length)})` : ''}
+        </h3>
+        <p className="detail-drop">{attachmentDrop}</p>
+        <ul className="detail-files">
+          {attachments.map((file) => (
+            <li key={file.id}>
+              <Paperclip size={14} aria-hidden="true" />
+              <span className="file-name">{file.name}</span>
+              <span className="file-size">{formatSize(file.size)}</span>
+              <a href={attachmentHref(taskId, file.id)} download={file.name}>
+                {attachmentDownload}
+              </a>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label={attachmentDelete}
+                onClick={() => {
+                  onDeleteAttachment(file.id);
+                }}
+              >
+                <X size={14} aria-hidden="true" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
   );
+}
+
+function fit(field: HTMLTextAreaElement): void {
+  field.style.height = 'auto';
+  field.style.height = `${String(field.scrollHeight)}px`;
+}
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) {
+    return `${String(bytes)} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${String(Math.round(bytes / 102.4) / 10)} KB`;
+  }
+  return `${String(Math.round(bytes / 104857.6) / 10)} MB`;
 }
 
 function tagStyle(color: string | null): CSSProperties | undefined {
   if (color === null || color.length === 0) {
     return undefined;
   }
-  return { background: color, color: '#191919' };
+  return { background: `color-mix(in srgb, ${color} 22%, transparent)` };
 }

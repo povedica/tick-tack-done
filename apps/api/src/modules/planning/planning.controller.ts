@@ -1,0 +1,215 @@
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  HttpStatus,
+  Inject,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Put,
+  Query,
+  Req,
+  Res,
+} from '@nestjs/common';
+import { ApiOperation, ApiProperty, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
+import type { Request, Response } from 'express';
+import type { PlanDecisionKind, PlanSources } from '@reflexionia/domain';
+import type { AuthUser } from '../../auth/auth-user.js';
+import { CurrentUser } from '../../auth/current-user.decorator.js';
+import { Scopes } from '../../auth/scopes.decorator.js';
+import { DomainException } from '../../http/domain.exception.js';
+import { respondJson } from '../../http/respond.js';
+import { PlanningService } from './planning.service.js';
+
+const DECISIONS = ['done', 'plan_day', 'later', 'cancel', 'trash', 'skip'] as const;
+
+class StartPlanDto {
+  @ApiProperty({ example: '2026-10-19' })
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  local_date!: string;
+
+  @ApiProperty({ example: 'Europe/Madrid' })
+  @IsString()
+  time_zone!: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  today?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  overdue?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  inbox?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  undated?: boolean;
+
+  @ApiProperty({ required: false, nullable: true, type: Number })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  limit?: number | null;
+}
+
+class DecisionDto {
+  @ApiProperty({ enum: DECISIONS })
+  @IsIn(DECISIONS)
+  decision!: PlanDecisionKind;
+
+  @ApiProperty({ required: false, nullable: true, type: String })
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  target_date?: string | null;
+}
+
+class ApplyPlanDto {
+  @ApiProperty()
+  @IsInt()
+  @Min(1)
+  expected_revision!: number;
+}
+
+@ApiTags('planning')
+@Controller('planning')
+export class PlanningController {
+  constructor(@Inject(PlanningService) private readonly planning: PlanningService) {}
+
+  @Post('sessions')
+  @Scopes('tasks:write')
+  @ApiOperation({ summary: 'Open a day-planning session. Nothing is changed yet.' })
+  async start(
+    @CurrentUser() user: AuthUser,
+    @Body() body: StartPlanDto,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    const sources: PlanSources = {
+      today: body.today ?? true,
+      overdue: body.overdue ?? true,
+      inbox: body.inbox ?? false,
+      undated: body.undated ?? false,
+    };
+    respondJson(
+      req,
+      res,
+      201,
+      await this.planning.start(user, {
+        localDate: body.local_date,
+        timeZone: body.time_zone,
+        sources,
+        limit: body.limit ?? null,
+      }),
+      false,
+    );
+  }
+
+  @Get('sessions/:id')
+  @Scopes('tasks:read')
+  @ApiOperation({ summary: 'Read a planning session and its preview' })
+  async get(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(req, res, 200, await this.planning.get(user, id), false);
+  }
+
+  @Put('sessions/:id/decisions/:taskId')
+  @Scopes('tasks:write')
+  @ApiOperation({ summary: 'Record one planning decision without changing the task' })
+  async decide(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('taskId', ParseUUIDPipe) taskId: string,
+    @Body() body: DecisionDto,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(
+      req,
+      res,
+      200,
+      await this.planning.decide(user, id, taskId, body.decision, body.target_date ?? null),
+      false,
+    );
+  }
+
+  @Delete('sessions/:id/decisions/:taskId')
+  @Scopes('tasks:write')
+  @ApiOperation({ summary: 'Remove one planning decision' })
+  async clear(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('taskId', ParseUUIDPipe) taskId: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(req, res, 200, await this.planning.clear(user, id, taskId), false);
+  }
+
+  @Post('sessions/:id/apply')
+  @Scopes('tasks:write')
+  @ApiOperation({
+    summary: 'Apply the preview. “La haré hoy” does not change the due date.',
+  })
+  async apply(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: ApplyPlanDto,
+    @Headers('idempotency-key') key: string | undefined,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(
+      req,
+      res,
+      200,
+      await this.planning.apply(user, id, body.expected_revision, key),
+      false,
+    );
+  }
+}
+
+@ApiTags('plans')
+@Controller('plans')
+export class PlansController {
+  constructor(@Inject(PlanningService) private readonly planning: PlanningService) {}
+
+  @Get()
+  @Scopes('tasks:read')
+  @ApiOperation({ summary: 'Tasks the user planned for a local date' })
+  @ApiQuery({ name: 'date', required: true })
+  @ApiQuery({ name: 'time_zone', required: true })
+  async day(
+    @CurrentUser() user: AuthUser,
+    @Query('date') date: string | undefined,
+    @Query('time_zone') timeZone: string | undefined,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    if (date === undefined || timeZone === undefined) {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'date and time_zone are required',
+      );
+    }
+    respondJson(req, res, 200, await this.planning.day(user, date, timeZone), false);
+  }
+}

@@ -10,8 +10,16 @@ export function activityText(action: string, messages: Messages): string {
       return messages.activityMoved;
     case 'updated':
       return messages.activityUpdated;
+    case 'deleted':
+      return messages.activityDeleted;
+    case 'restored':
+      return messages.activityRestored;
+    case 'commented':
+      return messages.activityCommented;
+    case 'snoozed':
+      return messages.activitySnoozed;
     default:
-      return action;
+      return messages.activityUpdated;
   }
 }
 

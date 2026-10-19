@@ -16,7 +16,7 @@ export interface PageQuery {
 export interface ListTasksQuery {
   readonly limit?: number;
   readonly cursor?: string;
-  readonly status?: 'active' | 'completed' | 'archived';
+  readonly status?: 'active' | 'completed' | 'archived' | 'cancelled';
   readonly projectId?: string;
   readonly priority?: 'none' | 'low' | 'medium' | 'high';
   readonly tag?: string;
@@ -127,6 +127,7 @@ export interface ApiClient extends ResourceClient {
   tokenActivity(id: string): Promise<ActivityPage>;
   login(body: { email: string; password: string }): Promise<SessionBody>;
   register(body: { email: string; password: string; display_name: string }): Promise<SessionBody>;
+  registrationOpen(): Promise<boolean>;
   currentSession(): Promise<SessionBody>;
   logout(): Promise<void>;
   sync(since?: string): Promise<SyncPage>;
@@ -363,6 +364,18 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     register(body) {
       return request(call, options, 'POST', '/api/v1/auth/register', body, undefined, isSession);
     },
+    async registrationOpen() {
+      const body = await request(
+        call,
+        options,
+        'GET',
+        '/api/v1/auth/registration',
+        undefined,
+        undefined,
+        isRegistration,
+      );
+      return body.open;
+    },
     currentSession() {
       return request(call, options, 'GET', '/api/v1/auth/session', undefined, undefined, isSession);
     },
@@ -562,6 +575,14 @@ function isHabitStats(value: unknown): value is HabitStats {
   }
   const row = value as { streak_current?: unknown; heatmap?: unknown };
   return typeof row.streak_current === 'number' && Array.isArray(row.heatmap);
+}
+
+function isRegistration(value: unknown): value is { open: boolean } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { open?: unknown }).open === 'boolean'
+  );
 }
 
 function isSession(value: unknown): value is SessionBody {

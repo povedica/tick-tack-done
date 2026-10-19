@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import { bindPopover, dismissPopover } from './popover-stack';
 
 export function Popover({
   open,
@@ -14,6 +15,16 @@ export function Popover({
   readonly children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    return bindPopover(() => {
+      closeRef.current();
+    });
+  }, [open]);
   useEffect(() => {
     if (!open) {
       return;
@@ -22,25 +33,35 @@ export function Popover({
       if (event.key !== 'Escape') {
         return;
       }
-      event.stopPropagation();
-      onClose();
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      dismissPopover();
     }
     function onPointer(event: MouseEvent): void {
       const node = ref.current;
-      if (node === null || !(event.target instanceof Node)) {
+      if (node === null || !(event.target instanceof Node) || node.contains(event.target)) {
         return;
       }
-      if (!node.contains(event.target)) {
-        onClose();
-      }
+      onClose();
     }
-    document.addEventListener('keydown', onKey);
+    document.addEventListener('keydown', onKey, true);
     document.addEventListener('mousedown', onPointer);
     return () => {
-      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('keydown', onKey, true);
       document.removeEventListener('mousedown', onPointer);
     };
   }, [onClose, open]);
+  useEffect(() => {
+    const node = ref.current;
+    if (!open || node === null) {
+      return;
+    }
+    const rect = node.getBoundingClientRect();
+    const limit = window.innerHeight - 12;
+    if (rect.bottom > limit) {
+      node.style.maxHeight = `${String(Math.max(160, rect.height - (rect.bottom - limit)))}px`;
+    }
+  }, [open, children]);
   if (!open) {
     return null;
   }

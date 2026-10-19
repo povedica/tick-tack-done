@@ -254,6 +254,42 @@
         ]
       }
     },
+    "/api/v1/me/notifications/health": {
+      "get": {
+        "operationId": "MeController_notificationHealth",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationHealthDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Last 20 reminder deliveries, with channel and result (NT-09)",
+        "tags": [
+          "me"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/me/push-subscriptions": {
       "post": {
         "operationId": "MeController_subscribe",
@@ -525,6 +561,29 @@
             "bearer": []
           }
         ]
+      }
+    },
+    "/api/v1/auth/registration": {
+      "get": {
+        "operationId": "AuthController_registration",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationStatusDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Whether a new account can still be created",
+        "tags": [
+          "auth"
+        ],
+        "security": []
       }
     },
     "/api/v1/auth/register": {
@@ -3982,6 +4041,50 @@
         ]
       }
     },
+    "/api/v1/tasks/{id}/cancel": {
+      "post": {
+        "operationId": "TasksController_cancel",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Mark a task as will-not-do. Cancelled tasks stay out of completed and out of trash.",
+        "tags": [
+          "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/tasks/{id}/uncomplete": {
       "post": {
         "operationId": "TasksController_uncomplete",
@@ -5354,6 +5457,219 @@
         "summary": "Guided weekly review (RF-2302, RF-2303)",
         "tags": [
           "review"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/planning/sessions": {
+      "post": {
+        "operationId": "PlanningController_start",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartPlanDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Open a day-planning session. Nothing is changed yet.",
+        "tags": [
+          "planning"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/planning/sessions/{id}": {
+      "get": {
+        "operationId": "PlanningController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read a planning session and its preview",
+        "tags": [
+          "planning"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/planning/sessions/{id}/decisions/{taskId}": {
+      "put": {
+        "operationId": "PlanningController_decide",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Record one planning decision without changing the task",
+        "tags": [
+          "planning"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "PlanningController_clear",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Remove one planning decision",
+        "tags": [
+          "planning"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/planning/sessions/{id}/apply": {
+      "post": {
+        "operationId": "PlanningController_apply",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyPlanDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Apply the preview. “La haré hoy” does not change the due date.",
+        "tags": [
+          "planning"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/plans": {
+      "get": {
+        "operationId": "PlansController_day",
+        "parameters": [
+          {
+            "name": "time_zone",
+            "required": true,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "date",
+            "required": true,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Tasks the user planned for a local date",
+        "tags": [
+          "plans"
         ],
         "security": [
           {
@@ -7110,6 +7426,20 @@
           "default_reminder_trigger": {
             "type": "string",
             "nullable": true
+          },
+          "quiet_hours_start": {
+            "type": "string",
+            "nullable": true
+          },
+          "quiet_hours_end": {
+            "type": "string",
+            "nullable": true
+          },
+          "telegram_enabled": {
+            "type": "boolean"
+          },
+          "focus_notifications": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -7125,7 +7455,11 @@
           "nlp_language",
           "density",
           "accent",
-          "default_reminder_trigger"
+          "default_reminder_trigger",
+          "quiet_hours_start",
+          "quiet_hours_end",
+          "telegram_enabled",
+          "focus_notifications"
         ]
       },
       "ChangePasswordDto": {
@@ -7229,6 +7563,22 @@
               "-PT1H",
               "-P1D"
             ]
+          },
+          "quiet_hours_start": {
+            "type": "object",
+            "nullable": true,
+            "example": "22:00"
+          },
+          "quiet_hours_end": {
+            "type": "object",
+            "nullable": true,
+            "example": "07:00"
+          },
+          "telegram_enabled": {
+            "type": "boolean"
+          },
+          "focus_notifications": {
+            "type": "boolean"
           }
         }
       },
@@ -7241,6 +7591,66 @@
         },
         "required": [
           "active"
+        ]
+      },
+      "NotificationDeliveryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "task_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "kind": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "channel": {
+            "type": "string"
+          },
+          "attempts": {
+            "type": "number"
+          },
+          "fire_at": {
+            "type": "string"
+          },
+          "fired_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "next_retry_at": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "task_id",
+          "kind",
+          "status",
+          "channel",
+          "attempts",
+          "fire_at",
+          "fired_at",
+          "next_retry_at"
+        ]
+      },
+      "NotificationHealthDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationDeliveryDto"
+            }
+          }
+        },
+        "required": [
+          "items"
         ]
       },
       "InboundEmailAddressDto": {
@@ -7482,6 +7892,17 @@
         "required": [
           "items",
           "next_cursor"
+        ]
+      },
+      "RegistrationStatusDto": {
+        "type": "object",
+        "properties": {
+          "open": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "open"
         ]
       },
       "RegisterDto": {
@@ -9117,7 +9538,8 @@
             "enum": [
               "active",
               "completed",
-              "archived"
+              "archived",
+              "cancelled"
             ]
           },
           "priority": {
@@ -9701,7 +10123,8 @@
             "enum": [
               "active",
               "completed",
-              "archived"
+              "archived",
+              "cancelled"
             ]
           },
           "priority": {
@@ -10048,7 +10471,8 @@
             "enum": [
               "active",
               "completed",
-              "archived"
+              "archived",
+              "cancelled"
             ]
           },
           "priority": {
@@ -10547,6 +10971,73 @@
             }
           }
         }
+      },
+      "StartPlanDto": {
+        "type": "object",
+        "properties": {
+          "local_date": {
+            "type": "string",
+            "example": "2026-10-19"
+          },
+          "time_zone": {
+            "type": "string",
+            "example": "Europe/Madrid"
+          },
+          "today": {
+            "type": "boolean"
+          },
+          "overdue": {
+            "type": "boolean"
+          },
+          "inbox": {
+            "type": "boolean"
+          },
+          "undated": {
+            "type": "boolean"
+          },
+          "limit": {
+            "type": "number",
+            "nullable": true
+          }
+        },
+        "required": [
+          "local_date",
+          "time_zone"
+        ]
+      },
+      "DecisionDto": {
+        "type": "object",
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "done",
+              "plan_day",
+              "later",
+              "cancel",
+              "trash",
+              "skip"
+            ]
+          },
+          "target_date": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "decision"
+        ]
+      },
+      "ApplyPlanDto": {
+        "type": "object",
+        "properties": {
+          "expected_revision": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "expected_revision"
+        ]
       },
       "WebhookDto": {
         "type": "object",

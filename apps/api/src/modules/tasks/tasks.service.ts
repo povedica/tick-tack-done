@@ -3,6 +3,7 @@ import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { Prisma, type Task } from '@prisma/client';
 import {
   acceptsColumnDrop,
+  allDayClockConflict,
   canonicalizeRepeatRule,
   decideParentCompletion,
   deriveDurationMinutes,
@@ -103,7 +104,7 @@ export interface TaskListQuery {
   limit: number;
   cursor?: string;
   projectId?: string;
-  status: 'active' | 'completed' | 'archived' | 'all';
+  status: 'active' | 'completed' | 'archived' | 'cancelled' | 'all';
   priority?: Priority;
   tagId?: string;
   includeDescendants: boolean;
@@ -323,6 +324,8 @@ export class TasksService {
       const timeZone = dto.time_zone === undefined ? current.timeZone : this.zone(dto.time_zone);
       const start = this.nextDate(current.startDate, dto.start_date, 'start_date');
       const due = this.nextDate(current.dueDate, dto.due_date, 'due_date');
+      const isAllDay = dto.is_all_day ?? current.isAllDay;
+      this.assertTimed(due, isAllDay, timeZone);
       const duration = this.duration(
         start,
         due,
@@ -368,7 +371,7 @@ export class TasksService {
           durationMinutes: duration,
           ...(dto.kind !== undefined ? { kind: dto.kind } : {}),
           ...(dto.priority !== undefined ? { priority: dto.priority } : {}),
-          ...(dto.is_all_day !== undefined ? { isAllDay: dto.is_all_day } : {}),
+          ...(dto.is_all_day !== undefined ? { isAllDay } : {}),
           ...(dto.column_id !== undefined ? { columnId: dto.column_id } : {}),
           ...(dto.repeat_from !== undefined ? { repeatFrom: dto.repeat_from } : {}),
           ...(repeatRule !== current.repeatRule
@@ -395,6 +398,10 @@ export class TasksService {
       if (current.dueDate === null && due !== null) {
         await this.ensureDefaultReminder(tx, user.id, current.projectId, id, due, row.kind, null);
       }
+      const dueChanged = (current.dueDate?.getTime() ?? null) !== (due?.getTime() ?? null);
+      if (dueChanged) {
+        await this.cancelDeliveries(tx, [id]);
+      }
       const detail = await this.load(tx, user.id, id, false);
       await this.events.record(tx, actorOf(user), {
         type: this.updateEvent(previous.kind, detail.kind),
@@ -408,11 +415,58 @@ export class TasksService {
     });
   }
 
+  async cancel(user: AuthUser, id: string): Promise<TaskDetail> {
+    return this.prisma.$transaction(async (tx) => {
+      const current = await this.require(tx, user.id, id, false);
+      if (current.status === 'cancelled') {
+        return this.load(tx, user.id, id, false);
+      }
+      const children = await tx.task.findMany({
+        where: { parentId: id, ownerId: user.id, status: 'active', deletedAt: null },
+        select: { id: true },
+      });
+      const ids = [id, ...children.map((child) => child.id)];
+      await this.cancelDeliveries(tx, ids);
+      await tx.task.updateMany({
+        where: { id: { in: ids } },
+        data: { status: 'cancelled' },
+      });
+      for (const child of children) {
+        await this.events.record(tx, actorOf(user), {
+          type: DomainEvent.taskCancelled,
+          entityType: 'task',
+          entityId: child.id,
+          action: 'updated',
+          data: { task: { id: child.id, status: 'cancelled', parent_id: id } },
+          previous: { status: 'active' },
+        });
+      }
+      const detail = await this.load(tx, user.id, id, false);
+      await this.events.record(tx, actorOf(user), {
+        type: DomainEvent.taskCancelled,
+        entityType: 'task',
+        entityId: id,
+        action: 'updated',
+        data: { task: asJson(detail) },
+        previous: { status: current.status },
+      });
+      return detail;
+    });
+  }
+
   async remove(user: AuthUser, id: string): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       await this.require(tx, user.id, id, false);
       const now = new Date();
       const existing = await this.require(tx, user.id, id, false);
+      const removed = await tx.task.findMany({
+        where: { ownerId: user.id, OR: [{ id }, { parentId: id }], deletedAt: null },
+        select: { id: true },
+      });
+      await this.cancelDeliveries(
+        tx,
+        removed.map((item) => item.id),
+      );
       await tx.task.updateMany({
         where: { ownerId: user.id, OR: [{ id }, { parentId: id }], deletedAt: null },
         data: { deletedAt: now },
@@ -1442,6 +1496,8 @@ export class TasksService {
       due,
       timeZone,
     );
+    const isAllDay = dto.is_all_day ?? captured?.isAllDay ?? false;
+    this.assertTimed(due, isAllDay, timeZone);
     const id = randomUUID();
     const row = await tx.task.create({
       data: {
@@ -1454,7 +1510,7 @@ export class TasksService {
         content,
         kind: dto.kind ?? 'task',
         priority: dto.priority ?? captured?.priority ?? 'none',
-        isAllDay: dto.is_all_day ?? captured?.isAllDay ?? false,
+        isAllDay,
         startDate: start,
         dueDate: due,
         timeZone,
@@ -1531,6 +1587,7 @@ export class TasksService {
       );
     }
     const now = new Date();
+    let completedChildIds: string[] = [];
     if (decision.action === 'complete_with_children') {
       const items = await tx.checklistItem.findMany({
         where: { taskId: id, status: 'active', deletedAt: null },
@@ -1566,6 +1623,7 @@ export class TasksService {
         },
         data: { status: 'completed', completedAt: now },
       });
+      completedChildIds = children.map((child) => child.id);
       for (const child of children) {
         await this.events.record(tx, actorOf(user), {
           type: DomainEvent.taskCompleted,
@@ -1577,6 +1635,7 @@ export class TasksService {
         });
       }
     }
+    await this.cancelDeliveries(tx, [id, ...completedChildIds]);
     await tx.task.update({
       where: { id },
       data: {
@@ -1999,6 +2058,26 @@ export class TasksService {
       );
     }
     return row;
+  }
+
+  private assertTimed(due: Date | null, isAllDay: boolean, timeZone: string): void {
+    if (allDayClockConflict(due === null ? null : due.toISOString(), isAllDay, timeZone)) {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'an all-day task cannot include a clock time',
+      );
+    }
+  }
+
+  private async cancelDeliveries(tx: Tx, taskIds: readonly string[]): Promise<void> {
+    if (taskIds.length === 0) {
+      return;
+    }
+    await tx.reminderDelivery.updateMany({
+      where: { taskId: { in: [...taskIds] }, status: 'scheduled' },
+      data: { status: 'cancelled' },
+    });
   }
 
   private async ensureDefaultReminder(
