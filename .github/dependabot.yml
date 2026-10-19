@@ -9,10 +9,19 @@ updates:
         update-types:
           - minor
           - patch
+      nest-major:
+        patterns:
+          - "@nestjs/*"
+        update-types:
+          - major
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      actions:
+        patterns:
+          - "*"
   - package-ecosystem: docker
     directory: /apps/api
     schedule:
