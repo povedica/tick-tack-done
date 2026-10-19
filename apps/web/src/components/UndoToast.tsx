@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { fill } from '../i18n';
 import './toast.css';
 
-const UNDO_MS = 10_000;
+const UNDO_MS = 4_000;
 
 export function UndoToastStack({
   items,

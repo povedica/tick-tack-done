@@ -16,6 +16,13 @@ export const SHORTCUT_ROWS = [
   ['G N', 'navSearch'],
   ['G R', 'smartNext7'],
   ['G W', 'navReview'],
+  ['↑/↓', 'openDetail'],
+  ['Enter', 'openDetail'],
+  ['Space', 'completeLabel'],
+  ['P', 'prioritySet'],
+  ['D', 'dateSet'],
+  ['Delete', 'batchDelete'],
+  ['X', 'selectTask'],
 ] as const;
 
 export function isSidebarShortcut(input: {

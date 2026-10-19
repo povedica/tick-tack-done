@@ -2,12 +2,18 @@ import { describe, expect, it } from 'vitest';
 import {
   activeTasks,
   formatDueDate,
+  formatDueTime,
   groupFromLocation,
   groupTasks,
+  hasTime,
   isOverdue,
+  mergeForGroup,
   parseGroup,
   partitionToday,
+  rangeIds,
+  taskWhen,
   visibleTasks,
+  zonedWallTime,
   type TodayTask,
 } from './groups';
 
@@ -18,6 +24,14 @@ function task(partial: Partial<TodayTask> & Pick<TodayTask, 'id' | 'dueDate'>): 
     title: partial.id,
     priority: 'none',
     timeZone: 'Europe/Madrid',
+    allDay: false,
+    hasReminder: false,
+    checklistDone: 0,
+    checklistTotal: 0,
+    hasContent: false,
+    hasRepeat: false,
+    attachmentCount: 0,
+    source: 'manual',
     status: 'active',
     projectId: 'inbox',
     tagIds: [],
@@ -104,5 +118,61 @@ describe('today groups', () => {
     const labels = { today: 'Hoy', tomorrow: 'Mañana' };
     expect(formatDueDate(new Date().toISOString(), 'Europe/Madrid', 'es', labels)).toBe('Hoy');
     expect(formatDueDate('2020-03-15T10:00:00.000Z', 'Europe/Madrid', 'es', labels)).toMatch(/15/);
+  });
+
+  it('shows 18:00 in Europe/Madrid and treats local midnight as no time', () => {
+    expect(formatDueTime('2026-10-17T16:00:00.000Z', 'Europe/Madrid', 'es')).toBe('18:00');
+    expect(hasTime('2026-10-17T16:00:00.000Z', 'Europe/Madrid', false)).toBe(true);
+    expect(hasTime('2026-10-16T22:00:00.000Z', 'Europe/Madrid', false)).toBe(false);
+    expect(hasTime('2026-10-17T16:00:00.000Z', 'Europe/Madrid', true)).toBe(false);
+    expect(hasTime(null, 'Europe/Madrid', false)).toBe(false);
+    const timed = taskWhen(task({ id: 'meet', dueDate: '2026-10-17T16:00:00.000Z' }), now, 'es', {
+      today: 'Hoy',
+      tomorrow: 'Mañana',
+    });
+    expect(timed).toEqual({ date: null, time: '18:00', overdue: false });
+    const late = taskWhen(task({ id: 'old', dueDate: '2026-03-19T16:00:00.000Z' }), now, 'es', {
+      today: 'Hoy',
+      tomorrow: 'Mañana',
+    });
+    expect(late.overdue).toBe(true);
+    expect(late.date).toMatch(/19/);
+    expect(late.time).toBe('17:00');
+  });
+
+  it('orders timed tasks before all-day tasks on the same local day', () => {
+    const parts = partitionToday(
+      [
+        task({ id: 'day', dueDate: '2026-10-16T22:00:00.000Z', allDay: true }),
+        task({ id: 'meet', dueDate: '2026-10-17T16:00:00.000Z' }),
+      ],
+      now,
+    );
+    expect(parts.today.map((item) => item.id)).toEqual(['meet', 'day']);
+  });
+
+  it('keeps high-priority overdue tasks inside the Alta group', () => {
+    const parts = partitionToday(
+      [
+        task({ id: 'today-low', dueDate: '2026-10-17T16:00:00.000Z', priority: 'low' }),
+        task({ id: 'old-high', dueDate: '2026-10-15T10:00:00.000Z', priority: 'high' }),
+      ],
+      now,
+    );
+    const merged = mergeForGroup(parts, 'priority');
+    expect(merged.overdue).toEqual([]);
+    expect(groupTasks(merged.grouped, 'priority').map((section) => section.id)).toEqual([
+      'high',
+      'low',
+    ]);
+    expect(groupTasks(merged.grouped, 'priority')[0]?.tasks.map((item) => item.id)).toEqual([
+      'old-high',
+    ]);
+    expect(mergeForGroup(parts, 'due').overdue.map((item) => item.id)).toEqual(['old-high']);
+  });
+
+  it('shifts a Madrid midnight across the UTC day boundary', () => {
+    expect(zonedWallTime('2026-10-17', 0, 0, 'Europe/Madrid')).toBe('2026-10-16T22:00:00.000Z');
+    expect(rangeIds(['a', 'b', 'c', 'd'], 'b', 'd')).toEqual(['b', 'c', 'd']);
   });
 });

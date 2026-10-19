@@ -1,4 +1,6 @@
-export type TaskGroupKey = 'priority' | 'due' | 'tag' | 'list';
+export type TaskGroupKey = 'priority' | 'due' | 'tag' | 'list' | 'none';
+export type TaskSortKey = 'due' | 'priority' | 'title';
+export type TaskSortDir = 'asc' | 'desc';
 
 export interface TodayTask {
   readonly id: string;
@@ -6,6 +8,14 @@ export interface TodayTask {
   readonly priority: 'none' | 'low' | 'medium' | 'high';
   readonly dueDate: string | null;
   readonly timeZone: string;
+  readonly allDay: boolean;
+  readonly hasReminder: boolean;
+  readonly checklistDone: number;
+  readonly checklistTotal: number;
+  readonly hasContent: boolean;
+  readonly hasRepeat: boolean;
+  readonly attachmentCount: number;
+  readonly source: string;
   readonly status: 'active' | 'completed' | 'archived';
   readonly projectId: string;
   readonly tagIds: readonly string[];
@@ -17,6 +27,12 @@ export interface TodayGroup {
 }
 
 const PRIORITY_ORDER = ['high', 'medium', 'low', 'none'] as const;
+const PRIORITY_RANK: Record<TodayTask['priority'], number> = {
+  high: 0,
+  medium: 1,
+  low: 2,
+  none: 3,
+};
 
 export function parseGroup(value: string | null): TaskGroupKey {
   switch (value) {
@@ -24,10 +40,26 @@ export function parseGroup(value: string | null): TaskGroupKey {
     case 'due':
     case 'tag':
     case 'list':
+    case 'none':
       return value;
     default:
       return 'priority';
   }
+}
+
+export function parseSort(value: string | null): TaskSortKey {
+  switch (value) {
+    case 'due':
+    case 'priority':
+    case 'title':
+      return value;
+    default:
+      return 'due';
+  }
+}
+
+export function parseSortDir(value: string | null): TaskSortDir {
+  return value === 'desc' ? 'desc' : 'asc';
 }
 
 export function groupFromLocation(query: string | null, stored: string | null): TaskGroupKey {
@@ -46,6 +78,36 @@ export function calendarDay(instant: string, timeZone: string): string {
   }).format(new Date(instant));
 }
 
+/** A task has a clock time when it is not all-day and the local wall time is not 00:00. */
+export function hasTime(dueDate: string | null, timeZone: string, allDay: boolean): boolean {
+  if (dueDate === null || allDay) {
+    return false;
+  }
+  const date = new Date(dueDate);
+  if (Number.isNaN(date.getTime())) {
+    return false;
+  }
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date);
+  const hour = Number(parts.find((part) => part.type === 'hour')?.value ?? '0');
+  const minute = Number(parts.find((part) => part.type === 'minute')?.value ?? '0');
+  const midnight = (hour === 0 || hour === 24) && minute === 0;
+  return !midnight;
+}
+
+export function formatDueTime(dueDate: string, timeZone: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone,
+    hourCycle: 'h23',
+  }).format(new Date(dueDate));
+}
+
 export function isOverdue(task: TodayTask, now: Date): boolean {
   if (task.dueDate === null || task.status !== 'active') {
     return false;
@@ -58,6 +120,24 @@ export function isDueToday(task: TodayTask, now: Date): boolean {
     return false;
   }
   return calendarDay(task.dueDate, task.timeZone) === calendarDay(now.toISOString(), task.timeZone);
+}
+
+export function compareTasks(
+  left: TodayTask,
+  right: TodayTask,
+  sort: TaskSortKey,
+  direction: TaskSortDir,
+): number {
+  if (sort === 'title') {
+    return applyDir(left.title.localeCompare(right.title), direction);
+  }
+  if (sort === 'priority') {
+    const rank = PRIORITY_RANK[left.priority] - PRIORITY_RANK[right.priority];
+    if (rank !== 0) {
+      return applyDir(rank, direction);
+    }
+  }
+  return compareDue(left, right, direction);
 }
 
 export function partitionToday(
@@ -73,11 +153,23 @@ export function partitionToday(
       today.push(task);
     }
   }
-  const byDue = (left: TodayTask, right: TodayTask): number =>
-    (left.dueDate ?? '').localeCompare(right.dueDate ?? '');
-  overdue.sort(byDue);
-  today.sort(byDue);
+  overdue.sort((left, right) => compareTasks(left, right, 'due', 'asc'));
+  today.sort((left, right) => compareTasks(left, right, 'due', 'asc'));
   return { overdue, today };
+}
+
+/**
+ * Priority, tag, list and flat views keep overdue rows inside their group.
+ * Date grouping still leads with the overdue block.
+ */
+export function mergeForGroup(
+  parts: { readonly overdue: readonly TodayTask[]; readonly today: readonly TodayTask[] },
+  group: TaskGroupKey,
+): { readonly overdue: readonly TodayTask[]; readonly grouped: readonly TodayTask[] } {
+  if (group === 'due') {
+    return { overdue: parts.overdue, grouped: parts.today };
+  }
+  return { overdue: [], grouped: [...parts.overdue, ...parts.today] };
 }
 
 /** Drops completed rows locally so undo can put them back without refetching. */
@@ -109,11 +201,100 @@ export function formatDueDate(
   }).format(new Date(dueDate));
 }
 
-function shiftDayKey(key: string, days: number): string {
+export interface TaskWhen {
+  readonly date: string | null;
+  readonly time: string | null;
+  readonly overdue: boolean;
+}
+
+/** Today rows show the clock only. Other days show the short date and the clock when there is one. */
+export function taskWhen(
+  task: TodayTask,
+  now: Date,
+  locale: string,
+  labels: { readonly today: string; readonly tomorrow: string },
+): TaskWhen {
+  if (task.dueDate === null) {
+    return { date: null, time: null, overdue: false };
+  }
+  const overdue = isOverdue(task, now);
+  const timed = hasTime(task.dueDate, task.timeZone, task.allDay);
+  const time = timed ? formatDueTime(task.dueDate, task.timeZone, locale) : null;
+  if (!overdue && isDueToday(task, now)) {
+    return { date: null, time, overdue: false };
+  }
+  return {
+    date: formatDueDate(task.dueDate, task.timeZone, locale, labels),
+    time,
+    overdue,
+  };
+}
+
+export function formatDueChip(
+  dueDate: string | null,
+  timeZone: string,
+  allDay: boolean,
+  now: Date,
+  locale: string,
+  labels: { readonly empty: string; readonly today: string },
+): { readonly text: string; readonly tone: 'empty' | 'overdue' | 'accent' | 'muted' } {
+  if (dueDate === null) {
+    return { text: labels.empty, tone: 'empty' };
+  }
+  const overdue = calendarDay(dueDate, timeZone) < calendarDay(now.toISOString(), timeZone);
+  const today = calendarDay(dueDate, timeZone) === calendarDay(now.toISOString(), timeZone);
+  const timed = hasTime(dueDate, timeZone, allDay);
+  const time = timed ? formatDueTime(dueDate, timeZone, locale) : null;
+  const short = new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+    timeZone,
+  }).format(new Date(dueDate));
+  if (overdue) {
+    const days = Math.max(
+      1,
+      Math.round((now.getTime() - new Date(dueDate).getTime()) / (24 * 60 * 60 * 1000)),
+    );
+    const relative = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }).format(
+      days > 60 ? -Math.round(days / 30) : -days,
+      days > 60 ? 'month' : 'day',
+    );
+    return {
+      text: time === null ? `${relative}, ${short}` : `${relative}, ${short}, ${time}`,
+      tone: 'overdue',
+    };
+  }
+  if (today) {
+    const text = time === null ? labels.today : `${labels.today}, ${short}, ${time}`;
+    return { text, tone: 'accent' };
+  }
+  return { text: time === null ? short : `${short}, ${time}`, tone: 'accent' };
+}
+
+export function shiftDayKey(key: string, days: number): string {
   const [year, month, day] = key.split('-').map(Number);
   return new Date(Date.UTC(year ?? 0, (month ?? 1) - 1, (day ?? 1) + days))
     .toISOString()
     .slice(0, 10);
+}
+
+/** Local wall time as a UTC instant. Used when a drop or shortcut sets a day without a clock. */
+export function zonedWallTime(
+  dayKey: string,
+  hour: number,
+  minute: number,
+  timeZone: string,
+): string | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dayKey);
+  if (match === null) {
+    return null;
+  }
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const utc = Date.UTC(year, month - 1, day, hour, minute);
+  const corrected = new Date(utc - zoneOffsetMs(new Date(utc), timeZone));
+  return new Date(utc - zoneOffsetMs(corrected, timeZone)).toISOString();
 }
 
 export function formatDayId(day: string, locale: string): string {
@@ -135,15 +316,24 @@ export function activeTasks(tasks: readonly TodayTask[]): TodayTask[] {
   return tasks.filter((task) => task.status === 'active');
 }
 
-export function groupTasks(tasks: readonly TodayTask[], group: TaskGroupKey): TodayGroup[] {
+export function groupTasks(
+  tasks: readonly TodayTask[],
+  group: TaskGroupKey,
+  sort: TaskSortKey = 'due',
+  direction: TaskSortDir = 'asc',
+): TodayGroup[] {
+  const sorted = [...tasks].sort((left, right) => compareTasks(left, right, sort, direction));
+  if (group === 'none') {
+    return sorted.length === 0 ? [] : [{ id: 'all', tasks: sorted }];
+  }
   if (group === 'priority') {
     return PRIORITY_ORDER.map((priority) => ({
       id: priority,
-      tasks: tasks.filter((task) => task.priority === priority),
+      tasks: sorted.filter((task) => task.priority === priority),
     })).filter((section) => section.tasks.length > 0);
   }
   const buckets = new Map<string, TodayTask[]>();
-  for (const task of tasks) {
+  for (const task of sorted) {
     const id = bucketId(task, group);
     const current = buckets.get(id) ?? [];
     current.push(task);
@@ -154,6 +344,57 @@ export function groupTasks(tasks: readonly TodayTask[], group: TaskGroupKey): To
     sections.sort((left, right) => compareDueGroup(left.id, right.id));
   }
   return sections;
+}
+
+export function rangeIds(ids: readonly string[], anchor: string, target: string): string[] {
+  const start = ids.indexOf(anchor);
+  const end = ids.indexOf(target);
+  if (start < 0 || end < 0) {
+    return [target];
+  }
+  const [from, to] = start < end ? [start, end] : [end, start];
+  return ids.slice(from, to + 1);
+}
+
+export function planTaskIds(value: unknown): string[] {
+  if (typeof value !== 'object' || value === null || !('task_ids' in value)) {
+    return [];
+  }
+  const ids = value.task_ids;
+  if (!Array.isArray(ids)) {
+    return [];
+  }
+  return ids.filter((id): id is string => typeof id === 'string').slice(0, 5);
+}
+
+function applyDir(value: number, direction: TaskSortDir): number {
+  return direction === 'desc' ? -value : value;
+}
+
+function compareDue(left: TodayTask, right: TodayTask, direction: TaskSortDir): number {
+  if (left.dueDate === null && right.dueDate === null) {
+    return left.title.localeCompare(right.title);
+  }
+  if (left.dueDate === null) {
+    return 1;
+  }
+  if (right.dueDate === null) {
+    return -1;
+  }
+  const leftDay = calendarDay(left.dueDate, left.timeZone);
+  const rightDay = calendarDay(right.dueDate, right.timeZone);
+  if (leftDay !== rightDay) {
+    return applyDir(leftDay.localeCompare(rightDay), direction);
+  }
+  const leftTimed = hasTime(left.dueDate, left.timeZone, left.allDay);
+  const rightTimed = hasTime(right.dueDate, right.timeZone, right.allDay);
+  if (leftTimed !== rightTimed) {
+    return leftTimed ? -1 : 1;
+  }
+  if (leftTimed) {
+    return applyDir(left.dueDate.localeCompare(right.dueDate), direction);
+  }
+  return left.title.localeCompare(right.title);
 }
 
 function compareDueGroup(left: string, right: string): number {
@@ -169,7 +410,7 @@ function compareDueGroup(left: string, right: string): number {
   return left.localeCompare(right);
 }
 
-function bucketId(task: TodayTask, group: Exclude<TaskGroupKey, 'priority'>): string {
+function bucketId(task: TodayTask, group: 'due' | 'tag' | 'list'): string {
   if (group === 'due') {
     return task.dueDate === null ? 'none' : calendarDay(task.dueDate, task.timeZone);
   }
@@ -177,4 +418,28 @@ function bucketId(task: TodayTask, group: Exclude<TaskGroupKey, 'priority'>): st
     return task.projectId;
   }
   return task.tagIds[0] ?? 'none';
+}
+
+function zoneOffsetMs(date: Date, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(date);
+  const pick = (type: Intl.DateTimeFormatPartTypes): number =>
+    Number(parts.find((part) => part.type === type)?.value ?? '0');
+  const asUtc = Date.UTC(
+    pick('year'),
+    pick('month') - 1,
+    pick('day'),
+    pick('hour'),
+    pick('minute'),
+    pick('second'),
+  );
+  return asUtc - date.getTime();
 }
