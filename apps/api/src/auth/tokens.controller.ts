@@ -19,13 +19,13 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
-import { respondJson } from '../http/respond';
-import type { AuthUser } from './auth-user';
-import { CurrentUser } from './current-user.decorator';
-import { ACCOUNT_ADMIN_SCOPE } from './scopes';
-import { Scopes } from './scopes.decorator';
-import { ActivityPageDto, CreateTokenDto, TokenCreatedDto, TokenPageDto } from './tokens.dto';
-import { TokensService } from './tokens.service';
+import { respondJson } from '../http/respond.js';
+import type { AuthUser } from './auth-user.js';
+import { CurrentUser } from './current-user.decorator.js';
+import { ACCOUNT_ADMIN_SCOPE } from './scopes.js';
+import { Scopes } from './scopes.decorator.js';
+import { ActivityPageDto, CreateTokenDto, TokenCreatedDto, TokenPageDto } from './tokens.dto.js';
+import { TokensService } from './tokens.service.js';
 
 @ApiTags('me')
 @ApiHeader({ name: 'X-Dev-User-Email', required: false })

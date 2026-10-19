@@ -24,26 +24,26 @@ import {
   type Priority,
   type ReminderSnoozePreset,
 } from '@reflexionia/domain';
-import { actorOf, type AuthUser } from '../../auth/auth-user';
-import { hashInboundToken, inboundLocalPart } from '../../inbound/email-address';
-import { DomainEvent } from '../../events/domain-events';
-import { EventRecorder } from '../../events/event-recorder';
-import { DomainException } from '../../http/domain.exception';
-import { asJson } from '../../http/json';
-import { readClocks, selectPatch, stampTerminal } from './field-clocks';
-import { normalizeIdempotencyKey, requestFingerprint } from '../../idempotency/fingerprint';
-import { IdempotencyService } from '../../idempotency/idempotency.service';
-import { placementPlan } from '../../ordering/placement';
-import { PrismaService } from '../../prisma/prisma.service';
-import type { Tx } from '../../prisma/tx';
+import { actorOf, type AuthUser } from '../../auth/auth-user.js';
+import { hashInboundToken, inboundLocalPart } from '../../inbound/email-address.js';
+import { DomainEvent } from '../../events/domain-events.js';
+import { EventRecorder } from '../../events/event-recorder.js';
+import { DomainException } from '../../http/domain.exception.js';
+import { asJson } from '../../http/json.js';
+import { readClocks, selectPatch, stampTerminal } from './field-clocks.js';
+import { normalizeIdempotencyKey, requestFingerprint } from '../../idempotency/fingerprint.js';
+import { IdempotencyService } from '../../idempotency/idempotency.service.js';
+import { placementPlan } from '../../ordering/placement.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import type { Tx } from '../../prisma/tx.js';
 import {
   assertInboundFiles,
   optionalToken,
   safeMime,
   untrustedText,
   type InboundFile,
-} from './inbound-mail';
-import { resolveQuickAdd, type CaptureWarning } from './quick-add';
+} from './inbound-mail.js';
+import { resolveQuickAdd, type CaptureWarning } from './quick-add.js';
 import {
   acceptedMime,
   ATTACHMENT_MAX_PER_TASK,
@@ -52,15 +52,15 @@ import {
   resolveAttachment,
   safeFileName,
   writeAttachment,
-} from './attachment-storage';
-import { encodeTaskCursor, taskKeyset, taskOrderBy, type TaskSort } from './task-cursor';
+} from './attachment-storage.js';
+import { encodeTaskCursor, taskKeyset, taskOrderBy, type TaskSort } from './task-cursor.js';
 import {
   progressOf,
   toChecklistJson,
   toTaskSummary,
   type ChecklistItemJson,
   type TaskSummaryJson,
-} from './task.mapper';
+} from './task.mapper.js';
 import type {
   BatchTasksDto,
   CreateReminderDto,
@@ -70,7 +70,7 @@ import type {
   MoveTaskDto,
   UpdateChecklistItemDto,
   UpdateTaskDto,
-} from './tasks.dto';
+} from './tasks.dto.js';
 
 const taskInclude = {
   tags: { where: { tag: { deletedAt: null } }, select: { tagId: true } },

@@ -15,11 +15,11 @@ import {
 } from '@nestjs/common';
 import { ApiHeader, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
-import type { AuthUser } from '../../auth/auth-user';
-import { CurrentUser } from '../../auth/current-user.decorator';
-import { Scopes } from '../../auth/scopes.decorator';
-import { pageLimit } from '../../http/cursor';
-import { respondJson } from '../../http/respond';
+import type { AuthUser } from '../../auth/auth-user.js';
+import { CurrentUser } from '../../auth/current-user.decorator.js';
+import { Scopes } from '../../auth/scopes.decorator.js';
+import { pageLimit } from '../../http/cursor.js';
+import { respondJson } from '../../http/respond.js';
 import {
   CheckInDto,
   CheckInResponseDto,
@@ -28,8 +28,8 @@ import {
   HabitResponseDto,
   HabitStatsDto,
   UpdateHabitDto,
-} from './habits.dto';
-import { HabitsService } from './habits.service';
+} from './habits.dto.js';
+import { HabitsService } from './habits.service.js';
 
 @ApiTags('habits')
 @ApiHeader({ name: 'X-Dev-User-Email', required: false })

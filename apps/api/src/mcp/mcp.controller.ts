@@ -1,10 +1,10 @@
 import { Body, Controller, Delete, Get, HttpStatus, Inject, Post, Res } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
-import type { AuthUser } from '../auth/auth-user';
-import { CurrentUser } from '../auth/current-user.decorator';
-import { Authenticated } from '../auth/scopes.decorator';
-import { McpService } from './mcp.service';
+import type { AuthUser } from '../auth/auth-user.js';
+import { CurrentUser } from '../auth/current-user.decorator.js';
+import { Authenticated } from '../auth/scopes.decorator.js';
+import { McpService } from './mcp.service.js';
 
 const POST_SUMMARY =
   'Stateless Streamable HTTP JSON-RPC (RF-2001). POST returns application/json; a notification returns 202 with an empty body. GET and DELETE on this path return 405 with Allow: POST until a server-sent stream exists. No Mcp-Session-Id. A tool is listed only when the token holds every scope it declares.';

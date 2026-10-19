@@ -3,11 +3,12 @@ import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaClient } from '@prisma/client';
 import request from 'supertest';
-import type { App } from 'supertest/types';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { AppModule } from '../src/app.module';
-import { configureApp } from '../src/configure-app';
-import { loadRootEnv } from '../src/load-env';
+import { AppModule } from '../src/app.module.js';
+import { configureApp } from '../src/configure-app.js';
+import { loadRootEnv } from '../src/load-env.js';
+
+type SuperTestApp = Parameters<typeof request>[0];
 
 loadRootEnv();
 process.env.AUTH_MODE = 'dev';
@@ -23,7 +24,7 @@ const prisma = new PrismaClient();
 
 describe('V1 and V2 product', () => {
   let app: INestApplication | undefined;
-  let server: App;
+  let server: SuperTestApp;
   let email: string;
   let cookie: string;
   let csrf: string;
@@ -37,7 +38,7 @@ describe('V1 and V2 product', () => {
     app = moduleRef.createNestApplication();
     configureApp(app);
     await app.init();
-    server = app.getHttpServer() as App;
+    server = app.getHttpServer() as SuperTestApp;
     const registered = await request(server)
       .post('/api/v1/auth/register')
       .send({ email, password: 'correct-horse', display_name: 'V1' })

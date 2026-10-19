@@ -2,8 +2,7 @@
 export const SORT_ORDER_GAP = 65536n;
 
 export type SortPlacement =
-  | { readonly kind: 'placed'; readonly sortOrder: bigint }
-  | { readonly kind: 'rebalance' };
+  { readonly kind: 'placed'; readonly sortOrder: bigint } | { readonly kind: 'rebalance' };
 
 export function sortOrderAtEnd(last: bigint | null): bigint {
   if (last === null) {

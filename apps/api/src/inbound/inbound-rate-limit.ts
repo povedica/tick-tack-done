@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { SlidingWindowRateLimit, type RateLimitDecision } from '../auth/token-rate-limit';
+import { SlidingWindowRateLimit, type RateLimitDecision } from '../auth/token-rate-limit.js';
 
 /** Public inbound mail. Thirty deliveries per address per fifteen minutes. */
 export const INBOUND_RATE_LIMIT = 30;

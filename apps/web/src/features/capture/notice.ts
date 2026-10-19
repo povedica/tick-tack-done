@@ -2,11 +2,7 @@ import { create } from 'zustand';
 
 export interface CaptureWarningNotice {
   readonly code:
-    | 'list_not_found'
-    | 'list_created'
-    | 'tag_not_found'
-    | 'tag_created'
-    | 'reminder_without_date';
+    'list_not_found' | 'list_created' | 'tag_not_found' | 'tag_created' | 'reminder_without_date';
   readonly name?: string;
 }
 

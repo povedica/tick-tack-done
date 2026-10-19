@@ -1,5 +1,5 @@
 # Imagen de la PWA: build estático servido por Caddy/NGINX en el puerto 8080
-FROM node:22-alpine AS build
+FROM node:26-alpine AS build
 WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./

@@ -8,7 +8,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
-import { API_SCOPES } from './scopes';
+import { API_SCOPES } from './scopes.js';
 
 const SCOPE_VALUES: string[] = [...API_SCOPES];
 

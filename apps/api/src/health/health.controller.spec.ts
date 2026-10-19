@@ -1,10 +1,11 @@
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import type { App } from 'supertest/types';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { configureApp } from '../configure-app';
-import { HealthModule } from './health.module';
+import { configureApp } from '../configure-app.js';
+import { HealthModule } from './health.module.js';
+
+type SuperTestApp = Parameters<typeof request>[0];
 
 describe('HealthController', () => {
   let app: INestApplication;
@@ -23,7 +24,7 @@ describe('HealthController', () => {
   });
 
   it('GET /api/v1/health returns ok', async () => {
-    const response = await request(app.getHttpServer() as App)
+    const response = await request(app.getHttpServer() as SuperTestApp)
       .get('/api/v1/health')
       .expect(200);
     expect(response.body).toEqual({ status: 'ok', commit: 'unknown' });
@@ -31,7 +32,7 @@ describe('HealthController', () => {
   });
 
   it('unknown routes use the public error shape', async () => {
-    const response = await request(app.getHttpServer() as App)
+    const response = await request(app.getHttpServer() as SuperTestApp)
       .get('/api/v1/missing')
       .expect(404);
     expect(response.body).toEqual({

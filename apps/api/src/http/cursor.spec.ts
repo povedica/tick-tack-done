@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { decodeCursor, encodeCursor, matchesEtag, pageLimit, slicePage, weakEtag } from './cursor';
+import {
+  decodeCursor,
+  encodeCursor,
+  matchesEtag,
+  pageLimit,
+  slicePage,
+  weakEtag,
+} from './cursor.js';
 
 describe('cursor pagination', () => {
   it('defaults the page size and rejects values outside 1..100', () => {

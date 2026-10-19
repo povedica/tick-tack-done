@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
-import { FiltersModule } from '../modules/filters/filters.module';
-import { HabitsModule } from '../modules/habits/habits.module';
-import { ListsModule } from '../modules/lists/lists.module';
-import { SearchModule } from '../modules/search/search.module';
-import { TagsModule } from '../modules/tags/tags.module';
-import { TasksModule } from '../modules/tasks/tasks.module';
-import { McpController } from './mcp.controller';
-import { McpService } from './mcp.service';
+import { FiltersModule } from '../modules/filters/filters.module.js';
+import { HabitsModule } from '../modules/habits/habits.module.js';
+import { ListsModule } from '../modules/lists/lists.module.js';
+import { SearchModule } from '../modules/search/search.module.js';
+import { TagsModule } from '../modules/tags/tags.module.js';
+import { TasksModule } from '../modules/tasks/tasks.module.js';
+import { McpController } from './mcp.controller.js';
+import { McpService } from './mcp.service.js';
 
 @Module({
   imports: [TasksModule, ListsModule, TagsModule, FiltersModule, HabitsModule, SearchModule],

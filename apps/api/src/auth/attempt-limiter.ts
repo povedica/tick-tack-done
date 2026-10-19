@@ -1,7 +1,7 @@
 import { HttpStatus, Injectable, type OnModuleDestroy } from '@nestjs/common';
-import IORedis from 'ioredis';
-import { DomainException } from '../http/domain.exception';
-import { SlidingWindowRateLimit, type RateLimitDecision } from './token-rate-limit';
+import { Redis } from 'ioredis';
+import { DomainException } from '../http/domain.exception.js';
+import { SlidingWindowRateLimit, type RateLimitDecision } from './token-rate-limit.js';
 
 const WINDOW_MS = 15 * 60 * 1000;
 const IP_LIMIT = 10;
@@ -15,12 +15,12 @@ const FAILURE_LIMIT = 5;
 export class AttemptLimiter implements OnModuleDestroy {
   private readonly ipWindow = new SlidingWindowRateLimit(IP_LIMIT, WINDOW_MS);
   private readonly failureWindow = new SlidingWindowRateLimit(FAILURE_LIMIT, WINDOW_MS);
-  private redis: IORedis | null = null;
+  private redis: Redis | null = null;
 
   constructor() {
     const url = process.env.REDIS_URL;
     if (url !== undefined && url.length > 0 && process.env.VITEST !== 'true') {
-      this.redis = new IORedis(url, { maxRetriesPerRequest: 1, enableOfflineQueue: false });
+      this.redis = new Redis(url, { maxRetriesPerRequest: 1, enableOfflineQueue: false });
       this.redis.on('error', () => undefined);
     }
   }

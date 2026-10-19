@@ -29,17 +29,17 @@ import {
 import type { Request, Response } from 'express';
 import { memoryStorage } from 'multer';
 import { isPriority, type Priority } from '@reflexionia/domain';
-import type { AuthUser } from '../../auth/auth-user';
-import { CurrentUser } from '../../auth/current-user.decorator';
-import { Scopes } from '../../auth/scopes.decorator';
-import { pageLimit } from '../../http/cursor';
-import { DomainException } from '../../http/domain.exception';
-import { optionalUuid } from '../../http/uuid-query';
-import { respondJson } from '../../http/respond';
-import { ATTACHMENT_MAX_BYTES } from './attachment-storage';
-import { parseTaskSort, type TaskSort } from './task-cursor';
-import type { TaskListQuery } from './tasks.service';
-import { TasksService } from './tasks.service';
+import type { AuthUser } from '../../auth/auth-user.js';
+import { CurrentUser } from '../../auth/current-user.decorator.js';
+import { Scopes } from '../../auth/scopes.decorator.js';
+import { pageLimit } from '../../http/cursor.js';
+import { DomainException } from '../../http/domain.exception.js';
+import { optionalUuid } from '../../http/uuid-query.js';
+import { respondJson } from '../../http/respond.js';
+import { ATTACHMENT_MAX_BYTES } from './attachment-storage.js';
+import { parseTaskSort, type TaskSort } from './task-cursor.js';
+import type { TaskListQuery } from './tasks.service.js';
+import { TasksService } from './tasks.service.js';
 import {
   BatchTasksDto,
   ChecklistItemDto,
@@ -55,7 +55,7 @@ import {
   TaskResponseDto,
   UpdateChecklistItemDto,
   UpdateTaskDto,
-} from './tasks.dto';
+} from './tasks.dto.js';
 
 @ApiTags('tasks')
 @ApiHeader({ name: 'X-Dev-User-Email', required: false })

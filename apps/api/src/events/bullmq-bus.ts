@@ -1,8 +1,8 @@
 import { Inject, Injectable, type OnModuleDestroy } from '@nestjs/common';
 import { Queue, Worker } from 'bullmq';
-import IORedis from 'ioredis';
-import { EventBus, type DomainBusEvent } from './event-bus';
-import { EventRouter } from './event-router';
+import { Redis } from 'ioredis';
+import { EventBus, type DomainBusEvent } from './event-bus.js';
+import { EventRouter } from './event-router.js';
 
 const QUEUE = 'domain-events';
 
@@ -23,7 +23,7 @@ export class BullMqEventBus extends EventBus implements OnModuleDestroy {
     if (url === undefined || url.length === 0) {
       throw new Error('REDIS_URL is required to publish domain events');
     }
-    const connection = new IORedis(url, {
+    const connection = new Redis(url, {
       maxRetriesPerRequest: null,
       connectTimeout: 2_000,
       retryStrategy: (times: number) =>

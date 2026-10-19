@@ -1,11 +1,11 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { parseSearchQuery } from '@reflexionia/domain';
-import type { AuthUser } from '../../auth/auth-user';
-import { DomainException } from '../../http/domain.exception';
-import { PrismaService } from '../../prisma/prisma.service';
-import { toViewJson, loadViewTasks, type ViewTaskJson } from '../../reading/view-tasks';
-import type { SearchGroupDto, SearchHitDto, SearchResponseDto } from './search.dto';
+import type { AuthUser } from '../../auth/auth-user.js';
+import { DomainException } from '../../http/domain.exception.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { toViewJson, loadViewTasks, type ViewTaskJson } from '../../reading/view-tasks.js';
+import type { SearchGroupDto, SearchHitDto, SearchResponseDto } from './search.dto.js';
 
 const TYPES = ['task', 'note', 'list', 'tag'] as const;
 type SearchType = (typeof TYPES)[number];

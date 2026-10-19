@@ -13,13 +13,13 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { memoryStorage } from 'multer';
-import { Public } from '../../auth/scopes.decorator';
-import { applyRateLimitHeaders } from '../../auth/token-rate-limit';
-import { DomainException } from '../../http/domain.exception';
-import { InboundRateLimiter } from '../../inbound/inbound-rate-limit';
-import { respondJson } from '../../http/respond';
-import { ATTACHMENT_MAX_BYTES } from './attachment-storage';
-import { TasksService } from './tasks.service';
+import { Public } from '../../auth/scopes.decorator.js';
+import { applyRateLimitHeaders } from '../../auth/token-rate-limit.js';
+import { DomainException } from '../../http/domain.exception.js';
+import { InboundRateLimiter } from '../../inbound/inbound-rate-limit.js';
+import { respondJson } from '../../http/respond.js';
+import { ATTACHMENT_MAX_BYTES } from './attachment-storage.js';
+import { TasksService } from './tasks.service.js';
 
 @ApiTags('inbound')
 @Controller('inbound')

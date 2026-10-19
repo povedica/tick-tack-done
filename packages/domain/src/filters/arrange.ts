@@ -81,7 +81,7 @@ export function pageTaskGroups<T extends { id: string }>(
   let start = 0;
   if (cursor !== null) {
     const at = flat[cursor.index];
-    if (at !== undefined && at.task.id === cursor.id) {
+    if (at?.task.id === cursor.id) {
       start = cursor.index + 1;
     }
   }
@@ -263,7 +263,7 @@ function regroup<T extends { id: string }>(
   const groups: TaskGroup<T>[] = [];
   for (const item of slice) {
     const last = groups.at(-1);
-    if (last !== undefined && last.key === item.key) {
+    if (last?.key === item.key) {
       groups[groups.length - 1] = { ...last, tasks: [...last.tasks, item.task] };
     } else {
       groups.push({ key: item.key, label: item.label, tasks: [item.task] });

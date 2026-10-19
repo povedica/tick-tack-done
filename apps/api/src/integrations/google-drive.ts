@@ -1,5 +1,5 @@
 import { HttpStatus } from '@nestjs/common';
-import { DomainException } from '../http/domain.exception';
+import { DomainException } from '../http/domain.exception.js';
 
 const FILE_ID = /^[a-zA-Z0-9_-]{1,200}$/;
 

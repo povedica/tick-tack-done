@@ -1,7 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
-import { IdempotencyService } from './idempotency.service';
+import { IdempotencyService } from './idempotency.service.js';
 
 describe('IdempotencyService.run', () => {
   it('gives the interactive transaction 15 seconds', async () => {

@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { CalendarController, FeedsController } from './calendar.controller';
-import { CalendarService } from './calendar.service';
+import { CalendarController, FeedsController } from './calendar.controller.js';
+import { CalendarService } from './calendar.service.js';
 
 @Module({
   controllers: [CalendarController, FeedsController],

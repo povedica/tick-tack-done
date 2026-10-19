@@ -1,5 +1,5 @@
 # Imagen de la API (NestJS + servidor MCP en el mismo proceso, sección 4)
-FROM node:22-alpine AS deps
+FROM node:26-alpine AS deps
 WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
@@ -14,7 +14,7 @@ COPY packages/domain packages/domain
 COPY apps/api apps/api
 RUN pnpm --filter api build && pnpm --filter api exec prisma generate
 
-FROM node:22-alpine AS runner
+FROM node:26-alpine AS runner
 WORKDIR /app
 ARG GIT_COMMIT=unknown
 ENV NODE_ENV=production
