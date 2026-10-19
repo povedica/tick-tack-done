@@ -106,7 +106,7 @@ export class TokensService {
         });
         return created;
       });
-      return { ...toToken(row), token: issued.token };
+      return Object.assign({}, toToken(row), { token: issued.token });
     } catch (error) {
       if (isUniqueConflict(error)) {
         throw new DomainException(

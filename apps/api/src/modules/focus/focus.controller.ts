@@ -306,7 +306,7 @@ export class FocusController {
     const current = await this.prisma.focusSession.findFirst({
       where: { id, ownerId: user.id, deletedAt: null },
     });
-    if (current === null || current.endedAt !== null) {
+    if (current?.endedAt !== null) {
       throw new DomainException(HttpStatus.NOT_FOUND, 'session_not_found', 'Session was not found');
     }
     const now = new Date();

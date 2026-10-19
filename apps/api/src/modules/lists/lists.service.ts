@@ -535,7 +535,9 @@ export class ListsService {
         entityType: 'column',
         entityId: id,
         action: 'deleted',
-        data: { column: asJson({ ...toColumnJson(row), deleted_at: iso(row.deletedAt) }) },
+        data: {
+          column: asJson(Object.assign({}, toColumnJson(row), { deleted_at: iso(row.deletedAt) })),
+        },
         previous: asJson(toColumnJson(current)),
       });
     });
