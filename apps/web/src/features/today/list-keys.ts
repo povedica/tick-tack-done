@@ -1,12 +1,5 @@
 export type ListCommand =
-  | 'up'
-  | 'down'
-  | 'open'
-  | 'complete'
-  | 'priority'
-  | 'date'
-  | 'delete'
-  | 'toggle-select';
+  'up' | 'down' | 'open' | 'complete' | 'priority' | 'date' | 'delete' | 'toggle-select';
 
 export function listCommand(input: {
   readonly key: string;
