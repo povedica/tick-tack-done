@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { ACCOUNT_REMINDER_TRIGGERS, LIST_REMINDER_OFF } from '@reflexionia/domain';
 import {
   IsBoolean,
   IsIn,
@@ -126,6 +127,15 @@ export class UpdateProjectDto {
   @IsOptional()
   @IsBoolean()
   move_to_end?: boolean;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    description: "Null inherits the account reminder. 'off' stays quiet.",
+  })
+  @IsOptional()
+  @IsIn([...ACCOUNT_REMINDER_TRIGGERS, LIST_REMINDER_OFF])
+  default_reminder_trigger?: string | null;
 }
 
 export class CreateColumnDto {
@@ -228,6 +238,9 @@ export class ProjectResponseDto {
 
   @ApiProperty()
   is_inbox!: boolean;
+
+  @ApiProperty({ nullable: true, type: String })
+  default_reminder_trigger!: string | null;
 
   @ApiProperty()
   sort_order!: string;

@@ -4,6 +4,39 @@ import { isIanaTimeZone } from '../tasks/time-zone';
 /** RF-808. The scheduler materializes at least this far ahead. */
 export const REMINDER_HORIZON_MS = 48 * 60 * 60 * 1000;
 
+/** Offsets a user can pick as the default reminder for dated tasks. */
+export const ACCOUNT_REMINDER_TRIGGERS = [
+  '-PT0M',
+  '-PT5M',
+  '-PT15M',
+  '-PT30M',
+  '-PT1H',
+  '-P1D',
+] as const;
+
+export type AccountReminderTrigger = (typeof ACCOUNT_REMINDER_TRIGGERS)[number];
+
+/** A list uses this value to stay quiet even when the account has a default. */
+export const LIST_REMINDER_OFF = 'off';
+
+export function isAccountReminderTrigger(value: string): value is AccountReminderTrigger {
+  return (ACCOUNT_REMINDER_TRIGGERS as readonly string[]).includes(value);
+}
+
+/** List override wins. `off` means no reminder. Null on the list inherits the account. */
+export function resolveDefaultReminder(account: string | null, list: string | null): string | null {
+  if (list === LIST_REMINDER_OFF) {
+    return null;
+  }
+  if (list !== null && isAccountReminderTrigger(list)) {
+    return list;
+  }
+  if (account !== null && isAccountReminderTrigger(account)) {
+    return account;
+  }
+  return null;
+}
+
 export type TriggerParse =
   | {
       readonly ok: true;

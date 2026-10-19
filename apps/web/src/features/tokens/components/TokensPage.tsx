@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useLocation } from 'react-router';
 import { Button, SkeletonRows } from '../../../components/ui';
 import { fill, useMessages, type Messages } from '../../../i18n';
+import { useAppLocale } from '../../../i18n/locale';
 import { tokensApi } from '../api';
 
 type Scope = CreateTokenBody['scopes'][number];
@@ -127,6 +128,7 @@ const SCOPE_LABEL: Record<string, keyof Messages> = {
 
 export function TokensPage() {
   const messages = useMessages();
+  const locale = useAppLocale();
   const inSettings = useLocation().pathname.startsWith('/settings');
   const queryClient = useQueryClient();
   const tokens = useQuery({ queryKey: ['tokens'], queryFn: () => tokensApi.listTokens() });
@@ -362,11 +364,11 @@ export function TokensPage() {
                 ))}
               </ul>
               <p className="token-meta">
-                {messages.tokenCreatedOn} {when(token.created_at)}
+                {messages.tokenCreatedOn} {when(token.created_at, locale)}
                 {' · '}
                 {token.last_used_at === null
                   ? messages.tokenNeverUsed
-                  : `${messages.tokenLastUsed} ${when(token.last_used_at)}`}
+                  : `${messages.tokenLastUsed} ${when(token.last_used_at, locale)}`}
               </p>
               <div className="token-actions">
                 <Button
@@ -434,7 +436,7 @@ export function TokensPage() {
                           {actionLabel(messages, entry.action)} ·{' '}
                           {entityLabel(messages, entry.entity_type)}
                         </span>
-                        <time dateTime={entry.created_at}>{when(entry.created_at)}</time>
+                        <time dateTime={entry.created_at}>{when(entry.created_at, locale)}</time>
                       </li>
                     ))}
                   </ul>
@@ -461,8 +463,12 @@ function mcpSnippet(url: string): string {
 }`;
 }
 
-function when(iso: string): string {
-  return new Date(iso).toLocaleString();
+function when(iso: string, locale: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return iso;
+  }
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'medium' }).format(date);
 }
 
 function scopeLabel(messages: Messages, scope: string): string {

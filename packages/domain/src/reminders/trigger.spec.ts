@@ -1,15 +1,29 @@
 import { describe, expect, it } from 'vitest';
 import {
+  isAccountReminderTrigger,
+  LIST_REMINDER_OFF,
   nextConstantFire,
   nextDailyReminder,
   parseTrigger,
   REMINDER_HORIZON_MS,
   reminderDisposition,
   reminderFireAt,
+  resolveDefaultReminder,
   snoozeReminder,
 } from './trigger';
 
 describe('reminders', () => {
+  it('picks the list override, then the account default, and stays quiet when the list is off', () => {
+    expect(isAccountReminderTrigger('-PT15M')).toBe(true);
+    expect(isAccountReminderTrigger('off')).toBe(false);
+    expect(resolveDefaultReminder('-PT30M', null)).toBe('-PT30M');
+    expect(resolveDefaultReminder('-PT30M', '-PT5M')).toBe('-PT5M');
+    expect(resolveDefaultReminder('-PT30M', LIST_REMINDER_OFF)).toBeNull();
+    expect(resolveDefaultReminder(null, null)).toBeNull();
+    expect(parseTrigger('-PT0M').ok).toBe(true);
+    expect(parseTrigger('-P1D').ok).toBe(true);
+  });
+
   it('RF-801: relative triggers and an absolute instant', () => {
     expect(parseTrigger('-PT30M')).toMatchObject({ ok: true, offsetMs: -30 * 60_000 });
     expect(parseTrigger('TRIGGER:-PT5M')).toEqual({

@@ -118,6 +118,45 @@
         ]
       }
     },
+    "/api/v1/me/password": {
+      "post": {
+        "operationId": "MeController_changePassword",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Change the password and sign out other sessions",
+        "tags": [
+          "me"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/me/inbound-email": {
       "get": {
         "operationId": "MeController_inboundEmail",
@@ -881,6 +920,26 @@
           }
         },
         "summary": "Confirm TOTP and show recovery codes once",
+        "tags": [
+          "me"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/me/totp/pending": {
+      "delete": {
+        "operationId": "TotpController_cancel",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Discard a TOTP secret that was not confirmed",
         "tags": [
           "me"
         ],
@@ -4622,6 +4681,24 @@
       }
     },
     "/api/v1/calendar/feeds": {
+      "get": {
+        "operationId": "CalendarController_listFeeds",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "List active iCal feeds. The secret URL is not returned (RF-1104)",
+        "tags": [
+          "calendar"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
       "post": {
         "operationId": "CalendarController_createFeed",
         "parameters": [],
@@ -4641,6 +4718,35 @@
           }
         },
         "summary": "Create a secret iCal feed for a list or filter (RF-1104)",
+        "tags": [
+          "calendar"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/calendar/feeds/{id}/rotate": {
+      "post": {
+        "operationId": "CalendarController_rotateFeed",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Regenerate an iCal feed URL. The previous URL stops working (RF-1104)",
         "tags": [
           "calendar"
         ],
@@ -4997,6 +5103,43 @@
       }
     },
     "/api/v1/webhooks/{id}": {
+      "patch": {
+        "operationId": "WebhooksController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookPatchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Pause or resume a webhook (RF-11010)",
+        "tags": [
+          "webhooks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
       "delete": {
         "operationId": "WebhooksController_remove",
         "parameters": [
@@ -5015,6 +5158,35 @@
           }
         },
         "summary": "Remove a webhook",
+        "tags": [
+          "webhooks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/webhooks/{id}/rotate": {
+      "post": {
+        "operationId": "WebhooksController_rotate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Rotate a webhook secret. The new secret is shown once (RF-11010)",
         "tags": [
           "webhooks"
         ],
@@ -5131,6 +5303,72 @@
         ]
       }
     },
+    "/api/v1/automations/{id}": {
+      "patch": {
+        "operationId": "AutomationsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutomationPatchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Pause or resume an automation",
+        "tags": [
+          "automations"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "AutomationsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Delete an automation",
+        "tags": [
+          "automations"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/automations/{id}/run": {
       "post": {
         "operationId": "AutomationsController_run",
@@ -5150,35 +5388,6 @@
           }
         },
         "summary": "Run an automation now, including the weekly report template (RF-2203)",
-        "tags": [
-          "automations"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ]
-      }
-    },
-    "/api/v1/automations/{id}": {
-      "delete": {
-        "operationId": "AutomationsController_remove",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Delete an automation",
         "tags": [
           "automations"
         ],
@@ -6050,6 +6259,24 @@
             "bearer": []
           }
         ]
+      },
+      "delete": {
+        "operationId": "IntegrationsController_unlinkTelegram",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Unlink Telegram chats from this account (RF-2003)",
+        "tags": [
+          "integrations"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/api/v1/integrations/telegram/link": {
@@ -6120,6 +6347,24 @@
           }
         },
         "summary": "Google connection status. The refresh token is stored after consent (RF-2004).",
+        "tags": [
+          "integrations"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "IntegrationsController_disconnectGoogle",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Disconnect Google Calendar and Drive (RF-2004)",
         "tags": [
           "integrations"
         ],
@@ -6494,7 +6739,12 @@
             "type": "string"
           },
           "locale": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "auto",
+              "es",
+              "en"
+            ]
           },
           "task_complete_children": {
             "type": "string",
@@ -6507,6 +6757,51 @@
           "daily_reminder_time": {
             "type": "string",
             "nullable": true
+          },
+          "week_start": {
+            "type": "string",
+            "enum": [
+              "monday",
+              "sunday"
+            ]
+          },
+          "theme": {
+            "type": "string",
+            "enum": [
+              "light",
+              "dark",
+              "auto"
+            ]
+          },
+          "nlp_language": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "es",
+              "en"
+            ]
+          },
+          "density": {
+            "type": "string",
+            "enum": [
+              "comfortable",
+              "compact"
+            ]
+          },
+          "accent": {
+            "type": "string",
+            "enum": [
+              "indigo",
+              "violet",
+              "teal",
+              "amber",
+              "rose",
+              "slate"
+            ]
+          },
+          "default_reminder_trigger": {
+            "type": "string",
+            "nullable": true
           }
         },
         "required": [
@@ -6516,7 +6811,31 @@
           "time_zone",
           "locale",
           "task_complete_children",
-          "daily_reminder_time"
+          "daily_reminder_time",
+          "week_start",
+          "theme",
+          "nlp_language",
+          "density",
+          "accent",
+          "default_reminder_trigger"
+        ]
+      },
+      "ChangePasswordDto": {
+        "type": "object",
+        "properties": {
+          "current_password": {
+            "type": "string",
+            "description": "Current password"
+          },
+          "new_password": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "current_password",
+          "new_password"
         ]
       },
       "UpdateMeDto": {
@@ -6541,6 +6860,67 @@
             "type": "object",
             "nullable": true,
             "example": "08:00"
+          },
+          "locale": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "es",
+              "en"
+            ]
+          },
+          "week_start": {
+            "type": "string",
+            "enum": [
+              "monday",
+              "sunday"
+            ]
+          },
+          "theme": {
+            "type": "string",
+            "enum": [
+              "light",
+              "dark",
+              "auto"
+            ]
+          },
+          "nlp_language": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "es",
+              "en"
+            ]
+          },
+          "density": {
+            "type": "string",
+            "enum": [
+              "comfortable",
+              "compact"
+            ]
+          },
+          "accent": {
+            "type": "string",
+            "enum": [
+              "indigo",
+              "violet",
+              "teal",
+              "amber",
+              "rose",
+              "slate"
+            ]
+          },
+          "default_reminder_trigger": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "-PT0M",
+              "-PT5M",
+              "-PT15M",
+              "-PT30M",
+              "-PT1H",
+              "-P1D"
+            ]
           }
         }
       },
@@ -7608,6 +7988,10 @@
           "is_inbox": {
             "type": "boolean"
           },
+          "default_reminder_trigger": {
+            "type": "string",
+            "nullable": true
+          },
           "sort_order": {
             "type": "string"
           },
@@ -7630,6 +8014,7 @@
           "kind",
           "closed",
           "is_inbox",
+          "default_reminder_trigger",
           "sort_order",
           "active_task_count",
           "created_at",
@@ -7735,6 +8120,11 @@
           },
           "move_to_end": {
             "type": "boolean"
+          },
+          "default_reminder_trigger": {
+            "type": "object",
+            "nullable": true,
+            "description": "Null inherits the account reminder. 'off' stays quiet."
           }
         }
       },
@@ -9564,6 +9954,14 @@
           "events"
         ]
       },
+      "WebhookPatchDto": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "boolean"
+          }
+        }
+      },
       "AutomationDto": {
         "type": "object",
         "properties": {
@@ -9589,6 +9987,14 @@
           "trigger",
           "actions"
         ]
+      },
+      "AutomationPatchDto": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          }
+        }
       },
       "StartDto": {
         "type": "object",

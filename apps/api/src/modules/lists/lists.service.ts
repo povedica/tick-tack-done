@@ -267,6 +267,9 @@ export class ListsService {
           ...(dto.folder_id !== undefined ? { folderId: dto.folder_id } : {}),
           ...(dto.view_mode !== undefined ? { viewMode: dto.view_mode } : {}),
           ...(dto.kind !== undefined ? { kind: dto.kind } : {}),
+          ...(dto.default_reminder_trigger !== undefined
+            ? { defaultReminderTrigger: dto.default_reminder_trigger }
+            : {}),
           ...(plan !== null ? { sortOrder: plan.movingSortOrder } : {}),
         },
       });

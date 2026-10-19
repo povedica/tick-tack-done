@@ -868,6 +868,22 @@
   transform: none;
 }
 
+.settings-back {
+  display: none;
+}
+
+.totp-qr {
+  display: block;
+  width: 180px;
+  height: 180px;
+  background: #fff;
+  border-radius: var(--radius-sm);
+}
+
+.settings-layout input[type='time']::-webkit-datetime-edit-ampm-field {
+  display: none;
+}
+
 @media (max-width: 800px) {
   .settings-layout,
   .quad-grid,
@@ -881,6 +897,23 @@
   .settings-layout[data-section='child'] .settings-nav,
   .settings-layout[data-section='index'] .settings-main {
     display: none;
+  }
+
+  .settings-layout[data-section='child'] .settings-back {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap);
+    margin-bottom: var(--sp-3);
+    color: var(--ink);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .settings-layout[data-section='child'] .settings-back::before {
+    content: '‹';
+    margin-right: var(--sp-2);
+    font-size: 1.25rem;
+    line-height: 1;
   }
 
   .widget {

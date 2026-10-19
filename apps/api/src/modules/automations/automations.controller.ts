@@ -8,13 +8,14 @@ import {
   Injectable,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Req,
   Res,
   type OnModuleInit,
 } from '@nestjs/common';
 import { ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
-import { IsArray, IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsArray, IsBoolean, IsObject, IsOptional, IsString, MaxLength } from 'class-validator';
 import type { Request, Response } from 'express';
 import {
   automationMatches,
@@ -39,23 +40,32 @@ import { respondJson } from '../../http/respond.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { loadDashboardSnapshot } from '../../reading/snapshot.js';
 
-class AutomationDto {
+export class AutomationDto {
   @ApiProperty()
   @IsString()
   @MaxLength(200)
   name!: string;
 
   @ApiProperty()
+  @IsObject()
   trigger!: Record<string, unknown>;
 
   @ApiProperty({ required: false, nullable: true })
   @IsOptional()
+  @IsObject()
   conditions?: Record<string, unknown> | null;
 
   @ApiProperty({ type: 'array' })
   @IsArray()
   actions!: unknown[];
 
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  enabled?: boolean;
+}
+
+class AutomationPatchDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsBoolean()
@@ -388,6 +398,33 @@ export class AutomationsController {
       },
     });
     respondJson(req, res, 201, row, false);
+  }
+
+  @Patch(':id')
+  @Scopes('automations:manage')
+  @ApiOperation({ summary: 'Pause or resume an automation' })
+  async update(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AutomationPatchDto,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    const current = await this.prisma.automation.findFirst({
+      where: { id, ownerId: user.id, deletedAt: null },
+    });
+    if (current === null) {
+      throw new DomainException(
+        HttpStatus.NOT_FOUND,
+        'automation_not_found',
+        'Automation was not found',
+      );
+    }
+    const row = await this.prisma.automation.update({
+      where: { id },
+      data: { ...(dto.enabled !== undefined ? { enabled: dto.enabled } : {}) },
+    });
+    respondJson(req, res, 200, row, false);
   }
 
   @Post(':id/run')

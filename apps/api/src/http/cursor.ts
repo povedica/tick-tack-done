@@ -64,7 +64,7 @@ export function slicePage<T extends { sort_order: string; id: string }>(
 }
 
 export function weakEtag(value: string): string {
-  return `W/"${createHash('sha1').update(value).digest('base64url')}"`;
+  return `W/"${createHash('sha256').update(value).digest('base64url')}"`;
 }
 
 export function matchesEtag(header: string | undefined, etag: string): boolean {

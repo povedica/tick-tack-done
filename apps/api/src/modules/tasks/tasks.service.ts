@@ -15,6 +15,7 @@ import {
   resolveSubtaskProject,
   parseTrigger,
   reminderFireAt,
+  resolveDefaultReminder,
   snoozeDue,
   snoozeReminder,
   sortOrderAtEnd,
@@ -390,6 +391,9 @@ export class TasksService {
           extracted.items,
           dto.extract_as ?? 'checklist',
         );
+      }
+      if (current.dueDate === null && due !== null) {
+        await this.ensureDefaultReminder(tx, user.id, current.projectId, id, due, row.kind, null);
       }
       const detail = await this.load(tx, user.id, id, false);
       await this.events.record(tx, actorOf(user), {
@@ -1466,18 +1470,15 @@ export class TasksService {
       },
     });
     await this.linkTags(tx, row.id, tagIds);
-    const reminderTrigger = captured?.reminderTrigger ?? null;
-    if (reminderTrigger !== null && due !== null) {
-      await tx.reminder.create({
-        data: {
-          ownerId: user.id,
-          taskId: row.id,
-          trigger: reminderTrigger,
-          type: 'relative',
-          channel: 'push',
-        },
-      });
-    }
+    await this.ensureDefaultReminder(
+      tx,
+      user.id,
+      project.id,
+      row.id,
+      due,
+      row.kind,
+      captured?.reminderTrigger ?? null,
+    );
     if (extracted !== null) {
       await this.materializeExtract(tx, user, row, extracted.items, dto.extract_as ?? 'checklist');
     }
@@ -1998,6 +1999,64 @@ export class TasksService {
       );
     }
     return row;
+  }
+
+  private async ensureDefaultReminder(
+    tx: Tx,
+    userId: string,
+    projectId: string,
+    taskId: string,
+    due: Date | null,
+    kind: string,
+    explicit: string | null,
+  ): Promise<void> {
+    if (due === null || kind === 'note') {
+      return;
+    }
+    if (explicit !== null) {
+      await tx.reminder.create({
+        data: {
+          ownerId: userId,
+          taskId,
+          trigger: explicit,
+          type: 'relative',
+          channel: 'push',
+        },
+      });
+      return;
+    }
+    const existing = await tx.reminder.count({
+      where: { taskId, ownerId: userId, deletedAt: null },
+    });
+    if (existing > 0) {
+      return;
+    }
+    const [owner, list] = await Promise.all([
+      tx.user.findFirst({
+        where: { id: userId },
+        select: { defaultReminderTrigger: true },
+      }),
+      tx.project.findFirst({
+        where: { id: projectId },
+        select: { defaultReminderTrigger: true },
+      }),
+    ]);
+    const trigger = resolveDefaultReminder(
+      owner?.defaultReminderTrigger ?? null,
+      list?.defaultReminderTrigger ?? null,
+    );
+    if (trigger === null) {
+      return;
+    }
+    await tx.reminder.create({
+      data: {
+        ownerId: userId,
+        taskId,
+        trigger,
+        type: 'relative',
+        channel: 'push',
+      },
+    });
   }
 
   private async linkTags(tx: Tx, taskId: string, tagIds: readonly string[]): Promise<void> {

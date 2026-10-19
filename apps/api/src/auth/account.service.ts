@@ -1,7 +1,7 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { actorOf, type AuthUser } from './auth-user.js';
-import type { DeleteMeDto } from './me.dto.js';
-import { verifyPassword } from './passwords.js';
+import type { ChangePasswordDto, DeleteMeDto } from './me.dto.js';
+import { hashPassword, verifyPassword } from './passwords.js';
 import { requireBrowserSession } from './session-access.js';
 import { DomainEvent } from '../events/domain-events.js';
 import { EventRecorder } from '../events/event-recorder.js';
@@ -17,6 +17,61 @@ export class AccountService {
     @Inject(EventRecorder) private readonly events: EventRecorder,
     @Inject(TotpService) private readonly totp: TotpService,
   ) {}
+
+  async changePassword(user: AuthUser, dto: ChangePasswordDto): Promise<void> {
+    requireBrowserSession(user);
+    if (dto.current_password === dto.new_password) {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'Choose a different password',
+      );
+    }
+    const row = await this.prisma.user.findFirst({
+      where: { id: user.id, deletedAt: null },
+      select: { passwordHash: true, email: true },
+    });
+    if (row?.passwordHash == null) {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'password_required',
+        'Set a password before changing it',
+      );
+    }
+    const passwordOk = await verifyPassword(row.passwordHash, dto.current_password);
+    if (!passwordOk) {
+      throw new DomainException(
+        HttpStatus.UNAUTHORIZED,
+        'invalid_credentials',
+        'Invalid credentials',
+      );
+    }
+    const passwordHash = await hashPassword(dto.new_password);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({ where: { id: user.id }, data: { passwordHash } });
+      await tx.session.updateMany({
+        where: {
+          userId: user.id,
+          revokedAt: null,
+          ...(user.sessionId === null ? {} : { id: { not: user.sessionId } }),
+        },
+        data: { revokedAt: new Date() },
+      });
+      await this.events.record(tx, actorOf(user), {
+        type: DomainEvent.accountPasswordChanged,
+        entityType: 'user',
+        entityId: user.id,
+        action: 'updated',
+        data: { user: { id: user.id } },
+        previous: null,
+      });
+    });
+    await sendSecurityNotice(
+      row.email,
+      'Password changed',
+      'The password on your account was changed. Other sessions were signed out. If this was not you, reset access from a device you still trust.',
+    );
+  }
 
   async delete(user: AuthUser, dto: DeleteMeDto): Promise<void> {
     requireBrowserSession(user);

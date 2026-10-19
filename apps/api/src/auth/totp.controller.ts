@@ -1,5 +1,15 @@
 import { randomBytes } from 'node:crypto';
-import { Body, Controller, HttpStatus, Inject, Injectable, Post, Req, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  HttpStatus,
+  Inject,
+  Injectable,
+  Post,
+  Req,
+  Res,
+} from '@nestjs/common';
 import { ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsOptional, IsString, Length } from 'class-validator';
 import type { Request, Response } from 'express';
@@ -91,6 +101,24 @@ export class TotpService {
       });
     });
     return { recovery_codes: codes };
+  }
+
+  async cancelPending(user: AuthUser): Promise<void> {
+    const row = await this.prisma.user.findFirst({
+      where: { id: user.id, deletedAt: null },
+      select: { totpEnabled: true },
+    });
+    if (row?.totpEnabled === true) {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'totp_enabled',
+        'Turn off 2FA with a current code',
+      );
+    }
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { totpSecret: null, totpEnabled: false },
+    });
   }
 
   async disable(user: AuthUser, code: string): Promise<void> {
@@ -214,6 +242,19 @@ export class TotpController {
       await this.attempts.recordFailure(req.ip ?? 'unknown', `totp:${user.id}`);
       throw error;
     }
+  }
+
+  @Delete('pending')
+  @Scopes('profile:write')
+  @ApiOperation({ summary: 'Discard a TOTP secret that was not confirmed' })
+  async cancel(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.guardTotp(req, user.id);
+    await this.totp.cancelPending(user);
+    res.status(204).end();
   }
 
   @Post('disable')

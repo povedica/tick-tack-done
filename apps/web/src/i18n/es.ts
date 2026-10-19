@@ -79,7 +79,8 @@ export const es = {
   themeDark: 'Oscuro',
   themeLabel: 'Tema',
   appearanceTitle: 'Apariencia',
-  appearanceHint: 'Automático sigue la preferencia del sistema.',
+  appearanceHint:
+    'Automático sigue la preferencia del sistema. El tema, la densidad, el acento, el idioma y el inicio de semana se guardan en tu cuenta.',
   navToday: 'Hoy',
   navTomorrow: 'Mañana',
   navNext7: 'Próximos 7 días',
