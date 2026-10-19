@@ -8,12 +8,12 @@ Documento de la primera pasada de Dependabot sobre `main`. Explica por qué se a
 
 El fichero vigila cuatro sitios:
 
-| Ecosistema | Directorio | Agrupación en el fichero original | Tope por defecto |
-| --- | --- | --- | --- |
-| npm | `/` | solo minor y patch | 5 PR abiertas |
-| github-actions | `/` | ninguna | 5 PR abiertas |
-| docker | `/apps/api` | ninguna | 5 PR abiertas |
-| docker | `/apps/web` | ninguna | 5 PR abiertas |
+| Ecosistema     | Directorio  | Agrupación en el fichero original | Tope por defecto |
+| -------------- | ----------- | --------------------------------- | ---------------- |
+| npm            | `/`         | solo minor y patch                | 5 PR abiertas    |
+| github-actions | `/`         | ninguna                           | 5 PR abiertas    |
+| docker         | `/apps/api` | ninguna                           | 5 PR abiertas    |
+| docker         | `/apps/web` | ninguna                           | 5 PR abiertas    |
 
 Cada action y cada imagen salió en su propia PR. Los major de npm también, porque el grupo `minor-and-patch` no los incluye. Las de Actions se pisaban entre sí: `#21`, `#25` y `#27` editaban las mismas líneas de `ci.yml` y `security.yml`.
 
@@ -31,11 +31,11 @@ Ya están en `main`, con el CI en verde y el workflow siguiendo en Node 22 en el
 
 CI: `quality` falla. El resto pasa. `typescript-eslint` 8.18 → 8.71 activa reglas que el código de `packages/domain` no cumplía:
 
-| Regla | Archivo |
-| --- | --- |
-| `@typescript-eslint/no-misused-spread` | `packages/domain/src/auth/totp.ts` (`[...cleaned]` sobre un string ASCII de Base32) |
-| `@typescript-eslint/prefer-optional-chain` | `packages/domain/src/filters/arrange.ts`, `packages/domain/src/filters/parse.ts` |
-| `@typescript-eslint/no-unnecessary-type-assertion` | `packages/domain/src/transfer/csv.ts` |
+| Regla                                              | Archivo                                                                             |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `@typescript-eslint/no-misused-spread`             | `packages/domain/src/auth/totp.ts` (`[...cleaned]` sobre un string ASCII de Base32) |
+| `@typescript-eslint/prefer-optional-chain`         | `packages/domain/src/filters/arrange.ts`, `packages/domain/src/filters/parse.ts`    |
+| `@typescript-eslint/no-unnecessary-type-assertion` | `packages/domain/src/transfer/csv.ts`                                               |
 
 El salto también incluye prettier 3.4 → 3.9, argon2 0.41 → 0.45, class-validator 0.14 → 0.15 y express 5.2 → 5.3. Esos no rompen tests ni OpenAPI.
 
@@ -57,12 +57,12 @@ Los imports relativos de `apps/api` no llevan extensión. Con `NodeNext` y `"typ
 
 Tres PR parten el mismo salto de runtime:
 
-| Superficie | Hoy en `main` | Lo que pide Dependabot |
-| --- | --- | --- |
-| CI `node-version` | 22 | no lo toca |
-| `engines.node` | `>=22` | no lo toca |
-| `apps/api` y `apps/web` `FROM node` | `22-alpine` | `26-alpine` (`#23`, `#22`) |
-| `@types/node` | `^22` | `^26` (`#30`) |
+| Superficie                          | Hoy en `main` | Lo que pide Dependabot     |
+| ----------------------------------- | ------------- | -------------------------- |
+| CI `node-version`                   | 22            | no lo toca                 |
+| `engines.node`                      | `>=22`        | no lo toca                 |
+| `apps/api` y `apps/web` `FROM node` | `22-alpine`   | `26-alpine` (`#23`, `#22`) |
+| `@types/node`                       | `^22`         | `^26` (`#30`)              |
 
 El CI de `#22` y `#23` sale verde porque los workflows usan `actions/setup-node`, no construyen esos Dockerfiles. Mergear la imagen sin mover el CI dejaría producción en un Node que la suite no ejecuta. `@types/node@26` por delante del runtime permite tipar APIs que Node 22 no tiene.
 
@@ -81,10 +81,10 @@ En el mismo cambio de configuración:
 
 La suite de `#30` pasó en Node 26 (quality, unitarios, integración y OpenAPI). A partir de ahí el runtime queda alineado: CI `node-version: 26`, `engines.node` `>=26`, `@types/node` `^26` e imágenes `node:26-alpine` en `apps/api` y `apps/web`.
 
-| PR | Cierre |
-| --- | --- |
-| `#28` | Mergeada tras corregir las reglas nuevas de `typescript-eslint` 8.71 y el formato de Prettier 3.9 |
-| `#32` | Mergeada. `apps/api` es ESM (`"type": "module"`, imports relativos en `.js`) y el resto de `@nestjs/*` sube junto a la 12. `ora` queda fijado en 5.4.1 porque el CLI 12 arrastra schematics que hacen `require()` de la ora 9, ESM, y Node corta ese ciclo |
-| `#31` y `#29` | Cerradas. Testing 12.1.3 y CLI 12.0.8 ya iban dentro de `#32`; solas, contra Nest 11, no arrancaban |
-| `#30` | Mergeada con el CI y `engines` en 26 |
-| `#23` y `#22` | Mergeadas después, cuando el CI ya ejecutaba esa major |
+| PR            | Cierre                                                                                                                                                                                                                                                     |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `#28`         | Mergeada tras corregir las reglas nuevas de `typescript-eslint` 8.71 y el formato de Prettier 3.9                                                                                                                                                          |
+| `#32`         | Mergeada. `apps/api` es ESM (`"type": "module"`, imports relativos en `.js`) y el resto de `@nestjs/*` sube junto a la 12. `ora` queda fijado en 5.4.1 porque el CLI 12 arrastra schematics que hacen `require()` de la ora 9, ESM, y Node corta ese ciclo |
+| `#31` y `#29` | Cerradas. Testing 12.1.3 y CLI 12.0.8 ya iban dentro de `#32`; solas, contra Nest 11, no arrancaban                                                                                                                                                        |
+| `#30`         | Mergeada con el CI y `engines` en 26                                                                                                                                                                                                                       |
+| `#23` y `#22` | Mergeadas después, cuando el CI ya ejecutaba esa major                                                                                                                                                                                                     |
