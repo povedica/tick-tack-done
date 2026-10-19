@@ -1138,6 +1138,25 @@
   max-width: 100%;
 }
 
+/* El campo de alta vive a todo el ancho de la lista. La regla genérica de
+   .screen-page lo dejaba en 28rem y los iconos de fecha quedaban al borde. */
+.screen-page .quick-add input:not([type='checkbox']):not([type='radio']),
+.screen-page .inline-add input:not([type='checkbox']):not([type='radio']) {
+  width: 100%;
+  max-width: none;
+  height: 39px;
+  min-height: 39px;
+  margin: 0 0 8px;
+  border-color: transparent;
+  background: var(--surface-3);
+}
+
+.screen-page .quick-add input:focus,
+.screen-page .inline-add input:focus {
+  border-color: var(--focus-ring);
+  padding-right: 4.5rem;
+}
+
 .segmented {
   display: inline-flex;
   gap: 2px;

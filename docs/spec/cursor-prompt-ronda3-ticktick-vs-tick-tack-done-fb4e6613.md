@@ -220,7 +220,7 @@ Comparación hecha en `http://localhost:5173` (rama `fix/ux-audit-2026-10-18`) y
 |---|---|---|---|
 | R4-1 | `/smart/*` dejaba la app en blanco | `rowsFromView` leía `.length` de `repeat_rule` cuando la vista no lo trae (`undefined`) | Corregido. `/smart/tomorrow` pinta la lista. Un error de pantalla ya no vacía `#root` |
 | R4-2 | El azul del lateral local no coincidía con producción ni con TickTick | Local había pasado a `#c5d6fc` / `#6f92f8`. Producción seguía en `#f2f5fe`. TickTick: lateral claro y carril `#4772fa` | Restaurado `--sidebar-bg: #f2f5fe` y `--rail-bg: #4772fa` |
-| R4-3 | Añadir tarea bien maquetado en local y no en producción | El build de producción iba por detrás de esta rama (campo inline, herramientas al enfocar) | El arreglo ya está en el cliente. Publicar esta rama lo lleva a producción |
+| R4-3 | Añadir tarea bien maquetado en local y no en producción | En escritorio, `.screen-page input` (`max-width: 28rem`) ganaba a `.inline-add input`. El campo se quedaba en 448 px y Fecha / Abrir detalle, anclados al borde del formulario, quedaban sueltos a la derecha | El campo de alta ocupa todo el ancho de la lista y los iconos quedan dentro, a la derecha del texto |
 | R4-4 | Las listas inteligentes no tenían el campo «+ Añadir tarea» | `TaskList` solo lo pintaba si había `createProjectId` | Las vistas que no son papelera ni completadas usan la bandeja |
 | R4-5 | Con el detalle abierto, `scrollWidth` 2206 a 1280 | Un `input.sr-only` del detalle heredaba `width: 100%` y se salía del panel | Excluido de esa regla. Con el detalle abierto, `scrollWidth === innerWidth` (1280) |
 | N-1 | Calendario mensual, un día tarde | `tasksOnCell` comparaba la fecha UTC | Compara el día local (`calendarDateKey`). Hoy no se pinta en rojo. El chip con hora muestra `HH:mm` |
@@ -238,11 +238,11 @@ Comparación hecha en `http://localhost:5173` (rama `fix/ux-audit-2026-10-18`) y
 | N-13 | Restos | Varios | Nombres del lateral con elipsis y sin scroll horizontal. «No hay calendarios externos» es un enlace a ajustes. «Añadidas hace poco» solo cuenta pendientes. El asa de arrastre solo sale en orden manual |
 | R4-6 | No se sabía qué commit había en producción | `GET /api/v1/health` | Ahora responde `{ status, commit }`. El deploy inyecta `GIT_COMMIT` |
 
-### Comprobado en el navegador (local, 1280 px)
+### Comprobado en el navegador
 
-- `/smart/tomorrow` muestra cabecera, campo de alta y la tarea. El lateral es `rgb(242, 245, 254)` y el carril `rgb(71, 114, 250)`.
-- Papelera con número (9), no se queda en «—» cuando el resto ya cargó.
-- Con `?task=` abierto, `scrollWidth` 1280 = `innerWidth`. El detalle dice «Iniciar foco», «Borrar», «No se repite» y «20 oct 2026, 0:00».
+- Local, 1280 px: `/smart/tomorrow` muestra cabecera y campo de alta. El lateral es `rgb(242, 245, 254)` y el carril `rgb(71, 114, 250)`. Con el detalle abierto, `scrollWidth` 1280 = `innerWidth`.
+- Producción, 19 oct 2026, commit `176cbc6` (`GET /api/v1/health`): Hoy, Mañana y el resto de listas inteligentes pintan. El bundle es `index-D_mrMx-o.js`. Lateral `rgb(242, 245, 254)`, carril `rgb(71, 114, 250)`.
+- El campo de alta, al enfocarse en escritorio, mide el ancho de la lista (934 px a 1280) y los botones Fecha y Abrir detalle quedan dentro del campo (`right` 1246 frente a 1252).
 
 ### Sigue abierto
 
