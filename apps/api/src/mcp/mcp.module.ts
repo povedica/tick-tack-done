@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { FiltersModule } from '../modules/filters/filters.module.js';
+import { CountdownsModule } from '../modules/countdowns/countdowns.module.js';
 import { HabitsModule } from '../modules/habits/habits.module.js';
 import { ListsModule } from '../modules/lists/lists.module.js';
 import { SearchModule } from '../modules/search/search.module.js';
@@ -9,7 +10,15 @@ import { McpController } from './mcp.controller.js';
 import { McpService } from './mcp.service.js';
 
 @Module({
-  imports: [TasksModule, ListsModule, TagsModule, FiltersModule, HabitsModule, SearchModule],
+  imports: [
+    TasksModule,
+    ListsModule,
+    TagsModule,
+    FiltersModule,
+    HabitsModule,
+    CountdownsModule,
+    SearchModule,
+  ],
   controllers: [McpController],
   providers: [McpService],
 })

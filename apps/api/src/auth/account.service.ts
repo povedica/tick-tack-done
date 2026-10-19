@@ -145,6 +145,7 @@ export class AccountService {
       await tx.externalEvent.deleteMany({ where: { ownerId } });
       await tx.calendarSubscription.deleteMany({ where: { ownerId } });
       await tx.pushSubscription.deleteMany({ where: { ownerId } });
+      await tx.countdownReminder.deleteMany({ where: { countdown: { ownerId } } });
       await tx.countdown.deleteMany({ where: { ownerId } });
       await tx.template.deleteMany({ where: { ownerId } });
       await tx.dashboardLayout.deleteMany({ where: { ownerId } });

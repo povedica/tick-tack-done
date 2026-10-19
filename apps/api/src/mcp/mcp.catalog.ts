@@ -133,6 +133,78 @@ export const MCP_TOOLS: readonly McpTool[] = [
     ),
   },
   {
+    name: 'list_countdowns',
+    description:
+      'List countdowns. days and effective_date are already calculated in the user timezone.',
+    scopes: ['countdowns:read'],
+    inputSchema: objectSchema({
+      archived: { type: 'boolean' },
+      limit,
+      cursor,
+      due_within_days: { type: 'integer', minimum: 0 },
+    }),
+  },
+  {
+    name: 'get_countdown',
+    description: 'Read one countdown with days calculated in the user timezone.',
+    scopes: ['countdowns:read'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'create_countdown',
+    description: 'Create a countdown. Returned days are calculated in the user timezone.',
+    scopes: ['countdowns:write'],
+    inputSchema: objectSchema(
+      {
+        title: name,
+        target_date: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
+        type: { type: 'string' },
+        emoji: { type: 'string' },
+        color: { type: 'string' },
+        repeat: { type: 'string' },
+        day_mode: { type: 'string' },
+        reminders: { type: 'array', items: { type: 'integer', minimum: 0, maximum: 365 } },
+        notes: { type: 'string' },
+        show_in_sidebar: { type: 'boolean' },
+        show_in_smart_list: { type: 'boolean' },
+      },
+      ['title', 'target_date'],
+    ),
+  },
+  {
+    name: 'update_countdown',
+    description: 'Update a countdown.',
+    scopes: ['countdowns:write'],
+    inputSchema: objectSchema(
+      {
+        id,
+        title: name,
+        target_date: { type: 'string' },
+        pinned: { type: 'boolean' },
+        archived: { type: 'boolean' },
+      },
+      ['id'],
+    ),
+  },
+  {
+    name: 'delete_countdown',
+    description: 'Soft-delete a countdown.',
+    scopes: ['countdowns:write'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'archive_countdown',
+    description: 'Archive a countdown and stop its reminders.',
+    scopes: ['countdowns:write'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'unarchive_countdown',
+    description: 'Unarchive a countdown.',
+    scopes: ['countdowns:write'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
     name: 'search',
     description: 'Search tasks, lists and tags.',
     scopes: ['tasks:read'],

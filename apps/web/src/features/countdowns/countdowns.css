@@ -1,0 +1,209 @@
+.countdown-header,
+.countdown-toolbar,
+.countdown-title-select,
+.countdown-card header,
+.countdown-actions,
+.countdown-dialog-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.countdown-header {
+  justify-content: space-between;
+}
+.countdown-title-select h1 {
+  margin: 0;
+}
+.countdown-title-select select {
+  border: 0;
+  color: var(--ink-2);
+  background: transparent;
+}
+.countdown-toolbar > button,
+.countdown-toolbar summary,
+.countdown-actions button,
+.countdown-actions summary {
+  display: grid;
+  place-items: center;
+  min-width: 2rem;
+  min-height: 2rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  color: var(--ink-2);
+  background: transparent;
+  cursor: pointer;
+  list-style: none;
+}
+.countdown-toolbar details,
+.countdown-actions details {
+  position: relative;
+}
+.countdown-toolbar summary {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0 0.65rem;
+  background: var(--accent);
+  color: var(--ink-inverse);
+}
+.countdown-toolbar summary::-webkit-details-marker,
+.countdown-actions summary::-webkit-details-marker {
+  display: none;
+}
+.countdown-menu {
+  position: absolute;
+  z-index: 4;
+  right: 0;
+  min-width: 10rem;
+  padding: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+.countdown-menu button {
+  display: block;
+  width: 100%;
+  padding: 0.45rem 0.65rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  background: transparent;
+  color: var(--ink);
+}
+.countdown-menu button:hover {
+  background: var(--surface-2);
+}
+.countdown-menu .is-danger {
+  color: var(--danger, #b42318);
+}
+.countdown-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+.countdown-group h2 {
+  margin: var(--sp-4) 0 var(--sp-2);
+  font-size: var(--fs-base);
+}
+.countdown-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 11rem;
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.countdown-card[data-color='blue'] {
+  background: #e8f0ff;
+}
+.countdown-card[data-color='teal'] {
+  background: #daf5f1;
+}
+.countdown-card[data-color='green'] {
+  background: #e3f5df;
+}
+.countdown-card[data-color='lime'] {
+  background: #f0f8d8;
+}
+.countdown-card[data-color='orange'] {
+  background: #fff0d6;
+}
+.countdown-card[data-color='red'] {
+  background: #ffebeb;
+}
+.countdown-card[data-color='pink'] {
+  background: #ffe8f0;
+}
+.countdown-card[data-color='purple'] {
+  background: #f1eaff;
+}
+.countdown-card[data-color='navy'] {
+  background: #e5ebf9;
+}
+.countdown-card[data-color='brown'] {
+  background: #f4ebe5;
+}
+.countdown-card[data-color='black'] {
+  background: #2c2c2c;
+  color: #fff;
+}
+.countdown-card[data-color='rainbow'] {
+  background: linear-gradient(135deg, #eaf1ff, #ffedf5, #fff4d9);
+}
+.countdown-card header {
+  justify-content: space-between;
+}
+.countdown-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.countdown-actions {
+  opacity: 0.4;
+}
+.countdown-card:hover .countdown-actions,
+.countdown-actions:focus-within {
+  opacity: 1;
+}
+.countdown-number {
+  display: block;
+  margin: auto 0 0.4rem;
+  text-align: center;
+  color: var(--accent);
+  font-size: clamp(2.25rem, 5vw, 4rem);
+  line-height: 1;
+}
+.countdown-card[data-color='black'] .countdown-number {
+  color: #fff;
+}
+.countdown-card p {
+  margin: 0;
+  text-align: center;
+  color: var(--ink-2);
+  font-size: 0.875rem;
+}
+.countdown-card[data-color='black'] p {
+  color: #e6e6e6;
+}
+.countdown-dialog {
+  display: grid;
+  gap: var(--sp-3);
+}
+.countdown-dialog label,
+.countdown-dialog fieldset {
+  display: grid;
+  gap: 0.35rem;
+}
+.countdown-dialog fieldset {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.countdown-dialog fieldset label {
+  display: flex;
+  align-items: center;
+}
+.countdown-dialog-actions {
+  justify-content: flex-end;
+}
+@media (max-width: 760px) {
+  .countdown-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--sp-2);
+  }
+  .countdown-card {
+    min-height: 9.5rem;
+    padding: var(--sp-2);
+  }
+  .countdown-number {
+    font-size: 2.4rem;
+  }
+  .countdown-title-select {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0;
+  }
+}

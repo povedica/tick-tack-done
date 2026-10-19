@@ -401,6 +401,94 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/countdowns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List countdowns with timezone-calculated days (RF-2431) */
+        get: operations["CountdownsController_list"];
+        put?: never;
+        /** Create a countdown (RF-2401) */
+        post: operations["CountdownsController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/countdowns/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a countdown (RF-2431) */
+        get: operations["CountdownsController_get"];
+        put?: never;
+        post?: never;
+        /** Delete a countdown (RF-2405) */
+        delete: operations["CountdownsController_remove"];
+        options?: never;
+        head?: never;
+        /** Update a countdown (RF-2402) */
+        patch: operations["CountdownsController_update"];
+        trace?: never;
+    };
+    "/api/v1/countdowns/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Archive a countdown (RF-2403) */
+        post: operations["CountdownsController_archive"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/countdowns/{id}/unarchive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Unarchive a countdown (RF-2403) */
+        post: operations["CountdownsController_unarchive"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/countdowns/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore a deleted countdown (RF-2405) */
+        post: operations["CountdownsController_restore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/habits": {
         parameters: {
             query?: never;
@@ -2528,7 +2616,7 @@ export interface components {
         CreateTokenDto: {
             /** @description Agent or script this token belongs to */
             name: string;
-            scopes: ("tasks:read" | "tasks:write" | "lists:read" | "lists:write" | "tags:read" | "tags:write" | "filters:read" | "filters:write" | "habits:read" | "habits:write" | "focus:read" | "focus:write" | "notes:read" | "notes:write" | "calendar:read" | "calendar:write" | "reminders:write" | "webhooks:manage" | "automations:manage" | "profile:read" | "profile:write" | "backup:read")[];
+            scopes: ("tasks:read" | "tasks:write" | "lists:read" | "lists:write" | "tags:read" | "tags:write" | "filters:read" | "filters:write" | "habits:read" | "habits:write" | "countdowns:read" | "countdowns:write" | "focus:read" | "focus:write" | "notes:read" | "notes:write" | "calendar:read" | "calendar:write" | "reminders:write" | "webhooks:manage" | "automations:manage" | "profile:read" | "profile:write" | "backup:read")[];
         };
         TokenCreatedDto: {
             id: string;
@@ -2627,6 +2715,76 @@ export interface components {
             status: "ok";
             /** @example unknown */
             commit: Record<string, never>;
+        };
+        CountdownReminderDto: {
+            offset_days: number;
+            constant?: boolean;
+        };
+        CountdownResponseDto: {
+            id: string;
+            title: string;
+            target_date: string;
+            /** @enum {string} */
+            type: "countdown" | "anniversary" | "birthday" | "holiday";
+            emoji: Record<string, never> | null;
+            /** @enum {string} */
+            repeat_rule: "none" | "daily" | "weekly" | "monthly" | "yearly";
+            /** @enum {string} */
+            day_mode: "standard" | "plus_one";
+            kind: string;
+            days: number;
+            effective_date: string;
+            pinned: boolean;
+            sort_order: string;
+            reminders: components["schemas"]["CountdownReminderDto"][];
+            show_in_sidebar: boolean;
+            show_in_smart_list: boolean;
+            color: Record<string, never> | null;
+            notes: Record<string, never> | null;
+            archived_at: Record<string, never> | null;
+        };
+        CountdownPageDto: {
+            items: components["schemas"]["CountdownResponseDto"][];
+            next_cursor: Record<string, never> | null;
+        };
+        CreateCountdownDto: {
+            title: string;
+            /** @example 2027-01-01 */
+            target_date: string;
+            /** @enum {string} */
+            type?: "countdown" | "anniversary" | "birthday" | "holiday";
+            emoji?: Record<string, never> | null;
+            /** @enum {string|null} */
+            color?: "none" | "blue" | "teal" | "green" | "lime" | "orange" | "red" | "pink" | "purple" | "navy" | "brown" | "black" | "rainbow" | null;
+            /** @enum {string} */
+            repeat_rule?: "none" | "daily" | "weekly" | "monthly" | "yearly";
+            /** @enum {string} */
+            day_mode?: "standard" | "plus_one";
+            reminders?: components["schemas"]["CountdownReminderDto"][];
+            notes?: Record<string, never>;
+            show_in_sidebar?: boolean;
+            show_in_smart_list?: boolean;
+        };
+        UpdateCountdownDto: {
+            title?: string;
+            /** @example 2027-01-01 */
+            target_date?: string;
+            /** @enum {string} */
+            type?: "countdown" | "anniversary" | "birthday" | "holiday";
+            emoji?: Record<string, never> | null;
+            /** @enum {string|null} */
+            color?: "none" | "blue" | "teal" | "green" | "lime" | "orange" | "red" | "pink" | "purple" | "navy" | "brown" | "black" | "rainbow" | null;
+            /** @enum {string} */
+            repeat_rule?: "none" | "daily" | "weekly" | "monthly" | "yearly";
+            /** @enum {string} */
+            day_mode?: "standard" | "plus_one";
+            reminders?: components["schemas"]["CountdownReminderDto"][];
+            notes?: Record<string, never>;
+            show_in_sidebar?: boolean;
+            show_in_smart_list?: boolean;
+            pinned?: boolean;
+            sort_order?: number;
+            style?: Record<string, never> | null;
         };
         HabitGoalDto: {
             times_per_period: number;
@@ -3935,6 +4093,182 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HealthResponseDto"];
                 };
+            };
+        };
+    };
+    CountdownsController_list: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CountdownPageDto"];
+                };
+            };
+        };
+    };
+    CountdownsController_create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCountdownDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CountdownResponseDto"];
+                };
+            };
+        };
+    };
+    CountdownsController_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CountdownsController_remove: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CountdownsController_update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCountdownDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CountdownsController_archive: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CountdownsController_unarchive: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CountdownsController_restore: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

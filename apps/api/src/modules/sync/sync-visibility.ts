@@ -15,6 +15,7 @@ const PREFIX_SCOPE: Readonly<Record<string, string>> = {
   filter: 'filters:read',
   smart_list: 'filters:read',
   habit: 'habits:read',
+  countdown: 'countdowns:read',
   focus: 'focus:read',
   note: 'notes:read',
   sticky_note: 'notes:read',

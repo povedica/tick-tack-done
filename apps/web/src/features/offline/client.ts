@@ -1,5 +1,6 @@
 import { ApiError } from '@reflexionia/sdk';
 import { tasksApi } from '../today/api';
+import { countdownsApi, type CountdownDraft } from '../countdowns/api';
 import { replayQueue, type PendingMutation } from './replay';
 import { offlineStore } from './store';
 
@@ -51,6 +52,12 @@ export async function flushOfflineQueue(): Promise<void> {
     },
     completeTask(id, body, idempotencyKey) {
       return tasksApi.completeTask(id, body, idempotencyKey);
+    },
+    createCountdown(body, idempotencyKey) {
+      return countdownsApi.create(body as unknown as CountdownDraft, idempotencyKey);
+    },
+    updateCountdown(id, body, idempotencyKey) {
+      return countdownsApi.update(id, body, idempotencyKey);
     },
   });
 }

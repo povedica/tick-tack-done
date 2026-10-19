@@ -44,9 +44,25 @@ export {
 } from './recurrence/rule';
 export type { ParsedRule, RepeatDraft, RuleFailure, Weekday } from './recurrence/rule';
 
-export { startOfZonedDay } from './dates/zoned';
+export { instantFromWall, startOfZonedDay } from './dates/zoned';
 export { isOverdue, snoozeDue } from './dates/schedule';
 export type { DateSnoozePreset, ScheduleFailure, SnoozedDates } from './dates/schedule';
+
+export {
+  COUNTDOWN_COLORS,
+  COUNTDOWN_DAY_MODES,
+  COUNTDOWN_REPEATS,
+  COUNTDOWN_TYPES,
+  countdownDaysLabel,
+  nextCountdownOccurrence,
+} from './countdowns/countdowns';
+export type {
+  CountdownCalculationInput,
+  CountdownDaysLabel,
+  CountdownDayMode,
+  CountdownKind,
+  CountdownRepeat,
+} from './countdowns/countdowns';
 
 export {
   ACCOUNT_REMINDER_TRIGGERS,

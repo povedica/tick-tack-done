@@ -3,6 +3,54 @@
   border: 0;
 }
 
+.countdown-today {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+  padding: var(--sp-3);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  border-radius: var(--radius-lg);
+  color: var(--ink);
+  text-decoration: none;
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+
+.countdown-today > span:first-child {
+  font-size: 1.5rem;
+}
+.countdown-today strong,
+.countdown-today small {
+  display: block;
+}
+.countdown-today small {
+  color: var(--ink-2);
+}
+
+.countdown-upcoming {
+  margin-top: var(--sp-5);
+}
+.countdown-upcoming h2 {
+  font-size: var(--fs-base);
+}
+.countdown-upcoming ul {
+  display: grid;
+  gap: var(--sp-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.countdown-upcoming li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  color: var(--ink-2);
+  font-size: 0.875rem;
+}
+.countdown-upcoming a {
+  color: var(--ink);
+  text-decoration: none;
+}
+
 .task-group summary,
 .task-group-label {
   display: flex;
