@@ -56,6 +56,10 @@ services:
       - /var/run
     cap_drop:
       - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
     security_opt:
       - no-new-privileges:true
     mem_limit: 256m
