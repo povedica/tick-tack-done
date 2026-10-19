@@ -150,7 +150,9 @@ export class CountdownsService {
       repeat_rule: row.repeatRule, day_mode: row.dayMode, color: row.color, notes: row.notes,
       show_in_sidebar: row.showInSidebar, show_in_smart_list: row.showInSmartList, pinned: row.pinned,
       sort_order: String(row.sortOrder), archived_at: iso(row.archivedAt), reminders: row.reminders.map((r) => ({ offset_days: r.offsetDays, constant: r.constant })),
-      ...calculation,
+      kind: calculation.kind,
+      days: calculation.days,
+      effective_date: calculation.effectiveDate,
     };
   }
   private today(user: AuthUser): string { return calendarDate(new Date().toISOString(), user.timeZone) ?? dateKey(new Date()); }
@@ -158,7 +160,9 @@ export class CountdownsService {
   private validate(dto: Partial<Pick<CreateCountdownDto, 'target_date' | 'color' | 'reminders'>>): void {
     if (dto.target_date !== undefined && (!/^\d{4}-\d{2}-\d{2}$/.test(dto.target_date) || Number.isNaN(Date.parse(`${dto.target_date}T00:00:00Z`)))) throw new DomainException(HttpStatus.UNPROCESSABLE_ENTITY, 'validation_failed', 'invalid_target_date');
     if (dto.color !== undefined && dto.color !== null && !COUNTDOWN_COLORS.includes(dto.color)) throw new DomainException(HttpStatus.UNPROCESSABLE_ENTITY, 'validation_failed', 'invalid_color');
-    const offsets = (dto.reminders ?? []).map((item) => `${item.offset_days}:${item.constant === true}`);
+    const offsets = (dto.reminders ?? []).map((item) =>
+      `${String(item.offset_days)}:${String(item.constant === true)}`,
+    );
     if (new Set(offsets).size !== offsets.length) throw new DomainException(HttpStatus.UNPROCESSABLE_ENTITY, 'validation_failed', 'duplicate_reminder_offset');
     if ((dto.reminders ?? []).filter((item) => item.constant === true).length > 1) throw new DomainException(HttpStatus.UNPROCESSABLE_ENTITY, 'validation_failed', 'multiple_constant_reminders');
   }

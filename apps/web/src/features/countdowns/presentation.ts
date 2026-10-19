@@ -21,7 +21,9 @@ export function countdownNumber(countdown: Pick<Countdown, 'kind' | 'days'>): st
   return countdown.kind === 'today' ? '¡Hoy!' : String(countdown.days);
 }
 
-export function groupCountdowns(items: readonly Countdown[]): readonly [CountdownType, readonly Countdown[]][] {
+export function groupCountdowns(
+  items: readonly Countdown[],
+): readonly (readonly [CountdownType, readonly Countdown[]])[] {
   return (Object.keys(TYPE_LABEL) as CountdownType[])
     .map((type) => [type, items.filter((item) => item.type === type)] as const)
     .filter(([, entries]) => entries.length > 0);

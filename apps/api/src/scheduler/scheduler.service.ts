@@ -557,7 +557,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     const prefix = input.countdown.emoji === null ? '⏳' : `⏳ ${input.countdown.emoji}`;
     const body = label.kind === 'today'
       ? `${prefix} ${input.countdown.title}: ¡es hoy!`
-      : `${prefix} ${input.countdown.title}: quedan ${label.days} días`;
+      : `${prefix} ${input.countdown.title}: quedan ${String(label.days)} días`;
     const offset = input.reminder.offsetDays ?? 3;
     await this.queue({
       ownerId: input.countdown.ownerId,
@@ -565,7 +565,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       taskId: null,
       countdownId: input.countdown.id,
       countdownReminderId: input.reminder.id,
-      dedupeKey: `countdown:${input.countdown.id}:${input.occurrence}:${input.constantDate ?? offset}`,
+      dedupeKey: `countdown:${input.countdown.id}:${input.occurrence}:${String(input.constantDate ?? offset)}`,
       fireAt,
       channel: 'both',
       kind: 'countdown',

@@ -93,7 +93,7 @@ async function request<T>(method: string, path: string, body?: unknown, idempote
   const response = await fetch(`${options.baseUrl}/api/v1${path}`, {
     method,
     headers,
-    credentials: options.credentials,
+    ...(options.credentials === undefined ? {} : { credentials: options.credentials }),
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   if (response.status === 204) return undefined as T;
@@ -122,8 +122,8 @@ export const countdownsApi = {
   async unarchive(id: string): Promise<Countdown> {
     return fromWire(await request<CountdownWire>('POST', `/countdowns/${id}/unarchive`, undefined, crypto.randomUUID()));
   },
-  remove(id: string) {
-    return request<void>('DELETE', `/countdowns/${id}`);
+  remove(id: string): Promise<undefined> {
+    return request<undefined>('DELETE', `/countdowns/${id}`);
   },
 };
 
@@ -134,7 +134,10 @@ function fromWire(value: CountdownWire): Countdown {
     color: value.color, notes: value.notes, showInSidebar: value.show_in_sidebar,
     showInSmartList: value.show_in_smart_list, pinned: value.pinned, archivedAt: value.archived_at,
     days: value.days, kind: value.kind, effectiveDate: value.effective_date,
-    reminders: value.reminders.map((reminder) => ({ offsetDays: reminder.offset_days, constant: reminder.constant })),
+    reminders: value.reminders.map((reminder) => ({
+      offsetDays: reminder.offset_days,
+      ...(reminder.constant === undefined ? {} : { constant: reminder.constant }),
+    })),
   };
 }
 

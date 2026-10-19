@@ -100,8 +100,8 @@ function assertDate(value: string): void {
 }
 
 function parts(value: string): { year: number; month: number; day: number } {
-  const [year, month, day] = value.split('-').map(Number);
-  return { year: year!, month: month!, day: day! };
+  const [year = Number.NaN, month = Number.NaN, day = Number.NaN] = value.split('-').map(Number);
+  return { year, month, day };
 }
 
 function dateKey(year: number, month: number, day: number): string {
