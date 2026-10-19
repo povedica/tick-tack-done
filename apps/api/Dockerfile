@@ -1,7 +1,8 @@
 # Imagen de la API (NestJS + servidor MCP en el mismo proceso, sección 4)
 FROM node:26-alpine AS deps
 WORKDIR /app
-RUN corepack enable
+# Node 26 no trae corepack. La versión es la de packageManager.
+RUN npm install -g pnpm@9.15.0
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
 COPY apps/api/package.json apps/api/
 COPY apps/api/prisma apps/api/prisma
@@ -19,7 +20,8 @@ WORKDIR /app
 ARG GIT_COMMIT=unknown
 ENV NODE_ENV=production
 ENV GIT_COMMIT=$GIT_COMMIT
-RUN corepack enable
+# Node 26 no trae corepack. La versión es la de packageManager.
+RUN npm install -g pnpm@9.15.0
 COPY --from=build /app ./
 RUN chown -R node:node /app
 USER node

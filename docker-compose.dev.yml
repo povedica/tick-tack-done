@@ -1,5 +1,7 @@
-# Desarrollo local: solo infraestructura. La API y la web corren con pnpm dev (hot reload).
-# Uso: docker compose -f docker-compose.dev.yml up -d
+# Desarrollo local. Postgres, Redis y Mailpit son infraestructura.
+# La API y la web corren en node:26-alpine, la misma imagen que los Dockerfiles
+# y que CI. El Node del Mac solo lanza Compose.
+# Uso: pnpm dev   o   docker compose -f docker-compose.dev.yml up
 services:
   postgres:
     image: postgres:17-alpine
@@ -21,6 +23,11 @@ services:
     image: redis:7-alpine
     ports:
       - '127.0.0.1:6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   # Correo transaccional en desarrollo: Mailpit captura todo el SMTP en http://localhost:8025
   mailpit:
@@ -29,5 +36,55 @@ services:
       - '127.0.0.1:1025:1025'
       - '127.0.0.1:8025:8025'
 
+  node:
+    image: node:26-alpine
+    init: true
+    working_dir: /repo
+    entrypoint: ['/bin/sh', '/repo/scripts/node-entrypoint.sh']
+    command:
+      [
+        'sh',
+        '-c',
+        'pnpm --filter @reflexionia/domain build && pnpm --filter api --filter web --parallel dev',
+      ]
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Dentro de la red de Compose los hostnames son los servicios, no localhost.
+      DATABASE_URL: postgresql://reflexionia:dev@postgres:5432/reflexionia
+      REDIS_URL: redis://redis:6379
+      SMTP_HOST: mailpit
+      DEV_BIND_HOST: 0.0.0.0
+      CHOKIDAR_USEPOLLING: 'true'
+      CHOKIDAR_INTERVAL: '300'
+      WATCHPACK_POLLING: 'true'
+      TSC_WATCHFILE: UsePolling
+      TSC_WATCHDIRECTORY: DynamicPriorityPolling
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
+    ports:
+      - '127.0.0.1:3000:3000'
+      - '127.0.0.1:5173:5173'
+    volumes:
+      - .:/repo
+      # Binarios nativos (argon2) distintos de los del Mac. El almacén de pnpm vive aquí.
+      - dev_node_modules:/repo/node_modules
+      - dev_api_node_modules:/repo/apps/api/node_modules
+      - dev_web_node_modules:/repo/apps/web/node_modules
+      - dev_domain_node_modules:/repo/packages/domain/node_modules
+      - dev_sdk_node_modules:/repo/packages/sdk/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+
 volumes:
   pgdata_dev:
+  dev_node_modules:
+  dev_api_node_modules:
+  dev_web_node_modules:
+  dev_domain_node_modules:
+  dev_sdk_node_modules:

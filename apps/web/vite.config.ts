@@ -83,6 +83,13 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
+      host: process.env.DEV_BIND_HOST || 'localhost',
+      port: 5173,
+      strictPort: true,
+      watch:
+        process.env.CHOKIDAR_USEPOLLING === 'true'
+          ? { usePolling: true, interval: 300 }
+          : undefined,
       proxy: {
         '/api': api,
         '/mcp': api,

@@ -1,7 +1,8 @@
 # Imagen de la PWA: build estático servido por Caddy/NGINX en el puerto 8080
 FROM node:26-alpine AS build
 WORKDIR /app
-RUN corepack enable
+# Node 26 no trae corepack. La versión es la de packageManager.
+RUN npm install -g pnpm@9.15.0
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
 COPY apps/web/package.json apps/web/
 COPY packages/sdk/package.json packages/sdk/
