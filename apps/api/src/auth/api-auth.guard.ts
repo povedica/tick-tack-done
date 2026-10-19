@@ -7,21 +7,21 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request, Response } from 'express';
-import { DomainException } from '../http/domain.exception';
-import { PrismaService } from '../prisma/prisma.service';
-import type { AuthUser } from './auth-user';
-import { missingScopes, SESSION_SCOPES } from './scopes';
-import { PUBLIC_KEY, SCOPES_KEY } from './scopes.decorator';
+import { DomainException } from '../http/domain.exception.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+import type { AuthUser } from './auth-user.js';
+import { missingScopes, SESSION_SCOPES } from './scopes.js';
+import { PUBLIC_KEY, SCOPES_KEY } from './scopes.decorator.js';
 import {
   hashSecret,
   secretsMatch,
   SESSION_COOKIE,
   SESSION_IDLE_MS,
   SESSION_MAX_AGE_MS,
-} from './session-cookie';
-import { TokenAudit } from './token-audit';
-import { applyRateLimitHeaders, TokenRateLimiter } from './token-rate-limit';
-import { hashPersonalAccessToken, parseBearer } from './token-secret';
+} from './session-cookie.js';
+import { TokenAudit } from './token-audit.js';
+import { applyRateLimitHeaders, TokenRateLimiter } from './token-rate-limit.js';
+import { hashPersonalAccessToken, parseBearer } from './token-secret.js';
 
 interface TokenRow {
   readonly id: string;

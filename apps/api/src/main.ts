@@ -1,11 +1,11 @@
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule } from '@nestjs/swagger';
-import { AppModule } from './app.module';
-import { configureApp, createOpenApiDocument } from './configure-app';
-import { loadRootEnv } from './load-env';
-import { PrismaService } from './prisma/prisma.service';
-import { assertRuntimeConfig } from './security/runtime-config';
-import { sealStoredSecrets } from './security/seal-secrets';
+import { AppModule } from './app.module.js';
+import { configureApp, createOpenApiDocument } from './configure-app.js';
+import { loadRootEnv } from './load-env.js';
+import { PrismaService } from './prisma/prisma.service.js';
+import { assertRuntimeConfig } from './security/runtime-config.js';
+import { sealStoredSecrets } from './security/seal-secrets.js';
 
 loadRootEnv();
 

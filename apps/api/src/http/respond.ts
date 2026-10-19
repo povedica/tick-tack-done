@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { matchesEtag, weakEtag } from './cursor';
+import { matchesEtag, weakEtag } from './cursor.js';
 
 export function respondJson(
   req: Request,

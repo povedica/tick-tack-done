@@ -1,14 +1,14 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
-import { actorOf, type AuthUser } from './auth-user';
-import type { DeleteMeDto } from './me.dto';
-import { verifyPassword } from './passwords';
-import { requireBrowserSession } from './session-access';
-import { DomainEvent } from '../events/domain-events';
-import { EventRecorder } from '../events/event-recorder';
-import { DomainException } from '../http/domain.exception';
-import { PrismaService } from '../prisma/prisma.service';
-import { sendSecurityNotice } from '../security/security-mail';
-import { TotpService } from './totp.controller';
+import { actorOf, type AuthUser } from './auth-user.js';
+import type { DeleteMeDto } from './me.dto.js';
+import { verifyPassword } from './passwords.js';
+import { requireBrowserSession } from './session-access.js';
+import { DomainEvent } from '../events/domain-events.js';
+import { EventRecorder } from '../events/event-recorder.js';
+import { DomainException } from '../http/domain.exception.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { sendSecurityNotice } from '../security/security-mail.js';
+import { TotpService } from './totp.controller.js';
 
 @Injectable()
 export class AccountService {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { missingScopes } from './scopes';
+import { missingScopes } from './scopes.js';
 
 describe('scopes', () => {
   it('RF-2002: reports the scopes a token was not granted', () => {

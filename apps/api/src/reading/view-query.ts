@@ -6,12 +6,12 @@ import {
   type TaskGroupBy,
   type TaskSort,
 } from '@reflexionia/domain';
-import { whereFromClause as clauseWhere } from '../filters/where-from-clause';
-import { encodeCursor } from '../http/cursor';
-import type { PrismaService } from '../prisma/prisma.service';
-import type { Tx } from '../prisma/tx';
-import { toViewJson, loadViewTasks, type ViewTask } from './view-tasks';
-import type { ViewPageJson } from './view-page';
+import { whereFromClause as clauseWhere } from '../filters/where-from-clause.js';
+import { encodeCursor } from '../http/cursor.js';
+import type { PrismaService } from '../prisma/prisma.service.js';
+import type { Tx } from '../prisma/tx.js';
+import { toViewJson, loadViewTasks, type ViewTask } from './view-tasks.js';
+import type { ViewPageJson } from './view-page.js';
 
 type Db = PrismaService | Tx;
 

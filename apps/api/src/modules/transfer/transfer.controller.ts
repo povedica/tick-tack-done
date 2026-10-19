@@ -9,17 +9,17 @@ import {
   type CsvExportTask,
   type IcalTask,
 } from '@reflexionia/domain';
-import { actorOf, type AuthUser } from '../../auth/auth-user';
-import { CurrentUser } from '../../auth/current-user.decorator';
-import { Scopes } from '../../auth/scopes.decorator';
-import { DomainEvent } from '../../events/domain-events';
-import { EventRecorder } from '../../events/event-recorder';
-import { asJson } from '../../http/json';
-import { DomainException } from '../../http/domain.exception';
-import { optionalUuid } from '../../http/uuid-query';
-import { respondJson } from '../../http/respond';
+import { actorOf, type AuthUser } from '../../auth/auth-user.js';
+import { CurrentUser } from '../../auth/current-user.decorator.js';
+import { Scopes } from '../../auth/scopes.decorator.js';
+import { DomainEvent } from '../../events/domain-events.js';
+import { EventRecorder } from '../../events/event-recorder.js';
+import { asJson } from '../../http/json.js';
+import { DomainException } from '../../http/domain.exception.js';
+import { optionalUuid } from '../../http/uuid-query.js';
+import { respondJson } from '../../http/respond.js';
 import { HttpStatus } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { PrismaService } from '../../prisma/prisma.service.js';
 
 class CsvImportDto {
   @ApiProperty()

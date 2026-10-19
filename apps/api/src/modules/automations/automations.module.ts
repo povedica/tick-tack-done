@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { AutomationEngine, AutomationsController } from './automations.controller';
+import { AutomationEngine, AutomationsController } from './automations.controller.js';
 
 @Module({
   controllers: [AutomationsController],

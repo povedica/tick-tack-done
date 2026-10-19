@@ -3,12 +3,13 @@ import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaClient } from '@prisma/client';
 import request from 'supertest';
-import type { App } from 'supertest/types';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { AppModule } from '../src/app.module';
-import { configureApp } from '../src/configure-app';
-import { loadRootEnv } from '../src/load-env';
-import { SlidingWindowRateLimit, TokenRateLimiter } from '../src/auth/token-rate-limit';
+import { AppModule } from '../src/app.module.js';
+import { configureApp } from '../src/configure-app.js';
+import { loadRootEnv } from '../src/load-env.js';
+import { SlidingWindowRateLimit, TokenRateLimiter } from '../src/auth/token-rate-limit.js';
+
+type SuperTestApp = Parameters<typeof request>[0];
 
 loadRootEnv();
 process.env.AUTH_MODE = 'dev';
@@ -46,7 +47,7 @@ async function removeOwner(id: string): Promise<void> {
   await prisma.user.delete({ where: { id } });
 }
 
-function dev(server: App, email: string) {
+function dev(server: SuperTestApp, email: string) {
   const header = { 'X-Dev-User-Email': email };
   return {
     get: (url: string) => request(server).get(url).set(header),
@@ -57,7 +58,7 @@ function dev(server: App, email: string) {
 
 describe('personal access tokens', () => {
   let app: INestApplication;
-  let server: App;
+  let server: SuperTestApp;
   let owner: Owner;
   let other: Owner;
 
@@ -69,7 +70,7 @@ describe('personal access tokens', () => {
     app = moduleRef.createNestApplication();
     configureApp(app);
     await app.init();
-    server = app.getHttpServer() as App;
+    server = app.getHttpServer() as SuperTestApp;
   });
 
   afterAll(async () => {
@@ -186,7 +187,7 @@ describe('personal access tokens', () => {
 
 describe('token rate limit', () => {
   let app: INestApplication;
-  let server: App;
+  let server: SuperTestApp;
   let owner: Owner;
 
   beforeAll(async () => {
@@ -200,7 +201,7 @@ describe('token rate limit', () => {
     app = moduleRef.createNestApplication();
     configureApp(app);
     await app.init();
-    server = app.getHttpServer() as App;
+    server = app.getHttpServer() as SuperTestApp;
   });
 
   afterAll(async () => {

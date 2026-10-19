@@ -14,11 +14,11 @@ import {
 import { ApiOkResponse, ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsIn, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 import type { Request, Response } from 'express';
-import type { AuthUser } from '../../auth/auth-user';
-import { CurrentUser } from '../../auth/current-user.decorator';
-import { Public, Scopes } from '../../auth/scopes.decorator';
-import { respondJson } from '../../http/respond';
-import { CalendarService } from './calendar.service';
+import type { AuthUser } from '../../auth/auth-user.js';
+import { CurrentUser } from '../../auth/current-user.decorator.js';
+import { Public, Scopes } from '../../auth/scopes.decorator.js';
+import { respondJson } from '../../http/respond.js';
+import { CalendarService } from './calendar.service.js';
 
 export class SubscribeDto {
   @ApiProperty({ required: false })

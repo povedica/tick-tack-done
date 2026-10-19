@@ -1,16 +1,16 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { parseIcal, tasksToIcal, type IcalTask } from '@reflexionia/domain';
-import { actorOf, type AuthUser } from '../../auth/auth-user';
-import { DomainEvent } from '../../events/domain-events';
-import { EventRecorder } from '../../events/event-recorder';
-import { asJson } from '../../http/json';
-import { DomainException } from '../../http/domain.exception';
-import { openField } from '../../security/field-cipher';
-import { ICAL_MAX_BYTES, safeFetch } from '../../security/safe-fetch';
-import { PrismaService } from '../../prisma/prisma.service';
-import { googleConfigured } from '../../integrations/config';
-import { exchangeGoogleRefreshToken } from '../../integrations/google-token';
+import { actorOf, type AuthUser } from '../../auth/auth-user.js';
+import { DomainEvent } from '../../events/domain-events.js';
+import { EventRecorder } from '../../events/event-recorder.js';
+import { asJson } from '../../http/json.js';
+import { DomainException } from '../../http/domain.exception.js';
+import { openField } from '../../security/field-cipher.js';
+import { ICAL_MAX_BYTES, safeFetch } from '../../security/safe-fetch.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { googleConfigured } from '../../integrations/config.js';
+import { exchangeGoogleRefreshToken } from '../../integrations/google-token.js';
 
 @Injectable()
 export class CalendarService {

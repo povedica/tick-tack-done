@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isSealed, openField, sealField } from './field-cipher';
+import { isSealed, openField, sealField } from './field-cipher.js';
 
 describe('field cipher', () => {
   it('round-trips and hides the plaintext', () => {

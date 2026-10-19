@@ -11,9 +11,9 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { DomainException } from '../http/domain.exception';
-import type { AuthUser } from './auth-user';
-import { CurrentUser } from './current-user.decorator';
+import { DomainException } from '../http/domain.exception.js';
+import type { AuthUser } from './auth-user.js';
+import { CurrentUser } from './current-user.decorator.js';
 import {
   CreateOauthClientDto,
   OauthClientDto,
@@ -22,10 +22,10 @@ import {
   OauthRedirectDto,
   OauthTokenDto,
   OauthTokenResponseDto,
-} from './oauth.dto';
-import { OauthService } from './oauth.service';
-import { Public, Scopes } from './scopes.decorator';
-import { ACCOUNT_ADMIN_SCOPE } from './scopes';
+} from './oauth.dto.js';
+import { OauthService } from './oauth.service.js';
+import { Public, Scopes } from './scopes.decorator.js';
+import { ACCOUNT_ADMIN_SCOPE } from './scopes.js';
 
 @ApiTags('oauth')
 @Controller('oauth')

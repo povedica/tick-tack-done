@@ -1,7 +1,7 @@
 import { Inject, Injectable, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { tombstoneCutoff } from '@reflexionia/domain';
-import { PrismaService } from '../prisma/prisma.service';
-import { BullMqEventBus, busAutostart } from './bullmq-bus';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { BullMqEventBus, busAutostart } from './bullmq-bus.js';
 
 const TICK_MS = 2_000;
 const BATCH = 50;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MCP_TOOLS, visibleTools } from './mcp.catalog';
+import { MCP_TOOLS, visibleTools } from './mcp.catalog.js';
 
 describe('MCP tool catalog', () => {
   it('RF-2001: a tasks token cannot see tools outside its scopes', () => {

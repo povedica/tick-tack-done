@@ -9,16 +9,16 @@ import {
   type FilterClock,
   type SmartListKey,
 } from '@reflexionia/domain';
-import { actorOf, type AuthUser } from '../../auth/auth-user';
-import { DomainEvent } from '../../events/domain-events';
-import { EventRecorder } from '../../events/event-recorder';
-import { decodeCursor } from '../../http/cursor';
-import { DomainException } from '../../http/domain.exception';
-import { PrismaService } from '../../prisma/prisma.service';
-import type { Tx } from '../../prisma/tx';
-import type { ViewPageJson } from '../../reading/view-page';
-import { countViewTasks, pageViewTasks } from '../../reading/view-query';
-import type { SmartListResponseDto, UpdateSmartListsDto } from './filters.dto';
+import { actorOf, type AuthUser } from '../../auth/auth-user.js';
+import { DomainEvent } from '../../events/domain-events.js';
+import { EventRecorder } from '../../events/event-recorder.js';
+import { decodeCursor } from '../../http/cursor.js';
+import { DomainException } from '../../http/domain.exception.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import type { Tx } from '../../prisma/tx.js';
+import type { ViewPageJson } from '../../reading/view-page.js';
+import { countViewTasks, pageViewTasks } from '../../reading/view-query.js';
+import type { SmartListResponseDto, UpdateSmartListsDto } from './filters.dto.js';
 
 const readyOwners = new Set<string>();
 

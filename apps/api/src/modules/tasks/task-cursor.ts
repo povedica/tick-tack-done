@@ -1,7 +1,7 @@
 import { HttpStatus } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { isPriority, type Priority } from '@reflexionia/domain';
-import { DomainException } from '../../http/domain.exception';
+import { DomainException } from '../../http/domain.exception.js';
 
 export type TaskSort = 'manual' | 'priority' | 'due';
 

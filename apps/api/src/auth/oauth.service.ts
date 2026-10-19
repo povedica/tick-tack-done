@@ -1,12 +1,12 @@
 import { randomBytes } from 'node:crypto';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
-import type { AuthUser } from './auth-user';
-import { actorOf } from './auth-user';
-import { DomainEvent } from '../events/domain-events';
-import { EventRecorder } from '../events/event-recorder';
-import { DomainException } from '../http/domain.exception';
-import { asJson } from '../http/json';
-import { PrismaService } from '../prisma/prisma.service';
+import type { AuthUser } from './auth-user.js';
+import { actorOf } from './auth-user.js';
+import { DomainEvent } from '../events/domain-events.js';
+import { EventRecorder } from '../events/event-recorder.js';
+import { DomainException } from '../http/domain.exception.js';
+import { asJson } from '../http/json.js';
+import { PrismaService } from '../prisma/prisma.service.js';
 import type {
   CreateOauthClientDto,
   OauthClientDto,
@@ -15,13 +15,13 @@ import type {
   OauthRedirectDto,
   OauthTokenDto,
   OauthTokenResponseDto,
-} from './oauth.dto';
-import { AttemptLimiter } from './attempt-limiter';
-import { pkceMatches } from './pkce';
-import { isApiScope } from './scopes';
-import { requireBrowserSession } from './session-access';
-import { hashSecret } from './session-cookie';
-import { TokensService } from './tokens.service';
+} from './oauth.dto.js';
+import { AttemptLimiter } from './attempt-limiter.js';
+import { pkceMatches } from './pkce.js';
+import { isApiScope } from './scopes.js';
+import { requireBrowserSession } from './session-access.js';
+import { hashSecret } from './session-cookie.js';
+import { TokensService } from './tokens.service.js';
 
 const CODE_TTL_MS = 10 * 60 * 1000;
 
