@@ -729,10 +729,10 @@ function Agenda({
       {[...groups.entries()].map(([key, items]) => {
         const day = dayFromParam(key) ?? new Date();
         const sorted = [...items].sort((left, right) => {
-          if (left.is_all_day === true && right.is_all_day !== true) {
+          if (left.is_all_day && !right.is_all_day) {
             return -1;
           }
-          if (left.is_all_day !== true && right.is_all_day === true) {
+          if (!left.is_all_day && right.is_all_day) {
             return 1;
           }
           return (left.due_date ?? '').localeCompare(right.due_date ?? '');

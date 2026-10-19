@@ -224,7 +224,7 @@ export function PluginSettings() {
         {items.map((row) => {
           const manifest = manifestOf(row.manifest);
           const enabled = row.enabled === true;
-          const title = manifest?.name || text(row.plugin_id);
+          const title = manifest?.name ?? text(row.plugin_id);
           return (
             <article className="token-row" key={text(row.id)}>
               <div className="token-head">
@@ -643,10 +643,10 @@ function formatStamp(stamp: string, locale: string): string {
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) {
-    return `${bytes} B`;
+    return `${String(bytes)} B`;
   }
   if (bytes < 1024 * 1024) {
-    return `${Math.round(bytes / 1024)} KB`;
+    return `${String(Math.round(bytes / 1024))} KB`;
   }
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
