@@ -10,7 +10,7 @@ import {
   useParams,
   useSearchParams,
 } from 'react-router';
-import { applyQuadrantDrop, DEFAULT_QUADRANT_EFFECTS } from '@reflexionia/domain';
+import { applyQuadrantDrop, calendarDateKey, DEFAULT_QUADRANT_EFFECTS } from '@reflexionia/domain';
 import { api } from '../../api';
 import { useActionToast } from '../../components/action-toast';
 import { Button, EmptyState, ErrorState, SkeletonRows } from '../../components/ui';
@@ -20,6 +20,12 @@ import { usePreferences, type AccentId } from '../../theme/preferences';
 import { failureMessage } from '../../failure';
 import { TotpQr } from '../settings/TotpQr';
 import { InboundEmailCard } from '../settings/InboundEmailCard';
+import {
+  chipStyle,
+  ExternalEventPopover,
+  isExternalEvent,
+  type ExternalEventView,
+} from '../calendar/ExternalEvent';
 import { collectTags } from '../tasks/collect';
 import { quadrantOf, rowFromTask, smartApiKey, type RowModel } from '../tasks/model';
 import { refreshTaskSurfaces } from '../tasks/refresh';
@@ -295,6 +301,19 @@ export function CalendarPage() {
         dueBefore: range.dueBefore,
       }),
   });
+  const externalQuery = useQuery({
+    queryKey: ['calendar-events', range.dueAfter, range.dueBefore],
+    queryFn: () => api.calendarEvents(range.dueAfter, range.dueBefore),
+  });
+  const subscriptions = useQuery({
+    queryKey: ['calendar-subscriptions'],
+    queryFn: () => api.listCalendarSubscriptions(),
+  });
+  const [showTasks, setShowTasks] = useState(true);
+  const [openEvent, setOpenEvent] = useState<ExternalEventView | null>(null);
+  const external = (
+    Array.isArray(externalQuery.data?.external) ? externalQuery.data.external : []
+  ).filter(isExternalEvent);
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
   const colors = useMemo(() => {
     const map = new Map<string, string>();
@@ -305,7 +324,9 @@ export function CalendarPage() {
     }
     return map;
   }, [projects.data]);
-  const dated = (tasks.data ?? []).filter((task) => task.due_date !== null && task.kind === 'task');
+  const dated = showTasks
+    ? (tasks.data ?? []).filter((task) => task.due_date !== null && task.kind === 'task')
+    : [];
   const day = current === 'day' ? (cells[0] ?? localToday(cursor)) : null;
   const title = calendarTitle(locale, current ?? 'month', cursor, cells);
   const move = (delta: number): void => {
@@ -351,6 +372,12 @@ export function CalendarPage() {
           ›
         </Button>
         <p className="cal-title">{title}</p>
+        <CalendarVisibility
+          messages={messages}
+          showTasks={showTasks}
+          onTasks={setShowTasks}
+          subscriptions={subscriptionItems(subscriptions.data)}
+        />
         <div className="cal-views">
           {CAL_VIEWS.map((item) => (
             <Link
@@ -363,11 +390,27 @@ export function CalendarPage() {
           ))}
         </div>
       </header>
-      <CalendarExtras messages={messages} />
+      {subscriptionItems(subscriptions.data).length === 0 && external.length === 0 ? (
+        <p className="ui-muted">
+          <Link to="/settings/calendar">{messages.externalEmptyTitle}</Link>
+        </p>
+      ) : null}
+      {openEvent !== null ? (
+        <ExternalEventPopover
+          event={openEvent}
+          messages={messages}
+          locale={locale}
+          onClose={() => {
+            setOpenEvent(null);
+          }}
+        />
+      ) : null}
       {current === 'quarter' ? (
         <QuarterBoard
           months={quarterMonths(cursor)}
           tasks={dated}
+          events={external}
+          onOpenEvent={setOpenEvent}
           weekStart={weekStart}
           messages={messages}
           onOpen={(month) => {
@@ -427,6 +470,8 @@ export function CalendarPage() {
           days={current === 'month' ? monthCells(startOfMonth(cursor), weekStart) : cells}
           columns={current === 'multi-day' ? 3 : 7}
           tasks={dated}
+          events={external}
+          onOpenEvent={setOpenEvent}
           messages={messages}
           cursor={cursor}
           outsideMonth={current === 'month' || current === 'multi-week'}
@@ -486,6 +531,8 @@ function DayGrid({
   days,
   columns,
   tasks,
+  events = [],
+  onOpenEvent,
   messages,
   cursor,
   outsideMonth,
@@ -493,6 +540,8 @@ function DayGrid({
   readonly days: readonly Date[];
   readonly columns: number;
   readonly tasks: readonly Task[];
+  readonly events?: readonly ExternalEventView[];
+  readonly onOpenEvent?: (event: ExternalEventView) => void;
   readonly messages: Messages;
   readonly cursor: Date;
   readonly outsideMonth: boolean;
@@ -515,11 +564,13 @@ function DayGrid({
       ))}
       {days.map((day) => {
         const items = tasksOnCell(tasks, day);
+        const dayEvents = eventsOnDay(events, day);
+        const chips = mixChips(items, dayEvents);
         const key = localKey(day);
         const weekend = day.getDay() === 0 || day.getDay() === 6;
         const outside = outsideMonth && day.getMonth() !== cursor.getMonth();
         const href = overflowHref(day);
-        const hidden = items.length - 3;
+        const hidden = chips.length - 3;
         const when = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' }).format(day);
         const moreLabel = (hidden === 1 ? messages.moreTask : messages.moreTasks)
           .replace('{count}', String(hidden))
@@ -537,19 +588,34 @@ function DayGrid({
             <strong>
               <Link to={href}>{day.getDate()}</Link>
             </strong>
-            {items.slice(0, 3).map((task) => (
-              <Link
-                key={task.id}
-                className={
-                  isCalendarOverdue(task.due_date, task.time_zone, new Date())
-                    ? 'cal-pill is-overdue'
-                    : 'cal-pill'
-                }
-                to={`/list/${task.project_id}?task=${task.id}`}
-              >
-                {chipLabel(task, messages.untitled)}
-              </Link>
-            ))}
+            {chips.slice(0, 3).map((chip) =>
+              chip.kind === 'task' ? (
+                <Link
+                  key={chip.task.id}
+                  className={
+                    isCalendarOverdue(chip.task.due_date, chip.task.time_zone, new Date())
+                      ? 'cal-pill is-overdue'
+                      : 'cal-pill'
+                  }
+                  to={`/list/${chip.task.project_id}?task=${chip.task.id}`}
+                >
+                  {chipLabel(chip.task, messages.untitled)}
+                </Link>
+              ) : (
+                <button
+                  key={chip.event.id}
+                  type="button"
+                  className="cal-pill"
+                  style={chipStyle(chip.event.color)}
+                  onClick={() => {
+                    onOpenEvent?.(chip.event);
+                  }}
+                >
+                  {chip.event.is_all_day ? '' : `${clockLabel(chip.event.starts_at, locale)} `}
+                  {chip.event.title}
+                </button>
+              ),
+            )}
             {hidden > 0 ? (
               <Link to={href} aria-label={moreLabel}>
                 +{hidden}
@@ -565,12 +631,16 @@ function DayGrid({
 function QuarterBoard({
   months,
   tasks,
+  events,
+  onOpenEvent,
   weekStart,
   messages,
   onOpen,
 }: {
   readonly months: readonly Date[];
   readonly tasks: readonly Task[];
+  readonly events: readonly ExternalEventView[];
+  readonly onOpenEvent: (event: ExternalEventView) => void;
   readonly weekStart: 'monday' | 'sunday';
   readonly messages: Messages;
   readonly onOpen: (month: Date) => void;
@@ -593,6 +663,8 @@ function QuarterBoard({
             days={monthCells(month, weekStart)}
             columns={7}
             tasks={tasks}
+            events={events}
+            onOpenEvent={onOpenEvent}
             messages={messages}
             cursor={month}
             outsideMonth
@@ -774,32 +846,6 @@ function Agenda({
   );
 }
 
-function CalendarExtras({ messages }: { readonly messages: Messages }) {
-  const events = useQuery({
-    queryKey: ['calendar-range'],
-    queryFn: () => {
-      const from = new Date();
-      const to = new Date(from.getTime() + 31 * 24 * 60 * 60 * 1000);
-      return api.calendarEvents(from.toISOString(), to.toISOString());
-    },
-  });
-  const external = Array.isArray(events.data?.external) ? events.data.external : [];
-  return (
-    <>
-      {external.length === 0 ? (
-        <p className="ui-muted">
-          <Link to="/settings/calendar">{messages.externalEmpty}</Link>
-        </p>
-      ) : null}
-      {external.filter(isRecord).map((event) => (
-        <p key={typeof event.id === 'string' ? event.id : 'event'}>
-          {typeof event.title === 'string' ? event.title : ''}
-        </p>
-      ))}
-    </>
-  );
-}
-
 function cardPaint(color: string | undefined): CSSProperties | undefined {
   if (color === undefined || !/^#[0-9a-fA-F]{3,8}$/.test(color)) {
     return undefined;
@@ -814,8 +860,144 @@ function chipLabel(task: Task, untitled: string): string {
   return calendarTaskLabel(task.title, task.due_date, task.time_zone, untitled);
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
+function eventsOnDay(events: readonly ExternalEventView[], day: Date): ExternalEventView[] {
+  const key = localKey(day);
+  return events.filter((event) => {
+    const zone = event.time_zone ?? 'Europe/Madrid';
+    const start = calendarDateKey(event.starts_at, zone);
+    const end = calendarDateKey(event.ends_at ?? event.starts_at, zone);
+    return key >= start && key <= end;
+  });
+}
+
+function mixChips(
+  tasks: readonly Task[],
+  events: readonly ExternalEventView[],
+): (
+  | { kind: 'task'; task: Task; sort: string }
+  | { kind: 'event'; event: ExternalEventView; sort: string }
+)[] {
+  const chips = [
+    ...tasks.map((task) => ({
+      kind: 'task' as const,
+      task,
+      sort: `${task.is_all_day ? '0' : '1'}-${task.due_date ?? ''}`,
+    })),
+    ...events.map((event) => ({
+      kind: 'event' as const,
+      event,
+      sort: `${event.is_all_day ? '0' : '1'}-${event.starts_at}`,
+    })),
+  ];
+  return chips.sort((left, right) => left.sort.localeCompare(right.sort));
+}
+
+function clockLabel(iso: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(
+    new Date(iso),
+  );
+}
+
+function subscriptionItems(
+  value: unknown,
+): { id: string; summary: string | null; color: string | null; visible: boolean }[] {
+  if (typeof value !== 'object' || value === null || !('items' in value)) {
+    return [];
+  }
+  const items = (value as { items?: unknown }).items;
+  if (!Array.isArray(items)) {
+    return [];
+  }
+  return items.flatMap((item) => {
+    if (typeof item !== 'object' || item === null) {
+      return [];
+    }
+    const row = item as {
+      id?: unknown;
+      summary?: unknown;
+      color?: unknown;
+      visible?: unknown;
+      provider?: unknown;
+    };
+    if (typeof row.id !== 'string' || row.provider === 'ical') {
+      return [];
+    }
+    return [
+      {
+        id: row.id,
+        summary: typeof row.summary === 'string' ? row.summary : null,
+        color: typeof row.color === 'string' ? row.color : null,
+        visible: row.visible !== false,
+      },
+    ];
+  });
+}
+
+function CalendarVisibility({
+  messages,
+  showTasks,
+  onTasks,
+  subscriptions,
+}: {
+  readonly messages: Messages;
+  readonly showTasks: boolean;
+  readonly onTasks: (value: boolean) => void;
+  readonly subscriptions: readonly {
+    id: string;
+    summary: string | null;
+    color: string | null;
+    visible: boolean;
+  }[];
+}) {
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="group-popover">
+      <Button
+        type="button"
+        aria-expanded={open}
+        onClick={() => {
+          setOpen((current) => !current);
+        }}
+      >
+        {messages.calendarSource}
+      </Button>
+      {open ? (
+        <div className="menu-card" role="menu">
+          <label>
+            <input
+              type="checkbox"
+              checked={showTasks}
+              onChange={() => {
+                onTasks(!showTasks);
+              }}
+            />
+            {messages.calendarTasks}
+          </label>
+          {subscriptions.map((row) => (
+            <label key={row.id}>
+              <input
+                type="checkbox"
+                checked={row.visible}
+                onChange={() => {
+                  if (!navigator.onLine) {
+                    return;
+                  }
+                  void api
+                    .updateCalendarSubscription(row.id, { visible: !row.visible })
+                    .then(() => {
+                      void queryClient.invalidateQueries({ queryKey: ['calendar-subscriptions'] });
+                      void queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+                    });
+                }}
+              />
+              {row.summary ?? row.id}
+            </label>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function labelView(messages: Messages, view: string): string {
@@ -1345,11 +1527,6 @@ export function SettingsLayout() {
       </div>
     </div>
   );
-}
-
-export function CalendarSettings() {
-  const messages = useMessages();
-  return <GapPage title={messages.settingsCalendar} body={messages.feedEmpty} />;
 }
 
 export function IntegrationSettings() {

@@ -312,6 +312,15 @@ describe('V1 and V2 product', () => {
           : init?.body instanceof URLSearchParams
             ? init.body.toString()
             : '';
+      if (url.includes('tokeninfo')) {
+        refreshUsed.push('tokeninfo');
+        return new Response(
+          JSON.stringify({
+            scope: 'openid email https://www.googleapis.com/auth/calendar',
+          }),
+          { status: 200 },
+        );
+      }
       if (url.includes('oauth2.googleapis.com/token')) {
         refreshUsed.push(body);
         return new Response(JSON.stringify({ access_token: 'access' }), { status: 200 });
@@ -350,10 +359,13 @@ describe('V1 and V2 product', () => {
         .post('/api/v1/calendar/subscriptions')
         .send({ provider: 'google', sync_direction: 'read' })
         .expect(201);
+      expect(read.body.imported).toBe(1);
       const imported = await session()
         .post(`/api/v1/calendar/subscriptions/${read.body.id as string}/refresh`)
         .expect(200);
-      expect(imported.body.imported).toBe(1);
+      expect(
+        (imported.body.imported as number) + (imported.body.updated as number),
+      ).toBeGreaterThan(0);
       const write = await session()
         .post('/api/v1/calendar/subscriptions')
         .send({ provider: 'google', sync_direction: 'two_way' })

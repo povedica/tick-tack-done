@@ -1443,8 +1443,25 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Tasks with a date plus external events (RF-1101, RF-1102) */
+        /** Tasks with a date plus external events (RF-1101, RF-2520) */
         get: operations["CalendarController_events"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/calendar/google/calendars": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Google calendars the account can subscribe to (RF-2501) */
+        get: operations["CalendarController_googleCalendars"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1460,11 +1477,46 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List calendar subscriptions (RF-1103) */
+        /** List calendar subscriptions (RF-1103, RF-2505) */
         get: operations["CalendarController_list"];
         put?: never;
-        /** Subscribe to an iCal URL or Google Calendar read (RF-1103, RF-2004) */
+        /** Subscribe to an iCal URL or a Google calendar (RF-1103, RF-2502) */
         post: operations["CalendarController_subscribe"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/calendar/subscriptions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a calendar subscription */
+        delete: operations["CalendarController_remove"];
+        options?: never;
+        head?: never;
+        /** Rename, recolor or hide a calendar subscription (RF-2503) */
+        patch: operations["CalendarController_update"];
+        trace?: never;
+    };
+    "/api/v1/calendar/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sync every external calendar subscription (RF-2521) */
+        post: operations["CalendarController_syncAll"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1480,7 +1532,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Fetch an iCal subscription (RF-1103) */
+        /** Sync one subscription now (RF-1103, RF-2514) */
         post: operations["CalendarController_refresh"];
         delete?: never;
         options?: never;
@@ -1500,23 +1552,6 @@ export interface paths {
         /** Google Calendar two-way write (V2). Stops without credentials. */
         post: operations["CalendarController_push"];
         delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/calendar/subscriptions/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Remove a calendar subscription */
-        delete: operations["CalendarController_remove"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3367,9 +3402,16 @@ export interface components {
             url?: string;
             /** @enum {string} */
             provider?: "ical" | "google";
+            /** @description Real Google calendar id (RF-2502) */
+            calendar_id?: string;
             color?: string;
             /** @enum {string} */
             sync_direction?: "read" | "two_way";
+        };
+        UpdateSubscriptionDto: {
+            summary?: string;
+            color?: Record<string, never> | null;
+            visible?: boolean;
         };
         FeedDto: {
             project_id?: string;
@@ -6240,6 +6282,23 @@ export interface operations {
             };
         };
     };
+    CalendarController_googleCalendars: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     CalendarController_list: {
         parameters: {
             query?: never;
@@ -6269,6 +6328,65 @@ export interface operations {
                 "application/json": components["schemas"]["SubscribeDto"];
             };
         };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CalendarController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CalendarController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSubscriptionDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CalendarController_syncAll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             201: {
                 headers: {
@@ -6309,25 +6427,6 @@ export interface operations {
         requestBody?: never;
         responses: {
             201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    CalendarController_remove: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
                 headers: {
                     [name: string]: unknown;
                 };

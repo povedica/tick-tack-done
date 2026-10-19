@@ -604,9 +604,19 @@ model CalendarSubscription {
   owner         User                  @relation(fields: [ownerId], references: [id], onDelete: Restrict)
   url           String?
   provider      String?
+  /// Real Google calendar id (RF-2502). Null for iCal and for the legacy two-way push row.
+  calendarId    String?               @map("calendar_id")
+  summary       String?
+  visible       Boolean               @default(true)
   syncDirection CalendarSyncDirection @default(read) @map("sync_direction")
   color         String?
+  /// Incremental sync cursor (RF-2510). Not a credential.
+  syncToken     String?               @map("sync_token")
   lastSyncedAt  DateTime?             @map("last_synced_at") @db.Timestamptz(6)
+  lastError     String?               @map("last_error")
+  /// Consecutive sync failures. After 3, retryAfter holds the one-hour backoff (RF-2513).
+  syncFailures  Int                   @default(0) @map("sync_failures")
+  retryAfter    DateTime?             @map("retry_after") @db.Timestamptz(6)
   createdAt     DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt     DateTime?             @map("deleted_at") @db.Timestamptz(6)
@@ -628,6 +638,7 @@ model ExternalEvent {
   endsAt         DateTime?            @map("ends_at") @db.Timestamptz(6)
   isAllDay       Boolean              @default(false) @map("is_all_day")
   timeZone       String               @default("Europe/Madrid") @map("time_zone")
+  status         String               @default("confirmed")
   raw            Json                 @default("{}")
   createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)

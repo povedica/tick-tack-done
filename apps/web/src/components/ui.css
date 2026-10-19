@@ -494,6 +494,34 @@
   color: var(--danger);
 }
 
+.cal-dot {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  margin-right: 0.35rem;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: middle;
+}
+
+.external-popover,
+.today-agenda {
+  margin: var(--sp-3) 0;
+}
+
+.today-agenda-row {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+  width: 100%;
+  padding: var(--sp-1) 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
 .year-grid,
 .year-board {
   display: grid;

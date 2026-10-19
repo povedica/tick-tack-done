@@ -271,7 +271,7 @@ Note reusa `Task` con `kind='note'` (listas de tipo NOTE). StickyNote (nota adhe
 
 ### 5.12 CalendarSubscription y ExternalEvent
 
-CalendarSubscription: `id`, `url` (iCal) o `provider` (`google`), `sync_direction` (`read` | `two_way` V2), `color`, `last_synced_at`. ExternalEvent: eventos importados de solo lectura que se muestran junto a las tareas en las vistas de calendario.
+CalendarSubscription: `id`, `url` (iCal) o `provider` (`google`), `calendar_id`, `summary`, `visible`, `sync_direction` (`read` | `two_way`), `color`, `sync_token`, `last_synced_at`, `last_error`, `sync_failures`, `retry_after`. ExternalEvent: eventos importados de solo lectura (`status`, `time_zone`, `raw`) que se muestran junto a las tareas. Los disparadores `calendar.synced` y `calendar.sync_failed` pueden usarse en automatizaciones sin trabajo extra.
 
 ### 5.13 Attachment
 
@@ -451,7 +451,7 @@ La captura sin fricción es prioritaria: atajo global, widget, voz, email, NLP:
 
 - RF-1101: Vistas: día, semana, multi-día, multi-semana, mes, año y agenda. El conjunto es día, semana, multi-día, multi-semana, mes, año y agenda.
 - RF-1102: Las tareas con fecha aparecen en el calendario (all-day arriba, con hora en su franja); drag & drop re-planifica; clic crea tarea con fecha.
-- RF-1103: Suscripción a calendarios externos por URL iCal (solo lectura) y cuenta de Google Calendar (lectura; escritura en V2). Los eventos externos se muestran con su color y no son editables.
+- RF-1103: Suscripción a calendarios externos por URL iCal (solo lectura) y cuenta de Google Calendar. El usuario elige qué calendarios de Google sincronizar (solo lectura, color y visibilidad por calendario). La sincronización es inicial e incremental (`syncToken`), manual y cada 15 minutos. Detalle en `docs/spec/cursor-prompt-google-calendar-sync-v1.0-cd26f95f.md` (RF-2501–RF-2552). La escritura two-way de tareas sigue siendo RF-2004 y no edita los eventos externos.
 - RF-1104: Feed iCal propio por lista/filtro: URL secreta regenerable para ver tareas en Google Calendar/Apple Calendar (El feed es parte del producto, sin un plan de pago aparte.)
 - RF-1105: Los recordatorios de tareas siguen siendo los del módulo 9.8 aunque la tarea se mueva en calendario.
 
@@ -688,6 +688,7 @@ focus.session_started focus.session_finished focus.session_aborted
 reminder.fired
 note.created note.updated
 calendar.event_imported calendar.subscribed calendar.feed_rotated
+calendar.subscription_created calendar.subscription_updated calendar.subscription_deleted calendar.synced calendar.subscription_resynced calendar.sync_failed
 automation.executed
 matrix.updated dashboard.updated report.generated
 sticky_note.created sticky_note.updated sticky_note.deleted

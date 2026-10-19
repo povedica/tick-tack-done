@@ -210,6 +210,12 @@ export { moveTimelineBlock, resizeTimelineBlock, slotTask, timelineRange } from 
 export type { MovedBlock, TimelineBlock, TimelineRange, TimelineZoom } from './views/timeline';
 export { parseIcal, tasksToIcal } from './calendar/ical';
 export type { IcalEvent, IcalTask } from './calendar/ical';
+export { mapGoogleEvent } from './calendar/google-events';
+export type {
+  GoogleEventSource,
+  GoogleEventStatus,
+  MappedGoogleEvent,
+} from './calendar/google-events';
 export { mapCsv, parseCsv, tasksToCsv } from './transfer/csv';
 export type {
   CsvColumnMap,

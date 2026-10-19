@@ -22,6 +22,8 @@ import { DomainEvent } from '../events/domain-events.js';
 import { EventRecorder } from '../events/event-recorder.js';
 import { asJson } from '../http/json.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { CalendarService } from '../modules/calendar/calendar.service.js';
+import { GoogleSyncService } from '../modules/calendar/google-sync.service.js';
 import type { Tx } from '../prisma/tx.js';
 import { ReminderTransport } from './reminder.transport.js';
 
@@ -47,6 +49,8 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
     @Inject(ReminderTransport) private readonly transport: ReminderTransport,
+    @Inject(GoogleSyncService) private readonly googleSync: GoogleSyncService,
+    @Inject(CalendarService) private readonly calendars: CalendarService,
   ) {}
 
   onModuleInit(): void {
@@ -78,8 +82,23 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     await this.enqueueCountdownReminders(now, catchUp);
     await this.recordHabitStreakBreaks(now);
     await this.enqueueSignals(now);
+    await this.syncCalendars(now, catchUp);
     const fired = await this.fire(now, catchUp);
     return { materialized, fired: fired.fired, late: fired.late };
+  }
+
+  /** RF-2513. Isolated from reminder delivery: a calendar failure must not stop the tick. */
+  private async syncCalendars(now: Date, catchUp: boolean): Promise<void> {
+    try {
+      await this.googleSync.syncDue(now, catchUp);
+    } catch {
+      // syncDue isolates each subscription; this only guards a listing failure.
+    }
+    try {
+      await this.calendars.syncIcalDue(now, catchUp);
+    } catch {
+      // iCal rows record their own last_error.
+    }
   }
 
   private async advanceCompleted(): Promise<number> {

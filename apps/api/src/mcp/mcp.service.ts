@@ -16,6 +16,7 @@ import { ListsService } from '../modules/lists/lists.service.js';
 import { SearchService } from '../modules/search/search.service.js';
 import { TagsService } from '../modules/tags/tags.service.js';
 import { TasksService } from '../modules/tasks/tasks.service.js';
+import { CalendarService } from '../modules/calendar/calendar.service.js';
 import { findTool, visibleTools } from './mcp.catalog.js';
 
 const PROTOCOL = '2025-03-26';
@@ -46,6 +47,7 @@ export class McpService {
     @Inject(SmartListsService) private readonly smartLists: SmartListsService,
     @Inject(HabitsService) private readonly habits: HabitsService,
     @Inject(CountdownsService) private readonly countdowns: CountdownsService,
+    @Inject(CalendarService) private readonly calendars: CalendarService,
     @Inject(SearchService) private readonly search: SearchService,
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
@@ -372,6 +374,67 @@ export class McpService {
           { now, timeZone: user.timeZone },
         );
       }
+      case 'list_external_calendars': {
+        const subscriptions = await this.calendars.listSubscriptions(user);
+        if (args.include_available !== true) {
+          return subscriptions;
+        }
+        const available = await this.calendars.listGoogleCalendars(user);
+        return { ...subscriptions, available };
+      }
+      case 'list_calendar_events': {
+        const page = await this.calendars.range(
+          user,
+          requiredString(args, 'from', 40),
+          requiredString(args, 'to', 40),
+          typeof args.subscription_id === 'string' ? args.subscription_id : undefined,
+        );
+        if (args.include_external === false) {
+          return { ...page, external: [] };
+        }
+        return page;
+      }
+      case 'add_external_calendar': {
+        const provider = requiredString(args, 'provider', 16);
+        if (provider === 'google') {
+          return (
+            await this.calendars.subscribeGoogle(
+              user,
+              {
+                ...(typeof args.calendar_id === 'string' ? { calendar_id: args.calendar_id } : {}),
+                ...(typeof args.color === 'string' ? { color: args.color } : {}),
+              },
+              undefined,
+            )
+          ).body;
+        }
+        return this.calendars.subscribe(user, {
+          provider: 'ical',
+          url: requiredString(args, 'url', 2000),
+          ...(typeof args.color === 'string' ? { color: args.color } : {}),
+        });
+      }
+      case 'sync_calendar':
+        if (typeof args.subscription_id === 'string') {
+          return this.calendars.refresh(user, requiredUuid(args, 'subscription_id'));
+        }
+        return this.calendars.syncAll(user);
+      case 'update_external_calendar':
+        return (
+          await this.calendars.updateSubscription(
+            user,
+            requiredUuid(args, 'id'),
+            {
+              ...(typeof args.summary === 'string' ? { summary: args.summary } : {}),
+              ...(typeof args.color === 'string' ? { color: args.color } : {}),
+              ...(typeof args.visible === 'boolean' ? { visible: args.visible } : {}),
+            },
+            undefined,
+          )
+        ).body;
+      case 'remove_external_calendar':
+        await this.calendars.removeSubscription(user, requiredUuid(args, 'id'));
+        return { deleted: true };
       default:
         throw new DomainException(HttpStatus.BAD_REQUEST, 'unknown_tool', 'Unknown tool');
     }

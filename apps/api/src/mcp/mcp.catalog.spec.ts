@@ -40,4 +40,18 @@ describe('MCP tool catalog', () => {
     expect(names).not.toContain('create_task');
     expect(names).not.toContain('complete_task');
   });
+
+  it('RF-2532: calendar tools follow calendar scopes', () => {
+    const read = visibleTools(['calendar:read']).map((tool) => tool.name);
+    expect(read).toEqual(
+      expect.arrayContaining(['list_external_calendars', 'list_calendar_events']),
+    );
+    expect(read).not.toContain('sync_calendar');
+    expect(read).not.toContain('add_external_calendar');
+    const write = visibleTools(['calendar:write']).map((tool) => tool.name);
+    expect(write).toContain('sync_calendar');
+    expect(write).not.toContain('list_calendar_events');
+    const tasks = visibleTools(['tasks:read']).map((tool) => tool.name);
+    expect(tasks).not.toContain('list_external_calendars');
+  });
 });

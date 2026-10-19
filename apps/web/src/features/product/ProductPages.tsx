@@ -6,6 +6,7 @@ import { countdownNumber } from '../countdowns/presentation';
 import { api } from '../../api';
 import { Button, EmptyState } from '../../components/ui';
 import { InboundEmailCard } from '../settings/InboundEmailCard';
+import { GoogleCalendarsCard } from '../settings/GoogleCalendarsCard';
 import { useMessages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
 
@@ -386,6 +387,7 @@ export function CalendarSettings() {
           <p className="lede">{messages.calendarLede}</p>
         </div>
       </header>
+      <GoogleCalendarsCard />
       <section className="token-panel">
         <div className="token-panel-head">
           <div>

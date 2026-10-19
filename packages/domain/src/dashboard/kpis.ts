@@ -152,10 +152,15 @@ export function weeklyNarrative(
   snapshot: DashboardSnapshot,
   tone: ReportTone,
   focusMinutes: number | null,
+  upcomingExternal: number | null = null,
 ): WeeklyNarrative {
   const weak = snapshot.completed < snapshot.created || snapshot.overdue > snapshot.completed;
   const focus = focusMinutes === null ? '' : ` Tiempo de foco: ${String(focusMinutes)} minutos.`;
-  const facts = `Completadas ${String(snapshot.completed)} de ${String(snapshot.created)} creadas. Vencidas arrastradas: ${String(snapshot.overdue)}. Hábitos de hoy: ${String(snapshot.habit_percent)} %. Tendencia frente a la semana anterior: ${String(snapshot.trend)}.${focus}`;
+  const external =
+    upcomingExternal === null
+      ? ''
+      : ` Eventos externos en los próximos 7 días: ${String(upcomingExternal)}.`;
+  const facts = `Completadas ${String(snapshot.completed)} de ${String(snapshot.created)} creadas. Vencidas arrastradas: ${String(snapshot.overdue)}. Hábitos de hoy: ${String(snapshot.habit_percent)} %. Tendencia frente a la semana anterior: ${String(snapshot.trend)}.${focus}${external}`;
   const observations = observationsFor(snapshot, weak);
   if (tone === 'motivador') {
     return {
