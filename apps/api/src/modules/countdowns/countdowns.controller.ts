@@ -46,12 +46,10 @@ export class CountdownsController {
   ): Promise<void> {
     const dueWithinDays = dueRaw === undefined ? undefined : Number(dueRaw);
     if (dueWithinDays !== undefined && (!Number.isInteger(dueWithinDays) || dueWithinDays < 0)) {
-      res
-        .status(422)
-        .json({
-          code: 'validation_failed',
-          message: 'dueWithinDays must be a non-negative integer',
-        });
+      res.status(422).json({
+        code: 'validation_failed',
+        message: 'dueWithinDays must be a non-negative integer',
+      });
       return;
     }
     respondJson(

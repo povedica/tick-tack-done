@@ -46,16 +46,17 @@ Observado en vivo en la cuenta del propietario (solo lectura, sin crear ni modif
 **Menú +** (crear): cuatro tipos — **Countdown, Anniversary, Birthday, Holiday**.
 
 **Diálogo de creación/edición**:
+
 - Selector de emoji/icono (a la izquierda del nombre).
 - `Name`.
 - `Date` (mes/día/año).
-- `Reminder`: multiselección — *On the day (09:00)*, *1 day early (09:00)*, *2 days early (09:00)*, *3 days early (09:00)*, *1 week early (09:00)*, *Custom*; más interruptor **Constant Reminder**.
-- `Repeat`: *None, Daily, Weekly (día), Monthly (día), Yearly (fecha), Custom*.
+- `Reminder`: multiselección — _On the day (09:00)_, _1 day early (09:00)_, _2 days early (09:00)_, _3 days early (09:00)_, _1 week early (09:00)_, _Custom_; más interruptor **Constant Reminder**.
+- `Repeat`: _None, Daily, Weekly (día), Monthly (día), Yearly (fecha), Custom_.
 - `Type`: los cuatro tipos anteriores.
-- `Day Calculation Mode`: *Standard* («Day 1 starts the day after selected date») y *Standard +1 day* («Day 1 starts on selected date»).
-- `Show`: *Show on the day in the Smart List*.
+- `Day Calculation Mode`: _Standard_ («Day 1 starts the day after selected date») y _Standard +1 day_ («Day 1 starts on selected date»).
+- `Show`: _Show on the day in the Smart List_.
 
-**Menú contextual de tarjeta**: *Edit, Style, Notes, Archive, Delete*. El diálogo **Style** muestra una vista previa, una fila de plantillas de tarjeta (varias premium) y una paleta de ~13 colores (incluye "sin color" y multicolor).
+**Menú contextual de tarjeta**: _Edit, Style, Notes, Archive, Delete_. El diálogo **Style** muestra una vista previa, una fila de plantillas de tarjeta (varias premium) y una paleta de ~13 colores (incluye "sin color" y multicolor).
 
 El propietario usa hoy 6 countdowns reales en TickTick, tanto futuros ("Days until") como pasados ("Days since"), con emojis y estilos de color distintos.
 
@@ -211,6 +212,7 @@ model CountdownReminder {
 ```
 
 Notas de implementación:
+
 - `targetDate` sigue siendo `@db.Date` (sin hora) — la hora de disparo la calcula el scheduler (09:00 local).
 - Reutilizar `ReminderDelivery` para registrar entregas si el modelo lo permite con una referencia genérica; si está acoplado a `Reminder` de tareas, crear `CountdownReminderDelivery` análogo (decisión del implementador, documentarla en el PR).
 - `onDelete: Restrict` del owner se mantiene; el borrado de cuenta ya hace `deleteMany` en `account.service.ts` — añadir también `countdownReminder.deleteMany` en la misma transacción.
@@ -220,6 +222,7 @@ Notas de implementación:
 ## 5. Arquitectura y puntos de extensión (mapa de archivos)
 
 Nuevos:
+
 - `apps/api/src/modules/countdowns/countdowns.module.ts`
 - `apps/api/src/modules/countdowns/countdowns.controller.ts`
 - `apps/api/src/modules/countdowns/countdowns.service.ts`
@@ -229,6 +232,7 @@ Nuevos:
 - `apps/web/e2e/countdowns.spec.ts`
 
 A tocar:
+
 - `apps/api/prisma/schema.prisma` + migración nueva.
 - `apps/api/src/auth/scopes.ts` (scopes nuevos) y su spec.
 - `apps/api/src/mcp/mcp.catalog.ts` y dispatch (7 herramientas).
