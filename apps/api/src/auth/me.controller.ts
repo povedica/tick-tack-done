@@ -12,9 +12,9 @@ import {
 } from '@nestjs/common';
 import { ApiHeader, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
-import { AccountService } from './account.service';
-import { CurrentUser } from './current-user.decorator';
-import type { AuthUser } from './auth-user';
+import { AccountService } from './account.service.js';
+import { CurrentUser } from './current-user.decorator.js';
+import type { AuthUser } from './auth-user.js';
 import {
   DeleteMeDto,
   InboundEmailAddressDto,
@@ -22,10 +22,10 @@ import {
   MeResponseDto,
   PushSubscriptionDto,
   UpdateMeDto,
-} from './me.dto';
-import { MeService } from './me.service';
-import { ACCOUNT_ADMIN_SCOPE } from './scopes';
-import { Scopes } from './scopes.decorator';
+} from './me.dto.js';
+import { MeService } from './me.service.js';
+import { ACCOUNT_ADMIN_SCOPE } from './scopes.js';
+import { Scopes } from './scopes.decorator.js';
 
 @ApiTags('me')
 @ApiHeader({ name: 'X-Dev-User-Email', required: false })

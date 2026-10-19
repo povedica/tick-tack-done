@@ -1,7 +1,7 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { HttpStatus, Injectable } from '@nestjs/common';
-import { DomainException } from '../../http/domain.exception';
+import { DomainException } from '../../http/domain.exception.js';
 
 const STAMP = /^\d{8}T\d{6}Z$/;
 

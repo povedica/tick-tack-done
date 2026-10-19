@@ -1,10 +1,10 @@
 import { Body, Controller, Get, HttpCode, Inject, Post } from '@nestjs/common';
 import { ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsString, MaxLength, MinLength } from 'class-validator';
-import type { AuthUser } from '../../auth/auth-user';
-import { CurrentUser } from '../../auth/current-user.decorator';
-import { Scopes } from '../../auth/scopes.decorator';
-import { BackupsService } from './backups.service';
+import type { AuthUser } from '../../auth/auth-user.js';
+import { CurrentUser } from '../../auth/current-user.decorator.js';
+import { Scopes } from '../../auth/scopes.decorator.js';
+import { BackupsService } from './backups.service.js';
 
 export class RestoreBackupDto {
   @ApiProperty()

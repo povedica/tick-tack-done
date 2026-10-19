@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { HttpStatus } from '@nestjs/common';
-import { DomainException } from '../../http/domain.exception';
+import { DomainException } from '../../http/domain.exception.js';
 
 export const ATTACHMENT_MAX_BYTES = 25 * 1024 * 1024;
 export const ATTACHMENT_USER_QUOTA_BYTES = 2 * 1024 * 1024 * 1024;

@@ -2,11 +2,11 @@ import { Controller, Get, Inject, Req, Res } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { proposeDaily, proposeWeekly, type ReviewCandidate } from '@reflexionia/domain';
-import type { AuthUser } from '../../auth/auth-user';
-import { CurrentUser } from '../../auth/current-user.decorator';
-import { Scopes } from '../../auth/scopes.decorator';
-import { respondJson } from '../../http/respond';
-import { PrismaService } from '../../prisma/prisma.service';
+import type { AuthUser } from '../../auth/auth-user.js';
+import { CurrentUser } from '../../auth/current-user.decorator.js';
+import { Scopes } from '../../auth/scopes.decorator.js';
+import { respondJson } from '../../http/respond.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
 
 @ApiTags('review')
 @Controller('review')

@@ -8,15 +8,15 @@ import {
   MATRIX_QUADRANTS,
   type MatrixQuadrant,
 } from '@reflexionia/domain';
-import { actorOf, type AuthUser } from '../../auth/auth-user';
-import { CurrentUser } from '../../auth/current-user.decorator';
-import { Scopes } from '../../auth/scopes.decorator';
-import { DomainEvent } from '../../events/domain-events';
-import { EventRecorder } from '../../events/event-recorder';
-import { asJson } from '../../http/json';
-import { DomainException } from '../../http/domain.exception';
-import { respondJson } from '../../http/respond';
-import { PrismaService } from '../../prisma/prisma.service';
+import { actorOf, type AuthUser } from '../../auth/auth-user.js';
+import { CurrentUser } from '../../auth/current-user.decorator.js';
+import { Scopes } from '../../auth/scopes.decorator.js';
+import { DomainEvent } from '../../events/domain-events.js';
+import { EventRecorder } from '../../events/event-recorder.js';
+import { asJson } from '../../http/json.js';
+import { DomainException } from '../../http/domain.exception.js';
+import { respondJson } from '../../http/respond.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
 
 class MatrixRuleDto {
   @ApiProperty({ enum: MATRIX_QUADRANTS })

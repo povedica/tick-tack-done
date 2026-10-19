@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
-import { FiltersController } from './filters.controller';
-import { FiltersService } from './filters.service';
-import { SmartListsController } from './smart-lists.controller';
-import { SmartListsService } from './smart-lists.service';
+import { FiltersController } from './filters.controller.js';
+import { FiltersService } from './filters.service.js';
+import { SmartListsController } from './smart-lists.controller.js';
+import { SmartListsService } from './smart-lists.service.js';
 
 @Module({
   controllers: [FiltersController, SmartListsController],

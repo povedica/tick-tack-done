@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { ReminderTransport } from './reminder.transport';
-import { SchedulerService } from './scheduler.service';
+import { ReminderTransport } from './reminder.transport.js';
+import { SchedulerService } from './scheduler.service.js';
 
 @Module({
   providers: [SchedulerService, ReminderTransport],

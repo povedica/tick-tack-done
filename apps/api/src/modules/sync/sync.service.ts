@@ -1,9 +1,9 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { isTombstoneType, syncLimit, tombstoneCutoff } from '@reflexionia/domain';
-import type { AuthUser } from '../../auth/auth-user';
-import { patEventPrefixes } from './sync-visibility';
-import { DomainException } from '../../http/domain.exception';
-import { PrismaService } from '../../prisma/prisma.service';
+import type { AuthUser } from '../../auth/auth-user.js';
+import { patEventPrefixes } from './sync-visibility.js';
+import { DomainException } from '../../http/domain.exception.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
 
 export interface SyncChange {
   readonly event_id: string;

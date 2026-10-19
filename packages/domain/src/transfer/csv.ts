@@ -1,4 +1,4 @@
-import { isPriority, priorityFromTickTick, type TickTickPriority } from '../priority/priority';
+import { isPriority, priorityFromTickTick } from '../priority/priority';
 import type { Priority } from '../types';
 
 /** RF-1702. Generic CSV with an explicit column map. */
@@ -178,7 +178,7 @@ function readPriority(value: string): Priority {
     return spanish;
   }
   if (key === '0' || key === '1' || key === '3' || key === '5') {
-    return priorityFromTickTick(Number(key) as TickTickPriority);
+    return priorityFromTickTick(Number(key));
   }
   return 'none';
 }

@@ -37,7 +37,7 @@ function requireEnv(name: string): string {
 }
 
 function loadRootEnv(): void {
-  const envPath = path.resolve(__dirname, '../../../.env');
+  const envPath = path.resolve(import.meta.dirname, '../../../.env');
   if (existsSync(envPath)) {
     loadEnvFile(envPath);
   }

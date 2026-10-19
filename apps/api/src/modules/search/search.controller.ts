@@ -1,12 +1,12 @@
 import { Controller, Get, Inject, Query, Req, Res } from '@nestjs/common';
 import { ApiHeader, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
-import type { AuthUser } from '../../auth/auth-user';
-import { CurrentUser } from '../../auth/current-user.decorator';
-import { Scopes } from '../../auth/scopes.decorator';
-import { respondJson } from '../../http/respond';
-import { SearchResponseDto } from './search.dto';
-import { SearchService } from './search.service';
+import type { AuthUser } from '../../auth/auth-user.js';
+import { CurrentUser } from '../../auth/current-user.decorator.js';
+import { Scopes } from '../../auth/scopes.decorator.js';
+import { respondJson } from '../../http/respond.js';
+import { SearchResponseDto } from './search.dto.js';
+import { SearchService } from './search.service.js';
 
 @ApiTags('search')
 @ApiHeader({ name: 'X-Dev-User-Email', required: false })

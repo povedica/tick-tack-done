@@ -1,5 +1,5 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
-import { DomainException } from '../../http/domain.exception';
+import { DomainException } from '../../http/domain.exception.js';
 
 @Injectable()
 export class TelegramApi {

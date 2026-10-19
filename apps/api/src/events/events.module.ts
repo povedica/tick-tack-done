@@ -1,8 +1,8 @@
 import { Global, Module } from '@nestjs/common';
-import { BullMqEventBus } from './bullmq-bus';
-import { EventRecorder } from './event-recorder';
-import { EventRouter } from './event-router';
-import { OutboxPublisher } from './outbox-publisher';
+import { BullMqEventBus } from './bullmq-bus.js';
+import { EventRecorder } from './event-recorder.js';
+import { EventRouter } from './event-router.js';
+import { OutboxPublisher } from './outbox-publisher.js';
 
 @Global()
 @Module({

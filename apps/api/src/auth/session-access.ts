@@ -1,6 +1,6 @@
 import { HttpStatus } from '@nestjs/common';
-import type { AuthUser } from './auth-user';
-import { DomainException } from '../http/domain.exception';
+import type { AuthUser } from './auth-user.js';
+import { DomainException } from '../http/domain.exception.js';
 
 /** Token administration and account deletion are browser-session actions (S-15, S-16). */
 export function requireBrowserSession(user: AuthUser): void {

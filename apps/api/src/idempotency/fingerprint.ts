@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { HttpStatus } from '@nestjs/common';
-import { DomainException } from '../http/domain.exception';
+import { DomainException } from '../http/domain.exception.js';
 
 export function requestFingerprint(method: string, path: string, body: unknown): string {
   return createHash('sha256')

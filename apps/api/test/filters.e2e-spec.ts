@@ -3,11 +3,12 @@ import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaClient } from '@prisma/client';
 import request from 'supertest';
-import type { App } from 'supertest/types';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { AppModule } from '../src/app.module';
-import { configureApp } from '../src/configure-app';
-import { loadRootEnv } from '../src/load-env';
+import { AppModule } from '../src/app.module.js';
+import { configureApp } from '../src/configure-app.js';
+import { loadRootEnv } from '../src/load-env.js';
+
+type SuperTestApp = Parameters<typeof request>[0];
 
 loadRootEnv();
 process.env.AUTH_MODE = 'dev';
@@ -55,7 +56,7 @@ async function removeOwner(id: string): Promise<void> {
 
 describe('filters, smart lists and search', () => {
   let app: INestApplication;
-  let server: App;
+  let server: SuperTestApp;
   let owner: Owner;
   let other: Owner;
 
@@ -67,7 +68,7 @@ describe('filters, smart lists and search', () => {
     app = moduleRef.createNestApplication();
     configureApp(app);
     await app.init();
-    server = app.getHttpServer() as App;
+    server = app.getHttpServer() as SuperTestApp;
   });
 
   afterAll(async () => {

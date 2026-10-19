@@ -1,22 +1,22 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { actorOf, type AuthUser } from './auth-user';
-import { DomainEvent } from '../events/domain-events';
-import { EventRecorder } from '../events/event-recorder';
-import { pageLimit } from '../http/cursor';
-import { DomainException } from '../http/domain.exception';
-import { asJson } from '../http/json';
-import { PrismaService } from '../prisma/prisma.service';
+import { actorOf, type AuthUser } from './auth-user.js';
+import { DomainEvent } from '../events/domain-events.js';
+import { EventRecorder } from '../events/event-recorder.js';
+import { pageLimit } from '../http/cursor.js';
+import { DomainException } from '../http/domain.exception.js';
+import { asJson } from '../http/json.js';
+import { PrismaService } from '../prisma/prisma.service.js';
 import type {
   ActivityEntryDto,
   ActivityPageDto,
   TokenCreatedDto,
   TokenDto,
   TokenPageDto,
-} from './tokens.dto';
-import { isApiScope } from './scopes';
-import { requireBrowserSession } from './session-access';
-import { newPersonalAccessToken } from './token-secret';
+} from './tokens.dto.js';
+import { isApiScope } from './scopes.js';
+import { requireBrowserSession } from './session-access.js';
+import { newPersonalAccessToken } from './token-secret.js';
 
 interface TokenRow {
   id: string;
@@ -106,7 +106,7 @@ export class TokensService {
         });
         return created;
       });
-      return { ...toToken(row), token: issued.token };
+      return Object.assign({}, toToken(row), { token: issued.token });
     } catch (error) {
       if (isUniqueConflict(error)) {
         throw new DomainException(

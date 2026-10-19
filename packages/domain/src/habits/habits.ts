@@ -50,11 +50,7 @@ export interface HabitStats {
 export type HabitDraftFailure = 'invalid_goal' | 'invalid_frequency' | 'invalid_reminder';
 
 export type CheckInFailure =
-  | 'inactive_day'
-  | 'future_date'
-  | 'invalid_count'
-  | 'invalid_date'
-  | 'invalid_zone';
+  'inactive_day' | 'future_date' | 'invalid_count' | 'invalid_date' | 'invalid_zone';
 
 export interface NormalizedHabit {
   readonly goal: HabitGoal;

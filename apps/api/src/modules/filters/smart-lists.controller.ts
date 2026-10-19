@@ -1,13 +1,13 @@
 import { Body, Controller, Get, Inject, Param, Patch, Query, Req, Res } from '@nestjs/common';
 import { ApiHeader, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
-import type { AuthUser } from '../../auth/auth-user';
-import { CurrentUser } from '../../auth/current-user.decorator';
-import { Scopes } from '../../auth/scopes.decorator';
-import { pageLimit } from '../../http/cursor';
-import { respondJson } from '../../http/respond';
-import { SmartListPageDto, UpdateSmartListsDto, ViewPageDto } from './filters.dto';
-import { SmartListsService } from './smart-lists.service';
+import type { AuthUser } from '../../auth/auth-user.js';
+import { CurrentUser } from '../../auth/current-user.decorator.js';
+import { Scopes } from '../../auth/scopes.decorator.js';
+import { pageLimit } from '../../http/cursor.js';
+import { respondJson } from '../../http/respond.js';
+import { SmartListPageDto, UpdateSmartListsDto, ViewPageDto } from './filters.dto.js';
+import { SmartListsService } from './smart-lists.service.js';
 
 @ApiTags('smart-lists')
 @ApiHeader({ name: 'X-Dev-User-Email', required: false })

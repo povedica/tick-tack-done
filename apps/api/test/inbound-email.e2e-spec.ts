@@ -3,12 +3,13 @@ import type { INestApplication } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import type { App } from 'supertest/types';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { AppModule } from '../src/app.module';
-import { configureApp } from '../src/configure-app';
-import { loadRootEnv } from '../src/load-env';
-import { ATTACHMENT_MAX_BYTES } from '../src/modules/tasks/attachment-storage';
+import { AppModule } from '../src/app.module.js';
+import { configureApp } from '../src/configure-app.js';
+import { loadRootEnv } from '../src/load-env.js';
+import { ATTACHMENT_MAX_BYTES } from '../src/modules/tasks/attachment-storage.js';
+
+type SuperTestApp = Parameters<typeof request>[0];
 
 loadRootEnv();
 process.env.AUTH_MODE = 'dev';
@@ -97,7 +98,7 @@ function addressOf(body: unknown): { address: string; token: string } {
 
 describe('email-to-task', () => {
   let app: INestApplication;
-  let server: App;
+  let server: SuperTestApp;
   let owner: { id: string; email: string };
 
   beforeAll(async () => {
@@ -107,7 +108,7 @@ describe('email-to-task', () => {
     app = moduleRef.createNestApplication();
     configureApp(app);
     await app.init();
-    server = app.getHttpServer() as App;
+    server = app.getHttpServer() as SuperTestApp;
   });
 
   afterAll(async () => {

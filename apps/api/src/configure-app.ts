@@ -5,9 +5,9 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
 import type { NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
-import { ApiExceptionFilter } from './http/api-exception.filter';
-import { isPublicOperation } from './security/public-operations';
-import { trustProxyHops } from './security/runtime-config';
+import { ApiExceptionFilter } from './http/api-exception.filter.js';
+import { isPublicOperation } from './security/public-operations.js';
+import { trustProxyHops } from './security/runtime-config.js';
 
 const REQUEST_ID = /^[A-Za-z0-9-]{8,64}$/;
 const METHODS = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options'] as const;

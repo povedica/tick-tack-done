@@ -89,6 +89,6 @@ function isSettled(error: unknown): boolean {
   if (typeof error !== 'object' || error === null || !('status' in error)) {
     return false;
   }
-  const status = (error as { status: unknown }).status;
+  const status = error.status;
   return status === 404 || status === 409;
 }

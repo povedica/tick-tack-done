@@ -1,6 +1,6 @@
 import argon2 from 'argon2';
 import { describe, expect, it, vi } from 'vitest';
-import { hashPassword, verifyPassword, verifyPresentedPassword } from './passwords';
+import { hashPassword, verifyPassword, verifyPresentedPassword } from './passwords.js';
 
 describe('passwords', () => {
   it('stores Argon2id and rejects a different password', async () => {
