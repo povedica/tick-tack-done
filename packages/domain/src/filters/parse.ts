@@ -186,11 +186,7 @@ function normalShape(
   groups: readonly FilterGroup[],
 ): { ok: true } | { ok: false; reason: string } {
   const group = groups[0];
-  if (
-    combinator !== 'AND' ||
-    groups.length !== 1 ||
-    group?.combinator !== 'AND'
-  ) {
+  if (combinator !== 'AND' || groups.length !== 1 || group?.combinator !== 'AND') {
     return fail('normal_shape');
   }
   return { ok: true };

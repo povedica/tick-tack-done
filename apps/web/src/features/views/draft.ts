@@ -1,13 +1,7 @@
 import type { FilterRules } from '@reflexionia/sdk';
 
 export type ConditionField =
-  | 'list'
-  | 'tag'
-  | 'date'
-  | 'priority'
-  | 'keyword'
-  | 'status'
-  | 'assignee';
+  'list' | 'tag' | 'date' | 'priority' | 'keyword' | 'status' | 'assignee';
 
 export interface ConditionDraft {
   readonly field: ConditionField;

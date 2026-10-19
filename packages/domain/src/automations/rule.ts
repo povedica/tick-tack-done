@@ -17,9 +17,7 @@ export type AutomationAction =
 export interface AutomationRule {
   readonly name: string;
   readonly trigger:
-    | { readonly event: string }
-    | { readonly cron: string }
-    | { readonly date_arrived: true };
+    { readonly event: string } | { readonly cron: string } | { readonly date_arrived: true };
   readonly conditions: FilterRules | null;
   readonly actions: readonly AutomationAction[];
 }
