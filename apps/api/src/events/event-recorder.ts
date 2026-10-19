@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, type ActivityAction } from '@prisma/client';
-import type { EventActor } from '../auth/auth-user';
-import type { Tx } from '../prisma/tx';
+import type { EventActor } from '../auth/auth-user.js';
+import type { Tx } from '../prisma/tx.js';
 
 export interface RecordedEvent {
   readonly type: string;

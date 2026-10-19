@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { SlidingWindowRateLimit, TOKEN_RATE_LIMIT, TOKEN_RATE_WINDOW_MS } from './token-rate-limit';
+import {
+  SlidingWindowRateLimit,
+  TOKEN_RATE_LIMIT,
+  TOKEN_RATE_WINDOW_MS,
+} from './token-rate-limit.js';
 
 describe('token rate limit', () => {
   it('RF-2002: refuses the 1001st request inside 15 minutes and allows it after the window', () => {

@@ -14,24 +14,28 @@ import {
 import { ApiBody, ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsBoolean, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 import type { Request, Response } from 'express';
-import { actorOf, type AuthUser } from '../../auth/auth-user';
-import { CurrentUser } from '../../auth/current-user.decorator';
-import { Public, Scopes } from '../../auth/scopes.decorator';
-import { DomainEvent } from '../../events/domain-events';
-import { EventRecorder } from '../../events/event-recorder';
-import { driveConfigured, googleConfigured, telegramConfigured } from '../../integrations/config';
-import { downloadDriveFile } from '../../integrations/google-drive';
-import { exchangeGoogleRefreshToken } from '../../integrations/google-token';
-import { telegramSecretMatches } from '../../integrations/telegram-secret';
-import { authorizeUrl, readState, redirectFor, signState } from './google-oauth';
-import { TelegramBotService } from './telegram-bot.service';
-import { asJson } from '../../http/json';
-import { DomainException } from '../../http/domain.exception';
-import { respondJson } from '../../http/respond';
-import { PrismaService } from '../../prisma/prisma.service';
-import { openField, sealField } from '../../security/field-cipher';
-import { ATTACHMENT_MAX_BYTES } from '../tasks/attachment-storage';
-import { TasksService } from '../tasks/tasks.service';
+import { actorOf, type AuthUser } from '../../auth/auth-user.js';
+import { CurrentUser } from '../../auth/current-user.decorator.js';
+import { Public, Scopes } from '../../auth/scopes.decorator.js';
+import { DomainEvent } from '../../events/domain-events.js';
+import { EventRecorder } from '../../events/event-recorder.js';
+import {
+  driveConfigured,
+  googleConfigured,
+  telegramConfigured,
+} from '../../integrations/config.js';
+import { downloadDriveFile } from '../../integrations/google-drive.js';
+import { exchangeGoogleRefreshToken } from '../../integrations/google-token.js';
+import { telegramSecretMatches } from '../../integrations/telegram-secret.js';
+import { authorizeUrl, readState, redirectFor, signState } from './google-oauth.js';
+import { TelegramBotService } from './telegram-bot.service.js';
+import { asJson } from '../../http/json.js';
+import { DomainException } from '../../http/domain.exception.js';
+import { respondJson } from '../../http/respond.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { openField, sealField } from '../../security/field-cipher.js';
+import { ATTACHMENT_MAX_BYTES } from '../tasks/attachment-storage.js';
+import { TasksService } from '../tasks/tasks.service.js';
 
 class LinkDto {
   @ApiProperty()

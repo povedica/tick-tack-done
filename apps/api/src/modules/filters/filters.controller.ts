@@ -15,11 +15,11 @@ import {
 } from '@nestjs/common';
 import { ApiHeader, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
-import type { AuthUser } from '../../auth/auth-user';
-import { CurrentUser } from '../../auth/current-user.decorator';
-import { Scopes } from '../../auth/scopes.decorator';
-import { pageLimit } from '../../http/cursor';
-import { respondJson } from '../../http/respond';
+import type { AuthUser } from '../../auth/auth-user.js';
+import { CurrentUser } from '../../auth/current-user.decorator.js';
+import { Scopes } from '../../auth/scopes.decorator.js';
+import { pageLimit } from '../../http/cursor.js';
+import { respondJson } from '../../http/respond.js';
 import {
   CreateFilterDto,
   FilterPageDto,
@@ -27,8 +27,8 @@ import {
   PreviewFilterDto,
   UpdateFilterDto,
   ViewPageDto,
-} from './filters.dto';
-import { FiltersService } from './filters.service';
+} from './filters.dto.js';
+import { FiltersService } from './filters.service.js';
 
 @ApiTags('filters')
 @ApiHeader({ name: 'X-Dev-User-Email', required: false })

@@ -1,6 +1,6 @@
 import { ValidationPipe } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
-import { AutomationDto } from './automations.controller';
+import { AutomationDto } from './automations.controller.js';
 
 describe('AutomationDto', () => {
   it('keeps the trigger object the settings form sends', async () => {

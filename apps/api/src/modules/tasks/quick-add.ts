@@ -7,24 +7,20 @@ import {
   tagNameKey,
   type Priority,
 } from '@reflexionia/domain';
-import { actorOf, type AuthUser } from '../../auth/auth-user';
-import { DomainEvent } from '../../events/domain-events';
-import { EventRecorder } from '../../events/event-recorder';
-import { DomainException } from '../../http/domain.exception';
-import { asJson, iso } from '../../http/json';
-import type { Tx } from '../../prisma/tx';
-import type { CreateTaskDto } from './tasks.dto';
+import { actorOf, type AuthUser } from '../../auth/auth-user.js';
+import { DomainEvent } from '../../events/domain-events.js';
+import { EventRecorder } from '../../events/event-recorder.js';
+import { DomainException } from '../../http/domain.exception.js';
+import { asJson, iso } from '../../http/json.js';
+import type { Tx } from '../../prisma/tx.js';
+import type { CreateTaskDto } from './tasks.dto.js';
 
 const SORT_GAP = 65536n;
 const events = new EventRecorder();
 
 export interface CaptureWarning {
   readonly code:
-    | 'list_not_found'
-    | 'list_created'
-    | 'tag_not_found'
-    | 'tag_created'
-    | 'reminder_without_date';
+    'list_not_found' | 'list_created' | 'tag_not_found' | 'tag_created' | 'reminder_without_date';
   readonly name?: string;
 }
 

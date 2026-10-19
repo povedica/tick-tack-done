@@ -1,6 +1,6 @@
 import { HttpStatus } from '@nestjs/common';
-import { DomainException } from '../http/domain.exception';
-import { planPlacement, type OrderedRow, type SortPlan } from './plan-sort-order';
+import { DomainException } from '../http/domain.exception.js';
+import { planPlacement, type OrderedRow, type SortPlan } from './plan-sort-order.js';
 
 export function placementPlan(
   rows: readonly OrderedRow[],

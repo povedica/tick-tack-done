@@ -14,17 +14,17 @@ import { ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsOptional, IsString, Length } from 'class-validator';
 import type { Request, Response } from 'express';
 import { randomBase32, recoveryCodes, sha256Hex, verifyTotp } from '@reflexionia/domain';
-import { actorOf, type AuthUser } from './auth-user';
-import { CurrentUser } from './current-user.decorator';
-import { DomainEvent } from '../events/domain-events';
-import { EventRecorder } from '../events/event-recorder';
-import { DomainException } from '../http/domain.exception';
-import { asJson } from '../http/json';
-import { respondJson } from '../http/respond';
-import { PrismaService } from '../prisma/prisma.service';
-import { openField, sealField } from '../security/field-cipher';
-import { AttemptLimiter } from './attempt-limiter';
-import { Scopes } from './scopes.decorator';
+import { actorOf, type AuthUser } from './auth-user.js';
+import { CurrentUser } from './current-user.decorator.js';
+import { DomainEvent } from '../events/domain-events.js';
+import { EventRecorder } from '../events/event-recorder.js';
+import { DomainException } from '../http/domain.exception.js';
+import { asJson } from '../http/json.js';
+import { respondJson } from '../http/respond.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { openField, sealField } from '../security/field-cipher.js';
+import { AttemptLimiter } from './attempt-limiter.js';
+import { Scopes } from './scopes.decorator.js';
 
 class TotpCodeDto {
   @ApiProperty()

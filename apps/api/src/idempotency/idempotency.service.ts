@@ -1,9 +1,9 @@
 import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { asJson } from '../http/json';
-import { DomainException } from '../http/domain.exception';
-import { PrismaService } from '../prisma/prisma.service';
-import type { Tx } from '../prisma/tx';
+import { asJson } from '../http/json.js';
+import { DomainException } from '../http/domain.exception.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+import type { Tx } from '../prisma/tx.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** Capture writes parse, insert and outbox in one interactive transaction. 5s was too short. */

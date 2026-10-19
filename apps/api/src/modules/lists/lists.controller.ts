@@ -16,11 +16,11 @@ import {
 } from '@nestjs/common';
 import { ApiHeader, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
-import type { AuthUser } from '../../auth/auth-user';
-import { CurrentUser } from '../../auth/current-user.decorator';
-import { Scopes } from '../../auth/scopes.decorator';
-import { pageLimit } from '../../http/cursor';
-import { respondJson } from '../../http/respond';
+import type { AuthUser } from '../../auth/auth-user.js';
+import { CurrentUser } from '../../auth/current-user.decorator.js';
+import { Scopes } from '../../auth/scopes.decorator.js';
+import { pageLimit } from '../../http/cursor.js';
+import { respondJson } from '../../http/respond.js';
 import {
   ColumnPageDto,
   ColumnResponseDto,
@@ -34,8 +34,8 @@ import {
   UpdateColumnDto,
   UpdateFolderDto,
   UpdateProjectDto,
-} from './lists.dto';
-import { ListsService } from './lists.service';
+} from './lists.dto.js';
+import { ListsService } from './lists.service.js';
 
 @ApiTags('lists')
 @ApiHeader({ name: 'X-Dev-User-Email', required: false })

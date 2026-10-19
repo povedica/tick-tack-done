@@ -13,12 +13,12 @@ import {
 } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
-import type { AuthUser } from './auth-user';
-import { LoginDto, RegisterDto, SessionListItemDto, SessionResponseDto } from './auth.dto';
-import { AuthService } from './auth.service';
-import { CurrentUser } from './current-user.decorator';
-import { Authenticated, Public } from './scopes.decorator';
-import { SESSION_COOKIE, sessionCookieOptions } from './session-cookie';
+import type { AuthUser } from './auth-user.js';
+import { LoginDto, RegisterDto, SessionListItemDto, SessionResponseDto } from './auth.dto.js';
+import { AuthService } from './auth.service.js';
+import { CurrentUser } from './current-user.decorator.js';
+import { Authenticated, Public } from './scopes.decorator.js';
+import { SESSION_COOKIE, sessionCookieOptions } from './session-cookie.js';
 
 @ApiTags('auth')
 @Controller('auth')

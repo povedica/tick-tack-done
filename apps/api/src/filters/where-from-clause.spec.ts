@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compileRules } from '@reflexionia/domain';
-import { whereFromClause } from './where-from-clause';
+import { whereFromClause } from './where-from-clause.js';
 
 describe('whereFromClause', () => {
   it('RF-904: compiles a keyword and a list into a Prisma where, and keeps overdue as a superset', () => {

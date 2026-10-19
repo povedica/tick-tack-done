@@ -8,25 +8,25 @@ import {
   type FilterClause,
   type FilterRules,
 } from '@reflexionia/domain';
-import { actorOf, type AuthUser } from '../../auth/auth-user';
-import { DomainEvent } from '../../events/domain-events';
-import { EventRecorder } from '../../events/event-recorder';
-import { decodeCursor, slicePage, type Page } from '../../http/cursor';
-import { DomainException } from '../../http/domain.exception';
-import { asJson, iso } from '../../http/json';
-import { normalizeIdempotencyKey, requestFingerprint } from '../../idempotency/fingerprint';
-import { IdempotencyService } from '../../idempotency/idempotency.service';
-import { placementPlan } from '../../ordering/placement';
-import { PrismaService } from '../../prisma/prisma.service';
-import type { Tx } from '../../prisma/tx';
-import type { ViewPageJson } from '../../reading/view-page';
-import { countViewTasks, pageViewTasks } from '../../reading/view-query';
+import { actorOf, type AuthUser } from '../../auth/auth-user.js';
+import { DomainEvent } from '../../events/domain-events.js';
+import { EventRecorder } from '../../events/event-recorder.js';
+import { decodeCursor, slicePage, type Page } from '../../http/cursor.js';
+import { DomainException } from '../../http/domain.exception.js';
+import { asJson, iso } from '../../http/json.js';
+import { normalizeIdempotencyKey, requestFingerprint } from '../../idempotency/fingerprint.js';
+import { IdempotencyService } from '../../idempotency/idempotency.service.js';
+import { placementPlan } from '../../ordering/placement.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import type { Tx } from '../../prisma/tx.js';
+import type { ViewPageJson } from '../../reading/view-page.js';
+import { countViewTasks, pageViewTasks } from '../../reading/view-query.js';
 import type {
   CreateFilterDto,
   FilterResponseDto,
   PreviewFilterDto,
   UpdateFilterDto,
-} from './filters.dto';
+} from './filters.dto.js';
 
 @Injectable()
 export class FiltersService {

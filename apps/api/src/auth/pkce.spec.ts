@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { pkceMatches } from './pkce';
+import { pkceMatches } from './pkce.js';
 
 describe('pkce', () => {
   it('accepts an S256 verifier and rejects a different one', () => {

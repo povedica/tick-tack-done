@@ -1,19 +1,19 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
-import { AccountService } from './account.service';
-import { AttemptLimiter } from './attempt-limiter';
-import { ApiAuthGuard } from './api-auth.guard';
-import { AuthController } from './auth.controller';
-import { AuthService } from './auth.service';
-import { MeController } from './me.controller';
-import { MeService } from './me.service';
-import { OauthController } from './oauth.controller';
-import { OauthService } from './oauth.service';
-import { TokenAudit } from './token-audit';
-import { TokenRateLimiter } from './token-rate-limit';
-import { TotpController, TotpService } from './totp.controller';
-import { TokensController } from './tokens.controller';
-import { TokensService } from './tokens.service';
+import { AccountService } from './account.service.js';
+import { AttemptLimiter } from './attempt-limiter.js';
+import { ApiAuthGuard } from './api-auth.guard.js';
+import { AuthController } from './auth.controller.js';
+import { AuthService } from './auth.service.js';
+import { MeController } from './me.controller.js';
+import { MeService } from './me.service.js';
+import { OauthController } from './oauth.controller.js';
+import { OauthService } from './oauth.service.js';
+import { TokenAudit } from './token-audit.js';
+import { TokenRateLimiter } from './token-rate-limit.js';
+import { TotpController, TotpService } from './totp.controller.js';
+import { TokensController } from './tokens.controller.js';
+import { TokensService } from './tokens.service.js';
 
 @Module({
   controllers: [MeController, TokensController, AuthController, OauthController, TotpController],

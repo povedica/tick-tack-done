@@ -1,6 +1,6 @@
 import type { Column, Folder, Project } from '@prisma/client';
-import { iso } from '../../http/json';
-import type { ColumnResponseDto, FolderResponseDto, ProjectResponseDto } from './lists.dto';
+import { iso } from '../../http/json.js';
+import type { ColumnResponseDto, FolderResponseDto, ProjectResponseDto } from './lists.dto.js';
 
 export function toFolderJson(row: Folder): FolderResponseDto {
   return {
