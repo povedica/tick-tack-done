@@ -15,6 +15,7 @@ services:
       - ${RUNTIME_ENV_FILE:-/etc/todo/production.env}
     environment:
       NODE_ENV: production
+      GIT_COMMIT: ${GIT_COMMIT:-unknown}
       AUTH_MODE: ''
       BUS_AUTOSTART: 'true'
       SCHEDULER_AUTOSTART: 'true'

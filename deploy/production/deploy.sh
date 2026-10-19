@@ -11,12 +11,13 @@ test -r "$env_file"
 
 cd "$root"
 
-if GIT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null); then
-  export GIT_COMMIT
-else
-  GIT_COMMIT=${GIT_COMMIT:-unknown}
-  export GIT_COMMIT
+# El árbol de /opt/todo/app no es un clon git. Una sustitución que falle
+# dejaría GIT_COMMIT vacío y ${VAR:-default} no lo recupera.
+if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  GIT_COMMIT=$(git rev-parse --short HEAD)
 fi
+GIT_COMMIT=${GIT_COMMIT:-unknown}
+export GIT_COMMIT
 
 docker compose \
   -f deploy/production/docker-compose.yml \
