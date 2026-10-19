@@ -11,17 +11,15 @@ Las normas para agentes de codificación están en `AGENTS.md` y `.cursor/rules/
 
 ## Requisitos
 
-- Node 22, pnpm 9 (`corepack enable`)
 - Docker + Docker Compose
+- El Node que ejecuta la app es el de la imagen `node:26-alpine` (la misma que las imágenes de producción y que CI). No hace falta instalar Node 26 en el Mac: el Node local solo lanza Compose.
 
 ## Arranque en desarrollo
 
 ```bash
-corepack enable
-pnpm install
 cp .env.example .env        # rellena los valores
-pnpm dev                    # Postgres+Redis+Mailpit (docker) + API + web con hot reload
-pnpm db:migrate             # crea el esquema
+pnpm dev                    # Postgres, Redis, Mailpit y la app (API + web) en Docker
+pnpm db:migrate             # crea el esquema, dentro del mismo contenedor
 pnpm db:seed                # datos de ejemplo
 ```
 
@@ -43,7 +41,7 @@ docs/             arquitectura, migraciones, testing, seguridad, roadmap, prompt
 
 | Comando                                        | Qué hace                                         |
 | ---------------------------------------------- | ------------------------------------------------ |
-| `pnpm dev`                                     | infra + api + web en desarrollo                  |
+| `pnpm dev`                                     | infra + api + web en `node:26-alpine`            |
 | `pnpm test` / `test:integration` / `test:e2e`  | Vitest / Supertest / Playwright                  |
 | `pnpm lint` · `pnpm typecheck` · `pnpm format` | calidad                                          |
 | `pnpm db:migrate` / `db:deploy` / `db:seed`    | Prisma                                           |

@@ -38,11 +38,10 @@ normas; el detalle vive en `.cursor/rules/*.mdc`, que Cursor aplica automáticam
 ## Comandos del día a día
 
 ```bash
-pnpm install            # instalar
-pnpm dev                # infra (docker) + api + web con hot reload
-pnpm test               # unitarios (Vitest en todo el monorepo)
+pnpm dev                # Postgres, Redis, Mailpit y la app en node:26-alpine
+pnpm test               # unitarios en esa imagen (en CI, en el runner Node 26)
 pnpm test:integration   # API contra Postgres/Redis reales
-pnpm test:e2e           # Playwright, flujos críticos
+pnpm test:e2e           # Playwright en el host (necesita navegador)
 pnpm db:migrate         # crear/aplicar migración Prisma en desarrollo
 pnpm db:seed            # datos de desarrollo
 pnpm lint && pnpm typecheck

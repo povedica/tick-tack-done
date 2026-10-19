@@ -17,7 +17,7 @@ async function bootstrap(): Promise<void> {
     SwaggerModule.setup('api/docs', app, createOpenApiDocument(app));
   }
   await sealStoredSecrets(app.get(PrismaService));
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
 }
 
 void bootstrap();
