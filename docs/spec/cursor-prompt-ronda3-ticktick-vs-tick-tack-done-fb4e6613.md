@@ -243,6 +243,7 @@ Comparación hecha en `http://localhost:5173` (rama `fix/ux-audit-2026-10-18`) y
 - Local, 1280 px: `/smart/tomorrow` muestra cabecera y campo de alta. El lateral es `rgb(242, 245, 254)` y el carril `rgb(71, 114, 250)`. Con el detalle abierto, `scrollWidth` 1280 = `innerWidth`.
 - Producción, 19 oct 2026, commit `176cbc6` (`GET /api/v1/health`): Hoy, Mañana y el resto de listas inteligentes pintan. El bundle es `index-D_mrMx-o.js`. Lateral `rgb(242, 245, 254)`, carril `rgb(71, 114, 250)`.
 - El campo de alta, al enfocarse en escritorio, mide el ancho de la lista (934 px a 1280) y los botones Fecha y Abrir detalle quedan dentro del campo (`right` 1246 frente a 1252).
+- R4-7. `/login` pintaba el fondo lavanda solo en una columna de 24 rem, con blanco a los lados. Una regla vieja de `.auth-screen` en `styles.css` limitaba el `main`. Ahora el fondo ocupa el viewport (`1280×800`, tarjeta de 400 px centrada).
 
 ### Sigue abierto
 

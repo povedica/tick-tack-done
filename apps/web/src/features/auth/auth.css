@@ -1,5 +1,8 @@
 .auth-screen {
+  width: 100%;
+  max-width: none;
   min-height: 100dvh;
+  margin: 0;
   display: grid;
   place-items: center;
   padding: 24px;
