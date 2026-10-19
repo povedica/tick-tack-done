@@ -3821,11 +3821,67 @@
           }
         },
         "responses": {
-          "201": {
-            "description": ""
+          "200": {
+            "description": "JSON-RPC result as application/json."
+          },
+          "202": {
+            "description": "Notification accepted. Empty body."
+          },
+          "401": {
+            "description": "Missing credential or invalid bearer token."
           }
         },
-        "summary": "MCP JSON-RPC (RF-2001). Tools use API v1 and cannot exceed the bearer token scopes. Notes are not exposed.",
+        "summary": "Stateless Streamable HTTP JSON-RPC (RF-2001). POST returns application/json; a notification returns 202 with an empty body. GET and DELETE on this path return 405 with Allow: POST until a server-sent stream exists. No Mcp-Session-Id. A tool is listed only when the token holds every scope it declares.",
+        "tags": [
+          "mcp"
+        ]
+      },
+      "get": {
+        "operationId": "McpController_get",
+        "parameters": [],
+        "responses": {
+          "401": {
+            "description": "Missing credential or invalid bearer token."
+          },
+          "405": {
+            "description": "Method Not Allowed. Empty body, Allow: POST, no Mcp-Session-Id. A 404 would mean the session ended.",
+            "headers": {
+              "Allow": {
+                "description": "POST",
+                "schema": {
+                  "type": "string",
+                  "example": "POST"
+                }
+              }
+            }
+          }
+        },
+        "summary": "SSE is not offered. Returns 405 so a Streamable HTTP client keeps using POST (RF-2001).",
+        "tags": [
+          "mcp"
+        ]
+      },
+      "delete": {
+        "operationId": "McpController_remove",
+        "parameters": [],
+        "responses": {
+          "401": {
+            "description": "Missing credential or invalid bearer token."
+          },
+          "405": {
+            "description": "Method Not Allowed. Empty body, Allow: POST, no Mcp-Session-Id.",
+            "headers": {
+              "Allow": {
+                "description": "POST",
+                "schema": {
+                  "type": "string",
+                  "example": "POST"
+                }
+              }
+            }
+          }
+        },
+        "summary": "There is no MCP session to close. Returns 405 with Allow: POST (RF-2001).",
         "tags": [
           "mcp"
         ]

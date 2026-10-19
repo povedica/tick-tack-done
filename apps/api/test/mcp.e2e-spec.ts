@@ -72,6 +72,9 @@ describe('MCP server', () => {
       capabilities: {},
       clientInfo: { name: 'test', version: '0' },
     });
+    expect(init.status).toBe(200);
+    expect(init.headers['content-type']).toContain('application/json');
+    expect(init.headers['mcp-session-id']).toBeUndefined();
     expect(init.body.result.serverInfo.name).toBe('reflexionia-tasks');
     expect(init.body.result.protocolVersion).toBe('2025-03-26');
 
@@ -129,6 +132,95 @@ describe('MCP server', () => {
     expect(await prisma.habit.count({ where: { ownerId: owner.id } })).toBe(habits);
     expect(await prisma.project.count({ where: { ownerId: owner.id } })).toBe(projects);
   });
+
+  it('RF-2001: GET and DELETE stay on POST until a server stream exists', async () => {
+    const bearer = await tasksBearer(server, owner.email);
+
+    const get = await request(server)
+      .get('/api/v1/mcp')
+      .set(bearer)
+      .set('Accept', 'text/event-stream');
+    expect(get.status).toBe(405);
+    expect(get.text).toBe('');
+    expect(get.headers.allow).toContain('POST');
+    expect(get.headers['mcp-session-id']).toBeUndefined();
+
+    const removed = await request(server).delete('/api/v1/mcp').set(bearer);
+    expect(removed.status).toBe(405);
+    expect(removed.text).toBe('');
+    expect(removed.headers.allow).toContain('POST');
+    expect(removed.headers['mcp-session-id']).toBeUndefined();
+
+    const anonymous = await request(server).get('/api/v1/mcp');
+    expect(anonymous.status).toBe(401);
+    expect(anonymous.body.error.code).toBe('unauthorized');
+
+    const invalid = await request(server)
+      .get('/api/v1/mcp')
+      .set('Authorization', 'Bearer rfx_pat_not_a_real_token_value');
+    expect(invalid.status).toBe(401);
+    expect(invalid.body.error.message).toBe('Invalid token');
+
+    const init = await request(server)
+      .post('/api/v1/mcp')
+      .set(bearer)
+      .set('Accept', 'application/json, text/event-stream')
+      .send({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'initialize',
+        params: {
+          protocolVersion: '2025-03-26',
+          capabilities: {},
+          clientInfo: { name: 'cursor', version: '0' },
+        },
+      });
+    expect(init.status).toBe(200);
+    expect(init.headers['content-type']).toContain('application/json');
+    expect(init.headers['mcp-session-id']).toBeUndefined();
+    expect(init.body.result.serverInfo.name).toBe('reflexionia-tasks');
+
+    const notice = await request(server).post('/api/v1/mcp').set(bearer).send({
+      jsonrpc: '2.0',
+      method: 'notifications/initialized',
+    });
+    expect(notice.status).toBe(202);
+    expect(notice.text).toBe('');
+  });
+
+  it('RF-2001: list_tasks forwards cursor and the next page does not repeat the first', async () => {
+    const bearer = await tasksBearer(server, owner.email);
+    const created: string[] = [];
+    for (const title of ['Página uno', 'Página dos']) {
+      const made = await rpc(server, bearer, 'tools/call', {
+        name: 'create_task',
+        arguments: { title, project_id: owner.inboxId },
+      });
+      const task = JSON.parse(toolText(made.body as unknown)) as { id: string };
+      created.push(task.id);
+    }
+
+    const first = await rpc(server, bearer, 'tools/call', {
+      name: 'list_tasks',
+      arguments: { limit: 1 },
+    });
+    const page = JSON.parse(toolText(first.body as unknown)) as {
+      items: { id: string }[];
+      next_cursor: string | null;
+    };
+    expect(page.items).toHaveLength(1);
+    expect(typeof page.next_cursor).toBe('string');
+    const firstId = page.items[0]?.id;
+    expect(created).toContain(firstId);
+
+    const second = await rpc(server, bearer, 'tools/call', {
+      name: 'list_tasks',
+      arguments: { limit: 1, cursor: page.next_cursor },
+    });
+    const next = JSON.parse(toolText(second.body as unknown)) as { items: { id: string }[] };
+    expect(next.items.some((item) => item.id === firstId)).toBe(false);
+    expect(next.items.length).toBeGreaterThan(0);
+  });
 });
 
 function toolText(body: unknown): string {
@@ -153,6 +245,15 @@ function toolText(body: unknown): string {
     throw new Error('missing tool text');
   }
   return first.text;
+}
+
+async function tasksBearer(server: App, email: string): Promise<{ Authorization: string }> {
+  const created = await request(server)
+    .post('/api/v1/me/tokens')
+    .set('X-Dev-User-Email', email)
+    .send({ name: `Cursor transport ${randomUUID()}`, scopes: ['tasks:read', 'tasks:write'] })
+    .expect(201);
+  return { Authorization: `Bearer ${created.body.token as string}` };
 }
 
 function rpc(server: App, headers: Record<string, string>, method: string, params: unknown) {

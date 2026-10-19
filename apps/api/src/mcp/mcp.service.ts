@@ -136,8 +136,10 @@ export class McpService {
     switch (name) {
       case 'list_tasks': {
         const projectId = uuidOrEmpty(args.project_id);
+        const cursor = cursorOf(args);
         return this.tasks.list(user, {
           limit,
+          ...(cursor === undefined ? {} : { cursor }),
           ...(projectId === undefined ? {} : { projectId }),
           status: 'active',
           includeDescendants: true,
@@ -163,7 +165,7 @@ export class McpService {
       case 'complete_task':
         return (await this.tasks.complete(user, requiredUuid(args, 'id'), {}, undefined)).body;
       case 'list_projects':
-        return this.lists.listProjects(user, limit, undefined, false);
+        return this.lists.listProjects(user, limit, cursorOf(args), false);
       case 'create_project':
         return (
           await this.lists.createProject(
@@ -173,13 +175,13 @@ export class McpService {
           )
         ).body;
       case 'list_tags':
-        return this.tags.list(user, limit, undefined);
+        return this.tags.list(user, limit, cursorOf(args));
       case 'create_tag':
         return (
           await this.tags.create(user, { name: requiredString(args, 'name', 100) }, undefined)
         ).body;
       case 'list_filters':
-        return this.filters.list(user, limit, undefined);
+        return this.filters.list(user, limit, cursorOf(args));
       case 'create_filter': {
         const keyword = requiredString(args, 'keyword', 200);
         return (
@@ -211,10 +213,10 @@ export class McpService {
           undefined,
           undefined,
           limit,
-          undefined,
+          cursorOf(args),
         );
       case 'list_habits':
-        return this.habits.list(user, limit, undefined);
+        return this.habits.list(user, limit, cursorOf(args));
       case 'create_habit':
         return (
           await this.habits.create(
@@ -393,6 +395,16 @@ function uuidOrEmpty(value: unknown): string | undefined {
     throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'uuid is invalid');
   }
   return value;
+}
+
+function cursorOf(args: Record<string, unknown>): string | undefined {
+  if (args.cursor === undefined) {
+    return undefined;
+  }
+  if (typeof args.cursor !== 'string' || args.cursor.length === 0) {
+    throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'cursor is invalid');
+  }
+  return args.cursor;
 }
 
 function limitOf(args: Record<string, unknown>): number {
