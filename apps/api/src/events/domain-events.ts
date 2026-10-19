@@ -3,6 +3,8 @@ export const DomainEvent = {
   taskUpdated: 'task.updated@v1',
   taskCompleted: 'task.completed@v1',
   taskUncompleted: 'task.uncompleted@v1',
+  taskCancelled: 'task.cancelled@v1',
+  planApplied: 'plan.applied@v1',
   taskDeleted: 'task.deleted@v1',
   taskRestored: 'task.restored@v1',
   taskMoved: 'task.moved@v1',

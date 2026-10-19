@@ -1,9 +1,10 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useMessages } from '../i18n';
+import { fill, useMessages } from '../i18n';
 import { useAppLocale } from '../i18n/locale';
 import { calendarDay, shiftDayKey, zonedWallTime } from '../features/today/groups';
 import { usePreferences } from '../theme/preferences';
+import { Button } from './ui';
 import { Popover } from './Popover';
 
 export interface DateDraft {
@@ -11,14 +12,19 @@ export interface DateDraft {
   readonly allDay: boolean;
   readonly durationMinutes: number | null;
   readonly reminder: string | null;
+  /** True only after the user picks a reminder, including none. */
+  readonly reminderTouched: boolean;
   readonly repeatRule: string | null;
 }
 
 const REMINDERS = [
   ['', 'none'],
-  ['TRIGGER:-PT30M', 'reminder30'],
-  ['TRIGGER:-PT1H', 'reminderHour'],
-  ['TRIGGER:-P1D', 'reminderDay'],
+  ['TRIGGER:-PT0M', 'at'],
+  ['TRIGGER:-PT5M', 'm5'],
+  ['TRIGGER:-PT15M', 'm15'],
+  ['TRIGGER:-PT30M', 'm30'],
+  ['TRIGGER:-PT1H', 'hour'],
+  ['TRIGGER:-P1D', 'day'],
 ] as const;
 
 export function DatePopover({
@@ -27,12 +33,14 @@ export function DatePopover({
   timeZone,
   onClose,
   onApply,
+  onNotice,
 }: {
   readonly open: boolean;
   readonly value: DateDraft;
   readonly timeZone: string;
   readonly onClose: () => void;
   readonly onApply: (next: DateDraft) => void;
+  readonly onNotice?: (text: string) => void;
 }) {
   const messages = useMessages();
   const locale = useAppLocale();
@@ -41,11 +49,16 @@ export function DatePopover({
   const [draft, setDraft] = useState(value);
   const [cursor, setCursor] = useState(() => monthOf(value.dueDate, timeZone));
   const [sub, setSub] = useState<'time' | 'reminder' | 'repeat' | null>(null);
+  const [everyDays, setEveryDays] = useState(2);
+  const [everyWeeks, setEveryWeeks] = useState(2);
+  const [end, setEnd] = useState<'never' | 'date' | 'count'>('never');
+  const [until, setUntil] = useState('');
+  const [count, setCount] = useState(10);
   useEffect(() => {
     if (!open) {
       return;
     }
-    setDraft(value);
+    setDraft({ ...value, reminderTouched: false });
     setCursor(monthOf(value.dueDate, timeZone));
     setSub(null);
     setTab('date');
@@ -67,6 +80,7 @@ export function DatePopover({
     return weekday.format(date);
   });
   const todayKey = calendarDay(new Date().toISOString(), timeZone);
+  const timeLang = locale.toLowerCase().startsWith('en') ? 'en-GB' : 'es-ES';
 
   function setDay(key: string, allDay: boolean, clock = time): void {
     const [hour, minute] = clock.split(':').map(Number);
@@ -83,32 +97,47 @@ export function DatePopover({
     }));
   }
 
+  function applyRepeat(base: string): void {
+    setDraft((current) => ({ ...current, repeatRule: withEnd(base, end, until, count) }));
+    setSub(null);
+  }
+
+  function commit(next: DateDraft): void {
+    let draftNext = next;
+    if (draftNext.repeatRule !== null && draftNext.dueDate === null) {
+      const instant = zonedWallTime(todayKey, 0, 0, timeZone);
+      draftNext = { ...draftNext, dueDate: instant, allDay: true };
+      onNotice?.(messages.dateSetToday);
+    }
+    onApply(draftNext);
+    onClose();
+  }
+
   return (
-    <Popover
-      open={open}
-      label={messages.dateSet}
-      onClose={onClose}
-      className="popover date-popover"
-    >
+    <Popover open={open} label={messages.dateSet} onClose={onClose} className="popover date-popover">
       <div className="popover-tabs" role="tablist">
-        <button
+        <Button
           type="button"
+          size="sm"
+          variant={tab === 'date' ? 'primary' : 'ghost'}
           aria-selected={tab === 'date'}
           onClick={() => {
             setTab('date');
           }}
         >
           {messages.dateTab}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          size="sm"
+          variant={tab === 'duration' ? 'primary' : 'ghost'}
           aria-selected={tab === 'duration'}
           onClick={() => {
             setTab('duration');
           }}
         >
           {messages.durationTab}
-        </button>
+        </Button>
       </div>
       {tab === 'duration' ? (
         <label className="popover-field">
@@ -129,38 +158,46 @@ export function DatePopover({
       ) : (
         <>
           <div className="date-shortcuts">
-            <button
+            <Button
               type="button"
+              size="sm"
+              variant="ghost"
               onClick={() => {
                 setDay(todayKey, draft.allDay);
               }}
             >
               {messages.dateToday}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              size="sm"
+              variant="ghost"
               onClick={() => {
                 setDay(shiftDayKey(todayKey, 1), draft.allDay);
               }}
             >
               {messages.dateTomorrow}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              size="sm"
+              variant="ghost"
               onClick={() => {
                 setDay(shiftDayKey(todayKey, 7), draft.allDay);
               }}
             >
               {messages.dateIn7}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              size="sm"
+              variant="ghost"
               onClick={() => {
                 setDraft((current) => ({ ...current, dueDate: null, allDay: true }));
               }}
             >
               {messages.noDate}
-            </button>
+            </Button>
           </div>
           <div className="cal-toolbar">
             <button
@@ -194,11 +231,14 @@ export function DatePopover({
             {cells.map((date) => {
               const key = localKey(date);
               const selected = key === dayKey;
+              const today = key === todayKey;
               return (
                 <button
                   key={key}
                   type="button"
-                  className={selected ? 'cal-day is-selected' : 'cal-day'}
+                  className={['cal-day', selected ? 'is-selected' : '', today ? 'is-today' : '']
+                    .filter((item) => item.length > 0)
+                    .join(' ')}
                   onClick={() => {
                     setDay(key, draft.allDay);
                   }}
@@ -216,11 +256,13 @@ export function DatePopover({
             }}
           >
             <span>{messages.dueTime}</span>
-            <span>{draft.allDay || draft.dueDate === null ? messages.noDate : time}</span>
+            <span>{draft.allDay || draft.dueDate === null ? messages.noTime : time}</span>
           </button>
           {sub === 'time' ? (
             <input
               type="time"
+              lang={timeLang}
+              step={60}
               value={time}
               aria-label={messages.dueTime}
               onChange={(event) => {
@@ -249,11 +291,12 @@ export function DatePopover({
                     setDraft((current) => ({
                       ...current,
                       reminder: trigger.length === 0 ? null : trigger,
+                      reminderTouched: true,
                     }));
                     setSub(null);
                   }}
                 >
-                  {key === 'none' ? messages.noReminder : messages[key]}
+                  {reminderChoice(key, messages)}
                 </button>
               ))
             : null}
@@ -274,6 +317,7 @@ export function DatePopover({
                 className="popover-row"
                 onClick={() => {
                   setDraft((current) => ({ ...current, repeatRule: null }));
+                  setSub(null);
                 }}
               >
                 {messages.noRecurrence}
@@ -282,7 +326,7 @@ export function DatePopover({
                 type="button"
                 className="popover-row"
                 onClick={() => {
-                  setDraft((current) => ({ ...current, repeatRule: 'RRULE:FREQ=DAILY' }));
+                  applyRepeat('RRULE:FREQ=DAILY');
                 }}
               >
                 {messages.repeatDaily}
@@ -291,7 +335,7 @@ export function DatePopover({
                 type="button"
                 className="popover-row"
                 onClick={() => {
-                  setDraft((current) => ({ ...current, repeatRule: 'RRULE:FREQ=WEEKLY' }));
+                  applyRepeat('RRULE:FREQ=WEEKLY');
                 }}
               >
                 {messages.repeatWeekly}
@@ -300,71 +344,262 @@ export function DatePopover({
                 type="button"
                 className="popover-row"
                 onClick={() => {
-                  setDraft((current) => ({ ...current, repeatRule: 'RRULE:FREQ=MONTHLY' }));
+                  applyRepeat('RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR');
+                }}
+              >
+                {messages.repeatWeekdays}
+              </button>
+              <button
+                type="button"
+                className="popover-row"
+                onClick={() => {
+                  applyRepeat('RRULE:FREQ=MONTHLY');
                 }}
               >
                 {messages.repeatMonthly}
               </button>
+              <button
+                type="button"
+                className="popover-row"
+                onClick={() => {
+                  applyRepeat('RRULE:FREQ=YEARLY');
+                }}
+              >
+                {messages.repeatYearly}
+              </button>
+              <label className="popover-field">
+                {messages.repeatEveryDays.replace('{name}', '')}
+                <input
+                  type="number"
+                  min={2}
+                  value={everyDays}
+                  aria-label={messages.repeatEveryDays}
+                  onChange={(event) => {
+                    setEveryDays(Number(event.target.value) || 2);
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    applyRepeat(`RRULE:FREQ=DAILY;INTERVAL=${String(Math.max(2, everyDays))}`);
+                  }}
+                >
+                  {fill(messages.repeatEveryDays, String(everyDays))}
+                </button>
+              </label>
+              <label className="popover-field">
+                <input
+                  type="number"
+                  min={2}
+                  value={everyWeeks}
+                  aria-label={messages.repeatEveryWeeks}
+                  onChange={(event) => {
+                    setEveryWeeks(Number(event.target.value) || 2);
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    applyRepeat(`RRULE:FREQ=WEEKLY;INTERVAL=${String(Math.max(2, everyWeeks))}`);
+                  }}
+                >
+                  {fill(messages.repeatEveryWeeks, String(everyWeeks))}
+                </button>
+              </label>
+              <div className="date-shortcuts">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={end === 'never' ? 'primary' : 'ghost'}
+                  onClick={() => {
+                    setEnd('never');
+                  }}
+                >
+                  {messages.repeatEndNever}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={end === 'date' ? 'primary' : 'ghost'}
+                  onClick={() => {
+                    setEnd('date');
+                  }}
+                >
+                  {messages.repeatEndDate}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={end === 'count' ? 'primary' : 'ghost'}
+                  onClick={() => {
+                    setEnd('count');
+                  }}
+                >
+                  {messages.repeatEndCount}
+                </Button>
+              </div>
+              {end === 'date' ? (
+                <input
+                  type="date"
+                  lang={timeLang}
+                  value={until}
+                  aria-label={messages.repeatEndDate}
+                  onChange={(event) => {
+                    setUntil(event.target.value);
+                  }}
+                />
+              ) : null}
+              {end === 'count' ? (
+                <input
+                  type="number"
+                  min={1}
+                  value={count}
+                  aria-label={messages.repeatCount}
+                  onChange={(event) => {
+                    setCount(Number(event.target.value) || 1);
+                  }}
+                />
+              ) : null}
             </>
           ) : null}
         </>
       )}
       <div className="popover-actions">
-        <button
+        <Button
           type="button"
-          className="text-button"
+          size="sm"
+          variant="ghost"
           onClick={() => {
-            onApply({ ...draft, dueDate: null, allDay: true, reminder: null, repeatRule: null });
-            onClose();
+            commit({
+              ...draft,
+              dueDate: null,
+              allDay: true,
+              reminder: null,
+              reminderTouched: true,
+              repeatRule: null,
+            });
           }}
         >
           {messages.clearDate}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
-          className="ui-button is-primary is-sm"
+          size="sm"
+          variant="primary"
           onClick={() => {
-            onApply(draft);
-            onClose();
+            commit(draft);
           }}
         >
           {messages.dateOk}
-        </button>
+        </Button>
       </div>
     </Popover>
   );
 }
 
-function reminderLabel(trigger: string | null, messages: ReturnType<typeof useMessages>): string {
-  if (trigger === null) {
+function reminderChoice(
+  key: (typeof REMINDERS)[number][1],
+  messages: ReturnType<typeof useMessages>,
+): string {
+  switch (key) {
+    case 'none':
+      return messages.noReminder;
+    case 'at':
+      return messages.reminderAtDue;
+    case 'm5':
+      return messages.reminder5;
+    case 'm15':
+      return messages.reminder15;
+    case 'm30':
+      return messages.reminder30;
+    case 'hour':
+      return messages.reminderHour;
+    case 'day':
+      return messages.reminderDay;
+    default:
+      return messages.noReminder;
+  }
+}
+
+export function reminderLabel(trigger: string | null, messages: ReturnType<typeof useMessages>): string {
+  if (trigger === null || trigger.length === 0) {
     return messages.noReminder;
   }
-  if (trigger === 'TRIGGER:-PT30M') {
+  const minutes = triggerMinutes(trigger);
+  if (minutes === 0) {
+    return messages.reminderAtDue;
+  }
+  if (minutes === 5) {
+    return messages.reminder5;
+  }
+  if (minutes === 15) {
+    return messages.reminder15;
+  }
+  if (minutes === 30) {
     return messages.reminder30;
   }
-  if (trigger === 'TRIGGER:-PT1H') {
+  if (minutes === 60) {
     return messages.reminderHour;
   }
-  if (trigger === 'TRIGGER:-P1D') {
+  if (minutes === 1440) {
     return messages.reminderDay;
   }
-  return trigger;
+  if (minutes !== null) {
+    return fill(messages.reminderMinutes, String(minutes));
+  }
+  return messages.reminderRow;
+}
+
+function triggerMinutes(trigger: string): number | null {
+  const match = /P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?)?/u.exec(trigger);
+  if (match === null) {
+    return null;
+  }
+  const days = Number(match[1] ?? 0);
+  const hours = Number(match[2] ?? 0);
+  const minutes = Number(match[3] ?? 0);
+  return days * 1440 + hours * 60 + minutes;
 }
 
 function repeatLabel(rule: string | null, messages: ReturnType<typeof useMessages>): string {
   if (rule === null) {
     return messages.noRecurrence;
   }
-  if (rule.includes('DAILY')) {
-    return messages.repeatDaily;
+  const interval = /INTERVAL=(\d+)/u.exec(rule);
+  const every = interval === null ? 1 : Number(interval[1]);
+  if (rule.includes('BYDAY=MO,TU,WE,TH,FR')) {
+    return messages.repeatWeekdays;
   }
-  if (rule.includes('WEEKLY')) {
-    return messages.repeatWeekly;
+  if (rule.includes('YEARLY')) {
+    return messages.repeatYearly;
   }
   if (rule.includes('MONTHLY')) {
     return messages.repeatMonthly;
   }
-  return rule;
+  if (rule.includes('WEEKLY') && every > 1) {
+    return fill(messages.repeatEveryWeeks, String(every));
+  }
+  if (rule.includes('WEEKLY')) {
+    return messages.repeatWeekly;
+  }
+  if (rule.includes('DAILY') && every > 1) {
+    return fill(messages.repeatEveryDays, String(every));
+  }
+  if (rule.includes('DAILY')) {
+    return messages.repeatDaily;
+  }
+  return messages.repeatRow;
+}
+
+function withEnd(base: string, end: 'never' | 'date' | 'count', until: string, count: number): string {
+  const clean = base.replace(/;UNTIL=[^;]*/u, '').replace(/;COUNT=\d+/u, '');
+  if (end === 'count') {
+    return `${clean};COUNT=${String(Math.max(1, count))}`;
+  }
+  if (end === 'date' && /^\d{4}-\d{2}-\d{2}$/u.test(until)) {
+    return `${clean};UNTIL=${until.replace(/-/gu, '')}T235959Z`;
+  }
+  return clean;
 }
 
 function monthOf(due: string | null, timeZone: string): Date {

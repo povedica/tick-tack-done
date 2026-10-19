@@ -1,7 +1,7 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { isTombstoneType, syncLimit, tombstoneCutoff } from '@reflexionia/domain';
 import type { AuthUser } from '../../auth/auth-user.js';
-import { patEventPrefixes } from './sync-visibility.js';
+import { patEventPrefixes, syncAndFilters } from './sync-visibility.js';
 import { DomainException } from '../../http/domain.exception.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 
@@ -35,18 +35,21 @@ export class SyncService {
     }
     const cursor = await this.cursor(user.id, since);
     const cutoff = tombstoneCutoff(new Date());
+    const and = syncAndFilters(
+      eventTypeFilter(user),
+      cursor === null
+        ? null
+        : {
+            OR: [
+              { occurredAt: { gt: cursor.occurredAt } },
+              { occurredAt: cursor.occurredAt, id: { gt: cursor.id } },
+            ],
+          },
+    );
     const rows = await this.prisma.outboxEvent.findMany({
       where: {
         ownerId: user.id,
-        ...eventTypeFilter(user),
-        ...(cursor === null
-          ? {}
-          : {
-              OR: [
-                { occurredAt: { gt: cursor.occurredAt } },
-                { occurredAt: cursor.occurredAt, id: { gt: cursor.id } },
-              ],
-            }),
+        ...(and.length > 0 ? { AND: [...and] } : {}),
         NOT: { AND: [{ type: { contains: '.deleted@' } }, { occurredAt: { lt: cutoff } }] },
       },
       orderBy: [{ occurredAt: 'asc' }, { id: 'asc' }],

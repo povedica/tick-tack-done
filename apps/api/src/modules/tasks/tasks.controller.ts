@@ -593,7 +593,7 @@ export class TasksController {
     if (raw === undefined || raw === '' || raw === 'active') {
       return 'active';
     }
-    if (raw === 'completed' || raw === 'archived' || raw === 'all') {
+    if (raw === 'completed' || raw === 'archived' || raw === 'cancelled' || raw === 'all') {
       return raw;
     }
     throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'status is invalid');

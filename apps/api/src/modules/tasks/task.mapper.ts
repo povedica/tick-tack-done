@@ -9,7 +9,7 @@ export interface TaskRow {
   title: string;
   content: string;
   kind: 'task' | 'note';
-  status: 'active' | 'completed' | 'archived';
+  status: 'active' | 'completed' | 'archived' | 'cancelled';
   priority: 'none' | 'low' | 'medium' | 'high';
   isAllDay: boolean;
   startDate: Date | null;
@@ -50,7 +50,7 @@ export interface TaskSummaryJson {
   title: string;
   content: string;
   kind: 'task' | 'note';
-  status: 'active' | 'completed' | 'archived';
+  status: 'active' | 'completed' | 'archived' | 'cancelled';
   priority: 'none' | 'low' | 'medium' | 'high';
   is_all_day: boolean;
   start_date: string | null;

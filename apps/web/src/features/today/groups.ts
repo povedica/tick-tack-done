@@ -16,7 +16,7 @@ export interface TodayTask {
   readonly hasRepeat: boolean;
   readonly attachmentCount: number;
   readonly source: string;
-  readonly status: 'active' | 'completed' | 'archived';
+  readonly status: 'active' | 'completed' | 'archived' | 'cancelled';
   readonly projectId: string;
   readonly tagIds: readonly string[];
 }

@@ -76,6 +76,14 @@ export function ProjectListPage() {
     queryFn: () => api.listColumns(projectId),
     enabled: projectId.length > 0,
   });
+  if (projects.isSuccess && projectId.length > 0 && project === undefined) {
+    return (
+      <main className="screen-page">
+        <h1>{messages.notFoundTitle}</h1>
+        <p>{messages.notFoundBody}</p>
+      </main>
+    );
+  }
   return (
     <Board
       messages={messages}
@@ -276,6 +284,42 @@ function Board({
   );
 }
 
+export function CancelledPage() {
+  const messages = useMessages();
+  const locale = useAppLocale();
+  const queryClient = useQueryClient();
+  const tasks = useQuery({
+    queryKey: ['cancelled-tasks'],
+    queryFn: () => api.listTasks({ status: 'cancelled', limit: 100 }),
+  });
+  const projects = useQuery({ queryKey: ['projects'], queryFn: collectProjects, staleTime: 5 * 60_000 });
+  const tags = useQuery({ queryKey: ['tags'], queryFn: collectTags, staleTime: 5 * 60_000 });
+  const names = new Map((projects.data?.items ?? []).map((project) => [project.id, project.name]));
+  const tagNames = new Map((tags.data?.items ?? []).map((item) => [item.id, item.name]));
+  const rows = (tasks.data?.items ?? []).map((task) => rowFromTask(task, names, tagNames));
+  return (
+    <main className="screen-page">
+      <header className="today-header">
+        <h1>{messages.navWont}</h1>
+      </header>
+      {tasks.isSuccess && rows.length === 0 ? <p>{messages.wontEmpty}</p> : null}
+      <TaskList
+        messages={messages}
+        rows={rows}
+        locale={locale}
+        view="list"
+        hideCompleted={false}
+        onComplete={(row) => {
+          void api.completeTask(row.id, {}, crypto.randomUUID()).then(() => {
+            void refreshTaskSurfaces(queryClient);
+            void queryClient.invalidateQueries({ queryKey: ['cancelled-tasks'] });
+          });
+        }}
+      />
+    </main>
+  );
+}
+
 export function TagViewPage() {
   const messages = useMessages();
   const locale = useAppLocale();
@@ -293,6 +337,14 @@ export function TagViewPage() {
     enabled: id.length > 0,
   });
   const tag = tags.data?.items.find((item) => item.id === id);
+  if (tags.isSuccess && id.length > 0 && tag === undefined) {
+    return (
+      <main className="screen-page">
+        <h1>{messages.notFoundTitle}</h1>
+        <p>{messages.notFoundBody}</p>
+      </main>
+    );
+  }
   const names = new Map((projects.data?.items ?? []).map((project) => [project.id, project.name]));
   const tagNames = new Map((tags.data?.items ?? []).map((item) => [item.id, item.name]));
   const rows = (tasks.data ?? []).map((task) => rowFromTask(task, names, tagNames));

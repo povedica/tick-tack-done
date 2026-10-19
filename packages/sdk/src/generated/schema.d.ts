@@ -59,6 +59,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/notifications/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Last 20 reminder deliveries, with channel and result (NT-09) */
+        get: operations["MeController_notificationHealth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/push-subscriptions": {
         parameters: {
             query?: never;
@@ -1642,6 +1659,92 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/planning/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Open a day-planning session. Nothing is changed yet. */
+        post: operations["PlanningController_start"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/planning/sessions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a planning session and its preview */
+        get: operations["PlanningController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/planning/sessions/{id}/decisions/{taskId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Record one planning decision without changing the task */
+        put: operations["PlanningController_decide"];
+        post?: never;
+        /** Remove one planning decision */
+        delete: operations["PlanningController_clear"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/planning/sessions/{id}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Apply the preview. “La haré hoy” does not change the due date. */
+        post: operations["PlanningController_apply"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tasks the user planned for a local date */
+        get: operations["PlansController_day"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/webhooks": {
         parameters: {
             query?: never;
@@ -2471,6 +2574,10 @@ export interface components {
             /** @enum {string} */
             accent: "indigo" | "violet" | "teal" | "amber" | "rose" | "slate";
             default_reminder_trigger: string | null;
+            quiet_hours_start: string | null;
+            quiet_hours_end: string | null;
+            telegram_enabled: boolean;
+            focus_notifications: boolean;
         };
         ChangePasswordDto: {
             /** @description Current password */
@@ -2498,9 +2605,29 @@ export interface components {
             accent?: "indigo" | "violet" | "teal" | "amber" | "rose" | "slate";
             /** @enum {string|null} */
             default_reminder_trigger?: "-PT0M" | "-PT5M" | "-PT15M" | "-PT30M" | "-PT1H" | "-P1D" | null;
+            /** @example 22:00 */
+            quiet_hours_start?: Record<string, never> | null;
+            /** @example 07:00 */
+            quiet_hours_end?: Record<string, never> | null;
+            telegram_enabled?: boolean;
+            focus_notifications?: boolean;
         };
         InboundEmailStatusDto: {
             active: boolean;
+        };
+        NotificationDeliveryDto: {
+            id: string;
+            task_id: string | null;
+            kind: string;
+            status: string;
+            channel: string;
+            attempts: number;
+            fire_at: string;
+            fired_at: string | null;
+            next_retry_at: string | null;
+        };
+        NotificationHealthDto: {
+            items: components["schemas"]["NotificationDeliveryDto"][];
         };
         InboundEmailAddressDto: {
             /** @description Shown once. The secret is not stored in clear text. */
@@ -2875,7 +3002,7 @@ export interface components {
             /** @enum {string} */
             kind: "task" | "note";
             /** @enum {string} */
-            status: "active" | "completed" | "archived";
+            status: "active" | "completed" | "archived" | "cancelled";
             /** @enum {string} */
             priority: "none" | "low" | "medium" | "high";
             due_date: string | null;
@@ -3012,7 +3139,7 @@ export interface components {
             /** @enum {string} */
             kind: "task" | "note";
             /** @enum {string} */
-            status: "active" | "completed" | "archived";
+            status: "active" | "completed" | "archived" | "cancelled";
             /** @enum {string} */
             priority: "none" | "low" | "medium" | "high";
             is_all_day: boolean;
@@ -3097,7 +3224,7 @@ export interface components {
             /** @enum {string} */
             kind: "task" | "note";
             /** @enum {string} */
-            status: "active" | "completed" | "archived";
+            status: "active" | "completed" | "archived" | "cancelled";
             /** @enum {string} */
             priority: "none" | "low" | "medium" | "high";
             is_all_day: boolean;
@@ -3230,6 +3357,25 @@ export interface components {
             /** @enum {string} */
             tone?: "honesto" | "neutro" | "motivador";
             channels?: string[];
+        };
+        StartPlanDto: {
+            /** @example 2026-10-19 */
+            local_date: string;
+            /** @example Europe/Madrid */
+            time_zone: string;
+            today?: boolean;
+            overdue?: boolean;
+            inbox?: boolean;
+            undated?: boolean;
+            limit?: number | null;
+        };
+        DecisionDto: {
+            /** @enum {string} */
+            decision: "done" | "plan_day" | "later" | "cancel" | "trash" | "skip";
+            target_date?: string | null;
+        };
+        ApplyPlanDto: {
+            expected_revision: number;
         };
         WebhookDto: {
             url: string;
@@ -3470,6 +3616,27 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    MeController_notificationHealth: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationHealthDto"];
+                };
             };
         };
     };
@@ -6280,6 +6447,133 @@ export interface operations {
     ReviewController_weekly: {
         parameters: {
             query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PlanningController_start: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartPlanDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PlanningController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PlanningController_decide: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PlanningController_clear: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PlanningController_apply: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplyPlanDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PlansController_day: {
+        parameters: {
+            query: {
+                time_zone: unknown;
+                date: unknown;
+            };
             header?: never;
             path?: never;
             cookie?: never;

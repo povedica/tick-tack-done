@@ -342,7 +342,7 @@ export function TokensPage() {
         {tokens.isSuccess && items.length === 0 ? (
           <p className="token-empty">{messages.tokenEmpty}</p>
         ) : null}
-        {items.map((token) => {
+        {items.filter((token) => token.revoked_at === null).map((token) => {
           const revoked = token.revoked_at !== null;
           const open = selected === token.id;
           return (
@@ -445,6 +445,26 @@ export function TokensPage() {
             </article>
           );
         })}
+        {items.some((token) => token.revoked_at !== null) ? (
+          <details className="token-revoked">
+            <summary>
+              {messages.tokensRevokedFold} (
+              {String(items.filter((token) => token.revoked_at !== null).length)})
+            </summary>
+            <ul>
+              {items
+                .filter((token) => token.revoked_at !== null)
+                .map((token) => (
+                  <li key={token.id}>
+                    {token.name}
+                    {token.revoked_at !== null ? (
+                      <time dateTime={token.revoked_at}> · {when(token.revoked_at, locale)}</time>
+                    ) : null}
+                  </li>
+                ))}
+            </ul>
+          </details>
+        ) : null}
       </section>
     </section>
   );

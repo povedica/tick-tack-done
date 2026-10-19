@@ -8,19 +8,27 @@ export interface PushTarget {
   readonly auth: string;
 }
 
+export interface TelegramButton {
+  readonly text: string;
+  readonly callback_data: string;
+}
+
 export interface ReminderMessage {
   readonly channel: 'push' | 'email' | 'both';
   readonly email: string | null;
   readonly subscriptions: readonly PushTarget[];
   readonly telegramChatId: string | null;
+  readonly allowTelegram?: boolean;
   readonly title: string;
   readonly body: string;
+  readonly buttons?: readonly (readonly TelegramButton[])[];
 }
 
 export interface DeliveryResult {
   readonly email: 'sent' | 'skipped' | 'failed';
   readonly push: 'sent' | 'skipped' | 'failed';
   readonly telegram: 'sent' | 'skipped' | 'failed';
+  readonly telegram_message_id: number | null;
 }
 
 @Injectable()
@@ -28,10 +36,12 @@ export class ReminderTransport {
   async deliver(message: ReminderMessage): Promise<DeliveryResult> {
     const wantsEmail = message.channel === 'email' || message.channel === 'both';
     const wantsPush = message.channel === 'push' || message.channel === 'both';
+    const telegram = await this.telegram(message);
     return {
       email: wantsEmail ? await this.email(message) : 'skipped',
       push: wantsPush ? await this.push(message) : 'skipped',
-      telegram: await this.telegram(message),
+      telegram: telegram.status,
+      telegram_message_id: telegram.messageId,
     };
   }
 
@@ -93,11 +103,18 @@ export class ReminderTransport {
     }
   }
 
-  private async telegram(message: ReminderMessage): Promise<DeliveryResult['telegram']> {
+  private async telegram(
+    message: ReminderMessage,
+  ): Promise<{ status: DeliveryResult['telegram']; messageId: number | null }> {
     const token = process.env.TELEGRAM_BOT_TOKEN ?? '';
     const chatId = message.telegramChatId;
-    if (token.length === 0 || chatId === null || chatId.length === 0) {
-      return 'skipped';
+    if (
+      message.allowTelegram === false ||
+      token.length === 0 ||
+      chatId === null ||
+      chatId.length === 0
+    ) {
+      return { status: 'skipped', messageId: null };
     }
     try {
       const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
@@ -106,13 +123,23 @@ export class ReminderTransport {
         body: JSON.stringify({
           chat_id: chatId,
           text: [message.title, message.body].filter((line) => line.length > 0).join('\n'),
+          ...(message.buttons === undefined
+            ? {}
+            : { reply_markup: { inline_keyboard: message.buttons } }),
         }),
         signal: AbortSignal.timeout(8_000),
       });
-      const payload = (await response.json()) as { ok?: unknown };
-      return payload.ok === true ? 'sent' : 'failed';
+      const payload = (await response.json()) as {
+        ok?: unknown;
+        result?: { message_id?: unknown };
+      };
+      const messageId =
+        typeof payload.result?.message_id === 'number' ? payload.result.message_id : null;
+      return payload.ok === true
+        ? { status: 'sent', messageId }
+        : { status: 'failed', messageId: null };
     } catch {
-      return 'failed';
+      return { status: 'failed', messageId: null };
     }
   }
 }

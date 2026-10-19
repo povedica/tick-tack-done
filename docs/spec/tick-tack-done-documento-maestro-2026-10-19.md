@@ -1,6 +1,6 @@
 # tick-tack-done: documento maestro para Cursor (19 oct 2026)
 
-Base: desplegado d87e3fa, main 51dd555 (mismo codigo de producto). Un solo documento con todas las evidencias, Telegram como receptor de notificaciones y la funcionalidad Planifica tu dia. Cada parte conserva su numeracion; las capturas se citan por nombre.
+Base: desplegado d87e3fa, main 51dd555 (mismo codigo de producto). Un solo documento con todas las evidencias, Telegram como receptor de notificaciones, la funcionalidad Planifica tu dia y la captura en lenguaje natural (fechas y horas) compartida por Telegram, web, API y email. Cada parte conserva su numeracion; las capturas se citan por nombre. La Parte 8 amplia el alcance de H-02 y de NT-03: no basta un matcher de hora suelta.
 
 ## Indice
 1. Revision del detalle de tarea y sidebar vs TickTick (incluye consolidado del dia)
@@ -10,6 +10,7 @@ Base: desplegado d87e3fa, main 51dd555 (mismo codigo de producto). Un solo docum
 5. UX de la pantalla Hoy
 6. Anexo: notificaciones por Telegram
 7. Capitulo: Plan de hoy y Planifica tu dia
+8. Capitulo Q: captura en lenguaje natural (fechas y horas). Amplia H-02 y sustituye el alcance estrecho de NT-03
 
 
 ---
@@ -62,7 +63,7 @@ Abiertos:
 | S-05 | media | El HTML de la web no trae CSP, Permissions-Policy ni COOP; HSTS sin `preload`. El repo los tiene en `deploy/production/todo.caddy`, pero el Caddy del host no los aplica. | `apps/web/nginx.conf`: `add_header ... always` en `server` y en cada `location` que ya use `add_header` (o `include security-headers.conf`). Probar la CSP primero en Report-Only (hay service worker y Web Push). Comprobar con `curl -sI https://todo.reflexionia.com/`. |
 | S-22 (nuevo) | media | `/api/v1/sync` filtra a un PAT `tasks:read`, a partir de la página 4, eventos de sesión, token, webhook, calendario, hábito, etc. | `apps/api/src/modules/sync/sync.service.ts`: `eventTypeFilter` devuelve un `OR` y el cursor lo pisa. Combinar con `AND: [filtroTipo, cursor]`. Test: PAT mínimo recorriendo todas las páginas solo ve `task.*` y `checklist_item.*`. |
 
-Repo público (pendiente de limpieza): spec de seguridad commiteada con IP `46.224.6.154`, nombre de clave SSH y app vecina; menciones a TickTick en docs/spec; email personal en 152 commits; `deploy.sh:14`.
+Repo público (pendiente de limpieza): spec de seguridad commiteada con IP `<SERVER_IP>`, nombre de clave SSH y app vecina; menciones a TickTick en docs/spec; email personal en 152 commits; `deploy.sh:14`.
 
 ### 2.2 Restos de UI de la ronda 4
 
@@ -579,9 +580,9 @@ Prueba: PAT con solo `tasks:read`, `GET /api/v1/sync?limit=200` y siguiendo `nex
 | LICENSE, SECURITY.md, CODEOWNERS, dependabot, workflow Security, `.dockerignore`, `.gitleaks.toml`, security.txt | OK |
 | IP, usuario SSH y rutas del servidor en `docs/deployment.md`, `docs/handoff.md`, `deploy/` | CORREGIDO (ya no están) |
 | `deploy/production/deploy.sh:14` comentario con `/opt/todo/app` | ABIERTO (menor) |
-| `docs/spec/spec-seguridad-tick-tack-done-2026-10-19-v2-39a5d1b4.md` | **ABIERTO**: publica IP 46.224.6.154, clave SSH `turugby_hetzner_deploy`, red `turugby-production_public`, app vecina `ia.turugby`. Sacarla del repo o anonimizarla (el propio doc incluye el `filter-repo`). |
+| `docs/spec/spec-seguridad-tick-tack-done-2026-10-19-v2-39a5d1b4.md` | **ABIERTO**: publica IP <SERVER_IP>, clave SSH `<SSH_KEY_NAME>`, red `<EDGE_NETWORK>`, app vecina `<NEIGHBOR_APP>`. Sacarla del repo o anonimizarla (el propio doc incluye el `filter-repo`). |
 | Menciones a TickTick en `docs/spec/` | ABIERTO: `cursor-prompt-limpieza-repo-publico` (39), `cursor-prompt-ronda3-ticktick-vs-tick-tack-done` (30), `auditoria-settings` (17), `especificacion-producto-v1.1` (11), `paridad-ticktick` (9), `ux-ui` (9), `mcp-listo` (4). En código: importador/compat `open/ticktick.ts` (aceptable si se documenta como compatibilidad). |
-| Email personal en el historial | ABIERTO: 152 commits `yoyyosemite@gmail.com` (nivel C sin hacer). |
+| Email personal en el historial | ABIERTO: 152 commits `<PERSONAL_EMAIL>` (nivel C sin hacer). |
 | Secretos en el árbol | Sin hallazgos (regex AWS/GitHub/PAT/clave privada: solo valores de test). `.env.example` sin valores reales. |
 | Archivos de editor | `todo.code-workspace` y `.cursor/rules` siguen versionados (decisión tuya). |
 
@@ -710,7 +711,7 @@ Verificado contra `cursor-prompt-limpieza-repo-publico-2026-10-19`:
 | Renombrados de docs | ✅ | `especificacion-producto-v1.1.md` etc. |
 | Menciones a TickTick / origen en `docs/spec/` | ❌ Pendiente | `paridad-ticktick.md` (doc nuevo que admite procedencia), el doc de ronda 3, `mcp-listo` (además con enlace roto al nombre antiguo `ticktick-clone-spec-v1.1.md`), el de fixes y el de auditoría siguen conteniendo "medido de TickTick" y similares. |
 | Datos sensibles en comentarios | ❌ Pendiente | `deploy/production/deploy.sh` (comentario con `/opt/todo/app`) y la propia spec de seguridad commiteada (IP del servidor, "turugby"). |
-| Emails de commits (nivel B/C) | ❌ Pendiente | Siguen como yoyyosemite@gmail.com. |
+| Emails de commits (nivel B/C) | ❌ Pendiente | Siguen como <PERSONAL_EMAIL>. |
 
 **Recomendación:** antes de dar difusión al repo, pasar el grep del documento de limpieza otra vez sobre `docs/spec/` y `deploy/`, y valorar reescribir el historial (nivel C) si el email y los datos de infra importan.
 
@@ -1074,7 +1075,7 @@ Capturas de referencia (adjuntas por WhatsApp): `REF-1` lista de referencia con 
 ## 5. Quick-add (P1)
 
 **Esperado:** placeholder `Añadir tarea a "Bandeja"` (nombra la lista destino); al escribir, resaltar en el propio texto lo que se interpreta (fecha, hora, prioridad, #etiqueta, lista) y mostrar un chip a la derecha con el resultado ("Hoy, 18:00"). Enter crea y mantiene el foco; Esc limpia; las herramientas (fecha, prioridad, lista) se ven al enfocar.
-**Actual:** `<input>` plano; `quickAddRequest` parsea ("hoy 18:00 !alta" funciona: la tarea quedó con prioridad Alta, fecha de hoy 18:00 y título limpio) pero el usuario no ve el parseo hasta después. Solo se ve un icono de calendario y un chevron (`QuickAddTools.tsx`, 80 líneas).
+**Actual:** `<input>` plano; `quickAddRequest` parsea ("hoy 18:00 !alta" funciona: la tarea quedó con prioridad Alta, fecha de hoy 18:00 y título limpio) pero el usuario no ve el parseo hasta después. Solo se ve un icono de calendario y un chevron (`QuickAddTools.tsx`, 80 líneas). La vista previa y el servidor deben usar el mismo `parseQuickAdd` de la Parte 8: una hora separada de la fecha ("mañana … a las 16:00") tiene que verse en el chip igual que quedará guardada.
 **Cómo arreglarlo:**
 - `TodayPage.tsx` `addTask`: calcular `quickAddRequest` en cada cambio (memo) y pasar `preview` a `QuickAddTools` para pintar chips: fecha/hora (acento), prioridad (color), etiquetas (color de etiqueta).
 - Resaltado en línea: sustituir el `<input>` por un `contenteditable` o capa espejo (`<div aria-hidden>` detrás del input con `<mark>` por token). Alternativa más simple y suficiente: solo chips.
@@ -1221,6 +1222,7 @@ El fallo principal está en `apps/api/src/scheduler/scheduler.service.ts`, funci
 - `telegram-bot.service.ts`: comandos `/capturar /hoy /manana /semana /lista /nuevalista /hecho`; captura por texto, voz (si hay transcripción configurada; en vivo `voice: false`) y foto (funciona, `photo: true`). Las listas llevan botones inline `☐ título` (data `c:<id>`) para completar (`completeButton`, línea 202).
 - **No hay aplazar (snooze) desde Telegram**: el endpoint existe (`POST /api/v1/tasks/:id/reminders/:reminderId/snooze`, `tasks.service.ts` línea 1302) pero el bot no lo expone.
 - Los mensajes de recordatorio son texto plano sin botones: no se puede completar ni aplazar desde el propio aviso.
+- La captura responde solo «Guardada: <título>.» Más avisos de lista o etiqueta. No confirma fecha, hora, prioridad ni etiquetas. El formato de confirmación y la metadata `{ capture: 'telegram' }` están en la Parte 8 (D2, D4, Q.8).
 - Seguridad del webhook: `POST /api/v1/integrations/telegram/webhook` valida `TELEGRAM_WEBHOOK_SECRET` con comparación de tiempo constante (`integrations/telegram-secret.ts`). Bien.
 - Vinculación: `POST /api/v1/integrations/telegram/link`; el chat queda en `telegramLinks` y el transporte usa el primer chat vinculado (`scheduler.service.ts` línea 591).
 
@@ -1254,7 +1256,7 @@ Tarea: `fa96e1a3-3a04-4f58-abdc-189232a289c5` — "Recoger a mis hijos a las 15:
 #### 3.1 Cadena de fallos (cada uno es un hallazgo)
 
 1. **H-01**: las señales `due_soon`/`overdue` no se entregan (el fallo estructural: una tarea con hora y sin recordatorio no avisa por ningún canal).
-2. **H-02**: el NLP de captura rápida no entiende hora suelta ("a las 15:35") sin palabra de fecha; la tarea quedó "todo el día" (`packages/domain/src/nlp/parse.ts`: todo matcher de hora cuelga de un matcher de fecha; no hay matcher de hora desnuda).
+2. **H-02**: el NLP de captura rápida no entiende hora suelta ("a las 15:35") sin palabra de fecha; la tarea quedó "todo el día" (`packages/domain/src/nlp/parse.ts`: todo matcher de hora cuelga de un matcher de fecha; no hay matcher de hora desnuda). El mismo parser tampoco asocia una hora cuando hay palabras entre la fecha y la hora ("mañana … a las 16:00" quedó todo el día). Gramática, confirmación del bot y casos dorados: Parte 8.
 3. **H-03**: crear una tarea con fecha ya pasada dispara su recordatorio inmediatamente (`reminderDisposition` → `fire`); no hay regla "si la hora calculada ya pasó, no avises".
 4. **H-04**: `applyDate` en la web borra el recordatorio al editar fecha si el selector no lo trae pre-seleccionado.
 5. **H-05**: cambiar la fecha de una tarea con fecha no recrea el recordatorio por defecto (solo se crea en transición `null → fecha`).
@@ -1268,7 +1270,7 @@ Tarea: `fa96e1a3-3a04-4f58-abdc-189232a289c5` — "Recoger a mis hijos a las 15:
 | ID | Sev | Hallazgo | Archivo |
 |---|---|---|---|
 | H-01 | **Alta** | `due_soon`/`overdue` nunca se entregan: solo graban evento | `scheduler.service.ts` `fire()` línea 602 |
-| H-02 | Alta | NLP no parsea hora sin fecha ("a las 15:35") | `packages/domain/src/nlp/parse.ts` |
+| H-02 | Alta | NLP no parsea hora suelta ("a las 15:35") ni hora separada de la fecha ("mañana … a las 16:00"). Spec completa: Parte 8 | `packages/domain/src/nlp/parse.ts` |
 | H-03 | Media | Recordatorio anclado en el pasado dispara al instante de crear la tarea | `trigger.ts` `reminderDisposition` línea 221 |
 | H-04 | Alta | La web borra el recordatorio al editar la fecha | `TaskDetail.tsx` `applyDate` línea ~165 |
 | H-05 | Alta | Editar fecha (fecha→fecha) no crea recordatorio por defecto | `tasks.service.ts` línea 395 |
@@ -1302,11 +1304,16 @@ Regla de producto: **toda tarea con hora de vencimiento tiene aviso**, aunque el
 
 - Criterio: crear "ZZ TEST x a las 19:00" (con NT-03) → Telegram a las 19:00 exactas (±60 s, el tick).
 
-### NT-03 (P0) NLP: hora sin fecha = hoy (o mañana si ya pasó)
+### NT-03 (P0) NLP de captura: hora, fecha separada y desplazamientos
 
-En `parse.ts`, añadir matcher de hora desnuda: `a las 15:35`, `15:35`, `a las 3 y media` (opcional). Sin palabra de fecha: si la hora de hoy aún no pasó → hoy; si pasó → mañana. Marcar `isAllDay: false`. Tests en `parse.spec.ts` con el patrón existente (`RF-102`).
+El alcance estrecho original (un matcher de hora desnuda, y «a las 3 y media» como opcional) queda sustituido por la Parte 8. Implementar NT-03 es implementar el Capítulo Q entero: hora suelta, día de semana, sufijos de mañana/tarde/noche, `am`/`pm`, mediodía y medianoche, desplazamientos (`en 2 horas`, `dentro de 3 días`), asociación de una fecha y una hora aunque haya texto entre medias, reglas de DST, confirmación del bot y metadata `{ capture: 'telegram' }`.
 
-- Criterio: `parseQuickAdd('recoger a mis hijos a las 15:35', 'es', {now: hoy 12:00})` → `due.date` = hoy 15:35 local, `isAllDay: false`.
+«a las 3 y media» no forma parte de la gramática. No implementarlo.
+
+El caso de las 15:35 sigue cubierto por la hora suelta de Q.5: sin palabra de fecha, si la hora de hoy aún no pasó → hoy; si pasó → mañana; `isAllDay: false`.
+
+- Criterio mínimo que sigue vigente: `parseQuickAdd('recoger a mis hijos a las 15:35', 'es', {now: hoy 12:00 Europe/Madrid})` → `due.date` = hoy 15:35 local, `isAllDay: false`.
+- Criterio completo, casos dorados y aceptación: Q.9 y Q.10.
 
 ### NT-04 (P0) No disparar recordatorios anclados en el pasado
 
@@ -1377,8 +1384,8 @@ Una vez al día (junto al resumen de las 07:00 o a una hora configurable), lista
    - `sendMessage` con `reply_markup` opcional (NT-08); devolver `message_id` para poder editar el mensaje al actuar.
 4. `apps/api/src/modules/integrations/telegram-bot.service.ts`
    - Handler de callbacks `s:{deliveryId}:{min}` para aplazar (NT-08), reutilizando `snoozeReminder`.
-5. `packages/domain/src/nlp/parse.ts` + `parse.spec.ts`
-   - Matcher de hora desnuda (NT-03) con tests (hoy/mañana según hora pasada, `isAllDay: false`).
+5. `packages/domain/src/nlp/parse.ts` + `parse.spec.ts`, y la respuesta de `TelegramBotService.capture()`
+   - Gramática completa de la Parte 8 (NT-03 ampliado): hora suelta, asociación fecha-hora con texto entre medias, días de semana, sufijos, desplazamientos y DST. Casos dorados de Q.9. Confirmación del bot (Q.8) y metadata `{ capture: 'telegram' }`.
 6. `apps/web/src/features/tasks/TaskDetail.tsx`
    - `applyDate()`: inicializar el recordatorio del borrador desde el actual; solo borrar con elección explícita (NT-06). Al poner hora, `allDay = false` (NT-13).
 7. `apps/api/src/modules/focus/` (o un `focus-notifications.listener.ts` en `scheduler` o `integrations`)
@@ -1387,14 +1394,14 @@ Una vez al día (junto al resumen de las 07:00 o a una hora configurable), lista
 
 ## 7. Tests
 
-- **Dominio** (`parse.spec.ts`, `trigger` spec): hora desnuda hoy/mañana; disposición sin pasado inmediato (NT-03, NT-04).
+- **Dominio** (`parse.spec.ts`, `trigger` spec): tabla dorada de la Parte 8 (Q.9), ancla `2026-10-19T14:39:00.000Z` / `Europe/Madrid`; disposición sin pasado inmediato (NT-03, NT-04).
 - **API** (Vitest, patrón existente con `SCHEDULER_AUTOSTART=false` y `run(now, false)` manual): señal `due_soon` entrega Telegram (transporte mockeado); completar cancela; cambiar fecha regenera; fallo → 3 reintentos y para; silencio pospone; `-PT0M` + señal no duplica (NT-01/02/05/09/10).
-- **Bot**: callback `s:` crea el aplazamiento y edita el mensaje (NT-08); foco manda mensaje (NT-11).
+- **Bot**: callback `s:` crea el aplazamiento y edita el mensaje (NT-08); foco manda mensaje (NT-11); la captura confirma fecha, prioridad, etiquetas y lista (Q.8).
 - **E2E manual** (con prefijo ZZ TEST y borrado después): crear "ZZ TEST aviso a las HH:MM" con hora a +3 min desde la web y desde Telegram → llega un solo Telegram a la hora; completar desde el botón; aplazar +10 min y verificar el segundo aviso; crear otra ya pasada → ningún aviso inmediato.
 
 ## 8. Plan por fases
 
-- **Fase 1 (P0, la que necesita Pablo ya)**: NT-01, NT-02, NT-03, NT-04, NT-05, NT-06, NT-07. Resultado: cualquier tarea con hora avisa por Telegram a su hora; sin disparos fantasmas ni avisos perdidos por editar.
+- **Fase 1 (P0, la que necesita Pablo ya)**: NT-01, NT-02, NT-03 con la gramática completa de la Parte 8 (no solo la hora suelta), NT-04, NT-05, NT-06, NT-07. Resultado: la captura entiende fecha y hora en los cuatro canales, el bot confirma lo interpretado, y cualquier tarea con hora avisa por Telegram a su hora; sin disparos fantasmas ni avisos perdidos por editar.
 - **Fase 2 (P1)**: NT-08 botones, NT-09 reintentos, NT-10 silencio, NT-11 foco.
 - **Fase 3 (P2)**: NT-12 canal fino, NT-13 all-day, NT-14 resumen de vencidas.
 
@@ -1964,3 +1971,202 @@ Entregar commits, resultados de tests dominio/API/UI y capturas reales inspeccio
 ## P.16. Definición de terminado
 
 El usuario entiende por qué aparece una tarea y qué cambiará. Puede volver y revisar sin efectos previos. El plan existe en servidor y se recupera en otro dispositivo. Planificar, cambiar vencimiento y cambiar aviso son operaciones distintas. Funciona sin LLM, con errores/red explícitos. PWA solo se declara validada donde se haya probado. Ningún botón dice guardado/aplicado/enviado sin ese estado confirmado.
+
+---
+
+# PARTE 8
+
+# Capítulo Q. Captura en lenguaje natural: fechas y horas
+
+Ampliación de alcance del 19 oct 2026 (tarde). Caso origen: mensaje de Telegram de Pablo, `Recoger mañana a Markus del cole a las 16:00 !high #cole`. Relacionado con H-02. Este capítulo sustituye el alcance estrecho de NT-03. La entrega de avisos sigue siendo la Parte 6; aquí solo entra cómo se interpreta la captura y cómo el bot confirma lo guardado.
+
+El parser es uno solo. Corregir `parseQuickAdd` arregla a la vez Telegram, la vista previa web, `POST /api/v1/tasks` (y por tanto MCP) y la captura por email.
+
+---
+
+## Q.0. Qué amplía y qué no toca
+
+NT-03 decía: matcher de hora desnuda (`a las 15:35`, `15:35`) y, en opcional, `a las 3 y media`. Eso no cubre el caso real de la tarde ni las reglas de ambigüedad que hacen falta para no comerse el título.
+
+Este capítulo añade, y pasa a ser el contrato de NT-03:
+
+- Asociación de una fecha y una hora aunque haya palabras entre medias.
+- Hora suelta, días de semana, sufijos `de la mañana` / `de la tarde` / `de la noche`, `am`/`pm`, mediodía y medianoche.
+- Desplazamientos `en` / `dentro de` minutos, horas, días y semanas.
+- Reglas de DST para Europe/Madrid en 2026.
+- Confirmación del bot y metadata `{ capture: 'telegram' }`.
+
+No entra aquí: entregar `due_soon` (NT-01), recordatorios, botones Hecho/Aplazar, ni el plan del día. `a las 3 y media` queda fuera de la gramática.
+
+---
+
+## Q.1. Resumen
+
+El caso real tiene dos causas en el parser y un fallo de confirmación:
+
+1. **`mañana` sí se interpretó.** La tarea quedó con vencimiento 20-10-2026 como todo el día. Verificado en vivo.
+2. **`a las 16:00` no se interpretó.** `extendWithTime()` solo asocia la hora cuando va pegada a la fecha. Si hay palabras entre medias, la hora no se asocia a nada. No existe matcher de hora suelta (H-02), así que se queda en el título.
+3. **El bot no confirma nada.** Telegram contesta solo `Guardada: <título>.`, sin fecha, prioridad ni etiquetas. Desde el chat no se ve que `mañana` sí funcionó.
+
+---
+
+## Q.2. Estado verificado del código
+
+- **main:** `51dd55558cbf55d639e7002d70a8a134b38aa796` (19-10-2026 14:50 +0200).
+- **Desplegado:** `d87e3faacc4b515906349e7634c7dbd310d57d43` (el health anuncia `d87e3fa`).
+- **Diff entre ambos:** 4 líneas de `deploy/production/docker-compose.yml`. `packages/domain/src/nlp/parse.ts` y `apps/api/src/modules/integrations/telegram-bot.service.ts` son idénticos en los dos commits. El análisis sobre main describe producción.
+
+---
+
+## Q.3. Cómo llega la captura al parser
+
+Texto de Telegram:
+
+1. Webhook → `TelegramBotService.handle()` (`apps/api/src/modules/integrations/telegram-bot.service.ts`).
+2. `parseTelegramCommand()` (`packages/domain/src/integrations/telegram.ts`, RF-2003) clasifica el texto. Lo que no es comando termina como `{ kind: 'capture', text }`.
+3. `capture()` llama a `tasks.create(user, { raw_text: text }, 'telegram-<updateId>')`. No envía `time_zone`.
+4. `TasksService.create()` (`apps/api/src/modules/tasks/tasks.service.ts`) llama a `resolveQuickAdd()` (`apps/api/src/modules/tasks/quick-add.ts`).
+5. `resolveQuickAdd()` llama a `parseQuickAdd(texto, idioma, { now, timeZone })` con `now` del servidor y `timeZone = dto.time_zone ?? user.timeZone`. El bot no manda zona: se usa la del perfil (Europe/Madrid). Si el perfil tuviera una zona inválida, el parser se queda sin reloj y no interpreta ninguna fecha.
+
+Los otros canales usan el mismo parser:
+
+- **Quick-add web** (`apps/web/src/features/capture/quick-add.ts`): ejecuta `parseQuickAdd` en el cliente para la vista previa, manda `raw_text` y el servidor vuelve a parsear. El servidor manda.
+- **Email entrante** (`tasks.service.ts`): crea la tarea con `raw_text` = asunto y guarda metadata `{ capture: 'email' }`.
+- **API y MCP** (`POST /api/v1/tasks`): aceptan `raw_text` y lo parsean igual.
+
+`packages/domain/src/nlp/parse.ts` es la única fuente de verdad.
+
+---
+
+## Q.4. Diagnóstico del caso real
+
+Entrada: `Recoger mañana a Markus del cole a las 16:00 !high #cole`
+
+Reproducción del parser de main (`51dd555`), `now = 2026-10-19T14:39:00.000Z`, zona Europe/Madrid:
+
+- Título: `Recoger a Markus del cole a las 16:00`
+- Due: `2026-10-19T22:00:00.000Z` (20-10-2026 00:00 en Madrid), `isAllDay: true`
+- Prioridad: `high`. Etiquetas: `[cole]`
+- Spans consumidos: `mañana` (date), `!high` (priority), `#cole` (tag)
+
+Verificación en vivo (19-10-2026 ~16:44 CEST, sesión web, `GET /api/v1/search?q=Markus`): la tarea `db97fdb0-027e-4136-b09f-43b48f40a8e5` tiene exactamente esos valores. Lista `Bandeja de entrada`, `time_zone: Europe/Madrid`. No mutarla: es evidencia.
+
+Defectos:
+
+- **D1.** La hora no se asocia si no va pegada a la fecha. `extendWithTime()` solo mira el texto inmediatamente posterior. `mañana a las 16:00` funciona (hay tests). `mañana a Markus del cole a las 16:00` no. La hora queda sin fecha y no hay matcher de hora suelta.
+- **D2.** `capture()` responde solo `Guardada: <título>.` más avisos de lista o etiqueta creada. No dice fecha, hora, prioridad ni etiquetas.
+- **D3.** Al no consumirse, `a las 16:00` contamina el título.
+- **D4.** La captura por Telegram no guarda metadata de origen. La de email sí: `{ capture: 'email' }`. `source` queda `manual`. Conviene guardar `{ capture: 'telegram' }` en la misma llamada de creación.
+
+El caso de la mañana (`Recoger a mis hijos a las 15:35`, tarea `fa96e1a3-…`, Parte 6) es el otro lado de H-02: hora sin ninguna palabra de fecha. D1 es el lado nuevo: hay fecha, pero la hora no va pegada.
+
+---
+
+## Q.5. Gramática
+
+Mantener la gramática actual: `hoy`, `mañana`, `pasado mañana`, `dd/mm[/aaaa]` y `dd-mm[-aaaa]`, `12 de octubre [de 2026]` y meses en inglés, recurrencias `cada …`, recordatorios `avísame N min/horas/días antes`, hora pegada a la fecha (`mañana 18:00`, `mañana a las 9:30`), `!alta|media|baja`, `!1/!2/!3`, `!high/…`, `p1/p2/p3`, `#etiqueta`, `^lista` / `@lista` / `~lista`.
+
+Añadir:
+
+| Entrada | Interpretación |
+|---|---|
+| `lunes`, `el lunes` (cualquier día, sin `cada`) | Próxima ocurrencia futura. Si hoy es ese día, solo cuenta hoy cuando lleva una hora que aún no pasó; si no, la semana que viene. Todo el día si no hay hora. |
+| `16:00`, `a las 16:00`, `a las 16`, `16h`, `16:30h` | Hora suelta: hoy si aún no pasó en la zona del usuario; si ya pasó, mañana. Nunca todo el día. |
+| `a las 4 de la tarde` | 16:00. Sufijos: `de la mañana` (1-11 tal cual; 12 → 00:00), `de la tarde` (1-7 → +12, o sea 13:00-19:00), `de la noche` (8-11 → +12, o sea 20:00-23:00; 12 → 00:00 del mismo día, limitación documentada). Hora fuera del rango del sufijo: no se interpreta y queda en el título. |
+| `4pm`, `4:30pm`, `4am` | Ya existe en parte junto a fechas. Extender a hora suelta. |
+| `mediodía` | 12:00. `medianoche` → 00:00. |
+| `en 2 horas`, `dentro de 2 horas`, y lo mismo con `minuto(s)` | Ahora + N, con hora exacta. También `en un` / `en una` / `dentro de un` / `dentro de una`. |
+| `en 3 días`, `dentro de 3 días`, `en una semana`, `dentro de 2 semanas` | Desplazamiento de calendario. Semana = 7 días. Todo el día. |
+| `!prioridad`, `#etiqueta`, `^lista` | Igual que hoy. Se consumen en cualquier posición. |
+
+**Asociación fecha-hora.** Si el mensaje tiene exactamente una fecha y una hora, se combinan aunque haya palabras entre medias: `Recoger mañana a Markus del cole a las 16:00` → mañana 16:00. Si hay varias horas, la fecha toma la más cercana en el texto y las demás quedan en el título. Si la fecha ya trae hora pegada (`mañana a las 9:30`), esa manda y cualquier otra hora queda en el título.
+
+---
+
+## Q.6. Zona horaria y DST
+
+- El parseo usa la zona del usuario (`user.timeZone`, hoy Europe/Madrid) y `now` del servidor. El bot no inventa zona.
+- Cambio de hora en España 2026: el 29-03-2026 las 02:30 no existen (salto 02:00 → 03:00). El 25-10-2026 las 02:30 ocurren dos veces (03:00 → 02:00).
+- Hora inexistente: desplazar hacia adelante manteniendo el desfase (02:30 → 03:30 CEST = 01:30Z). Es el comportamiento esperado de `fromZonedTime` en `instantFromWall` (`packages/domain/src/dates/zoned.ts`). Verificar con test y ajustar si no coincide.
+- Hora duplicada: primera ocurrencia (CEST, 00:30Z).
+- Fechas sin hora (`mañana`, `el lunes`) siguen como todo el día a las 00:00 locales.
+
+---
+
+## Q.7. Ambigüedad
+
+- `dd/mm`: día primero en español. Si un número es mayor que 12, ese es el día. Mantener la lógica actual.
+- Formato 24 h primero: `a las 4` es 04:00, no 16:00. Si esa hora ya pasó hoy, va a mañana. Para las 16:00 hace falta `16:00`, `4 de la tarde` o `4pm`.
+- Un número suelto sin `:`, `h` ni sufijo nunca es hora. `a las 16` sí; `16` a secas no. `comprar 16 velas` no se toca.
+- No interpretar horas pegadas a letras o dígitos ni dentro de otros tokens: `x16:00`, `116:000`, URLs.
+- Varias fechas: gana la última (comportamiento actual). Ambas salen del título.
+- Varias prioridades: gana la última.
+- Lo interpretado sale del título. Lo no interpretado se queda. Título vacío → `empty_title`, como hoy.
+
+---
+
+## Q.8. Qué debe responder Telegram
+
+Tras guardar, en `TelegramBotService.capture()` y en las vías de voz y de foto con caption, confirmar lo interpretado con los campos de `tasks.create` (`due_date`, `is_all_day`, `priority`, `tags`, `project_id`) y la zona del usuario:
+
+```
+Guardada: Recoger a Markus del cole.
+📅 Mañana, 16:00 · Prioridad alta · #cole · Bandeja de entrada
+```
+
+- Fecha corta en la zona del usuario: `Hoy, 16:00`, `Mañana, 16:00`, `Mar 20 oct, 16:00`. Todo el día: `Mañana (todo el día)`. Sin fecha: no hay línea de fecha.
+- Prioridad solo si no es `none`. Etiquetas con `#`. Siempre la lista, resuelta con `project_id`.
+- Mantener los avisos actuales (lista o etiqueta creada, lista no encontrada).
+- La entrada original de Pablo debe confirmar `Mañana, 16:00`.
+- En la misma creación, guardar metadata `{ capture: 'telegram' }`, igual que el email guarda `{ capture: 'email' }` en `tasks.service.ts`.
+
+Textos de cara al usuario en español. No cambiar el esquema OpenAPI ni los DTO salvo esa metadata.
+
+---
+
+## Q.9. Casos dorados
+
+En `packages/domain/src/nlp/parse.spec.ts`. Ancla: `now = 2026-10-19T14:39:00.000Z` (lunes 19-10-2026 16:39 CEST), zona `Europe/Madrid`. Citar RF-102 y RF-2003 en los comentarios que toquen, y los RF nuevos si el cambio de spec los añade.
+
+| # | Entrada | Título | Due (ISO UTC) | Todo el día |
+|---|---|---|---|---|
+| 1 | `Recoger mañana a Markus del cole a las 16:00 !high #cole` | `Recoger a Markus del cole` | `2026-10-20T14:00:00.000Z` | no |
+| 2 | `dentista mañana a las 9:30` | `dentista` | `2026-10-20T07:30:00.000Z` | no |
+| 3 | `llamar a Ana a las 18:00` | `llamar a Ana` | `2026-10-19T16:00:00.000Z` | no |
+| 4 | `llamar a Ana a las 9:00` | `llamar a Ana` | `2026-10-20T07:00:00.000Z` | no |
+| 5 | `el lunes recoger paquete` | `recoger paquete` | `2026-10-25T23:00:00.000Z` (lunes 26-10 00:00 CET) | sí |
+| 6 | `el martes recoger paquete a las 10:00` | `recoger paquete` | `2026-10-20T08:00:00.000Z` | no |
+| 7 | `revisión en 2 horas` | `revisión` | `2026-10-19T16:39:00.000Z` | no |
+| 8 | `revisión dentro de 3 días` | `revisión` | `2026-10-21T22:00:00.000Z` (22-10 00:00 CEST) | sí |
+| 9 | `cita el 24/10 a las 12:30` | `cita` | `2026-10-24T10:30:00.000Z` | no |
+| 10 | `a las 4 de la tarde llamar al banco` | `llamar al banco` | `2026-10-19T14:00:00.000Z` | no |
+| 11 | `a las 3 de la tarde llamar` | `llamar` | `2026-10-20T13:00:00.000Z` | no |
+| 12 | `salir a correr pasado mañana a las 8` | `salir a correr` | `2026-10-21T06:00:00.000Z` | no |
+| 13 | `cita el 29/3/2026 a las 2:30` | `cita` | `2026-03-29T01:30:00.000Z` (02:30 → 03:30 CEST) | no |
+| 14 | `cita el 25/10/2026 a las 2:30` | `cita` | `2026-10-25T00:30:00.000Z` (primera ocurrencia, CEST) | no |
+| 15 | `comprar 16 velas` | `comprar 16 velas` | `null` | — |
+| 16 | `mañana a las 9:30 y a las 18:00` | `y a las 18:00` | `2026-10-20T07:30:00.000Z` | no |
+| 17 | `cita a las 9 de la tarde` | `cita a las 9 de la tarde` | `null` | — |
+
+El caso 1 también comprueba prioridad `high` y etiqueta `cole`. El caso 12 lleva título a propósito: `pasado mañana a las 8` a solas dejaría el título vacío y hoy eso es `empty_title`.
+
+Además:
+
+- La suite actual de `parse.spec.ts` sigue verde.
+- Test del formato de confirmación del bot (spec de `TelegramBotService.capture` o e2e en `apps/api/test/capture.e2e-spec.ts`): la respuesta incluye fecha formateada, prioridad, etiquetas y lista.
+- Test de `instantFromWall` para la hora inexistente y la hora duplicada de Q.6.
+
+Parser determinista con regex. Sin LLM. Sin dependencias nuevas salvo justificación. Diff mínimo.
+
+---
+
+## Q.10. Criterios de aceptación
+
+1. `POST /api/v1/tasks` con `raw_text` = `Recoger mañana a Markus del cole a las 16:00 !high #cole` devuelve título `Recoger a Markus del cole`, `due_date` = 20-10-2026 16:00 Europe/Madrid (`2026-10-20T14:00:00.000Z` si el reloj de referencia es el de Q.9), `is_all_day` false, prioridad alta, etiqueta `cole`.
+2. La respuesta del bot confirma fecha y hora, prioridad, etiquetas y lista con el formato de Q.8, también en voz y en foto con caption.
+3. La vista previa del quick-add web muestra exactamente lo mismo. El servidor vuelve a parsear y es el que manda.
+4. `pnpm --filter @reflexionia/domain test` y los tests de API en verde, con los casos dorados y los de DST.
+5. Sin dependencias nuevas salvo necesidad justificada. Parser determinista, sin LLM.
+6. La captura por Telegram guarda metadata `{ capture: 'telegram' }`.
+
+Verificación manual aparte de la tabla: la entrada original, escrita otra vez, no puede quedar como todo el día ni conservar `a las 16:00` en el título. La tarea real `db97fdb0-…` no se edita para demostrar el arreglo.

@@ -1,3 +1,21 @@
+import {
+  ClipboardCopy,
+  Copy,
+  Download,
+  Link2,
+  ListTree,
+  Paperclip,
+  Pin,
+  Printer,
+  Repeat,
+  ScrollText,
+  StickyNote,
+  Tags,
+  Timer,
+  Trash2,
+} from 'lucide-react';
+import type { ReactNode } from 'react';
+import { Popover } from '../../components/Popover';
 import type { Messages } from '../../i18n';
 
 export function DetailMenu({
@@ -41,58 +59,145 @@ export function DetailMenu({
   readonly onPrint: () => void;
   readonly onDelete: () => void;
 }) {
-  if (!open) {
-    return null;
-  }
-  const items: readonly {
-    readonly id: string;
-    readonly label: string;
-    readonly run: () => void;
-    readonly danger?: boolean;
-  }[] = [
-    { id: 'sub', label: messages.addSubtask, run: onAddSubtask },
-    { id: 'parent', label: messages.linkParent, run: onLinkParent },
-    { id: 'pin', label: pinned ? messages.unpinTask : messages.pinTask, run: onPin },
-    { id: 'discard', label: messages.discardTask, run: onDiscard },
-    { id: 'tags', label: messages.tags, run: onTags },
-    { id: 'file', label: messages.upload, run: onUpload },
-    { id: 'focus', label: messages.focusOnTask, run: onFocus },
-    { id: 'activity', label: messages.taskActivity, run: onActivity },
-    { id: 'template', label: messages.saveTemplate, run: onTemplate },
-    { id: 'copy', label: messages.duplicate, run: onDuplicate },
-    { id: 'link', label: messages.copyLink, run: onCopy },
-    { id: 'note', label: messages.convertNote, run: onConvert },
-    { id: 'export', label: messages.exportTask, run: onExport },
-    { id: 'print', label: messages.printTask, run: onPrint },
+  const groups: readonly (readonly MenuItem[])[] = [
+    [
+      {
+        id: 'pin',
+        label: pinned ? messages.unpinTask : messages.pinTask,
+        icon: <Pin size={16} aria-hidden="true" />,
+        run: onPin,
+      },
+      {
+        id: 'sub',
+        label: messages.addSubtask,
+        icon: <ListTree size={16} aria-hidden="true" />,
+        run: onAddSubtask,
+      },
+      {
+        id: 'parent',
+        label: messages.linkParent,
+        icon: <Link2 size={16} aria-hidden="true" />,
+        run: onLinkParent,
+      },
+    ],
+    [
+      {
+        id: 'tags',
+        label: messages.tags,
+        icon: <Tags size={16} aria-hidden="true" />,
+        run: onTags,
+      },
+      {
+        id: 'file',
+        label: messages.upload,
+        icon: <Paperclip size={16} aria-hidden="true" />,
+        run: onUpload,
+      },
+      {
+        id: 'focus',
+        label: messages.focusOnTask,
+        icon: <Timer size={16} aria-hidden="true" />,
+        run: onFocus,
+      },
+    ],
+    [
+      {
+        id: 'copy',
+        label: messages.duplicate,
+        icon: <Copy size={16} aria-hidden="true" />,
+        run: onDuplicate,
+      },
+      {
+        id: 'link',
+        label: messages.copyLink,
+        icon: <ClipboardCopy size={16} aria-hidden="true" />,
+        run: onCopy,
+      },
+      {
+        id: 'template',
+        label: messages.saveTemplate,
+        icon: <StickyNote size={16} aria-hidden="true" />,
+        run: onTemplate,
+      },
+      {
+        id: 'note',
+        label: messages.convertNote,
+        icon: <Repeat size={16} aria-hidden="true" />,
+        run: onConvert,
+      },
+      {
+        id: 'export',
+        label: messages.exportTask,
+        icon: <Download size={16} aria-hidden="true" />,
+        run: onExport,
+      },
+      {
+        id: 'print',
+        label: messages.printTask,
+        icon: <Printer size={16} aria-hidden="true" />,
+        run: onPrint,
+      },
+      {
+        id: 'activity',
+        label: messages.taskActivity,
+        icon: <ScrollText size={16} aria-hidden="true" />,
+        run: onActivity,
+      },
+      {
+        id: 'discard',
+        label: messages.discardTask,
+        icon: <Repeat size={16} aria-hidden="true" />,
+        run: onDiscard,
+      },
+    ],
   ];
   return (
-    <div className="popover popover-menu detail-menu" role="menu" aria-label={messages.moreActions}>
-      {items.map((item) => (
+    <Popover
+      open={open}
+      label={messages.moreActions}
+      onClose={onClose}
+      className="popover popover-menu detail-menu"
+    >
+      {groups.map((group) => (
+        <div key={group[0]?.id} className="menu-group">
+          {group.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className="popover-row"
+              role="menuitem"
+              onClick={() => {
+                item.run();
+                onClose();
+              }}
+            >
+              {item.icon}
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </div>
+      ))}
+      <div className="menu-group">
         <button
-          key={item.id}
           type="button"
-          className="popover-row"
+          className="popover-row is-danger"
           role="menuitem"
           onClick={() => {
-            item.run();
+            onDelete();
             onClose();
           }}
         >
-          {item.label}
+          <Trash2 size={16} aria-hidden="true" />
+          <span>{messages.batchDelete}</span>
         </button>
-      ))}
-      <hr />
-      <button
-        type="button"
-        className="popover-row is-danger"
-        role="menuitem"
-        onClick={() => {
-          onDelete();
-          onClose();
-        }}
-      >
-        {messages.batchDelete}
-      </button>
-    </div>
+      </div>
+    </Popover>
   );
+}
+
+interface MenuItem {
+  readonly id: string;
+  readonly label: string;
+  readonly icon: ReactNode;
+  readonly run: () => void;
 }

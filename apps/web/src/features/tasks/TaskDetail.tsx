@@ -1,20 +1,23 @@
-import { ApiError, type CreateTaskBody, type TaskDetail as Detail } from '@reflexionia/sdk';
+import { type CreateTaskBody, type TaskDetail as Detail } from '@reflexionia/sdk';
 import { describeRepeatRule, parseTrigger } from '@reflexionia/domain';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
-import { useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useSearchParams } from 'react-router';
 import { api } from '../../api';
-import { DatePopover, type DateDraft } from '../../components/DatePopover';
+import { DatePopover, reminderLabel, type DateDraft } from '../../components/DatePopover';
+import { bindPopover } from '../../components/popover-stack';
 import { PriorityMenu } from '../../components/PriorityMenu';
 import { TagPicker } from '../../components/TagPicker';
 import { Button } from '../../components/ui';
 import { useActionToast } from '../../components/action-toast';
 import { fill, useMessages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
-import { formatDueChip, type TodayTask } from '../today/groups';
+import { formatClock, useActiveFocus } from '../../shell/useActiveFocus';
+import { formatDueChip } from '../today/groups';
 import { PIN_KEY, readPins, togglePin } from '../today/pins';
 import { newMutation, runOrQueue } from '../offline/client';
+import { apiMessage } from './api-message';
 import { collectTags } from './collect';
 import { activityText, relativeTime } from './detail-model';
 import { DetailBody } from './DetailBody';
@@ -22,6 +25,7 @@ import { DetailFooter } from './DetailFooter';
 import { DetailHeader } from './DetailHeader';
 import { DetailMenu } from './DetailMenu';
 import { refreshTaskSurfaces } from './refresh';
+import { createComment, deleteAttachment, listComments, patchChecklistItem } from './task-http';
 
 const MAX_ATTACHMENT = 25 * 1024 * 1024;
 const TEMPLATE_KEY = 'tick-tack-done.templates';
@@ -35,9 +39,10 @@ export function TaskDetail({
 }) {
   const messages = useMessages();
   const locale = useAppLocale();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const focus = useActiveFocus();
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [, setParams] = useSearchParams();
   const showToast = useActionToast((state) => state.show);
   const [saved, setSaved] = useState(false);
@@ -51,7 +56,6 @@ export function TaskDetail({
   const [activityOpen, setActivityOpen] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [parentOpen, setParentOpen] = useState(false);
-  const [formatOpen, setFormatOpen] = useState(false);
   const [pins, setPins] = useState<readonly string[]>(() =>
     readPins(localStorage.getItem(PIN_KEY)),
   );
@@ -67,6 +71,11 @@ export function TaskDetail({
   const attachments = useQuery({
     queryKey: ['attachments', taskId],
     queryFn: () => api.listAttachments(taskId),
+  });
+  const comments = useQuery({
+    queryKey: ['comments', taskId],
+    queryFn: () => listComments(taskId),
+    enabled: commentsOpen,
   });
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
   const tags = useQuery({ queryKey: ['tags'], queryFn: collectTags, staleTime: 5 * 60_000 });
@@ -88,9 +97,28 @@ export function TaskDetail({
       }
     },
     onError: (caught: unknown) => {
-      setError(caught instanceof ApiError ? caught.message : messages.saveFailed);
+      setError(apiMessage(caught, messages));
     },
   });
+  useEffect(() => {
+    if (!listOpen) {
+      return;
+    }
+    return bindPopover(() => {
+      setListOpen(false);
+    });
+  }, [listOpen]);
+  useEffect(() => {
+    if (!saved) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setSaved(false);
+    }, 1500);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [saved]);
 
   if (detail.isPending) {
     return (
@@ -116,6 +144,19 @@ export function TaskDetail({
   }
 
   const task = detail.data;
+
+  function uploadFile(file: File): void {
+    if (file.size > MAX_ATTACHMENT) {
+      setError(messages.tooLarge);
+      return;
+    }
+    void api
+      .uploadAttachment(task.id, file, file.name)
+      .then(() => queryClient.invalidateQueries({ queryKey: ['attachments', taskId] }))
+      .catch((caught: unknown) => {
+        setError(apiMessage(caught, messages));
+      });
+  }
   const activeChildren = task.subtasks.filter((item) => item.status === 'active');
   const chip = formatDueChip(task.due_date, task.time_zone, task.is_all_day, new Date(), locale, {
     empty: messages.noDate,
@@ -135,10 +176,9 @@ export function TaskDetail({
     allDay: task.is_all_day,
     durationMinutes: task.duration_minutes,
     reminder: reminder?.trigger ?? null,
+    reminderTouched: false,
     repeatRule: task.repeat_rule,
   };
-
-  const parents = queryClient.getQueryData<TodayTask[]>(['today-tasks']) ?? [];
 
   function applyDate(next: DateDraft): void {
     if (next.dueDate !== task.due_date || next.allDay !== task.is_all_day) {
@@ -158,15 +198,28 @@ export function TaskDetail({
     ) {
       save.mutate({ duration_minutes: next.durationMinutes, repeat_rule: next.repeatRule });
     }
-    const current = reminder?.trigger ?? null;
-    if (next.reminder === current) {
+    if (next.dueDate === null && task.due_date !== null) {
+      const previousDue = task.due_date;
+      const previousAllDay = task.is_all_day;
+      const previousRule = task.repeat_rule;
+      showToast(messages.dateCleared, () => {
+        save.mutate({
+          due_date: previousDue,
+          is_all_day: previousAllDay,
+          repeat_rule: previousRule,
+        });
+      });
+    }
+    if (!next.reminderTouched || sameTrigger(next.reminder, reminder?.trigger ?? null)) {
       return;
     }
     void (async () => {
-      if (reminder !== undefined) {
+      if (reminder !== undefined && next.reminder === null) {
         await api.deleteReminder(task.id, reminder.id);
-      }
-      if (next.reminder !== null) {
+      } else if (next.reminder !== null) {
+        if (reminder !== undefined) {
+          await api.deleteReminder(task.id, reminder.id);
+        }
         await api.createReminder(
           task.id,
           { trigger: next.reminder, type: 'relative', channel: 'push' },
@@ -175,7 +228,7 @@ export function TaskDetail({
       }
       await queryClient.invalidateQueries({ queryKey: ['reminders', taskId] });
     })().catch((caught: unknown) => {
-      setError(caught instanceof ApiError ? caught.message : messages.saveFailed);
+      setError(apiMessage(caught, messages));
     });
   }
 
@@ -217,11 +270,22 @@ export function TaskDetail({
         completed={task.status === 'completed'}
         dueText={chip.text}
         dueTone={chip.tone}
+        saving={save.isPending}
         saved={saved}
         savedLabel={messages.saved}
+        savingLabel={messages.savingNow}
         completeLabel={task.status === 'completed' ? messages.reopenLabel : messages.completeLabel}
         dateLabel={messages.dateSet}
         priorityLabel={messages.prioritySet}
+        listName={projectName}
+        listLabel={messages.listMove}
+        listOpen={listOpen}
+        projects={(projects.data?.items ?? []).map((project) => ({
+          id: project.id,
+          name: project.is_inbox ? messages.smartInbox : project.name,
+        }))}
+        projectId={task.project_id}
+        closeLabel={messages.close}
         messages={messages}
         onComplete={complete}
         onOpenDate={() => {
@@ -230,6 +294,14 @@ export function TaskDetail({
         onOpenPriority={() => {
           setPriorityOpen((current) => !current);
         }}
+        onToggleList={() => {
+          setListOpen((current) => !current);
+        }}
+        onMove={(projectId) => {
+          setListOpen(false);
+          void api.moveTask(task.id, projectId).then(refresh);
+        }}
+        onClose={onClose}
       />
       <div className="detail-pop-anchor">
         {dateOpen ? (
@@ -241,6 +313,7 @@ export function TaskDetail({
               setDateOpen(false);
             }}
             onApply={applyDate}
+            onNotice={setNotice}
           />
         ) : null}
         <PriorityMenu
@@ -272,7 +345,26 @@ export function TaskDetail({
           }}
         />
       </div>
-      {error !== null ? <p role="alert">{error}</p> : null}
+      {error !== null ? (
+        <p className="detail-alert" role="alert">
+          {error}
+          <button
+            type="button"
+            className="icon-button"
+            aria-label={messages.close}
+            onClick={() => {
+              setError(null);
+            }}
+          >
+            ×
+          </button>
+        </p>
+      ) : null}
+      {notice !== null ? (
+        <p className="detail-alert" role="status">
+          {notice}
+        </p>
+      ) : null}
       <DetailBody
         title={task.title}
         content={task.content}
@@ -282,22 +374,35 @@ export function TaskDetail({
         contentHint={messages.contentHint}
         checklistLabel={messages.checklist}
         checklistAdd={messages.checklistAdd}
-        tagAdd={messages.tagAdd}
+        checklistEdit={messages.checklistEdit}
+        checklistDelete={messages.checklistDelete}
+        tagAdd={messages.tagAddLabel}
+        taskId={task.id}
         items={task.items.map((item) => ({
           id: item.id,
           title: item.title,
           done: item.status === 'completed',
         }))}
-        subtasks={task.subtasks.map((child) => ({ id: child.id, title: child.title }))}
+        subtasks={task.subtasks.map((child) => ({
+          id: child.id,
+          title: child.title,
+          done: child.status === 'completed',
+        }))}
+        subtasksLabel={messages.subtasksLabel}
         tags={tagRows}
         reminder={
-          reminder === undefined
-            ? null
-            : humanTrigger(reminder.trigger, reminder.channel, messages, locale)
+          reminder === undefined ? null : reminderLabel(reminder.trigger, messages)
         }
         repeat={repeatText}
-        attachmentCount={attachments.data?.items.length ?? 0}
+        attachments={(attachments.data?.items ?? []).map((file) => ({
+          id: file.id,
+          name: file.file_name,
+          size: file.byte_size,
+        }))}
         attachmentLabel={messages.attachments}
+        attachmentDownload={messages.attachmentDownload}
+        attachmentDelete={messages.attachmentDelete}
+        attachmentDrop={messages.attachmentDrop}
         onTitle={(value) => {
           if (value !== task.title) {
             save.mutate({ title: value });
@@ -322,6 +427,33 @@ export function TaskDetail({
         onAddItem={(title) => {
           void api.createChecklistItem(task.id, title, crypto.randomUUID()).then(refresh);
         }}
+        onEditItem={(id, title) => {
+          void patchChecklistItem(task.id, id, { title }).then(refresh);
+        }}
+        onDeleteItem={(id) => {
+          void api.deleteChecklistItem(task.id, id).then(refresh);
+        }}
+        onReorderItem={(id, beforeId) => {
+          void patchChecklistItem(task.id, id, { before_id: beforeId }).then(refresh);
+        }}
+        onToggleSubtask={(id, done) => {
+          const run = done ? api.uncompleteTask(id, crypto.randomUUID()) : api.completeTask(id, {}, crypto.randomUUID());
+          void run.then(refresh);
+        }}
+        onDeleteAttachment={(id) => {
+          void deleteAttachment(task.id, id)
+            .then(() => queryClient.invalidateQueries({ queryKey: ['attachments', taskId] }))
+            .catch((caught: unknown) => {
+              setError(apiMessage(caught, messages));
+            });
+        }}
+        onDropFiles={(files) => {
+          const file = files[0];
+          if (file === undefined) {
+            return;
+          }
+          uploadFile(file);
+        }}
         onRemoveTag={(id) => {
           save.mutate({ tag_ids: task.tag_ids.filter((item) => item !== id) });
         }}
@@ -341,73 +473,64 @@ export function TaskDetail({
         }}
       />
       {commentsOpen ? (
-        <form
-          className="detail-comment"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const data = new FormData(event.currentTarget);
-            const raw = data.get('comment');
-            const text = (typeof raw === 'string' ? raw : '').trim();
-            if (text.length === 0) {
-              return;
-            }
-            save.mutate({ content: `${task.content}\n\n> ${text}`.trim() });
-            setCommentsOpen(false);
-          }}
-        >
-          <input
-            name="comment"
-            aria-label={messages.commentAdd}
-            placeholder={messages.commentAdd}
-          />
-        </form>
-      ) : null}
-      {formatOpen ? (
-        <div className="popover popover-menu detail-menu">
-          <button
-            type="button"
-            className="popover-row"
-            onClick={() => {
-              save.mutate({ content: `${task.content}\n\n**${messages.contentLabel}**` });
-              setFormatOpen(false);
+        <section className="detail-comment">
+          <h3>{messages.commentsLabel}</h3>
+          {(comments.data ?? []).length === 0 ? <p>{messages.commentEmpty}</p> : null}
+          <ul>
+            {(comments.data ?? []).map((comment) => (
+              <li key={comment.id}>
+                <strong>
+                  {comment.authorId === me.data?.id ? messages.actorYou : messages.actorOther}
+                </strong>
+                {comment.createdAt !== null ? (
+                  <span> · {relativeTime(comment.createdAt, locale)}</span>
+                ) : null}
+                <p>{comment.body}</p>
+              </li>
+            ))}
+          </ul>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              const data = new FormData(event.currentTarget);
+              const raw = data.get('comment');
+              const text = (typeof raw === 'string' ? raw : '').trim();
+              const form = event.currentTarget;
+              if (text.length === 0) {
+                return;
+              }
+              void createComment(task.id, text)
+                .then(() => {
+                  form.reset();
+                  return queryClient.invalidateQueries({ queryKey: ['comments', taskId] });
+                })
+                .catch((caught: unknown) => {
+                  setError(apiMessage(caught, messages));
+                });
             }}
           >
-            {messages.formatText}
-          </button>
-        </div>
+            <textarea
+              name="comment"
+              aria-label={messages.commentAdd}
+              placeholder={messages.commentAdd}
+              rows={2}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                  event.preventDefault();
+                  event.currentTarget.form?.requestSubmit();
+                }
+              }}
+            />
+            <Button type="submit" size="sm" variant="primary">
+              {messages.commentSend}
+            </Button>
+          </form>
+        </section>
       ) : null}
       {parentOpen ? (
-        <div className="popover popover-menu detail-menu">
-          <p>{messages.parentSearch}</p>
-          <button
-            type="button"
-            className="popover-row"
-            onClick={() => {
-              save.mutate({ content: task.content.replace(/\n\n[^\n]*$/u, '') });
-              setParentOpen(false);
-            }}
-          >
-            {messages.noParent}
-          </button>
-          {parents
-            .filter((item) => item.id !== task.id)
-            .slice(0, 8)
-            .map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className="popover-row"
-                onClick={() => {
-                  save.mutate({
-                    content: `${task.content}\n\n${messages.linkParent}: ${item.title}`.trim(),
-                  });
-                  setParentOpen(false);
-                }}
-              >
-                {item.title}
-              </button>
-            ))}
-        </div>
+        <p className="detail-alert" role="status">
+          {messages.parentUnavailable}
+        </p>
       ) : null}
       {activityOpen ? (
         <section className="detail-activity">
@@ -423,29 +546,40 @@ export function TaskDetail({
           </ul>
         </section>
       ) : null}
+      {focus?.taskId === task.id ? (
+        <p className="detail-focus">
+          <span>
+            {messages.focusMini} {formatClock(focus.remaining)}
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => {
+              void api.finishFocus(focus.id).then(() => {
+                void queryClient.invalidateQueries({ queryKey: ['focus-sessions'] });
+              });
+            }}
+          >
+            {messages.focusFinish}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              void api.abortFocus(focus.id).then(() => {
+                void queryClient.invalidateQueries({ queryKey: ['focus-sessions'] });
+              });
+            }}
+          >
+            {messages.focusCancel}
+          </Button>
+          <Link to="/focus">{messages.focusTitle}</Link>
+        </p>
+      ) : null}
       <DetailFooter
-        listName={projectName}
-        listLabel={messages.listMove}
-        formatLabel={messages.formatText}
         commentsLabel={messages.commentsLabel}
         moreLabel={messages.moreActions}
-        projects={(projects.data?.items ?? []).map((project) => ({
-          id: project.id,
-          name: project.is_inbox ? messages.smartInbox : project.name,
-        }))}
-        projectId={task.project_id}
-        messages={messages}
-        listOpen={listOpen}
-        onToggleList={() => {
-          setListOpen((current) => !current);
-        }}
-        onMove={(projectId) => {
-          setListOpen(false);
-          void api.moveTask(task.id, projectId).then(refresh);
-        }}
-        onFormat={() => {
-          setFormatOpen((current) => !current);
-        }}
         onComments={() => {
           setCommentsOpen((current) => !current);
         }}
@@ -479,6 +613,7 @@ export function TaskDetail({
           const next = togglePin(pins, task.id);
           setPins(next);
           localStorage.setItem(PIN_KEY, JSON.stringify(next));
+          showToast(next.includes(task.id) ? messages.pinnedToast : messages.unpinnedToast);
         }}
         onDiscard={() => {
           void api.snoozeTask(task.id, 'next_week').then(() => {
@@ -495,9 +630,9 @@ export function TaskDetail({
         onFocus={() => {
           void api
             .startFocus({ task_id: task.id })
-            .then(() => navigate('/focus'))
+            .then(() => queryClient.invalidateQueries({ queryKey: ['focus-sessions'] }))
             .catch((caught: unknown) => {
-              setError(caught instanceof ApiError ? caught.message : messages.saveFailed);
+              setError(apiMessage(caught, messages));
             });
         }}
         onActivity={() => {
@@ -552,13 +687,8 @@ export function TaskDetail({
           if (file === undefined) {
             return;
           }
-          if (file.size > MAX_ATTACHMENT) {
-            setError(messages.tooLarge);
-            return;
-          }
-          void api.uploadAttachment(task.id, file, file.name).then(() => {
-            void queryClient.invalidateQueries({ queryKey: ['attachments', taskId] });
-          });
+          uploadFile(file);
+          event.target.value = '';
         }}
       />
       {children ? (
@@ -611,30 +741,16 @@ export function TaskDetail({
   );
 }
 
-function humanTrigger(
-  trigger: string,
-  channel: string,
-  messages: ReturnType<typeof useMessages>,
-  locale: string,
-): string {
-  const parsed = parseTrigger(trigger);
-  let label = trigger;
-  if (parsed.ok && parsed.kind === 'relative') {
-    const minutes = Math.round(Math.abs(parsed.offsetMs) / 60_000);
-    if (minutes === 30) {
-      label = messages.reminder30;
-    } else if (minutes === 60) {
-      label = messages.reminderHour;
-    } else if (minutes === 1440) {
-      label = messages.reminderDay;
-    }
-  } else if (parsed.ok) {
-    label = new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(
-      new Date(parsed.at),
-    );
+function sameTrigger(left: string | null, right: string | null): boolean {
+  if (left === right) {
+    return true;
   }
-  const shown = channel.trim();
-  return shown.length > 0 && shown !== 'push' ? `${label} · ${shown}` : label;
+  if (left === null || right === null) {
+    return false;
+  }
+  const a = parseTrigger(left);
+  const b = parseTrigger(right);
+  return a.ok && b.ok && a.kind === 'relative' && b.kind === 'relative' && a.offsetMs === b.offsetMs;
 }
 
 function readTemplates(): { title: string; content: string; priority: string }[] {

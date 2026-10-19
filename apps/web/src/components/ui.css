@@ -69,13 +69,15 @@
 .ui-tag {
   display: inline-flex;
   align-items: center;
-  max-width: 88px;
-  height: 18px;
-  padding: 0 6px;
+  gap: 4px;
+  max-width: 100%;
+  height: 24px;
+  padding: 0 8px;
   overflow: hidden;
-  border-radius: var(--radius-full);
-  background: color-mix(in srgb, var(--tag, var(--accent)) 50%, transparent);
-  color: rgba(0, 0, 0, 0.85);
+  border: 0;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--tag, var(--accent)) 22%, transparent);
+  color: var(--ink);
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -315,6 +317,14 @@
 }
 .quad.is-drop {
   background: color-mix(in srgb, var(--success) 8%, var(--surface));
+}
+
+.kanban-wrap {
+  position: relative;
+}
+
+.kanban-error {
+  margin: 0 0 8px;
 }
 
 .kanban {
@@ -1935,6 +1945,26 @@
   align-items: center;
   gap: 8px;
   min-height: 32px;
+}
+
+.screen-page > .cal-toolbar {
+  justify-content: flex-start;
+}
+
+.cal-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cal-empty {
+  margin: 0;
+  color: var(--ink-3);
+}
+
+.cal-empty a {
+  color: inherit;
+  text-decoration: none;
 }
 
 .cal-toolbar,

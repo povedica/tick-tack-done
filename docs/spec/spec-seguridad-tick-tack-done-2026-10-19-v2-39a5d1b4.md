@@ -5,7 +5,7 @@ Fecha: 19 oct 2026. **Versión 2 (ronda 1 pasiva + ronda 2 autenticada en vivo).
 ## 0. Alcance y método
 
 - **Repo**: github.com/povedica/tick-tack-done. Es PÚBLICO (comprobado con la API de GitHub sin autenticar). Rama `main` = 41e866d. El build desplegado (`/api/v1/health` devuelve commit `6512136`) está en la rama `fix/ux-audit-2026-10-18`, NO en main. Revisé el código en 6512136 y comparé con 41e866d: los cambios de seguridad entre ambos son nulos (solo `touchLastUsed`, redirect de manifest y pool de Prisma). Así que todo lo de abajo vale para ambos.
-- **App publicada**: https://todo.reflexionia.com (IP 46.224.6.154). Solo comprobaciones pasivas: cabeceras, TLS, rutas expuestas, CORS, 20 logins fallidos contra un email inexistente, GET sin credenciales a los 136 paths del OpenAPI.
+- **App publicada**: https://todo.reflexionia.com (IP <SERVER_IP>). Solo comprobaciones pasivas: cabeceras, TLS, rutas expuestas, CORS, 20 logins fallidos contra un email inexistente, GET sin credenciales a los 136 paths del OpenAPI.
 - **Estándares**: MDN HTTP Observatory, OWASP Top 10 2021, OWASP API Top 10 2023, ASVS (autenticación, sesiones, configuración).
 - **MDN Observatory**: nota **B (75/100)**, 11 de 12 pruebas pasadas, 1 fallida. Informe: https://developer.mozilla.org/en-US/observatory/analyze?host=todo.reflexionia.com . Reescaneado en la ronda 2: sigue en B 75, 11/12. La API v2 no devuelve el detalle. Confirmado a mano que `GET /` no lleva CSP (solo la API la lleva), que casi seguro es la prueba que falla (ver S-05); abre el informe para confirmarlo.
 - **Ronda 2 (autenticada, 19 oct 2026 11:00-11:05 CEST)**: pruebas en vivo con el login de Pablo en el navegador y con 3 tokens PAT de prueba (`ZZ TEST sec-ro`, `sec-rw`, `sec-pw`, todos revocados al terminar; comprobado que dan 401). Datos de prueba con prefijo `ZZ TEST` (1 lista, 1 etiqueta, 1 tarea con subtarea y 5 adjuntos, 3 webhooks, 2 suscripciones iCal, 1 token extra): **todos borrados**, tareas reales y papelera de Pablo intactas, `display_name` restaurado a su valor original. No se pudo probar IDOR con un segundo usuario: el registro está cerrado (`registration_closed`, correcto), así que IDOR se revisó en código. Detalle en la sección 6.
@@ -34,7 +34,7 @@ Fecha: 19 oct 2026. **Versión 2 (ronda 1 pasiva + ronda 2 autenticada en vivo).
 | S-17 | Media | Guard de auth con "abierto por defecto": una ruta sin `@Scopes`/`@Authenticated` es pública. Hoy ninguna lo es, pero un endpoint nuevo olvidado quedaría abierto                                                                            |
 | S-18 | Baja  | Sin límite de cuota en adjuntos, sin lista de tipos MIME, MIME del cliente guardado tal cual; las respuestas autenticadas no llevan `Cache-Control: no-store`; exportación CSV sin neutralizar fórmulas (`=`, `+`, `-`, `@`)                |
 | S-19 | Baja  | Errores 500 donde debería haber 4xx: `GET /tasks?project_id=x` (UUID inválido), cuerpo >100 KB, fallo de conexión al crear suscripción iCal                                                                                                 |
-| S-20 | Baja  | `api` y `web` comparten la red Docker `turugby-production_public` con otra aplicación (`ia.turugby`): cualquier contenedor de esa red llega a `todo-api:3000` sin pasar por Caddy                                                           |
+| S-20 | Baja  | `api` y `web` comparten la red Docker `<EDGE_NETWORK>` con otra aplicación (`<NEIGHBOR_APP>`): cualquier contenedor de esa red llega a `todo-api:3000` sin pasar por Caddy                                                           |
 | S-21 | Baja  | Valores fijos que deberían ser variables de entorno: dominio `todo.reflexionia.com` y localhost en `google-oauth.ts`, `todo@reflexionia.com` por defecto en `reminder.transport.ts`, usuario/base `reflexionia` en CI                       |
 
 ## 2. Hallazgos
@@ -67,7 +67,7 @@ Fecha: 19 oct 2026. **Versión 2 (ronda 1 pasiva + ronda 2 autenticada en vivo).
 ### S-04 (Media) Repo público con datos de infraestructura (el repo sigue público)
 
 - **Decisión de Pablo (19 oct 10:53)**: el repo se queda público para que otros se beneficien. Entonces hay que sanear lo que identifica TU servidor y TU persona, y dejar el repo útil para terceros. La guía completa y ejecutable está en la **sección 5**.
-- **Evidencia**: `docs/deployment.md`, `docs/handoff.md`, `deploy/` y `.cursor/` publican IP 46.224.6.154, usuario `deploy`, clave SSH `~/.ssh/turugby_hetzner_deploy`, rutas `/etc/todo/production.env`, `/opt/todo/app`, `/opt/todo/backups`, el nombre de otra app del mismo host (`ia.turugby`, con enlace a su PR #59 y su red Docker `turugby-production_public`), y el email personal en los 122 commits.
+- **Evidencia**: `docs/deployment.md`, `docs/handoff.md`, `deploy/` y `.cursor/` publican IP <SERVER_IP>, usuario `deploy`, clave SSH `~/.ssh/<SSH_KEY_NAME>`, rutas `/etc/todo/production.env`, `/opt/todo/app`, `/opt/todo/backups`, el nombre de otra app del mismo host (`<NEIGHBOR_APP>`, con enlace a su PR #59 y su red Docker `<EDGE_NETWORK>`), y el email personal en los 122 commits.
 - **Riesgo**: reconocimiento gratis (IP, usuario de SSH, estructura de directorios, app vecina). El historial de git conserva la IP y el nombre de clave aunque se borren de los docs (2 commits con la IP, 1 con el nombre de clave).
 - **Verificación**: ver sección 5, paso 9.
 
@@ -77,7 +77,7 @@ Fecha: 19 oct 2026. **Versión 2 (ronda 1 pasiva + ronda 2 autenticada en vivo).
 - **Riesgo**: si alguna vez entra un XSS, no hay red de seguridad. Es la causa más probable del B de Observatory. HSTS sin `preload`.
 - **Arreglo**: en el bloque `header` de `deploy/production/todo.caddy` (y `Caddyfile` raíz) añadir:
   `Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"`
-  `Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"`, `Cross-Origin-Opener-Policy "same-origin"`. Probar en `Content-Security-Policy-Report-Only` primero: la PWA usa Web Push y service worker. Quitar `'unsafe-inline'` de estilos si Vite lo permite. El mismo `style-src ... https: 'unsafe-inline'` de helmet en la API se puede apretar a `'self'`. Si el host Caddy es el de ia.turugby, el cambio va en el `todo.caddy` que se importa.
+  `Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"`, `Cross-Origin-Opener-Policy "same-origin"`. Probar en `Content-Security-Policy-Report-Only` primero: la PWA usa Web Push y service worker. Quitar `'unsafe-inline'` de estilos si Vite lo permite. El mismo `style-src ... https: 'unsafe-inline'` de helmet en la API se puede apretar a `'self'`. Si el host Caddy es el de <NEIGHBOR_APP>, el cambio va en el `todo.caddy` que se importa.
 - **Verificación**: `curl -sI https://todo.reflexionia.com/ | rg -i 'content-security|permissions-policy|cross-origin-opener'`, nueva pasada en Observatory (objetivo A o A+), y la app funciona (login, push, offline).
 
 - **Ronda 2**: confirmado con `curl -I https://todo.reflexionia.com/`: sin `Content-Security-Policy` ni `Permissions-Policy` en el HTML (la API sí lleva CSP de helmet). `index.html` no tiene scripts en línea y el CSS no importa recursos externos, así que una CSP estricta es viable. Cabecera propuesta para `Caddyfile` y `deploy/production/todo.caddy`, dentro de `header { ... }` de la web:
@@ -96,7 +96,7 @@ Fecha: 19 oct 2026. **Versión 2 (ronda 1 pasiva + ronda 2 autenticada en vivo).
 ### S-07 (Media) SSRF en webhooks, automatizaciones e iCal
 
 - **Evidencia**: `modules/webhooks/webhooks.controller.ts:111` y `automations.controller.ts:183` hacen `fetch(url)` sobre una URL guardada por el usuario; `modules/calendar/calendar.service.ts:~444` `fetchIcal` acepta `http:` y `https:` y sigue redirecciones. No hay bloqueo de IPs privadas, loopback, link-local (169.254.169.254) ni nombres internos Docker (`postgres`, `redis`, `todo-api`).
-- **Riesgo**: quien tenga un PAT con `webhooks:manage`/escritura (agente comprometido, prompt injection a un agente con MCP) puede sondear la red interna del host y la red compartida con ia.turugby. El destino de webhook se puede leer también por la respuesta de iCal.
+- **Riesgo**: quien tenga un PAT con `webhooks:manage`/escritura (agente comprometido, prompt injection a un agente con MCP) puede sondear la red interna del host y la red compartida con <NEIGHBOR_APP>. El destino de webhook se puede leer también por la respuesta de iCal.
 - **Arreglo**: crear `apps/api/src/security/safe-fetch.ts`: solo `https:` (http solo si `ALLOW_HTTP_WEBHOOKS=true`), resolver DNS y rechazar loopback, RFC1918, 169.254.0.0/16, fc00::/7, ::1, y revalidar tras cada redirección (o `redirect: 'manual'`); fijar la IP resuelta para evitar DNS rebinding; limitar tamaño de respuesta (p. ej. 2 MB en iCal) y timeout. Usarlo en los tres sitios. Validar la URL también al crearla (DTO `@IsUrl({protocols:['https'], require_tld:true})`).
 - **Verificación**: tests que intenten `http://127.0.0.1:5432`, `http://169.254.169.254/`, `http://redis:6379`, un dominio que resuelva a 10.x y una redirección a localhost, todos rechazados.
 
@@ -145,7 +145,7 @@ Fecha: 19 oct 2026. **Versión 2 (ronda 1 pasiva + ronda 2 autenticada en vivo).
 
 - Banner real solo en el **22/tcp**: `SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.20`. 80 redirige 308 a HTTPS y 443 sirve TLS (certificado Let's Encrypt emitido 18 oct 2026, caduca 16 ene 2027, renovación automática de Caddy).
 - **Limitación**: desde mi red todo intento TCP "conecta" (incluso el puerto 31337 inventado), así que el escaneo de otros puertos no es fiable. No afirmo que 2375, 5432, 6379, etc. estén cerrados o abiertos.
-- **Arreglo/verificación en el servidor**: `sudo ss -tlnp` (solo deben escuchar 22, 80, 443 hacia fuera), `docker ps --format '{{.Names}} {{.Ports}}'` (ningún `0.0.0.0:5432/6379/2375`; Docker salta UFW al publicar puertos), `sudo ufw status verbose`, `sshd -T | rg -i 'passwordauthentication|permitrootlogin'` (debe ser `no` y `no`; solo claves), instalar `fail2ban` o `crowdsec`. Desde fuera: `nmap -Pn -p- 46.224.6.154` con una máquina que no tenga proxy transparente.
+- **Arreglo/verificación en el servidor**: `sudo ss -tlnp` (solo deben escuchar 22, 80, 443 hacia fuera), `docker ps --format '{{.Names}} {{.Ports}}'` (ningún `0.0.0.0:5432/6379/2375`; Docker salta UFW al publicar puertos), `sudo ufw status verbose`, `sshd -T | rg -i 'passwordauthentication|permitrootlogin'` (debe ser `no` y `no`; solo claves), instalar `fail2ban` o `crowdsec`. Desde fuera: `nmap -Pn -p- <SERVER_IP>` con una máquina que no tenga proxy transparente.
 
 ### S-15 (Alta) Un PAT con `profile:write` escala a todos los scopes y puede borrar la cuenta
 
@@ -185,8 +185,8 @@ Fecha: 19 oct 2026. **Versión 2 (ronda 1 pasiva + ronda 2 autenticada en vivo).
 
 ### S-20 (Baja) Red Docker compartida con otra app
 
-- **Evidencia**: `deploy/production/docker-compose.yml`: `api` y `web` se unen a `turugby-production_public` (externa) con alias `todo-api` y `todo-web`; `postgres` y `redis` solo en la red `private` interna (bien).
-- **Riesgo**: un contenedor comprometido de `ia.turugby` llega a `todo-api:3000` directamente (sin límite de 26 MB de Caddy, sin cabeceras) y viceversa.
+- **Evidencia**: `deploy/production/docker-compose.yml`: `api` y `web` se unen a `<EDGE_NETWORK>` (externa) con alias `todo-api` y `todo-web`; `postgres` y `redis` solo en la red `private` interna (bien).
+- **Riesgo**: un contenedor comprometido de `<NEIGHBOR_APP>` llega a `todo-api:3000` directamente (sin límite de 26 MB de Caddy, sin cabeceras) y viceversa.
 - **Arreglo**: red `edge` dedicada solo entre el Caddy y `todo-*` (el Caddy se conecta a esa red además de a la suya); o al menos no exponer `api:3000` a toda la red compartida: `todo-api` solo debe ser accesible desde el contenedor Caddy. Fijar `trust proxy` al CIDR de esa red (ver S-02).
 
 ### S-21 (Baja) Configuración fija que debería ser variable de entorno
@@ -229,18 +229,18 @@ Al terminar cada punto: `pnpm lint typecheck test`, el comando de verificación 
 
 Decisión de Pablo (mensaje de WhatsApp del 19 oct, 10:53): el repo sigue público para que otros se beneficien. Objetivo: que cualquiera pueda clonarlo, desplegarlo y contribuir sin que el repo revele TU servidor, TU usuario de SSH ni TU persona. Nada de esto es un secreto que haya que rotar (no hay claves en el repo ni en el historial), pero es información de reconocimiento.
 
-**Paso 1. Datos de tu infraestructura a sacar del árbol.** Comando para verlos todos: `git grep -nIE '46\.224\.6\.154|turugby|deploy@|~/\.ssh|/opt/todo|/etc/todo|yoyyosemite' -- . ':!pnpm-lock.yaml'`. Encontrado en `main`:
+**Paso 1. Datos de tu infraestructura a sacar del árbol.** Comando para verlos todos: `git grep -nIE '<SERVER_IP>|<NEIGHBOR_APP>|deploy@|~/\.ssh|/opt/todo|/etc/todo|<PERSONAL_EMAIL>' -- . ':!pnpm-lock.yaml'`. Encontrado en `main`:
 
-- `docs/deployment.md` (líneas 1-32): IP, app vecina `ia.turugby`, ruta `/opt/turugby/production`, PR #59 de otro repo.
-- `docs/handoff.md` (líneas ~99, 141, 168-180): IP, comando `ssh -i ~/.ssh/turugby_hetzner_deploy ... deploy@<IP>`, rutas, usuario `deploy`, enlace a `github.com/povedica/ia.turugby/pull/59`. Es un diario de traspaso entre agentes: bórralo del repo público o deja solo la parte técnica genérica.
-- `deploy/production/docker-compose.yml` (líneas 1-3 y red `turugby-production_public`), `deploy/production/todo.caddy`, `deploy/production/deploy.sh`, `deploy/reflexionia.cron`, `deploy/production/cron-backup.sh`, `deploy/production/cron-restore-verify.sh`: nombre de la app vecina, rutas `/opt/todo/...`, usuario `deploy`.
+- `docs/deployment.md` (líneas 1-32): IP, app vecina `<NEIGHBOR_APP>`, ruta `/opt/turugby/production`, PR #59 de otro repo.
+- `docs/handoff.md` (líneas ~99, 141, 168-180): IP, comando `ssh -i ~/.ssh/<SSH_KEY_NAME> ... deploy@<IP>`, rutas, usuario `deploy`, enlace a `github.com/povedica/<NEIGHBOR_APP>/pull/59`. Es un diario de traspaso entre agentes: bórralo del repo público o deja solo la parte técnica genérica.
+- `deploy/production/docker-compose.yml` (líneas 1-3 y red `<EDGE_NETWORK>`), `deploy/production/todo.caddy`, `deploy/production/deploy.sh`, `deploy/reflexionia.cron`, `deploy/production/cron-backup.sh`, `deploy/production/cron-restore-verify.sh`: nombre de la app vecina, rutas `/opt/todo/...`, usuario `deploy`.
 - `docs/prompts/*`, `docs/spec/*`, `.cursor/rules/00-project.mdc`, `AGENTS.md`, `README.md`, `scripts/init-harness.sh`: "Hetzner existente de Pablo". No es grave, pero generaliza a "un VPS con Docker".
 - `docs/spec/bugs-prueba-canales-2026-10-18.md` y los `cursor-prompt-*`: revisa a mano que no lleven chat IDs de Telegram, correos, nombres de familiares o datos reales (no los abrí uno a uno; `git grep` no encontró chat IDs ni teléfonos).
 
 **Paso 2. Cómo sustituirlo.**
 
 - Marcadores en docs y scripts: `<SERVER_IP>`, `<DEPLOY_USER>`, `<SSH_KEY>`, `/opt/<app>/app`, `/etc/<app>/production.env`. `deploy.sh` ya lee `RUNTIME_ENV_FILE` y `CADDY_SITES_DIR`: extiéndelo a `APP_DIR`, `BACKUP_DIR` y `EDGE_NETWORK` en lugar de fijarlos.
-- `deploy/production/docker-compose.yml`: red externa configurable, `name: ${EDGE_NETWORK:-todo_edge}` en vez de `turugby-production_public`. Quita los comentarios que nombran la app vecina.
+- `deploy/production/docker-compose.yml`: red externa configurable, `name: ${EDGE_NETWORK:-todo_edge}` en vez de `<EDGE_NETWORK>`. Quita los comentarios que nombran la app vecina.
 - Los datos reales (IP, usuario, clave, estructura de la otra app, PR ajeno) van **fuera del repo**: nota local, repo privado aparte (`povedica/tick-tack-done-ops`) o gestor de contraseñas. Añade `docs/private/` y `*.private.md` a `.gitignore`.
 - `docs/deployment.md` nuevo y genérico: requisitos (VPS con Docker, dominio), `cp .env.example .env`, generar secretos con `openssl rand -hex 32`, `docker compose up -d`, Caddy/HTTPS, primer usuario, `REGISTRATION_OPEN=false`, backups, actualización. Sin IP ni usuario reales.
 
@@ -259,14 +259,14 @@ Decisión de Pablo (mensaje de WhatsApp del 19 oct, 10:53): el repo sigue públi
   git clone --mirror https://github.com/povedica/tick-tack-done.git && cd tick-tack-done.git
   pip install git-filter-repo
   cat > /tmp/replace.txt <<'EOT'
-  46.224.6.154==><SERVER_IP>
-  turugby_hetzner_deploy==><SSH_KEY>
-  ia.turugby==>another-app
-  turugby-production_public==>edge_network
+  <SERVER_IP>==><SERVER_IP>
+  <SSH_KEY_NAME>==><SSH_KEY>
+  <NEIGHBOR_APP>==>another-app
+  <EDGE_NETWORK>==>edge_network
   EOT
   git filter-repo --replace-text /tmp/replace.txt
   # mailmap: "Nombre Nuevo <email nuevo> Nombre Viejo <email viejo>"; sustituye ID por tu id numérico de GitHub
-  echo 'povedica <ID+povedica@users.noreply.github.com> povedica <yoyyosemite@gmail.com>' > /tmp/mailmap
+  echo 'povedica <ID+povedica@users.noreply.github.com> povedica <<PERSONAL_EMAIL>>' > /tmp/mailmap
   git filter-repo --mailmap /tmp/mailmap
   ```
   filter-repo elimina el remoto `origin`: vuelve a configurarlo apuntando al repo y haz `git push --force --mirror`. Después, el servidor (`/opt/todo/app`), los worktrees de Cursor y cualquier clon deben hacer `git fetch && git reset --hard origin/main` o clonar de nuevo. Las PR cerradas conservan `refs/pull/*` y GitHub puede servir commits antiguos por hash: para purgarlos hay que pedirlo a GitHub Support ("remove cached views and sensitive data"). Por eso, si quieres cero rastro de verdad, usa el nivel C.
@@ -357,7 +357,7 @@ Añade `.gitleaks.toml` con `[allowlist]` para los valores de test conocidos (`c
 
 **Paso 9. Verificación final** (todo debe cumplirse):
 
-- `git grep -nIE '46\.224\.6\.154|turugby|ssh -i|deploy@|yoyyosemite' -- . ':!pnpm-lock.yaml'` sin resultados; con nivel B o C, además `git log --all -S'46.224.6.154' --oneline` sin resultados.
+- `git grep -nIE '<SERVER_IP>|<NEIGHBOR_APP>|ssh -i|deploy@|<PERSONAL_EMAIL>' -- . ':!pnpm-lock.yaml'` sin resultados; con nivel B o C, además `git log --all -S'<SERVER_IP>' --oneline` sin resultados.
 - Nivel B o C: `git log --all --format='%ae' | sort -u` solo muestra el noreply.
 - `gitleaks detect --source . --log-opts="--all"` sin hallazgos.
 - Pestaña Security con secret scanning, push protection, Dependabot, CodeQL y private reporting activos; existen `SECURITY.md`, `LICENSE` y `dependabot.yml`.

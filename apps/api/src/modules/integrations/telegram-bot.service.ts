@@ -73,8 +73,8 @@ export class TelegramBotService implements OnModuleInit {
     }
     try {
       if (incoming.kind === 'callback') {
-        await this.completeButton(user, incoming);
-        return { called_telegram: true, action: 'complete' };
+        const action = await this.callback(user, incoming);
+        return { called_telegram: true, action };
       }
       if (incoming.kind === 'voice') {
         const text = await this.transcribe(incoming.fileId);
@@ -197,6 +197,61 @@ export class TelegramBotService implements OnModuleInit {
     }
     await this.tasks.complete(user, match.id, {}, `telegram-done-${updateId}`);
     return plain(`Completada: ${match.title}.`);
+  }
+
+  private async callback(user: AuthUser, incoming: TelegramIncoming): Promise<string> {
+    if (incoming.callbackData.startsWith('s:')) {
+      await this.snoozeButton(user, incoming);
+      return 'snooze';
+    }
+    await this.completeButton(user, incoming);
+    return 'complete';
+  }
+
+  private async snoozeButton(user: AuthUser, incoming: TelegramIncoming): Promise<void> {
+    const match = /^s:([0-9a-f-]{36}):(\d+)$/i.exec(incoming.callbackData);
+    const deliveryId = match?.[1];
+    const minutes = Number(match?.[2]);
+    if (deliveryId === undefined || !TASK_UUID.test(deliveryId) || !Number.isInteger(minutes)) {
+      await this.telegram.call('answerCallbackQuery', {
+        callback_query_id: incoming.callbackId,
+        text: 'No reconozco ese aviso',
+        show_alert: true,
+      });
+      return;
+    }
+    const delivery = await this.prisma.reminderDelivery.findFirst({
+      where: { id: deliveryId, ownerId: user.id },
+      select: { id: true, taskId: true, reminderId: true },
+    });
+    if (delivery?.taskId == null) {
+      await this.telegram.call('answerCallbackQuery', {
+        callback_query_id: incoming.callbackId,
+        text: 'Ese aviso ya no está',
+        show_alert: true,
+      });
+      return;
+    }
+    const preset = minutes >= 60 ? '1h' : '10m';
+    if (delivery.reminderId !== null) {
+      await this.tasks.snoozeReminder(user, delivery.taskId, delivery.reminderId, preset, null);
+    } else {
+      const until = new Date(Date.now() + minutes * 60_000).toISOString();
+      await this.tasks.createReminder(
+        user,
+        delivery.taskId,
+        { trigger: until, type: 'absolute', absolute_at: until, channel: 'push' },
+        `telegram-snooze-${incoming.callbackId}`,
+      );
+    }
+    await this.prisma.reminderDelivery.update({
+      where: { id: delivery.id },
+      data: { status: 'cancelled' },
+    });
+    await this.telegram.call('answerCallbackQuery', {
+      callback_query_id: incoming.callbackId,
+      text: preset === '1h' ? 'Avisaré en 1 hora' : 'Avisaré en 10 minutos',
+    });
   }
 
   private async completeButton(user: AuthUser, incoming: TelegramIncoming): Promise<void> {

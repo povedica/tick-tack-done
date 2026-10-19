@@ -206,6 +206,8 @@ const builtinMatchers: readonly Matcher[] = [
   matchEvery,
   matchNumericDate,
   matchMonthWord,
+  matchHalfHour,
+  matchBareTime,
   matchReminder,
   matchPriority,
   matchTag,
@@ -267,6 +269,90 @@ function matchRelative(
   const timed = extendWithTime(text, match.index + match[0].length);
   const day = addCalendarDays(clock.now, days);
   return dateFound(match.index, timed, day, null, clock.timeZone);
+}
+
+const BARE_TIME = /(?:(?:a\s+las|at)\s+)?(\d{1,2}):(\d{2})(?!\d)/giu;
+const HALF_HOUR = /a\s+las\s+(\d{1,2})\s+y\s+media(?!\p{L})/giu;
+
+function matchHalfHour(
+  text: string,
+  from: number,
+  _language: QuickAddLanguage,
+  clock: ClockContext | null,
+): Found | null {
+  if (clock === null) {
+    return null;
+  }
+  return scan(text, from, HALF_HOUR, (match) => {
+    if (!opensAtBoundary(text, match.index)) {
+      return null;
+    }
+    const hour = Number(match[1]);
+    if (!Number.isInteger(hour) || hour < 1 || hour > 12) {
+      return null;
+    }
+    return bareDue(match.index, match.index + match[0].length, hour, 30, clock);
+  });
+}
+
+function matchBareTime(
+  text: string,
+  from: number,
+  _language: QuickAddLanguage,
+  clock: ClockContext | null,
+): Found | null {
+  if (clock === null) {
+    return null;
+  }
+  return scan(text, from, BARE_TIME, (match) => {
+    if (!opensAtBoundary(text, match.index)) {
+      return null;
+    }
+    const parsed = clockFrom(match[1], match[2], undefined);
+    if (parsed === null) {
+      return null;
+    }
+    const end = match.index + match[0].length;
+    const next = text[end];
+    if (next !== undefined && /[\p{L}\p{N}]/u.test(next)) {
+      return null;
+    }
+    return bareDue(match.index, end, parsed.hour, parsed.minute, clock);
+  });
+}
+
+function bareDue(
+  start: number,
+  end: number,
+  hour: number,
+  minute: number,
+  clock: ClockContext,
+): Found | null {
+  const past =
+    hour < clock.now.hour || (hour === clock.now.hour && minute <= clock.now.minute);
+  const day = past ? addCalendarDays(clock.now, 1) : clock.now;
+  const date = instantFromWall({ ...day, hour, minute, second: 0 }, clock.timeZone);
+  if (date === null) {
+    return null;
+  }
+  const due: QuickAddDue = { date, isAllDay: false };
+  return {
+    start,
+    end,
+    kind: 'date',
+    apply: (draft) => {
+      draft.due = due;
+      draft.repeatRule = null;
+    },
+  };
+}
+
+function opensAtBoundary(text: string, index: number): boolean {
+  if (index === 0) {
+    return true;
+  }
+  const previous = text[index - 1] ?? '';
+  return !/[\p{L}\p{N}]/u.test(previous);
 }
 
 function matchEvery(

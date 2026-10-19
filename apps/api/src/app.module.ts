@@ -13,6 +13,7 @@ import { ExportModule } from './modules/export/export.module.js';
 import { FocusModule } from './modules/focus/focus.module.js';
 import { IntegrationsModule } from './modules/integrations/integrations.module.js';
 import { NotesModule } from './modules/notes/notes.module.js';
+import { PlanningModule } from './modules/planning/planning.module.js';
 import { PluginsModule } from './modules/plugins/plugins.module.js';
 import { RealtimeModule } from './modules/realtime/realtime.module.js';
 import { ReportsModule } from './modules/reports/reports.module.js';
@@ -55,6 +56,7 @@ import { SchedulerModule } from './scheduler/scheduler.module.js';
     DashboardModule,
     ReportsModule,
     ReviewModule,
+    PlanningModule,
     WebhooksModule,
     AutomationsModule,
     RealtimeModule,

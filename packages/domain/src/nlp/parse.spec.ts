@@ -220,6 +220,16 @@ describe('parseQuickAdd', () => {
     expect(result.repeatRule).toBe('RRULE:FREQ=DAILY');
   });
 
+  it('NT-03: a bare clock time is today, or tomorrow once that time has passed', () => {
+    const later = parsed('recoger a mis hijos a las 15:35');
+    expect(later.title).toBe('recoger a mis hijos');
+    expect(later.due).toEqual({ date: localDue(0, 15, 35), isAllDay: false });
+    const earlier = parsed('recoger a las 11:00');
+    expect(earlier.due).toEqual({ date: localDue(1, 11, 0), isAllDay: false });
+    expect(parsed('a las 3 y media').due).toEqual({ date: localDue(1, 3, 30), isAllDay: false });
+    expect(parsed('stand up 15:35').due?.isAllDay).toBe(false);
+  });
+
   it('RF-102: cada día, cada mes and a las 9:00 build daily and monthly rules', () => {
     expect(parsed('cada día').repeatRule).toBe('RRULE:FREQ=DAILY');
     const monthly = parsed('cada mes a las 9:00');

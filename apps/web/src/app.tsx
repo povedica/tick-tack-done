@@ -6,6 +6,7 @@ import { CommandPalette } from './features/views/components/CommandPalette';
 import { FiltersPage } from './features/views/components/FiltersPage';
 import { SmartListsPage } from './features/views/components/SmartListsPage';
 import {
+  CancelledPage,
   FilterViewPage,
   ProjectListPage,
   SmartListViewPage,
@@ -52,6 +53,7 @@ import { ConsentPage } from './features/auth/ConsentPage';
 import { LoginPage, RegisterPage } from './features/auth/AuthPages';
 import { RequireSession, SessionBootstrap } from './features/auth/RequireSession';
 import { RepeatPage } from './features/repeat/RepeatPage';
+import { PlanDayPage, WontDoPage } from './features/planning/PlanDayPage';
 import { TodayPage } from './features/today/TodayPage';
 import { ShortcutHelp } from './shell/ShortcutHelp';
 import { GlobalKeys } from './shell/GlobalKeys';
@@ -111,6 +113,7 @@ function Shell() {
             <Route path="/quick-add" element={<QuickAddRoute />} />
             <Route path="/inbox" element={<InboxPage />} />
             <Route path="/list/:id" element={<ProjectListPage />} />
+            <Route path="/projects/:id" element={<ProjectListPage />} />
             <Route path="/lists/:id" element={<ProjectListPage />} />
             <Route path="/list/:id/note/:taskId" element={<NoteRoute />} />
             <Route path="/filter/:id" element={<FilterViewPage />} />
@@ -118,6 +121,7 @@ function Shell() {
             <Route path="/filters/:id" element={<FilterViewPage />} />
             <Route path="/tag/:id" element={<TagViewPage />} />
             <Route path="/trash" element={<Navigate to="/smart/trash" replace />} />
+            <Route path="/tasks/cancelled" element={<CancelledPage />} />
             <Route path="/smart/:key" element={<SmartListViewPage />} />
             <Route path="/smart-lists" element={<SmartListsPage />} />
             <Route path="/smart-lists/:key" element={<SmartListViewPage />} />
@@ -131,6 +135,8 @@ function Shell() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/reports/weekly" element={<ReportsPage />} />
             <Route path="/reports/weekly/:week" element={<ReportsPage />} />
+            <Route path="/plan/day" element={<PlanDayPage />} />
+            <Route path="/wont-do" element={<WontDoPage />} />
             <Route path="/review" element={<ReviewPage />} />
             <Route path="/review/daily" element={<ReviewPage />} />
             <Route path="/review/weekly" element={<ReviewPage />} />

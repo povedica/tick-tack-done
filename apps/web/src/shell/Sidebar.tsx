@@ -14,7 +14,6 @@ import {
   Plus,
   PanelLeftClose,
   PanelLeftOpen,
-  Repeat,
   Sparkles,
   Sun,
   Trash2,
@@ -25,7 +24,7 @@ import { useEffect, useRef, useState, type DragEvent, type ReactNode } from 'rea
 import { Link, NavLink, useLocation, useMatch } from 'react-router';
 import { api } from '../api';
 import { BrandMark } from '../components/BrandMark';
-import { Badge } from '../components/ui';
+import { Badge, Button } from '../components/ui';
 import { fill, useMessages, type Messages } from '../i18n';
 import { usePreferences } from '../theme/preferences';
 import { nextTheme, type ThemePreference } from '../theme/preference';
@@ -84,7 +83,7 @@ export function Sidebar({
   const [tagMenuId, setTagMenuId] = useState<string | null>(null);
   const [tagQuery, setTagQuery] = useState('');
   const [showUnused, setShowUnused] = useState(false);
-  const [moreOpen, setMoreOpen] = useState(false);
+  const folders = useQuery({ queryKey: ['folders'], queryFn: () => api.listFolders() });
   const location = useLocation();
   const [confirmTrash, setConfirmTrash] = useState(false);
   const themeLabel = themeName(messages, preference);
@@ -107,7 +106,11 @@ export function Sidebar({
       (left, right) =>
         right.active_task_count - left.active_task_count || left.name.localeCompare(right.name),
     );
-  const projectItems = (projects.data?.items ?? []).filter((project) => !project.closed);
+  const folderItems = folders.data?.items ?? [];
+  const archivedProjects = (projects.data?.items ?? []).filter((project) => project.closed);
+  const projectItems = (projects.data?.items ?? []).filter(
+    (project) => !project.closed && (folderItems.length === 0 || folderId(project) === null),
+  );
 
   useEffect(() => {
     if (menuId === null) {
@@ -162,7 +165,7 @@ export function Sidebar({
         <p className="nav-section">{messages.smartListsTitle}</p>
         <ul className="nav-list">
           {lists
-            .filter((item) => item.enabled && item.key !== 'trash')
+            .filter((item) => item.enabled && item.key !== 'trash' && item.key !== 'completed')
             .map((item) => (
               <li
                 key={item.id}
@@ -298,6 +301,33 @@ export function Sidebar({
             {listError !== null ? <p className="error">{listError}</p> : null}
           </form>
         ) : null}
+        {folderItems.map((folder) => {
+          const children = (projects.data?.items ?? []).filter(
+            (project) => !project.closed && folderId(project) === folder.id,
+          );
+          if (children.length === 0) {
+            return null;
+          }
+          return (
+            <details key={folder.id} className="nav-folder" open>
+              <summary>{folder.name}</summary>
+              <ul className="nav-list">
+                {children.map((project) => (
+                  <li key={project.id}>
+                    <SideLink to={`/list/${project.id}`} section onNavigate={onNavigate}>
+                      <span
+                        className="color-dot"
+                        style={project.color === null ? undefined : { background: project.color }}
+                      />
+                      <span className="nav-label">{project.name}</span>
+                      {showCounters ? <Badge value={project.active_task_count} /> : null}
+                    </SideLink>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          );
+        })}
         <ul className="nav-list">
           {projectItems.map((project) => (
             <li
@@ -351,6 +381,20 @@ export function Sidebar({
             </li>
           ))}
         </ul>
+        {archivedProjects.length > 0 ? (
+          <details className="nav-folder">
+            <summary>{messages.archivedLists}</summary>
+            <ul className="nav-list">
+              {archivedProjects.map((project) => (
+                <li key={project.id}>
+                  <SideLink to={`/list/${project.id}`} section onNavigate={onNavigate}>
+                    <span className="nav-label">{project.name}</span>
+                  </SideLink>
+                </li>
+              ))}
+            </ul>
+          </details>
+        ) : null}
         <SectionHead title={messages.tagsTitle}>
           <button
             type="button"
@@ -479,40 +523,26 @@ export function Sidebar({
             );
           })}
         </ul>
-        <button
-          type="button"
-          className="nav-section nav-more-toggle"
-          aria-expanded={moreOpen}
-          onClick={() => {
-            setMoreOpen((current) => !current);
-          }}
-        >
-          {moreOpen ? messages.hideMore : messages.showMore}
-        </button>
-        {moreOpen ? (
-          <ul className="nav-list">
-            <Item
-              to="/calendar/month"
-              label={messages.navCalendar}
-              onNavigate={onNavigate}
-              icon={CalendarDays}
-            />
-            <Item to="/matrix" label={messages.navMatrix} onNavigate={onNavigate} />
-            <Item
-              to="/dashboard"
-              label={messages.navDashboard}
-              onNavigate={onNavigate}
-              icon={LayoutDashboard}
-            />
-            <Item to="/reports/weekly" label={messages.navReports} onNavigate={onNavigate} />
-            <Item to="/review/weekly" label={messages.navReview} onNavigate={onNavigate} />
-            <Item to="/focus" label={messages.navFocus} onNavigate={onNavigate} />
-            <Item to="/habits" label={messages.navHabits} onNavigate={onNavigate} icon={Repeat} />
-            <Item to="/settings/appearance" label={messages.navSettings} onNavigate={onNavigate} />
-          </ul>
-        ) : null}
+        <ul className="nav-list">
+          <Item
+            to="/reports/weekly"
+            label={messages.navSummary}
+            onNavigate={onNavigate}
+            icon={LayoutDashboard}
+          />
+          <Item to="/dashboard" label={messages.navDashboard} onNavigate={onNavigate} />
+          <Item to="/review/weekly" label={messages.navReview} onNavigate={onNavigate} />
+        </ul>
       </nav>
       <div className="sidebar-footer">
+        <SideLink to="/tasks/cancelled" onNavigate={onNavigate}>
+          <span className="nav-label">{messages.navWont}</span>
+        </SideLink>
+        {ordered.some((item) => item.key === 'completed' && item.enabled) ? (
+          <SideLink to="/smart/completed" onNavigate={onNavigate}>
+            <span className="nav-label">{messages.smartCompleted}</span>
+          </SideLink>
+        ) : null}
         {trashVisible ? (
           <SideLink to="/smart/trash" onNavigate={onNavigate}>
             <span className="nav-label">{messages.smartTrash}</span>
@@ -523,8 +553,10 @@ export function Sidebar({
         {confirmTrash && trashVisible ? (
           <div className="nav-confirm">
             <p>{messages.emptyTrashBody}</p>
-            <button
+            <Button
               type="button"
+              size="sm"
+              variant="danger"
               onClick={() => {
                 void api.emptyTrash().then(() => {
                   setConfirmTrash(false);
@@ -534,7 +566,7 @@ export function Sidebar({
               }}
             >
               {messages.confirmEmpty}
-            </button>
+            </Button>
           </div>
         ) : null}
         {trashVisible ? (
@@ -601,6 +633,11 @@ function Item({
       </SideLink>
     </li>
   );
+}
+
+function folderId(project: { readonly id: string }): string | null {
+  const value = (project as { folder_id?: unknown }).folder_id;
+  return typeof value === 'string' && value.length > 0 ? value : null;
 }
 
 function allowTaskDrop(event: DragEvent<HTMLLIElement>): void {

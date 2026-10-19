@@ -61,6 +61,15 @@ export {
   resolveDefaultReminder,
   snoozeReminder,
 } from './reminders/trigger';
+export {
+  allDayClockConflict,
+  dueSignal,
+  isAtDueTrigger,
+  OVERDUE_GRACE_MS,
+  quietUntil,
+  retryDelayMs,
+  skipPastEnqueue,
+} from './reminders/delivery';
 export type {
   AccountReminderTrigger,
   ReminderSnoozePreset,
@@ -217,6 +226,19 @@ export type {
   ReportTone,
   WeeklyNarrative,
 } from './dashboard/kpis';
+export { planQueue, previewPlan, staleTaskIds } from './planning/day-plan';
+export type {
+  PlanCard,
+  PlanDecisionInput,
+  PlanDecisionKind,
+  PlanEffect,
+  PlanPreview,
+  PlanQueue,
+  PlanReason,
+  PlanSection,
+  PlanSources,
+  PlanTaskInput,
+} from './planning/day-plan';
 export { proposeDaily, proposeWeekly } from './review/propose';
 export type { DailyProposal, HabitRisk, ReviewCandidate, WeeklyReview } from './review/propose';
 export {

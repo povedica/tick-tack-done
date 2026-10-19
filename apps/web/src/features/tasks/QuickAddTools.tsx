@@ -34,6 +34,7 @@ export function QuickAddTools({
       allDay: true,
       durationMinutes: null,
       reminder: null,
+      reminderTouched: false,
       repeatRule: null,
     }),
     [],

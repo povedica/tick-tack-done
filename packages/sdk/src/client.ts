@@ -16,7 +16,7 @@ export interface PageQuery {
 export interface ListTasksQuery {
   readonly limit?: number;
   readonly cursor?: string;
-  readonly status?: 'active' | 'completed' | 'archived';
+  readonly status?: 'active' | 'completed' | 'archived' | 'cancelled';
   readonly projectId?: string;
   readonly priority?: 'none' | 'low' | 'medium' | 'high';
   readonly tag?: string;
