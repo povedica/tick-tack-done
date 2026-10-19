@@ -49,6 +49,22 @@ export { isOverdue, snoozeDue } from './dates/schedule';
 export type { DateSnoozePreset, ScheduleFailure, SnoozedDates } from './dates/schedule';
 
 export {
+  COUNTDOWN_COLORS,
+  COUNTDOWN_DAY_MODES,
+  COUNTDOWN_REPEATS,
+  COUNTDOWN_TYPES,
+  countdownDaysLabel,
+  nextCountdownOccurrence,
+} from './countdowns/countdowns';
+export type {
+  CountdownCalculationInput,
+  CountdownDaysLabel,
+  CountdownDayMode,
+  CountdownKind,
+  CountdownRepeat,
+} from './countdowns/countdowns';
+
+export {
   ACCOUNT_REMINDER_TRIGGERS,
   isAccountReminderTrigger,
   LIST_REMINDER_OFF,

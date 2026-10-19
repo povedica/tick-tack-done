@@ -8,6 +8,7 @@ import { AccountExtraModule } from './modules/account-extra/account-extra.module
 import { AutomationsModule } from './modules/automations/automations.module.js';
 import { CalendarModule } from './modules/calendar/calendar.module.js';
 import { CollaborationModule } from './modules/collaboration/collaboration.module.js';
+import { CountdownsModule } from './modules/countdowns/countdowns.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { ExportModule } from './modules/export/export.module.js';
 import { FocusModule } from './modules/focus/focus.module.js';
@@ -40,6 +41,7 @@ import { SchedulerModule } from './scheduler/scheduler.module.js';
     IdempotencyModule,
     AuthModule,
     HealthModule,
+    CountdownsModule,
     HabitsModule,
     ListsModule,
     MatrixModule,

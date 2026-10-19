@@ -10,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { loadDashboardSnapshot } from '../reading/snapshot.js';
 import { FiltersService } from '../modules/filters/filters.service.js';
 import { SmartListsService } from '../modules/filters/smart-lists.service.js';
+import { CountdownsService } from '../modules/countdowns/countdowns.service.js';
 import { HabitsService } from '../modules/habits/habits.service.js';
 import { ListsService } from '../modules/lists/lists.service.js';
 import { SearchService } from '../modules/search/search.service.js';
@@ -44,6 +45,7 @@ export class McpService {
     @Inject(FiltersService) private readonly filters: FiltersService,
     @Inject(SmartListsService) private readonly smartLists: SmartListsService,
     @Inject(HabitsService) private readonly habits: HabitsService,
+    @Inject(CountdownsService) private readonly countdowns: CountdownsService,
     @Inject(SearchService) private readonly search: SearchService,
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
@@ -238,6 +240,35 @@ export class McpService {
             undefined,
           )
         ).body;
+      case 'list_countdowns':
+        return this.countdowns.list(user, args.archived === true, typeof args.due_within_days === 'number' ? args.due_within_days : undefined);
+      case 'get_countdown':
+        return this.countdowns.get(user, requiredUuid(args, 'id'));
+      case 'create_countdown':
+        return (await this.countdowns.create(user, {
+          title: requiredString(args, 'title', 200), target_date: requiredDate(args),
+          ...(typeof args.type === 'string' ? { type: args.type as 'countdown' | 'anniversary' | 'birthday' | 'holiday' } : {}),
+          ...(typeof args.emoji === 'string' ? { emoji: args.emoji } : {}),
+          ...(typeof args.color === 'string' ? { color: args.color as never } : {}),
+          ...(typeof args.repeat === 'string' ? { repeat_rule: args.repeat as never } : {}),
+          ...(typeof args.day_mode === 'string' ? { day_mode: args.day_mode as never } : {}),
+          ...(Array.isArray(args.reminders) ? { reminders: args.reminders.filter((v): v is number => typeof v === 'number').map((offset_days) => ({ offset_days })) } : {}),
+          ...(typeof args.notes === 'string' ? { notes: args.notes } : {}),
+          ...(typeof args.show_in_sidebar === 'boolean' ? { show_in_sidebar: args.show_in_sidebar } : {}),
+          ...(typeof args.show_in_smart_list === 'boolean' ? { show_in_smart_list: args.show_in_smart_list } : {}),
+        }, undefined)).body;
+      case 'update_countdown':
+        return this.countdowns.update(user, requiredUuid(args, 'id'), {
+          ...(typeof args.title === 'string' ? { title: args.title } : {}),
+          ...(typeof args.target_date === 'string' ? { target_date: args.target_date } : {}),
+          ...(typeof args.pinned === 'boolean' ? { pinned: args.pinned } : {}),
+        });
+      case 'delete_countdown':
+        await this.countdowns.remove(user, requiredUuid(args, 'id')); return { deleted: true };
+      case 'archive_countdown':
+        return this.countdowns.archive(user, requiredUuid(args, 'id'), true);
+      case 'unarchive_countdown':
+        return this.countdowns.archive(user, requiredUuid(args, 'id'), false);
       case 'search':
         return this.search.search(user, requiredString(args, 'q', 200), undefined);
       case 'list_notes':

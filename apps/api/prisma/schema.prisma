@@ -93,6 +93,26 @@ enum ReminderDeliveryKind {
   due_soon
 }
 
+enum CountdownType {
+  countdown
+  anniversary
+  birthday
+  holiday
+}
+
+enum CountdownDayMode {
+  standard
+  plus_one
+}
+
+enum CountdownRepeat {
+  none
+  daily
+  weekly
+  monthly
+  yearly
+}
+
 enum FocusSessionType {
   focus
   short_break
@@ -738,19 +758,44 @@ model IdempotencyRecord {
 }
 
 model Countdown {
-  id            String    @id @default(uuid()) @db.Uuid
-  ownerId       String    @map("owner_id") @db.Uuid
-  owner         User      @relation(fields: [ownerId], references: [id], onDelete: Restrict)
-  title         String
-  targetDate    DateTime  @map("target_date") @db.Date
-  color         String?
-  showInSidebar Boolean   @default(true) @map("show_in_sidebar")
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt     DateTime? @map("deleted_at") @db.Timestamptz(6)
+  id              String            @id @default(uuid()) @db.Uuid
+  ownerId         String            @map("owner_id") @db.Uuid
+  owner           User              @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  title           String
+  type            CountdownType     @default(countdown)
+  emoji           String?
+  targetDate      DateTime          @map("target_date") @db.Date
+  repeatRule      CountdownRepeat   @default(none) @map("repeat_rule")
+  dayMode         CountdownDayMode  @default(standard) @map("day_mode")
+  color           String?
+  style           String?
+  notes           String?
+  showInSidebar   Boolean           @default(true) @map("show_in_sidebar")
+  showInSmartList Boolean           @default(true) @map("show_in_smart_list")
+  pinned          Boolean           @default(false)
+  sortOrder       Int               @default(0) @map("sort_order")
+  archivedAt      DateTime?         @map("archived_at") @db.Timestamptz(6)
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt       DateTime?         @map("deleted_at") @db.Timestamptz(6)
+  reminders       CountdownReminder[]
 
   @@index([ownerId])
+  @@index([targetDate])
   @@map("countdowns")
+}
+
+model CountdownReminder {
+  id          String    @id @default(uuid()) @db.Uuid
+  countdownId String    @map("countdown_id") @db.Uuid
+  countdown   Countdown @relation(fields: [countdownId], references: [id], onDelete: Cascade)
+  offsetDays  Int       @map("offset_days")
+  constant    Boolean   @default(false)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([countdownId, offsetDays, constant])
+  @@map("countdown_reminders")
 }
 
 model Template {
