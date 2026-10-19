@@ -9,6 +9,7 @@ import {
   Injectable,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Req,
   Res,
@@ -47,6 +48,13 @@ class WebhookDto {
   @IsArray()
   events!: string[];
 
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  active?: boolean;
+}
+
+class WebhookPatchDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsBoolean()
@@ -226,6 +234,48 @@ export class WebhooksController {
       return created;
     });
     respondJson(req, res, 201, { id: row.id, url: row.url, secret, events: row.events }, false);
+  }
+
+  @Patch(':id')
+  @Scopes('webhooks:manage')
+  @ApiOperation({ summary: 'Pause or resume a webhook (RF-11010)' })
+  async update(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: WebhookPatchDto,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    const current = await this.owned(user.id, id);
+    const row = await this.prisma.webhookEndpoint.update({
+      where: { id: current.id },
+      data: { ...(dto.active !== undefined ? { active: dto.active } : {}) },
+    });
+    respondJson(
+      req,
+      res,
+      200,
+      { id: row.id, url: row.url, events: row.events, active: row.active },
+      false,
+    );
+  }
+
+  @Post(':id/rotate')
+  @Scopes('webhooks:manage')
+  @ApiOperation({ summary: 'Rotate a webhook secret. The new secret is shown once (RF-11010)' })
+  async rotate(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    const current = await this.owned(user.id, id);
+    const secret = randomBytes(24).toString('base64url');
+    await this.prisma.webhookEndpoint.update({
+      where: { id: current.id },
+      data: { secret: sealField(secret) },
+    });
+    respondJson(req, res, 200, { id: current.id, secret }, false);
   }
 
   @Delete(':id')

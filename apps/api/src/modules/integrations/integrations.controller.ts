@@ -1,5 +1,16 @@
 import { randomUUID } from 'node:crypto';
-import { Body, Controller, Get, HttpStatus, Inject, Post, Query, Req, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpStatus,
+  Inject,
+  Post,
+  Query,
+  Req,
+  Res,
+} from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsBoolean, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 import type { Request, Response } from 'express';
@@ -70,7 +81,15 @@ export class IntegrationsController {
   @ApiOperation({
     summary: 'Telegram bot status. Without TELEGRAM_BOT_TOKEN it stays stopped (RF-2003).',
   })
-  status(@Req() req: Request, @Res() res: Response): void {
+  async status(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    const link = await this.prisma.telegramLink.findFirst({
+      where: { ownerId: user.id, deletedAt: null },
+      select: { id: true },
+    });
     respondJson(
       req,
       res,
@@ -79,9 +98,31 @@ export class IntegrationsController {
         configured: telegramConfigured(),
         voice: telegramConfigured() && present('TELEGRAM_VOICE_PROVIDER'),
         photo: telegramConfigured(),
+        linked: link !== null,
       },
       false,
     );
+  }
+
+  @Delete('telegram')
+  @Scopes('profile:write')
+  @ApiOperation({ summary: 'Unlink Telegram chats from this account (RF-2003)' })
+  async unlinkTelegram(@CurrentUser() user: AuthUser, @Res() res: Response): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.telegramLink.updateMany({
+        where: { ownerId: user.id, deletedAt: null },
+        data: { deletedAt: new Date() },
+      });
+      await this.events.record(tx, actorOf(user), {
+        type: DomainEvent.telegramUnlinked,
+        entityType: 'telegram_link',
+        entityId: user.id,
+        action: 'deleted',
+        data: { user: { id: user.id } },
+        previous: null,
+      });
+    });
+    res.status(204).end();
   }
 
   @Post('telegram/link')
@@ -164,6 +205,27 @@ export class IntegrationsController {
       },
       false,
     );
+  }
+
+  @Delete('google')
+  @Scopes('profile:write')
+  @ApiOperation({ summary: 'Disconnect Google Calendar and Drive (RF-2004)' })
+  async disconnectGoogle(@CurrentUser() user: AuthUser, @Res() res: Response): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: user.id },
+        data: { googleRefreshToken: null, googleAccountEmail: null },
+      });
+      await this.events.record(tx, actorOf(user), {
+        type: DomainEvent.googleDisconnected,
+        entityType: 'user',
+        entityId: user.id,
+        action: 'updated',
+        data: { google: { connected: false } },
+        previous: null,
+      });
+    });
+    res.status(204).end();
   }
 
   @Get('google/start')
@@ -253,8 +315,17 @@ export class IntegrationsController {
   @Get('drive')
   @Scopes('profile:read')
   @ApiOperation({ summary: 'Google Drive status. No call is made without credentials (RF-2005).' })
-  drive(@Req() req: Request, @Res() res: Response): void {
-    respondJson(req, res, 200, { configured: driveConfigured() }, false);
+  async drive(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    const row = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: { googleRefreshToken: true },
+    });
+    const googleOn = (row?.googleRefreshToken ?? '').length > 0;
+    respondJson(req, res, 200, { configured: googleConfigured(), connected: googleOn }, false);
   }
 
   @Post('drive/attachments')

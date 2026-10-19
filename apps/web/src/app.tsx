@@ -56,12 +56,14 @@ import { TodayPage } from './features/today/TodayPage';
 import { ShortcutHelp } from './shell/ShortcutHelp';
 import { GlobalKeys } from './shell/GlobalKeys';
 import { AppShell } from './shell/AppShell';
+import { AccountPreferenceSync } from './theme/AccountPreferenceSync';
 import { ThemeSync } from './theme/ThemeSync';
 
 export function App() {
   return (
     <BrowserRouter>
       <ThemeSync />
+      <AccountPreferenceSync />
       <SessionBootstrap />
       <Shell />
     </BrowserRouter>

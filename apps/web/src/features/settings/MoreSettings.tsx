@@ -2,6 +2,7 @@ import { ApiError, type Project } from '@reflexionia/sdk';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api } from '../../api';
+import { failureMessage } from '../../failure';
 import { Button, Kbd } from '../../components/ui';
 import { useMessages, type Messages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
@@ -17,6 +18,7 @@ export function AutomationSettings() {
   const items = itemsOf(rows.data);
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
   return (
     <section className="token-settings">
       <PageTitle title={messages.settingsAutomations} lede={messages.automationRecipe} />
@@ -41,8 +43,8 @@ export function AutomationSettings() {
                 setName('');
                 void queryClient.invalidateQueries({ queryKey: ['automations'] });
               })
-              .catch(() => {
-                setError(messages.settingsFailed);
+              .catch((reason: unknown) => {
+                setError(failureMessage(reason, messages.settingsFailed));
               });
           }}
         >
@@ -92,6 +94,60 @@ export function AutomationSettings() {
                   </li>
                 ))}
               </ul>
+              <span className="token-actions">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    void api.updateAutomation(id, { enabled: !enabled }).then(() => {
+                      void queryClient.invalidateQueries({ queryKey: ['automations'] });
+                    });
+                  }}
+                >
+                  {enabled ? messages.automationPause : messages.automationResume}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setConfirmId(id);
+                  }}
+                >
+                  {messages.purge}
+                </Button>
+              </span>
+              {confirmId === id ? (
+                <div className="token-confirm">
+                  <p>{messages.automationDeleteBody}</p>
+                  <span className="token-actions">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setConfirmId(null);
+                      }}
+                    >
+                      {messages.cancel}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="danger"
+                      onClick={() => {
+                        void api.deleteAutomation(id).then(() => {
+                          setConfirmId(null);
+                          void queryClient.invalidateQueries({ queryKey: ['automations'] });
+                        });
+                      }}
+                    >
+                      {messages.purge}
+                    </Button>
+                  </span>
+                </div>
+              ) : null}
             </article>
           );
         })}
@@ -109,6 +165,8 @@ export function WebhookSettings() {
   const [error, setError] = useState<string | null>(null);
   const [secret, setSecret] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   return (
     <section className="token-settings">
       <PageTitle title={messages.settingsWebhooks} lede={messages.webhookRecipe} />
@@ -181,11 +239,13 @@ export function WebhookSettings() {
         {rows.isSuccess && items.length === 0 ? (
           <p className="token-empty">{messages.webhooksEmpty}</p>
         ) : null}
+        {notice !== null ? <p role="status">{notice}</p> : null}
         {items.map((row) => {
+          const id = text(row.id);
           const active = row.active === true;
           const events = stringsOf(row.events);
           return (
-            <article className="token-row" key={text(row.id)}>
+            <article className="token-row" key={id}>
               <div className="token-head">
                 <p className="settings-url">{text(row.url)}</p>
                 <span className={active ? 'token-pill' : 'token-pill is-revoked'}>
@@ -200,6 +260,91 @@ export function WebhookSettings() {
                     </li>
                   ))}
                 </ul>
+              ) : null}
+              <span className="token-actions">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    void api.updateWebhook(id, { active: !active }).then(() => {
+                      void queryClient.invalidateQueries({ queryKey: ['webhooks'] });
+                    });
+                  }}
+                >
+                  {active ? messages.webhookPause : messages.webhookResume}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setNotice(null);
+                    void api.pingWebhook(id).then(
+                      () => {
+                        setNotice(messages.webhookTestOk);
+                      },
+                      (reason: unknown) => {
+                        setError(failureMessage(reason, messages.settingsFailed));
+                      },
+                    );
+                  }}
+                >
+                  {messages.webhookTest}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    void api.rotateWebhook(id).then((body) => {
+                      setSecret(text(body.secret));
+                      setCopied(false);
+                    });
+                  }}
+                >
+                  {messages.webhookRotate}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setConfirmId(id);
+                  }}
+                >
+                  {messages.purge}
+                </Button>
+              </span>
+              {confirmId === id ? (
+                <div className="token-confirm">
+                  <p>{messages.webhookDeleteBody}</p>
+                  <span className="token-actions">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setConfirmId(null);
+                      }}
+                    >
+                      {messages.cancel}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="danger"
+                      onClick={() => {
+                        void api.deleteWebhook(id).then(() => {
+                          setConfirmId(null);
+                          void queryClient.invalidateQueries({ queryKey: ['webhooks'] });
+                        });
+                      }}
+                    >
+                      {messages.purge}
+                    </Button>
+                  </span>
+                </div>
               ) : null}
             </article>
           );
@@ -263,7 +408,7 @@ export function SharingSettings() {
   const lists = projects.data?.items ?? [];
   const [picked, setPicked] = useState('');
   const [email, setEmail] = useState('');
-  const [permission, setPermission] = useState<'read' | 'comment' | 'write'>('write');
+  const [permission, setPermission] = useState<'read' | 'comment' | 'write'>('read');
   const [error, setError] = useState<string | null>(null);
   const projectId = picked.length > 0 ? picked : (lists[0]?.id ?? '');
   const members = useQuery({

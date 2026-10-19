@@ -22,6 +22,7 @@ export function toProjectJson(row: Project, activeTaskCount: number): ProjectRes
     kind: row.kind,
     closed: row.closed,
     is_inbox: row.isInbox,
+    default_reminder_trigger: row.defaultReminderTrigger,
     sort_order: row.sortOrder.toString(),
     active_task_count: activeTaskCount,
     created_at: iso(row.createdAt) ?? '',

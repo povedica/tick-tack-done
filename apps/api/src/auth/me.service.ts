@@ -40,6 +40,15 @@ export class MeService {
         ...(dto.daily_reminder_time !== undefined
           ? { dailyReminderTime: this.dailyTime(dto.daily_reminder_time) }
           : {}),
+        ...(dto.locale !== undefined ? { locale: dto.locale } : {}),
+        ...(dto.week_start !== undefined ? { weekStart: dto.week_start } : {}),
+        ...(dto.theme !== undefined ? { theme: dto.theme } : {}),
+        ...(dto.nlp_language !== undefined ? { nlpLanguage: dto.nlp_language } : {}),
+        ...(dto.density !== undefined ? { density: dto.density } : {}),
+        ...(dto.accent !== undefined ? { accent: dto.accent } : {}),
+        ...(dto.default_reminder_trigger !== undefined
+          ? { defaultReminderTrigger: dto.default_reminder_trigger }
+          : {}),
       },
     });
     return this.toJson(row);
@@ -51,6 +60,12 @@ export class MeService {
     displayName: string;
     timeZone: string;
     locale: string;
+    weekStart: 'monday' | 'sunday';
+    theme: 'light' | 'dark' | 'auto';
+    nlpLanguage: string;
+    density: string;
+    accent: string;
+    defaultReminderTrigger: string | null;
     taskCompleteChildren: 'ask' | 'complete' | 'leave';
     dailyReminderTime: string | null;
   }> {
@@ -62,6 +77,12 @@ export class MeService {
         displayName: true,
         timeZone: true,
         locale: true,
+        weekStart: true,
+        theme: true,
+        nlpLanguage: true,
+        density: true,
+        accent: true,
+        defaultReminderTrigger: true,
         taskCompleteChildren: true,
         dailyReminderTime: true,
       },
@@ -78,6 +99,12 @@ export class MeService {
     displayName: string;
     timeZone: string;
     locale: string;
+    weekStart: 'monday' | 'sunday';
+    theme: 'light' | 'dark' | 'auto';
+    nlpLanguage: string;
+    density: string;
+    accent: string;
+    defaultReminderTrigger: string | null;
     taskCompleteChildren: 'ask' | 'complete' | 'leave';
     dailyReminderTime: string | null;
   }): MeResponseDto {
@@ -86,10 +113,37 @@ export class MeService {
       email: row.email,
       display_name: row.displayName,
       time_zone: row.timeZone,
-      locale: row.locale,
+      locale: this.choice(row.locale),
+      week_start: row.weekStart,
+      theme: row.theme,
+      nlp_language: this.choice(row.nlpLanguage),
+      density: row.density === 'compact' ? 'compact' : 'comfortable',
+      accent: this.accent(row.accent),
+      default_reminder_trigger: row.defaultReminderTrigger,
       task_complete_children: row.taskCompleteChildren,
       daily_reminder_time: row.dailyReminderTime,
     };
+  }
+
+  private choice(value: string): 'auto' | 'es' | 'en' {
+    if (value === 'auto' || value === 'en' || value === 'es') {
+      return value;
+    }
+    return 'es';
+  }
+
+  private accent(value: string): 'indigo' | 'violet' | 'teal' | 'amber' | 'rose' | 'slate' {
+    if (
+      value === 'violet' ||
+      value === 'teal' ||
+      value === 'amber' ||
+      value === 'rose' ||
+      value === 'slate' ||
+      value === 'indigo'
+    ) {
+      return value;
+    }
+    return 'indigo';
   }
 
   async subscribe(user: AuthUser, dto: PushSubscriptionDto): Promise<{ id: string }> {

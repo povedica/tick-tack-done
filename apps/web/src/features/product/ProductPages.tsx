@@ -5,6 +5,7 @@ import { api } from '../../api';
 import { Button, EmptyState } from '../../components/ui';
 import { InboundEmailCard } from '../settings/InboundEmailCard';
 import { useMessages } from '../../i18n';
+import { useAppLocale } from '../../i18n/locale';
 
 function itemsOf(value: unknown): readonly Record<string, unknown>[] {
   if (typeof value !== 'object' || value === null || !('items' in value)) {
@@ -345,14 +346,19 @@ export function FocusPage() {
 
 export function CalendarSettings() {
   const messages = useMessages();
+  const locale = useAppLocale();
+  const queryClient = useQueryClient();
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
+  const feeds = useQuery({ queryKey: ['calendar-feeds'], queryFn: () => api.listCalendarFeeds() });
   const google = useQuery({ queryKey: ['google'], queryFn: () => api.integrationStatus('google') });
   const lists = projects.data?.items ?? [];
   const [picked, setPicked] = useState('');
   const [url, setUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
   const projectId = picked.length > 0 ? picked : (lists[0]?.id ?? '');
   const googleOn = flag(google.data, 'connected');
+  const feedRows = itemsOf(feeds.data);
   return (
     <section className="token-settings">
       <header className="page-header">
@@ -378,6 +384,7 @@ export function CalendarSettings() {
             void api.createCalendarFeed(projectId).then((body) => {
               setUrl(text(body.url));
               setCopied(false);
+              void queryClient.invalidateQueries({ queryKey: ['calendar-feeds'] });
             });
           }}
         >
@@ -425,6 +432,95 @@ export function CalendarSettings() {
           </div>
         ) : null}
       </section>
+      <section className="token-panel is-list" aria-label={messages.feedList}>
+        <div className="token-panel-head">
+          <div>
+            <h2>{messages.feedList}</h2>
+            <p>{messages.calendarFeedHint}</p>
+          </div>
+        </div>
+        {feeds.isSuccess && feedRows.length === 0 ? (
+          <p className="token-empty">{messages.feedEmptyList}</p>
+        ) : null}
+        {feedRows.map((row) => {
+          const id = text(row.id);
+          const projectId = text(row.project_id);
+          const list = lists.find((item) => item.id === projectId);
+          const created = text(row.created_at);
+          return (
+            <article className="token-row" key={id}>
+              <div className="token-head">
+                <div>
+                  <h2>{list?.name ?? projectId}</h2>
+                  {created.length > 0 ? (
+                    <p className="token-meta">
+                      {new Intl.DateTimeFormat(locale, {
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                      }).format(new Date(created))}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+              <span className="token-actions">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    void api.rotateCalendarFeed(id).then((body) => {
+                      setUrl(text(body.url));
+                      setCopied(false);
+                    });
+                  }}
+                >
+                  {messages.feedRotate}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setConfirmId(id);
+                  }}
+                >
+                  {messages.revoke}
+                </Button>
+              </span>
+              {confirmId === id ? (
+                <div className="token-confirm">
+                  <p>{messages.feedRevokeBody}</p>
+                  <span className="token-actions">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setConfirmId(null);
+                      }}
+                    >
+                      {messages.cancel}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="danger"
+                      onClick={() => {
+                        void api.revokeCalendarFeed(id).then(() => {
+                          setConfirmId(null);
+                          void queryClient.invalidateQueries({ queryKey: ['calendar-feeds'] });
+                        });
+                      }}
+                    >
+                      {messages.revoke}
+                    </Button>
+                  </span>
+                </div>
+              ) : null}
+            </article>
+          );
+        })}
+      </section>
       <section className="token-panel" aria-labelledby="calendar-google-title">
         <div className="token-panel-head">
           <div>
@@ -465,6 +561,14 @@ export function IntegrationSettings() {
   const googleOn = flag(google.data, 'connected');
   const googleReady = flag(google.data, 'configured');
   const account = text(google.data?.account);
+  function connectGoogle(): void {
+    void api.googleConnect().then((body) => {
+      const url = text(body.url);
+      if (url.startsWith('https://accounts.google.com/')) {
+        window.location.assign(url);
+      }
+    });
+  }
   const voice = flag(telegram.data, 'voice');
   const photo = flag(telegram.data, 'photo');
   return (
@@ -498,20 +602,23 @@ export function IntegrationSettings() {
         </div>
         {account.length > 0 ? <p className="token-meta">{account}</p> : null}
         {googleReady && !googleOn ? (
+          <Button type="button" variant="primary" size="sm" onClick={connectGoogle}>
+            {messages.googleConnect}
+          </Button>
+        ) : null}
+        {googleOn ? (
           <Button
             type="button"
-            variant="primary"
             size="sm"
+            variant="ghost"
             onClick={() => {
-              void api.googleConnect().then((body) => {
-                const url = text(body.url);
-                if (url.startsWith('https://accounts.google.com/')) {
-                  window.location.assign(url);
-                }
+              void api.disconnectGoogle().then(() => {
+                void google.refetch();
+                void drive.refetch();
               });
             }}
           >
-            {messages.googleConnect}
+            {messages.googleDisconnect}
           </Button>
         ) : null}
       </section>
@@ -520,29 +627,55 @@ export function IntegrationSettings() {
         <div className="token-panel-head">
           <div>
             <h2 id="drive-title">Drive</h2>
-            <p>{messages.driveHint}</p>
+            <p>{messages.driveNeedsGoogle}</p>
           </div>
           {drive.isFetched ? (
             <StatusPill
-              on={flag(drive.data, 'configured')}
-              onLabel={messages.integrationReady}
-              offLabel={messages.integrationOff}
+              on={flag(drive.data, 'connected')}
+              onLabel={messages.integrationConnected}
+              offLabel={
+                flag(drive.data, 'configured') ? messages.integrationIdle : messages.integrationSoon
+              }
             />
           ) : null}
         </div>
+        {flag(drive.data, 'configured') && !flag(drive.data, 'connected') ? (
+          <Button type="button" variant="primary" size="sm" onClick={connectGoogle}>
+            {messages.googleConnect}
+          </Button>
+        ) : null}
+        {flag(drive.data, 'connected') ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              void api.disconnectGoogle().then(() => {
+                void google.refetch();
+                void drive.refetch();
+              });
+            }}
+          >
+            {messages.googleDisconnect}
+          </Button>
+        ) : null}
       </section>
 
       <section className="token-panel" aria-labelledby="telegram-title">
         <div className="token-panel-head">
           <div>
             <h2 id="telegram-title">Telegram</h2>
-            <p>{messages.telegramHint}</p>
+            <p>{flag(telegram.data, 'linked') ? messages.telegramHint : messages.telegramSoon}</p>
           </div>
           {telegram.isFetched ? (
             <StatusPill
-              on={flag(telegram.data, 'configured')}
-              onLabel={messages.integrationReady}
-              offLabel={messages.integrationOff}
+              on={flag(telegram.data, 'linked')}
+              onLabel={messages.integrationConnected}
+              offLabel={
+                flag(telegram.data, 'configured')
+                  ? messages.integrationIdle
+                  : messages.integrationSoon
+              }
             />
           ) : null}
         </div>
@@ -552,6 +685,24 @@ export function IntegrationSettings() {
             {photo ? <li className="token-chip">{messages.telegramPhoto}</li> : null}
           </ul>
         ) : null}
+        {flag(telegram.data, 'linked') ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              void api.disconnectTelegram().then(() => {
+                void telegram.refetch();
+              });
+            }}
+          >
+            {messages.googleDisconnect}
+          </Button>
+        ) : (
+          <Button type="button" size="sm" disabled>
+            {messages.integrationSoon}
+          </Button>
+        )}
       </section>
 
       <InboundEmailCard />

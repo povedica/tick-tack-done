@@ -1,20 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { isTypingTarget } from './shortcuts';
-
-const GO: Record<string, string> = {
-  t: '/today',
-  i: '/inbox',
-  c: '/calendar/month',
-  m: '/matrix',
-  s: '/settings/appearance',
-  a: '/smart/all',
-  b: '/smart/trash',
-  n: '/search',
-  r: '/smart/next7',
-  w: '/review/weekly',
-};
+import { GO_PATHS, isTypingTarget } from './shortcuts';
 
 export function GlobalKeys({ onHelp }: { readonly onHelp: () => void }) {
   const navigate = useNavigate();
@@ -44,7 +31,7 @@ export function GlobalKeys({ onHelp }: { readonly onHelp: () => void }) {
       }
       if (chord === 'g') {
         chord = '';
-        const path = GO[event.key.toLowerCase()];
+        const path = GO_PATHS[event.key.toLowerCase()];
         if (path !== undefined) {
           event.preventDefault();
           void navigate(path);

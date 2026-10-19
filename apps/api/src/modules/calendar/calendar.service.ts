@@ -313,6 +313,55 @@ export class CalendarService {
     return { id: row.id, url: `${base}/feeds/${token}.ics` };
   }
 
+  async listFeeds(user: AuthUser): Promise<{
+    items: {
+      id: string;
+      project_id: string | null;
+      filter_id: string | null;
+      created_at: string;
+    }[];
+  }> {
+    const rows = await this.prisma.calendarFeed.findMany({
+      where: { ownerId: user.id, deletedAt: null, revokedAt: null },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, projectId: true, filterId: true, createdAt: true },
+    });
+    return {
+      items: rows.map((row) => ({
+        id: row.id,
+        project_id: row.projectId,
+        filter_id: row.filterId,
+        created_at: row.createdAt.toISOString(),
+      })),
+    };
+  }
+
+  async rotateFeed(user: AuthUser, id: string): Promise<{ id: string; url: string }> {
+    const current = await this.prisma.calendarFeed.findFirst({
+      where: { id, ownerId: user.id, deletedAt: null, revokedAt: null },
+    });
+    if (current === null) {
+      throw new DomainException(HttpStatus.NOT_FOUND, 'feed_not_found', 'Feed was not found');
+    }
+    const token = randomBytes(24).toString('base64url');
+    await this.prisma.$transaction(async (tx) => {
+      await tx.calendarFeed.update({
+        where: { id },
+        data: { tokenHash: createHash('sha256').update(token).digest('hex') },
+      });
+      await this.events.record(tx, actorOf(user), {
+        type: DomainEvent.calendarFeedRotated,
+        entityType: 'calendar_feed',
+        entityId: id,
+        action: 'updated',
+        data: { feed: { id } },
+        previous: null,
+      });
+    });
+    const base = (process.env.PUBLIC_URL ?? 'http://127.0.0.1:5173').replace(/\/$/, '');
+    return { id, url: `${base}/feeds/${token}.ics` };
+  }
+
   async revokeFeed(user: AuthUser, id: string): Promise<void> {
     const row = await this.prisma.calendarFeed.findFirst({
       where: { id, ownerId: user.id, deletedAt: null, revokedAt: null },

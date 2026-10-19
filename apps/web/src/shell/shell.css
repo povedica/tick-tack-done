@@ -475,6 +475,11 @@
     padding-bottom: calc(var(--bottombar-h) + env(safe-area-inset-bottom));
   }
 
+  .outlet,
+  .settings-main {
+    padding-bottom: calc(var(--bottombar-h) + env(safe-area-inset-bottom) + var(--sp-8));
+  }
+
   .outlet {
     padding-top: var(--sp-5);
   }

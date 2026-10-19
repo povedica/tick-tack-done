@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { readThemePreference, writeThemePreference, type ThemePreference } from './preference';
+import { pushAccount } from './push-account';
 
 function storage(): Pick<Storage, 'getItem' | 'setItem'> {
   if (typeof localStorage === 'undefined') {
@@ -16,13 +17,16 @@ function storage(): Pick<Storage, 'getItem' | 'setItem'> {
 
 interface ThemeStore {
   preference: ThemePreference;
-  setPreference: (preference: ThemePreference) => void;
+  setPreference: (preference: ThemePreference, source?: 'user' | 'account') => void;
 }
 
 export const useThemePreference = create<ThemeStore>((set) => ({
   preference: readThemePreference(storage()),
-  setPreference: (preference) => {
+  setPreference: (preference, source = 'user') => {
     writeThemePreference(storage(), preference);
     set({ preference });
+    if (source === 'user') {
+      pushAccount({ theme: preference });
+    }
   },
 }));

@@ -80,7 +80,8 @@ export const en = {
   themeDark: 'Dark',
   themeLabel: 'Theme',
   appearanceTitle: 'Appearance',
-  appearanceHint: 'Auto follows the system preference.',
+  appearanceHint:
+    'Auto follows the system preference. Theme, density, accent, language and the week start are saved on your account.',
   navToday: 'Today',
   navTomorrow: 'Tomorrow',
   navNext7: 'Next 7 days',

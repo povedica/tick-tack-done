@@ -16,6 +16,7 @@ import { AccountService } from './account.service';
 import { CurrentUser } from './current-user.decorator';
 import type { AuthUser } from './auth-user';
 import {
+  ChangePasswordDto,
   DeleteMeDto,
   InboundEmailAddressDto,
   InboundEmailStatusDto,
@@ -56,6 +57,18 @@ export class MeController {
   @ApiOkResponse({ type: MeResponseDto })
   getMe(@CurrentUser() user: AuthUser): Promise<MeResponseDto> {
     return this.me.get(user);
+  }
+
+  @Post('password')
+  @Scopes('profile:write')
+  @ApiOperation({ summary: 'Change the password and sign out other sessions' })
+  async changePassword(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: ChangePasswordDto,
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.account.changePassword(user, dto);
+    res.status(204).end();
   }
 
   @Patch()

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { pushAccount } from '../theme/push-account';
 
 export type LocaleChoice = 'auto' | 'es' | 'en';
 
@@ -18,7 +19,7 @@ function read(): LocaleChoice {
 
 interface LocaleStore {
   choice: LocaleChoice;
-  setChoice: (choice: LocaleChoice) => void;
+  setChoice: (choice: LocaleChoice, source?: 'user' | 'account') => void;
 }
 
 export function resolveLocale(choice: LocaleChoice): string {
@@ -32,9 +33,12 @@ export function useAppLocale(): string {
 
 export const useLocale = create<LocaleStore>((set) => ({
   choice: read(),
-  setChoice: (choice) => {
+  setChoice: (choice, source = 'user') => {
     localStorage.setItem(KEY, choice);
     document.documentElement.lang = choice === 'auto' ? navigator.language : choice;
     set({ choice });
+    if (source === 'user') {
+      pushAccount({ locale: choice });
+    }
   },
 }));

@@ -23,6 +23,23 @@ export interface paths {
         patch: operations["MeController_updateMe"];
         trace?: never;
     };
+    "/api/v1/me/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Change the password and sign out other sessions */
+        post: operations["MeController_changePassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/inbound-email": {
         parameters: {
             query?: never;
@@ -328,6 +345,23 @@ export interface paths {
         /** Confirm TOTP and show recovery codes once */
         post: operations["TotpController_confirm"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/totp/pending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Discard a TOTP secret that was not confirmed */
+        delete: operations["TotpController_cancel"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1407,10 +1441,28 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** List active iCal feeds. The secret URL is not returned (RF-1104) */
+        get: operations["CalendarController_listFeeds"];
         put?: never;
         /** Create a secret iCal feed for a list or filter (RF-1104) */
         post: operations["CalendarController_createFeed"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/calendar/feeds/{id}/rotate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Regenerate an iCal feed URL. The previous URL stops working (RF-1104) */
+        post: operations["CalendarController_rotateFeed"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1622,6 +1674,24 @@ export interface paths {
         delete: operations["WebhooksController_remove"];
         options?: never;
         head?: never;
+        /** Pause or resume a webhook (RF-11010) */
+        patch: operations["WebhooksController_update"];
+        trace?: never;
+    };
+    "/api/v1/webhooks/{id}/rotate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rotate a webhook secret. The new secret is shown once (RF-11010) */
+        post: operations["WebhooksController_rotate"];
+        delete?: never;
+        options?: never;
+        head?: never;
         patch?: never;
         trace?: never;
     };
@@ -1677,23 +1747,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/automations/{id}/run": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Run an automation now, including the weekly report template (RF-2203) */
-        post: operations["AutomationsController_run"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/automations/{id}": {
         parameters: {
             query?: never;
@@ -1706,6 +1759,24 @@ export interface paths {
         post?: never;
         /** Delete an automation */
         delete: operations["AutomationsController_remove"];
+        options?: never;
+        head?: never;
+        /** Pause or resume an automation */
+        patch: operations["AutomationsController_update"];
+        trace?: never;
+    };
+    "/api/v1/automations/{id}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run an automation now, including the weekly report template (RF-2203) */
+        post: operations["AutomationsController_run"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -2120,7 +2191,8 @@ export interface paths {
         get: operations["IntegrationsController_status"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Unlink Telegram chats from this account (RF-2003) */
+        delete: operations["IntegrationsController_unlinkTelegram"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2171,7 +2243,8 @@ export interface paths {
         get: operations["IntegrationsController_google"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Disconnect Google Calendar and Drive (RF-2004) */
+        delete: operations["IntegrationsController_disconnectGoogle"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2382,10 +2455,27 @@ export interface components {
             email: string;
             display_name: string;
             time_zone: string;
-            locale: string;
+            /** @enum {string} */
+            locale: "auto" | "es" | "en";
             /** @enum {string} */
             task_complete_children: "ask" | "complete" | "leave";
             daily_reminder_time: string | null;
+            /** @enum {string} */
+            week_start: "monday" | "sunday";
+            /** @enum {string} */
+            theme: "light" | "dark" | "auto";
+            /** @enum {string} */
+            nlp_language: "auto" | "es" | "en";
+            /** @enum {string} */
+            density: "comfortable" | "compact";
+            /** @enum {string} */
+            accent: "indigo" | "violet" | "teal" | "amber" | "rose" | "slate";
+            default_reminder_trigger: string | null;
+        };
+        ChangePasswordDto: {
+            /** @description Current password */
+            current_password: string;
+            new_password: string;
         };
         UpdateMeDto: {
             display_name?: string;
@@ -2394,6 +2484,20 @@ export interface components {
             task_complete_children?: "ask" | "complete" | "leave";
             /** @example 08:00 */
             daily_reminder_time?: Record<string, never> | null;
+            /** @enum {string} */
+            locale?: "auto" | "es" | "en";
+            /** @enum {string} */
+            week_start?: "monday" | "sunday";
+            /** @enum {string} */
+            theme?: "light" | "dark" | "auto";
+            /** @enum {string} */
+            nlp_language?: "auto" | "es" | "en";
+            /** @enum {string} */
+            density?: "comfortable" | "compact";
+            /** @enum {string} */
+            accent?: "indigo" | "violet" | "teal" | "amber" | "rose" | "slate";
+            /** @enum {string|null} */
+            default_reminder_trigger?: "-PT0M" | "-PT5M" | "-PT15M" | "-PT30M" | "-PT1H" | "-P1D" | null;
         };
         InboundEmailStatusDto: {
             active: boolean;
@@ -2648,6 +2752,7 @@ export interface components {
             kind: "TASK" | "NOTE";
             closed: boolean;
             is_inbox: boolean;
+            default_reminder_trigger: string | null;
             sort_order: string;
             active_task_count: number;
             created_at: string;
@@ -2678,6 +2783,8 @@ export interface components {
             kind?: "TASK" | "NOTE";
             before_id?: Record<string, never> | null;
             move_to_end?: boolean;
+            /** @description Null inherits the account reminder. 'off' stays quiet. */
+            default_reminder_trigger?: Record<string, never> | null;
         };
         ColumnResponseDto: {
             id: string;
@@ -3130,11 +3237,17 @@ export interface components {
             events: string[];
             active?: boolean;
         };
+        WebhookPatchDto: {
+            active?: boolean;
+        };
         AutomationDto: {
             name: string;
             trigger: Record<string, never>;
             conditions?: Record<string, never> | null;
             actions: unknown[];
+            enabled?: boolean;
+        };
+        AutomationPatchDto: {
             enabled?: boolean;
         };
         StartDto: {
@@ -3273,6 +3386,29 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MeResponseDto"];
                 };
+            };
+        };
+    };
+    MeController_changePassword: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangePasswordDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -3738,6 +3874,23 @@ export interface operations {
         };
         responses: {
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TotpController_cancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5848,6 +6001,23 @@ export interface operations {
             };
         };
     };
+    CalendarController_listFeeds: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     CalendarController_createFeed: {
         parameters: {
             query?: never;
@@ -5863,6 +6033,25 @@ export interface operations {
         responses: {
             /** @description The secret URL is returned once */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CalendarController_rotateFeed: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6162,6 +6351,48 @@ export interface operations {
             };
         };
     };
+    WebhooksController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebhookPatchDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    WebhooksController_rotate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     WebhooksController_ping: {
         parameters: {
             query?: never;
@@ -6238,25 +6469,6 @@ export interface operations {
             };
         };
     };
-    AutomationsController_run: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     AutomationsController_remove: {
         parameters: {
             query?: never;
@@ -6269,6 +6481,48 @@ export interface operations {
         requestBody?: never;
         responses: {
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AutomationsController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutomationPatchDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AutomationsController_run: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6876,6 +7130,23 @@ export interface operations {
             };
         };
     };
+    IntegrationsController_unlinkTelegram: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     IntegrationsController_link: {
         parameters: {
             query?: never;
@@ -6921,6 +7192,23 @@ export interface operations {
         };
     };
     IntegrationsController_google: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    IntegrationsController_disconnectGoogle: {
         parameters: {
             query?: never;
             header?: never;

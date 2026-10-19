@@ -8,6 +8,13 @@ export interface UpdateMeBody {
   readonly time_zone?: string;
   readonly task_complete_children?: 'ask' | 'complete' | 'leave';
   readonly daily_reminder_time?: string | null;
+  readonly locale?: 'auto' | 'es' | 'en';
+  readonly week_start?: 'monday' | 'sunday';
+  readonly theme?: 'light' | 'dark' | 'auto';
+  readonly nlp_language?: 'auto' | 'es' | 'en';
+  readonly density?: 'comfortable' | 'compact';
+  readonly accent?: 'indigo' | 'violet' | 'teal' | 'amber' | 'rose' | 'slate';
+  readonly default_reminder_trigger?: string | null;
 }
 export type InboundEmailStatus = components['schemas']['InboundEmailStatusDto'];
 export type InboundEmailAddress = components['schemas']['InboundEmailAddressDto'];
@@ -170,7 +177,10 @@ export interface ResourceClient {
   deleteFolder(id: string): Promise<void>;
   getProject(id: string): Promise<Project>;
   createProject(body: NamedWrite, idempotencyKey: string): Promise<Project>;
-  updateProject(id: string, body: Partial<NamedWrite>): Promise<Project>;
+  updateProject(
+    id: string,
+    body: Partial<NamedWrite> & { default_reminder_trigger?: string | null },
+  ): Promise<Project>;
   deleteProject(id: string): Promise<void>;
   archiveProject(id: string, idempotencyKey: string): Promise<Project>;
   unarchiveProject(id: string, idempotencyKey: string): Promise<Project>;
@@ -231,8 +241,14 @@ export interface ResourceClient {
   googleConnect(): Promise<JsonObject>;
   listWebhooks(): Promise<JsonObject>;
   createWebhook(body: JsonObject): Promise<JsonObject>;
+  updateWebhook(id: string, body: { active: boolean }): Promise<JsonObject>;
+  rotateWebhook(id: string): Promise<JsonObject>;
+  pingWebhook(id: string): Promise<JsonObject>;
+  deleteWebhook(id: string): Promise<void>;
   listAutomations(): Promise<JsonObject>;
   createAutomation(body: JsonObject): Promise<JsonObject>;
+  updateAutomation(id: string, body: { enabled: boolean }): Promise<JsonObject>;
+  deleteAutomation(id: string): Promise<void>;
   listPlugins(): Promise<JsonObject>;
   deleteAccount(confirmation: string): Promise<void>;
   exportJson(): Promise<JsonObject>;
@@ -242,8 +258,15 @@ export interface ResourceClient {
   setAchievements(enabled: boolean): Promise<JsonObject>;
   beginTotp(): Promise<JsonObject>;
   confirmTotp(code: string): Promise<JsonObject>;
+  cancelTotp(): Promise<void>;
+  changePassword(currentPassword: string, newPassword: string): Promise<void>;
   reportLocation(lat: number, lon: number): Promise<JsonObject>;
   createCalendarFeed(projectId: string): Promise<JsonObject>;
+  listCalendarFeeds(): Promise<JsonObject>;
+  rotateCalendarFeed(id: string): Promise<JsonObject>;
+  revokeCalendarFeed(id: string): Promise<void>;
+  disconnectGoogle(): Promise<void>;
+  disconnectTelegram(): Promise<void>;
   listMembers(projectId: string): Promise<JsonObject>;
   addMember(
     projectId: string,
@@ -442,8 +465,22 @@ export function resourceMethods(http: Http): ResourceClient {
       ask('GET', '/api/v1/integrations/google/start', undefined, undefined, isJsonObject),
     listWebhooks: () => ask('GET', '/api/v1/webhooks', undefined, undefined, isJsonObject),
     createWebhook: (body) => ask('POST', '/api/v1/webhooks', body, undefined, isJsonObject),
+    updateWebhook: (id, body) =>
+      ask('PATCH', `/api/v1/webhooks/${id}`, body, undefined, isJsonObject),
+    rotateWebhook: (id) =>
+      ask('POST', `/api/v1/webhooks/${id}/rotate`, undefined, undefined, isJsonObject),
+    pingWebhook: (id) =>
+      ask('POST', `/api/v1/webhooks/${id}/ping`, undefined, undefined, isJsonObject),
+    async deleteWebhook(id) {
+      await ask('DELETE', `/api/v1/webhooks/${id}`, undefined, undefined, isEmpty);
+    },
     listAutomations: () => ask('GET', '/api/v1/automations', undefined, undefined, isJsonObject),
     createAutomation: (body) => ask('POST', '/api/v1/automations', body, undefined, isJsonObject),
+    updateAutomation: (id, body) =>
+      ask('PATCH', `/api/v1/automations/${id}`, body, undefined, isJsonObject),
+    async deleteAutomation(id) {
+      await ask('DELETE', `/api/v1/automations/${id}`, undefined, undefined, isEmpty);
+    },
     listPlugins: () => ask('GET', '/api/v1/plugins', undefined, undefined, isJsonObject),
     async deleteAccount(confirmation) {
       await ask('DELETE', '/api/v1/me', { confirmation }, undefined, isEmpty);
@@ -464,10 +501,35 @@ export function resourceMethods(http: Http): ResourceClient {
     beginTotp: () => ask('POST', '/api/v1/me/totp', undefined, undefined, isJsonObject),
     confirmTotp: (code) =>
       ask('POST', '/api/v1/me/totp/confirm', { code }, undefined, isJsonObject),
+    async cancelTotp() {
+      await ask('DELETE', '/api/v1/me/totp/pending', undefined, undefined, isEmpty);
+    },
+    async changePassword(currentPassword, newPassword) {
+      await ask(
+        'POST',
+        '/api/v1/me/password',
+        { current_password: currentPassword, new_password: newPassword },
+        undefined,
+        isEmpty,
+      );
+    },
     reportLocation: (lat, lon) =>
       ask('POST', '/api/v1/me/location', { lat, lon }, undefined, isJsonObject),
     createCalendarFeed: (projectId) =>
       ask('POST', '/api/v1/calendar/feeds', { project_id: projectId }, undefined, isJsonObject),
+    listCalendarFeeds: () =>
+      ask('GET', '/api/v1/calendar/feeds', undefined, undefined, isJsonObject),
+    rotateCalendarFeed: (id) =>
+      ask('POST', `/api/v1/calendar/feeds/${id}/rotate`, undefined, undefined, isJsonObject),
+    async revokeCalendarFeed(id) {
+      await ask('DELETE', `/api/v1/calendar/feeds/${id}`, undefined, undefined, isEmpty);
+    },
+    async disconnectGoogle() {
+      await ask('DELETE', '/api/v1/integrations/google', undefined, undefined, isEmpty);
+    },
+    async disconnectTelegram() {
+      await ask('DELETE', '/api/v1/integrations/telegram', undefined, undefined, isEmpty);
+    },
     listMembers: (projectId) =>
       ask('GET', `/api/v1/projects/${projectId}/members`, undefined, undefined, isJsonObject),
     addMember: (projectId, email, permission) =>

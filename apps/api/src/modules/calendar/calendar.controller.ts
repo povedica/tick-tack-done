@@ -133,6 +133,17 @@ export class CalendarController {
     res.status(204).end();
   }
 
+  @Get('feeds')
+  @Scopes('calendar:read')
+  @ApiOperation({ summary: 'List active iCal feeds. The secret URL is not returned (RF-1104)' })
+  async listFeeds(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(req, res, 200, await this.calendar.listFeeds(user), false);
+  }
+
   @Post('feeds')
   @Scopes('calendar:write')
   @ApiOperation({ summary: 'Create a secret iCal feed for a list or filter (RF-1104)' })
@@ -144,6 +155,20 @@ export class CalendarController {
     @Res() res: Response,
   ): Promise<void> {
     respondJson(req, res, 201, await this.calendar.createFeed(user, dto), false);
+  }
+
+  @Post('feeds/:id/rotate')
+  @Scopes('calendar:write')
+  @ApiOperation({
+    summary: 'Regenerate an iCal feed URL. The previous URL stops working (RF-1104)',
+  })
+  async rotateFeed(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(req, res, 200, await this.calendar.rotateFeed(user, id), false);
   }
 
   @Delete('feeds/:id')

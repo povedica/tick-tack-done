@@ -1,3 +1,16 @@
+export const GO_PATHS: Record<string, string> = {
+  t: '/today',
+  i: '/inbox',
+  c: '/calendar/month',
+  m: '/matrix',
+  s: '/settings/appearance',
+  a: '/smart/all',
+  b: '/smart/trash',
+  n: '/search',
+  r: '/smart/next7',
+  w: '/review/weekly',
+};
+
 export const SHORTCUT_ROWS = [
   ['N', 'fab'],
   ['?', 'shortcutsTitle'],

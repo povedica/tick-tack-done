@@ -17,6 +17,8 @@ import { Button, EmptyState, ErrorState, SkeletonRows } from '../../components/u
 import { fill, useMessages, type Messages } from '../../i18n';
 import { useAppLocale, useLocale } from '../../i18n/locale';
 import { usePreferences, type AccentId } from '../../theme/preferences';
+import { failureMessage } from '../../failure';
+import { TotpQr } from '../settings/TotpQr';
 import { InboundEmailCard } from '../settings/InboundEmailCard';
 import { collectTags } from '../tasks/collect';
 import { quadrantOf, rowFromTask, smartApiKey, type RowModel } from '../tasks/model';
@@ -1334,6 +1336,11 @@ export function SettingsLayout() {
         ))}
       </nav>
       <div className="settings-main">
+        {section === 'child' ? (
+          <Link className="settings-back" to="/settings">
+            {messages.settingsBack}
+          </Link>
+        ) : null}
         <Outlet />
       </div>
     </div>
@@ -1406,6 +1413,10 @@ export function AccountPage() {
   const [children, setChildren] = useState<'ask' | 'complete' | 'leave' | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [confirmEmail, setConfirmEmail] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [nextPassword, setNextPassword] = useState('');
+  const [againPassword, setAgainPassword] = useState('');
+  const [passwordStatus, setPasswordStatus] = useState<string | null>(null);
   const [setup, setSetup] = useState<{ secret: string; otpauth: string } | null>(null);
   const [totpCode, setTotpCode] = useState('');
   const [codes, setCodes] = useState<readonly string[] | null>(null);
@@ -1516,9 +1527,92 @@ export function AccountPage() {
             <div className="token-panel-head">
               <div>
                 <h2>{messages.password}</h2>
-                <p>{messages.forgotDev}</p>
+                <p>{messages.passwordShort}</p>
               </div>
             </div>
+            <form
+              className="token-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (nextPassword.length < 10) {
+                  setPasswordStatus(messages.passwordShort);
+                  return;
+                }
+                if (nextPassword !== againPassword) {
+                  setPasswordStatus(messages.passwordMismatch);
+                  return;
+                }
+                setPasswordStatus(null);
+                void api.changePassword(currentPassword, nextPassword).then(
+                  () => {
+                    setCurrentPassword('');
+                    setNextPassword('');
+                    setAgainPassword('');
+                    setPasswordStatus(messages.passwordChanged);
+                  },
+                  (reason: unknown) => {
+                    setPasswordStatus(failureMessage(reason, messages.settingsFailed));
+                  },
+                );
+              }}
+            >
+              <label className="token-label" htmlFor="password-current">
+                {messages.passwordCurrent}
+              </label>
+              <input
+                id="password-current"
+                className="token-name"
+                type="password"
+                autoComplete="current-password"
+                value={currentPassword}
+                onChange={(event) => {
+                  setCurrentPassword(event.target.value);
+                }}
+              />
+              <label className="token-label" htmlFor="password-new">
+                {messages.passwordNew}
+              </label>
+              <input
+                id="password-new"
+                className="token-name"
+                type="password"
+                autoComplete="new-password"
+                value={nextPassword}
+                onChange={(event) => {
+                  setNextPassword(event.target.value);
+                }}
+              />
+              <label className="token-label" htmlFor="password-again">
+                {messages.passwordAgain}
+              </label>
+              <input
+                id="password-again"
+                className="token-name"
+                type="password"
+                autoComplete="new-password"
+                value={againPassword}
+                onChange={(event) => {
+                  setAgainPassword(event.target.value);
+                }}
+              />
+              <Button
+                type="submit"
+                variant="primary"
+                size="sm"
+                disabled={
+                  currentPassword.length === 0 ||
+                  nextPassword.length === 0 ||
+                  againPassword.length === 0
+                }
+              >
+                {messages.saveChanges}
+              </Button>
+              {passwordStatus !== null ? (
+                <p role={passwordStatus === messages.passwordChanged ? 'status' : 'alert'}>
+                  {passwordStatus}
+                </p>
+              ) : null}
+            </form>
           </section>
           <section className="token-panel">
             <div className="token-panel-head">
@@ -1554,8 +1648,24 @@ export function AccountPage() {
             ) : (
               <div className="token-secret">
                 <p>{messages.twoFactorReady}</p>
+                {setup.otpauth.length > 0 ? (
+                  <TotpQr value={setup.otpauth} label={messages.twoFactorQr} />
+                ) : null}
                 <code>{setup.secret}</code>
-                {setup.otpauth.length > 0 ? <p className="settings-url">{setup.otpauth}</p> : null}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    void api.cancelTotp().finally(() => {
+                      setSetup(null);
+                      setTotpCode('');
+                      setTotpError(null);
+                    });
+                  }}
+                >
+                  {messages.cancel}
+                </Button>
               </div>
             )}
             {setup !== null && codes === null ? (
@@ -1698,14 +1808,32 @@ export function CaptureSettings() {
   );
 }
 
+const REMINDER_VALUES = ['-PT0M', '-PT5M', '-PT15M', '-PT30M', '-PT1H', '-P1D'] as const;
+
 export function NotificationSettings() {
   const messages = useMessages();
+  const locale = useAppLocale();
+  const timeLang = locale.toLowerCase().startsWith('en') ? 'en-GB' : 'es-ES';
+  const queryClient = useQueryClient();
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
+  const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
   const saved = me.data?.daily_reminder_time ?? '';
+  const savedDefault = reminderValue(me.data, 'default_reminder_trigger');
   const [draft, setDraft] = useState<string | null>(null);
+  const [defaultDraft, setDefaultDraft] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [push, setPush] = useState<NotificationPermission | 'missing'>(pushPermission);
+  const [listOverrides, setListOverrides] = useState<Readonly<Record<string, string>>>({});
   const value = draft ?? saved;
-  const push = pushPermission();
+  const defaultReminder = defaultDraft ?? savedDefault;
+  const reminderLabels: Record<(typeof REMINDER_VALUES)[number], string> = {
+    '-PT0M': messages.reminderAtTime,
+    '-PT5M': messages.reminder5,
+    '-PT15M': messages.reminder15,
+    '-PT30M': messages.reminder30,
+    '-PT1H': messages.reminderHour,
+    '-P1D': messages.reminderDay,
+  };
   return (
     <section className="token-settings">
       <header className="page-header">
@@ -1741,6 +1869,8 @@ export function NotificationSettings() {
             id="daily-reminder"
             className="token-name is-time"
             type="time"
+            lang={timeLang}
+            step={60}
             value={value}
             onChange={(event) => {
               setDraft(event.target.value);
@@ -1760,15 +1890,139 @@ export function NotificationSettings() {
         </form>
       </section>
       <section className="token-panel">
+        <form
+          className="token-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (me.data === undefined || defaultReminder === savedDefault) {
+              return;
+            }
+            setStatus(null);
+            void api
+              .updateMe({
+                default_reminder_trigger: defaultReminder.length === 0 ? null : defaultReminder,
+              })
+              .then(() => {
+                setDefaultDraft(null);
+                setStatus(messages.saved);
+                void queryClient.invalidateQueries({ queryKey: ['me'] });
+              })
+              .catch(() => {
+                setStatus(messages.saveFailed);
+              });
+          }}
+        >
+          <label className="token-label" htmlFor="default-reminder">
+            {messages.defaultReminder}
+          </label>
+          <select
+            id="default-reminder"
+            className="token-name is-short"
+            value={defaultReminder}
+            onChange={(event) => {
+              setDefaultDraft(event.target.value);
+              setStatus(null);
+            }}
+          >
+            <option value="">{messages.reminderNone}</option>
+            {REMINDER_VALUES.map((item) => (
+              <option key={item} value={item}>
+                {reminderLabels[item]}
+              </option>
+            ))}
+          </select>
+          <p className="token-meta">{messages.defaultReminderHint}</p>
+          <Button
+            type="submit"
+            variant="primary"
+            size="sm"
+            disabled={me.data === undefined || defaultReminder === savedDefault}
+          >
+            {messages.saveChanges}
+          </Button>
+        </form>
+      </section>
+      <section className="token-panel is-list" aria-label={messages.listReminders}>
+        <div className="token-panel-head">
+          <div>
+            <h2>{messages.listReminders}</h2>
+            <p>{messages.listRemindersHint}</p>
+          </div>
+        </div>
+        {(projects.data?.items ?? []).map((list) => {
+          const current = listOverrides[list.id] ?? listReminderValue(list);
+          return (
+            <label className="token-row" key={list.id}>
+              <span>{list.name}</span>
+              <select
+                className="token-name is-short"
+                aria-label={list.name}
+                value={current}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  setListOverrides((previous) => ({ ...previous, [list.id]: next }));
+                  void api
+                    .updateProject(list.id, {
+                      default_reminder_trigger: next.length === 0 ? null : next,
+                    })
+                    .then(() => {
+                      void queryClient.invalidateQueries({ queryKey: ['projects'] });
+                    });
+                }}
+              >
+                <option value="">{messages.reminderInherit}</option>
+                <option value="off">{messages.reminderNone}</option>
+                {REMINDER_VALUES.map((item) => (
+                  <option key={item} value={item}>
+                    {reminderLabels[item]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          );
+        })}
+      </section>
+      <section className="token-panel">
         <div className="token-panel-head">
           <div>
             <h2>{messages.pushTitle}</h2>
             <p>{pushText(messages, push)}</p>
           </div>
         </div>
+        {push === 'default' ? (
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => {
+              if (typeof Notification === 'undefined') {
+                setPush('missing');
+                return;
+              }
+              void Notification.requestPermission().then((next) => {
+                setPush(next);
+              });
+            }}
+          >
+            {messages.pushEnable}
+          </Button>
+        ) : null}
       </section>
     </section>
   );
+}
+
+function reminderValue(me: unknown, key: string): string {
+  if (typeof me !== 'object' || me === null) {
+    return '';
+  }
+  const value = (me as Record<string, unknown>)[key];
+  return typeof value === 'string' ? value : '';
+}
+
+function listReminderValue(list: Project): string {
+  const value = (list as Project & { default_reminder_trigger?: string | null })
+    .default_reminder_trigger;
+  return typeof value === 'string' ? value : '';
 }
 
 function timeZones(current: string): readonly string[] {
@@ -1871,10 +2125,11 @@ export function AppearanceExtras() {
             <button
               key={item}
               type="button"
+              role="radio"
               className={accent === item ? 'is-active' : undefined}
               style={{ background: ACCENT_COLOR[item] }}
-              aria-label={item}
-              aria-pressed={accent === item}
+              aria-label={accentName(messages, item)}
+              aria-checked={accent === item}
               onClick={() => {
                 setAccent(item);
               }}
@@ -1915,6 +2170,23 @@ export function AppearanceExtras() {
       <LanguageField />
     </>
   );
+}
+
+function accentName(messages: Messages, item: AccentId): string {
+  switch (item) {
+    case 'indigo':
+      return messages.accentIndigo;
+    case 'violet':
+      return messages.accentViolet;
+    case 'teal':
+      return messages.accentTeal;
+    case 'amber':
+      return messages.accentAmber;
+    case 'rose':
+      return messages.accentRose;
+    case 'slate':
+      return messages.accentSlate;
+  }
 }
 
 function LanguageField() {

@@ -1,4 +1,7 @@
 import { create } from 'zustand';
+import { pushAccount } from './push-account';
+
+type PreferenceSource = 'user' | 'account';
 
 export type Density = 'comfortable' | 'compact';
 export type AccentId = 'indigo' | 'violet' | 'teal' | 'amber' | 'rose' | 'slate';
@@ -39,11 +42,11 @@ interface PreferenceStore {
   weekStart: WeekStart;
   showCounters: boolean;
   parser: 'auto' | 'es' | 'en';
-  setDensity: (density: Density) => void;
-  setAccent: (accent: AccentId) => void;
-  setWeekStart: (weekStart: WeekStart) => void;
+  setDensity: (density: Density, source?: PreferenceSource) => void;
+  setAccent: (accent: AccentId, source?: PreferenceSource) => void;
+  setWeekStart: (weekStart: WeekStart, source?: PreferenceSource) => void;
   setShowCounters: (showCounters: boolean) => void;
-  setParser: (parser: 'auto' | 'es' | 'en') => void;
+  setParser: (parser: 'auto' | 'es' | 'en', source?: PreferenceSource) => void;
 }
 
 export const usePreferences = create<PreferenceStore>((set) => ({
@@ -55,27 +58,39 @@ export const usePreferences = create<PreferenceStore>((set) => ({
     localStorage.getItem(PARSER) === 'en' || localStorage.getItem(PARSER) === 'es'
       ? (localStorage.getItem(PARSER) as 'es' | 'en')
       : 'auto',
-  setDensity: (density) => {
+  setDensity: (density, source = 'user') => {
     localStorage.setItem(DENSITY, density);
     document.documentElement.dataset.density = density;
     set({ density });
+    if (source === 'user') {
+      pushAccount({ density });
+    }
   },
-  setAccent: (accent) => {
+  setAccent: (accent, source = 'user') => {
     localStorage.setItem(ACCENT, accent);
     document.documentElement.dataset.accent = accent;
     set({ accent });
+    if (source === 'user') {
+      pushAccount({ accent });
+    }
   },
-  setWeekStart: (weekStart) => {
+  setWeekStart: (weekStart, source = 'user') => {
     localStorage.setItem(WEEK, weekStart);
     set({ weekStart });
+    if (source === 'user') {
+      pushAccount({ week_start: weekStart });
+    }
   },
   setShowCounters: (showCounters) => {
     localStorage.setItem(COUNTERS, showCounters ? 'on' : 'off');
     set({ showCounters });
   },
-  setParser: (parser) => {
+  setParser: (parser, source = 'user') => {
     localStorage.setItem(PARSER, parser);
     set({ parser });
+    if (source === 'user') {
+      pushAccount({ nlp_language: parser });
+    }
   },
 }));
 
