@@ -147,24 +147,20 @@ function pinnedRequest(
   const lib = target.url.protocol === 'https:' ? https : http;
   const family = isIP(target.address) === 6 ? 6 : 4;
   return new Promise((resolve, reject) => {
-    // assertPublicUrl already rejected private, loopback and non-https targets.
-    // The lookup callback pins that public address, so this is not an open proxy.
-    // codeql[js/request-forgery]
+    const pathAndQuery = `${target.url.pathname}${target.url.search}`;
+    // Connect to the address assertPublicUrl already accepted. The original host
+    // is only the Host header and the TLS name, not the socket destination.
     const req = lib.request(
-      target.url,
+      // codeql[js/request-forgery]
       {
+        host: target.address,
+        family,
+        ...(target.url.port.length > 0 ? { port: Number(target.url.port) } : {}),
+        path: pathAndQuery.length > 0 ? pathAndQuery : '/',
         method: init.method ?? 'GET',
         headers: { ...init.headers, host: target.url.host },
         servername: target.url.hostname,
         timeout: init.timeoutMs ?? 8_000,
-        lookup: (_hostname, _options, callback) => {
-          const done = callback as (
-            err: NodeJS.ErrnoException | null,
-            address: string,
-            family: number,
-          ) => void;
-          done(null, target.address, family);
-        },
       },
       (res) => {
         const chunks: Buffer[] = [];
