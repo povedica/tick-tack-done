@@ -28,6 +28,7 @@ export const WIDGET_KEYS = [
   'calendar',
   'integrations',
   'focus',
+  'next_countdowns',
 ] as const;
 
 const DEFAULT_LAYOUT = WIDGET_KEYS.map((key, index) => ({
@@ -97,6 +98,12 @@ export class DashboardController {
     const upcoming = await this.prisma.externalEvent.count({
       where: { ownerId: user.id, deletedAt: null, startsAt: { gte: new Date() } },
     });
+    const countdowns = await this.prisma.countdown.findMany({
+      where: { ownerId: user.id, deletedAt: null, archivedAt: null, targetDate: { gte: new Date() } },
+      orderBy: { targetDate: 'asc' },
+      take: 3,
+      select: { id: true, title: true, emoji: true, targetDate: true },
+    });
     const values: Record<string, unknown> = {
       completed_today: snapshot.completed_today,
       completed_week: { value: snapshot.completed_week, trend: snapshot.trend },
@@ -112,6 +119,14 @@ export class DashboardController {
         drive: driveConfigured(),
       },
       focus: { seconds: focus._sum.actualSeconds ?? 0 },
+      next_countdowns: {
+        items: countdowns.map((countdown) => ({
+          id: countdown.id,
+          title: countdown.title,
+          emoji: countdown.emoji,
+          target_date: countdown.targetDate.toISOString().slice(0, 10),
+        })),
+      },
     };
     if (widget === undefined || widget.length === 0) {
       respondJson(req, res, 200, { widgets: values }, false);
