@@ -80,7 +80,7 @@ Secuencia real, log de Cursor del 19/10/2026 11:38
 5. Cursor interpreta ese 404 como sesión terminada, reintenta y, al quinto
    404 seguido, archiva el transporte y apaga el reintento
    (`Tombstoning streamable HTTP transport after 5 consecutive session HTTP
-   404 responses`). El servidor desaparece del agente. En este chat las tools
+404 responses`). El servidor desaparece del agente. En este chat las tools
    no llegaron a registrarse.
 
 El protocolo Streamable HTTP dice: si el servidor no ofrece stream SSE, el
@@ -102,14 +102,14 @@ hasta que exista un mensaje que el servidor deba empujar (más abajo).
 
 En `McpController`, mismo path `mcp`:
 
-| Petición | Auth | Respuesta |
-| --- | --- | --- |
-| `POST` JSON-RPC con `id` | Bearer o sesión dev, como ahora | 200 `application/json` con el resultado JSON-RPC |
-| `POST` notificación (sin `id`, o `notifications/…`) | Igual | 202 sin cuerpo |
-| `GET` con bearer válido | Sí | **405**, sin cuerpo, cabecera `Allow: POST` |
-| `DELETE` con bearer válido | Sí | **405**, sin cuerpo, cabecera `Allow: POST` |
-| `GET` o `DELETE` sin bearer | — | 401, igual que el resto de rutas autenticadas |
-| Bearer inválido | — | 401 `Invalid token`. No arranques OAuth |
+| Petición                                            | Auth                            | Respuesta                                        |
+| --------------------------------------------------- | ------------------------------- | ------------------------------------------------ |
+| `POST` JSON-RPC con `id`                            | Bearer o sesión dev, como ahora | 200 `application/json` con el resultado JSON-RPC |
+| `POST` notificación (sin `id`, o `notifications/…`) | Igual                           | 202 sin cuerpo                                   |
+| `GET` con bearer válido                             | Sí                              | **405**, sin cuerpo, cabecera `Allow: POST`      |
+| `DELETE` con bearer válido                          | Sí                              | **405**, sin cuerpo, cabecera `Allow: POST`      |
+| `GET` o `DELETE` sin bearer                         | —                               | 401, igual que el resto de rutas autenticadas    |
+| Bearer inválido                                     | —                               | 401 `Invalid token`. No arranques OAuth          |
 
 `DELETE` entra en el mismo arreglo: hoy también sería un 404 de Nest, y
 Cursor usa DELETE para cerrar una sesión. Sin sesiones, 405.
@@ -231,7 +231,7 @@ No imprimas el token en la salida del PR.
    siguiente recibe 405, no 404.
 2. Cursor, tras recargar MCP, deja de archivar el transporte. Las tools
    entran en el agente. El log no vuelve a decir `Failed to open SSE stream:
-   Not Found` ni `Tombstoning`.
+Not Found` ni `Tombstoning`.
 3. Un PAT limitado sigue sin ver ni ejecutar tools de más.
 4. Un listado puede pedir la página siguiente con `cursor`.
 5. Añadir la próxima tool no exige tocar el transporte: catálogo, servicio,

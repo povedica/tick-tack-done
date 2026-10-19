@@ -31,11 +31,7 @@ export function spanDays(start: Date, count: number): Date[] {
   });
 }
 
-export function viewDays(
-  view: string,
-  cursor: Date,
-  weekStart: 'monday' | 'sunday',
-): Date[] {
+export function viewDays(view: string, cursor: Date, weekStart: 'monday' | 'sunday'): Date[] {
   const day = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate());
   if (view === 'day') {
     return [day];
@@ -195,7 +191,8 @@ function stripLeadingDueDate(
   if (dueDate === null || dueDate.length === 0) {
     return title;
   }
-  const zone = timeZone !== undefined && timeZone !== null && timeZone.length > 0 ? timeZone : 'UTC';
+  const zone =
+    timeZone !== undefined && timeZone !== null && timeZone.length > 0 ? timeZone : 'UTC';
   const parts = /^(\d{4})-(\d{2})-(\d{2})/.exec(calendarDateKey(dueDate, zone));
   if (parts === null) {
     return title;

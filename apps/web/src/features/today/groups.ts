@@ -111,7 +111,9 @@ export function formatDueDate(
 
 function shiftDayKey(key: string, days: number): string {
   const [year, month, day] = key.split('-').map(Number);
-  return new Date(Date.UTC(year ?? 0, (month ?? 1) - 1, (day ?? 1) + days)).toISOString().slice(0, 10);
+  return new Date(Date.UTC(year ?? 0, (month ?? 1) - 1, (day ?? 1) + days))
+    .toISOString()
+    .slice(0, 10);
 }
 
 export function formatDayId(day: string, locale: string): string {

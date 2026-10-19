@@ -27,9 +27,9 @@ describe('calendar view windows', () => {
 
   it('drops a leading 29/10 when the task already sits on that day', () => {
     const due = '2026-10-29T10:00:00.000Z';
-    expect(
-      calendarTaskLabel('29/10 Cumple de Alberto', due, 'Europe/Madrid', 'Sin título'),
-    ).toBe('Cumple de Alberto');
+    expect(calendarTaskLabel('29/10 Cumple de Alberto', due, 'Europe/Madrid', 'Sin título')).toBe(
+      'Cumple de Alberto',
+    );
     expect(calendarTaskLabel('29/10/2026 - Cumple', due, 'Europe/Madrid', 'Sin título')).toBe(
       'Cumple',
     );

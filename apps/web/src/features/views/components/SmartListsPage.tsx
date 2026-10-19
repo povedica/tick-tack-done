@@ -141,7 +141,9 @@ export function SmartListsPage() {
       </header>
       {notice !== null ? (
         <p
-          className={notice === 'error' ? 'smart-settings-status is-error' : 'smart-settings-status'}
+          className={
+            notice === 'error' ? 'smart-settings-status is-error' : 'smart-settings-status'
+          }
           aria-live="polite"
         >
           {notice === 'saving'

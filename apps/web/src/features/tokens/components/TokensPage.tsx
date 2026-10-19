@@ -337,7 +337,9 @@ export function TokensPage() {
       <section className="token-panel is-list" aria-label={messages.tokensTitle}>
         {tokens.isPending ? <SkeletonRows /> : null}
         {tokens.isError ? <p role="alert">{messages.tokenFailed}</p> : null}
-        {tokens.isSuccess && items.length === 0 ? <p className="token-empty">{messages.tokenEmpty}</p> : null}
+        {tokens.isSuccess && items.length === 0 ? (
+          <p className="token-empty">{messages.tokenEmpty}</p>
+        ) : null}
         {items.map((token) => {
           const revoked = token.revoked_at !== null;
           const open = selected === token.id;

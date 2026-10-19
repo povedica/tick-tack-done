@@ -193,7 +193,8 @@ export const en = {
   entityToken: 'Token',
   paletteHint: 'Search with / or Ctrl/Cmd+K.',
   smartListsTitle: 'Smart lists',
-  smartListsHint: 'Choose which lists appear in the sidebar and drag them to reorder. Changes save on their own.',
+  smartListsHint:
+    'Choose which lists appear in the sidebar and drag them to reorder. Changes save on their own.',
   smartEnabled: 'Visible',
   smartMoveUp: 'Move up',
   smartMoveDown: 'Move down',

@@ -582,9 +582,7 @@ function actionTypes(value: unknown): string[] {
   });
 }
 
-function manifestOf(
-  value: unknown,
-): {
+function manifestOf(value: unknown): {
   readonly name: string;
   readonly version: string;
   readonly permissions: readonly string[];

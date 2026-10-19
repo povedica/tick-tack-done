@@ -5,6 +5,7 @@ Contexto. Auditoría hecha el 18-oct-2026 sobre https://todo.reflexionia.com/ (c
 Cómo usar este documento. Cada punto lleva: **Qué es**, **Resultado actual**, **Resultado esperado**, **Cómo arreglarlo** (con rutas de archivo). Están ordenados por prioridad: P0 (rompe el uso), P1 (muy visible), P2 (pulido). Trabaja en ramas/worktrees separados por bloque (rendimiento API, rendimiento web, layout de lista, detalle de tarea, sidebar, pantallas sin estilo, móvil) para evitar conflictos. Después de cada bloque: `pnpm typecheck && pnpm test` y verifica visualmente con Playwright (capturas a 1280px y 390px).
 
 Reglas generales para todo el arreglo:
+
 - Mantén el look TickTick ya definido (acento `#4772FA`, tokens en `apps/web/src/styles/tokens.css`). Usa solo tokens (`var(--...)`), no colores sueltos.
 - Una sola fuente de verdad para filas de tarea: reutiliza el mismo componente `TaskRow` en Today, listas, smart lists, etiquetas, filtros, búsqueda y papelera. Hoy hay tres implementaciones (ver P0-5 y P1-3).
 - Toda la UI en un solo idioma por defecto (ver P2-4).
@@ -16,31 +17,31 @@ Evidencias (capturas adjuntas): `01-all-scroll-horizontal.png`, `02-detalle-sola
 
 ## Resumen de prioridades
 
-| # | Prioridad | Tema |
-|---|---|---|
-| 1 | P0 | `GET /smart-lists` tarda 1.6-2.5 s y bloquea al resto de peticiones |
-| 2 | P0 | Peticiones duplicadas y refetch masivo en el cliente |
-| 3 | P0 | Scroll horizontal (scrollWidth 1500-2100 px con ventana de 1280) |
-| 4 | P0 | Panel de detalle de tarea solapado con la lista (desktop y móvil) |
-| 5 | P0 | Lista "Completed" muestra las tareas como no completadas |
-| 6 | P0 | Tareas de etiqueta sin checkbox y etiquetas no clicables |
-| 7 | P1 | Icono de arrastrar (grip) visible pero sin función |
-| 8 | P1 | Pie del sidebar: tres botones grandes -> tres iconos en una fila |
-| 9 | P1 | Ajustes: maquetación rota (radios al 100% de ancho, enlaces por defecto) |
-| 10 | P1 | Calendario sin estilo |
-| 11 | P1 | Pantallas sin estilo: Habits, Filters, Repeat, Matrix, Garden, Review, Reports, Focus, Tokens, Data |
-| 12 | P1 | Navegación y layout móvil |
-| 13 | P1 | Contadores del sidebar incoherentes |
-| 14 | P2 | Detalles de fila: "Repeat" en todas las filas, fechas, hueco superior |
-| 15 | P2 | Papelera sin restaurar/borrar definitivo |
-| 16 | P2 | Mezcla de idiomas |
-| 17 | P2 | Otros (datos importados, accesibilidad) |
-| 18 | P0 | Etiquetas paginadas a 50: las nuevas no aparecen y se ven como UUID (P0-18) |
-| 19 | P0 | Contadores y listas no se refrescan tras crear/borrar (P0-19) |
-| 20 | P1 | Recurrencia en detalle: "Could not save." (P1-20) |
-| 21 | P1 | Borrar/duplicar sin feedback ni deshacer (P1-21) |
-| 22 | P2 | Parser de captura, papelera y detalles (P2-22) |
-| - | - | Casos funcionales probados (tabla C1-C11 antes del orden de trabajo) |
+| #   | Prioridad | Tema                                                                                                |
+| --- | --------- | --------------------------------------------------------------------------------------------------- |
+| 1   | P0        | `GET /smart-lists` tarda 1.6-2.5 s y bloquea al resto de peticiones                                 |
+| 2   | P0        | Peticiones duplicadas y refetch masivo en el cliente                                                |
+| 3   | P0        | Scroll horizontal (scrollWidth 1500-2100 px con ventana de 1280)                                    |
+| 4   | P0        | Panel de detalle de tarea solapado con la lista (desktop y móvil)                                   |
+| 5   | P0        | Lista "Completed" muestra las tareas como no completadas                                            |
+| 6   | P0        | Tareas de etiqueta sin checkbox y etiquetas no clicables                                            |
+| 7   | P1        | Icono de arrastrar (grip) visible pero sin función                                                  |
+| 8   | P1        | Pie del sidebar: tres botones grandes -> tres iconos en una fila                                    |
+| 9   | P1        | Ajustes: maquetación rota (radios al 100% de ancho, enlaces por defecto)                            |
+| 10  | P1        | Calendario sin estilo                                                                               |
+| 11  | P1        | Pantallas sin estilo: Habits, Filters, Repeat, Matrix, Garden, Review, Reports, Focus, Tokens, Data |
+| 12  | P1        | Navegación y layout móvil                                                                           |
+| 13  | P1        | Contadores del sidebar incoherentes                                                                 |
+| 14  | P2        | Detalles de fila: "Repeat" en todas las filas, fechas, hueco superior                               |
+| 15  | P2        | Papelera sin restaurar/borrar definitivo                                                            |
+| 16  | P2        | Mezcla de idiomas                                                                                   |
+| 17  | P2        | Otros (datos importados, accesibilidad)                                                             |
+| 18  | P0        | Etiquetas paginadas a 50: las nuevas no aparecen y se ven como UUID (P0-18)                         |
+| 19  | P0        | Contadores y listas no se refrescan tras crear/borrar (P0-19)                                       |
+| 20  | P1        | Recurrencia en detalle: "Could not save." (P1-20)                                                   |
+| 21  | P1        | Borrar/duplicar sin feedback ni deshacer (P1-21)                                                    |
+| 22  | P2        | Parser de captura, papelera y detalles (P2-22)                                                      |
+| -   | -         | Casos funcionales probados (tabla C1-C11 antes del orden de trabajo)                                |
 
 ---
 
@@ -53,6 +54,7 @@ Evidencias (capturas adjuntas): `01-all-scroll-horizontal.png`, `02-detalle-sola
 **Resultado esperado.** `smart-lists` < 150 ms, `tasks?group_by=section` < 300 ms, ninguna petición del arranque > 400 ms.
 
 **Causa en el código.**
+
 1. `apps/api/src/modules/filters/smart-lists.service.ts`, método `list()`: carga **todas** las tareas del usuario con sus `include` (tags, column, project, checklist) mediante `loadViewTasks(this.prisma, { ownerId, parentId: null })` (`apps/api/src/reading/view-tasks.ts`) y cuenta en JS con `matchesSmartList` por cada smart list. Con ~600 tareas son 5 queries Prisma pesadas más filtrado en memoria en el hilo principal.
 2. Ese mismo `list()` ejecuta antes `ensure()` dentro de una transacción en cada llamada (`findMany` de smart lists + posibles `create`/`update`).
 3. `tasks()` en el mismo servicio (la vista `/smart/:key`) vuelve a cargar todas las tareas con `loadViewTasks` y pagina en memoria (`buildViewPage`).
@@ -60,6 +62,7 @@ Evidencias (capturas adjuntas): `01-all-scroll-horizontal.png`, `02-detalle-sola
 5. Índices: `Task` solo tiene `(projectId,status,sortOrder)`, `dueDate`, `(seriesId,status)` y el índice FTS (`apps/api/prisma/schema.prisma` ~398-401). Faltan índices por `ownerId`.
 
 **Cómo arreglarlo.**
+
 - Contadores en SQL, no en JS: en `list()` calcula `task_count` con una sola consulta agregada. Opción simple: `whereFromClause(smartListClause(key, input))` ya existe (`apps/api/src/filters/where-from-clause.ts`); lanza `Promise.all` de `prisma.task.count({ where })` por cada key (son ~9) con `select` mínimo, o una única `$queryRaw` con `COUNT(*) FILTER (WHERE ...)` por lista. No uses `loadViewTasks` ni `include` para contar.
 - Saca `ensure()` del camino caliente: ejecútalo en el registro/primer login o una vez por proceso (cache en memoria por `ownerId`), y deja `list()` como un `findMany` simple.
 - En `tasks()` aplica `where` en base de datos, ordena y `take: limit+1` en la query, y solo hidrata tags/checklist de la página devuelta (como ya hace `TasksService.list()` con `progressMap`).
@@ -80,6 +83,7 @@ Evidencias (capturas adjuntas): `01-all-scroll-horizontal.png`, `02-detalle-sola
 **Resultado esperado.** Una sola petición por recurso al arrancar; tras completar una tarea solo se refresca lo necesario y la UI responde al instante (optimistic update).
 
 **Cómo arreglarlo.**
+
 - `new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, gcTime: 5*60_000, refetchOnWindowFocus: false, retry: 1 } } })`. Para `projects`, `tags`, `filters`: `staleTime: 5*60_000`.
 - `refreshTaskSurfaces`: invalida solo `['smart-lists']` (contadores) y las listas **activas** (`refetchType: 'active'`), no las diez claves. Para completar/borrar/mover: `onMutate` con actualización optimista de la fila y de los contadores, `onError` con rollback.
 - Unifica las claves de tareas en una factoría (`taskKeys.list({scope, filters})`) para no tener `today-tasks`, `inbox-tasks`, `project-tasks`... separadas.
@@ -98,11 +102,13 @@ Evidencias (capturas adjuntas): `01-all-scroll-horizontal.png`, `02-detalle-sola
 **Resultado esperado.** `scrollWidth === innerWidth` en todas las rutas y tamaños. Títulos largos recortados con `…` (una línea) y los metadatos (etiquetas, lista, fecha) nunca empujan el ancho.
 
 **Causa.**
+
 - `apps/web/src/components/ui.css` ~414: `.task-meta { display:flex; flex:none; flex-wrap:nowrap; ... }`. Con `flex:none` y sin `max-width`, un puñado de etiquetas ensancha la fila.
 - `apps/web/src/features/today/today.css` ~60: `.task-row` es `display:flex` con `height:var(--row-h)`, el hijo `li` y el contenedor `.task-group`/`details` no tienen `min-width:0`, así que el `min-width:0` de `.task-title` no sirve.
 - En Today las filas (`TodayPage.tsx` ~618) mezclan clases de `ui.css` y `today.css` con orden de carga distinto; la regla de elipsis de `.task-title` (today.css ~196) pierde frente a otras.
 
 **Cómo arreglarlo.**
+
 - `.task-list > li, .task-group, .center, .outlet { min-width: 0; }` y `.center { overflow-x: clip; }` (como red de seguridad, no como solución única).
 - Fila: `display:grid; grid-template-columns: auto minmax(0,1fr) auto auto;` (check | título | meta | más). Título: `overflow:hidden; text-overflow:ellipsis; white-space:nowrap`. Meta: `flex: 0 1 auto; max-width: 45%; overflow:hidden;` y mostrar máximo 2 etiquetas + chip "+N" (con tooltip con el resto). Lista y fecha con `flex:none`.
 - Elimina la duplicación: deja una sola definición de `.task-row/.task-title/.task-meta` (en `components/ui.css`) y borra las de `today.css`.
@@ -115,17 +121,20 @@ Evidencias (capturas adjuntas): `01-all-scroll-horizontal.png`, `02-detalle-sola
 **Qué es.** Al hacer clic en una tarea se abre el panel de detalle (`?task=<id>`).
 
 **Resultado actual.**
+
 - Desktop (captura `02`): las filas de la lista se desbordan por debajo del panel (se ven etiquetas, listas y fechas de la lista encima de los campos "Add tag" y "Checklist"). El botón atrás (flecha) queda tapado por un icono. "Add tag" es un `<select>` nativo que pisa los chips. El botón **Delete** es un bloque rojo enorme en la cabecera, junto a Copy link y Duplicate sin jerarquía.
 - Móvil/tablet < 1024 px (captura `07`): el panel no es un drawer. Se ve la lista transparentada por detrás y el panel mezclado con ella.
 
 **Resultado esperado.** Panel limpio con fondo sólido, ancho fijo (360-420 px) que no interfiere con la lista; en < 1024 px un bottom sheet o pantalla completa con scrim. Cabecera con iconos discretos; Delete dentro de un menú "···".
 
 **Causa.**
+
 - `apps/web/src/shell/shell.css` ~356-380 (media < 1024px): la regla de panel fijo apunta a `.shell[data-detail='open'] .detail`, pero el componente usa la clase `.detail-panel` (ver `components/ui.css` ~434 y `AppShell.tsx`). El panel se queda en `grid-column:1; grid-row:1`, el mismo sitio que `.center`: por eso se superpone. Es un bug de selector.
 - Desktop: `grid-template-columns: ... minmax(0,1fr) var(--detail-w)` (`--detail-w: 36%`) es correcto, pero el centro desborda (ver P0-3) y pinta fuera de su celda.
 - `ui.css` ~445: `.detail-panel input:not(.task-check) { width:100%; padding:.75rem; ... }` afecta a todos los inputs del panel (incluidos checkboxes y el título).
 
 **Cómo arreglarlo.**
+
 - Cambia el selector a `.shell[data-detail='open'] > .detail-panel` en la media query y dale `position:fixed; inset:0 0 0 auto; width:min(420px,100%); z-index:40; background:var(--surface); box-shadow:var(--shadow-lg)`. En < 640 px: `inset:0` (pantalla completa) con cabecera sticky y botón cerrar de 44 px.
 - Desktop: `--detail-w: clamp(340px, 30vw, 440px)` en vez de `36%`.
 - Reorganiza el contenido (`apps/web/src/features/tasks/TaskDetail.tsx`): cabecera = [check de completar + prioridad] [título editable] [··· menú: Copiar enlace, Duplicar, Eliminar]; debajo, fila de metadatos compacta (fecha, lista, prioridad, etiquetas como chips con `x` y un botón "+" que abre un popover en vez del `<select>`), luego descripción, checklist, recordatorios, repetición. Eliminar con confirmación y toast "Deshacer".
@@ -144,6 +153,7 @@ Evidencias (capturas adjuntas): `01-all-scroll-horizontal.png`, `02-detalle-sola
 **Matiz tras probar:** en Inbox, al marcar una tarea la fila sí se ve marcada y atenuada (estado pendiente en cliente) hasta recargar; en la lista basada en vistas (Completed) nunca se marca.
 
 **Causa.**
+
 - `apps/web/src/features/tasks/TaskList.tsx` (componente de fila, ~líneas 300-340): `<PriorityCheck ... />` no recibe la prop `checked`, así que el input queda no controlado y vacío aunque `row.status === 'completed'`.
 - `apps/web/src/features/today/today.css` ~83: `.task-row:has(.task-check:checked) { opacity:.45 }` depende del estado del input, que nunca está marcado.
 - `isOverdue(row.dueDate, now)` se evalúa sin mirar el estado, por eso el rojo.
@@ -151,6 +161,7 @@ Evidencias (capturas adjuntas): `01-all-scroll-horizontal.png`, `02-detalle-sola
 - El API ya ordena `completed` por `completedAt` (`smart-lists.service.ts`), pero el cliente no muestra esa fecha porque `ViewTaskJson` no incluye `completed_at`.
 
 **Cómo arreglarlo.**
+
 - API: añade `completed_at` (y `repeat_rule`, `source`) a `ViewTaskJson`/`toViewJson` (`apps/api/src/reading/view-tasks.ts`), regenera OpenAPI + SDK (`pnpm openapi && pnpm sdk:build` o el script del repo).
 - Web: `RowModel.completedAt`; en la fila `checked={row.status==='completed'}`, clase `is-done` (`text-decoration: line-through; color: var(--ink-3)`), `isOverdue` solo si `status==='active'`; mostrar `completedAt` en la lista Completed. `onComplete` debe alternar (completar/reabrir) según el estado, con actualización optimista y toast "Deshacer".
 - Test: render de fila con `status:'completed'` -> input `checked`, título con `line-through`, sin clase `is-overdue`.
@@ -162,6 +173,7 @@ Evidencias (capturas adjuntas): `01-all-scroll-horizontal.png`, `02-detalle-sola
 **Qué es.** Al entrar en una etiqueta desde el sidebar, y al pulsar una etiqueta en una fila.
 
 **Resultado actual (captura `04`).**
+
 - Los enlaces de etiqueta del sidebar van a `/search?q=%23casa`. Es una **búsqueda de texto**, no una lista: muestra "Search", un input y el grupo "Task" con enlaces subrayados azules sin check, sin prioridad, sin fecha, sin lista. Además busca el texto "#casa" literal, así que mezcla tareas que lo llevan en el título con las que tienen la etiqueta real (p. ej. "Comprar chocolate en polvo" aparece sin `#casa` en el título).
 - En las filas (Today, All, listas) las etiquetas son `<span class="ui-tag">` no clicables (`TodayPage.tsx` ~637, componente `TagChip`/`ui.tsx` ~49). En el panel de detalle tampoco.
 - `SearchPage` (`apps/web/src/features/places/Places.tsx` ~635) pinta cada resultado como `<Link className="task-row"><span className="task-title">`, sin `PriorityCheck`.
@@ -169,6 +181,7 @@ Evidencias (capturas adjuntas): `01-all-scroll-horizontal.png`, `02-detalle-sola
 **Resultado esperado.** Pulsar una etiqueta (en el sidebar, en una fila o en el detalle) abre `/tag/<tagId>`: una lista con el mismo `TaskRow` que el resto (check, prioridad, fecha, lista), contador, ordenación y agrupación como las demás listas, y un menú "···" para renombrar/recolorear/borrar etiqueta. La búsqueda de texto se queda solo en `/search`, con filas completas (incluido check) también.
 
 **Cómo arreglarlo.**
+
 - Ruta nueva `/tag/:id` en `apps/web/src/app.tsx` reutilizando la vista de lista (`SmartListViewPage`/`ProjectListPage`). El API ya filtra por etiqueta: `TasksService.list()` acepta `tagId` y `includeDescendants` (`tasks.service.ts` ~152-164) y `TagsService` tiene `tagScope`. Si la vista de lista usa el endpoint `views`, añade `tag_id` ahí.
 - `Sidebar.tsx`: cambia `href` de `/search?q=#tag` a `/tag/${id}` y marca la etiqueta activa.
 - `TagChip` -> `<Link to={`/tag/${id}`} onClick={e=>e.stopPropagation()}>`; que no abra el detalle al pulsar. En el detalle, chip clicable + `x` para quitar.
@@ -186,6 +199,7 @@ Evidencias (capturas adjuntas): `01-all-scroll-horizontal.png`, `02-detalle-sola
 **Resultado esperado.** O funciona o no se muestra. Propuesta: que funcione en orden "Manual" (reordenar dentro de la lista y mover entre secciones) y se oculte en otros órdenes.
 
 **Cómo arreglarlo.**
+
 - Añade `@dnd-kit/core` + `@dnd-kit/sortable` (accesible, con teclado y táctil). `SortableContext` por grupo, `useSortable` por fila, el grip como `setActivatorNodeRef`.
 - Al soltar: calcular nuevo `sort_order` con `rebalancedSortOrders` de `@reflexionia/domain` (ya existe) y llamar a `PATCH /tasks/:id` o a un endpoint `POST /tasks/reorder`; actualización optimista y rollback.
 - Mostrar el grip solo con `sort === 'manual'`; en las demás ordenaciones `display:none`. Cursor `grab`. Si no se implementa en esta iteración, elimina `<GripVertical>` de ambas filas.
@@ -201,6 +215,7 @@ Evidencias (capturas adjuntas): `01-all-scroll-horizontal.png`, `02-detalle-sola
 **Resultado esperado (petición de Pablo).** Una sola fila de 3 columnas con 3 iconos pequeños y sutiles (sin borde, 28-32 px, color `--ink-3`, hover `--surface-2`), con tooltip y `aria-label`: papelera (vaciar), tema (sol/luna/auto, cicla), contraer (panel). La fila "Trash 23" se mantiene como enlace y el icono de vaciar solo aparece/está activo con papelera no vacía y pide confirmación.
 
 **Cómo arreglarlo.** `apps/web/src/shell/Sidebar.tsx` ~410-460 (`.sidebar-footer`) y `shell.css` ~162-180:
+
 ```tsx
 <div className="sidebar-footer">
   <button className="icon-btn" aria-label={messages.emptyTrash} title={messages.emptyTrash} ...><Trash2 size={16}/></button>
@@ -208,11 +223,30 @@ Evidencias (capturas adjuntas): `01-all-scroll-horizontal.png`, `02-detalle-sola
   <button className="icon-btn collapse-button" aria-label={messages.collapseSidebar} title=...><PanelLeftClose size={16}/></button>
 </div>
 ```
+
 ```css
-.sidebar-footer{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:6px 8px;border-top:1px solid var(--border)}
-.sidebar-footer .icon-btn{height:32px;border:0;background:transparent;color:var(--ink-3);border-radius:8px;display:grid;place-items:center}
-.sidebar-footer .icon-btn:hover{background:var(--surface-2);color:var(--ink)}
+.sidebar-footer {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 6px 8px;
+  border-top: 1px solid var(--border);
+}
+.sidebar-footer .icon-btn {
+  height: 32px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+}
+.sidebar-footer .icon-btn:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
 ```
+
 En el drawer móvil el botón de contraer sobra (`display:none` en < 1024px, ya existe).
 
 ---
@@ -222,6 +256,7 @@ En el drawer móvil el botón de contraer sobra (`display:none` en < 1024px, ya 
 **Qué es.** `/settings/*` (14 secciones).
 
 **Resultado actual (captura `05`).**
+
 - Los radios (Theme, Density, Accent) se dibujan separados al 100% del ancho: el control a un lado y la etiqueta pegada al borde derecho a ~300 px de distancia.
 - Causa: `apps/web/src/components/ui.css` ~445-456 aplica `width:100%; padding:.75rem; border...` a **todos** los `.settings-layout input`, incluidos `radio` y `checkbox`.
 - El menú de ajustes son enlaces azules subrayados por defecto, sin estado activo, sobre la columna central; `fieldset/legend` con borde por defecto; sin tarjetas ni agrupación; texto de ayuda suelto ("Theme, density and language apply immediately." + "Theme: auto" duplicado).
@@ -230,6 +265,7 @@ En el drawer móvil el botón de contraer sobra (`display:none` en < 1024px, ya 
 **Resultado esperado.** Ajustes estilo TickTick: columna izquierda con secciones (icono + nombre, activa resaltada), contenido en tarjetas con filas "etiqueta a la izquierda, control a la derecha"; radios como segmented control (Auto/Light/Dark) y selector de acento con círculos de color; densidad como segmented control. En móvil: lista de secciones como pantalla de entrada y cada sección en pantalla propia con botón atrás.
 
 **Cómo arreglarlo.**
+
 - Acota el estilo de campos: `.settings-layout input:not([type=radio]):not([type=checkbox])`, `select`, `textarea`.
 - `SettingsLayout` (`apps/web/src/features/places/Places.tsx` ~874): `NavLink` con clase `settings-nav__item` y `aria-current` estilizado; agrupa (General: Account, Appearance, Language; Productividad: Capture, Notifications, Smart lists, Calendar; Avanzado: Tokens and MCP, Integrations, Automations, Webhooks, Plugins, Sharing, Data, Shortcuts).
 - Componentes reutilizables `SettingsCard`, `SettingsRow({label, hint, control})`, `Segmented`, `Switch`. Aplícalos a `AppearancePage.tsx` (`apps/web/src/features/settings/`) y a las demás páginas de ajustes (`Places.tsx` contiene muchas).
@@ -254,17 +290,17 @@ En el drawer móvil el botón de contraer sobra (`display:none` en < 1024px, ya 
 
 **Qué es.** Páginas que usan HTML por defecto o estilos mínimos. Capturas de la auditoría muestran lo siguiente.
 
-| Ruta | Problema actual | Esperado |
-|---|---|---|
-| `/habits` | Chips de sugerencia en gris oscuro, formulario de alta de hábito siempre desplegado y enorme (nombre, objetivo, veces, días con checkboxes) encima de la lista | Lista de hábitos arriba (con racha y check de hoy), alta en modal/sheet con botón "+", sugerencias como chips discretos |
-| `/filters` | Formulario por defecto (inputs, selects, botón "Add condition" nativo), "No filters yet" suelto | Constructor de filtros por chips/popovers; guardar abre diálogo; lista de filtros guardados |
-| `/repeat` | Etiquetas y campos en línea sin layout ("Frequency[select]Interval"), input a ancho completo, botón nativo, texto en español mezclado ("Cada semana los lunes") | Diálogo/popover de repetición como el de TickTick (frecuencia, intervalo, días como círculos L-M-X-J-V-S-D, fin) |
-| `/matrix` | Listas con enlaces azules subrayados dentro de dos cuadrantes; solo se ven 2 de 4 en la primera pantalla | Cuadrícula 2x2 de tarjetas con `TaskRow` compacto, arrastre entre cuadrantes |
-| `/dashboard` (Digital garden) | Tarjetas con borde punteado y un número suelto; en la captura inicial del 18-oct mostraba JSON crudo | Tarjetas KPI con valor grande, etiqueta, tendencia y mini-gráfico; sin JSON |
-| `/review`, `/reports/weekly` | Tarjetas punteadas, botón "Build this week" azul a todo el ancho, estado vacío sin diseño | Resumen con secciones, un CTA discreto y estado vacío con ilustración |
-| `/focus` | "—" como temporizador y botón "Start" sueltos | Temporizador circular grande, selector de duración, tarea asociada |
-| `/tokens` | Rejilla de 24 checkboxes sin agrupar; lista de tokens con botones nativos pegados al texto | Scopes agrupados por recurso (lectura/escritura como dos columnas), tabla de tokens con fecha, último uso y botón Revocar |
-| `/settings/data` | Un botón "Export JSON" sin estilo | Tarjeta de exportación/importación/backups |
+| Ruta                          | Problema actual                                                                                                                                                 | Esperado                                                                                                                  |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `/habits`                     | Chips de sugerencia en gris oscuro, formulario de alta de hábito siempre desplegado y enorme (nombre, objetivo, veces, días con checkboxes) encima de la lista  | Lista de hábitos arriba (con racha y check de hoy), alta en modal/sheet con botón "+", sugerencias como chips discretos   |
+| `/filters`                    | Formulario por defecto (inputs, selects, botón "Add condition" nativo), "No filters yet" suelto                                                                 | Constructor de filtros por chips/popovers; guardar abre diálogo; lista de filtros guardados                               |
+| `/repeat`                     | Etiquetas y campos en línea sin layout ("Frequency[select]Interval"), input a ancho completo, botón nativo, texto en español mezclado ("Cada semana los lunes") | Diálogo/popover de repetición como el de TickTick (frecuencia, intervalo, días como círculos L-M-X-J-V-S-D, fin)          |
+| `/matrix`                     | Listas con enlaces azules subrayados dentro de dos cuadrantes; solo se ven 2 de 4 en la primera pantalla                                                        | Cuadrícula 2x2 de tarjetas con `TaskRow` compacto, arrastre entre cuadrantes                                              |
+| `/dashboard` (Digital garden) | Tarjetas con borde punteado y un número suelto; en la captura inicial del 18-oct mostraba JSON crudo                                                            | Tarjetas KPI con valor grande, etiqueta, tendencia y mini-gráfico; sin JSON                                               |
+| `/review`, `/reports/weekly`  | Tarjetas punteadas, botón "Build this week" azul a todo el ancho, estado vacío sin diseño                                                                       | Resumen con secciones, un CTA discreto y estado vacío con ilustración                                                     |
+| `/focus`                      | "—" como temporizador y botón "Start" sueltos                                                                                                                   | Temporizador circular grande, selector de duración, tarea asociada                                                        |
+| `/tokens`                     | Rejilla de 24 checkboxes sin agrupar; lista de tokens con botones nativos pegados al texto                                                                      | Scopes agrupados por recurso (lectura/escritura como dos columnas), tabla de tokens con fecha, último uso y botón Revocar |
+| `/settings/data`              | Un botón "Export JSON" sin estilo                                                                                                                               | Tarjeta de exportación/importación/backups                                                                                |
 
 **Cómo arreglarlo.** Crea primero un pequeño sistema de UI en `apps/web/src/components/` (`Page`, `PageHeader`, `Card`, `Button` con variantes primary/secondary/ghost/danger, `IconButton`, `Field`, `Segmented`, `Switch`, `EmptyState`, `Dialog`, `Popover`) y un reset global para `a`, `button`, `input`, `select`, `fieldset` en `styles.css`. Después migra pantalla a pantalla. Los textos `The proposal is not applied on its own`, `The session lives on the server...` y similares son texto de desarrollo: reescríbelos como ayuda de usuario (o elimínalos).
 
@@ -275,6 +311,7 @@ En el drawer móvil el botón de contraer sobra (`display:none` en < 1024px, ya 
 **Qué es.** Comportamiento a 390x844 (Pablo no pudo revisarlo; sí está peor).
 
 **Resultado actual (capturas `07`, `08`, `09`).**
+
 - Las filas de tarea se cortan por la derecha: el título no tiene elipsis y las etiquetas salen de pantalla (Today), o la fila empieza con sangría desigual (el check a x=47 y la línea separadora a x=28 en "All").
 - Detalle de tarea: ver P0-4 (sin drawer, fondo transparente, contenido mezclado con la lista).
 - La barra inferior solo tiene Today, Lists, "+", Search, Habits. No hay acceso a Calendar ni a Settings. El botón "Lists" no es evidente.
@@ -286,6 +323,7 @@ En el drawer móvil el botón de contraer sobra (`display:none` en < 1024px, ya 
 **Resultado esperado.** Móvil de primera clase: lista a ancho completo con fila de 56 px (check 44x44 de área táctil), swipe izquierda/derecha (ya hay `onTouchEnd` para completar, falta swipe-to-delete/schedule), hoja inferior para el detalle, barra inferior Today / Calendar / (+) / Lists / More (More abre Search, Habits, Filters, Settings), drawer con pie de iconos.
 
 **Cómo arreglarlo.**
+
 - `shell.css` media `<=1023px`: arreglar selector `.detail-panel` (P0-4), `.sidebar{box-shadow:none}` cuando está cerrado (`[data-drawer='open']{box-shadow:var(--shadow-lg)}`), `visibility:hidden` al cerrar.
 - `BottomBar.tsx`: sustituir Habits por Calendar y añadir "More" con un sheet; mantener el FAB central.
 - `.task-row` móvil: `padding-left:44px` y check dentro del flujo (grid) para alinear con la línea separadora; título 2 líneas máx. con `-webkit-line-clamp:2` en lugar de una; etiquetas bajo el título en móvil.
@@ -334,27 +372,32 @@ Interfaz en inglés casi entera ("Add task", "Plan for today", "Overdue", "Smart
 ---
 
 ## P0-18. La lista de etiquetas está paginada a 50 y el cliente nunca pide la página siguiente
+
 - Qué es: `GET /api/v1/tags` devuelve 50 elementos más `next_cursor`. El cliente solo usa la primera página.
 - Resultado actual: las etiquetas nuevas (`zztag`, `zztag2`) no aparecen en el sidebar (50 enlaces), ni en el select "Add tag" del detalle (51 opciones sin ellas). Las filas muestran el UUID de la etiqueta como chip (ej. `dc3805fe-a0d3-...`), porque `apps/web/src/features/tasks/model.ts` hace `tags.get(id) ?? id`. Además las etiquetas no visibles no se pueden borrar ni editar desde la UI.
 - Esperado: todas las etiquetas visibles siempre; nunca un UUID como texto.
 - Cómo arreglarlo: en `Sidebar.tsx` (~63-66) y en el hook de tags usar `useInfiniteQuery` o pedir `limit` alto hasta agotar `next_cursor`; en `model.ts` no mostrar el id: si no se resuelve, ocultar el chip y refetch de tags. Revisar el mismo problema de paginación en el resto de endpoints de listado (proyectos, tareas, hábitos). Test: crear 51 etiquetas y comprobar que aparece la 51.
 
 ## P0-19. Contadores del sidebar no se actualizan al crear/borrar/completar
+
 - Resultado actual: tras crear tareas desde el sheet de captura, Today/All/Inbox/Recently added se quedaron en 89/12/295 más de 30 s, mientras la cabecera de la lista sí subía (13, 18). Tras recargar: 95/18/301. Al borrar, la lista no quita la fila hasta recargar (ver caso C9).
 - Esperado: contadores y listas coherentes al instante.
 - Cómo arreglarlo: `features/tasks/refresh.ts` debe invalidar la clave de `smart-lists` y las listas/vistas activas tras create, delete, duplicate y complete; en delete hacer actualización optimista quitando la fila de la caché. Comprobar que el quick-add del sheet de captura llama a la misma función de refresh.
 
 ## P1-20. Detalle de tarea: "Could not save." al poner recurrencia, sin explicación
+
 - Caso: tarea con hora (`mañana a las 10:00`), botón "Every week" en el detalle: aparece "Could not save." y no se guarda (repeat sigue en `None`). En cambio `cada lunes` desde captura sí crea `RRULE:FREQ=WEEKLY;BYDAY=MO`.
 - Esperado: guardar `FREQ=WEEKLY` también en tareas con hora, o mostrar el motivo del 400.
 - Cómo arreglarlo: mirar `TaskDetail.tsx` (~390-415), que envía `repeat_rule: 'FREQ=WEEKLY'` sin BYDAY, y `canonicalRule` en `apps/api/src/modules/tasks/tasks.service.ts` (~342). Reproducir con la tarea con hora y sin hora, y mostrar el error devuelto por la API en el toast.
 
 ## P1-21. Borrado y duplicado sin feedback
+
 - Delete en el detalle: el primer clic cambia el botón a rojo (confirmación implícita sin texto) y el segundo borra; no hay toast ni "Deshacer", y la fila borrada sigue en la lista hasta recargar. Duplicate crea la copia pero no hay aviso ni la abre.
 - Esperado: toast "Tarea movida a la papelera · Deshacer", fila fuera al instante, y "Duplicada" con enlace a la copia. Texto claro en el botón de confirmación ("Confirmar borrado").
 - Archivos: `TaskDetail.tsx` (acciones Copy link/Duplicate/Delete) y `refresh.ts`.
 
 ## P2-22. Parser de captura rápida: inconsistencias
+
 - `p1` (inglés) da prioridad Baja, pero `!1` da Alta. Unificar: p1 = más alta (como TickTick: `!1`=alta, `!3`=baja; si `p1` se admite debe ser alta).
 - El inglés `every weekday at 9am` no se interpreta (el título conserva todo el texto, sin fecha ni repetición), mientras `cada lunes`, `mañana a las 10:00` y `tomorrow 5pm` sí. Añadir `every ...` al parser o documentar que solo vale español.
 - El aviso verde "Task created / Tag zztag was created" empuja la lista hacia abajo y trunca el título en el primer token. Mostrarlo como toast flotante.
@@ -363,21 +406,22 @@ Interfaz en inglés casi entera ("Add task", "Plan for today", "Overdue", "Smart
 - Papelera: no existe ruta directa (`/trash` redirige a Today; la real es `/smart/trash`) y las filas de la papelera no tienen acción de restaurar ni de borrar definitivamente por elemento; solo "Empty" para todo.
 
 ## Casos funcionales probados (entorno real, datos "ZZ TEST")
+
 Todos creados desde el sheet de captura (botón New task) en Inbox.
 
-| # | Entrada | Esperado | Resultado | Bug |
-|---|---|---|---|---|
-| C1 | `ZZ TEST 1 simple` | Tarea en Inbox | OK | Contadores del sidebar no suben (P0-19) |
-| C2 | `... #zztag !1` | Prioridad alta + etiqueta nueva | OK, `!1` se quita del título | Etiqueta nueva no aparece en sidebar (P0-18) |
-| C3 | `... mañana a las 10:00 #zztag` | 19/10 10:00 | OK (08:00Z) | Chip muestra UUID (P0-18) |
-| C4 | `... tomorrow 5pm p1 #zztag2 #zztag` | Fecha 17:00, 2 tags, prioridad alta | Fecha OK, 2 tags OK, prioridad BAJA | P2-22 |
-| C5 | `... cada lunes` y completar | Repite semanal; al completar nace la siguiente (26/10) | OK. La siguiente se crea, pero la fila completada se queda tachada en Inbox hasta recargar | Lista no se refresca (P0-19) |
-| C6 | `... every weekday at 9am` | Fecha + repetición | Sin fecha ni repetición | P2-22 |
-| C7 | Detalle: editar título largo | Guarda y hace wrap | Guarda OK; el panel solapa la lista a 1280 px | P0-4 |
-| C8 | Detalle: añadir checklist `ZZ sub 1` | Subtarea en 0/1 | OK, pero el checkbox queda encima del texto | Maquetación del checklist |
-| C9 | Detalle: Duplicate, luego Delete (x8 tareas) | Copia visible; borrado quita la fila | Copia creada sin aviso; la fila borrada sigue hasta recargar | P1-21, P0-19 |
-| C10 | Detalle: "Every week" en tarea con hora | Se guarda | "Could not save." | P1-20 |
-| C11 | Abrir `/trash` | Papelera | Redirige a Today; la ruta real es `/smart/trash`; sin restaurar por elemento | P2-22 |
+| #   | Entrada                                      | Esperado                                               | Resultado                                                                                  | Bug                                          |
+| --- | -------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------ | -------------------------------------------- |
+| C1  | `ZZ TEST 1 simple`                           | Tarea en Inbox                                         | OK                                                                                         | Contadores del sidebar no suben (P0-19)      |
+| C2  | `... #zztag !1`                              | Prioridad alta + etiqueta nueva                        | OK, `!1` se quita del título                                                               | Etiqueta nueva no aparece en sidebar (P0-18) |
+| C3  | `... mañana a las 10:00 #zztag`              | 19/10 10:00                                            | OK (08:00Z)                                                                                | Chip muestra UUID (P0-18)                    |
+| C4  | `... tomorrow 5pm p1 #zztag2 #zztag`         | Fecha 17:00, 2 tags, prioridad alta                    | Fecha OK, 2 tags OK, prioridad BAJA                                                        | P2-22                                        |
+| C5  | `... cada lunes` y completar                 | Repite semanal; al completar nace la siguiente (26/10) | OK. La siguiente se crea, pero la fila completada se queda tachada en Inbox hasta recargar | Lista no se refresca (P0-19)                 |
+| C6  | `... every weekday at 9am`                   | Fecha + repetición                                     | Sin fecha ni repetición                                                                    | P2-22                                        |
+| C7  | Detalle: editar título largo                 | Guarda y hace wrap                                     | Guarda OK; el panel solapa la lista a 1280 px                                              | P0-4                                         |
+| C8  | Detalle: añadir checklist `ZZ sub 1`         | Subtarea en 0/1                                        | OK, pero el checkbox queda encima del texto                                                | Maquetación del checklist                    |
+| C9  | Detalle: Duplicate, luego Delete (x8 tareas) | Copia visible; borrado quita la fila                   | Copia creada sin aviso; la fila borrada sigue hasta recargar                               | P1-21, P0-19                                 |
+| C10 | Detalle: "Every week" en tarea con hora      | Se guarda                                              | "Could not save."                                                                          | P1-20                                        |
+| C11 | Abrir `/trash`                               | Papelera                                               | Redirige a Today; la ruta real es `/smart/trash`; sin restaurar por elemento               | P2-22                                        |
 
 Casos que no me dio tiempo a probar: reminders, mover entre listas, crear/renombrar listas, crear etiqueta desde el sidebar, convertir a nota, Kanban, atajos de teclado, "Process all".
 
@@ -391,9 +435,10 @@ Las 8 tareas "ZZ TEST" de la primera ronda están en la papelera. El estado fina
 2. **Layout de fila + scroll + detalle** (P0-3, P0-4, P0-5, P0-6): un solo `TaskRow`, un solo CSS, tests de `scrollWidth`.
 3. **Sidebar** (P1-8, P1-13) y **móvil** (P1-12).
 4. **Sistema de UI base** y pantallas sin estilo (P1-9, P1-10, P1-11).
-5. **Pulido** (P1-7, P2-*).
+5. **Pulido** (P1-7, P2-\*).
 
 Criterios de aceptación globales:
+
 - `scrollWidth <= innerWidth` en todas las rutas a 1280, 820 y 390 px.
 - Arranque en frío: <= 8 peticiones a `/api/v1/`, ninguna > 400 ms con los datos actuales (~600 tareas).
 - Completed muestra checks rellenos y tachado; Tag, Search, Today, All, Lists usan el mismo `TaskRow` con check.
@@ -409,20 +454,20 @@ Segunda ronda sobre el mismo despliegue, centrada en lo no probado en la parte 1
 
 ## Resumen de prioridades (parte 2)
 
-| # | Prioridad | Tema |
-|---|---|---|
-| 23 | P0 | "Add reminder" no crea nada y no muestra error (P0-23) |
-| 24 | P0 | Focus no funciona y afirma algo falso (sesión en servidor) (P0-24) |
-| 25 | P1 | Kanban: sin refresco tras soltar, sin drop en "No section", alert nativo (P1-25) |
-| 26 | P1 | Timeline: "Place today" sin refresco, "Unscheduled" duplicado, sin eje real (P1-26) |
-| 27 | P1 | "Process all": "Set date" fija mañana sin preguntar; contadores sin refrescar (P1-27) |
-| 28 | P1 | Etiquetas sin gestión: renombrar/borrar/fusionar existe en API pero no hay UI (P1-28) |
-| 29 | P1 | Ajustes: Automations y Webhooks sin botón de crear; Sharing vacío; Data sin restaurar (P1-29) |
-| 30 | P1 | Calendario día muestra la fecha ISO cruda; Integrations sin configurar (P1-30) |
-| 31 | P2 | Notas borradas no aparecen en la papelera (zombis irrecuperables) (P2-31) |
-| 32 | P2 | Atajos: N abre página en vez de sheet; ayuda incompleta (P2-32) |
-| 33 | P2 | Hábitos: archivar sin confirmación ni lista de archivados; días activos por defecto (P2-33) |
-| 34 | P2 | Filtros: contador incoherente (164 vs All 91); borrar sin confirmación (P2-34) |
+| #   | Prioridad | Tema                                                                                          |
+| --- | --------- | --------------------------------------------------------------------------------------------- |
+| 23  | P0        | "Add reminder" no crea nada y no muestra error (P0-23)                                        |
+| 24  | P0        | Focus no funciona y afirma algo falso (sesión en servidor) (P0-24)                            |
+| 25  | P1        | Kanban: sin refresco tras soltar, sin drop en "No section", alert nativo (P1-25)              |
+| 26  | P1        | Timeline: "Place today" sin refresco, "Unscheduled" duplicado, sin eje real (P1-26)           |
+| 27  | P1        | "Process all": "Set date" fija mañana sin preguntar; contadores sin refrescar (P1-27)         |
+| 28  | P1        | Etiquetas sin gestión: renombrar/borrar/fusionar existe en API pero no hay UI (P1-28)         |
+| 29  | P1        | Ajustes: Automations y Webhooks sin botón de crear; Sharing vacío; Data sin restaurar (P1-29) |
+| 30  | P1        | Calendario día muestra la fecha ISO cruda; Integrations sin configurar (P1-30)                |
+| 31  | P2        | Notas borradas no aparecen en la papelera (zombis irrecuperables) (P2-31)                     |
+| 32  | P2        | Atajos: N abre página en vez de sheet; ayuda incompleta (P2-32)                               |
+| 33  | P2        | Hábitos: archivar sin confirmación ni lista de archivados; días activos por defecto (P2-33)   |
+| 34  | P2        | Filtros: contador incoherente (164 vs All 91); borrar sin confirmación (P2-34)                |
 
 ## P0-23. "Add reminder" no crea nada y no muestra error
 
@@ -435,6 +480,7 @@ Segunda ronda sobre el mismo despliegue, centrada en lo no probado en la parte 1
 **Resultado esperado.** El recordatorio se crea y aparece en la lista al instante; el usuario elige cuándo (30 min antes, 1 h antes, 1 día antes, fecha/hora exacta, al llegar/salir) y canal; un error de la API se muestra en un toast.
 
 **Cómo arreglarlo.**
+
 - Envía `trigger: 'TRIGGER:-PT30M'` (con prefijo) o amplía `parseTrigger` para aceptar la forma corta. Alinea el ejemplo del DTO (`tasks.dto.ts` ya enseña `TRIGGER:-PT5M`).
 - Añade `.catch` con toast que muestre el mensaje del API en los dos botones (y repasa el resto de `void api.*.then(...)` sin catch de `TaskDetail.tsx`).
 - Sustituye el valor fijo por un pequeño popover de opciones (relativo a vencimiento: -PT30M, -PT1H, -P1D; absoluto con fecha/hora; canal push/email).
@@ -491,6 +537,7 @@ Segunda ronda sobre el mismo despliegue, centrada en lo no probado en la parte 1
 **Qué es.** `/settings/automations`, `/settings/webhooks`, `/settings/sharing`, `/settings/data`, `/settings/integrations`.
 
 **Resultado actual (probado).**
+
 - Automations: solo "There are no automations yet.", sin botón de crear. El API existe: `GET/POST /api/v1/automations`, `POST /automations/:id/run`.
 - Webhooks: solo "There are no webhooks yet.", sin botón de crear. El API existe: `GET/POST /api/v1/webhooks`, `:id/ping`, `deliveries/:id/retry`.
 - Sharing: una página casi vacía ("Share").
@@ -536,30 +583,31 @@ Segunda ronda sobre el mismo despliegue, centrada en lo no probado en la parte 1
 
 ## Casos funcionales probados (parte 2, datos "ZZ TEST")
 
-| # | Caso | Resultado | Bug |
-|---|---|---|---|
-| C12 | Process all -> "Set date" | Fija mañana sin preguntar ni avisar | P1-27 |
-| C13 | Crear lista, renombrar, color, borrar | Todo OK; borrar pide confirmación ("Tasks in X will go to the trash") | Cabecera "List" genérica mientras carga |
-| C14 | Kanban: crear sección, arrastrar tarea | Sección OK; el drop hace PATCH pero no refresca hasta recargar; no se puede volver a "No section" | P1-25 |
-| C15 | Timeline -> "Place today" | Aplica la fecha pero no refresca hasta recargar | P1-26 |
-| C16 | Mover tarea a otra lista desde el detalle (select List) | OK, sin toast | Falta feedback |
-| C17 | Convertir a nota y borrar | Convierte sin feedback; la nota borrada no aparece en la papelera | P2-31 |
-| C18 | "Add reminder" (x3 clics) | No crea nada, sin error visible; GET confirma `[]` | P0-23 |
-| C19 | Hábito: crear, check-in, archivar | Crear y check-in OK (1/1, racha 1); archivar sin confirmación ni deshacer | P2-33 |
-| C20 | "New tag" en sidebar | Crea la etiqueta (zztag3), pero no aparece en el sidebar (paginación P0-18) y no se puede borrar desde la UI | P1-28, P0-18 |
-| C21 | Atajos ?, N, Ctrl+K, G T, Esc, . | Funcionan; N abre página en vez de sheet; ayuda incompleta | P2-32 |
-| C22 | Tema oscuro (Auto/Light/Dark) | OK, consistente | - |
-| C23 | Filtro: crear, preview, página, borrar | Todo OK; contador 164 vs All 91 incoherente; borrar sin confirmación | P2-34 |
-| C24 | Focus: Start | No arranca en producción; la "sesión en servidor" no existe en el cliente | P0-24 |
-| C25 | Calendario: clic en un día | Vista día con fecha ISO cruda y sin TaskRow | P1-30 |
-| C26 | Export JSON (`GET /api/v1/export/json`) | 200, ~500 KB con todo el contenido | Falta importar/restaurar en UI (P1-29) |
-| C27 | Matrix en móvil 390px | Sin scroll horizontal; una columna, tarjetas con enlaces crudos (mismo P1-11); barra inferior sin Calendar (P1-12) | - |
+| #   | Caso                                                    | Resultado                                                                                                          | Bug                                     |
+| --- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------- |
+| C12 | Process all -> "Set date"                               | Fija mañana sin preguntar ni avisar                                                                                | P1-27                                   |
+| C13 | Crear lista, renombrar, color, borrar                   | Todo OK; borrar pide confirmación ("Tasks in X will go to the trash")                                              | Cabecera "List" genérica mientras carga |
+| C14 | Kanban: crear sección, arrastrar tarea                  | Sección OK; el drop hace PATCH pero no refresca hasta recargar; no se puede volver a "No section"                  | P1-25                                   |
+| C15 | Timeline -> "Place today"                               | Aplica la fecha pero no refresca hasta recargar                                                                    | P1-26                                   |
+| C16 | Mover tarea a otra lista desde el detalle (select List) | OK, sin toast                                                                                                      | Falta feedback                          |
+| C17 | Convertir a nota y borrar                               | Convierte sin feedback; la nota borrada no aparece en la papelera                                                  | P2-31                                   |
+| C18 | "Add reminder" (x3 clics)                               | No crea nada, sin error visible; GET confirma `[]`                                                                 | P0-23                                   |
+| C19 | Hábito: crear, check-in, archivar                       | Crear y check-in OK (1/1, racha 1); archivar sin confirmación ni deshacer                                          | P2-33                                   |
+| C20 | "New tag" en sidebar                                    | Crea la etiqueta (zztag3), pero no aparece en el sidebar (paginación P0-18) y no se puede borrar desde la UI       | P1-28, P0-18                            |
+| C21 | Atajos ?, N, Ctrl+K, G T, Esc, .                        | Funcionan; N abre página en vez de sheet; ayuda incompleta                                                         | P2-32                                   |
+| C22 | Tema oscuro (Auto/Light/Dark)                           | OK, consistente                                                                                                    | -                                       |
+| C23 | Filtro: crear, preview, página, borrar                  | Todo OK; contador 164 vs All 91 incoherente; borrar sin confirmación                                               | P2-34                                   |
+| C24 | Focus: Start                                            | No arranca en producción; la "sesión en servidor" no existe en el cliente                                          | P0-24                                   |
+| C25 | Calendario: clic en un día                              | Vista día con fecha ISO cruda y sin TaskRow                                                                        | P1-30                                   |
+| C26 | Export JSON (`GET /api/v1/export/json`)                 | 200, ~500 KB con todo el contenido                                                                                 | Falta importar/restaurar en UI (P1-29)  |
+| C27 | Matrix en móvil 390px                                   | Sin scroll horizontal; una columna, tarjetas con enlaces crudos (mismo P1-11); barra inferior sin Calendar (P1-12) | -                                       |
 
 Sin probar aún: compartir listas entre usuarios (single-user), notificaciones push reales (recordatorios no se pueden crear: P0-23), modo offline real, importador TickTick (ya usado por Pablo), automatizaciones y webhooks end-to-end (no hay UI), archivar lista (solo borrar probado), búsqueda avanzada.
 
 ## Datos de prueba (estado final tras la parte 2)
 
 Limpiados por completo:
+
 - Hábito "ZZ TEST hábito": archivado.
 - Filtro "ZZ TEST filtro": borrado.
 - Lista "ZZ TEST lista renombrada" (y su sección kanban "ZZ Sección"): borrada con confirmación.

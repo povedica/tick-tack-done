@@ -60,7 +60,8 @@ export function HabitsPage() {
   };
 
   const create = useMutation({
-    mutationFn: (body: HabitDraft) => habitsApi.createHabit(buildHabitBody(body), crypto.randomUUID()),
+    mutationFn: (body: HabitDraft) =>
+      habitsApi.createHabit(buildHabitBody(body), crypto.randomUUID()),
     onSuccess: async (created) => {
       setDraft(EMPTY_DRAFT);
       setAdding(false);
@@ -234,7 +235,11 @@ export function HabitsPage() {
                   }}
                 />
               </label>
-              <Button type="submit" variant="primary" disabled={!canCreateHabit(draft) || create.isPending}>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={!canCreateHabit(draft) || create.isPending}
+              >
                 {create.isPending ? messages.habitSaving : messages.habitCreate}
               </Button>
             </form>
