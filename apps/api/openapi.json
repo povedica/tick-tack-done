@@ -563,6 +563,29 @@
         ]
       }
     },
+    "/api/v1/auth/registration": {
+      "get": {
+        "operationId": "AuthController_registration",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationStatusDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Whether a new account can still be created",
+        "tags": [
+          "auth"
+        ],
+        "security": []
+      }
+    },
     "/api/v1/auth/register": {
       "post": {
         "operationId": "AuthController_register",
@@ -3700,6 +3723,50 @@
           }
         },
         "summary": "Complete a task. Active children require a choice unless a policy is set (RF-206).",
+        "tags": [
+          "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tasks/{id}/cancel": {
+      "post": {
+        "operationId": "TasksController_cancel",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Mark a task as will-not-do. Cancelled tasks stay out of completed and out of trash.",
         "tags": [
           "tasks"
         ],
@@ -7515,6 +7582,17 @@
         "required": [
           "items",
           "next_cursor"
+        ]
+      },
+      "RegistrationStatusDto": {
+        "type": "object",
+        "properties": {
+          "open": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "open"
         ]
       },
       "RegisterDto": {

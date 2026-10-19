@@ -1,5 +1,5 @@
 import { Bell, GripVertical, Paperclip, Plus, Repeat, X } from 'lucide-react';
-import { useState, type CSSProperties, type KeyboardEvent } from 'react';
+import { useState, type CSSProperties, type KeyboardEvent, type RefObject } from 'react';
 import { Link } from 'react-router';
 import { PriorityCheck } from '../../components/PriorityCheck';
 import { attachmentHref } from './task-http';
@@ -12,6 +12,7 @@ export function DetailBody({
   untitled,
   contentLabel,
   contentHint,
+  contentRef,
   checklistLabel,
   checklistAdd,
   checklistEdit,
@@ -51,6 +52,7 @@ export function DetailBody({
   readonly untitled: string;
   readonly contentLabel: string;
   readonly contentHint: string;
+  readonly contentRef: RefObject<HTMLTextAreaElement | null>;
   readonly checklistLabel: string;
   readonly checklistAdd: string;
   readonly checklistEdit: string;
@@ -142,11 +144,12 @@ export function DetailBody({
         }}
       />
       <textarea
+        ref={contentRef}
         className="detail-content"
         aria-label={contentLabel}
         placeholder={contentHint}
         defaultValue={content}
-        key={content}
+        key={taskId}
         rows={3}
         onInput={(event) => {
           fit(event.currentTarget);
@@ -155,13 +158,13 @@ export function DetailBody({
           onContent(event.target.value);
         }}
       />
-      <section className="detail-block">
+      <section className="detail-block detail-checks">
         <div className="detail-block-head">
           <h3>
             {checklistLabel} {items.length > 0 ? `${String(done)}/${String(items.length)}` : ''}
           </h3>
           {items.length > 0 ? (
-            <span className="detail-progress" aria-hidden="true">
+            <span className="check-progress" aria-hidden="true">
               <span style={{ width: `${String(Math.round((done / items.length) * 100))}%` }} />
             </span>
           ) : null}
@@ -231,7 +234,7 @@ export function DetailBody({
               )}
               <button
                 type="button"
-                className="icon-button"
+                className="icon-button check-remove"
                 aria-label={checklistDelete}
                 onClick={() => {
                   onDeleteItem(item.id);
@@ -256,18 +259,22 @@ export function DetailBody({
             event.currentTarget.reset();
           }}
         >
-          <input name="item" aria-label={checklistAdd} placeholder={`+ ${checklistAdd}`} />
+          <input
+            className="check-add-input"
+            name="item"
+            aria-label={checklistAdd}
+            placeholder={`+ ${checklistAdd}`}
+          />
         </form>
       </section>
       {subtasks.length > 0 ? (
-        <section className="detail-block">
+        <section className="detail-block detail-checks">
           <h3>
             {subtasksLabel} {subtaskDone}/{subtasks.length}
           </h3>
           <ul className="detail-check">
             {subtasks.map((child) => (
               <li key={child.id}>
-                <span />
                 <PriorityCheck
                   priority="none"
                   label={child.title}
@@ -276,7 +283,10 @@ export function DetailBody({
                     onToggleSubtask(child.id, child.done);
                   }}
                 />
-                <Link className={child.done ? 'check-title is-done' : 'check-title'} to={`?task=${child.id}`}>
+                <Link
+                  className={child.done ? 'check-title is-done' : 'check-title'}
+                  to={`?task=${child.id}`}
+                >
                   {child.title}
                 </Link>
               </li>
@@ -295,7 +305,10 @@ export function DetailBody({
               onRemoveTag(tag.id);
             }}
           >
-            <span className="tag-dot" style={tag.color === null ? undefined : { background: tag.color }} />
+            <span
+              className="tag-dot"
+              style={tag.color === null ? undefined : { background: tag.color }}
+            />
             {tag.name}
             <X size={12} aria-hidden="true" />
           </button>
@@ -309,7 +322,12 @@ export function DetailBody({
         <p className="detail-row">
           <Bell size={14} aria-hidden="true" />
           <span>{reminder}</span>
-          <button type="button" className="icon-button" aria-label={reminder} onClick={onClearReminder}>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label={reminder}
+            onClick={onClearReminder}
+          >
             <X size={14} aria-hidden="true" />
           </button>
         </p>

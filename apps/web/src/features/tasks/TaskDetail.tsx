@@ -22,6 +22,7 @@ import { collectTags } from './collect';
 import { activityText, relativeTime } from './detail-model';
 import { DetailBody } from './DetailBody';
 import { DetailFooter } from './DetailFooter';
+import { FormatBar } from './FormatBar';
 import { DetailHeader } from './DetailHeader';
 import { DetailMenu } from './DetailMenu';
 import { refreshTaskSurfaces } from './refresh';
@@ -39,6 +40,7 @@ export function TaskDetail({
 }) {
   const messages = useMessages();
   const locale = useAppLocale();
+  const contentRef = useRef<HTMLTextAreaElement>(null);
   const queryClient = useQueryClient();
   const focus = useActiveFocus();
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +57,7 @@ export function TaskDetail({
   const [listOpen, setListOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const [formatOpen, setFormatOpen] = useState(false);
   const [parentOpen, setParentOpen] = useState(false);
   const [pins, setPins] = useState<readonly string[]>(() =>
     readPins(localStorage.getItem(PIN_KEY)),
@@ -120,14 +123,7 @@ export function TaskDetail({
     };
   }, [saved]);
 
-  if (detail.isPending) {
-    return (
-      <aside className="detail-panel" aria-busy="true">
-        <p>{messages.saving}</p>
-      </aside>
-    );
-  }
-  if (detail.isError) {
+  if (detail.data === undefined && detail.isError) {
     return (
       <aside className="detail-panel">
         <Button onClick={onClose}>{messages.close}</Button>
@@ -139,6 +135,13 @@ export function TaskDetail({
         >
           {messages.retry}
         </Button>
+      </aside>
+    );
+  }
+  if (detail.data === undefined) {
+    return (
+      <aside className="detail-panel" aria-busy="true">
+        <p>{messages.saving}</p>
       </aside>
     );
   }
@@ -277,14 +280,6 @@ export function TaskDetail({
         completeLabel={task.status === 'completed' ? messages.reopenLabel : messages.completeLabel}
         dateLabel={messages.dateSet}
         priorityLabel={messages.prioritySet}
-        listName={projectName}
-        listLabel={messages.listMove}
-        listOpen={listOpen}
-        projects={(projects.data?.items ?? []).map((project) => ({
-          id: project.id,
-          name: project.is_inbox ? messages.smartInbox : project.name,
-        }))}
-        projectId={task.project_id}
         closeLabel={messages.close}
         messages={messages}
         onComplete={complete}
@@ -293,13 +288,6 @@ export function TaskDetail({
         }}
         onOpenPriority={() => {
           setPriorityOpen((current) => !current);
-        }}
-        onToggleList={() => {
-          setListOpen((current) => !current);
-        }}
-        onMove={(projectId) => {
-          setListOpen(false);
-          void api.moveTask(task.id, projectId).then(refresh);
         }}
         onClose={onClose}
       />
@@ -372,6 +360,7 @@ export function TaskDetail({
         untitled={messages.untitled}
         contentLabel={messages.contentLabel}
         contentHint={messages.contentHint}
+        contentRef={contentRef}
         checklistLabel={messages.checklist}
         checklistAdd={messages.checklistAdd}
         checklistEdit={messages.checklistEdit}
@@ -390,9 +379,7 @@ export function TaskDetail({
         }))}
         subtasksLabel={messages.subtasksLabel}
         tags={tagRows}
-        reminder={
-          reminder === undefined ? null : reminderLabel(reminder.trigger, messages)
-        }
+        reminder={reminder === undefined ? null : reminderLabel(reminder.trigger, messages)}
         repeat={repeatText}
         attachments={(attachments.data?.items ?? []).map((file) => ({
           id: file.id,
@@ -437,7 +424,9 @@ export function TaskDetail({
           void patchChecklistItem(task.id, id, { before_id: beforeId }).then(refresh);
         }}
         onToggleSubtask={(id, done) => {
-          const run = done ? api.uncompleteTask(id, crypto.randomUUID()) : api.completeTask(id, {}, crypto.randomUUID());
+          const run = done
+            ? api.uncompleteTask(id, crypto.randomUUID())
+            : api.completeTask(id, {}, crypto.randomUUID());
           void run.then(refresh);
         }}
         onDeleteAttachment={(id) => {
@@ -473,23 +462,24 @@ export function TaskDetail({
         }}
       />
       {commentsOpen ? (
-        <section className="detail-comment">
-          <h3>{messages.commentsLabel}</h3>
-          {(comments.data ?? []).length === 0 ? <p>{messages.commentEmpty}</p> : null}
-          <ul>
-            {(comments.data ?? []).map((comment) => (
-              <li key={comment.id}>
-                <strong>
-                  {comment.authorId === me.data?.id ? messages.actorYou : messages.actorOther}
-                </strong>
-                {comment.createdAt !== null ? (
-                  <span> · {relativeTime(comment.createdAt, locale)}</span>
-                ) : null}
-                <p>{comment.body}</p>
-              </li>
-            ))}
-          </ul>
+        <section className="detail-comments">
+          {(comments.data ?? []).length === 0 ? null : (
+            <ul>
+              {(comments.data ?? []).map((comment) => (
+                <li key={comment.id}>
+                  <p className="comment-meta">
+                    {comment.authorId === me.data?.id ? messages.actorYou : messages.actorOther}
+                    {comment.createdAt !== null
+                      ? ` · ${relativeTime(comment.createdAt, locale)}`
+                      : ''}
+                  </p>
+                  <p>{comment.body}</p>
+                </li>
+              ))}
+            </ul>
+          )}
           <form
+            className="comment-field"
             onSubmit={(event) => {
               event.preventDefault();
               const data = new FormData(event.currentTarget);
@@ -510,10 +500,11 @@ export function TaskDetail({
             }}
           >
             <textarea
+              className="comment-input"
               name="comment"
               aria-label={messages.commentAdd}
               placeholder={messages.commentAdd}
-              rows={2}
+              rows={1}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' && !event.shiftKey) {
                   event.preventDefault();
@@ -521,9 +512,6 @@ export function TaskDetail({
                 }
               }}
             />
-            <Button type="submit" size="sm" variant="primary">
-              {messages.commentSend}
-            </Button>
           </form>
         </section>
       ) : null}
@@ -577,9 +565,45 @@ export function TaskDetail({
           <Link to="/focus">{messages.focusTitle}</Link>
         </p>
       ) : null}
+      {formatOpen ? (
+        <FormatBar
+          field={contentRef}
+          labels={messages}
+          dateLabel={new Intl.DateTimeFormat(locale, {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+          }).format(new Date())}
+          onCommit={(value) => {
+            if (value !== task.content) {
+              save.mutate({ content: value });
+            }
+          }}
+        />
+      ) : null}
       <DetailFooter
+        formatLabel={messages.formatBar}
+        formatOpen={formatOpen}
+        onToggleFormat={() => {
+          setFormatOpen((current) => !current);
+        }}
+        listName={projectName}
+        listLabel={messages.listMove}
+        listOpen={listOpen}
+        projects={(projects.data?.items ?? []).map((project) => ({
+          id: project.id,
+          name: project.is_inbox ? messages.smartInbox : project.name,
+        }))}
+        projectId={task.project_id}
         commentsLabel={messages.commentsLabel}
         moreLabel={messages.moreActions}
+        onToggleList={() => {
+          setListOpen((current) => !current);
+        }}
+        onMove={(projectId) => {
+          setListOpen(false);
+          void api.moveTask(task.id, projectId).then(refresh);
+        }}
         onComments={() => {
           setCommentsOpen((current) => !current);
         }}
@@ -666,6 +690,18 @@ export function TaskDetail({
         onPrint={() => {
           window.print();
         }}
+        onWontDo={() => {
+          void api
+            .cancelTask(task.id)
+            .then(() => {
+              showToast(messages.wontDoDone);
+              void refreshTaskSurfaces(queryClient);
+              onClose();
+            })
+            .catch((caught: unknown) => {
+              setError(apiMessage(caught, messages));
+            });
+        }}
         onDelete={() => {
           const id = task.id;
           void api.deleteTask(id).then(() => {
@@ -750,7 +786,9 @@ function sameTrigger(left: string | null, right: string | null): boolean {
   }
   const a = parseTrigger(left);
   const b = parseTrigger(right);
-  return a.ok && b.ok && a.kind === 'relative' && b.kind === 'relative' && a.offsetMs === b.offsetMs;
+  return (
+    a.ok && b.ok && a.kind === 'relative' && b.kind === 'relative' && a.offsetMs === b.offsetMs
+  );
 }
 
 function readTemplates(): { title: string; content: string; priority: string }[] {

@@ -20,13 +20,20 @@ export class AuthService {
     @Inject(AttemptLimiter) private readonly attempts: AttemptLimiter,
   ) {}
 
+  async registrationOpen(): Promise<boolean> {
+    if (process.env.REGISTRATION_OPEN === 'true') {
+      return true;
+    }
+    const existing = await this.prisma.user.count({ where: { deletedAt: null } });
+    return existing === 0;
+  }
+
   async register(dto: RegisterDto, meta: RequestMeta): Promise<IssuedLogin> {
     const email = normalizeEmail(dto.email);
     const ip = meta.ip ?? 'unknown';
     await this.attempts.assertAllowed(ip, email);
     await this.attempts.recordAttempt(ip);
-    const existing = await this.prisma.user.count({ where: { deletedAt: null } });
-    if (existing > 0 && process.env.REGISTRATION_OPEN !== 'true') {
+    if (!(await this.registrationOpen())) {
       throw new DomainException(
         HttpStatus.FORBIDDEN,
         'registration_closed',

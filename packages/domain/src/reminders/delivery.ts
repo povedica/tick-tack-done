@@ -1,4 +1,5 @@
 import { addCalendarDays, instantFromWall, wallClock } from '../dates/zoned';
+import { REMINDER_HORIZON_MS } from './trigger';
 
 /** How long after the due instant an overdue notice may still be created. */
 export const OVERDUE_GRACE_MS = 3 * 60 * 1000;
@@ -17,11 +18,13 @@ export function skipPastEnqueue(fireAt: string, now: string): boolean {
 /**
  * Clock-time tasks get one due notice and, if the tick just crossed the due
  * instant, one overdue notice. All-day tasks and the old backlog stay quiet.
+ * Catch-up (RF-808) still reports a missed due inside the 48 h horizon.
  */
 export function dueSignal(input: {
   readonly due: string;
   readonly now: string;
   readonly isAllDay: boolean;
+  readonly catchUp?: boolean;
 }): 'due_soon' | 'overdue' | 'skip' {
   if (input.isAllDay) {
     return 'skip';
@@ -34,7 +37,8 @@ export function dueSignal(input: {
   if (due > now && due - now <= DUE_SOON_MS) {
     return 'due_soon';
   }
-  if (due <= now && now - due <= OVERDUE_GRACE_MS) {
+  const grace = input.catchUp === true ? REMINDER_HORIZON_MS : OVERDUE_GRACE_MS;
+  if (due <= now && now - due <= grace) {
     return 'overdue';
   }
   return 'skip';
@@ -82,10 +86,7 @@ export function quietUntil(
   }
   const day = overnight && minutes >= startMin ? addCalendarDays(now, 1) : now;
   const [hour, minute] = end.split(':').map(Number);
-  return instantFromWall(
-    { ...day, hour: hour ?? 0, minute: minute ?? 0, second: 0 },
-    timeZone,
-  );
+  return instantFromWall({ ...day, hour: hour ?? 0, minute: minute ?? 0, second: 0 }, timeZone);
 }
 
 /** An all-day task stores midnight in its zone. Any other clock time is a timed task. */

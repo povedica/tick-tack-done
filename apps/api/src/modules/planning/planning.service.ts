@@ -127,7 +127,11 @@ export class PlanningService {
   ): Promise<Record<string, unknown>> {
     const session = await this.requireOpen(user.id, sessionId);
     if (!this.snapshot(session).cards.some((card) => card.taskId === taskId)) {
-      throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_in_plan', 'Task is not in this plan');
+      throw new DomainException(
+        HttpStatus.NOT_FOUND,
+        'task_not_in_plan',
+        'Task is not in this plan',
+      );
     }
     const target = this.targetFor(session.plan.localDate, decision, targetDate);
     await this.prisma.planDecision.upsert({
@@ -174,7 +178,12 @@ export class PlanningService {
     });
     const applied = [...stored.applied];
     for (const decision of pending) {
-      const effect = await this.applyOne(user, session, decision, `${key.trim()}:${decision.taskId}`);
+      const effect = await this.applyOne(
+        user,
+        session,
+        decision,
+        `${key.trim()}:${decision.taskId}`,
+      );
       applied.push({ task_id: decision.taskId, decision: decision.decision, effect });
       await this.prisma.planOperation.update({
         where: { id: operation.id },
@@ -412,11 +421,7 @@ export class PlanningService {
       const existing = await this.prisma.planOperation.findUnique({
         where: { ownerId_idempotencyKey: { ownerId, idempotencyKey: key } },
       });
-      if (
-        existing === null ||
-        existing.sessionId !== session.id ||
-        existing.revision !== expectedRevision
-      ) {
+      if (existing?.sessionId !== session.id || existing.revision !== expectedRevision) {
         throw new DomainException(
           HttpStatus.CONFLICT,
           'idempotency_mismatch',
@@ -433,7 +438,11 @@ export class PlanningService {
       include: { decisions: true, plan: true },
     });
     if (session === null) {
-      throw new DomainException(HttpStatus.NOT_FOUND, 'plan_not_found', 'Plan session was not found');
+      throw new DomainException(
+        HttpStatus.NOT_FOUND,
+        'plan_not_found',
+        'Plan session was not found',
+      );
     }
     return session;
   }
@@ -582,13 +591,21 @@ export class PlanningService {
 
   private assertDate(value: string): void {
     if (!DATE.test(value)) {
-      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'local_date is invalid');
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'local_date is invalid',
+      );
     }
   }
 
   private assertZone(value: string): void {
     if (!isIanaTimeZone(value)) {
-      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'time_zone is invalid');
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'time_zone is invalid',
+      );
     }
   }
 }

@@ -69,7 +69,7 @@ export interface PlanEffect {
   readonly title: string;
   readonly decision: PlanDecisionKind | 'untouched';
   readonly summary: string;
-  readonly changesDue: false;
+  readonly changesDue: boolean;
 }
 
 export interface PlanPreview {
@@ -130,9 +130,7 @@ export function planQueue(
     (card) => card.section === 'today_timed' || card.section === 'today',
   );
   const overdue = classified.filter((card) => card.section === 'overdue');
-  const rest = classified.filter(
-    (card) => card.section === 'inbox' || card.section === 'undated',
-  );
+  const rest = classified.filter((card) => card.section === 'inbox' || card.section === 'undated');
   const room = input.limit === null ? null : Math.max(0, input.limit - today.length);
   const keptOverdue = room === null ? overdue : overdue.slice(0, room);
   const roomAfter = room === null ? null : room - keptOverdue.length;

@@ -124,7 +124,7 @@ describe('previewPlan', () => {
     expect(preview.plannedToday).toBe(1);
     expect(preview.cancel).toBe(1);
     expect(preview.complete).toBe(0);
-    expect(preview.effects.every((effect) => effect.changesDue === false)).toBe(true);
+    expect(preview.effects.every((effect) => !effect.changesDue)).toBe(true);
     expect(preview.effects[0]?.summary).toContain('no cambia');
     expect(preview.effects[1]?.summary).toContain('No cuenta como completada');
   });

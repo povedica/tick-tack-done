@@ -176,13 +176,6 @@ export class PlanningController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    if (body.expected_revision === undefined) {
-      throw new DomainException(
-        HttpStatus.BAD_REQUEST,
-        'validation_failed',
-        'expected_revision is required',
-      );
-    }
     respondJson(
       req,
       res,

@@ -324,7 +324,7 @@ export class TasksService {
       const timeZone = dto.time_zone === undefined ? current.timeZone : this.zone(dto.time_zone);
       const start = this.nextDate(current.startDate, dto.start_date, 'start_date');
       const due = this.nextDate(current.dueDate, dto.due_date, 'due_date');
-      const isAllDay = dto.is_all_day === undefined ? current.isAllDay : dto.is_all_day;
+      const isAllDay = dto.is_all_day ?? current.isAllDay;
       this.assertTimed(due, isAllDay, timeZone);
       const duration = this.duration(
         start,

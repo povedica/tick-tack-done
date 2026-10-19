@@ -1,4 +1,5 @@
 import {
+  Ban,
   ClipboardCopy,
   Copy,
   Download,
@@ -37,6 +38,7 @@ export function DetailMenu({
   onConvert,
   onExport,
   onPrint,
+  onWontDo,
   onDelete,
 }: {
   readonly open: boolean;
@@ -57,6 +59,7 @@ export function DetailMenu({
   readonly onConvert: () => void;
   readonly onExport: () => void;
   readonly onPrint: () => void;
+  readonly onWontDo: () => void;
   readonly onDelete: () => void;
 }) {
   const groups: readonly (readonly MenuItem[])[] = [
@@ -178,6 +181,18 @@ export function DetailMenu({
         </div>
       ))}
       <div className="menu-group">
+        <button
+          type="button"
+          className="popover-row"
+          role="menuitem"
+          onClick={() => {
+            onWontDo();
+            onClose();
+          }}
+        >
+          <Ban size={16} aria-hidden="true" />
+          <span>{messages.wontDoTask}</span>
+        </button>
         <button
           type="button"
           className="popover-row is-danger"

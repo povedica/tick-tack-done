@@ -388,6 +388,21 @@ export class TasksController {
     respondJson(req, res, result.statusCode, result.body, false);
   }
 
+  @Post(':id/cancel')
+  @Scopes('tasks:write')
+  @ApiOperation({
+    summary: 'Mark a task as will-not-do. Cancelled tasks stay out of completed and out of trash.',
+  })
+  @ApiOkResponse({ type: TaskResponseDto })
+  async cancel(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(req, res, 200, await this.tasks.cancel(user, id), false);
+  }
+
   @Post(':id/uncomplete')
   @Scopes('tasks:write')
   @ApiOperation({ summary: 'Mark a task active again' })

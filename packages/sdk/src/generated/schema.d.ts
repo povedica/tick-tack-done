@@ -179,6 +179,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/registration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether a new account can still be created */
+        get: operations["AuthController_registration"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/register": {
         parameters: {
             query?: never;
@@ -1099,6 +1116,23 @@ export interface paths {
         put?: never;
         /** Complete a task. Active children require a choice unless a policy is set (RF-206). */
         post: operations["TasksController_complete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark a task as will-not-do. Cancelled tasks stay out of completed and out of trash. */
+        post: operations["TasksController_cancel"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2681,6 +2715,9 @@ export interface components {
             items: components["schemas"]["ActivityEntryDto"][];
             next_cursor: string | null;
         };
+        RegistrationStatusDto: {
+            open: boolean;
+        };
         RegisterDto: {
             email: string;
             password: string;
@@ -3791,6 +3828,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ActivityPageDto"];
+                };
+            };
+        };
+    };
+    AuthController_registration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegistrationStatusDto"];
                 };
             };
         };
@@ -5559,6 +5615,29 @@ export interface operations {
                 "application/json": components["schemas"]["CompleteTaskDto"];
             };
         };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponseDto"];
+                };
+            };
+        };
+    };
+    TasksController_cancel: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             200: {
                 headers: {

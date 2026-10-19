@@ -10,6 +10,7 @@ export interface TelegramIncoming {
   readonly callbackId: string;
   readonly callbackData: string;
   readonly messageId: number | null;
+  readonly messageText: string | null;
 }
 
 export function readTelegramUpdate(body: unknown): TelegramIncoming | null {
@@ -35,6 +36,7 @@ export function readTelegramUpdate(body: unknown): TelegramIncoming | null {
       callbackId: typeof callback.id === 'string' ? callback.id : '',
       callbackData: typeof callback.data === 'string' ? callback.data : '',
       messageId: typeof message?.message_id === 'number' ? message.message_id : null,
+      messageText: typeof message?.text === 'string' ? message.text : null,
     };
   }
   const message = asRecord(update.message);
@@ -79,6 +81,7 @@ function incoming(
     callbackId: '',
     callbackData: '',
     messageId: null,
+    messageText: null,
   };
 }
 

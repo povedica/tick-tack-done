@@ -17,17 +17,25 @@ describe('reminder delivery rules', () => {
   });
 
   it('NT-01: a timed task inside 24h is due_soon and a just-missed one is overdue', () => {
+    expect(dueSignal({ due: '2026-10-19T13:35:00.000Z', now: NOW, isAllDay: false })).toBe(
+      'due_soon',
+    );
+    expect(dueSignal({ due: '2026-10-19T09:59:00.000Z', now: NOW, isAllDay: false })).toBe(
+      'overdue',
+    );
+    expect(dueSignal({ due: '2026-04-17T10:00:00.000Z', now: NOW, isAllDay: false })).toBe('skip');
+    expect(dueSignal({ due: '2026-10-19T00:00:00.000Z', now: NOW, isAllDay: true })).toBe('skip');
+  });
+
+  it('RF-808: catch-up still marks a missed due inside 48h as overdue', () => {
+    const hourAgo = '2026-10-19T09:00:00.000Z';
+    expect(dueSignal({ due: hourAgo, now: NOW, isAllDay: false })).toBe('skip');
+    expect(dueSignal({ due: hourAgo, now: NOW, isAllDay: false, catchUp: true })).toBe('overdue');
     expect(
-      dueSignal({ due: '2026-10-19T13:35:00.000Z', now: NOW, isAllDay: false }),
-    ).toBe('due_soon');
-    expect(
-      dueSignal({ due: '2026-10-19T09:59:00.000Z', now: NOW, isAllDay: false }),
-    ).toBe('overdue');
-    expect(
-      dueSignal({ due: '2026-04-17T10:00:00.000Z', now: NOW, isAllDay: false }),
+      dueSignal({ due: '2026-04-17T10:00:00.000Z', now: NOW, isAllDay: false, catchUp: true }),
     ).toBe('skip');
     expect(
-      dueSignal({ due: '2026-10-19T00:00:00.000Z', now: NOW, isAllDay: true }),
+      dueSignal({ due: '2026-10-19T00:00:00.000Z', now: NOW, isAllDay: true, catchUp: true }),
     ).toBe('skip');
   });
 

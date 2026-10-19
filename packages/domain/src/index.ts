@@ -59,8 +59,11 @@ export {
   reminderDisposition,
   reminderFireAt,
   resolveDefaultReminder,
+  afternoonInstant,
   snoozeReminder,
 } from './reminders/trigger';
+export { formatDailyDigest } from './reminders/digest';
+export type { DigestTask } from './reminders/digest';
 export {
   allDayClockConflict,
   dueSignal,

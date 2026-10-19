@@ -1,5 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
-import { Bell, CalendarDays, HelpCircle, LayoutGrid, ListTodo, PanelLeft, Plus, Repeat, Search, Timer } from 'lucide-react';
+import {
+  Bell,
+  CalendarCheck,
+  CalendarDays,
+  CircleDot,
+  Grid2x2,
+  HelpCircle,
+  ListTodo,
+  PanelLeft,
+  Plus,
+  Search,
+} from 'lucide-react';
 import { NavLink } from 'react-router';
 import { api } from '../api';
 import { BrandMark } from '../components/BrandMark';
@@ -45,7 +56,7 @@ export function IconRail({
         <CalendarDays size={20} aria-hidden="true" />
       </NavLink>
       <NavLink to="/matrix" aria-label={messages.navMatrix}>
-        <LayoutGrid size={20} aria-hidden="true" />
+        <Grid2x2 size={20} aria-hidden="true" />
       </NavLink>
       <NavLink to="/focus" aria-label={focusLabel} title={focusLabel} className="rail-focus">
         {focus !== null ? (
@@ -59,18 +70,25 @@ export function IconRail({
             />
           </svg>
         ) : null}
-        <Timer size={20} aria-hidden="true" />
+        <CircleDot size={20} aria-hidden="true" />
       </NavLink>
       <NavLink to="/habits" end aria-label={messages.navHabits}>
-        <Repeat size={20} aria-hidden="true" />
+        <CalendarCheck size={20} aria-hidden="true" />
       </NavLink>
       <NavLink to="/search" aria-label={messages.navSearch}>
         <Search size={20} aria-hidden="true" />
       </NavLink>
       <span className="rail-spacer" />
-      <NavLink to="/today" aria-label={messages.navBell} title={messages.navBell} className="rail-bell">
+      <NavLink
+        to="/today"
+        aria-label={messages.navBell}
+        title={messages.navBell}
+        className="rail-bell"
+      >
         <Bell size={20} aria-hidden="true" />
-        {badge > 0 ? <span className="rail-badge">{badge > 99 ? '99+' : String(badge)}</span> : null}
+        {badge > 0 ? (
+          <span className="rail-badge">{badge > 99 ? '99+' : String(badge)}</span>
+        ) : null}
       </NavLink>
       <NavLink to="/settings/shortcuts" aria-label={messages.navHelp} title={messages.navHelp}>
         <HelpCircle size={20} aria-hidden="true" />

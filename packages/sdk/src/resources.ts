@@ -200,6 +200,7 @@ export interface ResourceClient {
   deleteTask(id: string): Promise<void>;
   moveTask(id: string, projectId: string, columnId?: string | null): Promise<Task>;
   duplicateTask(id: string, idempotencyKey: string): Promise<Task>;
+  cancelTask(id: string): Promise<Task>;
   batchTasks(body: BatchBody): Promise<CountResult>;
   listTrash(): Promise<{ items: Task[]; next_cursor: string | null }>;
   emptyTrash(): Promise<CountResult>;
@@ -376,6 +377,7 @@ export function resourceMethods(http: Http): ResourceClient {
       ),
     duplicateTask: (id, key) =>
       ask('POST', `/api/v1/tasks/${id}/duplicate`, undefined, key, isTask),
+    cancelTask: (id) => ask('POST', `/api/v1/tasks/${id}/cancel`, undefined, undefined, isTask),
     batchTasks: (body) => ask('POST', '/api/v1/tasks/batch', body, undefined, isCount),
     listTrash: () => ask('GET', '/api/v1/tasks/trash', undefined, undefined, isTaskPage),
     emptyTrash: () => ask('DELETE', '/api/v1/tasks/trash', undefined, undefined, isCount),
@@ -441,7 +443,13 @@ export function resourceMethods(http: Http): ResourceClient {
     planSession: (id) =>
       ask('GET', `/api/v1/planning/sessions/${id}`, undefined, undefined, isJsonObject),
     decidePlan: (id, taskId, body) =>
-      ask('PUT', `/api/v1/planning/sessions/${id}/decisions/${taskId}`, body, undefined, isJsonObject),
+      ask(
+        'PUT',
+        `/api/v1/planning/sessions/${id}/decisions/${taskId}`,
+        body,
+        undefined,
+        isJsonObject,
+      ),
     clearPlanDecision: (id, taskId) =>
       ask(
         'DELETE',

@@ -2,9 +2,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { normalizeTagName } from '@reflexionia/domain';
 import { ApiError } from '@reflexionia/sdk';
 import {
+  CalendarCheck,
   CalendarDays,
   CalendarRange,
   CheckCircle2,
+  CircleDot,
+  Grid2x2,
   Inbox,
   LayoutDashboard,
   ListTodo,
@@ -524,6 +527,14 @@ export function Sidebar({
           })}
         </ul>
         <ul className="nav-list">
+          <Item to="/matrix" label={messages.navMatrix} onNavigate={onNavigate} icon={Grid2x2} />
+          <Item to="/focus" label={messages.navFocus} onNavigate={onNavigate} icon={CircleDot} />
+          <Item
+            to="/habits"
+            label={messages.navHabits}
+            onNavigate={onNavigate}
+            icon={CalendarCheck}
+          />
           <Item
             to="/reports/weekly"
             label={messages.navSummary}

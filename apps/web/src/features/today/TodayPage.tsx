@@ -906,6 +906,9 @@ export function TodayPage() {
           onConvert={() => {
             patchTask(menuTask.id, { kind: 'note' });
           }}
+          onWontDo={() => {
+            void api.cancelTask(menuTask.id).then(() => refreshTaskSurfaces(queryClient));
+          }}
           onDelete={() => {
             removeTask(menuTask.id);
           }}

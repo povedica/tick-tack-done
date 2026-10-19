@@ -4,8 +4,9 @@ import { Prisma, type ReminderChannel } from '@prisma/client';
 import {
   deriveDurationMinutes,
   dueSignal,
+  formatDailyDigest,
   isAtDueTrigger,
-  isOverdue,
+  OVERDUE_GRACE_MS,
   nextConstantFire,
   nextDailyReminder,
   nextHabitReminder,
@@ -78,7 +79,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     await this.enqueueDigests(now, catchUp);
     await this.enqueueHabitReminders(now, catchUp);
     await this.recordHabitStreakBreaks(now);
-    await this.enqueueSignals(now);
+    await this.enqueueSignals(now, catchUp);
     const fired = await this.fire(now, catchUp);
     return { materialized, fired: fired.fired, late: fired.late };
   }
@@ -350,20 +351,22 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         take: 20,
         select: { title: true, dueDate: true, isAllDay: true, timeZone: true, status: true },
       });
-      const lines = tasks
-        .filter(
-          (task) =>
-            task.dueDate !== null &&
-            (isOverdue({
-              status: 'active',
-              dueDate: task.dueDate.toISOString(),
-              isAllDay: task.isAllDay,
-              timeZone: task.timeZone,
-              now: now.toISOString(),
-            }) ||
-              sameLocalDay(task.dueDate.toISOString(), next.fireAt, task.timeZone)),
-        )
-        .map((task) => `- ${task.title}`);
+      const body = formatDailyDigest({
+        now: next.fireAt,
+        fireAt: next.fireAt,
+        tasks: tasks.flatMap((task) =>
+          task.dueDate === null
+            ? []
+            : [
+                {
+                  title: task.title,
+                  dueDate: task.dueDate.toISOString(),
+                  isAllDay: task.isAllDay,
+                  timeZone: task.timeZone,
+                },
+              ],
+        ),
+      });
       await this.queue({
         ownerId: user.id,
         reminderId: null,
@@ -376,7 +379,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         catchUp,
         payload: {
           title: 'Planifica tu día',
-          body: lines.length === 0 ? 'No hay tareas con fecha para hoy.' : lines.join('\n'),
+          body,
           email: user.email,
         },
       });
@@ -495,9 +498,9 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private async enqueueSignals(now: Date): Promise<void> {
+  private async enqueueSignals(now: Date, catchUp: boolean): Promise<void> {
     const horizon = new Date(now.getTime() + DUE_SOON_MS);
-    const grace = new Date(now.getTime() - 3 * 60 * 1000);
+    const grace = new Date(now.getTime() - (catchUp ? REMINDER_HORIZON_MS : OVERDUE_GRACE_MS));
     const tasks = await this.prisma.task.findMany({
       where: {
         status: 'active',
@@ -520,7 +523,12 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         continue;
       }
       const due = task.dueDate.toISOString();
-      const kind = dueSignal({ due, now: now.toISOString(), isAllDay: task.isAllDay });
+      const kind = dueSignal({
+        due,
+        now: now.toISOString(),
+        isAllDay: task.isAllDay,
+        catchUp,
+      });
       if (kind === 'skip') {
         continue;
       }
@@ -532,11 +540,11 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         reminderId: null,
         taskId: task.id,
         dedupeKey: `${kind}:${task.id}:${due}`,
-        fireAt: kind === 'overdue' ? now.toISOString() : due,
+        fireAt: kind === 'overdue' && !catchUp ? now.toISOString() : due,
         channel: 'push',
         kind,
         now,
-        catchUp: false,
+        catchUp: kind === 'overdue' && catchUp,
         payload: { title: task.title, due, time_zone: task.timeZone },
       });
     }
@@ -662,6 +670,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
                   { text: '😴 +10 min', callback_data: `s:${row.id}:10` },
                   { text: '😴 +1 h', callback_data: `s:${row.id}:60` },
                 ],
+                [{ text: '😴 Esta tarde', callback_data: `s:${row.id}:afternoon` }],
               ],
             }),
       });
@@ -729,7 +738,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       where: { id: taskId },
       select: { status: true, deletedAt: true, dueDate: true },
     });
-    if (task === null || task.deletedAt !== null || task.status !== 'active') {
+    if (task?.deletedAt !== null || task.status !== 'active') {
       return true;
     }
     const due = typeof payload.due === 'string' ? payload.due : null;
@@ -894,10 +903,4 @@ function asRecord(value: Prisma.JsonValue): Record<string, unknown> {
     return value;
   }
   return {};
-}
-
-function sameLocalDay(dueIso: string, fireIso: string, timeZone: string): boolean {
-  const due = new Date(dueIso).toLocaleDateString('en-CA', { timeZone });
-  const fire = new Date(fireIso).toLocaleDateString('en-CA', { timeZone });
-  return due === fire;
 }
