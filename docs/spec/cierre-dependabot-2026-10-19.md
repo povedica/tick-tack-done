@@ -76,3 +76,15 @@ En el mismo cambio de configuración:
 - Los major de `@nestjs/*` quedan agrupados: common, testing y cli no vuelven a llegar por separado.
 - Sigue el grupo `minor-and-patch` de npm.
 - El tope de 5 PR por ecosistema no se toca. Con los grupos, la primera pasada ya no lo llena con actions sueltas.
+
+## 4. Resultado
+
+La suite de `#30` pasó en Node 26 (quality, unitarios, integración y OpenAPI). A partir de ahí el runtime queda alineado: CI `node-version: 26`, `engines.node` `>=26`, `@types/node` `^26` e imágenes `node:26-alpine` en `apps/api` y `apps/web`.
+
+| PR | Cierre |
+| --- | --- |
+| `#28` | Mergeada tras corregir las reglas nuevas de `typescript-eslint` 8.71 y el formato de Prettier 3.9 |
+| `#32` | Mergeada. `apps/api` es ESM (`"type": "module"`, imports relativos en `.js`) y el resto de `@nestjs/*` sube junto a la 12. `ora` queda fijado en 5.4.1 porque el CLI 12 arrastra schematics que hacen `require()` de la ora 9, ESM, y Node corta ese ciclo |
+| `#31` y `#29` | Cerradas. Testing 12.1.3 y CLI 12.0.8 ya iban dentro de `#32`; solas, contra Nest 11, no arrancaban |
+| `#30` | Mergeada con el CI y `engines` en 26 |
+| `#23` y `#22` | Mergeadas después, cuando el CI ya ejecutaba esa major |
