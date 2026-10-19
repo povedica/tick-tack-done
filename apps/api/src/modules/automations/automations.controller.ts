@@ -28,6 +28,7 @@ import { type AuthUser, type EventActor } from '../../auth/auth-user';
 import { telegramConfigured } from '../../integrations/config';
 import { CurrentUser } from '../../auth/current-user.decorator';
 import { Scopes } from '../../auth/scopes.decorator';
+import { safeFetch } from '../../security/safe-fetch';
 import type { DomainBusEvent } from '../../events/event-bus';
 import { DomainEvent } from '../../events/domain-events';
 import { EventRecorder } from '../../events/event-recorder';
@@ -180,13 +181,17 @@ export class AutomationEngine implements OnModuleInit {
       return 'notify';
     }
     if (action.type === 'webhook') {
-      const response = await fetch(action.url, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ event: eventType }),
-        signal: AbortSignal.timeout(8_000),
-      });
-      return response.ok ? 'webhook' : 'webhook_failed';
+      try {
+        const response = await safeFetch(action.url, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ event: eventType }),
+          maxBytes: 64 * 1024,
+        });
+        return response.status >= 200 && response.status < 300 ? 'webhook' : 'webhook_failed';
+      } catch {
+        return 'webhook_failed';
+      }
     }
     if (action.type === 'run_plugin_action') {
       const install = await this.prisma.pluginInstall.findFirst({

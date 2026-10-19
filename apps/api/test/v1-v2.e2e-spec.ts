@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaClient } from '@prisma/client';
@@ -183,6 +183,7 @@ describe('V1 and V2 product', () => {
 
   it('RF-2003: the webhook creates the task, completes by title and stores a photo', async () => {
     process.env.TELEGRAM_BOT_TOKEN = 'test-token';
+    process.env.TELEGRAM_WEBHOOK_SECRET = 'telegram-webhook-secret';
     process.env.TELEGRAM_VOICE_PROVIDER = 'https://voice.test/transcribe';
     const paths: string[] = [];
     const original = globalThis.fetch;
@@ -198,7 +199,7 @@ describe('V1 and V2 product', () => {
         return new Response(JSON.stringify({ text: 'llamar a Ana manana' }), { status: 200 });
       }
       if (url.includes('/file/bot')) {
-        return new Response(Buffer.from('jpeg-bytes'), { status: 200 });
+        return new Response(Buffer.from([0xff, 0xd8, 0xff, 0xd9]), { status: 200 });
       }
       if (url.startsWith('https://api.telegram.org/')) {
         return new Response(JSON.stringify({ ok: true, result: { file_path: 'photos/a.jpg' } }), {
@@ -207,7 +208,7 @@ describe('V1 and V2 product', () => {
       }
       return original(input, init);
     };
-    const secret = createHash('sha256').update('test-token').digest('hex');
+    const secret = 'telegram-webhook-secret';
     const stamp = randomUUID().slice(0, 8);
     const title = `planta-${stamp}`;
     try {
@@ -284,6 +285,7 @@ describe('V1 and V2 product', () => {
     } finally {
       globalThis.fetch = original;
       delete process.env.TELEGRAM_BOT_TOKEN;
+      delete process.env.TELEGRAM_WEBHOOK_SECRET;
       delete process.env.TELEGRAM_VOICE_PROVIDER;
     }
   });

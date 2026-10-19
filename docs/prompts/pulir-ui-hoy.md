@@ -13,7 +13,7 @@ paneles, tokens, tema claro/oscuro/auto, rutas del mapa y Hoy conectado
 al SDK (UI-401, UI-402, UI-404). El plan de hoy sigue vacío a propósito
 hasta que exista GET /api/v1/review/daily. No lo inventes.
 
-El corte que falta es visual. Hoy y la barra no se parecen a TickTick:
+El corte que falta es visual. Hoy y la barra no siguen la spec de UI:
 el título es grande, las filas no llevan metadatos, la fecha de hoy parece
 un enlace y la barra no tiene contadores, listas ni filtros. Acércalo a
 la spec sin cambiar la paleta (UI-D2: fondo cálido, tinta piedra, acento

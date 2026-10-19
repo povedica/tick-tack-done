@@ -6,6 +6,16 @@ coverage/
 .env
 .env.*
 !.env.example
+.env*.local
+*.pem
+*.key
+*.p12
+id_*
+*.sqlite
+*.dump
+*.sql.gz
+docs/private/
+*.private.md
 .vite/
 playwright-report/
 test-results/

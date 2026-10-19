@@ -1,8 +1,8 @@
 # AGENTS.md — guía para agentes de codificación (Cursor y otros)
 
-Este repositorio es un gestor de tareas personal extensible (clon de TickTick) desplegado en
+Este repositorio es un gestor de tareas personal extensible desplegado en
 `todo.reflexionia.com`. La fuente de verdad del producto es la especificación
-`docs/spec/ticktick-clone-spec-v1.1.md` (RF-xx = requisito testeable). Este archivo resume las
+`docs/spec/especificacion-producto-v1.1.md` (RF-xx = requisito testeable). Este archivo resume las
 normas; el detalle vive en `.cursor/rules/*.mdc`, que Cursor aplica automáticamente.
 
 ## Contexto mínimo antes de tocar código
@@ -18,7 +18,7 @@ normas; el detalle vive en `.cursor/rules/*.mdc`, que Cursor aplica automáticam
 - `apps/web` — React + TypeScript, PWA (Vite). Cliente oficial de la API.
 - `packages/domain` — reglas de negocio puras: recurrencias RRULE, filtros (5.7), NLP del quick add.
 - `packages/sdk` — cliente TS de la API generado del OpenAPI.
-- `docker-compose.yml` + `Caddyfile` — despliegue en Hetzner. `docker-compose.dev.yml` — infra local.
+- `docker-compose.yml` + `Caddyfile` — despliegue en un VPS con Docker. `docker-compose.dev.yml` — infra local.
 - `scripts/` — seed, backups (RF-1704), utilidades de desarrollo.
 - `docs/` — arquitectura, convenciones, plan por fases y prompts reutilizables.
 

@@ -45,6 +45,9 @@ import {
 } from './inbound-mail';
 import { resolveQuickAdd, type CaptureWarning } from './quick-add';
 import {
+  acceptedMime,
+  ATTACHMENT_MAX_PER_TASK,
+  ATTACHMENT_USER_QUOTA_BYTES,
   removeAttachmentFile,
   resolveAttachment,
   safeFileName,
@@ -817,7 +820,7 @@ export class TasksService {
           );
         }
         await tx.task.updateMany({
-          where: { id: { in: dto.ids } },
+          where: { ownerId: user.id, id: { in: dto.ids } },
           data: { priority: dto.priority },
         });
         for (const id of dto.ids) {
@@ -826,7 +829,10 @@ export class TasksService {
       } else if (dto.action === 'due') {
         const due =
           dto.due_date === undefined ? null : this.nextDate(null, dto.due_date, 'due_date');
-        await tx.task.updateMany({ where: { id: { in: dto.ids } }, data: { dueDate: due } });
+        await tx.task.updateMany({
+          where: { ownerId: user.id, id: { in: dto.ids } },
+          data: { dueDate: due },
+        });
         for (const id of dto.ids) {
           await this.emitUpdated(tx, user, id);
         }
@@ -1055,17 +1061,32 @@ export class TasksService {
     if (file === undefined || file.buffer.length === 0) {
       throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'file is required');
     }
-    if (file.mimetype.trim().length === 0) {
+    const mime = acceptedMime(file.buffer);
+    await this.require(this.prisma, user.id, taskId, false);
+    const onTask = await this.prisma.attachment.count({
+      where: { taskId, ownerId: user.id, deletedAt: null },
+    });
+    if (onTask >= ATTACHMENT_MAX_PER_TASK) {
       throw new DomainException(
-        HttpStatus.BAD_REQUEST,
-        'validation_failed',
-        'mime type is required',
+        HttpStatus.PAYLOAD_TOO_LARGE,
+        'attachment_quota',
+        'This task has too many attachments',
       );
     }
-    await this.require(this.prisma, user.id, taskId, false);
+    const usage = await this.prisma.attachment.aggregate({
+      where: { ownerId: user.id, deletedAt: null },
+      _sum: { byteSize: true },
+    });
+    if ((usage._sum.byteSize ?? 0) + file.buffer.length > ATTACHMENT_USER_QUOTA_BYTES) {
+      throw new DomainException(
+        HttpStatus.PAYLOAD_TOO_LARGE,
+        'attachment_quota',
+        'Attachment quota exceeded',
+      );
+    }
     const storageKey = await writeAttachment(user.id, file.buffer);
     const thumbnailKey =
-      isRasterImage(file.mimetype) && file.buffer.length <= 1_500_000
+      isRasterImage(mime) && file.buffer.length <= 1_500_000
         ? await writeAttachment(user.id, file.buffer)
         : null;
     try {
@@ -1074,8 +1095,8 @@ export class TasksService {
           ownerId: user.id,
           taskId,
           fileName: safeFileName(file.originalname),
-          mimeType: file.mimetype,
-          byteSize: file.size,
+          mimeType: mime,
+          byteSize: file.buffer.length,
           storageKey,
           thumbnailKey,
           uploadedById: user.id,

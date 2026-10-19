@@ -1,4 +1,4 @@
-# Especificación de producto: gestor de tareas propio (clon extensible de TickTick)
+# Especificación de producto: gestor de tareas personal extensible
 
 - **Versión del documento:** 1.1
 - **Fecha:** 17 de octubre de 2026
@@ -6,20 +6,20 @@
 - **Audiencia:** agente de desarrollo / equipo de ingeniería
 - **Autor:** Pablo Poveda (especificación preparada por su asistente)
 
-**Cambios en v1.1 (17 oct 2026):** decisiones de Pablo aplicadas: PWA web como único cliente inicial, despliegue en su servidor Hetzner con Docker Compose + Caddy, dominio `todo.reflexionia.com`, hábitos al MVP, Pomodoro a V2, sin importador TickTick (arranque desde cero), servidor MCP + PATs con scopes como requisito de fase 1, orden de prioridad de integraciones (Telegram, Google Calendar, Google Drive), dos extensiones propias en V1: dashboard de KPIs («jardín digital», sección 9.21) y reporte semanal honesto (sección 9.22), y seis refuerzos aceptados por Pablo: captura rápida como prioridad máxima, backups automáticos con restauración probada fuera de la máquina, tokens por agente con auditoría, MCP desde el día uno, revisión diaria/semanal asistida (sección 9.23) y offline móvil desde el MVP.
+**Cambios en v1.1 (17 oct 2026):** decisiones de Pablo aplicadas: PWA web como único cliente inicial, despliegue en su VPS con Docker Compose + Caddy, dominio `todo.reflexionia.com`, hábitos al MVP, Pomodoro a V2, sin importador externo (RF-1701; arranque desde cero), servidor MCP + PATs con scopes como requisito de fase 1, orden de prioridad de integraciones (Telegram, Google Calendar, Google Drive), dos extensiones propias en V1: dashboard de KPIs («jardín digital», sección 9.21) y reporte semanal honesto (sección 9.22), y seis refuerzos aceptados por Pablo: captura rápida como prioridad máxima, backups automáticos con restauración probada fuera de la máquina, tokens por agente con auditoría, MCP desde el día uno, revisión diaria/semanal asistida (sección 9.23) y offline móvil desde el MVP.
 
 ---
 
 ## 0. Cómo leer este documento
 
-Este documento especifica de forma exhaustiva un gestor de tareas y productividad personal que replica la funcionalidad de TickTick y, además, está diseñado desde cero para ser extendido y conectado con cualquier sistema externo (API pública completa, webhooks, automatizaciones y plugins). Es la única limitación real que motiva el proyecto: TickTick apenas permite extensión.
+Este documento especifica de forma exhaustiva un gestor de tareas y productividad personal que cubre tareas, listas, etiquetas, filtros inteligentes, prioridades, subtareas, recurrencias, recordatorios, calendario, vistas Kanban/Timeline, Pomodoro y hábitos, y además está diseñado desde cero para ser extendido y conectado con cualquier sistema externo (API pública completa, webhooks, automatizaciones y plugins).
 
 Convenciones:
 
 - **MVP**, **V1**, **V2**: fase de entrega sugerida (ver sección 19).
 - **RF-xx**: requisito funcional identificable y testeable.
 - Las decisiones de plataforma y alcance están resueltas (secciones 2 y 21).
-- Donde se describe comportamiento de TickTick, se hace a nivel funcional (qué hace el usuario), no de implementación.
+- Donde se describe comportamiento, se hace a nivel funcional (qué hace el usuario), no de implementación.
 
 ---
 
@@ -27,7 +27,7 @@ Convenciones:
 
 ### 1.1 Problema
 
-El usuario usa TickTick a diario y le encaja su modelo mental (listas, etiquetas, filtros, Pomodoro, hábitos, calendario), pero TickTick:
+El modelo mental objetivo es el de un gestor de tareas con listas, etiquetas, filtros, Pomodoro, hábitos y calendario, con estas carencias habituales:
 
 - Ofrece una Open API muy limitada: solo tareas y proyectos, con dos scopes (`tasks:read`, `tasks:write`). No hay webhooks, ni hábitos, ni Pomodoro, ni filtros, ni notas accesibles por API.
 - No tiene sistema de plugins ni automatizaciones definibles por el usuario.
@@ -37,14 +37,14 @@ El usuario usa TickTick a diario y le encaja su modelo mental (listas, etiquetas
 
 Construir una aplicación propia que:
 
-1. Replique la funcionalidad completa de TickTick (tareas, listas, etiquetas, filtros inteligentes, prioridades, subtareas, recurrencias, recordatorios, calendario, vistas Kanban/Timeline, matriz de Eisenhower, Pomodoro, hábitos, notas, estadísticas).
+1. Cubra tareas, listas, etiquetas, filtros inteligentes, prioridades, subtareas, recurrencias, recordatorios, calendario, vistas Kanban/Timeline, matriz de Eisenhower, Pomodoro, hábitos, notas y estadísticas.
 2. Exponga **toda** la funcionalidad mediante una API pública de primera clase (no un subconjunto).
 3. Sea extensible: webhooks salientes, automatizaciones internas (trigger → condición → acción) y un sistema de plugins.
-4. Permita empezar desde cero sin depender de TickTick (sin importación en fase 1; el importador queda aplazado, ver RF-1701).
+4. Permita empezar desde cero sin importar datos de otro gestor (sin importación en fase 1; el importador queda aplazado, ver RF-1701).
 
 ### 1.3 No objetivos (al menos en las primeras fases)
 
-- No es un gestor de proyectos de equipo completo (no Gantt real, no dependencias entre tareas, no estimaciones de carga). La vista Timeline de TickTick es deliberadamente ligera y así se replica.
+- No es un gestor de proyectos de equipo completo (no Gantt real, no dependencias entre tareas, no estimaciones de carga). La vista Timeline es deliberadamente ligera.
 - No compite con Notion como base de conocimiento: las notas existen, pero son un complemento.
 - Colaboración multiusuario avanzada es fase V2 (ver sección 9.18).
 
@@ -59,9 +59,9 @@ Pablo resolvió todas las decisiones que estaban abiertas (detalle en la secció
 | D1 | Plataformas cliente | **Web PWA como único cliente en fase 1**, cuidada tanto en móvil como en escritorio (responsive, instalable, push, offline). Las apps nativas (móvil/escritorio) llegan más adelante sobre la misma API. |
 | D2 | Stack backend | **TypeScript extremo a extremo: NestJS + PostgreSQL + Prisma.** Confirmado. |
 | D3 | Stack frontend | **React + TypeScript.** Confirmado. |
-| D4 | Alojamiento | **Servidor Hetzner ya existente de Pablo**, con Docker Compose (API, PostgreSQL, Redis si las colas lo requieren) y **Caddy como reverse proxy con HTTPS automático**. Instancia única de uso personal, empaquetada para ser portable. |
+| D4 | Alojamiento | **Un VPS con Docker**, con Docker Compose (API, PostgreSQL, Redis si las colas lo requieren) y **Caddy como reverse proxy con HTTPS automático**. Instancia única de uso personal, empaquetada para ser portable. |
 | D5 | Multiusuario | **Multiusuario desde el modelo de datos**, aunque en el lanzamiento solo hay un usuario activo. La colaboración (compartir listas con permisos read/comment/write, p. ej. una lista compartida con su pareja) sigue en el roadmap (sección 9.18). |
-| D6 | Prioridad de módulos | Ver sección 19. Cambios clave: **hábitos (con recordatorios) y servidor MCP + PATs con scopes entran en el MVP; Pomodoro pasa a V2; se elimina el importador TickTick del MVP** (arranque desde cero). |
+| D6 | Prioridad de módulos | Ver sección 19. Cambios clave: **hábitos (con recordatorios) y servidor MCP + PATs con scopes entran en el MVP; Pomodoro pasa a V2; el importador externo (RF-1701) queda fuera del MVP** (arranque desde cero). |
 | D7 | Nombre y dominio | **`todo.reflexionia.com`** para app, API, feeds iCal, email-to-task y emails transaccionales. |
 
 
@@ -71,7 +71,7 @@ Pablo resolvió todas las decisiones que estaban abiertas (detalle en la secció
 
 1. **API-first**: toda funcionalidad de la UI pasa por la misma API pública que se documenta y versiona (sección 10). Nada de endpoints privados "solo para la app".
 2. **Todo emite eventos**: cada cambio de estado relevante genera un evento de dominio (sección 11) que alimenta webhooks, automatizaciones y la sincronización.
-3. **Offline-first en el cliente**: la app funciona sin red y sincroniza al volver (sección 13). TickTick lo hace; es parte de la experiencia.
+3. **Offline-first en el cliente**: la app funciona sin red y sincroniza al volver (sección 13). Es parte de la experiencia.
 4. **Formatos estándar antes que inventados**: recurrencias en RRULE (RFC 5545), recordatorios como triggers estilo iCalendar, exportación iCal/CSV/JSON, Markdown para texto enriquecido.
 5. **Extensibilidad como contrato**: los puntos de extensión (sección 12) son parte del producto, con versionado y deprecación anunciada.
 6. **Un solo usuario primero, cero atajos de modelo**: no se sacrifica integridad del modelo de datos por ir rápido (ver D5).
@@ -112,7 +112,7 @@ Reglas arquitectónicas:
 - El dispatcher de webhooks y el motor de automatizaciones consumen del mismo bus: un evento existe una vez y se reparte.
 - Los plugins de servidor (V2) se ejecutan en proceso aislado (worker con permisos declarados), nunca en el proceso principal.
 
-Despliegue (D4): instancia única en el servidor Hetzner de Pablo con Docker Compose: servicios `caddy` (reverse proxy con HTTPS automático para `todo.reflexionia.com`), `api` (NestJS; incluye el servidor MCP), `postgres` y `redis` (colas y caché; se añade solo si el bus de eventos y el scheduler lo requieren). Adjuntos en volumen local (S3 externo opcional). Backups diarios fuera de la máquina (RF-1704).
+Despliegue (D4): instancia única en el VPS con Docker con Docker Compose: servicios `caddy` (reverse proxy con HTTPS automático para `todo.reflexionia.com`), `api` (NestJS; incluye el servidor MCP), `postgres` y `redis` (colas y caché; se añade solo si el bus de eventos y el scheduler lo requieren). Adjuntos en volumen local (S3 externo opcional). Backups diarios fuera de la máquina (RF-1704).
 
 ---
 
@@ -129,16 +129,16 @@ Todos los IDs son `uuid` (o ULID si se prefiere ordenación). Todas las entidade
 | parent_id | fk → Task, nullable | subtarea de primer nivel como tarea completa (además del checklist, ver 9.2) |
 | title | text | máx. 500 chars, se guarda tal cual (espacios de los extremos incluidos; vacío permitido) |
 | content | text | descripción larga en Markdown |
-| kind | enum: `task`, `note` | TickTick permite notas dentro de listas (`kind: NOTE`) |
-| status | enum: `active`, `completed`, `archived` | equivalente a `status` 0/2 de la API de TickTick |
-| priority | enum: `none`, `low`, `medium`, `high` | mapeo con TickTick: 0/1/3/5 |
+| kind | enum: `task`, `note` | se permiten notas dentro de listas (`kind: NOTE`) |
+| status | enum: `active`, `completed`, `archived` | equivalente a `status` 0/2 de la Open API pública (RF-503) |
+| priority | enum: `none`, `low`, `medium`, `high` | mapeo numérico 0/1/3/5 (RF-503) |
 | is_all_day | bool | |
 | start_date | timestamptz, nullable | |
 | due_date | timestamptz, nullable | |
 | time_zone | text (IANA) | zona en la que el usuario introdujo las fechas |
 | duration_minutes | int, nullable | para Timeline y time-blocking; si hay start+due se deriva |
 | repeat_rule | text (RRULE), nullable | p. ej. `RRULE:FREQ=DAILY;INTERVAL=1` |
-| repeat_from | enum: `due_date`, `completion_date` | "repetir desde la fecha de completado" de TickTick |
+| repeat_from | enum: `due_date`, `completion_date` | repetir desde la fecha de completado |
 | sort_order | bigint | orden manual dentro de la lista |
 | tags | m2m → Tag | |
 | assignee_id | fk → User, nullable | (V2 colaboración) |
@@ -156,9 +156,9 @@ Todos los IDs son `uuid` (o ULID si se prefiere ordenación). Todas las entidade
 | id | uuid | |
 | task_id | fk → Task | |
 | title | text | |
-| status | enum: `active`, `completed` | API TickTick: 0/1 |
+| status | enum: `active`, `completed` | Open API pública: 0/1 |
 | sort_order | bigint | |
-| start_date / due_date | timestamptz, nullable | TickTick permite fecha por ítem |
+| start_date / due_date | timestamptz, nullable | se permite fecha por ítem |
 | is_all_day | bool | |
 | time_zone | text | |
 | completed_at | timestamptz | |
@@ -170,8 +170,8 @@ Todos los IDs son `uuid` (o ULID si se prefiere ordenación). Todas las entidade
 | id | uuid | |
 | name | text | |
 | color | text (hex) | p. ej. `#F18181` |
-| folder_id | fk → Folder, nullable | agrupación de listas (TickTick: carpetas / `groupId`) |
-| view_mode | enum: `list`, `kanban`, `timeline` | igual que TickTick |
+| folder_id | fk → Folder, nullable | agrupación de listas (carpetas / `groupId`) |
+| view_mode | enum: `list`, `kanban`, `timeline` | lista, kanban o timeline |
 | kind | enum: `TASK`, `NOTE` | listas de tareas o de notas |
 | closed | bool | lista archivada |
 | is_inbox | bool | bandeja de entrada del sistema (una por usuario) |
@@ -184,15 +184,15 @@ Todos los IDs son `uuid` (o ULID si se prefiere ordenación). Todas las entidade
 
 ### 5.5 Column (columna Kanban / sección)
 
-`id`, `project_id`, `name`, `sort_order`, `collapsed` (sección plegada). Las tareas llevan además `column_id` nullable. En vista lista, las Column se muestran como secciones; en Kanban, como columnas. Replicar que TickTick muestra en Kanban la agrupación elegida y el progreso por columna.
+`id`, `project_id`, `name`, `sort_order`, `collapsed` (sección plegada). Las tareas llevan además `column_id` nullable. En vista lista, las Column se muestran como secciones; en Kanban, como columnas. En Kanban se muestra la agrupación elegida y el progreso por columna.
 
 ### 5.6 Tag (etiqueta)
 
-`id`, `name` (única por usuario, case-insensitive), `color`, `parent_id` nullable (etiquetas anidadas como en TickTick), `sort_order`.
+`id`, `name` (única por usuario, case-insensitive), `color`, `parent_id` nullable (etiquetas anidadas), `sort_order`.
 
 ### 5.7 SmartList y Filter
 
-Listas inteligentes de sistema (una por usuario, no borrables, activables/desactivables en la barra lateral): **Today, Tomorrow, Next 7 Days, All, Inbox, Assigned to me, Completed, Trash**. TickTick además tiene "No date" y "Recently added"; incluirlas.
+Listas inteligentes de sistema (una por usuario, no borrables, activables/desactivables en la barra lateral): **Today, Tomorrow, Next 7 Days, All, Inbox, Assigned to me, Completed, Trash**. Incluir también "No date" y "Recently added".
 
 Filter (filtro personalizado del usuario):
 
@@ -201,7 +201,7 @@ Filter (filtro personalizado del usuario):
 | id | uuid | |
 | name | text | |
 | icon/color | text | |
-| mode | enum: `normal`, `advanced` | TickTick tiene ambos |
+| mode | enum: `normal`, `advanced` | ambos modos |
 | rules | jsonb | ver gramática abajo |
 | sort_order | bigint | |
 
@@ -225,7 +225,7 @@ Gramática de `rules` (persistida, portable por API):
 }
 ```
 
-Campos filtrables mínimos: lista, etiqueta, fecha (hoy/mañana/próximos 7 días/vencidas/sin fecha/rango), prioridad, palabra clave en título/contenido, estado (activa/completada), asignado (V2). El filtro avanzado de TickTick permite múltiples cláusulas con AND/OR y vista previa: replicar con un endpoint `POST /filters/preview` (ver 10).
+Campos filtrables mínimos: lista, etiqueta, fecha (hoy/mañana/próximos 7 días/vencidas/sin fecha/rango), prioridad, palabra clave en título/contenido, estado (activa/completada), asignado (V2). El filtro avanzado permite múltiples cláusulas con AND/OR y vista previa, con un endpoint `POST /filters/preview` (ver 10).
 
 ### 5.8 Reminder (recordatorio)
 
@@ -237,7 +237,7 @@ Campos filtrables mínimos: lista, etiqueta, fecha (hoy/mañana/próximos 7 día
 | absolute_at | timestamptz, nullable | recordatorio en hora fija |
 | type | enum: `relative`, `absolute`, `location`, `daily_digest` | |
 | location | jsonb, nullable | `{lat, lon, radius_m, label}` (recordatorio por ubicación) |
-| channel | enum: `push`, `email`, `both` | TickTick tiene recordatorio por email |
+| channel | enum: `push`, `email`, `both` | incluye recordatorio por email |
 | constant | bool | "recordatorio constante": renotifica hasta completar |
 | snoozed_until | timestamptz | |
 
@@ -247,14 +247,14 @@ Habit: `id`, `name`, `icon`, `color`, `goal` (jsonb: `{times_per_period, period:
 
 HabitLog: `id`, `habit_id`, `date`, `count` (check-ins del día), `note`. Único por `(habit_id, date)`.
 
-Estadísticas derivadas: racha actual, mejor racha, % de cumplimiento por semana/mes, mapa de calor anual. TickTick muestra estadísticas detalladas por hábito; replicar.
+Estadísticas derivadas: racha actual, mejor racha, % de cumplimiento por semana/mes, mapa de calor anual. Se muestran estadísticas detalladas por hábito.
 
 ### 5.10 FocusSession (Pomodoro / Focus)
 
 | Campo | Tipo | Notas |
 |---|---|---|
 | id | uuid | |
-| task_id | fk → Task, nullable | asociar sesión a una tarea (TickTick lo permite) |
+| task_id | fk → Task, nullable | asociar sesión a una tarea (se permite) |
 | type | enum: `focus`, `short_break`, `long_break` | |
 | planned_minutes | int | |
 | actual_seconds | int | |
@@ -267,7 +267,7 @@ Configuración por usuario (`FocusSettings`): duración pomodoro (default 25), d
 
 ### 5.11 Note / StickyNote
 
-Note reusa `Task` con `kind='note'` (como TickTick, que tiene listas de tipo NOTE). StickyNote (nota adhesiva de escritorio/widget): `id`, `text`, `color`, `pinned_task_id` nullable, `position` jsonb. MVP-lite: puede aplazarse a V1 sin daño.
+Note reusa `Task` con `kind='note'` (listas de tipo NOTE). StickyNote (nota adhesiva de escritorio/widget): `id`, `text`, `color`, `pinned_task_id` nullable, `position` jsonb. MVP-lite: puede aplazarse a V1 sin daño.
 
 ### 5.12 CalendarSubscription y ExternalEvent
 
@@ -283,11 +283,11 @@ ActivityLog: `id`, `actor_id`, `entity_type`, `entity_id`, `action` (created/upd
 
 ### 5.15 Countdown
 
-`id`, `title`, `target_date`, `color`, `show_in_sidebar`. Cuenta atrás para fechas importantes (TickTick lo tiene como mini-función).
+`id`, `title`, `target_date`, `color`, `show_in_sidebar`. Cuenta atrás para fechas importantes (cuenta atrás).
 
 ### 5.16 Template (plantilla de lista/tarea)
 
-`id`, `name`, `payload` jsonb (lista con sus tareas/columnas), `owner_id`. TickTick no lo tiene: es una extensión propia barata y útil.
+`id`, `name`, `payload` jsonb (lista con sus tareas/columnas), `owner_id`. Es una extensión propia.
 
 ### 5.17 User y Settings
 
@@ -307,15 +307,15 @@ User: `id`, `email`, `password_hash` o SSO, `display_name`, `avatar`, `time_zone
 
 1. **Completar tarea recurrente**: al completar, se crea la siguiente ocurrencia según `repeat_rule` y `repeat_from` (`due_date`: siguiente fecha teórica; `completion_date`: siguiente fecha contando desde hoy). Las subtareas/checklist vuelven a estado activo en la nueva ocurrencia. La completada queda registrada para estadísticas.
 2. **Borrado**: papelera (soft delete) durante 30 días, purga automática después. Las listas borradas llevan sus tareas a la papelera con ellas.
-3. **Completadas**: ocultas por defecto en vistas, accesibles vía lista inteligente "Completed" y por API. TickTick conserva el conteo para estadísticas; igual.
+3. **Completadas**: ocultas por defecto en vistas, accesibles vía lista inteligente "Completed" y por API. Se conserva el conteo para estadísticas.
 4. **Ordenación manual**: `sort_order` con espaciado (incrementos de 65536) para reordenar en O(1) escrituras.
-5. **Zonas horarias**: almacenar UTC + `time_zone` de captura; una tarea "a las 9:00 en Madrid" sigue siendo a las 9:00 locales aunque el usuario viaje (comportamiento TickTick).
+5. **Zonas horarias**: almacenar UTC + `time_zone` de captura; una tarea "a las 9:00 en Madrid" sigue siendo a las 9:00 locales aunque el usuario viaje (la hora local de captura se conserva).
 
 ---
 
 ## 7. Navegación y estructura de la app
 
-Layout de tres paneles (como TickTick en escritorio; en móvil, navegación con barra inferior y gestos):
+Layout de tres paneles (en escritorio; en móvil, navegación con barra inferior y gestos):
 
 1. **Barra lateral**: Inbox y smart lists activas arriba; filtros fijados; carpetas con sus listas; etiquetas; papelera. Todo reordenable por arrastre, con contadores opcionales.
 2. **Panel central**: la vista activa (lista / kanban / timeline / calendario / Eisenhower / hábitos / focus) con su cabecera de ordenación, agrupación y búsqueda contextual.
@@ -325,9 +325,9 @@ Rutas limpias y compartibles: `/list/{id}`, `/filter/{id}`, `/today`, `/calendar
 
 ---
 
-## 8. Paridad y mejoras respecto a TickTick
+## 8. Alcance funcional y extensiones propias
 
-| Función | TickTick | Este producto |
+| Función | Gestores de referencia | Este producto |
 |---|---|---|
 | Tareas, listas, carpetas, secciones, etiquetas anidadas, prioridades, checklist | Sí | Paridad total |
 | Filtros (normal y avanzado con AND/OR) y smart lists | Sí | Paridad + evaluación por API |
@@ -357,23 +357,23 @@ Cada módulo indica fase sugerida y requisitos RF numerados. La UI debe cumplir 
 
 Prioridad máxima de Pablo (17 oct 2026): capturar tiene que costar un segundo desde cualquier sitio (app, voz, Telegram, atajo o share target del móvil). Si capturar cuesta, la app no se usa.
 
-TickTick pone mucho peso en capturar sin fricción: atajo global, widget, voz, email, NLP. Replicar:
+La captura sin fricción es prioritaria: atajo global, widget, voz, email, NLP:
 
 - RF-101: Crear tarea con título en una sola pulsación desde cualquier vista (atajo `N` y botón flotante).
 - RF-102: **Parseo de lenguaje natural (NLP)** en el título, en español e inglés: detecta y extrae fecha/hora ("mañana 18:00", "cada lunes", "el 23/10"), prioridad (`!alta`, `!media`, `!baja` o p1-p3), etiquetas (`#casa`), lista (`^trabajo` o `~trabajo`) y recordatorio ("avísame 30 min antes"). Lo detectado se muestra resaltado antes de confirmar y es editable.
 - RF-103: Gramática NLP extensible por plugins (sección 12): un plugin puede registrar patrones adicionales.
 - RF-104: Entrada por voz (Web Speech API en PWA; nativo en apps futuras) que vuelca texto al mismo pipeline NLP.
-- RF-105: **Email-to-task**: dirección única por usuario (`<token>@in.todo.reflexionia.com`); el asunto pasa a título y el cuerpo a contenido; adjuntos se guardan como Attachment. (TickTick lo tiene; además es nuestro primer canal de "integración externa".)
+- RF-105: **Email-to-task**: dirección única por usuario (`<token>@in.todo.reflexionia.com`); el asunto pasa a título y el cuerpo a contenido; adjuntos se guardan como Attachment. (Es el primer canal de integración externa.)
 - RF-106: Atajo global de escritorio cuando exista cliente de escritorio (V2); en PWA, `share target` para "compartir a la app" desde móvil.
 - RF-107: Si el parser deja el título vacío no se crea nada (`empty_title`) y tampoco se crea lista ni etiqueta. Un `title` explícito, aunque sea `""`, sí crea la tarea y se guarda tal cual. Si `^lista` o `~lista` no existe, se crea el proyecto y la tarea entra ahí (`list_created`). Si `#etiqueta` no existe, se crea y se asocia (`tag_created`). Un `project_id` o `tag_ids` explícito no crea lo que solo venía en el texto.
 
 ### 9.2 Tareas — MVP
 
 - RF-201: CRUD completo de tareas con todos los campos de 5.1.
-- RF-202: Descripción en **Markdown** con previsualización, checklist inline `- [ ]` que se convierte en ChecklistItem (comportamiento TickTick: las líneas de checklist del contenido pueden convertirse en subtareas).
+- RF-202: Descripción en **Markdown** con previsualización, checklist inline `- [ ]` que se convierte en ChecklistItem (las líneas de checklist del contenido pueden convertirse en subtareas).
 - RF-203: Adjuntos múltiples por tarea (imágenes con miniatura inline).
 - RF-204: Duplicar, mover entre listas, mover entre columnas/secciones, convertir tarea en nota y viceversa.
-- RF-205: Dos tipos de "hijos": (a) **checklist items** (ligeros, 5.2) y (b) **subtareas completas** (Task con `parent_id`, con sus propias fechas/etiquetas/recordatorios). TickTick permite ambos. UI: pestañas o secciones dentro del detalle. Una subtarea puede vivir en otra lista: se respeta el `project_id` pedido y el `parent_id`. En la lista de la hija aparece (también con `flat=true`); en el detalle del padre sigue saliendo como subtarea. Sigue siendo inválido un padre inexistente, de otro usuario, o que forme un ciclo. Una hija en la misma lista no aparece suelta salvo vista plana.
+- RF-205: Dos tipos de "hijos": (a) **checklist items** (ligeros, 5.2) y (b) **subtareas completas** (Task con `parent_id`, con sus propias fechas/etiquetas/recordatorios). Se permiten ambos. UI: pestañas o secciones dentro del detalle. Una subtarea puede vivir en otra lista: se respeta el `project_id` pedido y el `parent_id`. En la lista de la hija aparece (también con `flat=true`); en el detalle del padre sigue saliendo como subtarea. Sigue siendo inválido un padre inexistente, de otro usuario, o que forme un ciclo. Una hija en la misma lista no aparece suelta salvo vista plana.
 - RF-206: Al completar un padre con hijos activos, preguntar: completar hijos también / dejarlos. Configurable.
 - RF-207: Indicador de progreso del checklist (x/y) en la tarjeta de la tarea.
 - RF-208: Operaciones masivas: selección múltiple → completar, mover, etiquetar, priorizar, fijar fecha, borrar.
@@ -397,7 +397,7 @@ TickTick pone mucho peso en capturar sin fricción: atajo global, widget, voz, e
 
 ### 9.5 Prioridades — MVP
 
-- RF-501: Cuatro niveles: High / Medium / Low / None (equivalentes a 5/3/1/0 de la API de TickTick).
+- RF-501: Cuatro niveles: High / Medium / Low / None (equivalentes a 5/3/1/0 de la Open API pública, RF-503).
 - RF-502: Indicador visual (bandera/color) en tarjeta; ordenación por prioridad en cualquier vista.
 - RF-503: Mapeo exacto en importación/exportación TickTick (0↔none, 1↔low, 3↔medium, 5↔high).
 
@@ -413,42 +413,42 @@ TickTick pone mucho peso en capturar sin fricción: atajo global, widget, voz, e
 
 - RF-701: Reglas RRULE completas: diaria, semanal (días concretos), mensual (día del mes o "primer lunes"), anual, intervalos personalizados (`INTERVAL=n`), fin por fecha (`UNTIL`) o por número de ocurrencias (`COUNT`).
 - RF-702: UI de construcción de regla en español, sin exponer RRULE crudo salvo modo avanzado.
-- RF-703: `repeat_from`: "desde la fecha de vencimiento" (default) o "desde la fecha de completado" (comportamiento TickTick para hábitos tipo "regar cada 3 días desde que lo hice").
+- RF-703: `repeat_from`: "desde la fecha de vencimiento" (default) o "desde la fecha de completado" (hábitos del tipo "regar cada 3 días desde que lo hice").
 - RF-704: Solo se materializa la ocurrencia actual; al completarla se genera la siguiente (evita explosión de filas y respeta ediciones futuras). La API expone `GET /tasks/{id}/occurrences?from&to` que calcula ocurrencias teóricas sin persistirlas.
 - RF-705: Editar una ocurrencia concreta sin romper la serie: la ocurrencia editada se desvincula (`exdate` en la regla).
 - RF-706: Casos límite: 29-31 de febrero en mensual/anual (usar último día del mes), cambio de horario de verano (recalcular en la zona de captura), completar con retraso (la siguiente ocurrencia no se salta: se calcula desde la regla, no desde "hoy", salvo `completion_date`).
 
 ### 9.8 Recordatorios — MVP
 
-- RF-801: Múltiples recordatorios por tarea, relativos (5 min antes, 1 día antes...) o absolutos (fecha/hora concreta). Persistencia en formato trigger iCalendar como la API de TickTick (`TRIGGER:P0DT9H0M0S`).
+- RF-801: Múltiples recordatorios por tarea, relativos (5 min antes, 1 día antes...) o absolutos (fecha/hora concreta). Persistencia en formato trigger iCalendar (`TRIGGER:P0DT9H0M0S`).
 - RF-802: Canales: push (Web Push en PWA) y email. Configurable por tarea y por defecto en ajustes.
 - RF-803: Recordatorio constante (opcional por tarea): renotifica cada X min hasta completar o posponer.
 - RF-804: Snooze de notificación: 10 min, 1 h, mañana, personalizado.
 - RF-805: Daily reminder: resumen diario a hora configurable ("planifica tu día").
-- RF-806: Recordatorio por ubicación (geofence) en clientes con GPS (móvil, V1+; en TickTick es solo iOS). Modelo ya previsto en 5.8.
+- RF-806: Recordatorio por ubicación (geofence) en clientes con GPS (móvil, V1+). Modelo ya previsto en 5.8.
 - RF-807: Recordatorios de tareas recurrentes se heredan a cada ocurrencia.
 - RF-808: Fiabilidad: el scheduler materializa recordatorios con al menos 48 h de antelación en una cola persistente; si el servicio cae, al arrancar reprograma lo perdido (catch-up) y marca como "late" lo ya vencido.
 
 ### 9.9 Listas inteligentes y filtros — MVP
 
 - RF-901: Smart lists de sistema (5.7) activables/ordenables en la barra lateral.
-- RF-902: Filtros personalizados en modo normal (campos simples) y avanzado (grupos AND/OR anidados un nivel, como TickTick) con **vista previa** antes de guardar.
+- RF-902: Filtros personalizados en modo normal (campos simples) y avanzado (grupos AND/OR anidados un nivel) con **vista previa** antes de guardar.
 - RF-903: Un filtro es una vista de primera clase: aparece en la barra lateral, tiene contador, soporta vistas lista/kanban/timeline y se puede fijar.
 - RF-904: Evaluación de filtros en backend (los filtros funcionan igual por API y por todos los clientes). Nada de lógica duplicada en cliente.
 
 ### 9.10 Vistas de tareas — MVP/V1
 
-- RF-1001 (MVP): **Vista lista**: agrupación por sección/fecha/etiqueta/prioridad; ordenación manual y automática (fecha, prioridad, título, creación); detalle en tercer panel como TickTick en escritorio.
+- RF-1001 (MVP): **Vista lista**: agrupación por sección/fecha/etiqueta/prioridad; ordenación manual y automática (fecha, prioridad, título, creación); detalle en tercer panel en escritorio.
 - RF-1002 (V1): **Vista Kanban**: columnas = Column de la lista; agrupación alternativa por etiqueta/prioridad/asignado; drag & drop entre columnas actualiza `column_id`; contador y progreso por columna; WIP limit opcional por columna (extensión propia, barata).
-- RF-1003 (V1): **Vista Timeline** (como la de TickTick, más ligera que un Gantt): tareas con fecha como bloques horizontales día/semana/mes; arrastrar para mover en el tiempo; arrastrar bordes para cambiar duración; tareas sin fecha en panel lateral "por planificar"; clic en hueco crea tarea con esa fecha; zoom día/semana/mes. Sin dependencias entre tareas.
+- RF-1003 (V1): **Vista Timeline** (más ligera que un Gantt): tareas con fecha como bloques horizontales día/semana/mes; arrastrar para mover en el tiempo; arrastrar bordes para cambiar duración; tareas sin fecha en panel lateral "por planificar"; clic en hueco crea tarea con esa fecha; zoom día/semana/mes. Sin dependencias entre tareas.
 - RF-1004 (V1): **Matriz de Eisenhower**: cuadrantes urgente/importante con reglas por defecto (urgente = vence en 24 h o vencida; importante = prioridad high/medium) y reglas editables por el usuario (misma gramática de filtros, 5.7); drag & drop entre cuadrantes actualiza prioridad/fecha según la regla del cuadrante destino.
 
 ### 9.11 Calendario — V1
 
-- RF-1101: Vistas: día, semana, multi-día, multi-semana, mes, año y agenda. TickTick ofrece exactamente este conjunto.
+- RF-1101: Vistas: día, semana, multi-día, multi-semana, mes, año y agenda. El conjunto es día, semana, multi-día, multi-semana, mes, año y agenda.
 - RF-1102: Las tareas con fecha aparecen en el calendario (all-day arriba, con hora en su franja); drag & drop re-planifica; clic crea tarea con fecha.
 - RF-1103: Suscripción a calendarios externos por URL iCal (solo lectura) y cuenta de Google Calendar (lectura; escritura en V2). Los eventos externos se muestran con su color y no son editables.
-- RF-1104: Feed iCal propio por lista/filtro: URL secreta regenerable para ver tareas en Google Calendar/Apple Calendar (TickTick tiene suscripción premium; aquí es gratis porque es nuestro).
+- RF-1104: Feed iCal propio por lista/filtro: URL secreta regenerable para ver tareas en Google Calendar/Apple Calendar (El feed es parte del producto, sin un plan de pago aparte.)
 - RF-1105: Los recordatorios de tareas siguen siendo los del módulo 9.8 aunque la tarea se mueva en calendario.
 
 ### 9.12 Pomodoro / Focus — V2
@@ -456,7 +456,7 @@ TickTick pone mucho peso en capturar sin fricción: atajo global, widget, voz, e
 - RF-1201: Temporizador Pomodoro con fases focus → descanso corto → ciclo → descanso largo (config por 5.10).
 - RF-1202: Asociar la sesión a una tarea: acumula tiempo de focus y cuenta de pomodoros en la tarea; estimación opcional de pomodoros por tarea (campo `estimated_pomodoros`, extensión propia).
 - RF-1203: Sonidos ambientales / white noise durante el focus (catálogo local ampliable por plugin).
-- RF-1204: Estadísticas: focus por día/semana/mes, distribución por lista/etiqueta, rachas de días con focus, mejor franja horaria. TickTick muestra estadísticas de pomodoro; replicar y mejorar con exportación CSV.
+- RF-1204: Estadísticas: focus por día/semana/mes, distribución por lista/etiqueta, rachas de días con focus, mejor franja horaria. Se muestran estadísticas de pomodoro, con exportación CSV.
 - RF-1205: La sesión corre en servidor (o al menos se persiste start/end): si se cierra la app, el temporizador sigue y la notificación de fin llega por push. Decisión de diseño importante para PWA.
 - RF-1206: Mini-ventana flotante siempre visible (picture-in-picture en PWA si es viable; si no, badge en el título de la pestaña con la cuenta atrás).
 
@@ -467,7 +467,7 @@ Decisión de Pablo (sección 21): los hábitos entran en fase 1 con sus recordat
 - RF-1301: CRUD de hábitos con objetivo (veces por día/semana), días activos, icono/color, recordatorio diario a hora fija.
 - RF-1302: Check-in con contador (p. ej. 8 vasos de agua) y nota opcional por día.
 - RF-1303: Estadísticas: racha actual/mejor, % cumplimiento, mapa de calor anual por hábito y agregado.
-- RF-1304: Los hábitos **no** son tareas: entidad separada (como TickTick), aunque un hábito puede generar recordatorio. Razón: semántica distinta (no se "completan para siempre").
+- RF-1304: Los hábitos **no** son tareas: entidad separada (entidad separada), aunque un hábito puede generar recordatorio. Razón: semántica distinta (no se "completan para siempre").
 - RF-1305: Los check-ins se exponen por API y emiten eventos (permite automatizaciones tipo "si fallo 3 días, créame una tarea de revisión").
 
 ### 9.14 Notas y sticky notes — V1
@@ -484,7 +484,7 @@ Decisión de Pablo (sección 21): los hábitos entran en fase 1 con sus recordat
 ### 9.16 Estadísticas y logros — V2
 
 - RF-1601: Panel de productividad: completadas por periodo, focus acumulado, hábitos, tareas creadas vs completadas.
-- RF-1602: Puntuación de logros estilo TickTick (niveles por consistencia). Opcional y desactivable.
+- RF-1602: Puntuación de logros (niveles por consistencia). Opcional y desactivable.
 
 ### 9.17 Exportación y backup — MVP; importación aplazada
 
@@ -496,7 +496,7 @@ Decisión de Pablo (sección 21): los hábitos entran en fase 1 con sus recordat
 
 ### 9.18 Colaboración — V2
 
-- RF-1801: Compartir lista con permisos `read`, `comment`, `write` (los tres niveles de TickTick).
+- RF-1801: Compartir lista con permisos `read`, `comment`, `write` (tres niveles).
 - RF-1802: Asignar tareas a miembros; vista "Assigned to me".
 - RF-1803: Comentarios por tarea con menciones; ActivityLog visible por lista compartida.
 - RF-1804: Presencia ligera (quién está viendo la lista) opcional.
@@ -551,7 +551,7 @@ Recomendación aceptada por Pablo (17 oct 2026): que el sistema proponga, no sol
 
 ## 10. API pública (diseño completo) — MVP para recursos núcleo
 
-Principio rector: **la API cubre el 100% del dominio**, no el subconjunto que ofrece TickTick. La propia UI consume esta API.
+Principio rector: **la API cubre el 100% del dominio**, no un subconjunto reducido. La propia UI consume esta API.
 
 ### 10.1 Autenticación y autorización
 
@@ -563,7 +563,7 @@ Principio rector: **la API cubre el 100% del dominio**, no el subconjunto que of
 
 ### 10.2 Convenciones
 
-- Base: `https://todo.reflexionia.com/api/v1`. Versionado en path. JSON en todo. Fechas ISO 8601 con offset (`2019-11-13T03:00:00+0000` aceptado por compatibilidad con el formato TickTick; `Z`/offset normal preferido).
+- Base: `https://todo.reflexionia.com/api/v1`. Versionado en path. JSON en todo. Fechas ISO 8601 con offset (`2019-11-13T03:00:00+0000` aceptado por compatibilidad con el formato de fecha de la Open API pública; `Z`/offset normal preferido).
 - Paginación por cursor: `?limit=50&cursor=...`, respuesta con `next_cursor`. Filtros por query params (`?project_id=`, `?status=active`, `?due_before=`, `?tag=`).
 - Idempotencia en POST con cabecera `Idempotency-Key` (evita tareas duplicadas por reintentos de red en offline).
 - Errores: `{error: {code, message, details}}` con códigos estables (`task_not_found`, `validation_failed`, `scope_missing`...).
@@ -606,7 +606,7 @@ Listas y estructura:
 ```
 GET/POST         /api/v1/projects
 GET/PATCH/DELETE /api/v1/projects/{id}
-GET              /api/v1/projects/{id}/data        lista + tareas + columnas (equiv. TickTick /project/{id}/data)
+GET              /api/v1/projects/{id}/data        lista + tareas + columnas (equiv. `/open/v1/project/{id}/data`)
 POST             /api/v1/projects/{id}/archive | /unarchive | /archive-completed
 GET/POST         /api/v1/folders
 GET/PATCH/DELETE /api/v1/folders/{id}
@@ -661,7 +661,7 @@ Email-to-task (RF-105): `GET /api/v1/me/inbound-email` dice si hay dirección (s
 
 ### 10.4 Compatibilidad TickTick (opcional pero recomendada)
 
-Capa de compatibilidad `GET /open/v1/...` que replica la forma de la Open API de TickTick (mismos nombres de campo: `projectId`, `repeatFlag`, `sortOrder`, `items`...). Permite reutilizar integraciones existentes de terceros (MCP servers, CLIs, atajos) contra nuestro backend cambiando solo la URL base y el token. Implementación: adaptador fino sobre los servicios de dominio. Prioridad V1.
+Capa de compatibilidad `GET /open/v1/...` compatible con la forma de la Open API pública de TickTick (mismos nombres de campo: `projectId`, `repeatFlag`, `sortOrder`, `items`...). Permite reutilizar integraciones existentes de terceros (MCP servers, CLIs, atajos) contra nuestro backend cambiando solo la URL base y el token. Implementación: adaptador fino sobre los servicios de dominio. Prioridad V1.
 
 ---
 
@@ -828,7 +828,7 @@ Objetivo: que cualquier funcionalidad nueva (integración con otra app, una vist
 
 ## 17. Criterios de aceptación globales
 
-1. Pablo puede vivir una semana usando solo esta app en lugar de TickTick sin perder: captura rápida, filtros, recurrentes, recordatorios y hábitos (el Pomodoro llega en V2).
+1. Pablo puede vivir una semana usando solo esta app sin perder: captura rápida, filtros, recurrentes, recordatorios y hábitos (el Pomodoro llega en V2).
 2. Todo lo hecho en la UI se puede reproducir con `curl` contra la API documentada.
 3. Un cambio de una tarea dispara el webhook suscrito en < 5 s.
 4. Un agente externo (ChatGPT, Cursor, etc.) conecta por MCP con un PAT de scopes limitados y puede listar, crear y completar tareas sin tocar nada fuera de sus scopes.
@@ -842,7 +842,7 @@ Objetivo: que cualquier funcionalidad nueva (integración con otra app, una vist
 - Monorepo (pnpm workspaces): `apps/web`, `apps/api`, `packages/domain` (reglas de negocio puras: recurrencias, filtros, NLP), `packages/sdk` (cliente TS de la API generado del OpenAPI).
 - Las reglas de negocio viven en `packages/domain` sin dependencias de framework: así el motor de automatizaciones, la API y los clientes comparten exactamente el mismo código de filtros y recurrencias.
 - Migraciones de base de datos con Prisma Migrate, siempre reversibles.
-- Commits con conventional commits; CI con lint, typecheck, tests unitarios e integración; despliegue con `docker compose up` (Caddy + API + Postgres + Redis si aplica) en el servidor Hetzner, documentado en el README.
+- Commits con conventional commits; CI con lint, typecheck, tests unitarios e integración; despliegue con `docker compose up` (Caddy + API + Postgres + Redis si aplica) en el VPS, documentado en el README.
 - El OpenAPI se genera del código (no al revés) y se verifica en CI que no hay endpoints sin documentar.
 
 ---
@@ -850,15 +850,15 @@ Objetivo: que cualquier funcionalidad nueva (integración con otra app, una vist
 ## 19. Plan por fases
 
 **MVP / fase 1 (4-6 semanas de agente, uso personal ya posible):**
-modelo de datos completo de tareas/listas/etiquetas/filtros (multiusuario desde el inicio, D5) · quick add con NLP · CRUD tareas + checklist + subtareas · fechas/recurrencias/recordatorios push+email · **hábitos con recordatorios y estadísticas (RF-1301–1305), fáciles de adoptar y configurar** · smart lists + filtros · vista lista · búsqueda + paleta · API v1 de esos recursos + **PAT con scopes granulares + servidor MCP (RF-2001/2002)** · export JSON · offline básico (cola de mutaciones) · Docker Compose con Caddy en Hetzner (`todo.reflexionia.com`).
+modelo de datos completo de tareas/listas/etiquetas/filtros (multiusuario desde el inicio, D5) · quick add con NLP · CRUD tareas + checklist + subtareas · fechas/recurrencias/recordatorios push+email · **hábitos con recordatorios y estadísticas (RF-1301–1305), fáciles de adoptar y configurar** · smart lists + filtros · vista lista · búsqueda + paleta · API v1 de esos recursos + **PAT con scopes granulares + servidor MCP (RF-2001/2002)** · export JSON · offline básico (cola de mutaciones) · Docker Compose con Caddy en un VPS (`todo.reflexionia.com`).
 
 Puntos 1 a 3 cerrados en `feat/core-tasks` (base, tareas núcleo y tiempo). El scheduler es quien materializa la siguiente ocurrencia y dispara los recordatorios.
 
-**V1:** implementado en la PR #12 (18 oct 2026) y cerrado en lo que faltaba en la PR #14. El webhook de Telegram crea la tarea y contesta en el chat. Calendar lee con el refresh token guardado. Drive adjunta por enlace o copia, y el backup diario puede volcarse a `GOOGLE_DRIVE_FOLDER_ID`. Está desplegado en `https://todo.reflexionia.com` (pila propia, sin `AUTH_MODE=dev`, al lado del Caddy de ia.turugby). El importador TickTick (RF-1701) sigue aplazado. La spec no se publica como v1.2.
+**V1:** implementado en la PR #12 (18 oct 2026) y cerrado en lo que faltaba en la PR #14. El webhook de Telegram crea la tarea y contesta en el chat. Calendar lee con el refresh token guardado. Drive adjunta por enlace o copia, y el backup diario puede volcarse a `GOOGLE_DRIVE_FOLDER_ID`. Está desplegado en el dominio público (pila propia, sin `AUTH_MODE=dev`, detrás del Caddy del borde). El importador externo (RF-1701) sigue aplazado. La spec no se publica como v1.2.
 Kanban, Timeline, Eisenhower · calendario completo + suscripciones iCal + Google Calendar (lectura) + feeds propios · **bot de Telegram (RF-2003)** · **Google Drive: adjuntos y backups (RF-2005)** · notas · **dashboard de KPIs / jardín digital (RF-2101–2105)** · **reporte semanal honesto (RF-2201–2204)** · **revisión diaria/semanal asistida (RF-2301–2303)** · webhooks + automatizaciones · sync en tiempo real · capa de compatibilidad `/open/v1` · import CSV, export iCal/CSV · 2FA.
 
-**V2:** implementado en el mismo corte. La escritura de Google Calendar usa el refresh token guardado en el usuario; desde la PR #14 actualiza el evento en lugar de duplicarlo. Apps nativas y widgets de iOS/Android no entran: la sección 21 no se reabre. El importador TickTick sigue fuera.
-colaboración (compartir listas con permisos — p. ej. la lista compartida con su pareja —, asignar, comentarios) · **Pomodoro/Focus con estadísticas (RF-1201–1206)** · plugins · widgets nativos / apps móviles · logros · WIP limits y otras mejoras propias · Google Calendar two-way · (opcional, solo si surge la necesidad) importador TickTick.
+**V2:** implementado en el mismo corte. La escritura de Google Calendar usa el refresh token guardado en el usuario; desde la PR #14 actualiza el evento en lugar de duplicarlo. Apps nativas y widgets de iOS/Android no entran: la sección 21 no se reabre. El importador externo (RF-1701) sigue fuera.
+colaboración (compartir listas con permisos — p. ej. la lista compartida con su pareja —, asignar, comentarios) · **Pomodoro/Focus con estadísticas (RF-1201–1206)** · plugins · widgets nativos / apps móviles · logros · WIP limits y otras mejoras propias · Google Calendar two-way · (opcional, solo si surge la necesidad) importador externo (RF-1701).
 
 ---
 
@@ -871,8 +871,8 @@ colaboración (compartir listas con permisos — p. ej. la lista compartida con 
 | NLP en español pobre | Empezar con reglas, no ML; resaltar lo detectado para corrección manual inmediata |
 | PWA: push y background timer limitados en iOS | Sesiones de focus persistidas en servidor (RF-1205); Web Push en iOS requiere app instalada: documentarlo |
 | Exposición a agentes externos (MCP/PAT) desde fase 1 | Scopes granulares, tokens revocables con último uso visible, rate limiting por token; el servidor MCP hereda los límites del token (RF-2001) |
-| Instancia única en Hetzner: punto único de fallo | Backup diario externo y restauración probada (RF-1704); RPO 24 h / RTO 1 h asumidos en sección 16 |
-| Importador TickTick (aplazado) limitado por su API si se retoma | Documentar lo no exportable (hábitos/pomodoros) y ofrecer recreación guiada |
+| Instancia única en un VPS: punto único de fallo | Backup diario externo y restauración probada (RF-1704); RPO 24 h / RTO 1 h asumidos en sección 16 |
+| Importador externo (RF-1701, aplazado) limitado por la Open API pública si se retoma | Documentar lo no exportable (hábitos/pomodoros) y ofrecer recreación guiada |
 
 ---
 
@@ -883,10 +883,10 @@ Las preguntas abiertas originales quedaron resueltas así:
 1. **Plataformas**: solo PWA web en fase 1, bien cuidada en móvil y escritorio. Apps nativas más adelante.
 2. **Stack**: TypeScript extremo a extremo confirmado: NestJS + PostgreSQL + Prisma en backend, React + TypeScript en frontend.
 3. **Nombre y dominio**: `todo.reflexionia.com` (app, API, feeds iCal, email-to-task, emails transaccionales).
-4. **Alojamiento**: su servidor Hetzner existente, Docker Compose (API, PostgreSQL, Redis si hace falta) y Caddy con HTTPS automático.
+4. **Alojamiento**: un VPS con Docker, Docker Compose (API, PostgreSQL, Redis si hace falta) y Caddy con HTTPS automático.
 5. **Usuarios**: lanzamiento con un solo usuario, pero modelo de datos multiusuario desde el principio y compartición de listas en el roadmap (caso de uso: lista compartida con su pareja para ver y editar).
 6. **Prioridad de módulos**: los hábitos con recordatorios entran en fase 1, con foco en que sean fáciles de adoptar y configurar. El Pomodoro pasa a fase 2 (V2).
-7. **Migración**: sin importación desde TickTick; se empieza desde cero. Importador fuera del MVP (RF-1701 aplazado).
+7. **Migración**: sin importación desde otro gestor; se empieza desde cero. Importador fuera del MVP (RF-1701 aplazado).
 8. **Integraciones**: prioridad 1) agentes personales (ChatGPT, Cursor, Instinct...) vía **servidor MCP + API REST con PATs de scopes granulares, requisito de fase 1**; 2) Telegram (consultar y crear tareas); 3) Google Calendar; 4) Google Drive.
 
 

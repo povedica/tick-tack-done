@@ -10,9 +10,15 @@ import type { Request, Response } from 'express';
 import { DomainException } from '../http/domain.exception';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthUser } from './auth-user';
-import { API_SCOPES, missingScopes } from './scopes';
-import { AUTHENTICATED_KEY, SCOPES_KEY } from './scopes.decorator';
-import { hashSecret, secretsMatch, SESSION_COOKIE } from './session-cookie';
+import { missingScopes, SESSION_SCOPES } from './scopes';
+import { PUBLIC_KEY, SCOPES_KEY } from './scopes.decorator';
+import {
+  hashSecret,
+  secretsMatch,
+  SESSION_COOKIE,
+  SESSION_IDLE_MS,
+  SESSION_MAX_AGE_MS,
+} from './session-cookie';
 import { TokenAudit } from './token-audit';
 import { applyRateLimitHeaders, TokenRateLimiter } from './token-rate-limit';
 import { hashPersonalAccessToken, parseBearer } from './token-secret';
@@ -43,13 +49,12 @@ export class ApiAuthGuard implements CanActivate {
       handler,
       cls,
     ]);
-    const authenticated =
-      this.reflector.getAllAndOverride<boolean | undefined>(AUTHENTICATED_KEY, [handler, cls]) ===
-      true;
-    const scopes = required ?? [];
-    if (!authenticated && scopes.length === 0) {
+    const isPublic =
+      this.reflector.getAllAndOverride<boolean | undefined>(PUBLIC_KEY, [handler, cls]) === true;
+    if (isPublic) {
       return true;
     }
+    const scopes = required ?? [];
 
     const request = context.switchToHttp().getRequest<Request & { user?: AuthUser }>();
     const response = context.switchToHttp().getResponse<Response>();
@@ -155,11 +160,7 @@ export class ApiAuthGuard implements CanActivate {
 
   private async devUser(emailHeader: string | undefined): Promise<AuthUser> {
     if (process.env.AUTH_MODE !== 'dev') {
-      throw new DomainException(
-        HttpStatus.UNAUTHORIZED,
-        'unauthorized',
-        'Authentication is not configured',
-      );
+      throw new DomainException(HttpStatus.UNAUTHORIZED, 'unauthorized', 'Authentication required');
     }
     const email = emailHeader?.trim() ?? '';
     if (email.length === 0) {
@@ -177,7 +178,7 @@ export class ApiAuthGuard implements CanActivate {
       email: user.email,
       timeZone: user.timeZone,
       completeChildren: user.taskCompleteChildren,
-      scopes: [...API_SCOPES],
+      scopes: [...SESSION_SCOPES],
       tokenId: null,
       sessionId: null,
     };
@@ -189,16 +190,23 @@ export class ApiAuthGuard implements CanActivate {
   ): Promise<AuthUser> {
     const row = await this.prisma.session.findFirst({
       where: { tokenHash: hashSecret(secret), revokedAt: null, expiresAt: { gt: new Date() } },
-      select: { id: true, userId: true, csrfToken: true },
+      select: { id: true, userId: true, csrfToken: true, lastUsedAt: true, createdAt: true },
     });
     if (row === null) {
+      throw new DomainException(HttpStatus.UNAUTHORIZED, 'unauthorized', 'Invalid session');
+    }
+    const now = Date.now();
+    const idle = now - row.lastUsedAt.getTime() > SESSION_IDLE_MS;
+    const absolute = now - row.createdAt.getTime() > SESSION_MAX_AGE_MS;
+    if (idle || absolute) {
+      await this.prisma.session.update({ where: { id: row.id }, data: { revokedAt: new Date() } });
       throw new DomainException(HttpStatus.UNAUTHORIZED, 'unauthorized', 'Invalid session');
     }
     assertCsrf(request, row.csrfToken);
     request.csrfToken = row.csrfToken;
     await this.prisma.session.update({ where: { id: row.id }, data: { lastUsedAt: new Date() } });
     const user = await this.loadUser(row.userId);
-    return { ...user, scopes: [...API_SCOPES], tokenId: null, sessionId: row.id };
+    return { ...user, scopes: [...SESSION_SCOPES], tokenId: null, sessionId: row.id };
   }
 }
 

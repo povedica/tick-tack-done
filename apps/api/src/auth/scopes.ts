@@ -1,7 +1,9 @@
 /**
- * Section 10.1. `profile:write` is not in that list, but PATCH /api/v1/me and token
- * administration already declare it, so a PAT has to be able to name it.
+ * Section 10.1. `account:admin` is a browser-session scope: it is not in `API_SCOPES`,
+ * so a personal access token cannot be created with it (S-15).
  */
+export const ACCOUNT_ADMIN_SCOPE = 'account:admin';
+
 export const API_SCOPES = [
   'tasks:read',
   'tasks:write',
@@ -29,10 +31,13 @@ export const API_SCOPES = [
 
 export type ApiScope = (typeof API_SCOPES)[number];
 
-const KNOWN: ReadonlySet<string> = new Set(API_SCOPES);
+/** Scopes a browser session or the dev header receives. Includes account administration. */
+export const SESSION_SCOPES = [...API_SCOPES, ACCOUNT_ADMIN_SCOPE] as const;
+
+const PAT_SCOPES: ReadonlySet<string> = new Set(API_SCOPES);
 
 export function isApiScope(value: string): value is ApiScope {
-  return KNOWN.has(value);
+  return PAT_SCOPES.has(value);
 }
 
 /** Scopes the route requires and the caller was not granted (RF-2002). */

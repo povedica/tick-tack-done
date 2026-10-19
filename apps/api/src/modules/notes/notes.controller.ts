@@ -102,7 +102,14 @@ export class NotesController {
       throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
     }
     const row = await this.prisma.$transaction(async (tx) => {
-      const saved = await tx.task.update({ where: { id }, data: { kind: dto.to } });
+      const updated = await tx.task.updateMany({
+        where: { id, ownerId: user.id, deletedAt: null },
+        data: { kind: dto.to },
+      });
+      if (updated.count !== 1) {
+        throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
+      }
+      const saved = await tx.task.findFirstOrThrow({ where: { id, ownerId: user.id } });
       await this.events.record(tx, actorOf(user), {
         type: dto.to === 'note' ? DomainEvent.noteCreated : DomainEvent.noteUpdated,
         entityType: dto.to,

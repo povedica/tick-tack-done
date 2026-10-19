@@ -12,6 +12,8 @@ import { DomainException } from '../http/domain.exception';
 import { asJson } from '../http/json';
 import { respondJson } from '../http/respond';
 import { PrismaService } from '../prisma/prisma.service';
+import { openField, sealField } from '../security/field-cipher';
+import { AttemptLimiter } from './attempt-limiter';
 import { Scopes } from './scopes.decorator';
 
 class TotpCodeDto {
@@ -44,7 +46,7 @@ export class TotpService {
     const secret = randomBase32(randomBytes(20));
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { totpSecret: secret, totpEnabled: false },
+      data: { totpSecret: sealField(secret), totpEnabled: false },
     });
     const otpauth = `otpauth://totp/Reflexionia:${encodeURIComponent(user.email)}?secret=${secret}&issuer=Reflexionia`;
     return { secret, otpauth };
@@ -58,7 +60,7 @@ export class TotpService {
     if (row?.totpSecret == null) {
       throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'Start 2FA first');
     }
-    const valid = await verifyTotp(row.totpSecret, code, Date.now());
+    const valid = await verifyTotp(openField(row.totpSecret), code, Date.now());
     if (!valid) {
       throw new DomainException(HttpStatus.UNAUTHORIZED, 'invalid_totp', 'Invalid code');
     }
@@ -71,6 +73,14 @@ export class TotpService {
         });
       }
       await tx.user.update({ where: { id: user.id }, data: { totpEnabled: true } });
+      await tx.session.updateMany({
+        where: {
+          userId: user.id,
+          revokedAt: null,
+          ...(user.sessionId === null ? {} : { id: { not: user.sessionId } }),
+        },
+        data: { revokedAt: new Date() },
+      });
       await this.events.record(tx, actorOf(user), {
         type: DomainEvent.totpEnabled,
         entityType: 'user',
@@ -92,6 +102,14 @@ export class TotpService {
       await tx.user.update({
         where: { id: user.id },
         data: { totpEnabled: false, totpSecret: null },
+      });
+      await tx.session.updateMany({
+        where: {
+          userId: user.id,
+          revokedAt: null,
+          ...(user.sessionId === null ? {} : { id: { not: user.sessionId } }),
+        },
+        data: { revokedAt: new Date() },
       });
       await tx.recoveryCode.deleteMany({ where: { ownerId: user.id } });
       await this.events.record(tx, actorOf(user), {
@@ -138,7 +156,7 @@ export class TotpService {
     if (
       row?.totpSecret != null &&
       code !== null &&
-      (await verifyTotp(row.totpSecret, code, Date.now()))
+      (await verifyTotp(openField(row.totpSecret), code, Date.now()))
     ) {
       return true;
     }
@@ -163,7 +181,10 @@ export class TotpService {
 @ApiTags('me')
 @Controller('me/totp')
 export class TotpController {
-  constructor(@Inject(TotpService) private readonly totp: TotpService) {}
+  constructor(
+    @Inject(TotpService) private readonly totp: TotpService,
+    @Inject(AttemptLimiter) private readonly attempts: AttemptLimiter,
+  ) {}
 
   @Post()
   @Scopes('profile:write')
@@ -173,6 +194,7 @@ export class TotpController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
+    await this.guardTotp(req, user.id);
     respondJson(req, res, 200, await this.totp.begin(user), false);
   }
 
@@ -185,7 +207,13 @@ export class TotpController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    respondJson(req, res, 200, await this.totp.confirm(user, dto.code), false);
+    await this.guardTotp(req, user.id);
+    try {
+      respondJson(req, res, 200, await this.totp.confirm(user, dto.code), false);
+    } catch (error) {
+      await this.attempts.recordFailure(req.ip ?? 'unknown', `totp:${user.id}`);
+      throw error;
+    }
   }
 
   @Post('disable')
@@ -194,10 +222,23 @@ export class TotpController {
   async disable(
     @CurrentUser() user: AuthUser,
     @Body() dto: TotpCodeDto,
+    @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    await this.totp.disable(user, dto.code);
+    await this.guardTotp(req, user.id);
+    try {
+      await this.totp.disable(user, dto.code);
+    } catch (error) {
+      await this.attempts.recordFailure(req.ip ?? 'unknown', `totp:${user.id}`);
+      throw error;
+    }
     res.status(204).end();
+  }
+
+  private async guardTotp(req: Request, userId: string): Promise<void> {
+    const ip = req.ip ?? 'unknown';
+    await this.attempts.assertAllowed(ip, `totp:${userId}`);
+    await this.attempts.recordAttempt(ip);
   }
 }
 

@@ -5,7 +5,9 @@ import { EventRecorder } from '../events/event-recorder';
 import { DomainException } from '../http/domain.exception';
 import { PrismaService } from '../prisma/prisma.service';
 import type { LoginDto, RegisterDto, SessionListItemDto, SessionResponseDto } from './auth.dto';
-import { hashPassword, verifyPassword } from './passwords';
+import { AttemptLimiter } from './attempt-limiter';
+import { hashPassword, verifyPresentedPassword } from './passwords';
+import { requireBrowserSession } from './session-access';
 import { newSessionSecret, SESSION_MAX_AGE_MS } from './session-cookie';
 import { TotpService } from './totp.controller';
 
@@ -15,9 +17,14 @@ export class AuthService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
     @Inject(TotpService) private readonly totp: TotpService,
+    @Inject(AttemptLimiter) private readonly attempts: AttemptLimiter,
   ) {}
 
   async register(dto: RegisterDto, meta: RequestMeta): Promise<IssuedLogin> {
+    const email = normalizeEmail(dto.email);
+    const ip = meta.ip ?? 'unknown';
+    await this.attempts.assertAllowed(ip, email);
+    await this.attempts.recordAttempt(ip);
     const existing = await this.prisma.user.count({ where: { deletedAt: null } });
     if (existing > 0 && process.env.REGISTRATION_OPEN !== 'true') {
       throw new DomainException(
@@ -26,7 +33,6 @@ export class AuthService {
         'Registration is closed',
       );
     }
-    const email = normalizeEmail(dto.email);
     const passwordHash = await hashPassword(dto.password);
     try {
       const user = await this.prisma.$transaction(async (tx) => {
@@ -58,19 +64,35 @@ export class AuthService {
 
   async login(dto: LoginDto, meta: RequestMeta): Promise<IssuedLogin> {
     const email = normalizeEmail(dto.email);
+    const ip = meta.ip ?? 'unknown';
+    await this.attempts.assertAllowed(ip, email);
     const user = await this.prisma.user.findFirst({
       where: { email, deletedAt: null },
       select: { id: true, passwordHash: true },
     });
-    const hash = user?.passwordHash;
-    const valid = hash !== undefined && hash !== null && (await verifyPassword(hash, dto.password));
+    const valid = await verifyPresentedPassword(user?.passwordHash ?? null, dto.password);
     if (user === null || !valid) {
+      await this.attempts.recordFailure(ip, email);
+      if (user !== null) {
+        await this.prisma.activityLog.create({
+          data: {
+            ownerId: user.id,
+            actorId: user.id,
+            entityType: 'session',
+            entityId: user.id,
+            action: 'accessed',
+            changes: { outcome: 'login_failed', ip },
+          },
+        });
+      }
       throw new DomainException(
         HttpStatus.UNAUTHORIZED,
         'invalid_credentials',
         'Invalid credentials',
       );
     }
+    await this.attempts.recordAttempt(ip);
+    await this.attempts.clearSubject(email);
     await this.totp.assertLogin(user.id, dto);
     return this.openSession(user.id, meta);
   }
@@ -94,6 +116,7 @@ export class AuthService {
   }
 
   async list(user: AuthUser): Promise<SessionListItemDto[]> {
+    requireBrowserSession(user);
     const rows = await this.prisma.session.findMany({
       where: { userId: user.id, revokedAt: null, expiresAt: { gt: new Date() } },
       orderBy: { createdAt: 'desc' },
@@ -108,6 +131,7 @@ export class AuthService {
   }
 
   async revoke(user: AuthUser, id: string): Promise<void> {
+    requireBrowserSession(user);
     const row = await this.prisma.session.findFirst({
       where: { id, userId: user.id, revokedAt: null },
     });

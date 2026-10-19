@@ -3,7 +3,7 @@
 Informe para corregir todos los fallos vistos al crear 4 listas y 20 tareas en
 `https://todo.reflexionia.com`, por la web, por `POST /api/v1` y por el bot
 `@reflexionia_todo_bot`. Esta spec es el encargo de implementación. No reabre
-la sección 21 de `ticktick-clone-spec-v1.1.md`, no publica una v1.2 y no
+la sección 21 de `especificacion-producto-v1.1.md`, no publica una v1.2 y no
 rehace el login (ya está corregido; ver el final).
 
 Trabaja en una rama `fix/prueba-canales` desde `main` actualizado con lo que
@@ -32,7 +32,7 @@ correcto. El desborde `+N` es el fallo del calendario, no el cálculo del día.
 
 Hoy la spec y el test dicen lo contrario de lo que hay que conseguir.
 
-- `docs/spec/ticktick-clone-spec-v1.1.md`, RF-107 (cerca de la línea 368) y el
+- `docs/spec/especificacion-producto-v1.1.md`, RF-107 (cerca de la línea 368) y el
   párrafo de `POST /tasks` (cerca de la línea 598): si `^lista` o `~lista` no
   existe, la tarea va al inbox y se avisa `list_not_found`; una etiqueta
   desconocida no se crea y avisa `tag_not_found`.

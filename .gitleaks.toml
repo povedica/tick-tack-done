@@ -1,0 +1,10 @@
+[allowlist]
+description = "Known test fixtures"
+regexTarget = "line"
+regexes = [
+  '''correct-horse''',
+  '''rfx_pat_secret''',
+  '''dev-only''',
+  '''change-me-openssl-rand-hex-32''',
+  '''generar-con-openssl-rand-hex-32''',
+]

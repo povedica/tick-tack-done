@@ -1,7 +1,10 @@
 #!/bin/sh
-# Prueba semanal de restauración. Lee el último directorio de /opt/todo/backups.
+# Weekly restore check. Paths come from the environment.
 set -eu
 
-cd /opt/todo/app
-export BACKUP_DIR=/opt/todo/backups
+: "${APP_DIR:?Set APP_DIR}"
+: "${BACKUP_DIR:?Set BACKUP_DIR}"
+
+cd "$APP_DIR"
+export BACKUP_DIR
 exec ./scripts/restore-verify.sh

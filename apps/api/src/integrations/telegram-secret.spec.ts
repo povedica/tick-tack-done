@@ -1,14 +1,22 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { telegramSecretMatches, telegramWebhookSecret } from './telegram-secret';
 
 describe('telegram webhook secret', () => {
-  it('RF-2003: the header is a hex digest, not the bot token', () => {
-    const token = '123456:secret';
-    const secret = telegramWebhookSecret(token);
-    expect(secret).toMatch(/^[0-9a-f]{64}$/);
-    expect(secret.includes(token)).toBe(false);
-    expect(telegramSecretMatches(secret, token)).toBe(true);
-    expect(telegramSecretMatches(token, token)).toBe(false);
-    expect(telegramSecretMatches(undefined, token)).toBe(false);
+  const previous = process.env.TELEGRAM_WEBHOOK_SECRET;
+
+  afterEach(() => {
+    if (previous === undefined) {
+      delete process.env.TELEGRAM_WEBHOOK_SECRET;
+    } else {
+      process.env.TELEGRAM_WEBHOOK_SECRET = previous;
+    }
+  });
+
+  it('matches only the configured secret, not the bot token', () => {
+    process.env.TELEGRAM_WEBHOOK_SECRET = 'webhook_secret_value';
+    expect(telegramWebhookSecret()).toBe('webhook_secret_value');
+    expect(telegramSecretMatches('webhook_secret_value')).toBe(true);
+    expect(telegramSecretMatches('123456:telegram-bot-token')).toBe(false);
+    expect(telegramSecretMatches(undefined)).toBe(false);
   });
 });

@@ -1,11 +1,29 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class DeleteMeDto {
   @ApiProperty({ description: 'Must equal the account email' })
   @IsString()
   @MaxLength(200)
   confirmation!: string;
+
+  @ApiProperty({ description: 'Current password' })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  password!: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(12)
+  totp_code?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  recovery_code?: string;
 }
 
 export class UpdateMeDto {
@@ -64,19 +82,19 @@ export class InboundEmailAddressDto {
 }
 
 export class MeResponseDto {
-  @ApiProperty()
+  @ApiProperty({ type: String })
   id!: string;
 
-  @ApiProperty()
+  @ApiProperty({ type: String })
   email!: string;
 
-  @ApiProperty()
+  @ApiProperty({ type: String })
   display_name!: string;
 
-  @ApiProperty()
+  @ApiProperty({ type: String })
   time_zone!: string;
 
-  @ApiProperty()
+  @ApiProperty({ type: String })
   locale!: string;
 
   @ApiProperty({ enum: ['ask', 'complete', 'leave'] })

@@ -17,7 +17,7 @@ import type { AuthUser } from './auth-user';
 import { LoginDto, RegisterDto, SessionListItemDto, SessionResponseDto } from './auth.dto';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './current-user.decorator';
-import { Authenticated } from './scopes.decorator';
+import { Authenticated, Public } from './scopes.decorator';
 import { SESSION_COOKIE, sessionCookieOptions } from './session-cookie';
 
 @ApiTags('auth')
@@ -26,6 +26,7 @@ export class AuthController {
   constructor(@Inject(AuthService) private readonly auth: AuthService) {}
 
   @Post('register')
+  @Public()
   @ApiOperation({
     summary:
       'Create the account and a session. Closed after the first user unless REGISTRATION_OPEN.',
@@ -42,6 +43,7 @@ export class AuthController {
   }
 
   @Post('login')
+  @Public()
   @HttpCode(200)
   @ApiOperation({ summary: 'Open a revocable httpOnly session and return the CSRF token' })
   @ApiOkResponse({ type: SessionResponseDto })

@@ -1,0 +1,3 @@
+# Example crontab. Replace <APP_DIR> and <BACKUP_DIR> on the host; do not commit real paths.
+# 0 4 * * * <APP_DIR>/deploy/production/cron-backup.sh >> <BACKUP_DIR>/backup.log 2>&1
+# 0 5 * * 0 <APP_DIR>/deploy/production/cron-restore-verify.sh >> <BACKUP_DIR>/restore.log 2>&1

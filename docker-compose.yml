@@ -1,4 +1,4 @@
-# Producción: instancia única en el servidor Hetzner (sección 4, D4).
+# Producción: instancia única en el VPS (sección 4, D4).
 # Uso: docker compose up -d --build
 services:
   caddy:

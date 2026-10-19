@@ -1,7 +1,9 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 
-export const SESSION_COOKIE = 'rfx_session';
+/** `__Host-` requires Secure, Path=/ and no Domain (S-10). */
+export const SESSION_COOKIE = '__Host-rfx_session';
 export const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+export const SESSION_IDLE_MS = 7 * 24 * 60 * 60 * 1000;
 
 export interface IssuedSession {
   readonly token: string;
@@ -27,15 +29,15 @@ export function secretsMatch(left: string, right: string): boolean {
 
 export function sessionCookieOptions(): {
   httpOnly: true;
-  sameSite: 'lax';
-  secure: boolean;
+  sameSite: 'strict';
+  secure: true;
   path: string;
   maxAge: number;
 } {
   return {
     httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    secure: true,
     path: '/',
     maxAge: SESSION_MAX_AGE_MS,
   };

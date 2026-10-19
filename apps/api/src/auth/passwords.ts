@@ -17,3 +17,15 @@ export async function verifyPassword(hash: string, password: string): Promise<bo
     return false;
   }
 }
+
+let dummyHash: string | null = null;
+
+/** Always runs Argon2 so a missing account is not faster than a wrong password (S-01). */
+export async function verifyPresentedPassword(
+  hash: string | null,
+  password: string,
+): Promise<boolean> {
+  dummyHash ??= await hashPassword('not-a-real-account');
+  const ok = await verifyPassword(hash ?? dummyHash, password);
+  return hash !== null && ok;
+}

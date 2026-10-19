@@ -1,13 +1,12 @@
-# Reverse proxy con HTTPS automático para todo.reflexionia.com (sección 4, D4)
-todo.reflexionia.com {
+# Reverse proxy with automatic HTTPS. Set the site address to your domain.
+{$SITE_ADDRESS:localhost} {
 	encode zstd gzip
 
-	# App web (PWA)
-	handle /* {
-		reverse_proxy web:8080
+	@docs path /api/docs*
+	handle @docs {
+		respond 404
 	}
 
-	# Correo entrante público: 25 MB (RF-105) y el límite de ritmo lo aplica la API.
 	handle /api/v1/inbound/email {
 		request_body {
 			max_size 25MB
@@ -15,7 +14,6 @@ todo.reflexionia.com {
 		reverse_proxy api:3000
 	}
 
-	# API REST v1 + servidor MCP (mismo proceso NestJS)
 	handle /api/* {
 		request_body {
 			max_size 26MB
@@ -26,12 +24,18 @@ todo.reflexionia.com {
 		reverse_proxy api:3000
 	}
 
-	# Cabeceras de seguridad (sección 15)
+	handle /* {
+		reverse_proxy web:8080
+	}
+
 	header {
-		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
 		X-Content-Type-Options nosniff
 		X-Frame-Options DENY
 		Referrer-Policy strict-origin-when-cross-origin
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+		Permissions-Policy "camera=(), microphone=(), payment=(), usb=()"
+		Cross-Origin-Opener-Policy "same-origin"
 		-Server
 	}
 }

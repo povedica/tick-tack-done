@@ -2353,6 +2353,10 @@ export interface components {
         DeleteMeDto: {
             /** @description Must equal the account email */
             confirmation: string;
+            /** @description Current password */
+            password: string;
+            totp_code?: string;
+            recovery_code?: string;
         };
         MeResponseDto: {
             id: string;

@@ -1,25 +1,60 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { actorOf, type AuthUser } from './auth-user';
+import type { DeleteMeDto } from './me.dto';
+import { verifyPassword } from './passwords';
+import { requireBrowserSession } from './session-access';
 import { DomainEvent } from '../events/domain-events';
 import { EventRecorder } from '../events/event-recorder';
 import { DomainException } from '../http/domain.exception';
 import { PrismaService } from '../prisma/prisma.service';
+import { sendSecurityNotice } from '../security/security-mail';
+import { TotpService } from './totp.controller';
 
 @Injectable()
 export class AccountService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
+    @Inject(TotpService) private readonly totp: TotpService,
   ) {}
 
-  async delete(user: AuthUser, confirmation: string): Promise<void> {
-    if (confirmation !== user.email) {
+  async delete(user: AuthUser, dto: DeleteMeDto): Promise<void> {
+    requireBrowserSession(user);
+    if (dto.confirmation !== user.email) {
       throw new DomainException(
         HttpStatus.BAD_REQUEST,
         'confirmation_required',
         'Confirmation must be the account email',
       );
     }
+    const row = await this.prisma.user.findFirst({
+      where: { id: user.id, deletedAt: null },
+      select: { passwordHash: true, email: true },
+    });
+    if (row?.passwordHash == null) {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'password_required',
+        'Set a password before deleting the account',
+      );
+    }
+    const passwordOk = await verifyPassword(row.passwordHash, dto.password);
+    if (!passwordOk) {
+      throw new DomainException(
+        HttpStatus.UNAUTHORIZED,
+        'invalid_credentials',
+        'Invalid credentials',
+      );
+    }
+    await this.totp.assertLogin(user.id, {
+      ...(dto.totp_code === undefined ? {} : { totp_code: dto.totp_code }),
+      ...(dto.recovery_code === undefined ? {} : { recovery_code: dto.recovery_code }),
+    });
+    await sendSecurityNotice(
+      row.email,
+      'Account deletion',
+      'Your account is being deleted. If this was not you, the deletion has already been confirmed with your password.',
+    );
     await this.prisma.$transaction(async (tx) => {
       await this.events.record(tx, actorOf(user), {
         type: DomainEvent.accountDeleted,

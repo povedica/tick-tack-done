@@ -50,12 +50,32 @@ upload_drive() {
     node /backup-to-drive.mjs /backup
 }
 
+seal_for_upload() {
+  if ! command -v age >/dev/null 2>&1; then
+    echo "[backup] age is required before an off-site copy" >&2
+    exit 1
+  fi
+  if [ -z "${AGE_RECIPIENT:-}" ]; then
+    echo "[backup] AGE_RECIPIENT is required before an off-site copy" >&2
+    exit 1
+  fi
+  local sealed="$1.tar.age"
+  tar -C "$(dirname "$1")" -cf - "$(basename "$1")" | age -r "$AGE_RECIPIENT" -o "$sealed"
+  printf '%s\n' "$sealed"
+}
+
 if [ -n "${BACKUP_REMOTE:-}" ]; then
+  sealed="$(seal_for_upload "$out")"
   echo "[backup] copiando a destino externo: $BACKUP_REMOTE"
-  rclone copy "$out" "$BACKUP_REMOTE/$STAMP"
+  rclone copy "$sealed" "$BACKUP_REMOTE/$STAMP"
+  rm -f "$sealed"
 elif [ -n "${GOOGLE_DRIVE_FOLDER_ID:-}" ]; then
+  sealed="$(seal_for_upload "$out")"
+  stage="$(mktemp -d)"
+  mv "$sealed" "$stage/"
   echo "[backup] volcando a Google Drive"
-  upload_drive "$out"
+  upload_drive "$stage"
+  rm -rf "$stage"
 else
   echo "[backup] AVISO: ni BACKUP_REMOTE ni GOOGLE_DRIVE_FOLDER_ID; el backup NO sale de la máquina (incumple RF-1704)"
   exit 1

@@ -4,7 +4,7 @@
 - **Fecha:** 18 de octubre de 2026
 - **Estado:** Propuesta inicial completa, lista para implementar por fases
 - **Audiencia:** agente de desarrollo (Cursor) / equipo de ingeniería
-- **Documento base:** especificación de producto v1.1 (`docs/spec/ticktick-clone-spec-v1.1.md`); esta UI spec no la sustituye: detalla **cómo se ve y se comporta** lo que la v1.1 define
+- **Documento base:** especificación de producto v1.1 (`docs/spec/especificacion-producto-v1.1.md`); esta UI spec no la sustituye: detalla **cómo se ve y se comporta** lo que la v1.1 define
 - **Alcance técnico:** PWA web (`apps/web`, React 19 + TypeScript + Vite, react-router 7, TanStack Query, Zustand, Workbox). Único cliente de fase 1, cuidado en móvil y escritorio (D1).
 
 ---
@@ -34,11 +34,11 @@ Estas decisiones no estaban en la spec v1.1. Se han elegido defaults sensatos y 
 | # | Decisión | Default elegido | Justificación |
 |---|----------|-----------------|---------------|
 | UI-D1 | Idioma de la UI | **Español por defecto, i18n es/en desde el MVP** | El usuario es hispanohablante; el código ya tiene `i18n/es.ts` y `i18n/en.ts` **[EXISTE]**. La spec exige i18n es+en (sección 16). `navigator.language` decide el arranque, con selector en ajustes que lo sobrescribe. |
-| UI-D2 | Estilo visual | **Look tipo TickTick medido sobre la app real** (tema `blue-gradient-theme`, 2026-10-18): fondo `#ffffff`, sidebar `#f2f5fe`, rail `#4772fa`, acento `#4772fa`, tinta `#191919`. El nombre visible sigue siendo «tick-tack-done». | Valores medidos del DOM de TickTick. La identidad propia queda en el nombre, no en una paleta crema. |
-| UI-D3 | Tipografía UI vs contenido | **Sans del sistema en toda la UI, títulos incluidos** (`system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`). La serif solo puede usarse en el cuerpo de las notas. | Es la pila exacta de TickTick. Un título serif rompe la densidad de las listas. |
+| UI-D2 | Estilo visual | **Sistema visual del proyecto** (definido 2026-10-18): fondo `#ffffff`, sidebar `#f2f5fe`, rail `#4772fa`, acento `#4772fa`, tinta `#191919`. El nombre visible sigue siendo «tick-tack-done». | Valores del sistema de diseño. La identidad propia queda en el nombre. |
+| UI-D3 | Tipografía UI vs contenido | **Sans del sistema en toda la UI, títulos incluidos** (`system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`). La serif solo puede usarse en el cuerpo de las notas. | Es la pila del sistema. Un título serif rompe la densidad de las listas. |
 | UI-D4 | Tema claro/oscuro | **Auto por defecto** (sigue `prefers-color-scheme`), con selector Claro/Oscuro/Auto en ajustes | La spec lo prevé en `User.theme` (5.17) y RF-1903. |
-| UI-D5 | Modo oscuro | **Paleta oscura medida** (`night-dark-theme`): fondo `#242424`, sidebar `#1c1c1c`, rail `#242424`, tarjetas `#222222`, texto `#ffffff`, hover `rgba(255,255,255,0.04)`, acento `#4772fa`. Las opacidades de tinta se invierten (blanco con alpha). | Es el oscuro real de TickTick, no un invertido cálido. `--ink-3` sube a 0.65 para contraste AA sobre la sidebar. |
-| UI-D6 | Densidad | **Cómoda por defecto**, opción Compacta en ajustes | TickTick ofrece densidad; la compacta ayuda con listas de 100+ tareas. |
+| UI-D5 | Modo oscuro | **Paleta oscura del proyecto** (`night-dark-theme`): fondo `#242424`, sidebar `#1c1c1c`, rail `#242424`, tarjetas `#222222`, texto `#ffffff`, hover `rgba(255,255,255,0.04)`, acento `#4772fa`. Las opacidades de tinta se invierten (blanco con alpha). | `--ink-3` sube a 0.65 para contraste AA sobre la sidebar. |
+| UI-D6 | Densidad | **Cómoda por defecto**, opción Compacta en ajustes | La opción compacta ayuda con listas de 100+ tareas. |
 | UI-D7 | Navegación móvil | **Barra inferior** con 4 destinos + FAB central de captura | Estándar PWA; el pulgar llega a todo. |
 | UI-D8 | Framework de CSS | **CSS plano con custom properties** (tokens en sección 3), sin Tailwind ni CSS-in-JS | Coherente con `styles.css` actual; un archivo de tokens + hojas por feature. Sin nueva dependencia. |
 | UI-D9 | Iconos | **lucide-react** (MIT, tree-shakeable) + emoji nativo para listas/etiquetas | Set consistente, ligero, sin diseñar iconos propios. |
@@ -57,7 +57,7 @@ Estas decisiones no estaban en la spec v1.1. Se han elegido defaults sensatos y 
 6. **Todo tiene teclado**: cada acción de ratón tiene atajo o foco equivalente (WCAG 2.1 AA, RF-1902).
 7. **Los estados vacíos enseñan**: cada pantalla vacía dice qué es, por qué está vacía y cuál es el primer paso, con un CTA real (no arte decorativo).
 8. **Nada de sorpresas destructivas**: borrar pasa por papelera con undo de 10 s (RF-210); las acciones irreversibles (vaciar papelera, revocar token, borrar cuenta) piden confirmación explícita con el nombre de lo que se va a perder.
-9. **Paridad TickTick donde ayuda, identidad propia donde suma**: la disposición general (3 paneles, smart lists, kanban, hábitos) replica el modelo mental de TickTick; el estilo visual y las extensiones (dashboard, reporte, revisiones) son propios.
+9. **El modelo de tres paneles, listas inteligentes, kanban y hábitos es el de la spec de producto; el estilo visual y las extensiones (dashboard, reporte, revisiones) son propios.
 10. **Responsive de verdad**: móvil primero en componentes; escritorio aprovecha el ancho con 3 paneles; ninguna función clave depende de hover.
 
 ---
@@ -234,7 +234,7 @@ Convenciones de query params compartidos: `?view=list|kanban|timeline` (sobrescr
 
 ### 4.2 Layout de escritorio (≥1024 px)
 
-Tres paneles como TickTick:
+Tres paneles:
 
 ```
 ┌────────────┬──────────────────────────────────┬──────────────────┐
@@ -304,15 +304,15 @@ Borde `--border-strong`, radio `--radius-lg`, padding `0.75rem` **[EXISTE en cap
 
 ### 5.4 `Checkbox` de tarea
 
-Cuadrado redondeado de 20 px (radio 6 px), borde 2 px con **color de prioridad** (rojo/naranja/azul/gris; TickTick usa este patrón y lo replica la spec, RF-502). Estados: sin marcar, hover (fondo `--surface-3`), marcando (animación de check 180 ms, la fila se atenúa y colapsa si la vista oculta completadas), indeterminado (no usado), focus-visible, disabled. En tarjetas kanban es 18 px. `aria-label="Completar «título»"`.
+Cuadrado redondeado de 20 px (radio 6 px), borde 2 px con **color de prioridad** (rojo/naranja/azul/gris; el color de prioridad sigue RF-502). Estados: sin marcar, hover (fondo `--surface-3`), marcando (animación de check 180 ms, la fila se atenúa y colapsa si la vista oculta completadas), indeterminado (no usado), focus-visible, disabled. En tarjetas kanban es 18 px. `aria-label="Completar «título»"`.
 
 ### 5.5 `Tag` (chip)
 
-Pildora con fondo del color de etiqueta al 15 % y texto del color (calculado para contraste AA en ambos temas). Variantes: `readonly` (en tarjeta de tarea), `removable` (con `×` en editores), `add` (`+` punteado). Altura 22 px, `--fs-xs`. TickTick renderiza las etiquetas como pills inline en la fila **[verificado en la app real]**; igual.
+Pildora con fondo del color de etiqueta al 15 % y texto del color (calculado para contraste AA en ambos temas). Variantes: `readonly` (en tarjeta de tarea), `removable` (con `×` en editores), `add` (`+` punteado). Altura 22 px, `--fs-xs`. Las etiquetas se renderizan como pills inline en la fila.
 
 ### 5.6 `Badge` de contador
 
-Contadores de sidebar y cabeceras de grupo: `--fs-xs` en `--ink-3`, sin fondo (TickTick los muestra como número suelto a la derecha **[verificado]**). Badge de notificación (p. ej. recordatorios pendientes): punto rojo 8 px o cápsula con número sobre `--danger`.
+Contadores de sidebar y cabeceras de grupo: `--fs-xs` en `--ink-3`, sin fondo (número suelto a la derecha). Badge de notificación (p. ej. recordatorios pendientes): punto rojo 8 px o cápsula con número sobre `--danger`.
 
 ### 5.7 `Toast` (notificaciones efímeras)
 
@@ -328,7 +328,7 @@ Bottom sheet con asa de arrastre, posiciones 60 %/100 %, cierra al arrastrar aba
 
 ### 5.10 `Menu` / `ContextMenu`
 
-Menú emergente anclado (listas de la sidebar, `...` de vistas, clic derecho en tarea). Items con icono + etiqueta + atajo opcional; separadores; item `danger` al final; submenú a la derecha en escritorio, a pantalla completa en móvil. Navegación con flechas, `Home`/`End`, apertura con `Enter`/`Espacio`/`↓`, cierre `Esc` devolviendo foco. TickTick abre el menú contextual de tarea también con clic derecho en la fila **[verificado como patrón estándar]**; replicar.
+Menú emergente anclado (listas de la sidebar, `...` de vistas, clic derecho en tarea). Items con icono + etiqueta + atajo opcional; separadores; item `danger` al final; submenú a la derecha en escritorio, a pantalla completa en móvil. Navegación con flechas, `Home`/`End`, apertura con `Enter`/`Espacio`/`↓`, cierre `Esc` devolviendo foco. El menú contextual de tarea también se abre con clic derecho en la fila.
 
 ### 5.11 `Popover` y `Tooltip`
 
@@ -381,7 +381,7 @@ La captura es la prioridad máxima del producto (spec 9.1). Lo construido en `fe
 | Dictado por voz | Web Speech API → mismo pipeline | **[EXISTE]** |
 | Email-to-task | `<token>@in.todo.reflexionia.com` | **[EXISTE backend]**; su ajuste se gestiona en §20.8 |
 | Ruta directa `/quick-add` | deep link compartible | **[EXISTE]** |
-| Añadir inline en una lista | fila "Añadir tarea en «lista»" al pie de cada grupo/sección | NUEVO (TickTick lo tiene al inicio de la vista **[verificado]**: "Add task to 'inbox'") |
+| Añadir inline en una lista | fila "Añadir tarea en «lista»" al pie de cada grupo/sección | NUEVO (fila "Añadir tarea en «inbox»") |
 | Paleta de comandos | comando "Nueva tarea" | §17 |
 | V2: widget/atajo global de escritorio | fuera de PWA | spec RF-106 |
 
@@ -416,13 +416,13 @@ La pantalla que Pablo abre por defecto; es su "qué toca". Base **[EXISTE]** (ho
 
 ### 7.1 Layout
 
-Cabecera: título "Hoy" + fecha ("sábado, 17 de octubre"), a la derecha: botón de sugerencias de la **revisión diaria** (RF-2301, icono bombilla como TickTick), selector de orden/grupo, menú `...` (ocultar completadas, mostrar detalles, opciones de vista, imprimir — mismo menú que TickTick **[verificado]**).
+Cabecera: título "Hoy" + fecha ("sábado, 17 de octubre"), a la derecha: botón de sugerencias de la **revisión diaria** (RF-2301, icono bombilla), selector de orden/grupo, menú `...` (ocultar completadas, mostrar detalles, opciones de vista, imprimir).
 
 Contenido (vista lista, RF-1001):
 
 1. **Bloque de revisión diaria** (colapsable, RF-2301): la propuesta de 3-7 tareas del backend (`GET /api/v1/review/daily`) como tarjetas con checkbox "para hoy"; aceptar toda la propuesta, reordenar por arrastre o descartar elementos con un gesto/botón. Marca visual "en tu plan de hoy" (borde acento a la izquierda) que persiste en la vista. Vacío: si ya se hizo la revisión, el bloque se colapsa a un resumen ("Plan de hoy: 5 tareas · rehacer").
 2. **Vencidas** (si las hay): grupo fijo arriba, contador, fechas en `--danger` (RF-603).
-3. **Tareas de hoy** agrupadas según `?group=` (default: `priority`, como el Today de TickTick **[verificado: High 17 / Medium 18]**), con cabeceras plegables y contador.
+3. **Tareas de hoy** agrupadas según `?group=` (default: `priority`, agrupación por prioridad), con cabeceras plegables y contador.
 4. **Hábitos de hoy**: franja inferior opcional (activable en ajustes) con los hábitos del día y su check-in rápido (§15.3). Default: activada.
 5. **Eventos de calendario** (V1, RF-1103): sección "Hoy en tu calendario" con eventos externos de solo lectura.
 
@@ -432,7 +432,7 @@ Fila de tarea (§9.2), cabecera de grupo, inline add, `EmptyState` ("Despejado. 
 
 ### 7.3 Interacciones
 
-Completar con checkbox o `Espacio`; reordenar por arrastre dentro del grupo (orden manual persistido si `?sort=manual`); clic abre detalle; swipe móvil (§4.4); menú contextual con "Aplazar a mañana / semana que viene / fecha" (RF-605). `Tab+1` fija hoy, `Tab+2` mañana (paridad atajos TickTick, §21).
+Completar con checkbox o `Espacio`; reordenar por arrastre dentro del grupo (orden manual persistido si `?sort=manual`); clic abre detalle; swipe móvil (§4.4); menú contextual con "Aplazar a mañana / semana que viene / fecha" (RF-605). `Tab+1` fija hoy, `Tab+2` mañana (atajos, §21).
 
 ### 7.4 Estados
 
@@ -458,7 +458,7 @@ Vista lista normal sobre el Project de sistema `is_inbox` (RF-303), destino de c
 ### 8.1 Particularidades
 
 - Cabecera "Bandeja" con contador y acción "Procesar todo" (abre el modo procesamiento, abajo).
-- Inline add arriba ("Añadir tarea en «Bandeja»") como en TickTick **[verificado]**.
+- Inline add arriba ("Añadir tarea en «Bandeja»").
 - Orden por defecto: creación descendente (lo capturado nuevo arriba).
 - **Modo procesar** (extensión propia barata, útil con RF-2302): recorrido tarea a tarea con acciones grandes en la parte inferior: `Fijar fecha` · `Mover a lista` · `Etiquetar` · `Hecha` · `Borrar` · `Saltar`; atajos de una tecla (D/M/T/E/Supr/S). Al terminar, EmptyState de celebración sobria ("Bandeja vacía").
 - Las tareas creadas por email muestran un icono de origen (`source`, 5.1) con tooltip "por email"; igual para `api`/`automation` en todas las vistas (trazabilidad visible, espíritu de 10.1 auditoría).
@@ -479,14 +479,14 @@ Cabecera: color/nombre de lista (editable inline), contador, acciones: inline ad
 
 ### 9.2 Fila de tarea (componente `TaskRow`)
 
-Anatomía (de TickTick **[verificado]** y ampliada):
+Anatomía:
 
 ```
 [☐ prio] Título con #etiquetas como pills        [⤴ recurrencia] [📎 n] [⚑ x/y] [lista] [fecha]
 ```
 
-- Checkbox con color de prioridad (5.4). Título en `--fs-base`; las etiquetas del título se renderizan como `Tag` pills **[verificado: pills inline]**.
-- Metadatos a la derecha en `--fs-xs` `--ink-3`: icono de recurrencia (tooltip con la regla en lenguaje natural), adjuntos con contador, progreso de checklist x/y (RF-207), subtareas con contador **[verificado: badge numérico]**, nombre de lista (fuera de su lista), fecha (roja si vencida RF-603, `--ink-3` si futura, acento si hoy).
+- Checkbox con color de prioridad (5.4). Título en `--fs-base`; las etiquetas del título se renderizan como `Tag` pills.
+- Metadatos a la derecha en `--fs-xs` `--ink-3`: icono de recurrencia (tooltip con la regla en lenguaje natural), adjuntos con contador, progreso de checklist x/y (RF-207), subtareas con contador, nombre de lista (fuera de su lista), fecha (roja si vencida RF-603, `--ink-3` si futura, acento si hoy).
 - Fila seleccionada: fondo `--accent-soft`. Selección múltiple: `Shift+clic` rango, `Ctrl+clic` individual, `Ctrl+A` la vista; barra de acciones masiva flotante abajo (completar, fecha, prioridad, etiquetas, mover, borrar) (RF-208).
 - Drag & drop: asa al hover en escritorio; en móvil, pulsación larga. Drop entre grupos cambia el atributo del grupo (fecha, etiqueta, sección...) con undo.
 
@@ -510,9 +510,9 @@ Anatomía (de TickTick **[verificado]** y ampliada):
 
 ### 10.1 Kanban (`?view=kanban`, RF-1002)
 
-- Columnas = secciones de la lista **[verificado en TickTick: columnas master-ia/tu-rugby/picos-26 con contador y botón +]**. Cabecera: nombre, contador, `＋` (crea en esa columna), menú (renombrar, WIP limit, colapsar, borrar).
-- Dentro de cada columna, grupos plegables por fecha (Vencidas / Sin fecha / Completadas) **[verificado]**; alternativa de agrupación por etiqueta/prioridad/asignado (V2 asignado).
-- Tarjeta (`TaskCard`): checkbox mini con color de prioridad, título 2 líneas, pills de etiqueta, fecha (roja si vencida), iconos de adjuntos/recurrencia/checklist **[verificado]**.
+- Columnas = secciones de la lista columnas con contador y botón +. Cabecera: nombre, contador, `＋` (crea en esa columna), menú (renombrar, WIP limit, colapsar, borrar).
+- Dentro de cada columna, grupos plegables por fecha (Vencidas / Sin fecha / Completadas); alternativa de agrupación por etiqueta/prioridad/asignado (V2 asignado).
+- Tarjeta (`TaskCard`): checkbox mini con color de prioridad, título 2 líneas, pills de etiqueta, fecha (roja si vencida), iconos de adjuntos/recurrencia/checklist.
 - Drag & drop entre columnas actualiza `column_id`; entre grupos de fecha, reprograma; WIP limit opcional por columna (extensión propia): al superarlo, la cabecera pasa a `--warning` con tooltip "límite N superado" (no bloquea).
 - Progreso por columna: x completadas / total con `ProgressBar` sutil.
 - Aceptación: **UI-701** (→ RF-1002): drag entre columnas persiste y se revierte con undo; WIP limit visible; agrupación alternativa funciona; vista recordada por lista (`view_mode`).
@@ -529,16 +529,16 @@ Anatomía (de TickTick **[verificado]** y ampliada):
 
 ## 11. Detalle de tarea (`/task/{id}` o `?task={id}`) — MVP
 
-Mismo componente `TaskDetail` en panel derecho (escritorio) y hoja (móvil). Referencia: panel derecho de TickTick **[verificado: checkbox+fecha arriba, título, contenido con comandos `/`, pills de etiqueta con +, barra inferior con lista y menú]**.
+Mismo componente `TaskDetail` en panel derecho (escritorio) y hoja (móvil). Panel derecho: checkbox y fecha arriba, título, contenido con comandos `/`, pills de etiqueta con +, barra inferior con lista y menú.
 
 ### 11.1 Estructura
 
-1. **Barra superior**: checkbox de completar, fecha (popover DatePicker, muestra relativa "hace 3 meses, 18 jul" con la absoluta al hover **[verificado]**), a la derecha: fijar (pin), prioridad (bandera con el color), menú `...` (duplicar, convertir a nota, mover, copiar enlace, borrar, historial).
+1. **Barra superior**: checkbox de completar, fecha (popover DatePicker, muestra relativa "hace 3 meses, 18 jul" con la absoluta al hover), a la derecha: fijar (pin), prioridad (bandera con el color), menú `...` (duplicar, convertir a nota, mover, copiar enlace, borrar, historial).
 2. **Título**: textarea autoexpandible, serif `--fs-lg`; edición inline.
 3. **Propiedades rápidas** (fila de chips editables): fecha, prioridad, etiquetas (con `＋`), lista, recordatorios. Cada chip abre su popover.
 4. **Checklist** (RF-205a): items con checkbox, reordenables, "＋ Añadir ítem"; cada ítem admite fecha propia; progreso x/y arriba. Las líneas `- [ ]` del contenido pueden convertirse a items (acción "Convertir checklist") y viceversa (RF-202).
 5. **Subtareas** (RF-205b): sección propia con `TaskRow` compactas, crear inline; pueden vivir en otra lista que el padre y se respetan ambos ids; al completar el padre con hijas activas, diálogo (RF-206).
-6. **Contenido Markdown** (RF-202): editor con previsualización (pestañas Escribir/Vista previa o split en ancho), toolbar mínima (negrita, lista, checklist, enlace, código) y comandos `/` (como TickTick **[verificado: "type / for commands"]**): fecha, prioridad, etiqueta, tabla, código, cita, adjunto. Links clicables.
+6. **Contenido Markdown** (RF-202): editor con previsualización (pestañas Escribir/Vista previa o split en ancho), toolbar mínima (negrita, lista, checklist, enlace, código) y comandos `/` (comando `/`): fecha, prioridad, etiqueta, tabla, código, cita, adjunto. Links clicables.
 7. **Adjuntos** (RF-203): dropzone (arrastrar archivos al panel), miniaturas inline de imágenes, lista de archivos con tamaño y descarga; límite 25 MB con error claro.
 8. **Recordatorios**: lista de recordatorios de la tarea con tipo (relativo/absoluto), canal y `×`; "＋ Añadir recordatorio" (RF-801); toggle "constante" (RF-803); snooze desde la notificación (RF-804, §14).
 9. **Recurrencia**: resumen en lenguaje natural ("cada lunes · desde fecha de vencimiento") con editor (§11.2) (RF-702).
@@ -587,15 +587,15 @@ Aceptación: **UI-901** (→ RF-902/904): un filtro "(lista = Trabajo O etiqueta
 
 ## 13. Calendario (`/calendar/{view}`) — V1 (RF-1101–1105)
 
-Referencia directa: el calendario de TickTick **[verificado: mes con semanas W40-W44, pill de tareas con hora, "+9" de overflow, eventos Google de otro color, spans multi-día, sidebar colapsada a rail]**.
+Mes con semanas, pill de tareas con hora, overflow "+N", eventos externos de otro color, spans multi-día y sidebar colapsada a rail.
 
 ### 13.1 Layout
 
-Full width (la sidebar se colapsa a rail de iconos, como en TickTick). Cabecera: botón `＋` (crear con fecha en el día seleccionado), selector de vista (día, semana, multi-día, multi-semana, mes, año, agenda — RF-1101), navegación ‹ Hoy ›, menú `...` (suscripciones, feeds, mostrar/ocultar completadas, fines de semana).
+Full width (la sidebar se colapsa a rail de iconos, a ancho completo). Cabecera: botón `＋` (crear con fecha en el día seleccionado), selector de vista (día, semana, multi-día, multi-semana, mes, año, agenda — RF-1101), navegación ‹ Hoy ›, menú `...` (suscripciones, feeds, mostrar/ocultar completadas, fines de semana).
 
 ### 13.2 Comportamiento
 
-- Tareas con fecha: all-day en la franja superior; con hora en su posición; color de lista **[verificado: pills con hora a la derecha]**; overflow "+N" por celda con popover (RF-1102).
+- Tareas con fecha: all-day en la franja superior; con hora en su posición; color de lista; overflow "+N" por celda con popover (RF-1102).
 - Drag & drop entre celdas replanifica (RF-1102); en semana/día, arrastrar verticalmente cambia hora; resize cambia duración.
 - Clic en celda/hueco: crear tarea con esa fecha (inline mini-popover, no la hoja completa).
 - Eventos externos (iCal/Google, RF-1103): color de su calendario, icono de candado en tooltip ("solo lectura · Google Calendar"), no editables ni arrastrables.
@@ -614,25 +614,25 @@ Full width (la sidebar se colapsa a rail de iconos, como en TickTick). Cabecera:
 
 ## 14. Matriz de Eisenhower (`/matrix`) — V1 (RF-1004)
 
-Referencia **[verificado: 4 cuadrantes con color, grupos internos Overdue/Later/No Date, menú por cuadrante]**.
+Referencia.
 
 - Cuadrantes: Urgente e Importante (`--danger`), No urgente e Importante (`--warning`), Urgente y No importante (`--info`), Ni urgente ni importante (`--success`). Colores suaves de fondo (5 % del semántico).
 - Reglas por defecto (urgente = vencida o vence en 24 h; importante = prioridad alta/media) visibles en la cabecera de cada cuadrante con tooltip; editables en Ajustes → Matriz con la gramática de filtros (5.7).
 - Drag & drop entre cuadrantes aplica la regla destino: muestra un resumen del cambio antes de soltar ("→ prioridad alta, fecha hoy") y undo tras soltar.
-- Cada cuadrante agrupa por fecha (Vencidas/Más tarde/Sin fecha) con cabeceras plegables **[verificado]** y límite de filas con "ver todas" (abre el cuadrante como vista lista filtrada).
+- Cada cuadrante agrupa por fecha (Vencidas/Más tarde/Sin fecha) con cabeceras plegables y límite de filas con "ver todas" (abre el cuadrante como vista lista filtrada).
 - Aceptación: **UI-1101** (→ RF-1004): arrastrar una tarea entre cuadrantes actualiza prioridad/fecha según la regla con undo; reglas editables se aplican al instante; los contadores cuadran con los filtros equivalentes.
 
 ---
 
 ## 15. Hábitos (`/habits`) — MVP (RF-1301–1305)
 
-Referencia **[verificado: tira semanal con círculos, tarjeta de hábito con icono, racha y total, detalle con 4 stat cards + progreso de meta + calendario-mapa de calor]**.
+Referencia.
 
 ### 15.1 Vista principal
 
 - Cabecera "Hábitos", toggle de vista (tarjetas / tabla semanal), `＋`, menú (ordenar, archivados, estadísticas globales).
-- **Tira semanal** arriba: 7 días con anillo de cumplimiento del día (proporción de hábitos del día hechos) **[verificado patrón]**; hoy resaltado.
-- Tarjetas de hábito (`HabitCard`) agrupadas por momento del día (Mañana/Tarde/Noche, como el "Night" de TickTick **[verificado]**) o planas según ajuste: icono/color, nombre, racha actual y mejor racha, los 7 círculos de la semana (relleno = check-in completo, medio = parcial, hueco = pendiente, tachado = no programado).
+- **Tira semanal** arriba: 7 días con anillo de cumplimiento del día (proporción de hábitos del día hechos); hoy resaltado.
+- Tarjetas de hábito (`HabitCard`) agrupadas por momento del día (Mañana/Tarde/Noche) o planas según ajuste: icono/color, nombre, racha actual y mejor racha, los 7 círculos de la semana (relleno = check-in completo, medio = parcial, hueco = pendiente, tachado = no programado).
 - **Check-in rápido**: clic en el círculo de hoy = +1 (RF-1302); con contador (agua 8/día) muestra `3/8` y anima el anillo; pulsación larga o clic derecho: quitar check-in o añadir nota del día.
 - EmptyState: "Empieza con un hábito pequeño" + sugerencias (§15.4).
 
@@ -642,7 +642,7 @@ Hoja/modal con lo mínimo obligatorio arriba: nombre, icono+color (selector con 
 
 ### 15.3 Detalle (`/habits/{id}`, RF-1303)
 
-Panel/página con: stat cards (racha actual, mejor racha, % cumplimiento 30 días, total check-ins) **[verificado patrón]**, barra de meta si el hábito tiene objetivo de largo plazo (17/100), **mapa de calor anual** (cuadrícula tipo GitHub con intensidad por count), calendario mensual navegable **[verificado]**, historial de notas, menú (editar, pausar, archivar, borrar con confirmación). Botón de check-in grande.
+Panel/página con: stat cards (racha actual, mejor racha, % cumplimiento 30 días, total check-ins), barra de meta si el hábito tiene objetivo de largo plazo (17/100), **mapa de calor anual** (cuadrícula tipo GitHub con intensidad por count), calendario mensual navegable, historial de notas, menú (editar, pausar, archivar, borrar con confirmación). Botón de check-in grande.
 
 ### 15.4 Sugerencias iniciales (adopción fácil, spec 9.13)
 
@@ -677,7 +677,7 @@ Notificación a la hora fija con acción "Check-in" directa desde la push (RF-13
 
 Overlay centrado (640 px, top 15 %) con input, dos modos:
 
-1. **Buscar** (default): resultados instantáneos agrupados por tipo (Tareas, Notas, Listas, Etiquetas, Hábitos) con resaltado del match y contexto (lista, fecha) **[paridad TickTick: `Go to Search /`]**; `Enter` abre el primero, flechas navegan, `Tab` cambia de grupo; "Ver todos" lleva a `/search?q=`.
+1. **Buscar** (default): resultados instantáneos agrupados por tipo (Tareas, Notas, Listas, Etiquetas, Hábitos) con resaltado del match y contexto (lista, fecha) `Go to Search /`; `Enter` abre el primero, flechas navegan, `Tab` cambia de grupo; "Ver todos" lleva a `/search?q=`.
 2. **Comandos** (prefijo `>` o icono): "Nueva tarea", "Ir a Hoy/Inbox/lista…", "Cambiar tema", "Alternar densidad", "Abrir ajustes de…", "Sincronizar ahora", comandos de plugins en V2 (12.2). Muestra el atajo a la derecha (`Kbd`).
 
 Búsqueda inline con filtros (`in:compra`, `#casa`, `priority:high`, `done:true`) con autocompletado de operadores (RF-1501). Recientes (últimas 8 búsquedas/comandos) al abrir vacío.
@@ -742,7 +742,7 @@ Recorrido por pasos (wizard ligero, no modal bloqueante): 1) Vencidas → replan
 
 ## 20. Ajustes (`/settings/...`) — MVP→V2
 
-Layout: subnavegación izquierda (como el modal de ajustes de TickTick **[verificado: Account/Features/Smart List/Notifications/Date & Time/Appearance/…]**) + contenido; en móvil, lista de secciones que navega a subpáginas. Guardado automático con indicador; las secciones marcadas llegan en su fase.
+Layout: subnavegación izquierda (Account, Features, Smart List, Notifications, Date & Time, Appearance) + contenido; en móvil, lista de secciones que navega a subpáginas. Guardado automático con indicador; las secciones marcadas llegan en su fase.
 
 ### 20.1 Cuenta (`/settings/account`) — MVP
 
@@ -796,7 +796,7 @@ Instalados con permisos declarados, instalar desde git/paquete, revocar permisos
 
 ### 20.12 Atajos (`/settings/shortcuts`) — V1
 
-La tabla completa de §21, con reasignación de atajos no fijos (como el "Set shortcut" de TickTick **[verificado]**) y "Restablecer".
+La tabla completa de §21, con reasignación de atajos no fijos (reasignación de atajos) y "Restablecer".
 
 Aceptación de ajustes: **UI-1701** (→ RF-2002): crear un PAT con scopes `tasks:read tasks:write`, usarlo contra la API y ver su último uso y actividad reflejados; revocarlo corta el acceso al instante (siguiente request 401). **UI-1702** (→ RF-1704): la pantalla de datos muestra último backup y última restauración probada con fecha real.
 
@@ -804,7 +804,7 @@ Aceptación de ajustes: **UI-1701** (→ RF-2002): crear un PAT con scopes `task
 
 ## 21. Mapa completo de atajos — V1 (RF-1901)
 
-Auditoría de paridad con TickTick (verificado en su app web, Ajustes → Atajos, 17 oct 2025). Vistas de TickTick sin equivalente en tick-tack-done (Group chats, Time Blocking, Pomodoro, Search Page) se omiten.
+Mapa de atajos (17 oct 2025). Vistas sin equivalente (Group chats, Time Blocking, Pomodoro, Search Page) se omiten.
 
 ### 21.1 General
 
@@ -943,7 +943,7 @@ Offline: todo readable; acciones de escritura se encolan con indicador "pendient
 
 ---
 
-## 25. Anexo A — Notas de paridad con TickTick (verificado en la app web de TickTick, 17 oct 2025)
+## 25. Anexo A — Notas de diseño
 
 Hallazgos de la exploración de referencia (cuenta propia, solo lectura) que este documento adopta o decide conscientemente:
 
@@ -956,7 +956,7 @@ Hallazgos de la exploración de referencia (cuenta propia, solo lectura) que est
 7. **Ajustes** como modal con navegación lateral (Account/Features/Smart List/Notifications/Date & Time/Appearance/AI/More/Integrations/Collaborate/Shortcuts/About). Adoptado como página con subnavegación (§20).
 8. **Matriz Eisenhower**: cuadrantes coloreados (rojo/ámbar/azul/gris), tarjetas con checkbox, grupos Vencidas/Later/Sin fecha. Adoptado (§14).
 9. **Atajos**: mapa completo capturado y adoptado salvo vistas sin equivalente (§21).
-10. **Diferencias deliberadas**: sin IA ni pomodoro en el MVP; estilo editorial serif propio en vez del sans/plano de TickTick (UI-D5); multi-completado/deshacer igual pero con nuestros toasts; reporte semanal y revisión guiada no existen en TickTick (diseño propio).
+10. **Diferencias deliberadas**: sin IA ni pomodoro en el MVP; sans del sistema en toda la UI (UI-D3); multi-completado/deshacer igual pero con nuestros toasts; reporte semanal y revisión guiada son diseño propio.
 
 ---
 

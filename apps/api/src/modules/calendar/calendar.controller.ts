@@ -16,7 +16,7 @@ import { IsIn, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 import type { Request, Response } from 'express';
 import type { AuthUser } from '../../auth/auth-user';
 import { CurrentUser } from '../../auth/current-user.decorator';
-import { Scopes } from '../../auth/scopes.decorator';
+import { Public, Scopes } from '../../auth/scopes.decorator';
 import { respondJson } from '../../http/respond';
 import { CalendarService } from './calendar.service';
 
@@ -165,6 +165,7 @@ export class FeedsController {
   constructor(@Inject(CalendarService) private readonly calendar: CalendarService) {}
 
   @Get(':token')
+  @Public()
   @ApiOperation({ summary: 'Read-only iCal feed (RF-1104)' })
   async feed(@Param('token') token: string, @Res() res: Response): Promise<void> {
     const body = await this.calendar.feedIcal(token.replace(/\.ics$/, ''));

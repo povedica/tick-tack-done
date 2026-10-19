@@ -52,4 +52,21 @@ describe('csv', () => {
     expect(csv).toContain('"Hola, mundo"');
     expect(csv.startsWith('title,content,due,priority,tags,list,status')).toBe(true);
   });
+
+  it('S-18: neutralizes formula cells', () => {
+    const csv = tasksToCsv([
+      {
+        title: '=HYPERLINK("http://example.test")',
+        content: '+cmd',
+        dueDate: null,
+        priority: 'none',
+        tags: [],
+        listName: '-list',
+        status: 'active',
+      },
+    ]);
+    expect(csv).toContain("'=HYPERLINK");
+    expect(csv).toContain("'+cmd");
+    expect(csv).toContain("'-list");
+  });
 });

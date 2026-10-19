@@ -16,6 +16,7 @@ import { DomainEvent } from '../../events/domain-events';
 import { EventRecorder } from '../../events/event-recorder';
 import { asJson } from '../../http/json';
 import { DomainException } from '../../http/domain.exception';
+import { optionalUuid } from '../../http/uuid-query';
 import { respondJson } from '../../http/respond';
 import { HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -112,7 +113,7 @@ export class TransferController {
     @Query('project_id') projectId: string | undefined,
     @Res() res: Response,
   ): Promise<void> {
-    const tasks = await this.rows(user.id, projectId);
+    const tasks = await this.rows(user.id, optionalUuid(projectId, 'project_id'));
     const body = tasksToCsv(tasks);
     res.status(200).send(body);
   }
@@ -126,7 +127,7 @@ export class TransferController {
     @Query('project_id') projectId: string | undefined,
     @Res() res: Response,
   ): Promise<void> {
-    const tasks = await this.rows(user.id, projectId);
+    const tasks = await this.rows(user.id, optionalUuid(projectId, 'project_id'));
     const icalTasks: IcalTask[] = tasks
       .filter((task) => task.dueDate !== null)
       .map((task) => ({
