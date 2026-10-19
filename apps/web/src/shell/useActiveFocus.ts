@@ -79,7 +79,9 @@ export function formatClock(total: number): string {
 }
 
 function firstLive(value: unknown): Record<string, unknown> | null {
-  return rows(value).find((row) => row.ended_at == null && numberOf(row.remaining_seconds) > 0) ?? null;
+  return (
+    rows(value).find((row) => row.ended_at == null && numberOf(row.remaining_seconds) > 0) ?? null
+  );
 }
 
 function rows(value: unknown): Record<string, unknown>[] {
@@ -90,7 +92,9 @@ function rows(value: unknown): Record<string, unknown>[] {
   if (!Array.isArray(items)) {
     return [];
   }
-  return items.filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null);
+  return items.filter(
+    (item): item is Record<string, unknown> => typeof item === 'object' && item !== null,
+  );
 }
 
 function text(value: unknown): string {

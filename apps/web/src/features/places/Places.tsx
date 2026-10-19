@@ -118,9 +118,7 @@ export function InboxPage() {
       ) : null}
       {process && current !== undefined ? (
         <>
-          <p>
-            {fill(messages.processOf, `${String(cursor + 1)}/${String(rows.length)}`)}
-          </p>
+          <p>{fill(messages.processOf, `${String(cursor + 1)}/${String(rows.length)}`)}</p>
           <Button
             variant="ghost"
             onClick={() => {
@@ -129,41 +127,41 @@ export function InboxPage() {
           >
             {messages.processExit}
           </Button>
-        <ProcessCard
-          messages={messages}
-          locale={locale}
-          taskTitle={current.title}
-          projects={projects.data?.items ?? []}
-          onDate={(preset, date) => {
-            void api.snoozeTask(current.id, preset, date).then(() => {
-              step(messages.processDate);
-            });
-          }}
-          onMove={(projectId) => {
-            void api.moveTask(current.id, projectId).then(() => {
-              step(messages.processMove);
-            });
-          }}
-          onDone={() => {
-            void runOrQueue(newMutation('complete', current.id, {}), (key) =>
-              api.completeTask(current.id, {}, key),
-            ).then(() => {
-              step(messages.processDoneAction);
-            });
-          }}
-          onDelete={() => {
-            const id = current.id;
-            void api.deleteTask(id).then(() => {
-              useActionToast.getState().show(messages.movedToTrash, () => {
-                void api.restoreTask(id).then(() => refreshTaskSurfaces(queryClient));
+          <ProcessCard
+            messages={messages}
+            locale={locale}
+            taskTitle={current.title}
+            projects={projects.data?.items ?? []}
+            onDate={(preset, date) => {
+              void api.snoozeTask(current.id, preset, date).then(() => {
+                step(messages.processDate);
               });
-              step(messages.movedToTrash);
-            });
-          }}
-          onSkip={() => {
-            step();
-          }}
-        />
+            }}
+            onMove={(projectId) => {
+              void api.moveTask(current.id, projectId).then(() => {
+                step(messages.processMove);
+              });
+            }}
+            onDone={() => {
+              void runOrQueue(newMutation('complete', current.id, {}), (key) =>
+                api.completeTask(current.id, {}, key),
+              ).then(() => {
+                step(messages.processDoneAction);
+              });
+            }}
+            onDelete={() => {
+              const id = current.id;
+              void api.deleteTask(id).then(() => {
+                useActionToast.getState().show(messages.movedToTrash, () => {
+                  void api.restoreTask(id).then(() => refreshTaskSurfaces(queryClient));
+                });
+                step(messages.movedToTrash);
+              });
+            }}
+            onSkip={() => {
+              step();
+            }}
+          />
         </>
       ) : null}
       {process && current === undefined && !tasks.isPending ? (

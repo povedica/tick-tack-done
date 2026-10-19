@@ -40,7 +40,11 @@ interface PlanSession {
 }
 
 interface AppliedPlan {
-  readonly applied: readonly { readonly task_id: string; readonly decision: string; readonly effect: string }[];
+  readonly applied: readonly {
+    readonly task_id: string;
+    readonly decision: string;
+    readonly effect: string;
+  }[];
 }
 
 const DECISIONS = ['done', 'plan_day', 'later', 'cancel', 'trash'] as const;
@@ -153,9 +157,7 @@ export function PlanDayPage() {
           <h2>{text.applied}</h2>
           <ul>
             {applied.applied.map((item) => (
-              <li key={item.task_id}>
-                {text.effects[item.effect] ?? item.effect}
-              </li>
+              <li key={item.task_id}>{text.effects[item.effect] ?? item.effect}</li>
             ))}
           </ul>
           <p>
@@ -169,7 +171,9 @@ export function PlanDayPage() {
       ) : (
         <>
           {session.hidden_overdue > 0 ? (
-            <p className="ui-muted">{text.hidden.replace('{count}', String(session.hidden_overdue))}</p>
+            <p className="ui-muted">
+              {text.hidden.replace('{count}', String(session.hidden_overdue))}
+            </p>
           ) : null}
           {session.cards.length === 0 ? <p className="ui-muted">{text.empty}</p> : null}
           <ol className="plan-cards">
@@ -189,7 +193,9 @@ export function PlanDayPage() {
                         key={kind}
                         type="button"
                         className={
-                          decision?.decision === kind ? 'ui-button is-primary is-sm' : 'ui-button is-sm'
+                          decision?.decision === kind
+                            ? 'ui-button is-primary is-sm'
+                            : 'ui-button is-sm'
                         }
                         aria-pressed={decision?.decision === kind}
                         disabled={busy}
@@ -206,7 +212,11 @@ export function PlanDayPage() {
                       {text.laterDate}
                       <input
                         type="date"
-                        value={dates[card.task_id] ?? decision.target_date ?? nextCivil(session.local_date)}
+                        value={
+                          dates[card.task_id] ??
+                          decision.target_date ??
+                          nextCivil(session.local_date)
+                        }
                         onChange={(event) => {
                           const value = event.target.value;
                           setDates((current) => ({ ...current, [card.task_id]: value }));
@@ -357,7 +367,14 @@ function stringOf(value: unknown): string {
 }
 
 function isDecision(value: unknown): value is Decision {
-  return value === 'done' || value === 'plan_day' || value === 'later' || value === 'cancel' || value === 'trash' || value === 'skip';
+  return (
+    value === 'done' ||
+    value === 'plan_day' ||
+    value === 'later' ||
+    value === 'cancel' ||
+    value === 'trash' ||
+    value === 'skip'
+  );
 }
 
 function nextCivil(localDate: string): string {

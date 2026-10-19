@@ -3,6 +3,7 @@
 Base: desplegado d87e3fa, main 51dd555 (mismo codigo de producto). Un solo documento con todas las evidencias, Telegram como receptor de notificaciones, la funcionalidad Planifica tu dia y la captura en lenguaje natural (fechas y horas) compartida por Telegram, web, API y email. Cada parte conserva su numeracion; las capturas se citan por nombre. La Parte 8 amplia el alcance de H-02 y de NT-03: no basta un matcher de hora suelta.
 
 ## Indice
+
 1. Revision del detalle de tarea y sidebar vs TickTick (incluye consolidado del dia)
 2. Auditoria completa ronda 4 (tras redeploy)
 3. Verificacion global (seguridad, funcional, estetica, repo)
@@ -11,7 +12,6 @@ Base: desplegado d87e3fa, main 51dd555 (mismo codigo de producto). Un solo docum
 6. Anexo: notificaciones por Telegram
 7. Capitulo: Plan de hoy y Planifica tu dia
 8. Capitulo Q: captura en lenguaje natural (fechas y horas). Amplia H-02 y sustituye el alcance estrecho de NT-03
-
 
 ---
 
@@ -58,10 +58,10 @@ Corregidos y verificados en producción: S-01 (límite de login), S-06 (swagger 
 
 Abiertos:
 
-| ID | Sev. | Qué | Arreglo |
-|---|---|---|---|
-| S-05 | media | El HTML de la web no trae CSP, Permissions-Policy ni COOP; HSTS sin `preload`. El repo los tiene en `deploy/production/todo.caddy`, pero el Caddy del host no los aplica. | `apps/web/nginx.conf`: `add_header ... always` en `server` y en cada `location` que ya use `add_header` (o `include security-headers.conf`). Probar la CSP primero en Report-Only (hay service worker y Web Push). Comprobar con `curl -sI https://todo.reflexionia.com/`. |
-| S-22 (nuevo) | media | `/api/v1/sync` filtra a un PAT `tasks:read`, a partir de la página 4, eventos de sesión, token, webhook, calendario, hábito, etc. | `apps/api/src/modules/sync/sync.service.ts`: `eventTypeFilter` devuelve un `OR` y el cursor lo pisa. Combinar con `AND: [filtroTipo, cursor]`. Test: PAT mínimo recorriendo todas las páginas solo ve `task.*` y `checklist_item.*`. |
+| ID           | Sev.  | Qué                                                                                                                                                                       | Arreglo                                                                                                                                                                                                                                                                    |
+| ------------ | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S-05         | media | El HTML de la web no trae CSP, Permissions-Policy ni COOP; HSTS sin `preload`. El repo los tiene en `deploy/production/todo.caddy`, pero el Caddy del host no los aplica. | `apps/web/nginx.conf`: `add_header ... always` en `server` y en cada `location` que ya use `add_header` (o `include security-headers.conf`). Probar la CSP primero en Report-Only (hay service worker y Web Push). Comprobar con `curl -sI https://todo.reflexionia.com/`. |
+| S-22 (nuevo) | media | `/api/v1/sync` filtra a un PAT `tasks:read`, a partir de la página 4, eventos de sesión, token, webhook, calendario, hábito, etc.                                         | `apps/api/src/modules/sync/sync.service.ts`: `eventTypeFilter` devuelve un `OR` y el cursor lo pisa. Combinar con `AND: [filtroTipo, cursor]`. Test: PAT mínimo recorriendo todas las páginas solo ve `task.*` y `checklist_item.*`.                                       |
 
 Repo público (pendiente de limpieza): spec de seguridad commiteada con IP `<SERVER_IP>`, nombre de clave SSH y app vecina; menciones a TickTick en docs/spec; email personal en 152 commits; `deploy.sh:14`.
 
@@ -112,11 +112,13 @@ Wireframe actual (de arriba abajo):
 **Problema.** Sin jerarquía: fecha, estado y prioridad compiten en una línea; no hay indicación de la lista ni de subtareas en la cabecera.
 
 **Diseño propuesto.**
+
 ```
 +--------------------------------------------+
 | [o]  [cal] Hoy 18:00  [alarm]    [flag] [x]|
 +--------------------------------------------+
 ```
+
 - Estado de guardado: pequeño icono/texto gris a la derecha de la lista, solo mientras guarda ("Guardando...") y un check 1,5 s al terminar. Error: banner propio (ver 3.2).
 - Fecha como botón con icono de calendario, color acento si es hoy, rojo si vencida; hora visible; icono de campana si hay recordatorio; icono de repetición si repite.
 - Botón de cerrar (x) siempre visible en escritorio.
@@ -127,6 +129,7 @@ Wireframe actual (de arriba abajo):
 ### 3.2 Selector de fecha y errores crudos
 
 **Estado actual** (`components/DatePopover.tsx`, `features/tasks/DueField.tsx`; capturas `02` a `05` (`05-error-crudo-due_date.png` es el error)):
+
 - Popover de 260 px anclado al borde derecho; tapa el título.
 - Pestañas "Fecha | Duración" son botones nativos grises 3D.
 - Atajos "Hoy / Mañana / +7 días / Sin fecha" saltan a 2 líneas.
@@ -140,6 +143,7 @@ Wireframe actual (de arriba abajo):
 - Una tarea nueva creada desde Hoy ya trae recordatorio `-PT5M` mostrado crudo, y en la lista sale como "Hoy" rojo (día completo mostrado como vencido) mientras el panel lo pinta azul.
 
 **Diseño propuesto.**
+
 ```
 +---------------------------------+
 |  [ Fecha ]  [ Duracion ]        |   pestañas tipo segmented control
@@ -155,7 +159,9 @@ Wireframe actual (de arriba abajo):
 |  [Quitar fecha]        [ OK ]   |
 +---------------------------------+
 ```
+
 Reglas:
+
 1. **Imposible llegar al error:** si el usuario elige un Repetir sin fecha, poner fecha = hoy automáticamente y avisarlo ("Fecha puesta a hoy"). Alternativa: deshabilitar Repetir mientras no haya fecha, con texto de ayuda.
 2. Mapear todos los códigos de error de la API a mensajes en `i18n/es.ts`/`en.ts` (`repeat_requires_due_date`, etc.). Nunca mostrar `error.message` crudo. Banner con icono, fondo suave, botón cerrar, `role="alert"`, y que no desplace el contenido (posición sobre el pie del panel).
 3. Recordatorio: lista completa (Al vencer, 5 min, 15 min, 30 min, 1 h, 1 día) construida desde `REMINDER_VALUES` (`features/places/Places.tsx:1811` ya tiene `-PT0M,-PT5M,-PT15M,-PT30M,-PT1H,-P1D`). `humanTrigger` (`TaskDetail.tsx:614`) solo traduce 30 min, 1 h y 1 día: añadir 0, 5 y 15 min y un fallback legible ("5 min antes") para cualquier ISO.
@@ -182,28 +188,32 @@ Reglas:
 
 **Estado actual.** Ancho fijo 384 px, sin tirador ni separador.
 **Diseño.**
+
 ```
  lista            |#|  panel de detalle
                   |#|  <- barra de 6 px, cursor col-resize, role="separator" aria-orientation="vertical"
 ```
+
 - Ancho mínimo 320, máximo 640 (o 50 % del viewport). Guardar en `localStorage` (`tick-tack-done.detail-width`) y aplicarlo con una variable CSS `--detail-w` en `.shell[data-detail='open']`.
 - Pointer events con `setPointerCapture`; doble clic restablece 384; teclado: flechas izquierda/derecha cambian 16 px cuando el separador tiene foco.
 - Solo escritorio (>= 700 px); en móvil el panel ya es pantalla completa.
-**Archivos.** `shell/AppShell.tsx`, `shell/shell.css` (L39-53, L411-470), nuevo `shell/DetailResizer.tsx`.
+  **Archivos.** `shell/AppShell.tsx`, `shell/shell.css` (L39-53, L411-470), nuevo `shell/DetailResizer.tsx`.
 
 ### 3.6 Nota: texto plano sin formato
 
 **Estado actual.** `textarea` de 96 px con grip nativo y placeholder "Escribe algo o / para comandos". El `/` no abre nada (promesa falsa). No se renderiza Markdown.
 **Diseño.** Editor de bloques ligero (Tiptap o Lexical, con `StarterKit`): negrita, cursiva, tachado, código, lista, lista numerada, casillas, cita y enlace; atajos Markdown (`**`, `-`, `[]`, `#`). Barra flotante al seleccionar texto. Guardar como Markdown en `content` (el backend ya guarda texto), de modo que lo ya escrito sigue siendo válido.
+
 - Menú `/` real con: Título, Lista, Casillas, Cita, Código, Línea. Si no se implementa en esta ronda, **quitar el texto "o / para comandos"**.
 - Altura automática con mínimo de 3 líneas y sin grip nativo.
 - Enlaces detectados y clicables; imágenes pegadas suben como adjunto (ver 3.12).
-**Archivos.** `features/tasks/DetailBody.tsx`, `TaskDetail.tsx` (`save.mutate({content})`), nuevo `features/tasks/NoteEditor.tsx`.
+  **Archivos.** `features/tasks/DetailBody.tsx`, `TaskDetail.tsx` (`save.mutate({content})`), nuevo `features/tasks/NoteEditor.tsx`.
 
 ### 3.7 Checklist: layout roto
 
 **Estado actual** (`ul.detail-check > li > label > input[type=checkbox] + span`, `today.css:745-760`, `ui.css:414`; capturas `01-panel-inicial.png`, `11-checklist.png`). Los checkboxes quedan a distinta sangría, los textos largos se alinean al centro y se parten con sangría rara, no hay editar, borrar, arrastrar ni convertir en subtarea. El encabezado "Checklist" se oculta cuando está vacío. En la fila de la lista, "0/2" queda pegado al nombre de la lista.
 **Diseño.**
+
 ```
  Checklist  1/3                         [barra de progreso fina]
  [ ] Primer item                         [::]  hover: arrastrar
@@ -211,20 +221,23 @@ Reglas:
      se ajusta con sangria colgante
  [+] Anadir item   (Enter crea otro, Backspace vacio borra)
 ```
+
 - Grid de 2 columnas: `20px 1fr`; checkbox propio con el mismo componente del check de tarea; texto `align-self:start`, `overflow-wrap:anywhere`.
 - Edición en línea (clic en el texto), Enter crea el siguiente, Supr/Backspace en vacío borra, arrastrar para reordenar, menú por ítem (Borrar, Convertir en tarea).
 - Completados: tachado y gris, contador "1/3" junto al título y barra de progreso.
 - Mostrar siempre el campo "Añadir ítem" con el encabezado.
 - En la fila de lista: "0/2" con icono de checklist y separación de 6 px de la lista.
-**Archivos.** `features/tasks/DetailBody.tsx`, `today.css` (`.detail-check`), `features/today/TaskGroup.tsx` (contador de fila).
+  **Archivos.** `features/tasks/DetailBody.tsx`, `today.css` (`.detail-check`), `features/today/TaskGroup.tsx` (contador de fila).
 
 ### 3.8 Etiquetas: chips de 1998 y "+" mediocre
 
 **Estado actual.** Capturas `08-tag-picker.png`, `09-tag-picker-crear.png`, `10-tag-chip.png`, `18-menu-etiquetas.png`.
+
 - El chip (`.ui-tag`, `ui.css:69`) es un `<button>` y el navegador le pone `border: 2px outset`: de ahí el aspecto de 1998. Falta `border:0`. La × está pegada al texto.
 - El "+" (`.tag-add`, `today.css:701`) es un círculo de 22 px con borde de 1 px, sin etiqueta visible.
 - El selector (`components/TagPicker.tsx`) mide **1863 px** de alto con 56 etiquetas, `overflow: visible`, sin máximo; se sale del viewport y desplaza toda la página: el sidebar queda cortado con espacio en blanco debajo. Casillas centradas, pills recortados a la derecha ("10mi", "audi"). No existe "Crear etiqueta" (Enter no hace nada). La búsqueda sí filtra.
-**Diseño.**
+  **Diseño.**
+
 ```
  (# casa) (# curro) (# 15min)  [+ Etiqueta]      chips con punto de color, sin borde,
                                                   radio 6, alto 24, padding 0 8
@@ -235,12 +248,13 @@ Reglas:
  | + Crear "zz-nueva"          |  aparece si no hay coincidencia exacta; Enter la crea
  +-----------------------------+
 ```
+
 - Chip: `border:0; background: color-mix(...)`; × aparece al pasar el ratón con 4 px de separación.
 - "+ Etiqueta" como botón de texto con icono, no círculo.
 - Popover: `max-height: min(320px, calc(100dvh - 32px)); overflow:auto`, sin `overflow:visible`, posición contenida en el viewport (Popover calcula `top` con `getBoundingClientRect` y se voltea si no cabe).
 - Etiquetas ordenadas por uso reciente y las seleccionadas arriba.
 - El buscador lateral de etiquetas (`Sidebar.tsx`) es un input nativo con borde: darle el mismo estilo que el resto.
-**Archivos.** `components/ui.css`, `features/today/today.css`, `components/TagPicker.tsx`, `components/Popover.tsx`, `shell/Sidebar.tsx` (L386-455).
+  **Archivos.** `components/ui.css`, `features/today/today.css`, `components/TagPicker.tsx`, `components/Popover.tsx`, `shell/Sidebar.tsx` (L386-455).
 
 ### 3.9 Selector de lista escondido abajo
 
@@ -254,12 +268,14 @@ Reglas:
 
 **Comentarios.** En vivo (capturas `13`, `14`) abre un campo "Añadir comentario" sin botón de enviar; Enter **añade el texto a la nota** como `> texto`. No hay lista, autor ni hora. Ya existen `Comment` en Prisma (`schema.prisma`, modelo `Comment`) y `collaboration.controller.ts`, así que el modelo está en backend.
 **Diseño.**
+
 ```
  Comentarios (2)
  [avatar] Pablo · hace 5 min
           Texto del comentario                 [editar] [borrar]
  [avatar] [ Escribe un comentario...   ] [Enviar]
 ```
+
 Usar el endpoint de comentarios, listar con autor y fecha relativa, Enter envía, Shift+Enter salta línea. Si la tarea no se comparte, mostrar solo "Notas" y ocultar Comentarios. **Nunca escribir comentarios dentro de la nota.**
 **Archivos.** `features/tasks/TaskDetail.tsx`, `DetailFooter.tsx`, `apps/api/src/modules/collaboration/collaboration.controller.ts`, `packages/sdk/src/resources.ts`.
 
@@ -268,6 +284,7 @@ Usar el endpoint de comentarios, listar con autor y fecha relativa, Enter envía
 **Estado actual** (`features/tasks/DetailMenu.tsx`, capturas `15` a `18`). 15 ítems de solo texto, sin iconos ni atajos: Añadir subtarea, Vincular tarea padre, Fijar, Descartar, Etiquetas, Adjuntar, Iniciar foco, Actividad de la tarea, Guardar como plantilla, Duplicar, Copiar enlace, Convertir en nota, Exportar, Imprimir y Borrar (rojo, tras un separador). "Etiquetas" abre el mismo selector de 1863 px (3.8), sobre el panel y tapando el título. "Borrar" **borra sin confirmar (no llegué a ver un toast de deshacer en la captura tomada)**; desde Papelera, "Eliminar" borra para siempre sin confirmación (probado hoy con mi tarea de prueba).
 **Fijar.** El panel no cambia, la fila no se marca ni se mueve; solo cambia la etiqueta del menú a "Quitar fijado". No hay icono de chincheta en la lista ni orden por fijadas.
 **Diseño.**
+
 ```
  +--------------------------------+
  | (pin)   Fijar arriba      P    |
@@ -287,39 +304,42 @@ Usar el endpoint de comentarios, listar con autor y fecha relativa, Enter envía
  | (trash) Borrar (rojo)          |
  +--------------------------------+
 ```
+
 - Agrupar en 4 bloques con separadores, iconos de 16 px y atajos a la derecha.
 - Fijar: icono de chincheta en la cabecera del panel y en la fila de la lista, las fijadas suben al principio de su grupo, toast "Tarea fijada" con Deshacer. Si no se va a usar, quitarlo.
 - Borrar: toast con Deshacer (ya existe `UndoToast.tsx`); en Papelera, "Eliminar" con confirmación en línea y "Restaurar" como acción principal, ambos con el estilo de botón de la app (`Button`), no el nativo.
 - "Etiquetas": submenú lateral con el selector de 3.8, con alto limitado.
 - "Descartar" se llama distinto a "Borrar" y no está claro qué hace: renombrar o quitar.
-**Archivos.** `features/tasks/DetailMenu.tsx`, `features/today/TaskGroup.tsx`, `components/UndoToast.tsx`, Papelera (`features/views/*`).
+  **Archivos.** `features/tasks/DetailMenu.tsx`, `features/today/TaskGroup.tsx`, `components/UndoToast.tsx`, Papelera (`features/views/*`).
 
 ### 3.12 Adjuntos: dónde se suben y seguridad
 
 **Estado actual en la UI.** El `<input type="file" class="sr-only" aria-label="Adjuntar">` solo se dispara desde ⋯ > Adjuntar (`TaskDetail.tsx:545-565`). No hay zona de soltar, lista, miniaturas, progreso ni errores. Solo aparece un contador "N adjuntos" cuando hay (`DetailBody.tsx:181`), sin nombres ni enlaces. En el handler no hay `.catch`: cualquier fallo es silencioso. En mi prueba, subir un `.txt` de 16 bytes con el input (dos intentos, uno por la herramienta de subida y otro simulando el evento `change` con un `File`) **no creó ningún adjunto** (`GET /tasks/:id/attachments` devolvió `items: []`) y la UI no mostró nada. No puedo confirmar si el fallo está en el cliente o en el servidor; conviene reproducirlo a mano en un navegador local y mirar la pestaña Red. En cualquier caso: falta feedback.
 
 **Dónde se guardan (código).**
+
 - Archivos en disco: `ATTACHMENT_DIR` (`/data/attachments` en producción, volumen Docker `attachments`, `deploy/production/docker-compose.yml:22-26,109`). Ruta `<ownerId>/<uuid>` sin extensión (`attachment-storage.ts`). Metadatos en la tabla `attachments` de Postgres (`schema.prisma`, modelo `Attachment`: `fileName`, `mimeType`, `byteSize`, `storageKey`, `thumbnailKey`, `deletedAt`, campos `driveFileId/driveUrl` sin uso aparente).
 - Copia de seguridad: `scripts/backup.sh` empaqueta el volumen en `attachments.tar.gz` junto con el `pg_dump` y lo sube fuera de la máquina (Drive), retención 30 días.
 
 **Postura de seguridad.**
 
-| Punto | Estado |
-|---|---|
+| Punto                     | Estado                                                                                                                                                                                                                     |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Autenticación y propiedad | Bien. Subida, listado, descarga, miniatura y borrado exigen scope (`tasks:write`/`tasks:read`) y buscan `ownerId = user.id` y `taskId` (`tasks.service.ts:1076-1230`). No hay URL pública ni directorio servido por nginx. |
-| Tipo de archivo | Bien. El tipo se decide por los bytes (`sniffMime`): JPEG, PNG, GIF, WEBP, PDF, DOCX/XLSX/PPTX y texto plano; rechaza HTML, SVG, XML y script. El tipo del cliente se ignora. |
-| Nombre | Bien. `safeFileName`: `basename`, solo `\w . - espacio ( ) [ ]`, máximo 180. Nunca se usa en la ruta del disco. |
-| Ruta | Bien. `STORAGE_KEY` exige `uuid/uuid` y `resolveAttachment` comprueba que quede dentro de la raíz. |
-| Descarga | Bien. `Content-Disposition: attachment`, `X-Content-Type-Options: nosniff`, `Content-Type` del tipo detectado. Las miniaturas se sirven `inline` solo para imágenes ráster. |
-| Límites | 25 MB por archivo, 50 por tarea, 2 GB por usuario. |
-| Cifrado en reposo | **No.** Archivos en claro en el volumen. Depende del cifrado del disco del host. |
-| Antivirus | **No** hay análisis (no hay ClamAV ni similar). |
-| Miniatura | **Es una copia del original**, no una reducción (`writeAttachment(user.id, file.buffer)` dos veces): duplica espacio y entrega el original en tamaño completo como "miniatura" (hasta 1,5 MB). |
-| Borrado | `deletedAt` + borra solo el archivo principal; **no borra el archivo de la miniatura** (`deleteAttachment`) y el borrado de tarea con `onDelete: Cascade` borra filas pero no archivos: quedan huérfanos en disco. |
-| Texto plano | Cualquier texto sin NUL pasa como `text/plain` (también scripts o .html sin cabecera); se sirve como adjunto con nosniff, así que no ejecuta, pero un `.txt` puede ser un HTML renombrado. |
-| UI | Sin lista, sin descarga visible, sin aviso al exceder 25 MB salvo `tooLarge` en `setError`. |
+| Tipo de archivo           | Bien. El tipo se decide por los bytes (`sniffMime`): JPEG, PNG, GIF, WEBP, PDF, DOCX/XLSX/PPTX y texto plano; rechaza HTML, SVG, XML y script. El tipo del cliente se ignora.                                              |
+| Nombre                    | Bien. `safeFileName`: `basename`, solo `\w . - espacio ( ) [ ]`, máximo 180. Nunca se usa en la ruta del disco.                                                                                                            |
+| Ruta                      | Bien. `STORAGE_KEY` exige `uuid/uuid` y `resolveAttachment` comprueba que quede dentro de la raíz.                                                                                                                         |
+| Descarga                  | Bien. `Content-Disposition: attachment`, `X-Content-Type-Options: nosniff`, `Content-Type` del tipo detectado. Las miniaturas se sirven `inline` solo para imágenes ráster.                                                |
+| Límites                   | 25 MB por archivo, 50 por tarea, 2 GB por usuario.                                                                                                                                                                         |
+| Cifrado en reposo         | **No.** Archivos en claro en el volumen. Depende del cifrado del disco del host.                                                                                                                                           |
+| Antivirus                 | **No** hay análisis (no hay ClamAV ni similar).                                                                                                                                                                            |
+| Miniatura                 | **Es una copia del original**, no una reducción (`writeAttachment(user.id, file.buffer)` dos veces): duplica espacio y entrega el original en tamaño completo como "miniatura" (hasta 1,5 MB).                             |
+| Borrado                   | `deletedAt` + borra solo el archivo principal; **no borra el archivo de la miniatura** (`deleteAttachment`) y el borrado de tarea con `onDelete: Cascade` borra filas pero no archivos: quedan huérfanos en disco.         |
+| Texto plano               | Cualquier texto sin NUL pasa como `text/plain` (también scripts o .html sin cabecera); se sirve como adjunto con nosniff, así que no ejecuta, pero un `.txt` puede ser un HTML renombrado.                                 |
+| UI                        | Sin lista, sin descarga visible, sin aviso al exceder 25 MB salvo `tooLarge` en `setError`.                                                                                                                                |
 
 **Arreglos.**
+
 1. UI de adjuntos en el panel: sección "Adjuntos (N)" con miniatura/icono por tipo, nombre, tamaño, descargar y borrar; zona de arrastrar y soltar y pegar imagen; barra de progreso; errores con mensaje propio (tipo no permitido, demasiado grande, cuota). `uploadAttachment(...).catch(...)` obligatorio. Archivos: nuevo `features/tasks/AttachmentList.tsx`, `TaskDetail.tsx:559`.
 2. Generar miniatura real (reducir a 256 px con `sharp`) y borrarla junto al adjunto. Archivos: `tasks.service.ts` (`addAttachment`, `deleteAttachment`).
 3. Limpieza de huérfanos: tarea programada que borre del disco los `storageKey`/`thumbnailKey` con `deletedAt` o cuyas tareas ya no existen; o borrar archivos al purgar la Papelera.
@@ -329,6 +349,7 @@ Usar el endpoint de comentarios, listar con autor y fecha relativa, Enter envía
 ### 3.13 Pomodoro / Foco
 
 **Estado actual** (código `features/product/ProductPages.tsx:202-330`, `features/tasks/TaskDetail.tsx:495`; capturas `19-foco-tras-iniciar.png`, `20-foco-corriendo-en-hoy.png`).
+
 - ⋯ > "Iniciar foco" llama `startFocus({task_id})` y **navega a `/focus`**: se sale de la lista y del panel.
 - La pantalla Foco muestra título "Foco", una frase ("La sesión vive en el servidor. Si cierras la pestaña, el aviso sigue al volver."), racha/pomodoros/minutos, un reloj 24:57 y botones Terminar/Cancelar. **No muestra qué tarea se está enfocando** (aunque `task_id` se guarda), no hay enlace de vuelta a la tarea ni selector de tarea.
 - Mientras corre, en Hoy no hay ningún indicador: ni en el rail, ni en el sidebar, ni en el título de la pestaña (`document.title` queda "tick-tack-done"; solo se cambia al terminar). Captura `20-foco-corriendo-en-hoy.png`.
@@ -339,6 +360,7 @@ Usar el endpoint de comentarios, listar con autor y fecha relativa, Enter envía
 - Referencia en el otro producto (verificado hoy con la sesión en curso de la cuenta de Pablo): la pantalla de pomodoro muestra la tarea enfocada con enlace, el anillo de progreso, Pausar, la línea de tiempo y notas de foco; **el icono de pomodoro del rail se convierte en un anillo de progreso mientras corre** (`capturas/32-tt-focus.png`, `32-tt-countdown.png`), igual que la campana lleva una insignia roja con número.
 
 **Diseño propuesto.**
+
 ```
  Panel de tarea:   [ Iniciar foco ]  -> abre un MINI temporizador dentro del propio panel (25:00) con Pausar/Terminar
  Rail:             icono de foco con anillo de progreso y minutos restantes mientras corre (tooltip "Foco: 12:31 · Tarea X")
@@ -346,11 +368,12 @@ Usar el endpoint de comentarios, listar con autor y fecha relativa, Enter envía
                    selector de tarea si se entra sin tarea, 15/25/50 + descanso 5/15
  Pestaña:          document.title = "12:31 · Tarea X" mientras corre
 ```
+
 - Estado global de la sesión activa (hook `useActiveFocus` con TanStack Query `['focus-sessions']`, sondeo cada 15 s y reloj local) en `shell/`. Mostrarlo en el rail (anillo SVG con `stroke-dashoffset`), en la cabecera del panel de la tarea enfocada y en `document.title`.
 - No sacar al usuario de la vista: dejar "Iniciar foco" iniciar la sesión y mostrar el mini temporizador en el panel; `/focus` queda para ver la sesión grande.
 - **Telegram**: suscribirse a `focus.session_started` y `focus.session_finished|aborted` (`events/domain-events.ts`) y mandar mensaje con `reminder.transport.ts`/`TelegramApi` al `telegramChatId` del usuario: "Foco iniciado: <tarea> (25 min)" y "Foco terminado: <tarea> · 25 min". Respetar un ajuste "Avisos de foco por Telegram" (por defecto activado solo si Telegram está vinculado). Alternativa sin código nuevo: acción `channel:'telegram'` en una regla de Automatizaciones, pero hoy esas no se pueden crear en la UI.
 - Cierre automático ya existe (`FocusPage` termina la sesión al llegar a 0); moverlo al hook global para que también ocurra fuera de `/focus` (hoy solo lo hace la pantalla Foco, así que con otra pestaña abierta la sesión queda zombie hasta volver).
-**Archivos.** `features/product/ProductPages.tsx` (`FocusPage`), `features/tasks/TaskDetail.tsx:495`, `shell/IconRail.tsx`, nuevo `shell/useActiveFocus.ts`, `apps/api/src/modules/focus/focus.controller.ts`, `apps/api/src/modules/integrations/telegram-api.ts`, `apps/api/src/events/domain-events.ts`.
+  **Archivos.** `features/product/ProductPages.tsx` (`FocusPage`), `features/tasks/TaskDetail.tsx:495`, `shell/IconRail.tsx`, nuevo `shell/useActiveFocus.ts`, `apps/api/src/modules/focus/focus.controller.ts`, `apps/api/src/modules/integrations/telegram-api.ts`, `apps/api/src/events/domain-events.ts`.
 
 ### 3.14 Más hallazgos (fuera de la lista de Pablo)
 
@@ -397,47 +420,47 @@ Verificado navegando ambas apps hoy (`capturas/31-tt-sidebar-bottom.png`, `32-tt
 
 ### 4.1 Rail de iconos (columna azul)
 
-| Elemento | Referencia | tick-tack-done | Decisión |
-|---|---|---|---|
-| Perfil/Ajustes (arriba) | Avatar con insignia | Avatar → Ajustes | OK |
-| Tareas | Sí | Hoy | OK (renombrar tooltip "Tareas") |
-| Calendario | Sí | Sí | OK |
-| Matriz (Eisenhower) | Icono propio en rail | Solo bajo "Más" del sidebar | **Añadir al rail** |
-| Pomodoro | Icono propio; **se vuelve anillo de progreso mientras corre** | Sin icono; bajo "Más"; sin indicador | **Añadir al rail con anillo** (3.13) |
-| Hábitos | Icono propio | Sí | OK |
-| Búsqueda | Sí | Sí | OK |
-| Cuenta atrás | Sí | No existe | Opcional P3 |
-| IA | Sí | No | Fuera de alcance |
-| Sincronizar / Notificaciones (insignia roja con número) / Ayuda | Parte inferior del rail | No hay campana ni insignia ni ayuda | **Añadir campana con insignia** (recordatorios vencidos, invitaciones) y Ayuda/atajos |
-| Nueva tarea (+) | No (está en la lista) | Sí (+) | OK |
+| Elemento                                                        | Referencia                                                    | tick-tack-done                       | Decisión                                                                              |
+| --------------------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------- |
+| Perfil/Ajustes (arriba)                                         | Avatar con insignia                                           | Avatar → Ajustes                     | OK                                                                                    |
+| Tareas                                                          | Sí                                                            | Hoy                                  | OK (renombrar tooltip "Tareas")                                                       |
+| Calendario                                                      | Sí                                                            | Sí                                   | OK                                                                                    |
+| Matriz (Eisenhower)                                             | Icono propio en rail                                          | Solo bajo "Más" del sidebar          | **Añadir al rail**                                                                    |
+| Pomodoro                                                        | Icono propio; **se vuelve anillo de progreso mientras corre** | Sin icono; bajo "Más"; sin indicador | **Añadir al rail con anillo** (3.13)                                                  |
+| Hábitos                                                         | Icono propio                                                  | Sí                                   | OK                                                                                    |
+| Búsqueda                                                        | Sí                                                            | Sí                                   | OK                                                                                    |
+| Cuenta atrás                                                    | Sí                                                            | No existe                            | Opcional P3                                                                           |
+| IA                                                              | Sí                                                            | No                                   | Fuera de alcance                                                                      |
+| Sincronizar / Notificaciones (insignia roja con número) / Ayuda | Parte inferior del rail                                       | No hay campana ni insignia ni ayuda  | **Añadir campana con insignia** (recordatorios vencidos, invitaciones) y Ayuda/atajos |
+| Nueva tarea (+)                                                 | No (está en la lista)                                         | Sí (+)                               | OK                                                                                    |
 
 ### 4.2 Listas inteligentes
 
-| Elemento | Referencia | tick-tack-done | Diferencia / decisión |
-|---|---|---|---|
-| Todas | Sí, arriba | "Todas" (88) | OK |
-| Hoy | Sí | Sí (55) | OK |
-| Mañana | Sí | Sí (0) | OK |
-| Próximos 7 días | Sí | Sí | OK |
-| Asignadas a mí | Sí | No | P3 (solo si hay compartir de tareas) |
-| Bandeja | Sí | Sí (12) | OK |
-| Resumen | Sí (editor con plantilla, filtros por fecha/lista/estado) | No existe en el sidebar (hay `/reports/weekly` y `/review/weekly` bajo "Más") | **Unificar**: una entrada "Resumen" que lleve a informes/revisión |
-| Sin fecha | No es lista fija | Sí (28) | Mantener |
-| "Añadidas hace poco" | No | Sí, **truncada** ("Añadidas hace p…") | Renombrar "Recientes" |
-| Completadas | Al final del sidebar | Entre las listas inteligentes | Mover al bloque inferior |
-| No haré (Won't Do) | Sí, al final | **No existe** | **Añadir** estado "No haré" y su vista (distinto de borrar) |
-| Papelera | Sí, al final | Sí, con "Vaciar" y contador | OK, pero botones nativos y sin confirmar al eliminar |
+| Elemento             | Referencia                                                | tick-tack-done                                                                | Diferencia / decisión                                             |
+| -------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Todas                | Sí, arriba                                                | "Todas" (88)                                                                  | OK                                                                |
+| Hoy                  | Sí                                                        | Sí (55)                                                                       | OK                                                                |
+| Mañana               | Sí                                                        | Sí (0)                                                                        | OK                                                                |
+| Próximos 7 días      | Sí                                                        | Sí                                                                            | OK                                                                |
+| Asignadas a mí       | Sí                                                        | No                                                                            | P3 (solo si hay compartir de tareas)                              |
+| Bandeja              | Sí                                                        | Sí (12)                                                                       | OK                                                                |
+| Resumen              | Sí (editor con plantilla, filtros por fecha/lista/estado) | No existe en el sidebar (hay `/reports/weekly` y `/review/weekly` bajo "Más") | **Unificar**: una entrada "Resumen" que lleve a informes/revisión |
+| Sin fecha            | No es lista fija                                          | Sí (28)                                                                       | Mantener                                                          |
+| "Añadidas hace poco" | No                                                        | Sí, **truncada** ("Añadidas hace p…")                                         | Renombrar "Recientes"                                             |
+| Completadas          | Al final del sidebar                                      | Entre las listas inteligentes                                                 | Mover al bloque inferior                                          |
+| No haré (Won't Do)   | Sí, al final                                              | **No existe**                                                                 | **Añadir** estado "No haré" y su vista (distinto de borrar)       |
+| Papelera             | Sí, al final                                              | Sí, con "Vaciar" y contador                                                   | OK, pero botones nativos y sin confirmar al eliminar              |
 
 ### 4.3 Bloques inferiores
 
-| Elemento | Referencia | tick-tack-done | Decisión |
-|---|---|---|---|
-| Listas | Con **carpetas** plegables (Trabajo, Personal), listas archivadas, iconos por tipo, contador | Lista plana de ~22 listas con punto de color y contador | **Carpetas plegables** y "Archivadas" |
-| Filtros | Lista de filtros guardados con icono | Bloque "Filtros" vacío ("Sin filtros") con "+" | Crear al menos el flujo "Guardar búsqueda como filtro" (`/search`) y mostrar el vacío con ayuda |
-| Etiquetas | Lista con **punto de color** y contador, nombres completos | Buscador nativo de etiquetas, "Mostrar sin uso" y "Más", sin color visible en el sidebar, contadores desfasados | Estilar el buscador, mostrar color, arreglar contadores (2.2) |
-| Calendarios suscritos | Bloque propio con contador | Solo en Ajustes | Mostrar en el sidebar cuando haya calendarios externos |
-| Pie del sidebar | Completadas / No haré / Papelera | Papelera + iconos tema, pantalla y colapsar (3 botones sin texto, sin tooltip) | Añadir tooltips y `aria-label` |
-| "Más" (Matriz, Panel, Informes, Revisión, Foco, Hábitos, Ajustes) | No existe: son iconos de rail | Botón "Más" plegado al fondo del nav (`Sidebar.tsx:482-509`) | **Eliminar "Más"**: mover cada destino al rail o a una entrada visible |
+| Elemento                                                          | Referencia                                                                                   | tick-tack-done                                                                                                  | Decisión                                                                                        |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Listas                                                            | Con **carpetas** plegables (Trabajo, Personal), listas archivadas, iconos por tipo, contador | Lista plana de ~22 listas con punto de color y contador                                                         | **Carpetas plegables** y "Archivadas"                                                           |
+| Filtros                                                           | Lista de filtros guardados con icono                                                         | Bloque "Filtros" vacío ("Sin filtros") con "+"                                                                  | Crear al menos el flujo "Guardar búsqueda como filtro" (`/search`) y mostrar el vacío con ayuda |
+| Etiquetas                                                         | Lista con **punto de color** y contador, nombres completos                                   | Buscador nativo de etiquetas, "Mostrar sin uso" y "Más", sin color visible en el sidebar, contadores desfasados | Estilar el buscador, mostrar color, arreglar contadores (2.2)                                   |
+| Calendarios suscritos                                             | Bloque propio con contador                                                                   | Solo en Ajustes                                                                                                 | Mostrar en el sidebar cuando haya calendarios externos                                          |
+| Pie del sidebar                                                   | Completadas / No haré / Papelera                                                             | Papelera + iconos tema, pantalla y colapsar (3 botones sin texto, sin tooltip)                                  | Añadir tooltips y `aria-label`                                                                  |
+| "Más" (Matriz, Panel, Informes, Revisión, Foco, Hábitos, Ajustes) | No existe: son iconos de rail                                                                | Botón "Más" plegado al fondo del nav (`Sidebar.tsx:482-509`)                                                    | **Eliminar "Más"**: mover cada destino al rail o a una entrada visible                          |
 
 ### 4.4 Comportamiento
 
@@ -502,27 +525,28 @@ Gran avance: el redespliegue ya incluye el endurecimiento. De los puntos de la l
 
 ## 2. Seguridad: línea base de esta mañana
 
-| ID | Antes | Ahora | Evidencia |
-|---|---|---|---|
-| S-01 login sin límite | 14 fallos sin 429 | CORREGIDO | 14 logins fallidos seguidos: 5 x 401, luego 9 x 429. Tiempos 0,59 s (email real) vs 0,59 s (inexistente): sin enumeración por tiempo. |
-| S-05 cabeceras | sin CSP | **ABIERTO** | `GET /` y `HEAD /`: solo `strict-transport-security` (sin `preload`), `x-frame-options`, `x-content-type-options`, `referrer-policy`. No hay `content-security-policy`, `permissions-policy` ni `cross-origin-opener-policy`. La API sí manda CSP (helmet). |
-| S-06 swagger | `/api/docs` 200 | CORREGIDO | `/api/docs` y `/api/docs-json`: 404 (`Cannot GET`). |
-| S-07 SSRF webhook | 127.0.0.1 aceptado | CORREGIDO | `https://127.0.0.1`, `10.0.0.1`, `169.254.169.254`, `[::1]` -> 400 `destination_blocked`. `http://` -> 400. |
-| S-07 SSRF iCal | 127.0.0.1 guardado | CORREGIDO | `http://127.0.0.1`, `http://169.254.169.254`, `http://localhost` -> 400 `url must be https`. No quedó nada guardado. |
-| S-12 dotfiles | `/.env` 200 | CORREGIDO | Por cuerpo: `/.env`, `/.git/HEAD`, `/.git/config`, `/.env.local` -> 404 con cuerpo `404 Not Found ... nginx` (no es index.html). `/.well-known/security.txt` sirve el contacto. |
-| S-15 escalada PAT | 201 | CORREGIDO | Token solo `profile:write` intentando crear otro -> 403 `scope_missing` (`account:admin`). |
-| S-16 sesiones | 200 | CORREGIDO | PAT `tasks:read`: `GET /auth/sessions` 403; `DELETE /auth/sessions/:id` 403. |
-| S-16 sync | eventos de sesión visibles | **PARCIAL, ver S-22** | Ver abajo. |
-| S-19 500 en validación | `project_id=x` 500 | CORREGIDO | `project_id=x` 400; `limit=abc` 400. (`list_id=zzz` devuelve 200; no parece un parámetro válido, sin impacto.) |
-| S-11 MCP | "Authentication is not configured" | CORREGIDO | `/api/v1/mcp` sin token 401. Con PAT `tasks:read`, `tools/list` 200. |
-| OAuth code->token | posible 403 `session_required` | NO REPRODUCIDO | `POST /api/v1/oauth/token` anónimo responde 400 de validación (no 403) y está en `PUBLIC_OPERATIONS`. No se probó un canje con código válido. |
-| CORS | cerrado | OK | Preflight desde `https://evil.example`: sin `access-control-allow-*`. |
+| ID                     | Antes                              | Ahora                 | Evidencia                                                                                                                                                                                                                                                   |
+| ---------------------- | ---------------------------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S-01 login sin límite  | 14 fallos sin 429                  | CORREGIDO             | 14 logins fallidos seguidos: 5 x 401, luego 9 x 429. Tiempos 0,59 s (email real) vs 0,59 s (inexistente): sin enumeración por tiempo.                                                                                                                       |
+| S-05 cabeceras         | sin CSP                            | **ABIERTO**           | `GET /` y `HEAD /`: solo `strict-transport-security` (sin `preload`), `x-frame-options`, `x-content-type-options`, `referrer-policy`. No hay `content-security-policy`, `permissions-policy` ni `cross-origin-opener-policy`. La API sí manda CSP (helmet). |
+| S-06 swagger           | `/api/docs` 200                    | CORREGIDO             | `/api/docs` y `/api/docs-json`: 404 (`Cannot GET`).                                                                                                                                                                                                         |
+| S-07 SSRF webhook      | 127.0.0.1 aceptado                 | CORREGIDO             | `https://127.0.0.1`, `10.0.0.1`, `169.254.169.254`, `[::1]` -> 400 `destination_blocked`. `http://` -> 400.                                                                                                                                                 |
+| S-07 SSRF iCal         | 127.0.0.1 guardado                 | CORREGIDO             | `http://127.0.0.1`, `http://169.254.169.254`, `http://localhost` -> 400 `url must be https`. No quedó nada guardado.                                                                                                                                        |
+| S-12 dotfiles          | `/.env` 200                        | CORREGIDO             | Por cuerpo: `/.env`, `/.git/HEAD`, `/.git/config`, `/.env.local` -> 404 con cuerpo `404 Not Found ... nginx` (no es index.html). `/.well-known/security.txt` sirve el contacto.                                                                             |
+| S-15 escalada PAT      | 201                                | CORREGIDO             | Token solo `profile:write` intentando crear otro -> 403 `scope_missing` (`account:admin`).                                                                                                                                                                  |
+| S-16 sesiones          | 200                                | CORREGIDO             | PAT `tasks:read`: `GET /auth/sessions` 403; `DELETE /auth/sessions/:id` 403.                                                                                                                                                                                |
+| S-16 sync              | eventos de sesión visibles         | **PARCIAL, ver S-22** | Ver abajo.                                                                                                                                                                                                                                                  |
+| S-19 500 en validación | `project_id=x` 500                 | CORREGIDO             | `project_id=x` 400; `limit=abc` 400. (`list_id=zzz` devuelve 200; no parece un parámetro válido, sin impacto.)                                                                                                                                              |
+| S-11 MCP               | "Authentication is not configured" | CORREGIDO             | `/api/v1/mcp` sin token 401. Con PAT `tasks:read`, `tools/list` 200.                                                                                                                                                                                        |
+| OAuth code->token      | posible 403 `session_required`     | NO REPRODUCIDO        | `POST /api/v1/oauth/token` anónimo responde 400 de validación (no 403) y está en `PUBLIC_OPERATIONS`. No se probó un canje con código válido.                                                                                                               |
+| CORS                   | cerrado                            | OK                    | Preflight desde `https://evil.example`: sin `access-control-allow-*`.                                                                                                                                                                                       |
 
 ### S-05 (abierto): CSP, Permissions-Policy y COOP no llegan al HTML
 
 El repo ya tiene los headers en `deploy/production/todo.caddy` y en `Caddyfile`, pero la respuesta real del edge no los trae (y el HSTS en vivo no lleva `preload`, el repo sí). Es decir, el Caddy del servidor no está importando ese archivo, o importa una versión anterior.
 
 Arreglo recomendado (no depende del Caddy del host):
+
 - En `apps/web/nginx.conf` añadir los headers con `always` en el bloque `server` y repetirlos en cada `location` que ya use `add_header` (nginx descarta los heredados cuando un `location` define los suyos). Mejor un `include /etc/nginx/security-headers.conf;` en cada location.
 - CSP del repo: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests`. Probar antes en Report-Only: hay service worker y Web Push.
 - Verificar tras desplegar: `curl -sI https://todo.reflexionia.com/ | grep -i -E 'content-security|permissions|cross-origin-opener'`.
@@ -531,6 +555,7 @@ Arreglo recomendado (no depende del Caddy del host):
 ### S-22 (nuevo, medio): `/api/v1/sync` filtra eventos fuera de scope al paginar
 
 Prueba: PAT con solo `tasks:read`, `GET /api/v1/sync?limit=200` y siguiendo `next_cursor`.
+
 - Páginas 1-3: solo `task.*` y `checklist_item.*` (correcto).
 - Página 4 y 5: aparecen `session.created` (6), `token.created` y `token.revoked` (39 en total), `webhook.created`, `calendar.*`, `habit.*`, `note.*`, `project.*`, `tag.*`, `filter.*`, `focus.*`, `smart_list.*`. Ejemplo: `{"type":"session.created@v1","entity_id":"3b30...","data":{"session":{"id":"3b30..."}}}`. El payload de sesión solo trae el id, pero el hecho de que un PAT mínimo vea el ritmo de sesiones, tokens y webhooks es justo lo que S-16 quería cerrar.
 - Causa probable (leída en `apps/api/src/modules/sync/sync.service.ts`): `eventTypeFilter(user)` devuelve `{ OR: [...] }` y el cursor añade otra clave `OR` en el mismo objeto `where` con spread. La del cursor pisa a la del filtro de tipo. En las primeras páginas no se nota porque los 600 primeros eventos son todos de tareas.
@@ -544,26 +569,26 @@ Prueba: PAT con solo `tasks:read`, `GET /api/v1/sync?limit=200` y siguiendo `nex
 
 ## 3. Funcional, UX y estética (web en vivo)
 
-| Ítem | Estado | Evidencia |
-|---|---|---|
-| Drag and drop kanban (soltar + refresco) | CORREGIDO | Con arrastre real (CDP): la tarjeta pasa de columna al instante, persiste tras recargar y el contador de columna se actualiza. Con límite WIP 1: mensaje "La columna ha llegado a su límite." y la tarjeta vuelve. (Antes se marcó como no testeable; el arrastre con eventos reales sí funciona.) |
-| WIP: mensaje en línea | PARCIAL | El mensaje ocupa una columna del tablero y desplaza las columnas a la derecha (layout shift). Captura 1. |
-| Atajo N | CORREGIDO | La tecla N desde Hoy enfoca el campo "Añadir tarea" (no abre diálogo de captura). |
-| Procesar bandeja | FUNCIONA, mejorable | Abre la cola en la primera tarea de Bandeja con Hoy / Mañana / Esta semana, selector de fecha, "Mover a lista", Hecha / Borrar / Saltar. Ya no hay "Set date" en inglés. No ejecuté acciones (son tareas reales). Faltan indicador de progreso (1/12) y botón para salir; el selector de fecha muestra `mm/dd/yyyy` (locale del navegador, no del ajuste de idioma). Captura 3. |
-| Fecha de tarjeta kanban en inglés | **ABIERTO** | Tarjeta con 2 sep: "Sep 2" (la lista dice "2 sept"). Captura 1. |
-| Entrada "Añade una sección…" truncada | **ABIERTO** | Sigue cortada en escritorio y móvil. |
-| Campo "Límite de la columna" | **NUEVO/ABIERTO** | Aparece siempre bajo el tablero, fuera de las columnas, sin estilo ni botón. Debería vivir en el menú de cada columna. Capturas 1 y móvil. |
-| "No hay calendarios externos." | **ABIERTO** | Enlace azul subrayado por defecto del navegador. Captura 2. |
-| Calendario: cabecera | NUEVO | Botones Hoy/anterior/siguiente flotan en el centro, separados del título y del mes. Captura 2. |
-| Chip de tarea con hora en vista mes | **ABIERTO** | "ZZ TEST card 2" (20 oct 10:00) cae en la celda 20 (correcto) pero sin hora. |
-| Papelera | PARCIAL | Restaurar y Eliminar por ítem funcionan; los botones son los nativos del navegador (gris, borde 3D), fuera del diseño. Captura 4. |
-| Contador de etiquetas | **ABIERTO** | Contador API vs tareas activas reales: personal 14 vs 13, capturada 8 vs 5, casa 6 vs 5, cumple 10 vs 10. Recalcular desde `tasks` o corregir los caminos que no actualizan. (Comparado con `GET /tasks?tag=<uuid>&status=active`; si el contador cuenta otro estado, aclarar la definición.) |
-| Fechas en pantalla Tokens | CORREGIDO | "19 oct 2026, 14:41". |
-| Barra lateral cortada en páginas de lista/etiqueta | CORREGIDO | Sin recortes en `/tag/:id` ni en listas. |
-| Scroll horizontal móvil (390 px) | CORREGIDO | Hoy, kanban y calendario: scrollWidth = clientWidth = 390. Kanban hace scroll interno. |
-| Rendimiento | CORREGIDO | TTFB 118 ms, carga 190 ms; API 116-178 ms (smart list Hoy 178 ms, tareas 161 ms). Medido desde navegador cloud cercano al servidor. |
-| Foco (zombies/estadísticas) | CORREGIDO | "Racha 1 · Pomodoros 1 · Minutos de foco 396". |
-| i18n general | CASI | Ajustes, Tokens, Hábitos, Foco, Filtros, Listas inteligentes, Matriz, Revisión en español. |
+| Ítem                                               | Estado              | Evidencia                                                                                                                                                                                                                                                                                                                                                                       |
+| -------------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Drag and drop kanban (soltar + refresco)           | CORREGIDO           | Con arrastre real (CDP): la tarjeta pasa de columna al instante, persiste tras recargar y el contador de columna se actualiza. Con límite WIP 1: mensaje "La columna ha llegado a su límite." y la tarjeta vuelve. (Antes se marcó como no testeable; el arrastre con eventos reales sí funciona.)                                                                              |
+| WIP: mensaje en línea                              | PARCIAL             | El mensaje ocupa una columna del tablero y desplaza las columnas a la derecha (layout shift). Captura 1.                                                                                                                                                                                                                                                                        |
+| Atajo N                                            | CORREGIDO           | La tecla N desde Hoy enfoca el campo "Añadir tarea" (no abre diálogo de captura).                                                                                                                                                                                                                                                                                               |
+| Procesar bandeja                                   | FUNCIONA, mejorable | Abre la cola en la primera tarea de Bandeja con Hoy / Mañana / Esta semana, selector de fecha, "Mover a lista", Hecha / Borrar / Saltar. Ya no hay "Set date" en inglés. No ejecuté acciones (son tareas reales). Faltan indicador de progreso (1/12) y botón para salir; el selector de fecha muestra `mm/dd/yyyy` (locale del navegador, no del ajuste de idioma). Captura 3. |
+| Fecha de tarjeta kanban en inglés                  | **ABIERTO**         | Tarjeta con 2 sep: "Sep 2" (la lista dice "2 sept"). Captura 1.                                                                                                                                                                                                                                                                                                                 |
+| Entrada "Añade una sección…" truncada              | **ABIERTO**         | Sigue cortada en escritorio y móvil.                                                                                                                                                                                                                                                                                                                                            |
+| Campo "Límite de la columna"                       | **NUEVO/ABIERTO**   | Aparece siempre bajo el tablero, fuera de las columnas, sin estilo ni botón. Debería vivir en el menú de cada columna. Capturas 1 y móvil.                                                                                                                                                                                                                                      |
+| "No hay calendarios externos."                     | **ABIERTO**         | Enlace azul subrayado por defecto del navegador. Captura 2.                                                                                                                                                                                                                                                                                                                     |
+| Calendario: cabecera                               | NUEVO               | Botones Hoy/anterior/siguiente flotan en el centro, separados del título y del mes. Captura 2.                                                                                                                                                                                                                                                                                  |
+| Chip de tarea con hora en vista mes                | **ABIERTO**         | "ZZ TEST card 2" (20 oct 10:00) cae en la celda 20 (correcto) pero sin hora.                                                                                                                                                                                                                                                                                                    |
+| Papelera                                           | PARCIAL             | Restaurar y Eliminar por ítem funcionan; los botones son los nativos del navegador (gris, borde 3D), fuera del diseño. Captura 4.                                                                                                                                                                                                                                               |
+| Contador de etiquetas                              | **ABIERTO**         | Contador API vs tareas activas reales: personal 14 vs 13, capturada 8 vs 5, casa 6 vs 5, cumple 10 vs 10. Recalcular desde `tasks` o corregir los caminos que no actualizan. (Comparado con `GET /tasks?tag=<uuid>&status=active`; si el contador cuenta otro estado, aclarar la definición.)                                                                                   |
+| Fechas en pantalla Tokens                          | CORREGIDO           | "19 oct 2026, 14:41".                                                                                                                                                                                                                                                                                                                                                           |
+| Barra lateral cortada en páginas de lista/etiqueta | CORREGIDO           | Sin recortes en `/tag/:id` ni en listas.                                                                                                                                                                                                                                                                                                                                        |
+| Scroll horizontal móvil (390 px)                   | CORREGIDO           | Hoy, kanban y calendario: scrollWidth = clientWidth = 390. Kanban hace scroll interno.                                                                                                                                                                                                                                                                                          |
+| Rendimiento                                        | CORREGIDO           | TTFB 118 ms, carga 190 ms; API 116-178 ms (smart list Hoy 178 ms, tareas 161 ms). Medido desde navegador cloud cercano al servidor.                                                                                                                                                                                                                                             |
+| Foco (zombies/estadísticas)                        | CORREGIDO           | "Racha 1 · Pomodoros 1 · Minutos de foco 396".                                                                                                                                                                                                                                                                                                                                  |
+| i18n general                                       | CASI                | Ajustes, Tokens, Hábitos, Foco, Filtros, Listas inteligentes, Matriz, Revisión en español.                                                                                                                                                                                                                                                                                      |
 
 ### Otros detalles visuales / de producto
 
@@ -575,16 +600,16 @@ Prueba: PAT con solo `tasks:read`, `GET /api/v1/sync?limit=200` y siguiendo `nex
 
 ## 4. Higiene del repo (`d87e3fa`)
 
-| Punto | Estado |
-|---|---|
-| LICENSE, SECURITY.md, CODEOWNERS, dependabot, workflow Security, `.dockerignore`, `.gitleaks.toml`, security.txt | OK |
-| IP, usuario SSH y rutas del servidor en `docs/deployment.md`, `docs/handoff.md`, `deploy/` | CORREGIDO (ya no están) |
-| `deploy/production/deploy.sh:14` comentario con `/opt/todo/app` | ABIERTO (menor) |
-| `docs/spec/spec-seguridad-tick-tack-done-2026-10-19-v2-39a5d1b4.md` | **ABIERTO**: publica IP <SERVER_IP>, clave SSH `<SSH_KEY_NAME>`, red `<EDGE_NETWORK>`, app vecina `<NEIGHBOR_APP>`. Sacarla del repo o anonimizarla (el propio doc incluye el `filter-repo`). |
-| Menciones a TickTick en `docs/spec/` | ABIERTO: `cursor-prompt-limpieza-repo-publico` (39), `cursor-prompt-ronda3-ticktick-vs-tick-tack-done` (30), `auditoria-settings` (17), `especificacion-producto-v1.1` (11), `paridad-ticktick` (9), `ux-ui` (9), `mcp-listo` (4). En código: importador/compat `open/ticktick.ts` (aceptable si se documenta como compatibilidad). |
-| Email personal en el historial | ABIERTO: 152 commits `<PERSONAL_EMAIL>` (nivel C sin hacer). |
-| Secretos en el árbol | Sin hallazgos (regex AWS/GitHub/PAT/clave privada: solo valores de test). `.env.example` sin valores reales. |
-| Archivos de editor | `todo.code-workspace` y `.cursor/rules` siguen versionados (decisión tuya). |
+| Punto                                                                                                            | Estado                                                                                                                                                                                                                                                                                                                              |
+| ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| LICENSE, SECURITY.md, CODEOWNERS, dependabot, workflow Security, `.dockerignore`, `.gitleaks.toml`, security.txt | OK                                                                                                                                                                                                                                                                                                                                  |
+| IP, usuario SSH y rutas del servidor en `docs/deployment.md`, `docs/handoff.md`, `deploy/`                       | CORREGIDO (ya no están)                                                                                                                                                                                                                                                                                                             |
+| `deploy/production/deploy.sh:14` comentario con `/opt/todo/app`                                                  | ABIERTO (menor)                                                                                                                                                                                                                                                                                                                     |
+| `docs/spec/spec-seguridad-tick-tack-done-2026-10-19-v2-39a5d1b4.md`                                              | **ABIERTO**: publica IP <SERVER_IP>, clave SSH `<SSH_KEY_NAME>`, red `<EDGE_NETWORK>`, app vecina `<NEIGHBOR_APP>`. Sacarla del repo o anonimizarla (el propio doc incluye el `filter-repo`).                                                                                                                                       |
+| Menciones a TickTick en `docs/spec/`                                                                             | ABIERTO: `cursor-prompt-limpieza-repo-publico` (39), `cursor-prompt-ronda3-ticktick-vs-tick-tack-done` (30), `auditoria-settings` (17), `especificacion-producto-v1.1` (11), `paridad-ticktick` (9), `ux-ui` (9), `mcp-listo` (4). En código: importador/compat `open/ticktick.ts` (aceptable si se documenta como compatibilidad). |
+| Email personal en el historial                                                                                   | ABIERTO: 152 commits `<PERSONAL_EMAIL>` (nivel C sin hacer).                                                                                                                                                                                                                                                                        |
+| Secretos en el árbol                                                                                             | Sin hallazgos (regex AWS/GitHub/PAT/clave privada: solo valores de test). `.env.example` sin valores reales.                                                                                                                                                                                                                        |
+| Archivos de editor                                                                                               | `todo.code-workspace` y `.cursor/rules` siguen versionados (decisión tuya).                                                                                                                                                                                                                                                         |
 
 ## 5. Pruebas realizadas y limpieza
 
@@ -626,13 +651,13 @@ Prueba: PAT con solo `tasks:read`, `GET /api/v1/sync?limit=200` y siguiendo `nex
 
 ## Resumen ejecutivo
 
-| Área | Estado |
-|---|---|
-| Funcional / UX (ronda 3) | **Mayoría corregido en producción.** Quedan restos menores de i18n y detalles visuales. |
-| Seguridad en el repo | **Los 21 arreglos están en el código de `main`.** |
-| Seguridad en producción | **Sin desplegar.** Todas las pruebas no destructivas confirman que las vulnerabilidades siguen activas. |
+| Área                      | Estado                                                                                                                                               |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Funcional / UX (ronda 3)  | **Mayoría corregido en producción.** Quedan restos menores de i18n y detalles visuales.                                                              |
+| Seguridad en el repo      | **Los 21 arreglos están en el código de `main`.**                                                                                                    |
+| Seguridad en producción   | **Sin desplegar.** Todas las pruebas no destructivas confirman que las vulnerabilidades siguen activas.                                              |
 | Limpieza del repo público | **Parcial.** Estructura, LICENSE, SECURITY.md, CI y README bien; quedan rastros de origen TickTick en `docs/spec/` y datos sensibles en comentarios. |
-| Datos de prueba | Todo el material ZZ TEST creado en esta auditoría está eliminado y los tokens revocados. La papelera quedó como estaba. |
+| Datos de prueba           | Todo el material ZZ TEST creado en esta auditoría está eliminado y los tokens revocados. La papelera quedó como estaba.                              |
 
 ---
 
@@ -640,32 +665,32 @@ Prueba: PAT con solo `tasks:read`, `GET /api/v1/sync?limit=200` y siguiendo `nex
 
 Referencia: tabla de la ronda 3 (`docs/spec/cursor-prompt-ronda3-ticktick-vs-tick-tack-done-*.md`).
 
-| Ítem | Estado | Evidencia |
-|---|---|---|
-| N-1 Calendario mes: tareas en celda correcta | ✅ Corregido | Tarea con hora (ZZ TEST A, 20 oct 10:00) cayó en la celda 20; tarea de día completo en la 19. Captura 1. |
-| N-1 (detalle) chip de tarea con hora no muestra la hora | 🟡 Parcial | La tarjeta en la celda del mes no muestra "10:00", solo el título. Menor. |
-| Calendario en español | ✅ Corregido | "octubre de 2026", lun/mar/mié… en toda la vista. |
-| N-2 Textos de repetición/recordatorio en español | ✅ Corregido | "30 min antes", "Cada semana los martes". |
-| N-3 Fechas según idioma (vistas Hoy/lista/detalle) | ✅ Corregido | Cabecera "lunes, 19 de octubre"; filas "Mañana 10:00", "6 may"; detalle "20 oct 2026, 10:00". |
-| N-3 Kanban: fechas de tarjeta en inglés | ❌ Sigue abierto | Tarjetas del tablero muestran "Sep 2" en vez de "2 sep". Captura 2. |
-| N-3 Ajustes: fechas de tokens en formato US | ❌ Sigue abierto (de la otra auditoría) | Lista de tokens: "10/19/2026, 11:02:30 AM". |
-| N-4 Filas completadas: fecha truncada | ✅ Corregido | Filas completadas muestran "19 oct" completo. |
-| N-5 Estadísticas de foco (filtros + zombies) | ✅ Corregido | API: filtro `status` funciona, 0 focos zombie activos, `cappedFocusSeconds` presente. UI: "Racha 1 · Pomodoros 1 · Minutos de foco 396". |
-| N-6 Checkbox de tarea integrado en kanban | ✅ Corregido | Checkbox en tarjetas; fechas en el pie de la tarjeta. |
-| N-6 Input de sección truncado | 🟡 Parcial | Sigue cortado: "Añade una sección para usar e…". Captura 2. |
-| N-8 Menú contextual de tarea | 🟡 Parcial | Incluye "Iniciar foco"; faltan fijar (pin) y subtarea. |
-| N-12 Contador de etiquetas | 🟡 Parcial | La API ya expone `active_task_count` (personal = 14). Pero el recuento real de tareas activas con esa etiqueta da **13**: el contador desnormalizado arrastra un desfase de 1. |
-| N-13 / P2-17 Sidebar con etiquetas cortadas | ❌ Sigue abierto | En páginas de lista la barra lateral muestra "iltros" / "in filtros" / "istas" (overflow horizontal residual). |
-| N-13 "No hay calendarios externos." | ❌ Sigue abierto | Párrafo suelto sin estilo sigue presente en Calendario. |
-| P0-3 Scroll horizontal con detalle abierto | ✅ Corregido | `scrollWidth` 1265 sin overflow; en móvil (390px) 390=390, sin overflow. Captura 3. |
-| P1-8 Iconos del pie | ✅ Corregido | 3 iconos presentes. |
-| P1-25 Drag & drop kanban (drop + refresco) | ⬜ Sin retestar | El DnD es HTML5 nativo; los eventos sintéticos no lo activan. En código (main) ahora invalida el tablero y muestra errores WIP en línea. Verificar a mano tras el redespliegue. |
-| P1-27 Procesar bandeja ("Set date") | ⬜ Sin retestar | Sin tiempo dentro de la ventana de auditoría. |
-| P2-15 Papelera: restaurar/eliminar por ítem | ✅ Corregido | Cada ítem tiene "Restaurar" y "Eliminar"; 23 tareas reales intactas. |
-| P2-31 Notas zombie en papelera | ✅ Corregido (API) | Las notas aparecen en la papelera con acciones ("nueva lista Viaje"). |
-| P2-32 Atajo "N" abre captura rápida | ⬜ Sin retestar | La herramienta de navegador no permite enviar teclas sueltas. Verificar a mano. |
-| P0-1 / P0-2 Rendimiento | ✅ Corregido | TTFB 127 ms, carga completa 213 ms, llamadas API ~240 ms (medido desde navegador cloud cercano al servidor; en red real será mayor, pero mejora clara). |
-| Móvil (Hoy) | ✅ Verificado | Vista Hoy en 390×844: cabecera en español, "Vencidas 54", navegación inferior completa, sin overflow. Captura 3. |
+| Ítem                                                    | Estado                                  | Evidencia                                                                                                                                                                       |
+| ------------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| N-1 Calendario mes: tareas en celda correcta            | ✅ Corregido                            | Tarea con hora (ZZ TEST A, 20 oct 10:00) cayó en la celda 20; tarea de día completo en la 19. Captura 1.                                                                        |
+| N-1 (detalle) chip de tarea con hora no muestra la hora | 🟡 Parcial                              | La tarjeta en la celda del mes no muestra "10:00", solo el título. Menor.                                                                                                       |
+| Calendario en español                                   | ✅ Corregido                            | "octubre de 2026", lun/mar/mié… en toda la vista.                                                                                                                               |
+| N-2 Textos de repetición/recordatorio en español        | ✅ Corregido                            | "30 min antes", "Cada semana los martes".                                                                                                                                       |
+| N-3 Fechas según idioma (vistas Hoy/lista/detalle)      | ✅ Corregido                            | Cabecera "lunes, 19 de octubre"; filas "Mañana 10:00", "6 may"; detalle "20 oct 2026, 10:00".                                                                                   |
+| N-3 Kanban: fechas de tarjeta en inglés                 | ❌ Sigue abierto                        | Tarjetas del tablero muestran "Sep 2" en vez de "2 sep". Captura 2.                                                                                                             |
+| N-3 Ajustes: fechas de tokens en formato US             | ❌ Sigue abierto (de la otra auditoría) | Lista de tokens: "10/19/2026, 11:02:30 AM".                                                                                                                                     |
+| N-4 Filas completadas: fecha truncada                   | ✅ Corregido                            | Filas completadas muestran "19 oct" completo.                                                                                                                                   |
+| N-5 Estadísticas de foco (filtros + zombies)            | ✅ Corregido                            | API: filtro `status` funciona, 0 focos zombie activos, `cappedFocusSeconds` presente. UI: "Racha 1 · Pomodoros 1 · Minutos de foco 396".                                        |
+| N-6 Checkbox de tarea integrado en kanban               | ✅ Corregido                            | Checkbox en tarjetas; fechas en el pie de la tarjeta.                                                                                                                           |
+| N-6 Input de sección truncado                           | 🟡 Parcial                              | Sigue cortado: "Añade una sección para usar e…". Captura 2.                                                                                                                     |
+| N-8 Menú contextual de tarea                            | 🟡 Parcial                              | Incluye "Iniciar foco"; faltan fijar (pin) y subtarea.                                                                                                                          |
+| N-12 Contador de etiquetas                              | 🟡 Parcial                              | La API ya expone `active_task_count` (personal = 14). Pero el recuento real de tareas activas con esa etiqueta da **13**: el contador desnormalizado arrastra un desfase de 1.  |
+| N-13 / P2-17 Sidebar con etiquetas cortadas             | ❌ Sigue abierto                        | En páginas de lista la barra lateral muestra "iltros" / "in filtros" / "istas" (overflow horizontal residual).                                                                  |
+| N-13 "No hay calendarios externos."                     | ❌ Sigue abierto                        | Párrafo suelto sin estilo sigue presente en Calendario.                                                                                                                         |
+| P0-3 Scroll horizontal con detalle abierto              | ✅ Corregido                            | `scrollWidth` 1265 sin overflow; en móvil (390px) 390=390, sin overflow. Captura 3.                                                                                             |
+| P1-8 Iconos del pie                                     | ✅ Corregido                            | 3 iconos presentes.                                                                                                                                                             |
+| P1-25 Drag & drop kanban (drop + refresco)              | ⬜ Sin retestar                         | El DnD es HTML5 nativo; los eventos sintéticos no lo activan. En código (main) ahora invalida el tablero y muestra errores WIP en línea. Verificar a mano tras el redespliegue. |
+| P1-27 Procesar bandeja ("Set date")                     | ⬜ Sin retestar                         | Sin tiempo dentro de la ventana de auditoría.                                                                                                                                   |
+| P2-15 Papelera: restaurar/eliminar por ítem             | ✅ Corregido                            | Cada ítem tiene "Restaurar" y "Eliminar"; 23 tareas reales intactas.                                                                                                            |
+| P2-31 Notas zombie en papelera                          | ✅ Corregido (API)                      | Las notas aparecen en la papelera con acciones ("nueva lista Viaje").                                                                                                           |
+| P2-32 Atajo "N" abre captura rápida                     | ⬜ Sin retestar                         | La herramienta de navegador no permite enviar teclas sueltas. Verificar a mano.                                                                                                 |
+| P0-1 / P0-2 Rendimiento                                 | ✅ Corregido                            | TTFB 127 ms, carga completa 213 ms, llamadas API ~240 ms (medido desde navegador cloud cercano al servidor; en red real será mayor, pero mejora clara).                         |
+| Móvil (Hoy)                                             | ✅ Verificado                           | Vista Hoy en 390×844: cabecera en español, "Vencidas 54", navegación inferior completa, sin overflow. Captura 3.                                                                |
 
 **Regla i18n residual:** el locale visible debe salir del ajuste de idioma, no de `navigator.language`. Fechas de tarjetas kanban y de la lista de tokens lo incumplen aún.
 
@@ -677,19 +702,19 @@ Código verificado en `main` (commit `d49b22a`): todos los arreglos existen — 
 
 **Pero en producción (9e159cf) nada de esto está activo.** Pruebas no destructivas realizadas hoy:
 
-| Test | Resultado en vivo | Estado |
-|---|---|---|
-| S-01 Rate limit de login | 14 logins fallidos seguidos → **ningún 429** | ❌ Vulnerable en prod |
-| S-05 Cabeceras de seguridad | Sin CSP ni Permissions-Policy en `/` | ❌ Vulnerable en prod |
-| S-06 Swagger | `/api/docs` y `/api/docs-json` → **200** | ❌ Vulnerable en prod |
-| S-11 MCP sin auth | Mensaje "Authentication is not configured" | ❌ Sigue en prod |
-| S-12 Dotfiles | **`/.env` y `/.git/HEAD` → 200** | ❌ Vulnerable en prod (crítico) |
-| S-15 Escalada de scopes PAT | Token con solo `profile:write` creó un token full-scope (201). Token creado revocado de inmediato (401 verificado) | ❌ Vulnerable en prod (crítico) |
-| S-16 Visibilidad de sesiones/sync | Token de solo lectura listó `/auth/sessions` (200) y eventos `session.created` en `/sync`; `DELETE sessions/:uuid` → 404 en vez de 403 | ❌ Vulnerable en prod |
-| S-07 SSRF webhooks | `https://127.0.0.1:1` aceptado (201) con oráculo de ping `{state:failed}`; webhook borrado (204) | ❌ Vulnerable en prod |
-| S-07 SSRF iCal | Suscripción `http://127.0.0.1:1` → 500 pero quedó guardada; localizada y borrada (204) | ❌ Vulnerable en prod |
-| S-19 Validación de parámetros | `GET /tasks?project_id=x` → **500** (debería ser 400) | ❌ Sigue en prod |
-| DELETE /me | **No ejecutado** (destructivo, prohibido en esta auditoría) | ⬜ |
+| Test                              | Resultado en vivo                                                                                                                      | Estado                          |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| S-01 Rate limit de login          | 14 logins fallidos seguidos → **ningún 429**                                                                                           | ❌ Vulnerable en prod           |
+| S-05 Cabeceras de seguridad       | Sin CSP ni Permissions-Policy en `/`                                                                                                   | ❌ Vulnerable en prod           |
+| S-06 Swagger                      | `/api/docs` y `/api/docs-json` → **200**                                                                                               | ❌ Vulnerable en prod           |
+| S-11 MCP sin auth                 | Mensaje "Authentication is not configured"                                                                                             | ❌ Sigue en prod                |
+| S-12 Dotfiles                     | **`/.env` y `/.git/HEAD` → 200**                                                                                                       | ❌ Vulnerable en prod (crítico) |
+| S-15 Escalada de scopes PAT       | Token con solo `profile:write` creó un token full-scope (201). Token creado revocado de inmediato (401 verificado)                     | ❌ Vulnerable en prod (crítico) |
+| S-16 Visibilidad de sesiones/sync | Token de solo lectura listó `/auth/sessions` (200) y eventos `session.created` en `/sync`; `DELETE sessions/:uuid` → 404 en vez de 403 | ❌ Vulnerable en prod           |
+| S-07 SSRF webhooks                | `https://127.0.0.1:1` aceptado (201) con oráculo de ping `{state:failed}`; webhook borrado (204)                                       | ❌ Vulnerable en prod           |
+| S-07 SSRF iCal                    | Suscripción `http://127.0.0.1:1` → 500 pero quedó guardada; localizada y borrada (204)                                                 | ❌ Vulnerable en prod           |
+| S-19 Validación de parámetros     | `GET /tasks?project_id=x` → **500** (debería ser 400)                                                                                  | ❌ Sigue en prod                |
+| DELETE /me                        | **No ejecutado** (destructivo, prohibido en esta auditoría)                                                                            | ⬜                              |
 
 **Conclusión de seguridad:** el trabajo está bien hecho en el repo, pero producción sigue expuesta. Hasta el redespliegue, los puntos más sensibles son S-12 (dotfiles públicos, incluido `/.env`), S-15 (escalada total desde un PAT mínimo) y S-01 (fuerza bruta sin freno).
 
@@ -699,19 +724,19 @@ Código verificado en `main` (commit `d49b22a`): todos los arreglos existen — 
 
 Verificado contra `cursor-prompt-limpieza-repo-publico-2026-10-19`:
 
-| Punto | Estado | Detalle |
-|---|---|---|
-| LICENSE (MIT, povedica 2026) | ✅ | Presente. |
-| SECURITY.md, CONTRIBUTING.md, CODEOWNERS | ✅ | Presentes. |
-| `.github/dependabot.yml`, workflow de seguridad (audit + gitleaks + codeql) | ✅ | Presentes. |
-| `.dockerignore`, `.gitleaks.toml`, `.pre-commit-config.yaml` | ✅ | Presentes. |
-| `init-harness.sh` eliminado | ✅ | Borrado. |
-| README con disclaimer de no afiliación | ✅ | "Proyecto personal, sin afiliación con TickTick ni Appest". |
-| `package.json` license MIT | ✅ | |
-| Renombrados de docs | ✅ | `especificacion-producto-v1.1.md` etc. |
-| Menciones a TickTick / origen en `docs/spec/` | ❌ Pendiente | `paridad-ticktick.md` (doc nuevo que admite procedencia), el doc de ronda 3, `mcp-listo` (además con enlace roto al nombre antiguo `ticktick-clone-spec-v1.1.md`), el de fixes y el de auditoría siguen conteniendo "medido de TickTick" y similares. |
-| Datos sensibles en comentarios | ❌ Pendiente | `deploy/production/deploy.sh` (comentario con `/opt/todo/app`) y la propia spec de seguridad commiteada (IP del servidor, "turugby"). |
-| Emails de commits (nivel B/C) | ❌ Pendiente | Siguen como <PERSONAL_EMAIL>. |
+| Punto                                                                       | Estado       | Detalle                                                                                                                                                                                                                                               |
+| --------------------------------------------------------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| LICENSE (MIT, povedica 2026)                                                | ✅           | Presente.                                                                                                                                                                                                                                             |
+| SECURITY.md, CONTRIBUTING.md, CODEOWNERS                                    | ✅           | Presentes.                                                                                                                                                                                                                                            |
+| `.github/dependabot.yml`, workflow de seguridad (audit + gitleaks + codeql) | ✅           | Presentes.                                                                                                                                                                                                                                            |
+| `.dockerignore`, `.gitleaks.toml`, `.pre-commit-config.yaml`                | ✅           | Presentes.                                                                                                                                                                                                                                            |
+| `init-harness.sh` eliminado                                                 | ✅           | Borrado.                                                                                                                                                                                                                                              |
+| README con disclaimer de no afiliación                                      | ✅           | "Proyecto personal, sin afiliación con TickTick ni Appest".                                                                                                                                                                                           |
+| `package.json` license MIT                                                  | ✅           |                                                                                                                                                                                                                                                       |
+| Renombrados de docs                                                         | ✅           | `especificacion-producto-v1.1.md` etc.                                                                                                                                                                                                                |
+| Menciones a TickTick / origen en `docs/spec/`                               | ❌ Pendiente | `paridad-ticktick.md` (doc nuevo que admite procedencia), el doc de ronda 3, `mcp-listo` (además con enlace roto al nombre antiguo `ticktick-clone-spec-v1.1.md`), el de fixes y el de auditoría siguen conteniendo "medido de TickTick" y similares. |
+| Datos sensibles en comentarios                                              | ❌ Pendiente | `deploy/production/deploy.sh` (comentario con `/opt/todo/app`) y la propia spec de seguridad commiteada (IP del servidor, "turugby").                                                                                                                 |
+| Emails de commits (nivel B/C)                                               | ❌ Pendiente | Siguen como <PERSONAL_EMAIL>.                                                                                                                                                                                                                         |
 
 **Recomendación:** antes de dar difusión al repo, pasar el grep del documento de limpieza otra vez sobre `docs/spec/` y `deploy/`, y valorar reescribir el historial (nivel C) si el email y los datos de infra importan.
 
@@ -757,11 +782,13 @@ Verificado contra `cursor-prompt-limpieza-repo-publico-2026-10-19`:
 ## Resumen ejecutivo (priorizado)
 
 ### P1 — roto o sin salida para el usuario
+
 1. **Automatizaciones no se pueden crear.** El formulario falla siempre con "No se ha podido completar." (verificado 3 veces, con nombre relleno). La sección entera es inusable.
 2. **Webhooks no se pueden borrar ni pausar desde la UI.** Una vez creado, el webhook queda activo para siempre; no hay botón de eliminar, pausar ni rotar secreto. El endpoint API `DELETE /webhooks/:id` **sí existe** (`apps/api/src/modules/webhooks/webhooks.controller.ts:231`): falta solo la UI.
 3. **Feeds de calendario (.ics) no se pueden listar ni revocar.** Creas un feed y desaparece de la UI, pero la URL sigue viva para siempre. No hay manera de ver los feeds activos ni revocarlos. Cualquiera con la URL tiene acceso de lectura permanente al calendario.
 
 ### P2 — funcionalidad muerta o engañosa
+
 4. **Plugins es una página vacía** sin lista, sin estado vacío explicado y sin acción posible.
 5. **"Avisos del navegador" (Notificaciones) es texto muerto:** informa del estado del permiso pero no hay botón para solicitarlo. En TickTick puedes activar/desactivar notificaciones desde ajustes.
 6. **Integraciones: Drive aparece "Disponible" aunque Google está "Sin conectar"** — engañoso. Las tarjetas de Telegram y Drive no tienen ningún botón de acción.
@@ -769,6 +796,7 @@ Verificado contra `cursor-prompt-limpieza-repo-publico-2026-10-19`:
 8. **Apariencia/idioma/inicio de semana solo se guardan en localStorage** (`tick-tack-done.theme`, `.density`, `.week-start`, `.locale`, `.parser`): no se sincronizan entre dispositivos ni navegadores. En TickTick estos ajustes son de cuenta. Solo el copy de "Inicio de semana" lo admite.
 
 ### P3 — pulido
+
 9. **2FA sin QR ni cancelar:** el alta muestra el secreto TOTP en texto plano y la URL otpauth, pero no genera el código QR que espera cualquier app de autenticación, y no hay botón Cancelar (si cierras, puede quedar un secreto pendiente en servidor).
 10. **Fechas en formato US en Tokens y MCP** ("10/19/2026, 12:36:56 PM") con la UI en español. Causa localizada: `apps/web/src/features/tokens/components/TokensPage.tsx:465` usa `new Date(iso).toLocaleString()` sin locale.
 11. **Input de hora de Notificaciones en formato 12 h** (`--:-- --`) con la UI en español; debería ser 24 h.
@@ -778,6 +806,7 @@ Verificado contra `cursor-prompt-limpieza-repo-publico-2026-10-19`:
 15. **Notificaciones: no hay recordatorio por defecto ni preferencias por lista** como en TickTick (solo el recordatorio diario).
 
 ### Funciona bien (verificado con ida y vuelta + recarga)
+
 - Cuenta: guardar nombre/zona horaria/subtareas al completar persiste en servidor. Zona de peligro bien protegida (botón deshabilitado hasta escribir el email).
 - Apariencia: tema/densidad/acento/inicio de semana/idioma aplican en vivo y persisten (en local).
 - Captura: regenerar dirección de email-to-task funciona (se muestra una vez, enmascarada después); revocar pide confirmación inline.
@@ -794,10 +823,12 @@ Verificado contra `cursor-prompt-limpieza-repo-publico-2026-10-19`:
 ## Detalle por subsección
 
 ### 1. Cuenta (`/settings/account`)
+
 **Qué es:** nombre, correo, zona horaria, comportamiento de subtareas, contraseña, 2FA y zona de peligro.
 **Archivos:** `apps/web/src/features/places/Places.tsx:1400` (`AccountPage`).
 
 **Resultado actual:**
+
 - Guardar nombre/zona/subtareas funciona y persiste tras recargar (probado con ida y vuelta y restaurado a Pablo Poveda / Europe/Madrid / Preguntar).
 - El correo no es editable (texto plano).
 - "Contraseña" es una tarjeta muerta: solo dice "La recuperación de contraseña no está publicada".
@@ -807,20 +838,24 @@ Verificado contra `cursor-prompt-limpieza-repo-publico-2026-10-19`:
 **Esperado (TickTick):** cambio de contraseña con contraseña actual; 2FA con QR escaneable y cancelación limpia; correo editable con verificación.
 
 **Cómo arreglar:**
+
 - P2.7 — Implementar cambio de contraseña (endpoint + formulario) o, mientras no exista, quitar la tarjeta para no prometer lo que no hay. TickTick lo tiene en Cuenta.
 - P3.9 — Generar el QR del otpauth (p. ej. paquete `qrcode`) y añadir "Cancelar" que descarte el secreto pendiente en servidor.
 
 ### 2. Apariencia (`/settings/appearance`)
+
 **Qué es:** tema, densidad, acento, inicio de semana, idioma.
 **Archivos:** `apps/web/src/features/settings/AppearancePage.tsx`; persistencia en `apps/web/src/theme/preference.ts` (claves `tick-tack-done.*` en localStorage).
 
 **Resultado actual:** todo aplica en vivo y persiste tras recarga, pero **solo en este navegador** (localStorage). El copy de "Inicio de semana" es el único que lo admite ("Solo cambia cómo se dibuja el calendario en este navegador"). Las muestras de acento no tienen nombre accesible individual.
 **Esperado (TickTick):** la apariencia es un ajuste de cuenta y viaja entre dispositivos.
 **Cómo arreglar:**
+
 - P2.8 — Guardar estas preferencias en la API de cuenta (como ya se hace con zona horaria) y usar localStorage solo como caché; o al menos hacer el copy honesto en todos los ajustes locales, no solo en inicio de semana.
 - P3.12 — `aria-label` por muestra de color ("Azul", "Violeta"...).
 
 ### 3. Captura (`/settings/capture`)
+
 **Qué es:** idioma del parser y dirección email-to-task.
 **Archivos:** `apps/web/src/features/places/Places.tsx:1662` (`CaptureSettings`), `apps/web/src/features/settings/InboundEmailCard.tsx`.
 
@@ -829,71 +864,85 @@ Verificado contra `cursor-prompt-limpieza-repo-publico-2026-10-19`:
 **Cómo arreglar:** solo lo de persistencia de preferencias (P2.8).
 
 ### 4. Notificaciones (`/settings/notifications`)
+
 **Qué es:** recordatorio diario y avisos del navegador.
 **Archivos:** `apps/web/src/features/places/Places.tsx:1701` (`NotificationSettings`); el estado push se calcula en `pushPermission()` (~línea 1793) pero solo se pinta.
 
 **Resultado actual:**
+
 - Guardar/borrar el recordatorio diario funciona y persiste (restaurado a vacío).
 - El input de hora se renderiza en formato 12 h (`--:-- --`) con UI en español. (Nota de verificación: el input nativo de hora no acepta escritura por automatización; lo fijé vía setter nativo de React para la prueba. No es un bug del producto.)
 - "Avisos del navegador" es texto muerto: dice el estado del permiso pero no hay botón para pedirlo.
-**Esperado (TickTick):** activar notificaciones desde ajustes, formato 24 h, recordatorio por defecto para tareas con fecha y preferencias por lista.
-**Cómo arreglar:**
+  **Esperado (TickTick):** activar notificaciones desde ajustes, formato 24 h, recordatorio por defecto para tareas con fecha y preferencias por lista.
+  **Cómo arreglar:**
 - P2.5 — Botón "Activar avisos" que llame a `Notification.requestPermission()` desde `NotificationSettings`.
 - P3.11 — Forzar formato 24 h (locale `es-ES` en el input o componente propio).
 - P3.15 — Añadir recordatorio por defecto configurable.
 
 ### 5. Listas inteligentes (`/settings/smart-lists`)
+
 **Qué es:** visibilidad, orden y contadores de las listas inteligentes.
 **Archivos:** `apps/web/src/features/views/components/SmartListsPage.tsx`.
 
 **Resultado actual:** todo funciona: ocultar/mostrar (probado con Completadas), reordenar arrastrando (probado moviendo Mañana) y contadores. Autoguardado con toast "Guardado". Todo restaurado. Sin hallazgos. Es la subsección más pulida.
 
 ### 6. Calendario (`/settings/calendar`)
+
 **Qué es:** feeds .ics por lista y enlace a la integración de Google.
 **Archivos:** `apps/web/src/features/product/ProductPages.tsx:346` (`CalendarSettings`); API en `apps/api/src/modules/calendar/`.
 
 **Resultado actual:** crear un feed funciona (URL válida, contenido VCALENDAR correcto). **Pero no hay lista de feeds ni revocación:** tras crearlo, la UI no lo muestra más y la URL queda viva para siempre. La tarjeta de Google enlaza a Integraciones (bien).
 **Esperado (TickTick):** ver los feeds activos y poder revocarlos/regenerarlos.
 **Cómo arreglar:**
+
 - P1.3 — Añadir en `CalendarSettings` la lista de feeds existentes (hay que exponerlos en la API de calendario si no está) con botón Revocar (borrar/invalidar el token del feed) y Regenerar. Mostrar la URL solo al crear.
 
 ### 7. Tokens y MCP (`/settings/tokens`)
+
 **Qué es:** tokens de API con alcances y acceso MCP.
 **Archivos:** `apps/web/src/features/tokens/components/TokensPage.tsx`.
 
 **Resultado actual:** crear con alcance, copiar el secreto una sola vez y revocar funcionan. El alcance se respeta en la API (verificado: token "Leer tareas" → `/api/v1/tasks` 200, `/api/v1/lists` 404; tras revocar, 401). Las fechas de creación/último uso salen en formato US ("10/19/2026, 12:36:56 PM").
 **Esperado (TickTick):** fechas en el locale de la UI.
 **Cómo arreglar:**
+
 - P3.10 — `TokensPage.tsx:465`: pasar el locale activo a `toLocaleString(locale)` (el proyecto ya tiene `formatStamp(stamp, locale)` en `apps/web/src/features/settings/MoreSettings.tsx:620` como patrón).
 
 ### 8. Integraciones (`/settings/integrations`)
+
 **Qué es:** conexión con Google (Calendar/Drive) y Telegram.
 **Archivos:** `apps/web/src/features/product/ProductPages.tsx:455` (`IntegrationSettings`).
 
 **Resultado actual:** el flujo OAuth de Google arranca bien (scopes openid+email+calendar+drive.file, `state` y `redirect_uri` correctos; no completé el sign-in). Pero **Drive muestra "Disponible" con Google "Sin conectar"**, y las tarjetas de Telegram y Drive no tienen ningún botón.
 **Esperado (TickTick):** estado coherente y acción clara por integración (Conectar / Desconectar / Configurar).
 **Cómo arreglar:**
+
 - P2.6 — Derivar el estado de Drive del estado real de la conexión Google; añadir botón de acción a cada tarjeta o marcar como "Próximamente" las que no se pueden usar.
 
 ### 9. Automatizaciones (`/settings/automations`)
+
 **Qué es:** regla fija "al completar una tarea, manda un aviso".
 **Archivos:** UI `apps/web/src/features/settings/MoreSettings.tsx:13` (`AutomationSettings`); API `apps/api/src/modules/automations/automations.controller.ts:371` (`@Post`, scope `automations:manage`).
 
 **Resultado actual:** **P1 — la creación falla siempre**: con nombre relleno, "Crear automatización" devuelve "No se ha podido completar." (3 intentos). El botón queda deshabilitado hasta escribir un nombre (eso está bien). No se crea nada.
 **Cómo arreglar:**
+
 - P1.1 — Reproducir con la pestaña Network abierta: la UI manda `{name, trigger:{event:'task.completed@v1'}, actions:[{type:'notify'}], enabled:true}`, que encaja con `AutomationDto` (name ≤200, trigger objeto, actions array). Si la API responde 4xx/5xx, la causa está en servidor (scope de sesión, validación o Prisma); el mensaje genérico además debería mostrar el detalle del error para poder diagnosticarlo.
 - Además: solo existe un tipo de regla fija. TickTick no tiene automatizaciones, así que aquí el listón es "que funcione"; el borrado/pausa tampoco está expuesto en la UI aunque la API sí tiene `DELETE :id` (`automations.controller.ts:418`).
 
 ### 10. Webhooks (`/settings/webhooks`)
+
 **Qué es:** URL que recibe un aviso al completarse una tarea, con secreto de un solo uso.
 **Archivos:** UI `apps/web/src/features/settings/MoreSettings.tsx:103` (`WebhookSettings`); API `apps/api/src/modules/webhooks/webhooks.controller.ts` (`@Delete(':id')` en :231, ping en :252, reintento en :274).
 
 **Resultado actual:** crear funciona (secreto mostrado una vez, evento `task.completed@v1`, estado Activo). **P1 — no hay forma de borrar, pausar ni rotar un webhook desde la UI** aunque la API sí tiene el DELETE. Mi webhook de prueba (apunta a example.com) sigue activo: ver "Limpieza pendiente".
 **Esperado:** lista con acciones por webhook (eliminar al menos; la API ya soporta ping y reintento).
 **Cómo arreglar:**
+
 - P1.2 — Añadir en `WebhookSettings` botón Eliminar por fila llamando a `DELETE /webhooks/:id`, con confirmación inline (mismo patrón que "Revocar" en Captura). Opcional: botón Probar (`POST :id/ping`) y ver reintentos.
 
 ### 11. Plugins (`/settings/plugins`)
+
 **Qué es:** página de plugins.
 **Archivos:** `apps/web/src/features/settings/MoreSettings.tsx:212` (`PluginSettings`).
 
@@ -901,15 +950,18 @@ Verificado contra `cursor-prompt-limpieza-repo-publico-2026-10-19`:
 **Cómo arreglar:** si no hay sistema de plugins todavía, quitar la entrada del menú de ajustes (en `SettingsLayout`/`SettingsHome`, `apps/web/src/features/places/Places.tsx:1301-1318`) hasta que exista; si existe, mostrar lista o un estado vacío honesto.
 
 ### 12. Compartir (`/settings/sharing`)
+
 **Qué es:** invitar por email a una lista con permiso Leer/Comentar/Escribir.
 **Archivos:** `apps/web/src/features/settings/MoreSettings.tsx:260` (`SharingSettings`).
 
 **Resultado actual:** el formulario existe y tiene buena pinta; **no probado de extremo a extremo** (requeriría una segunda cuenta). El permiso por defecto del desplegable es **Escribir**.
 **Esperado (TickTick):** invitación con el permiso mínimo por defecto.
 **Cómo arreglar:**
+
 - P3.13 — Cambiar la opción inicial a "Leer". Probar el flujo completo de invitación/aceptación con una segunda cuenta antes de anunciarlo.
 
 ### 13. Datos (`/settings/data`)
+
 **Qué es:** exportar JSON y copias de seguridad de esta máquina.
 **Archivos:** `apps/web/src/features/settings/MoreSettings.tsx:384` (`DataSettings`).
 
@@ -917,6 +969,7 @@ Verificado contra `cursor-prompt-limpieza-repo-publico-2026-10-19`:
 **Cómo arreglar:** pendiente probar crear/verificar una copia; el copy "de esta máquina" es correcto si las copias son locales.
 
 ### 14. Atajos (`/settings/shortcuts`)
+
 **Qué es:** lista estática de atajos de teclado.
 **Archivos:** `apps/web/src/features/settings/MoreSettings.tsx:512` (`ShortcutSettings`); los atajos reales viven en `apps/web/src/shell/GlobalKeys.tsx`.
 
@@ -926,11 +979,13 @@ Verificado contra `cursor-prompt-limpieza-repo-publico-2026-10-19`:
 ---
 
 ## Responsive / móvil (390 px, iPhone)
+
 - El índice de ajustes se apila bien y las tarjetas pasan a una columna: se ve limpio (ver captura móvil de Apariencia adjunta).
 - P3.14a — La barra inferior (Hoy/Calendario/+/Listas/Más) **tapa el final del contenido** en páginas largas (p. ej. la tarjeta 2FA en Cuenta queda cortada detrás). Falta `padding-bottom` en el contenedor de ajustes en el breakpoint móvil.
 - P3.14b — Dentro de una subsección no hay botón "atrás" al índice de ajustes; solo queda el atrás del navegador. TickTick móvil muestra cabecera con flecha.
 
 ## i18n / formato
+
 - P3.10 — Fechas US en Tokens (causa localizada arriba).
 - P3.11 — Hora 12 h en Notificaciones.
 - El resto de la UI de ajustes está en español coherente.
@@ -938,6 +993,7 @@ Verificado contra `cursor-prompt-limpieza-repo-publico-2026-10-19`:
 ---
 
 ## Limpieza y notas para Pablo
+
 1. **Feed .ics activo creado por mí** para la lista vacía `viaje-londres` (0 tareas): `https://todo.reflexionia.com/feeds/73DfgfIvCNP0h_PCy2xI46g8YLxpHaMt.ics`. No pude revocarlo porque no existe la UI (P1.3). Bórralo en base de datos o cuando implementes la revocación.
 2. **Webhook de prueba activo** creado por mí: `https://example.com/zz-test-hook` (evento `task.completed@v1`). Apunta a example.com (inofensivo, los envíos fallarán), pero no se puede borrar desde la UI (P1.2). Bórralo con `DELETE /webhooks/:id` o en base de datos.
 3. **Posible secreto TOTP pendiente:** al abrir el panel de alta de 2FA se genera un secreto que quedó sin confirmar (no hay cancelar). El 2FA sigue desactivado; conviene invalidar ese secreto pendiente en servidor.
@@ -961,20 +1017,20 @@ Capturas de referencia (adjuntas por WhatsApp): `REF-1` lista de referencia con 
 
 ## Resumen de hallazgos (prioridad)
 
-| # | Prioridad | Problema | Causa en código |
-|---|---|---|---|
-| 1 | P0 | Tarea con hora no muestra la hora en la lista (solo "Hoy") | `TodayPage.tsx` `TaskGroup` renderiza `formatDueDate` y nunca la hora |
-| 2 | P0 | "Vencidas" sale antes que "Alta" | `TodayPage.tsx` pinta `parts.overdue` siempre antes de `sections` |
-| 3 | P0 | Panel de detalle básico (selects nativos, botones de texto, "Borrar" rojo arriba) | `TaskDetail.tsx` + `ui.css` `.detail-panel` |
-| 4 | P0 | "Hábitos de hoy" vacío: solo un `h2` sin nada | `TodayPage.tsx` sección `habitsToday` |
-| 5 | P1 | Quick-add sin feedback del parseo (fecha/hora/prioridad) | `quick-add.ts` parsea pero no hay chip en UI |
-| 6 | P1 | Filas: columna meta limitada al 42%, el título se corta pronto, "Bandeja" se trunca a "B" con el panel abierto | `today.css` `.task-row grid-template-columns` |
-| 7 | P1 | Sin animación al completar; toast abajo-izquierda tapa el pie del sidebar; hay 2 estilos de toast distintos | `completion.ts`, `toast.css`, `ui.css .action-toast` |
-| 8 | P1 | Cabecera de grupo sin colapso visible ni espaciado superior ("Alta" pegada a la fila anterior) | `TaskGroup` usa `<details>` sin chevron propio |
-| 9 | P2 | "Plan de hoy" ocupa una tarjeta fija aunque esté vacío | `TodayPage.tsx` `<details className="plan">` |
-| 10 | P2 | Estado "Actividad": "Tú · created · hace 1 minuto" (inglés crudo) | `TaskDetail.tsx` ~L517 `entry.action` |
-| 11 | P2 | Botones sueltos "Convertir en nota" y "Mañana" al final del panel; "No se repite" duplicado | `TaskDetail.tsx` ~L522 |
-| 12 | P2 | En móvil la última fila queda tapada por la barra inferior | falta `padding-bottom` en `.today` |
+| #   | Prioridad | Problema                                                                                                       | Causa en código                                                       |
+| --- | --------- | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| 1   | P0        | Tarea con hora no muestra la hora en la lista (solo "Hoy")                                                     | `TodayPage.tsx` `TaskGroup` renderiza `formatDueDate` y nunca la hora |
+| 2   | P0        | "Vencidas" sale antes que "Alta"                                                                               | `TodayPage.tsx` pinta `parts.overdue` siempre antes de `sections`     |
+| 3   | P0        | Panel de detalle básico (selects nativos, botones de texto, "Borrar" rojo arriba)                              | `TaskDetail.tsx` + `ui.css` `.detail-panel`                           |
+| 4   | P0        | "Hábitos de hoy" vacío: solo un `h2` sin nada                                                                  | `TodayPage.tsx` sección `habitsToday`                                 |
+| 5   | P1        | Quick-add sin feedback del parseo (fecha/hora/prioridad)                                                       | `quick-add.ts` parsea pero no hay chip en UI                          |
+| 6   | P1        | Filas: columna meta limitada al 42%, el título se corta pronto, "Bandeja" se trunca a "B" con el panel abierto | `today.css` `.task-row grid-template-columns`                         |
+| 7   | P1        | Sin animación al completar; toast abajo-izquierda tapa el pie del sidebar; hay 2 estilos de toast distintos    | `completion.ts`, `toast.css`, `ui.css .action-toast`                  |
+| 8   | P1        | Cabecera de grupo sin colapso visible ni espaciado superior ("Alta" pegada a la fila anterior)                 | `TaskGroup` usa `<details>` sin chevron propio                        |
+| 9   | P2        | "Plan de hoy" ocupa una tarjeta fija aunque esté vacío                                                         | `TodayPage.tsx` `<details className="plan">`                          |
+| 10  | P2        | Estado "Actividad": "Tú · created · hace 1 minuto" (inglés crudo)                                              | `TaskDetail.tsx` ~L517 `entry.action`                                 |
+| 11  | P2        | Botones sueltos "Convertir en nota" y "Mañana" al final del panel; "No se repite" duplicado                    | `TaskDetail.tsx` ~L522                                                |
+| 12  | P2        | En móvil la última fila queda tapada por la barra inferior                                                     | falta `padding-bottom` en `.today`                                    |
 
 ---
 
@@ -984,19 +1040,21 @@ Capturas de referencia (adjuntas por WhatsApp): `REF-1` lista de referencia con 
 **Comportamiento esperado:** la hora aparece a la derecha, en color acento, con icono de campana si tiene recordatorio. Las tareas sin hora no muestran nada. Si es de otro día, "12 sep" y la hora si la hay.
 **Actual:** `formatDueDate` solo devuelve día; `TaskGroup` no tiene hora (ver `TTD-3`).
 **Cómo arreglarlo:**
+
 - `features/today/groups.ts`: añadir `hasTime(dueDate, timeZone)` (hora local distinta de 00:00 y marca `all_day` si la API la expone; si no, definir "sin hora" = 00:00 exacto) y `formatDueTime(dueDate, timeZone, locale)` con `Intl.DateTimeFormat(locale, {hour:'2-digit', minute:'2-digit', timeZone, hour12:false})`.
 - `TodayTask` debe incluir `allDay: boolean` y `hasReminder: boolean` (mapear en `board.ts` `toTodayTask`).
 - `TodayPage.tsx` `TaskGroup`: después del nombre de lista, si hay hora, `<time className="task-time">18:00</time>`; con recordatorio añadir icono `AlarmClock` de lucide (12px).
 - En la vista del día (no vencidas) mostrar **solo la hora** en lugar de "Hoy" (el grupo ya dice que es hoy). En vencidas: "19 mar" + hora.
 - Orden dentro de cada grupo: primero las que tienen hora (ascendente), luego las de todo el día. `partitionToday` ya ordena por `dueDate`; cambiar el comparador para que "sin hora" vaya después.
 - CSS en `today.css`: `.task-time { color: var(--accent); font-variant-numeric: tabular-nums; }`; `.task-date.is-overdue` se mantiene rojo.
-**Test:** `groups.spec.ts` casos con hora, sin hora, zona horaria Europe/Madrid y cambio de día.
+  **Test:** `groups.spec.ts` casos con hora, sin hora, zona horaria Europe/Madrid y cambio de día.
 
 ## 2. Orden de secciones: Vencidas antes que Alta (P0)
 
 **Esperado (decisión de producto):** con agrupación por prioridad, las vencidas **no** forman un bloque aparte: se reparten dentro de su grupo de prioridad (Alta, Media, Baja, Ninguna), con la fecha en rojo. El bloque "Vencidas" solo existe cuando la agrupación es por fecha, y allí va primero.
 **Actual:** `TodayPage.tsx` pinta siempre `parts.overdue` (54 tareas) antes de `sections` (ver `TTD-1`), así que Alta queda enterrada.
 **Cómo arreglarlo:**
+
 - `TodayPage.tsx`: si `group === 'priority' | 'tag' | 'list'`, usar `groupTasks([...parts.overdue, ...parts.today], group)` y no renderizar el bloque Vencidas aparte. Si `group === 'due'`, mantener Vencidas primero y luego Hoy.
 - Dentro de cada grupo, orden por fecha ascendente (las más antiguas primero) y las de hoy después; estas últimas con hora ordenadas por hora.
 - `groupTasks` ya soporta lista completa; añadir test en `groups.spec.ts`: "las vencidas de prioridad alta aparecen en el grupo Alta".
@@ -1032,6 +1090,7 @@ Capturas de referencia (adjuntas por WhatsApp): `REF-1` lista de referencia con 
 ```
 
 ### Especificación por control
+
 - **Cabecera:** `PriorityCheck` (checkbox con color de prioridad) + separador vertical de 1px + `DueChip` + espacio + botón bandera. El chip de fecha se pinta rojo si está vencida ("hace 3 meses, 18 jul"), acento si es hoy/futura, gris si no hay fecha ("Fecha").
 - **Selector de fecha (popover 260px):** pestañas "Fecha | Duración"; fila de 4 atajos con icono (Hoy, Mañana, +7 días, Sin fecha); calendario mensual con día seleccionado en círculo acento y flechas de mes; filas "Hora", "Recordatorio" y "Repetir" con chevron que abren sub-popovers; botones "Borrar" (secundario) y "OK" (primario). Crear `components/DatePopover.tsx` (reutilizable en quick-add y menú contextual) y sustituir el input de `Fecha`.
 - **Prioridad:** popover con 4 filas (bandera de color + texto + check en la activa): Alta, Media, Baja, Ninguna. Sustituye al `<select class="sr-only">` actual (`TaskDetail.tsx` ~L185).
@@ -1044,7 +1103,7 @@ Capturas de referencia (adjuntas por WhatsApp): `REF-1` lista de referencia con 
 - **Espaciado y tipografía:** padding horizontal 20px, separación vertical entre bloques 16px, radio de popovers 12px, sombra `0 8px 24px rgba(0,0,0,.12)`, texto 14px, secundarios 13px `--ink-3`.
 - **Guardado:** autoguardado al perder foco con indicador discreto "Guardado" (ya existe `saved`); no mostrarlo como línea suelta arriba (`.page-toolbar`).
 - **Responsive:** ≥1200px panel fijo a la derecha; 700-1199px modal lateral con fondo atenuado (ya funciona); <700px pantalla completa con flecha atrás.
-**Archivos:** `features/tasks/TaskDetail.tsx` (749 líneas: dividir en `DetailHeader`, `DetailBody`, `DetailFooter`, `DetailMenu`), `components/ui.css` (`.detail-panel`, L794-845), `shell/shell.css` (`.detail`, L247-260; hay duplicado en `styles.css` L398: unificar en un solo bloque), nuevos `components/DatePopover.tsx`, `components/PriorityMenu.tsx`, `components/TagPicker.tsx`, `components/Popover.tsx` (base con cierre en Esc y clic fuera).
+  **Archivos:** `features/tasks/TaskDetail.tsx` (749 líneas: dividir en `DetailHeader`, `DetailBody`, `DetailFooter`, `DetailMenu`), `components/ui.css` (`.detail-panel`, L794-845), `shell/shell.css` (`.detail`, L247-260; hay duplicado en `styles.css` L398: unificar en un solo bloque), nuevos `components/DatePopover.tsx`, `components/PriorityMenu.tsx`, `components/TagPicker.tsx`, `components/Popover.tsx` (base con cierre en Esc y clic fuera).
 
 ## 4. Hábitos de hoy sin hábitos (P0)
 
@@ -1052,6 +1111,7 @@ Capturas de referencia (adjuntas por WhatsApp): `REF-1` lista de referencia con 
 **Esperado:** si hay hábitos, mostrarlos como un grupo más al final ("Hábitos", contador, filas con icono del hábito, progreso `0/1` y hora si tiene). Si no hay, mostrar una tarjeta tranquila.
 
 ### Wireframe del estado vacío
+
 ```
 ┌──────────────────────────────────────────────┐
 │  🌱                                          │
@@ -1065,7 +1125,9 @@ Capturas de referencia (adjuntas por WhatsApp): `REF-1` lista de referencia con 
 │  Ahora no  (enlace, oculta 7 días)           │
 └──────────────────────────────────────────────┘
 ```
+
 **Cómo arreglarlo:**
+
 - Nuevo componente `features/habits/components/HabitsEmpty.tsx`; usar `HABIT_SUGGESTIONS` de `features/habits/suggestions.ts` para los chips (crean el hábito con un clic, con toast "Hábito creado" y deshacer).
 - `TodayPage.tsx`: render condicional: `habits.isPending` → 2 esqueletos; vacío → `<HabitsEmpty />`; con datos → grupo "Hábitos" con `habit-check` circular y barra de progreso.
 - Estilo: tarjeta `--surface-2`, radio 12px, padding 20px, sin borde fuerte, icono 28px; botón principal `--accent`.
@@ -1077,6 +1139,7 @@ Capturas de referencia (adjuntas por WhatsApp): `REF-1` lista de referencia con 
 **Esperado:** placeholder `Añadir tarea a "Bandeja"` (nombra la lista destino); al escribir, resaltar en el propio texto lo que se interpreta (fecha, hora, prioridad, #etiqueta, lista) y mostrar un chip a la derecha con el resultado ("Hoy, 18:00"). Enter crea y mantiene el foco; Esc limpia; las herramientas (fecha, prioridad, lista) se ven al enfocar.
 **Actual:** `<input>` plano; `quickAddRequest` parsea ("hoy 18:00 !alta" funciona: la tarea quedó con prioridad Alta, fecha de hoy 18:00 y título limpio) pero el usuario no ve el parseo hasta después. Solo se ve un icono de calendario y un chevron (`QuickAddTools.tsx`, 80 líneas). La vista previa y el servidor deben usar el mismo `parseQuickAdd` de la Parte 8: una hora separada de la fecha ("mañana … a las 16:00") tiene que verse en el chip igual que quedará guardada.
 **Cómo arreglarlo:**
+
 - `TodayPage.tsx` `addTask`: calcular `quickAddRequest` en cada cambio (memo) y pasar `preview` a `QuickAddTools` para pintar chips: fecha/hora (acento), prioridad (color), etiquetas (color de etiqueta).
 - Resaltado en línea: sustituir el `<input>` por un `contenteditable` o capa espejo (`<div aria-hidden>` detrás del input con `<mark>` por token). Alternativa más simple y suficiente: solo chips.
 - Popovers de fecha y prioridad: reutilizar `DatePopover` y `PriorityMenu` (punto 3).
@@ -1087,13 +1150,14 @@ Capturas de referencia (adjuntas por WhatsApp): `REF-1` lista de referencia con 
 
 **Actual:** `.task-row` en `today.css` L67 es `grid: auto minmax(0,1fr) minmax(0,42%) auto`, altura `--row-h` (40px), 8px de padding. Con el panel abierto la columna meta se reduce y "Bandeja" se corta en "B" (`TTD-3`). Hay reglas `.task-row`/`.task-meta` duplicadas en `ui.css` L754-790.
 **Esperado:**
+
 - Orden de elementos: [grip al hover] [checkbox con color de prioridad] [título] [chips de etiqueta] [nombre de lista] [icono recordatorio/repetición/descripción] [hora o fecha] [⋯ al hover].
 - Título con elipsis, prioridad máxima de espacio; meta con `flex: 0 0 auto` y el título se encoge, no al revés.
 - Etiquetas: máximo 2 chips y `+N`; nombre de lista gris 12px con máximo 14ch y elipsis.
 - Iconos pequeños (14px, gris) para: descripción, checklist `1/3`, repetición, adjuntos, comentarios.
 - Hover: fondo `--surface-2`, grip a la izquierda, `⋯` a la derecha; seleccionado: `--accent-soft`.
 - Tareas de calendario externo (si existen): icono de calendario y origen en gris.
-**Cómo arreglarlo:** eliminar duplicados de `ui.css` (dejar una sola definición en `today.css`), cambiar a `display:flex` con `min-width:0` en título y `flex-shrink:0` en meta, añadir iconos desde lucide en `TaskGroup`. Añadir contador de subtareas y marca de descripción (requiere `checklistTotal/checklistDone`/`hasContent` en `TodayTask`).
+  **Cómo arreglarlo:** eliminar duplicados de `ui.css` (dejar una sola definición en `today.css`), cambiar a `display:flex` con `min-width:0` en título y `flex-shrink:0` en meta, añadir iconos desde lucide en `TaskGroup`. Añadir contador de subtareas y marca de descripción (requiere `checklistTotal/checklistDone`/`hasContent` en `TodayTask`).
 
 ## 7. Completar, deshacer y toasts (P1)
 
@@ -1106,21 +1170,25 @@ Capturas de referencia (adjuntas por WhatsApp): `REF-1` lista de referencia con 
 `TaskGroup` usa `<details>` con `<summary>` sin chevron; "Alta" queda pegada a la última fila anterior (`TTD-3`). Fix: `margin-top: 16px` en `.task-group`, chevron lucide que rota con `[open]`, contador a la derecha del título, cabecera pegajosa (`position: sticky; top: 0`) con fondo `--bg`.
 
 ## 9. Plan de hoy (P2)
+
 Hoy es una tarjeta con borde y texto fijo "Cuando haya una propuesta…". Si no hay plan: colapsar a una sola línea discreta con enlace "Planificar mi día" (lleva a `/review`). Si hay plan: tarjeta con 3-5 tareas sugeridas, botón "Aceptar plan".
 
 ## 10. Atajos, selección múltiple, menú contextual y drag & drop (revisar)
+
 - **Atajos existentes** (`shell/shortcuts.ts`): `N`, `?`, `Ctrl/Cmd+K`, `/`, `G T`… Faltan sobre la lista: `↑/↓` mover foco entre filas, `Enter` abrir detalle, `Espacio` completar, `P` prioridad, `D` fecha, `Supr` borrar, `X` seleccionar, `Shift+clic` rango, `Ctrl/Cmd+clic` selección múltiple (barra de acciones en lote: ya hay `.task-row.is-batch` en `ui.css` L759, comprobar que se activa en Hoy).
 - **Menú contextual:** clic derecho sobre fila → Fecha (atajos con iconos), Prioridad (4 banderas), Añadir subtarea, Fijar, Mover a…, Etiquetas, Iniciar foco, Duplicar, Copiar enlace, Convertir en nota, Borrar. Hoy no existe.
 - **Drag & drop:** `task-grip` solo en orden manual. Permitir arrastrar entre grupos de prioridad (cambia prioridad) y a la barra lateral (mueve de lista o cambia fecha en Hoy/Mañana).
 - No verificado en esta pasada: atajos reales de la referencia y su comportamiento exacto; validar con prueba manual tras implementar.
 
 ## 11. Estados de carga, vacío, error y rendimiento
+
 - Carga: ya hay `task-skeleton` (3 filas). Añadir esqueleto también para cabecera de grupo y para hábitos.
 - Vacío total (`todayEmpty` en `es.ts` L110): "Despejado. Captura lo próximo con N o revisa tu Inbox." Mejorar con ilustración sencilla, título "Día despejado", cuerpo corto y botón "Añadir tarea".
 - Error: `todayFailed` con botón Reintentar (existe).
 - Rendimiento observado: primera pintura con esqueleto ~3s en el navegador remoto; la carga hace dos consultas paginadas (`loadTodayTasks`, `board.ts`). Con 54 vencidas no hay virtualización; considerar `@tanstack/react-virtual` si superan ~200 filas.
 
 ## 12. Responsive y tema
+
 - **Móvil (390px):** lista correcta con filas de 2 líneas y barra inferior (Hoy, Calendario, +, Listas, Más). Problemas: la última fila queda tapada por la barra (añadir `padding-bottom: calc(64px + env(safe-area-inset-bottom))` a `.today`); el detalle abre pantalla completa pero con los mismos controles nativos (aplicar punto 3); el título de 20px se corta en la cabecera del panel.
 - **Tablet/960px:** el panel de detalle se abre como modal lateral con fondo atenuado: correcto.
 - **Tema oscuro:** existen tokens en `styles/tokens.css` (L109-112). No se auditó visualmente en esta pasada: revisar contraste de chips de etiqueta (fondo pastel con texto oscuro) y de `--accent-soft` en oscuro.
@@ -1128,6 +1196,7 @@ Hoy es una tarjeta con borde y texto fijo "Cuando haya una propuesta…". Si no 
 ---
 
 ## Orden de implementación (checklist)
+
 1. [ ] Punto 2: orden de grupos (cambio pequeño, alto impacto) + tests en `groups.spec.ts`.
 2. [ ] Punto 1: hora visible y orden por hora + tests.
 3. [ ] Punto 4: estado vacío de hábitos + grupo Hábitos.
@@ -1139,6 +1208,7 @@ Hoy es una tarjeta con borde y texto fijo "Cuando haya una propuesta…". Si no 
 9. [ ] Puntos 9, 11, 12: plan de hoy, vacíos, móvil.
 
 ## Verificación
+
 - `pnpm lint && pnpm typecheck && pnpm test && pnpm build`.
 - Manual (datos con prefijo `ZZ TEST`, borrar al terminar): crear "ZZ TEST reunión hoy 18:00 !alta" → debe verse en el grupo Alta con "18:00"; con 54 vencidas, el primer grupo visible es Alta; Hábitos sin datos muestra la tarjeta; el panel de detalle no usa `<select>` nativos (`rg "<select" apps/web/src/features/tasks/TaskDetail.tsx` solo en campos ocultos accesibles).
 - Visual: comparar capturas antes/después a 1280px, 960px y 390px.
@@ -1170,14 +1240,14 @@ Fecha: 19 oct 2026, 15:30-16:00 (Madrid). Autor: Instinct. Documento para Cursor
 
 Lo que hoy SÍ llega a Telegram (bot configurado y cuenta vinculada, verificado en vivo: `GET /api/v1/integrations/telegram` → `{configured: true, linked: true}`):
 
-| Origen | ¿Llega a Telegram? | Vía |
-|---|---|---|
-| Recordatorio de tarea (explícito o por defecto de cuenta/lista) | SÍ | `kind: 'task'` → `ReminderTransport` |
-| Resumen diario ("Planifica tu día", Pablo lo tiene a las 07:00) | SÍ | `kind: 'daily_digest'` |
-| Recordatorio de hábito | SÍ | `kind: 'daily_digest'` con `habit_id` |
-| Tarea con hora de vencimiento pero SIN recordatorio | **NO** | `kind: 'due_soon'`/`'overdue'` nunca se entregan |
-| Aviso de vencida (overdue) | **NO** | igual |
-| Inicio/fin de foco (Pomodoro) | **NO** | los eventos existen, nadie los envía |
+| Origen                                                          | ¿Llega a Telegram? | Vía                                              |
+| --------------------------------------------------------------- | ------------------ | ------------------------------------------------ |
+| Recordatorio de tarea (explícito o por defecto de cuenta/lista) | SÍ                 | `kind: 'task'` → `ReminderTransport`             |
+| Resumen diario ("Planifica tu día", Pablo lo tiene a las 07:00) | SÍ                 | `kind: 'daily_digest'`                           |
+| Recordatorio de hábito                                          | SÍ                 | `kind: 'daily_digest'` con `habit_id`            |
+| Tarea con hora de vencimiento pero SIN recordatorio             | **NO**             | `kind: 'due_soon'`/`'overdue'` nunca se entregan |
+| Aviso de vencida (overdue)                                      | **NO**             | igual                                            |
+| Inicio/fin de foco (Pomodoro)                                   | **NO**             | los eventos existen, nadie los envía             |
 
 El fallo principal está en `apps/api/src/scheduler/scheduler.service.ts`, función `fire()` (línea 583): solo las entregas `kind === 'task' || kind === 'daily_digest'` llaman a `this.transport.deliver(...)` (línea 602). Las señales `due_soon` y `overdue` entran por el `else`: se marcan como disparadas y graban un evento de dominio, pero **no envían nada a ningún canal**. Es decir: la app calcula "esta tarea vence pronto" y "esta tarea está vencida", y luego tira el aviso a la papelera.
 
@@ -1244,14 +1314,14 @@ El fallo principal está en `apps/api/src/scheduler/scheduler.service.ts`, funci
 
 Tarea: `fa96e1a3-3a04-4f58-abdc-189232a289c5` — "Recoger a mis hijos a las 15:35" (lista Bandeja de entrada, prioridad alta, etiqueta #cole). Fuente: `GET /api/v1/search?q=recoger`, `GET /api/v1/tasks/:id`, `GET /api/v1/tasks/:id/reminders` y el registro de actividad `GET /api/v1/projects/:id/activity` (todo en vivo, solo lectura, 19 oct 15:28-15:32).
 
-| Hora (Madrid) | Evento | Evidencia |
-|---|---|---|
-| 12:31:45 | Creada, **todo el día**, vencimiento 19 oct 00:00 local (`2026-10-18T22:00:00Z`). El título dice "a las 15:35" pero el NLP no parsea hora sin palabra de fecha | actividad `created` |
-| 12:31:57 | El recordatorio por defecto (-5 min, anclado a medianoche = ya pasado) **se dispara 12 s después de crearla**. El transporte intentó Telegram; si llegó, fue un aviso a las 12:32 de algo de las 15:35 | actividad `status: fired` |
-| 12:32:31-32 | Pablo edita la hora varias veces (00:00 → 01:00 → 15:00 → 15:03 local). En esa ventana de edición el recordatorio desapareció (hoy la tarea no tiene ninguno). El mecanismo consistente con la evidencia es `applyDate` (H-04): editar fecha con el selector sin recordatorio pre-seleccionado borra el existente; no se descarta que Pablo lo quitara a mano | 3 eventos `updated` con `due_date` cambiando; reminders ahora `[]` |
-| (después) | Vencimiento final: `2026-10-19T13:35:00Z` = **15:35 local**. `is_all_day` sigue en `true` aunque tiene hora | `GET /tasks/:id` |
-| 15:28 | **Cero recordatorios en la tarea** | `GET /tasks/:id/reminders` → `[]` |
-| 15:35:14 | El planificador graba `status: fired` (la señal `due_soon`) 14 s después del vencimiento. **No se envía nada: ni Telegram, ni push, ni email** | evento de actividad en vivo `2026-10-19T13:35:14Z`; comportamiento confirmado en `fire()` |
+| Hora (Madrid) | Evento                                                                                                                                                                                                                                                                                                                                                        | Evidencia                                                                                 |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| 12:31:45      | Creada, **todo el día**, vencimiento 19 oct 00:00 local (`2026-10-18T22:00:00Z`). El título dice "a las 15:35" pero el NLP no parsea hora sin palabra de fecha                                                                                                                                                                                                | actividad `created`                                                                       |
+| 12:31:57      | El recordatorio por defecto (-5 min, anclado a medianoche = ya pasado) **se dispara 12 s después de crearla**. El transporte intentó Telegram; si llegó, fue un aviso a las 12:32 de algo de las 15:35                                                                                                                                                        | actividad `status: fired`                                                                 |
+| 12:32:31-32   | Pablo edita la hora varias veces (00:00 → 01:00 → 15:00 → 15:03 local). En esa ventana de edición el recordatorio desapareció (hoy la tarea no tiene ninguno). El mecanismo consistente con la evidencia es `applyDate` (H-04): editar fecha con el selector sin recordatorio pre-seleccionado borra el existente; no se descarta que Pablo lo quitara a mano | 3 eventos `updated` con `due_date` cambiando; reminders ahora `[]`                        |
+| (después)     | Vencimiento final: `2026-10-19T13:35:00Z` = **15:35 local**. `is_all_day` sigue en `true` aunque tiene hora                                                                                                                                                                                                                                                   | `GET /tasks/:id`                                                                          |
+| 15:28         | **Cero recordatorios en la tarea**                                                                                                                                                                                                                                                                                                                            | `GET /tasks/:id/reminders` → `[]`                                                         |
+| 15:35:14      | El planificador graba `status: fired` (la señal `due_soon`) 14 s después del vencimiento. **No se envía nada: ni Telegram, ni push, ni email**                                                                                                                                                                                                                | evento de actividad en vivo `2026-10-19T13:35:14Z`; comportamiento confirmado en `fire()` |
 
 #### 3.1 Cadena de fallos (cada uno es un hallazgo)
 
@@ -1267,21 +1337,21 @@ Tarea: `fa96e1a3-3a04-4f58-abdc-189232a289c5` — "Recoger a mis hijos a las 15:
 
 ## 4. Tabla de hallazgos
 
-| ID | Sev | Hallazgo | Archivo |
-|---|---|---|---|
-| H-01 | **Alta** | `due_soon`/`overdue` nunca se entregan: solo graban evento | `scheduler.service.ts` `fire()` línea 602 |
-| H-02 | Alta | NLP no parsea hora suelta ("a las 15:35") ni hora separada de la fecha ("mañana … a las 16:00"). Spec completa: Parte 8 | `packages/domain/src/nlp/parse.ts` |
-| H-03 | Media | Recordatorio anclado en el pasado dispara al instante de crear la tarea | `trigger.ts` `reminderDisposition` línea 221 |
-| H-04 | Alta | La web borra el recordatorio al editar la fecha | `TaskDetail.tsx` `applyDate` línea ~165 |
-| H-05 | Alta | Editar fecha (fecha→fecha) no crea recordatorio por defecto | `tasks.service.ts` línea 395 |
-| H-06 | Media | `is_all_day: true` con hora es un estado inconsistente permitido | `tasks.service.ts` + selector de fecha web |
-| H-07 | Alta | Entregas programadas no se cancelan al completar/borrar/cambiar fecha | `scheduler.service.ts` `fire()` línea 585 (sin filtro de estado de tarea) |
-| H-08 | Media | Sin reintentos: un fallo de Telegram se marca `fired` y se pierde | `scheduler.service.ts` `fire()` + `reminder.transport.ts` |
-| H-09 | Media | Sin aviso de "vencida" (overdue) por ningún canal | `scheduler.service.ts` |
-| H-10 | Media | Sin botones Hecho/Aplazar en el mensaje de recordatorio | `reminder.transport.ts` línea 94 |
-| H-11 | Baja | Sin horario de silencio | API (no existe) |
-| H-12 | Baja | Foco inicio/fin no avisa por Telegram pese a tener eventos | `domain-events.ts` líneas 61-63 |
-| H-13 | Baja | `channel: 'push'` es engañoso: Telegram se intenta siempre; no hay opt-out por recordatorio ni por usuario | `reminder.transport.ts` línea 34 |
+| ID   | Sev      | Hallazgo                                                                                                                | Archivo                                                                   |
+| ---- | -------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| H-01 | **Alta** | `due_soon`/`overdue` nunca se entregan: solo graban evento                                                              | `scheduler.service.ts` `fire()` línea 602                                 |
+| H-02 | Alta     | NLP no parsea hora suelta ("a las 15:35") ni hora separada de la fecha ("mañana … a las 16:00"). Spec completa: Parte 8 | `packages/domain/src/nlp/parse.ts`                                        |
+| H-03 | Media    | Recordatorio anclado en el pasado dispara al instante de crear la tarea                                                 | `trigger.ts` `reminderDisposition` línea 221                              |
+| H-04 | Alta     | La web borra el recordatorio al editar la fecha                                                                         | `TaskDetail.tsx` `applyDate` línea ~165                                   |
+| H-05 | Alta     | Editar fecha (fecha→fecha) no crea recordatorio por defecto                                                             | `tasks.service.ts` línea 395                                              |
+| H-06 | Media    | `is_all_day: true` con hora es un estado inconsistente permitido                                                        | `tasks.service.ts` + selector de fecha web                                |
+| H-07 | Alta     | Entregas programadas no se cancelan al completar/borrar/cambiar fecha                                                   | `scheduler.service.ts` `fire()` línea 585 (sin filtro de estado de tarea) |
+| H-08 | Media    | Sin reintentos: un fallo de Telegram se marca `fired` y se pierde                                                       | `scheduler.service.ts` `fire()` + `reminder.transport.ts`                 |
+| H-09 | Media    | Sin aviso de "vencida" (overdue) por ningún canal                                                                       | `scheduler.service.ts`                                                    |
+| H-10 | Media    | Sin botones Hecho/Aplazar en el mensaje de recordatorio                                                                 | `reminder.transport.ts` línea 94                                          |
+| H-11 | Baja     | Sin horario de silencio                                                                                                 | API (no existe)                                                           |
+| H-12 | Baja     | Foco inicio/fin no avisa por Telegram pese a tener eventos                                                              | `domain-events.ts` líneas 61-63                                           |
+| H-13 | Baja     | `channel: 'push'` es engañoso: Telegram se intenta siempre; no hay opt-out por recordatorio ni por usuario              | `reminder.transport.ts` línea 34                                          |
 
 ---
 
@@ -1439,14 +1509,15 @@ Verificación: lunes 19 de octubre de 2026, 15:33-15:35, Europe/Madrid. Capítul
 
 Repositorio: https://github.com/povedica/tick-tack-done/
 
-| Entorno | Commit comprobado | Evidencia |
-| --- | --- | --- |
-| main | `51dd55558cbf55d639e7002d70a8a134b38aa796` | Clonación e historial Git |
+| Entorno    | Commit comprobado                                                   | Evidencia                                        |
+| ---------- | ------------------------------------------------------------------- | ------------------------------------------------ |
+| main       | `51dd55558cbf55d639e7002d70a8a134b38aa796`                          | Clonación e historial Git                        |
 | Desplegado | `d87e3fa`, resuelto como `d87e3faacc4b515906349e7634c7dbd310d57d43` | GET `/api/v1/health`: status ok y commit d87e3fa |
 
 Entre ambos solo difieren cuatro líneas de `cap_add` en `deploy/production/docker-compose.yml`, no el código de producto examinado.
 
 Páginas realmente abiertas:
+
 - https://todo.reflexionia.com/today?group=priority
 - https://todo.reflexionia.com/review
 
@@ -1478,15 +1549,15 @@ Una alta vencida hace meses vale 12; una alta que vence en cinco minutos vale 9.
 
 La respuesta real contenía siete tareas activas, vencidas y de prioridad alta: **12 puntos cada una**. Su orden en el API se explica por ID:
 
-| Orden API | Tarea | Inicio ID | Vencimiento Madrid | Puntos |
-| --- | --- | --- | --- | --- |
-| 1 | Moto · Revisión preventiva pre-Picos (checklist mecánica) | `03ba7b83` | 20 jun 2026, 12:00 | 12 |
-| 2 | 29/08 Cumple de Iñigo De Torres Lopez-Acedo | `0ca36be7` | 29 ago 2026, 00:00 | 12 |
-| 3 | Moros · Pagar cuartelillo Lechuguinos | `1878f3c7` | 15 may 2026, 12:00 | 12 |
-| 4 | 12/09 Cumple de Mercedes Cotelo Lois | `40a91708` | 12 sept 2026, 00:00 | 12 |
-| 5 | Mi momento: planificación y orden personal #personal #review | `5251fbcb` | 19 may 2026, 12:00 | 12 |
-| 6 | lista de compra y compra Online #casa #personal #plan #30min | `70186da4` | 17 abr 2026, 14:00 | 12 |
-| 7 | Picos · Ruta día a día v1 en planning.md | `94f314f9` | 7 jun 2026, 12:00 | 12 |
+| Orden API | Tarea                                                        | Inicio ID  | Vencimiento Madrid  | Puntos |
+| --------- | ------------------------------------------------------------ | ---------- | ------------------- | ------ |
+| 1         | Moto · Revisión preventiva pre-Picos (checklist mecánica)    | `03ba7b83` | 20 jun 2026, 12:00  | 12     |
+| 2         | 29/08 Cumple de Iñigo De Torres Lopez-Acedo                  | `0ca36be7` | 29 ago 2026, 00:00  | 12     |
+| 3         | Moros · Pagar cuartelillo Lechuguinos                        | `1878f3c7` | 15 may 2026, 12:00  | 12     |
+| 4         | 12/09 Cumple de Mercedes Cotelo Lois                         | `40a91708` | 12 sept 2026, 00:00 | 12     |
+| 5         | Mi momento: planificación y orden personal #personal #review | `5251fbcb` | 19 may 2026, 12:00  | 12     |
+| 6         | lista de compra y compra Online #casa #personal #plan #30min | `70186da4` | 17 abr 2026, 14:00  | 12     |
+| 7         | Picos · Ruta día a día v1 en planning.md                     | `94f314f9` | 7 jun 2026, 12:00   | 12     |
 
 La UI recorta esos IDs a cinco con `planTaskIds()`. Después filtra el array cargado para Hoy y conserva su orden, no el ranking del API. Las vencidas se cargan por fecha. Por eso en pantalla aparecen Moros, Mi momento, Moto, Iñigo y Mercedes, en ese orden.
 
@@ -1510,18 +1581,18 @@ No equiparar automáticamente contadores de revisión y Hoy: usan universos dist
 
 ### P.2.5. Correcciones necesarias
 
-| ID | Defecto | Corrección |
-| --- | --- | --- |
-| P-B01 | API 7, UI 5 | Un solo contrato de límite y total, Ver todas |
-| P-B02 | Empate por UUID | Razón por tarea y desempate significativo |
-| P-B03 | Backlog desplaza citas de hoy | Compromisos con hora en sección fija |
-| P-B04 | UI cambia ranking | Consumir filas completas ordenadas |
-| P-B05 | Aceptar solo oculta | Mientras no haya plan real: "Ocultar sugerencias hoy" |
-| P-B06 | Mezcla con array de Hoy | No perder sugerencias fuera de Hoy ni mostrar IDs como títulos |
-| P-B07 | Sin edición ni razones | Tarjetas y resumen |
-| P-B08 | Diario lleva a contadores semanales | Separar rutas y títulos |
-| P-B09 | Fallo puede parecer vacío | Error, carga y vacío distintos |
-| P-B10 | Distintos conteos | Contrato común de elegibilidad |
+| ID    | Defecto                             | Corrección                                                     |
+| ----- | ----------------------------------- | -------------------------------------------------------------- |
+| P-B01 | API 7, UI 5                         | Un solo contrato de límite y total, Ver todas                  |
+| P-B02 | Empate por UUID                     | Razón por tarea y desempate significativo                      |
+| P-B03 | Backlog desplaza citas de hoy       | Compromisos con hora en sección fija                           |
+| P-B04 | UI cambia ranking                   | Consumir filas completas ordenadas                             |
+| P-B05 | Aceptar solo oculta                 | Mientras no haya plan real: "Ocultar sugerencias hoy"          |
+| P-B06 | Mezcla con array de Hoy             | No perder sugerencias fuera de Hoy ni mostrar IDs como títulos |
+| P-B07 | Sin edición ni razones              | Tarjetas y resumen                                             |
+| P-B08 | Diario lleva a contadores semanales | Separar rutas y títulos                                        |
+| P-B09 | Fallo puede parecer vacío           | Error, carga y vacío distintos                                 |
+| P-B10 | Distintos conteos                   | Contrato común de elegibilidad                                 |
 
 ## P.3. Decisiones de producto
 
@@ -1561,6 +1632,7 @@ Nada cambia hasta revisar el resumen y pulsar Aplicar.
 Las cifras de wireframes son ilustrativas. Los totales reales vienen del servidor y se deduplican por tarea/ocurrencia.
 
 Elegibilidad:
+
 - Activas, no borradas, visibles y editables. Excluir notas y proyectos archivados de las tarjetas accionables.
 - Hoy por fecha civil del plan; las horas pasadas de hoy siguen en Hoy con indicador específico.
 - Vencidas antes del inicio de hoy. Bandeja y sin fecha son opt-in.
@@ -1570,6 +1642,7 @@ Elegibilidad:
 - Paginación con total/fin conocido; no truncar silenciosamente por un límite de páginas.
 
 Orden propuesto:
+
 1. Hoy con hora, hora ascendente, incluyendo horas pasadas.
 2. Hoy de día completo, prioridad y orden manual.
 3. Vencidas, prioridad, vencimiento ascendente, orden manual e ID como último desempate.
@@ -1628,22 +1701,22 @@ Mostrar título completo ajustado, lista, prioridad en texto, etiquetas relevant
 
 ## P.6. Acciones y efectos exactos
 
-| Acción | Borrador y efecto al aplicar |
-| --- | --- |
-| Listo | Completar tarea/ocurrencia mediante servicio de dominio; resolver hijos si hace falta |
-| La haré hoy | Añadir a Mi plan de hoy; NO tocar `due_date` |
-| Después → Mañana | Retirar de plan actual y planificar mañana; NO cambiar vencimiento salvo elección explícita |
-| Después → Esta semana | Elegir día concreto; no asignar viernes por defecto |
-| Después → Elegir fecha | Elegir fecha de trabajo; operación separada para cambiar vencimiento |
-| Después → Sin fecha de trabajo | Quitar del plan; conservar vencimiento y alertas, avisando de que puede seguir vencida |
-| Cambiar vencimiento | Mostrar antes/después y efecto sobre alertas, luego actualizar y recalcular jobs |
-| No lo haré | Cancelar, no completar; motivo opcional y fuera de métricas de éxito |
-| Eliminar | Proponer papelera con confirmación; nunca purga |
-| Mover de lista | Elegir destino permitido y validar campos afectados |
-| Cambiar prioridad | Ajuste auxiliar; no decide automáticamente la tarjeta |
-| Posponer aviso | Cambiar un recordatorio, no la fecha límite ni el plan |
-| Saltar por ahora | Ningún cambio de tarea |
-| Abrir detalle | Inspección; cualquier edición debe integrarse en este borrador |
+| Acción                         | Borrador y efecto al aplicar                                                                |
+| ------------------------------ | ------------------------------------------------------------------------------------------- |
+| Listo                          | Completar tarea/ocurrencia mediante servicio de dominio; resolver hijos si hace falta       |
+| La haré hoy                    | Añadir a Mi plan de hoy; NO tocar `due_date`                                                |
+| Después → Mañana               | Retirar de plan actual y planificar mañana; NO cambiar vencimiento salvo elección explícita |
+| Después → Esta semana          | Elegir día concreto; no asignar viernes por defecto                                         |
+| Después → Elegir fecha         | Elegir fecha de trabajo; operación separada para cambiar vencimiento                        |
+| Después → Sin fecha de trabajo | Quitar del plan; conservar vencimiento y alertas, avisando de que puede seguir vencida      |
+| Cambiar vencimiento            | Mostrar antes/después y efecto sobre alertas, luego actualizar y recalcular jobs            |
+| No lo haré                     | Cancelar, no completar; motivo opcional y fuera de métricas de éxito                        |
+| Eliminar                       | Proponer papelera con confirmación; nunca purga                                             |
+| Mover de lista                 | Elegir destino permitido y validar campos afectados                                         |
+| Cambiar prioridad              | Ajuste auxiliar; no decide automáticamente la tarjeta                                       |
+| Posponer aviso                 | Cambiar un recordatorio, no la fecha límite ni el plan                                      |
+| Saltar por ahora               | Ningún cambio de tarea                                                                      |
+| Abrir detalle                  | Inspección; cualquier edición debe integrarse en este borrador                              |
 
 Hoy distinguirá **Mi plan de hoy**, **Vence hoy** y **Vencidas**. Una tarea puede llevar varios indicadores, pero no duplicarse en una lista fusionada.
 
@@ -1654,6 +1727,7 @@ Repeticiones: "Esta ocurrencia" visible; "Toda la serie" como acción avanzada s
 ## P.7. Atrás y deshacer reales
 
 Antes de aplicar:
+
 - Acción principal genera comando en borrador y avanza.
 - Anterior abre tarjeta previa con su decisión editable.
 - Deshacer elimina el último comando activo y vuelve a su tarjeta.
@@ -1700,21 +1774,21 @@ Cifras ilustrativas. Contar tareas afectadas y detallar comandos para no inflar 
 
 ## P.9. Estados e interrupciones
 
-| Estado | Experiencia |
-| --- | --- |
-| Carga | Esqueleto y acciones mutadoras desactivadas |
-| Vacío | Explicar fuentes sin tareas, ampliar alcance o volver a Hoy |
-| Error de lectura | Mensaje legible y Reintentar, no cero tareas |
-| Tarjeta activa | Información estable, foco y progreso accesibles |
-| Selector abierto | Cancelar conserva borrador; Esc cierra solo ese nivel |
-| Guardando borrador | Indicador discreto y última hora de guardado |
-| Sin red | Revisar snapshot si existe, "borrador en este dispositivo" |
-| Aplicando | Evitar doble envío y permitir consultar estado tras recarga |
-| Conflicto | Diferencias y decisiones específicas, no error crudo |
-| Completada | Cambios realmente confirmados y acceso a Hoy |
-| Pausada | Recuperar cola y decisiones |
-| Cambio de día | Continuar fecha anterior o empezar otra, sin mover decisiones en silencio |
-| Cambio externo | Tarea completada/borrada/alterada se anuncia y revalida |
+| Estado             | Experiencia                                                               |
+| ------------------ | ------------------------------------------------------------------------- |
+| Carga              | Esqueleto y acciones mutadoras desactivadas                               |
+| Vacío              | Explicar fuentes sin tareas, ampliar alcance o volver a Hoy               |
+| Error de lectura   | Mensaje legible y Reintentar, no cero tareas                              |
+| Tarjeta activa     | Información estable, foco y progreso accesibles                           |
+| Selector abierto   | Cancelar conserva borrador; Esc cierra solo ese nivel                     |
+| Guardando borrador | Indicador discreto y última hora de guardado                              |
+| Sin red            | Revisar snapshot si existe, "borrador en este dispositivo"                |
+| Aplicando          | Evitar doble envío y permitir consultar estado tras recarga               |
+| Conflicto          | Diferencias y decisiones específicas, no error crudo                      |
+| Completada         | Cambios realmente confirmados y acceso a Hoy                              |
+| Pausada            | Recuperar cola y decisiones                                               |
+| Cambio de día      | Continuar fecha anterior o empezar otra, sin mover decisiones en silencio |
+| Cambio externo     | Tarea completada/borrada/alterada se anuncia y revalida                   |
 
 Salir con cambios: Guardar y salir / Seguir / Descartar borrador. Sin cambios, cerrar directamente. Back de Android cierra primero selectores; después ofrece salida segura. Esc no descarta la sesión.
 
@@ -1772,6 +1846,7 @@ interface DraftDecision {
 Contrato orientativo: sustituir strings amplios por enums del dominio y DTOs/OpenAPI validados. No permitir un patch arbitrario de tarea.
 
 Restricciones:
+
 - Unicidad de plan por propietario y fecha/zona conforme a política documentada de viajes; no crear dos planes accidentales al cambiar zona.
 - Miembro único por plan y tarea/ocurrencia.
 - Una decisión principal activa por tarjeta; historial separado.
@@ -1862,13 +1937,13 @@ Existe cola offline create/update/complete en `features/offline`, pero eso no de
 
 La PWA móvil no se ha probado. Manifest y worker no equivalen a instalación, offline ni avisos. No pedir push para abrir el planificador.
 
-| Entorno | Validar |
-| --- | --- |
+| Entorno                               | Validar                                                              |
+| ------------------------------------- | -------------------------------------------------------------------- |
 | Chrome Android, navegador e instalada | Instalación, icono, áreas seguras, gestos, Back, suspensión/reanudar |
-| Safari iOS y añadida a inicio | Standalone, viewport/teclado, almacenamiento/reanudar |
-| Chrome/Edge desktop | Atajos, recarga, varias pestañas, actualización worker |
-| Sin red tras carga válida | Snapshot y borrador, etiqueta local y sin falso apply |
-| Arranque offline sin snapshot | Limitación clara, no pantalla vacía |
+| Safari iOS y añadida a inicio         | Standalone, viewport/teclado, almacenamiento/reanudar                |
+| Chrome/Edge desktop                   | Atajos, recarga, varias pestañas, actualización worker               |
+| Sin red tras carga válida             | Snapshot y borrador, etiqueta local y sin falso apply                |
+| Arranque offline sin snapshot         | Limitación clara, no pantalla vacía                                  |
 
 Primera entrega segura: revisar/guardar borrador local offline; **Aplicar necesita red y revalidación**. No meter apply en la cola existente. Un modo diferido futuro necesita contrato propio y pantalla de conflictos.
 
@@ -1876,23 +1951,24 @@ Una actualización de worker no debe recargar y perder decisiones. Mostrar actua
 
 ## P.14. Mapa para Cursor
 
-| Archivo actual | Función comprobada |
-| --- | --- |
-| `packages/domain/src/review/propose.ts` | Ranking diario, máximo 7, UUID |
-| `packages/domain/src/dashboard/kpis.ts` | Pesos 4/3/1/0 |
-| `apps/api/src/modules/review/review.controller.ts` | Candidatos y propuesta |
-| `apps/web/src/features/today/TodayPage.tsx` | Consulta, render y aceptación local |
-| `apps/web/src/features/today/groups.ts` | Recorte a 5 |
-| `apps/web/src/features/today/board.ts` | Carga Hoy, páginas y deduplicación |
-| `apps/web/src/features/product/ProductPages.tsx` | ReviewPage activo |
-| `apps/web/src/app.tsx` | Rutas reales |
-| `apps/api/src/modules/tasks/tasks.service.ts` | Mutaciones y conflictos de recurrencia |
-| `apps/api/src/modules/tasks/field-clocks.ts` | Concurrencia actual |
-| `apps/web/src/features/offline/*` | Cola insuficiente para plan |
-| `apps/web/vite.config.ts`, `apps/web/src/sw.ts` | Manifest/worker |
-| `packages/sdk/src/resources.ts` | Cliente review y recursos |
+| Archivo actual                                     | Función comprobada                     |
+| -------------------------------------------------- | -------------------------------------- |
+| `packages/domain/src/review/propose.ts`            | Ranking diario, máximo 7, UUID         |
+| `packages/domain/src/dashboard/kpis.ts`            | Pesos 4/3/1/0                          |
+| `apps/api/src/modules/review/review.controller.ts` | Candidatos y propuesta                 |
+| `apps/web/src/features/today/TodayPage.tsx`        | Consulta, render y aceptación local    |
+| `apps/web/src/features/today/groups.ts`            | Recorte a 5                            |
+| `apps/web/src/features/today/board.ts`             | Carga Hoy, páginas y deduplicación     |
+| `apps/web/src/features/product/ProductPages.tsx`   | ReviewPage activo                      |
+| `apps/web/src/app.tsx`                             | Rutas reales                           |
+| `apps/api/src/modules/tasks/tasks.service.ts`      | Mutaciones y conflictos de recurrencia |
+| `apps/api/src/modules/tasks/field-clocks.ts`       | Concurrencia actual                    |
+| `apps/web/src/features/offline/*`                  | Cola insuficiente para plan            |
+| `apps/web/vite.config.ts`, `apps/web/src/sw.ts`    | Manifest/worker                        |
+| `packages/sdk/src/resources.ts`                    | Cliente review y recursos              |
 
 Orden:
+
 1. Tests sintéticos de regresión del ranking/recorte. No copiar notas privadas a fixtures.
 2. Corregir copy y estados del bloque actual mientras se construye el plan real.
 3. Modelos/migración de planes, sesiones y cancelación, índices y concurrencia.
@@ -1913,14 +1989,14 @@ Esta suite es propuesta, **no ejecutada**. Las comprobaciones actuales son las d
 
 ### P.15.1. Regresiones que explican lo actual
 
-| Caso | Resultado actual |
-| --- | --- |
-| Alta vencida meses vs alta en 5 minutos | 12 vs 9 |
-| Altas vencidas con fechas distintas | Empate por ID |
-| API devuelve 7 | UI conserva 5 |
-| Array Hoy tiene otro orden | Bloque adopta el orden Hoy |
-| Aceptar | Solo localStorage, cero escritura de tareas |
-| Propuesta fuera de Hoy | Puede desaparecer; defecto, no contrato futuro |
+| Caso                                    | Resultado actual                               |
+| --------------------------------------- | ---------------------------------------------- |
+| Alta vencida meses vs alta en 5 minutos | 12 vs 9                                        |
+| Altas vencidas con fechas distintas     | Empate por ID                                  |
+| API devuelve 7                          | UI conserva 5                                  |
+| Array Hoy tiene otro orden              | Bloque adopta el orden Hoy                     |
+| Aceptar                                 | Solo localStorage, cero escritura de tareas    |
+| Propuesta fuera de Hoy                  | Puede desaparecer; defecto, no contrato futuro |
 
 ### P.15.2. Dominio y fechas
 
@@ -2068,16 +2144,16 @@ Mantener la gramática actual: `hoy`, `mañana`, `pasado mañana`, `dd/mm[/aaaa]
 
 Añadir:
 
-| Entrada | Interpretación |
-|---|---|
-| `lunes`, `el lunes` (cualquier día, sin `cada`) | Próxima ocurrencia futura. Si hoy es ese día, solo cuenta hoy cuando lleva una hora que aún no pasó; si no, la semana que viene. Todo el día si no hay hora. |
-| `16:00`, `a las 16:00`, `a las 16`, `16h`, `16:30h` | Hora suelta: hoy si aún no pasó en la zona del usuario; si ya pasó, mañana. Nunca todo el día. |
-| `a las 4 de la tarde` | 16:00. Sufijos: `de la mañana` (1-11 tal cual; 12 → 00:00), `de la tarde` (1-7 → +12, o sea 13:00-19:00), `de la noche` (8-11 → +12, o sea 20:00-23:00; 12 → 00:00 del mismo día, limitación documentada). Hora fuera del rango del sufijo: no se interpreta y queda en el título. |
-| `4pm`, `4:30pm`, `4am` | Ya existe en parte junto a fechas. Extender a hora suelta. |
-| `mediodía` | 12:00. `medianoche` → 00:00. |
-| `en 2 horas`, `dentro de 2 horas`, y lo mismo con `minuto(s)` | Ahora + N, con hora exacta. También `en un` / `en una` / `dentro de un` / `dentro de una`. |
-| `en 3 días`, `dentro de 3 días`, `en una semana`, `dentro de 2 semanas` | Desplazamiento de calendario. Semana = 7 días. Todo el día. |
-| `!prioridad`, `#etiqueta`, `^lista` | Igual que hoy. Se consumen en cualquier posición. |
+| Entrada                                                                 | Interpretación                                                                                                                                                                                                                                                                     |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lunes`, `el lunes` (cualquier día, sin `cada`)                         | Próxima ocurrencia futura. Si hoy es ese día, solo cuenta hoy cuando lleva una hora que aún no pasó; si no, la semana que viene. Todo el día si no hay hora.                                                                                                                       |
+| `16:00`, `a las 16:00`, `a las 16`, `16h`, `16:30h`                     | Hora suelta: hoy si aún no pasó en la zona del usuario; si ya pasó, mañana. Nunca todo el día.                                                                                                                                                                                     |
+| `a las 4 de la tarde`                                                   | 16:00. Sufijos: `de la mañana` (1-11 tal cual; 12 → 00:00), `de la tarde` (1-7 → +12, o sea 13:00-19:00), `de la noche` (8-11 → +12, o sea 20:00-23:00; 12 → 00:00 del mismo día, limitación documentada). Hora fuera del rango del sufijo: no se interpreta y queda en el título. |
+| `4pm`, `4:30pm`, `4am`                                                  | Ya existe en parte junto a fechas. Extender a hora suelta.                                                                                                                                                                                                                         |
+| `mediodía`                                                              | 12:00. `medianoche` → 00:00.                                                                                                                                                                                                                                                       |
+| `en 2 horas`, `dentro de 2 horas`, y lo mismo con `minuto(s)`           | Ahora + N, con hora exacta. También `en un` / `en una` / `dentro de un` / `dentro de una`.                                                                                                                                                                                         |
+| `en 3 días`, `dentro de 3 días`, `en una semana`, `dentro de 2 semanas` | Desplazamiento de calendario. Semana = 7 días. Todo el día.                                                                                                                                                                                                                        |
+| `!prioridad`, `#etiqueta`, `^lista`                                     | Igual que hoy. Se consumen en cualquier posición.                                                                                                                                                                                                                                  |
 
 **Asociación fecha-hora.** Si el mensaje tiene exactamente una fecha y una hora, se combinan aunque haya palabras entre medias: `Recoger mañana a Markus del cole a las 16:00` → mañana 16:00. Si hay varias horas, la fecha toma la más cercana en el texto y las demás quedan en el título. Si la fecha ya trae hora pegada (`mañana a las 9:30`), esa manda y cualquier otra hora queda en el título.
 
@@ -2128,25 +2204,25 @@ Textos de cara al usuario en español. No cambiar el esquema OpenAPI ni los DTO 
 
 En `packages/domain/src/nlp/parse.spec.ts`. Ancla: `now = 2026-10-19T14:39:00.000Z` (lunes 19-10-2026 16:39 CEST), zona `Europe/Madrid`. Citar RF-102 y RF-2003 en los comentarios que toquen, y los RF nuevos si el cambio de spec los añade.
 
-| # | Entrada | Título | Due (ISO UTC) | Todo el día |
-|---|---|---|---|---|
-| 1 | `Recoger mañana a Markus del cole a las 16:00 !high #cole` | `Recoger a Markus del cole` | `2026-10-20T14:00:00.000Z` | no |
-| 2 | `dentista mañana a las 9:30` | `dentista` | `2026-10-20T07:30:00.000Z` | no |
-| 3 | `llamar a Ana a las 18:00` | `llamar a Ana` | `2026-10-19T16:00:00.000Z` | no |
-| 4 | `llamar a Ana a las 9:00` | `llamar a Ana` | `2026-10-20T07:00:00.000Z` | no |
-| 5 | `el lunes recoger paquete` | `recoger paquete` | `2026-10-25T23:00:00.000Z` (lunes 26-10 00:00 CET) | sí |
-| 6 | `el martes recoger paquete a las 10:00` | `recoger paquete` | `2026-10-20T08:00:00.000Z` | no |
-| 7 | `revisión en 2 horas` | `revisión` | `2026-10-19T16:39:00.000Z` | no |
-| 8 | `revisión dentro de 3 días` | `revisión` | `2026-10-21T22:00:00.000Z` (22-10 00:00 CEST) | sí |
-| 9 | `cita el 24/10 a las 12:30` | `cita` | `2026-10-24T10:30:00.000Z` | no |
-| 10 | `a las 4 de la tarde llamar al banco` | `llamar al banco` | `2026-10-19T14:00:00.000Z` | no |
-| 11 | `a las 3 de la tarde llamar` | `llamar` | `2026-10-20T13:00:00.000Z` | no |
-| 12 | `salir a correr pasado mañana a las 8` | `salir a correr` | `2026-10-21T06:00:00.000Z` | no |
-| 13 | `cita el 29/3/2026 a las 2:30` | `cita` | `2026-03-29T01:30:00.000Z` (02:30 → 03:30 CEST) | no |
-| 14 | `cita el 25/10/2026 a las 2:30` | `cita` | `2026-10-25T00:30:00.000Z` (primera ocurrencia, CEST) | no |
-| 15 | `comprar 16 velas` | `comprar 16 velas` | `null` | — |
-| 16 | `mañana a las 9:30 y a las 18:00` | `y a las 18:00` | `2026-10-20T07:30:00.000Z` | no |
-| 17 | `cita a las 9 de la tarde` | `cita a las 9 de la tarde` | `null` | — |
+| #   | Entrada                                                    | Título                      | Due (ISO UTC)                                         | Todo el día |
+| --- | ---------------------------------------------------------- | --------------------------- | ----------------------------------------------------- | ----------- |
+| 1   | `Recoger mañana a Markus del cole a las 16:00 !high #cole` | `Recoger a Markus del cole` | `2026-10-20T14:00:00.000Z`                            | no          |
+| 2   | `dentista mañana a las 9:30`                               | `dentista`                  | `2026-10-20T07:30:00.000Z`                            | no          |
+| 3   | `llamar a Ana a las 18:00`                                 | `llamar a Ana`              | `2026-10-19T16:00:00.000Z`                            | no          |
+| 4   | `llamar a Ana a las 9:00`                                  | `llamar a Ana`              | `2026-10-20T07:00:00.000Z`                            | no          |
+| 5   | `el lunes recoger paquete`                                 | `recoger paquete`           | `2026-10-25T23:00:00.000Z` (lunes 26-10 00:00 CET)    | sí          |
+| 6   | `el martes recoger paquete a las 10:00`                    | `recoger paquete`           | `2026-10-20T08:00:00.000Z`                            | no          |
+| 7   | `revisión en 2 horas`                                      | `revisión`                  | `2026-10-19T16:39:00.000Z`                            | no          |
+| 8   | `revisión dentro de 3 días`                                | `revisión`                  | `2026-10-21T22:00:00.000Z` (22-10 00:00 CEST)         | sí          |
+| 9   | `cita el 24/10 a las 12:30`                                | `cita`                      | `2026-10-24T10:30:00.000Z`                            | no          |
+| 10  | `a las 4 de la tarde llamar al banco`                      | `llamar al banco`           | `2026-10-19T14:00:00.000Z`                            | no          |
+| 11  | `a las 3 de la tarde llamar`                               | `llamar`                    | `2026-10-20T13:00:00.000Z`                            | no          |
+| 12  | `salir a correr pasado mañana a las 8`                     | `salir a correr`            | `2026-10-21T06:00:00.000Z`                            | no          |
+| 13  | `cita el 29/3/2026 a las 2:30`                             | `cita`                      | `2026-03-29T01:30:00.000Z` (02:30 → 03:30 CEST)       | no          |
+| 14  | `cita el 25/10/2026 a las 2:30`                            | `cita`                      | `2026-10-25T00:30:00.000Z` (primera ocurrencia, CEST) | no          |
+| 15  | `comprar 16 velas`                                         | `comprar 16 velas`          | `null`                                                | —           |
+| 16  | `mañana a las 9:30 y a las 18:00`                          | `y a las 18:00`             | `2026-10-20T07:30:00.000Z`                            | no          |
+| 17  | `cita a las 9 de la tarde`                                 | `cita a las 9 de la tarde`  | `null`                                                | —           |
 
 El caso 1 también comprueba prioridad `high` y etiqueta `cole`. El caso 12 lleva título a propósito: `pasado mañana a las 8` a solas dejaría el título vacío y hoy eso es `empty_title`.
 

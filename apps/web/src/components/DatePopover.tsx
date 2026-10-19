@@ -114,7 +114,12 @@ export function DatePopover({
   }
 
   return (
-    <Popover open={open} label={messages.dateSet} onClose={onClose} className="popover date-popover">
+    <Popover
+      open={open}
+      label={messages.dateSet}
+      onClose={onClose}
+      className="popover date-popover"
+    >
       <div className="popover-tabs" role="tablist">
         <Button
           type="button"
@@ -521,7 +526,10 @@ function reminderChoice(
   }
 }
 
-export function reminderLabel(trigger: string | null, messages: ReturnType<typeof useMessages>): string {
+export function reminderLabel(
+  trigger: string | null,
+  messages: ReturnType<typeof useMessages>,
+): string {
   if (trigger === null || trigger.length === 0) {
     return messages.noReminder;
   }
@@ -591,7 +599,12 @@ function repeatLabel(rule: string | null, messages: ReturnType<typeof useMessage
   return messages.repeatRow;
 }
 
-function withEnd(base: string, end: 'never' | 'date' | 'count', until: string, count: number): string {
+function withEnd(
+  base: string,
+  end: 'never' | 'date' | 'count',
+  until: string,
+  count: number,
+): string {
   const clean = base.replace(/;UNTIL=[^;]*/u, '').replace(/;COUNT=\d+/u, '');
   if (end === 'count') {
     return `${clean};COUNT=${String(Math.max(1, count))}`;

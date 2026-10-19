@@ -292,7 +292,11 @@ export function CancelledPage() {
     queryKey: ['cancelled-tasks'],
     queryFn: () => api.listTasks({ status: 'cancelled', limit: 100 }),
   });
-  const projects = useQuery({ queryKey: ['projects'], queryFn: collectProjects, staleTime: 5 * 60_000 });
+  const projects = useQuery({
+    queryKey: ['projects'],
+    queryFn: collectProjects,
+    staleTime: 5 * 60_000,
+  });
   const tags = useQuery({ queryKey: ['tags'], queryFn: collectTags, staleTime: 5 * 60_000 });
   const names = new Map((projects.data?.items ?? []).map((project) => [project.id, project.name]));
   const tagNames = new Map((tags.data?.items ?? []).map((item) => [item.id, item.name]));

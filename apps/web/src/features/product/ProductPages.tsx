@@ -283,7 +283,9 @@ export function FocusPage() {
       </p>
       {focused.data !== undefined ? (
         <p>
-          <Link to={`/list/${focused.data.project_id}?task=${focused.data.id}`}>{focused.data.title}</Link>
+          <Link to={`/list/${focused.data.project_id}?task=${focused.data.id}`}>
+            {focused.data.title}
+          </Link>
         </p>
       ) : null}
       <p className="detail-title">{clock(remaining)}</p>

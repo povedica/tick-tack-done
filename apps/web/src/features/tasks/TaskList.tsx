@@ -494,124 +494,124 @@ function Kanban({
         </p>
       ) : null}
       <div className="kanban">
-      {cols.map((column) => {
-        const items = rows.filter((row) =>
-          column.id === 'none'
-            ? row.columnId === null || row.columnId.length === 0
-            : row.columnId === column.id,
-        );
-        return (
-          <section
-            key={column.id}
-            className="kanban-col"
-            onDragOver={(event) => {
-              event.preventDefault();
-            }}
-            onDrop={(event) => {
-              const id = event.dataTransfer.getData('text/plain');
-              if (id.length === 0) {
-                return;
-              }
-              void api
-                .patchTask(id, { column_id: column.id === 'none' ? null : column.id })
-                .then(() => refreshTaskSurfaces(queryClient))
-                .catch((error: unknown) => {
-                  if (error instanceof ApiError && error.code === 'wip_exceeded') {
-                    setBoardError(messages.wipExceeded);
-                    return;
-                  }
-                  setBoardError(messages.saveFailed);
-                });
-            }}
-          >
-            <h3>
-              {column.name}{' '}
-              <span className="ui-badge">
-                {items.length}
-                {column.wip_limit != null ? `/${String(column.wip_limit)}` : ''}
-              </span>
-              {projectId !== undefined && column.id !== 'none' ? (
-                <ColumnLimit
-                  label={messages.columnMenu}
-                  limitLabel={messages.columnLimitShort}
-                  current={column.wip_limit ?? null}
-                  onSave={(value) => {
-                    void api.updateColumn(projectId, column.id, { wip_limit: value });
-                  }}
-                />
-              ) : null}
-            </h3>
-            {items.length === 0 ? <p>{messages.kanbanEmpty}</p> : null}
-            {items.map((row) => (
-              <article
-                key={row.id}
-                className="kanban-card"
-                draggable
-                onDragStart={(event) => {
-                  event.dataTransfer.setData('text/plain', row.id);
-                }}
-              >
-                <div className="kanban-card-title">
-                  <PriorityCheck
-                    priority={row.priority}
-                    label={fill(messages.completeLabel, row.title)}
-                    onChange={() => {
-                      onComplete(row);
+        {cols.map((column) => {
+          const items = rows.filter((row) =>
+            column.id === 'none'
+              ? row.columnId === null || row.columnId.length === 0
+              : row.columnId === column.id,
+          );
+          return (
+            <section
+              key={column.id}
+              className="kanban-col"
+              onDragOver={(event) => {
+                event.preventDefault();
+              }}
+              onDrop={(event) => {
+                const id = event.dataTransfer.getData('text/plain');
+                if (id.length === 0) {
+                  return;
+                }
+                void api
+                  .patchTask(id, { column_id: column.id === 'none' ? null : column.id })
+                  .then(() => refreshTaskSurfaces(queryClient))
+                  .catch((error: unknown) => {
+                    if (error instanceof ApiError && error.code === 'wip_exceeded') {
+                      setBoardError(messages.wipExceeded);
+                      return;
+                    }
+                    setBoardError(messages.saveFailed);
+                  });
+              }}
+            >
+              <h3>
+                {column.name}{' '}
+                <span className="ui-badge">
+                  {items.length}
+                  {column.wip_limit != null ? `/${String(column.wip_limit)}` : ''}
+                </span>
+                {projectId !== undefined && column.id !== 'none' ? (
+                  <ColumnLimit
+                    label={messages.columnMenu}
+                    limitLabel={messages.columnLimitShort}
+                    current={column.wip_limit ?? null}
+                    onSave={(value) => {
+                      void api.updateColumn(projectId, column.id, { wip_limit: value });
                     }}
                   />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onOpen(row.id);
-                    }}
-                  >
-                    {shownTitle(
-                      row.title,
-                      row.tags.map((tag) => tag.name),
-                      messages.untitled,
-                    )}
-                  </button>
-                </div>
-                <p className="kanban-card-meta">
-                  {row.tags.slice(0, 2).map((tag) => (
-                    <TagChip key={tag.id} label={tag.name} color={tag.color} />
-                  ))}
-                  {row.dueDate !== null ? (
-                    <time dateTime={row.dueDate}>
-                      {formatRowDate(row.dueDate, locale, new Date(), false, messages)}
-                    </time>
-                  ) : null}
-                </p>
-              </article>
-            ))}
-          </section>
-        );
-      })}
-      {projectId !== undefined ? (
-        <form
-          className="kanban-col kanban-add"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const name = section.trim();
-            if (name.length === 0) {
-              return;
-            }
-            void api.createColumn(projectId, name, crypto.randomUUID()).then(() => {
-              setSection('');
-              void queryClient.invalidateQueries({ queryKey: ['columns', projectId] });
-            });
-          }}
-        >
-          <input
-            aria-label={messages.noColumns}
-            placeholder={messages.sectionAdd}
-            value={section}
-            onChange={(event) => {
-              setSection(event.target.value);
+                ) : null}
+              </h3>
+              {items.length === 0 ? <p>{messages.kanbanEmpty}</p> : null}
+              {items.map((row) => (
+                <article
+                  key={row.id}
+                  className="kanban-card"
+                  draggable
+                  onDragStart={(event) => {
+                    event.dataTransfer.setData('text/plain', row.id);
+                  }}
+                >
+                  <div className="kanban-card-title">
+                    <PriorityCheck
+                      priority={row.priority}
+                      label={fill(messages.completeLabel, row.title)}
+                      onChange={() => {
+                        onComplete(row);
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onOpen(row.id);
+                      }}
+                    >
+                      {shownTitle(
+                        row.title,
+                        row.tags.map((tag) => tag.name),
+                        messages.untitled,
+                      )}
+                    </button>
+                  </div>
+                  <p className="kanban-card-meta">
+                    {row.tags.slice(0, 2).map((tag) => (
+                      <TagChip key={tag.id} label={tag.name} color={tag.color} />
+                    ))}
+                    {row.dueDate !== null ? (
+                      <time dateTime={row.dueDate}>
+                        {formatRowDate(row.dueDate, locale, new Date(), false, messages)}
+                      </time>
+                    ) : null}
+                  </p>
+                </article>
+              ))}
+            </section>
+          );
+        })}
+        {projectId !== undefined ? (
+          <form
+            className="kanban-col kanban-add"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const name = section.trim();
+              if (name.length === 0) {
+                return;
+              }
+              void api.createColumn(projectId, name, crypto.randomUUID()).then(() => {
+                setSection('');
+                void queryClient.invalidateQueries({ queryKey: ['columns', projectId] });
+              });
             }}
-          />
-        </form>
-      ) : null}
+          >
+            <input
+              aria-label={messages.noColumns}
+              placeholder={messages.sectionAdd}
+              value={section}
+              onChange={(event) => {
+                setSection(event.target.value);
+              }}
+            />
+          </form>
+        ) : null}
       </div>
     </div>
   );

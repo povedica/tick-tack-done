@@ -40,7 +40,12 @@ export function TagPicker({
   }, [needle, selected, tags]);
   const exact = tags.some((tag) => tag.name.toLocaleLowerCase() === needle);
   return (
-    <Popover open={open} label={messages.tagAdd} onClose={onClose} className="popover popover-menu tag-picker">
+    <Popover
+      open={open}
+      label={messages.tagAdd}
+      onClose={onClose}
+      className="popover popover-menu tag-picker"
+    >
       <input
         className="popover-search"
         value={query}

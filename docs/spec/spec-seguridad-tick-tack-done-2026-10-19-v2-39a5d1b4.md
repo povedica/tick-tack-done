@@ -34,7 +34,7 @@ Fecha: 19 oct 2026. **Versión 2 (ronda 1 pasiva + ronda 2 autenticada en vivo).
 | S-17 | Media | Guard de auth con "abierto por defecto": una ruta sin `@Scopes`/`@Authenticated` es pública. Hoy ninguna lo es, pero un endpoint nuevo olvidado quedaría abierto                                                                            |
 | S-18 | Baja  | Sin límite de cuota en adjuntos, sin lista de tipos MIME, MIME del cliente guardado tal cual; las respuestas autenticadas no llevan `Cache-Control: no-store`; exportación CSV sin neutralizar fórmulas (`=`, `+`, `-`, `@`)                |
 | S-19 | Baja  | Errores 500 donde debería haber 4xx: `GET /tasks?project_id=x` (UUID inválido), cuerpo >100 KB, fallo de conexión al crear suscripción iCal                                                                                                 |
-| S-20 | Baja  | `api` y `web` comparten la red Docker `<EDGE_NETWORK>` con otra aplicación (`<NEIGHBOR_APP>`): cualquier contenedor de esa red llega a `todo-api:3000` sin pasar por Caddy                                                           |
+| S-20 | Baja  | `api` y `web` comparten la red Docker `<EDGE_NETWORK>` con otra aplicación (`<NEIGHBOR_APP>`): cualquier contenedor de esa red llega a `todo-api:3000` sin pasar por Caddy                                                                  |
 | S-21 | Baja  | Valores fijos que deberían ser variables de entorno: dominio `todo.reflexionia.com` y localhost en `google-oauth.ts`, `todo@reflexionia.com` por defecto en `reminder.transport.ts`, usuario/base `reflexionia` en CI                       |
 
 ## 2. Hallazgos
