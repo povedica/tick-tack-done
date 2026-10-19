@@ -11,6 +11,22 @@ const REMINDERS = [
   [7, '1 semana antes (09:00)'],
 ] as const;
 
+const COLORS = [
+  ['none', 'Sin color'],
+  ['blue', 'Azul'],
+  ['teal', 'Turquesa'],
+  ['green', 'Verde'],
+  ['lime', 'Lima'],
+  ['orange', 'Naranja'],
+  ['red', 'Rojo'],
+  ['pink', 'Rosa'],
+  ['purple', 'Morado'],
+  ['navy', 'Azul marino'],
+  ['brown', 'Marrón'],
+  ['black', 'Negro'],
+  ['rainbow', 'Arcoíris'],
+] as const;
+
 function draftFor(type: CountdownType, value?: Countdown): CountdownDraft {
   return {
     title: value?.title ?? '',
@@ -63,6 +79,7 @@ export function CountdownDialog({
         <label>Nombre<input autoFocus value={draft.title} maxLength={200} required onChange={(event) => setDraft({ ...draft, title: event.target.value })} /></label>
         <label>Fecha<input type="date" value={draft.targetDate} required onChange={(event) => setDraft({ ...draft, targetDate: event.target.value })} /></label>
         <label>Tipo<select value={draft.type} onChange={(event) => setDraft({ ...draft, type: event.target.value as CountdownType })}>{(Object.entries(TYPE_LABEL) as [CountdownType, string][]).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+        <label>Color<select value={draft.color ?? 'none'} onChange={(event) => setDraft({ ...draft, color: event.target.value === 'none' ? null : event.target.value as CountdownDraft['color'] })}>{COLORS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         <label>Repetición<select value={draft.repeatRule} onChange={(event) => setDraft({ ...draft, repeatRule: event.target.value as RepeatRule })}><option value="none">Ninguna</option><option value="daily">Diaria</option><option value="weekly">Semanal</option><option value="monthly">Mensual</option><option value="yearly">Anual</option></select></label>
         <fieldset><legend>Recordatorios</legend>{REMINDERS.map(([offset, label]) => <label key={offset}><input type="checkbox" checked={offsetDays.has(offset)} onChange={() => toggleReminder(offset)} />{label}</label>)}
           <label>Personalizado (días antes)<input type="number" min="1" max="365" value={customDays} onChange={(event) => setCustomDays(event.target.value)} onBlur={() => { const offset = Number(customDays); if (offset >= 1 && offset <= 365 && !offsetDays.has(offset)) toggleReminder(offset); }} /></label>
