@@ -32,7 +32,7 @@ describe('TelegramBotService', () => {
     };
     const service = new TelegramBotService(
       prisma as never,
-      { record: vi.fn() } as never,
+      { record: vi.fn() },
       { create: createTask } as never,
       { createProject } as never,
       { call: send } as never,

@@ -82,7 +82,7 @@ export class OauthService {
     const row = await this.prisma.oauthAuthorizationCode.findFirst({
       where: { codeHash: hashSecret(dto.code), consumedAt: null, expiresAt: { gt: new Date() } },
     });
-    if (row === null || row.clientId !== dto.client_id || row.redirectUri !== dto.redirect_uri) {
+    if (row?.clientId !== dto.client_id || row.redirectUri !== dto.redirect_uri) {
       throw new DomainException(
         HttpStatus.BAD_REQUEST,
         'invalid_grant',

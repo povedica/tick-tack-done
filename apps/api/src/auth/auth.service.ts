@@ -213,6 +213,6 @@ function isUnique(error: unknown): boolean {
     typeof error === 'object' &&
     error !== null &&
     'code' in error &&
-    (error as { code: unknown }).code === 'P2002'
+    error.code === 'P2002'
   );
 }
