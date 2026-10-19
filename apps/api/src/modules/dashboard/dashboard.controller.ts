@@ -99,7 +99,12 @@ export class DashboardController {
       where: { ownerId: user.id, deletedAt: null, startsAt: { gte: new Date() } },
     });
     const countdowns = await this.prisma.countdown.findMany({
-      where: { ownerId: user.id, deletedAt: null, archivedAt: null, targetDate: { gte: new Date() } },
+      where: {
+        ownerId: user.id,
+        deletedAt: null,
+        archivedAt: null,
+        targetDate: { gte: new Date() },
+      },
       orderBy: { targetDate: 'asc' },
       take: 3,
       select: { id: true, title: true, emoji: true, targetDate: true },

@@ -18,7 +18,11 @@ export interface MutationWriter {
   updateTask(id: string, body: Record<string, unknown>): Promise<unknown>;
   completeTask(id: string, body: Record<string, unknown>, idempotencyKey: string): Promise<unknown>;
   createCountdown?(body: Record<string, unknown>, idempotencyKey: string): Promise<{ id: string }>;
-  updateCountdown?(id: string, body: Record<string, unknown>, idempotencyKey: string): Promise<unknown>;
+  updateCountdown?(
+    id: string,
+    body: Record<string, unknown>,
+    idempotencyKey: string,
+  ): Promise<unknown>;
 }
 
 export interface ReplayResult {

@@ -241,22 +241,45 @@ export class McpService {
           )
         ).body;
       case 'list_countdowns':
-        return this.countdowns.list(user, args.archived === true, typeof args.due_within_days === 'number' ? args.due_within_days : undefined);
+        return this.countdowns.list(
+          user,
+          args.archived === true,
+          typeof args.due_within_days === 'number' ? args.due_within_days : undefined,
+        );
       case 'get_countdown':
         return this.countdowns.get(user, requiredUuid(args, 'id'));
       case 'create_countdown':
-        return (await this.countdowns.create(user, {
-          title: requiredString(args, 'title', 200), target_date: requiredDate(args),
-          ...(typeof args.type === 'string' ? { type: args.type as 'countdown' | 'anniversary' | 'birthday' | 'holiday' } : {}),
-          ...(typeof args.emoji === 'string' ? { emoji: args.emoji } : {}),
-          ...(typeof args.color === 'string' ? { color: args.color as never } : {}),
-          ...(typeof args.repeat === 'string' ? { repeat_rule: args.repeat as never } : {}),
-          ...(typeof args.day_mode === 'string' ? { day_mode: args.day_mode as never } : {}),
-          ...(Array.isArray(args.reminders) ? { reminders: args.reminders.filter((v): v is number => typeof v === 'number').map((offset_days) => ({ offset_days })) } : {}),
-          ...(typeof args.notes === 'string' ? { notes: args.notes } : {}),
-          ...(typeof args.show_in_sidebar === 'boolean' ? { show_in_sidebar: args.show_in_sidebar } : {}),
-          ...(typeof args.show_in_smart_list === 'boolean' ? { show_in_smart_list: args.show_in_smart_list } : {}),
-        }, undefined)).body;
+        return (
+          await this.countdowns.create(
+            user,
+            {
+              title: requiredString(args, 'title', 200),
+              target_date: requiredDate(args),
+              ...(typeof args.type === 'string'
+                ? { type: args.type as 'countdown' | 'anniversary' | 'birthday' | 'holiday' }
+                : {}),
+              ...(typeof args.emoji === 'string' ? { emoji: args.emoji } : {}),
+              ...(typeof args.color === 'string' ? { color: args.color as never } : {}),
+              ...(typeof args.repeat === 'string' ? { repeat_rule: args.repeat as never } : {}),
+              ...(typeof args.day_mode === 'string' ? { day_mode: args.day_mode as never } : {}),
+              ...(Array.isArray(args.reminders)
+                ? {
+                    reminders: args.reminders
+                      .filter((v): v is number => typeof v === 'number')
+                      .map((offset_days) => ({ offset_days })),
+                  }
+                : {}),
+              ...(typeof args.notes === 'string' ? { notes: args.notes } : {}),
+              ...(typeof args.show_in_sidebar === 'boolean'
+                ? { show_in_sidebar: args.show_in_sidebar }
+                : {}),
+              ...(typeof args.show_in_smart_list === 'boolean'
+                ? { show_in_smart_list: args.show_in_smart_list }
+                : {}),
+            },
+            undefined,
+          )
+        ).body;
       case 'update_countdown':
         return this.countdowns.update(user, requiredUuid(args, 'id'), {
           ...(typeof args.title === 'string' ? { title: args.title } : {}),
@@ -264,7 +287,8 @@ export class McpService {
           ...(typeof args.pinned === 'boolean' ? { pinned: args.pinned } : {}),
         });
       case 'delete_countdown':
-        await this.countdowns.remove(user, requiredUuid(args, 'id')); return { deleted: true };
+        await this.countdowns.remove(user, requiredUuid(args, 'id'));
+        return { deleted: true };
       case 'archive_countdown':
         return this.countdowns.archive(user, requiredUuid(args, 'id'), true);
       case 'unarchive_countdown':

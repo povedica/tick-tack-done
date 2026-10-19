@@ -696,12 +696,17 @@ export function TodayPage() {
           </button>
         </section>
       )}
-      {countdowns.data?.items.filter((item) => item.kind === 'today' && item.showInSmartList).map((item) => (
-        <Link key={item.id} className="countdown-today" to="/countdowns">
-          <span aria-hidden="true">{item.emoji ?? '⏳'}</span>
-          <span><strong>{item.title}</strong><small>¡Es hoy!</small></span>
-        </Link>
-      ))}
+      {countdowns.data?.items
+        .filter((item) => item.kind === 'today' && item.showInSmartList)
+        .map((item) => (
+          <Link key={item.id} className="countdown-today" to="/countdowns">
+            <span aria-hidden="true">{item.emoji ?? '⏳'}</span>
+            <span>
+              <strong>{item.title}</strong>
+              <small>¡Es hoy!</small>
+            </span>
+          </Link>
+        ))}
       {actionError !== null ? (
         <p className="error" role="alert">
           {actionError}
@@ -816,9 +821,16 @@ export function TodayPage() {
         <section className="countdown-upcoming">
           <h2>Próximas fechas</h2>
           <ul>
-            {countdowns.data?.items.filter((item) => item.kind !== 'today').map((item) => (
-              <li key={item.id}><Link to="/countdowns">{item.emoji ?? '⏳'} {item.title}</Link><span>{countdownLabel(item.kind, item.days, item.effectiveDate)}</span></li>
-            ))}
+            {countdowns.data?.items
+              .filter((item) => item.kind !== 'today')
+              .map((item) => (
+                <li key={item.id}>
+                  <Link to="/countdowns">
+                    {item.emoji ?? '⏳'} {item.title}
+                  </Link>
+                  <span>{countdownLabel(item.kind, item.days, item.effectiveDate)}</span>
+                </li>
+              ))}
           </ul>
         </section>
       ) : null}

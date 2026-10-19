@@ -82,7 +82,12 @@ function query(values: Record<string, string | number | boolean | undefined>): s
   return params.size === 0 ? '' : `?${params.toString()}`;
 }
 
-async function request<T>(method: string, path: string, body?: unknown, idempotencyKey?: string): Promise<T> {
+async function request<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+  idempotencyKey?: string,
+): Promise<T> {
   const options = apiOptions();
   const csrf = typeof options.csrfToken === 'function' ? options.csrfToken() : options.csrfToken;
   const headers: Record<string, string> = { accept: 'application/json' };
@@ -100,31 +105,56 @@ async function request<T>(method: string, path: string, body?: unknown, idempote
   const data: unknown = await response.json();
   if (!response.ok) {
     const error = data as { error?: { code?: string; message?: string } };
-    throw new ApiError(response.status, error.error?.code ?? 'request_failed', error.error?.message ?? 'Request failed');
+    throw new ApiError(
+      response.status,
+      error.error?.code ?? 'request_failed',
+      error.error?.message ?? 'Request failed',
+    );
   }
   return data as T;
 }
 
 export const countdownsApi = {
   async list(archived = false, dueWithinDays?: number): Promise<{ items: Countdown[] }> {
-    const page = await request<{ items: CountdownWire[] }>('GET', `/countdowns${query({ archived, dueWithinDays })}`);
+    const page = await request<{ items: CountdownWire[] }>(
+      'GET',
+      `/countdowns${query({ archived, dueWithinDays })}`,
+    );
     return { items: page.items.map(fromWire) };
   },
   async create(body: CountdownDraft, idempotencyKey: string): Promise<Countdown> {
-    return fromWire(await request<CountdownWire>('POST', '/countdowns', toWire(body), idempotencyKey));
+    return fromWire(
+      await request<CountdownWire>('POST', '/countdowns', toWire(body), idempotencyKey),
+    );
   },
   async update(
     id: string,
     body: Partial<CountdownDraft> & { pinned?: boolean },
     idempotencyKey: string = crypto.randomUUID(),
   ): Promise<Countdown> {
-    return fromWire(await request<CountdownWire>('PATCH', `/countdowns/${id}`, toWire(body), idempotencyKey));
+    return fromWire(
+      await request<CountdownWire>('PATCH', `/countdowns/${id}`, toWire(body), idempotencyKey),
+    );
   },
   async archive(id: string): Promise<Countdown> {
-    return fromWire(await request<CountdownWire>('POST', `/countdowns/${id}/archive`, undefined, crypto.randomUUID()));
+    return fromWire(
+      await request<CountdownWire>(
+        'POST',
+        `/countdowns/${id}/archive`,
+        undefined,
+        crypto.randomUUID(),
+      ),
+    );
   },
   async unarchive(id: string): Promise<Countdown> {
-    return fromWire(await request<CountdownWire>('POST', `/countdowns/${id}/unarchive`, undefined, crypto.randomUUID()));
+    return fromWire(
+      await request<CountdownWire>(
+        'POST',
+        `/countdowns/${id}/unarchive`,
+        undefined,
+        crypto.randomUUID(),
+      ),
+    );
   },
   remove(id: string): Promise<undefined> {
     return request<undefined>('DELETE', `/countdowns/${id}`);
@@ -133,11 +163,22 @@ export const countdownsApi = {
 
 function fromWire(value: CountdownWire): Countdown {
   return {
-    id: value.id, title: value.title, type: value.type, emoji: value.emoji,
-    targetDate: value.target_date, repeatRule: value.repeat_rule, dayMode: value.day_mode,
-    color: value.color, notes: value.notes, showInSidebar: value.show_in_sidebar,
-    showInSmartList: value.show_in_smart_list, pinned: value.pinned, archivedAt: value.archived_at,
-    days: value.days, kind: value.kind, effectiveDate: value.effective_date,
+    id: value.id,
+    title: value.title,
+    type: value.type,
+    emoji: value.emoji,
+    targetDate: value.target_date,
+    repeatRule: value.repeat_rule,
+    dayMode: value.day_mode,
+    color: value.color,
+    notes: value.notes,
+    showInSidebar: value.show_in_sidebar,
+    showInSmartList: value.show_in_smart_list,
+    pinned: value.pinned,
+    archivedAt: value.archived_at,
+    days: value.days,
+    kind: value.kind,
+    effectiveDate: value.effective_date,
     reminders: value.reminders.map((reminder) => ({
       offsetDays: reminder.offset_days,
       ...(reminder.constant === undefined ? {} : { constant: reminder.constant }),
@@ -157,7 +198,14 @@ function toWire(value: Partial<CountdownDraft> & { pinned?: boolean }): Record<s
     ...(value.notes === undefined ? {} : { notes: value.notes }),
     ...(value.showInSidebar === undefined ? {} : { show_in_sidebar: value.showInSidebar }),
     ...(value.showInSmartList === undefined ? {} : { show_in_smart_list: value.showInSmartList }),
-    ...(value.reminders === undefined ? {} : { reminders: value.reminders.map((reminder) => ({ offset_days: reminder.offsetDays, constant: reminder.constant })) }),
+    ...(value.reminders === undefined
+      ? {}
+      : {
+          reminders: value.reminders.map((reminder) => ({
+            offset_days: reminder.offsetDays,
+            constant: reminder.constant,
+          })),
+        }),
     ...(value.pinned === undefined ? {} : { pinned: value.pinned }),
   };
 }

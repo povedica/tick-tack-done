@@ -188,8 +188,16 @@ export class ReportsController {
       snapshot,
       weak: narrative.weak,
       countdowns: {
-        upcoming: upcomingCountdowns.map((countdown) => ({ id: countdown.id, title: countdown.title, emoji: countdown.emoji })),
-        reached: reachedCountdowns.map((countdown) => ({ id: countdown.id, title: countdown.title, emoji: countdown.emoji })),
+        upcoming: upcomingCountdowns.map((countdown) => ({
+          id: countdown.id,
+          title: countdown.title,
+          emoji: countdown.emoji,
+        })),
+        reached: reachedCountdowns.map((countdown) => ({
+          id: countdown.id,
+          title: countdown.title,
+          emoji: countdown.emoji,
+        })),
       },
     };
     const row = await this.prisma.$transaction(async (tx) => {

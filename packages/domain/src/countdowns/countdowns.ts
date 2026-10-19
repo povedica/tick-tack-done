@@ -56,15 +56,31 @@ export function nextCountdownOccurrence(
       return addDays(today, delta);
     }
     case 'monthly': {
-      const candidate = dateKey(current.year, current.month, Math.min(target.day, daysInMonth(current.year, current.month)));
+      const candidate = dateKey(
+        current.year,
+        current.month,
+        Math.min(target.day, daysInMonth(current.year, current.month)),
+      );
       if (candidate >= today) return candidate;
       const next = addMonths(current.year, current.month, 1);
-      return dateKey(next.year, next.month, Math.min(target.day, daysInMonth(next.year, next.month)));
+      return dateKey(
+        next.year,
+        next.month,
+        Math.min(target.day, daysInMonth(next.year, next.month)),
+      );
     }
     case 'yearly': {
-      const candidate = dateKey(current.year, target.month, Math.min(target.day, daysInMonth(current.year, target.month)));
+      const candidate = dateKey(
+        current.year,
+        target.month,
+        Math.min(target.day, daysInMonth(current.year, target.month)),
+      );
       if (candidate >= today) return candidate;
-      return dateKey(current.year + 1, target.month, Math.min(target.day, daysInMonth(current.year + 1, target.month)));
+      return dateKey(
+        current.year + 1,
+        target.month,
+        Math.min(target.day, daysInMonth(current.year + 1, target.month)),
+      );
     }
   }
 }
@@ -84,7 +100,11 @@ export function countdownDaysLabel(
   const delta = calendarDiff(effectiveDate, today);
   if (delta === 0) return { kind: 'today', days: 0, effectiveDate };
   if (delta > 0) {
-    return { kind: 'until', days: delta + (countdown.dayMode === 'plus_one' ? 1 : 0), effectiveDate };
+    return {
+      kind: 'until',
+      days: delta + (countdown.dayMode === 'plus_one' ? 1 : 0),
+      effectiveDate,
+    };
   }
   return {
     kind: 'since',

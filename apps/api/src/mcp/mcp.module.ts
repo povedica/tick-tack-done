@@ -10,7 +10,15 @@ import { McpController } from './mcp.controller.js';
 import { McpService } from './mcp.service.js';
 
 @Module({
-  imports: [TasksModule, ListsModule, TagsModule, FiltersModule, HabitsModule, CountdownsModule, SearchModule],
+  imports: [
+    TasksModule,
+    ListsModule,
+    TagsModule,
+    FiltersModule,
+    HabitsModule,
+    CountdownsModule,
+    SearchModule,
+  ],
   controllers: [McpController],
   providers: [McpService],
 })

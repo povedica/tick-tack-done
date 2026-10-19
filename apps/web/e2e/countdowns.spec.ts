@@ -20,7 +20,9 @@ const item = {
   reminders: [],
 };
 
-test('RF-2451: muestra una tarjeta Countdown con los días calculados por la API', async ({ page }) => {
+test('RF-2451: muestra una tarjeta Countdown con los días calculados por la API', async ({
+  page,
+}) => {
   await page.route('**/api/v1/**', async (route) => {
     const request = route.request();
     if (request.url().includes('/api/v1/countdowns') && request.method() === 'GET') {
@@ -31,7 +33,11 @@ test('RF-2451: muestra una tarjeta Countdown con los días calculados por la API
       });
       return;
     }
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [] }) });
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ items: [] }),
+    });
   });
 
   await page.goto('/countdowns');

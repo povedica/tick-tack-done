@@ -9,7 +9,9 @@ export const TYPE_LABEL: Record<CountdownType, string> = {
 
 export function dateLabel(value: string): string {
   const [year, month, day] = value.slice(0, 10).split('-');
-  return year === undefined || month === undefined || day === undefined ? value : `${day}/${month}/${year}`;
+  return year === undefined || month === undefined || day === undefined
+    ? value
+    : `${day}/${month}/${year}`;
 }
 
 export function countdownLabel(kind: CountdownKind, days: number, effectiveDate: string): string {

@@ -517,7 +517,12 @@ export function Sidebar({
             <Item to="/focus" label={messages.navFocus} onNavigate={onNavigate} />
             <Item to="/habits" label={messages.navHabits} onNavigate={onNavigate} icon={Repeat} />
             {showCountdowns ? (
-              <Item to="/countdowns" label="Cuenta atrás" onNavigate={onNavigate} icon={Hourglass} />
+              <Item
+                to="/countdowns"
+                label="Cuenta atrás"
+                onNavigate={onNavigate}
+                icon={Hourglass}
+              />
             ) : null}
             <Item to="/settings/appearance" label={messages.navSettings} onNavigate={onNavigate} />
           </ul>

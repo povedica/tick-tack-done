@@ -33,7 +33,11 @@ export function CountdownCard({
         </span>
         <div className="countdown-actions">
           {!archived ? (
-            <button type="button" aria-label={countdown.pinned ? 'Desfijar' : 'Fijar'} onClick={onPin}>
+            <button
+              type="button"
+              aria-label={countdown.pinned ? 'Desfijar' : 'Fijar'}
+              onClick={onPin}
+            >
               <Pin size={15} fill={countdown.pinned ? 'currentColor' : 'none'} />
             </button>
           ) : null}
@@ -42,10 +46,22 @@ export function CountdownCard({
               <MoreHorizontal size={18} />
             </summary>
             <div className="countdown-menu">
-              {!archived ? <button type="button" onClick={onEdit}>Editar</button> : null}
-              {!archived ? <button type="button" onClick={onPin}>{countdown.pinned ? 'Desfijar' : 'Fijar'}</button> : null}
-              <button type="button" onClick={onArchive}>{archived ? 'Desarchivar' : 'Archivar'}</button>
-              <button type="button" className="is-danger" onClick={onDelete}>Eliminar</button>
+              {!archived ? (
+                <button type="button" onClick={onEdit}>
+                  Editar
+                </button>
+              ) : null}
+              {!archived ? (
+                <button type="button" onClick={onPin}>
+                  {countdown.pinned ? 'Desfijar' : 'Fijar'}
+                </button>
+              ) : null}
+              <button type="button" onClick={onArchive}>
+                {archived ? 'Desarchivar' : 'Archivar'}
+              </button>
+              <button type="button" className="is-danger" onClick={onDelete}>
+                Eliminar
+              </button>
             </div>
           </details>
         </div>

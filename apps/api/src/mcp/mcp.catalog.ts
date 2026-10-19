@@ -134,9 +134,15 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: 'list_countdowns',
-    description: 'List countdowns. days and effective_date are already calculated in the user timezone.',
+    description:
+      'List countdowns. days and effective_date are already calculated in the user timezone.',
     scopes: ['countdowns:read'],
-    inputSchema: objectSchema({ archived: { type: 'boolean' }, limit, cursor, due_within_days: { type: 'integer', minimum: 0 } }),
+    inputSchema: objectSchema({
+      archived: { type: 'boolean' },
+      limit,
+      cursor,
+      due_within_days: { type: 'integer', minimum: 0 },
+    }),
   },
   {
     name: 'get_countdown',
@@ -148,13 +154,37 @@ export const MCP_TOOLS: readonly McpTool[] = [
     name: 'create_countdown',
     description: 'Create a countdown. Returned days are calculated in the user timezone.',
     scopes: ['countdowns:write'],
-    inputSchema: objectSchema({ title: name, target_date: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' }, type: { type: 'string' }, emoji: { type: 'string' }, color: { type: 'string' }, repeat: { type: 'string' }, day_mode: { type: 'string' }, reminders: { type: 'array', items: { type: 'integer', minimum: 0, maximum: 365 } }, notes: { type: 'string' }, show_in_sidebar: { type: 'boolean' }, show_in_smart_list: { type: 'boolean' } }, ['title', 'target_date']),
+    inputSchema: objectSchema(
+      {
+        title: name,
+        target_date: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
+        type: { type: 'string' },
+        emoji: { type: 'string' },
+        color: { type: 'string' },
+        repeat: { type: 'string' },
+        day_mode: { type: 'string' },
+        reminders: { type: 'array', items: { type: 'integer', minimum: 0, maximum: 365 } },
+        notes: { type: 'string' },
+        show_in_sidebar: { type: 'boolean' },
+        show_in_smart_list: { type: 'boolean' },
+      },
+      ['title', 'target_date'],
+    ),
   },
   {
     name: 'update_countdown',
     description: 'Update a countdown.',
     scopes: ['countdowns:write'],
-    inputSchema: objectSchema({ id, title: name, target_date: { type: 'string' }, pinned: { type: 'boolean' }, archived: { type: 'boolean' } }, ['id']),
+    inputSchema: objectSchema(
+      {
+        id,
+        title: name,
+        target_date: { type: 'string' },
+        pinned: { type: 'boolean' },
+        archived: { type: 'boolean' },
+      },
+      ['id'],
+    ),
   },
   {
     name: 'delete_countdown',

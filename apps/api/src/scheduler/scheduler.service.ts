@@ -510,8 +510,13 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
 
   private async enqueueConstantCountdownReminder(input: {
     countdown: {
-      id: string; ownerId: string; title: string; emoji: string | null; dayMode: 'standard' | 'plus_one';
-      targetDate: Date; repeatRule: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+      id: string;
+      ownerId: string;
+      title: string;
+      emoji: string | null;
+      dayMode: 'standard' | 'plus_one';
+      targetDate: Date;
+      repeatRule: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
       owner: { email: string; timeZone: string };
     };
     reminder: { id: string };
@@ -529,8 +534,13 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
 
   private async queueCountdownReminder(input: {
     countdown: {
-      id: string; ownerId: string; title: string; emoji: string | null; dayMode: 'standard' | 'plus_one';
-      targetDate: Date; repeatRule: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+      id: string;
+      ownerId: string;
+      title: string;
+      emoji: string | null;
+      dayMode: 'standard' | 'plus_one';
+      targetDate: Date;
+      repeatRule: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
       owner: { email: string; timeZone: string };
     };
     reminder: { id: string; offsetDays?: number };
@@ -555,9 +565,10 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       input.countdown.owner.timeZone,
     );
     const prefix = input.countdown.emoji === null ? '⏳' : `⏳ ${input.countdown.emoji}`;
-    const body = label.kind === 'today'
-      ? `${prefix} ${input.countdown.title}: ¡es hoy!`
-      : `${prefix} ${input.countdown.title}: quedan ${String(label.days)} días`;
+    const body =
+      label.kind === 'today'
+        ? `${prefix} ${input.countdown.title}: ¡es hoy!`
+        : `${prefix} ${input.countdown.title}: quedan ${String(label.days)} días`;
     const offset = input.reminder.offsetDays ?? 3;
     await this.queue({
       ownerId: input.countdown.ownerId,
@@ -760,13 +771,13 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         const result = reached
           ? { email: 'skipped' as const, push: 'skipped' as const, telegram: 'skipped' as const }
           : await this.transport.deliver({
-            channel: row.channel,
-            email: typeof payload.email === 'string' ? payload.email : row.owner.email,
-            subscriptions: row.owner.pushSubscriptions,
-            telegramChatId: row.owner.telegramLinks[0]?.chatId ?? null,
-            title: typeof payload.title === 'string' ? payload.title : 'Recordatorio',
-            body: typeof payload.body === 'string' ? payload.body : '',
-          });
+              channel: row.channel,
+              email: typeof payload.email === 'string' ? payload.email : row.owner.email,
+              subscriptions: row.owner.pushSubscriptions,
+              telegramChatId: row.owner.telegramLinks[0]?.chatId ?? null,
+              title: typeof payload.title === 'string' ? payload.title : 'Recordatorio',
+              body: typeof payload.body === 'string' ? payload.body : '',
+            });
         await this.prisma.$transaction(async (tx) => {
           await tx.reminderDelivery.update({
             where: { id: row.id },
@@ -779,7 +790,11 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
                 entityType: 'countdown',
                 entityId: row.countdownId,
                 action: 'updated',
-                data: asJson({ countdown_id: row.countdownId, occurrence_date: payload.occurrence_date, status: mark }),
+                data: asJson({
+                  countdown_id: row.countdownId,
+                  occurrence_date: payload.occurrence_date,
+                  status: mark,
+                }),
                 previous: null,
               });
             } else {
@@ -800,20 +815,21 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
             }
           }
           const habitId = typeof payload.habit_id === 'string' ? payload.habit_id : null;
-          if (row.kind !== 'countdown') await this.events.record(tx, automation(row.ownerId), {
-            type: DomainEvent.reminderFired,
-            entityType: habitId === null ? 'reminder' : 'habit',
-            entityId: habitId ?? row.reminderId ?? row.id,
-            action: 'updated',
-            data: asJson({
-              delivery_id: row.id,
-              kind: habitId === null ? row.kind : 'habit',
-              status: mark,
-              task_id: row.taskId,
-              ...(habitId === null ? {} : { habit_id: habitId }),
-            }),
-            previous: null,
-          });
+          if (row.kind !== 'countdown')
+            await this.events.record(tx, automation(row.ownerId), {
+              type: DomainEvent.reminderFired,
+              entityType: habitId === null ? 'reminder' : 'habit',
+              entityId: habitId ?? row.reminderId ?? row.id,
+              action: 'updated',
+              data: asJson({
+                delivery_id: row.id,
+                kind: habitId === null ? row.kind : 'habit',
+                status: mark,
+                task_id: row.taskId,
+                ...(habitId === null ? {} : { habit_id: habitId }),
+              }),
+              previous: null,
+            });
         });
         if (row.kind === 'task' && row.reminder?.constant === true && row.taskId !== null) {
           await this.scheduleConstant(row, now);

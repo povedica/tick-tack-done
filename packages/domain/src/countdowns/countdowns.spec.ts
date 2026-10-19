@@ -27,20 +27,20 @@ describe('countdowns', () => {
   });
 
   it('RF-2413: handles February 29 birthdays and monthly last days', () => {
-    expect(nextCountdownOccurrence('2024-02-29', 'yearly', 'standard', '2025-03-01', 'Europe/Madrid')).toBe(
-      '2026-02-28',
-    );
-    expect(nextCountdownOccurrence('2026-01-31', 'monthly', 'standard', '2026-02-01', 'Europe/Madrid')).toBe(
-      '2026-02-28',
-    );
+    expect(
+      nextCountdownOccurrence('2024-02-29', 'yearly', 'standard', '2025-03-01', 'Europe/Madrid'),
+    ).toBe('2026-02-28');
+    expect(
+      nextCountdownOccurrence('2026-01-31', 'monthly', 'standard', '2026-02-01', 'Europe/Madrid'),
+    ).toBe('2026-02-28');
   });
 
   it('RF-2412: resolves a recurring countdown to today or its next occurrence', () => {
-    expect(nextCountdownOccurrence('2026-10-19', 'yearly', 'standard', '2026-10-19', 'Europe/Madrid')).toBe(
-      '2026-10-19',
-    );
-    expect(nextCountdownOccurrence('2026-10-19', 'yearly', 'standard', '2026-10-20', 'Europe/Madrid')).toBe(
-      '2027-10-19',
-    );
+    expect(
+      nextCountdownOccurrence('2026-10-19', 'yearly', 'standard', '2026-10-19', 'Europe/Madrid'),
+    ).toBe('2026-10-19');
+    expect(
+      nextCountdownOccurrence('2026-10-19', 'yearly', 'standard', '2026-10-20', 'Europe/Madrid'),
+    ).toBe('2027-10-19');
   });
 });
