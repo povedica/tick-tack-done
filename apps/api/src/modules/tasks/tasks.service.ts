@@ -904,7 +904,7 @@ export class TasksService {
   async purge(user: AuthUser, id: string): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       const current = await tx.task.findFirst({ where: { id, ownerId: user.id } });
-      if (current === null || current.deletedAt === null) {
+      if (current?.deletedAt == null) {
         throw new DomainException(
           HttpStatus.NOT_FOUND,
           'task_not_found',
