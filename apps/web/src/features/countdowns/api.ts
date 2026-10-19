@@ -113,8 +113,12 @@ export const countdownsApi = {
   async create(body: CountdownDraft, idempotencyKey: string): Promise<Countdown> {
     return fromWire(await request<CountdownWire>('POST', '/countdowns', toWire(body), idempotencyKey));
   },
-  async update(id: string, body: Partial<CountdownDraft> & { pinned?: boolean }): Promise<Countdown> {
-    return fromWire(await request<CountdownWire>('PATCH', `/countdowns/${id}`, toWire(body), crypto.randomUUID()));
+  async update(
+    id: string,
+    body: Partial<CountdownDraft> & { pinned?: boolean },
+    idempotencyKey: string = crypto.randomUUID(),
+  ): Promise<Countdown> {
+    return fromWire(await request<CountdownWire>('PATCH', `/countdowns/${id}`, toWire(body), idempotencyKey));
   },
   async archive(id: string): Promise<Countdown> {
     return fromWire(await request<CountdownWire>('POST', `/countdowns/${id}/archive`, undefined, crypto.randomUUID()));

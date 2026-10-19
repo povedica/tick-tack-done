@@ -3,6 +3,7 @@ import { MoreHorizontal, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { Button, EmptyState } from '../../components/ui';
 import { UndoToastStack } from '../../components/UndoToast';
+import { newMutation, runOrQueue } from '../offline/client';
 import { CountdownCard } from './CountdownCard';
 import { CountdownDialog } from './CountdownDialog';
 import { countdownsApi, type Countdown, type CountdownDraft, type CountdownType } from './api';
@@ -18,8 +19,18 @@ export function CountdownsPage() {
   const rows = useQuery({ queryKey: ['countdowns', archived], queryFn: () => countdownsApi.list(archived) });
   const refresh = (): Promise<unknown> => client.invalidateQueries({ queryKey: ['countdowns'] });
   const save = useMutation({
-    mutationFn: ({ draft, original }: { draft: CountdownDraft; original?: Countdown }) =>
-      original === undefined ? countdownsApi.create(draft, crypto.randomUUID()) : countdownsApi.update(original.id, draft),
+    mutationFn: async ({ draft, original }: { draft: CountdownDraft; original?: Countdown }) => {
+      const kind: 'create_countdown' | 'update_countdown' =
+        original === undefined ? 'create_countdown' : 'update_countdown';
+      const localId = original?.id ?? crypto.randomUUID();
+      return runOrQueue(
+        newMutation(kind, localId, draft as unknown as Record<string, unknown>),
+        (idempotencyKey) =>
+          original === undefined
+            ? countdownsApi.create(draft, idempotencyKey)
+            : countdownsApi.update(original.id, draft, idempotencyKey),
+      );
+    },
     onSuccess: async () => { setDialog(null); await refresh(); },
   });
   const archive = useMutation({

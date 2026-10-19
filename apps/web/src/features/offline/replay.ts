@@ -1,7 +1,7 @@
 export interface PendingMutation {
   readonly id: string;
   readonly idempotencyKey: string;
-  readonly kind: 'create' | 'update' | 'complete';
+  readonly kind: 'create' | 'update' | 'complete' | 'create_countdown' | 'update_countdown';
   readonly localId: string;
   readonly body: Record<string, unknown>;
   readonly createdAt: string;
@@ -17,6 +17,8 @@ export interface MutationWriter {
   createTask(body: Record<string, unknown>, idempotencyKey: string): Promise<{ id: string }>;
   updateTask(id: string, body: Record<string, unknown>): Promise<unknown>;
   completeTask(id: string, body: Record<string, unknown>, idempotencyKey: string): Promise<unknown>;
+  createCountdown?(body: Record<string, unknown>, idempotencyKey: string): Promise<{ id: string }>;
+  updateCountdown?(id: string, body: Record<string, unknown>, idempotencyKey: string): Promise<unknown>;
 }
 
 export interface ReplayResult {
@@ -36,15 +38,22 @@ export async function replayQueue(
   const ids = new Map<string, string>();
   let applied = 0;
   for (const item of pending) {
-    const taskId = ids.get(item.localId) ?? item.localId;
+    const entityId = ids.get(item.localId) ?? item.localId;
     try {
       if (item.kind === 'create') {
         const created = await writer.createTask(item.body, item.idempotencyKey);
         ids.set(item.localId, created.id);
       } else if (item.kind === 'update') {
-        await writer.updateTask(taskId, item.body);
+        await writer.updateTask(entityId, item.body);
+      } else if (item.kind === 'complete') {
+        await writer.completeTask(entityId, item.body, item.idempotencyKey);
+      } else if (item.kind === 'create_countdown') {
+        if (writer.createCountdown === undefined) return { applied, stopped: true };
+        const created = await writer.createCountdown(item.body, item.idempotencyKey);
+        ids.set(item.localId, created.id);
       } else {
-        await writer.completeTask(taskId, item.body, item.idempotencyKey);
+        if (writer.updateCountdown === undefined) return { applied, stopped: true };
+        await writer.updateCountdown(entityId, item.body, item.idempotencyKey);
       }
       await store.remove(item.id);
       applied += 1;
