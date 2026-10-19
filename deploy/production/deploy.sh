@@ -11,8 +11,12 @@ test -r "$env_file"
 
 cd "$root"
 
-GIT_COMMIT=$(git rev-parse --short HEAD)
-export GIT_COMMIT
+if GIT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null); then
+  export GIT_COMMIT
+else
+  GIT_COMMIT=${GIT_COMMIT:-unknown}
+  export GIT_COMMIT
+fi
 
 docker compose \
   -f deploy/production/docker-compose.yml \
