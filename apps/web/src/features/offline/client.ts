@@ -1,9 +1,4 @@
-import {
-  ApiError,
-  type CompleteTaskBody,
-  type CreateTaskBody,
-  type UpdateTaskBody,
-} from '@reflexionia/sdk';
+import { ApiError } from '@reflexionia/sdk';
 import { tasksApi } from '../today/api';
 import { replayQueue, type PendingMutation } from './replay';
 import { offlineStore } from './store';
@@ -49,13 +44,13 @@ export async function flushOfflineQueue(): Promise<void> {
   }
   await replayQueue(offlineStore, {
     createTask(body, idempotencyKey) {
-      return tasksApi.createTask(body as CreateTaskBody, idempotencyKey);
+      return tasksApi.createTask(body, idempotencyKey);
     },
     updateTask(id, body) {
-      return tasksApi.updateTask(id, body as UpdateTaskBody);
+      return tasksApi.updateTask(id, body);
     },
     completeTask(id, body, idempotencyKey) {
-      return tasksApi.completeTask(id, body as CompleteTaskBody, idempotencyKey);
+      return tasksApi.completeTask(id, body, idempotencyKey);
     },
   });
 }
