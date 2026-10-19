@@ -113,7 +113,7 @@ export const es = {
   retry: 'Reintentar',
   completeLabel: 'Completar «{name}»',
   reopenLabel: 'Reabrir «{name}»',
-  completedToast: 'Completada: {name}',
+  completedToast: 'Tarea completada',
   undo: 'Deshacer',
   completeFailed: 'No se ha podido completar la tarea.',
   undoFailed: 'No se ha podido deshacer.',

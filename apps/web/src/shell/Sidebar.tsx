@@ -21,7 +21,7 @@ import {
   UserRound,
   type LucideIcon,
 } from 'lucide-react';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import { Link, NavLink, useLocation, useMatch } from 'react-router';
 import { api } from '../api';
 import { BrandMark } from '../components/BrandMark';
@@ -31,6 +31,9 @@ import { usePreferences } from '../theme/preferences';
 import { nextTheme, type ThemePreference } from '../theme/preference';
 import { useThemePreference } from '../theme/store';
 import { collectProjects, collectTags } from '../features/tasks/collect';
+import { dragHasTask, taskDragId } from '../features/today/drag';
+import { calendarDay, shiftDayKey, zonedWallTime } from '../features/today/groups';
+import { refreshTaskSurfaces } from '../features/tasks/refresh';
 import { smartPath } from '../features/tasks/model';
 import { orderedSmartLists, SIDEBAR_SMART_ORDER } from './smart-order';
 
@@ -161,7 +164,33 @@ export function Sidebar({
           {lists
             .filter((item) => item.enabled && item.key !== 'trash')
             .map((item) => (
-              <li key={item.id}>
+              <li
+                key={item.id}
+                onDragOver={allowTaskDrop}
+                onDrop={(event) => {
+                  const id = taskDragId(event.dataTransfer);
+                  if (id === null || (item.key !== 'today' && item.key !== 'tomorrow')) {
+                    return;
+                  }
+                  event.preventDefault();
+                  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                  const today = calendarDay(new Date().toISOString(), zone);
+                  const due = zonedWallTime(
+                    shiftDayKey(today, item.key === 'today' ? 0 : 1),
+                    0,
+                    0,
+                    zone,
+                  );
+                  if (due === null) {
+                    return;
+                  }
+                  void api
+                    .patchTask(id, { due_date: due, is_all_day: true, time_zone: zone })
+                    .then(() => {
+                      void refreshTaskSurfaces(queryClient);
+                    });
+                }}
+              >
                 <SideLink to={smartPath(item.key)} onNavigate={onNavigate}>
                   <SmartIcon name={item.key} />
                   <span className="nav-label">{smartLabel(messages, item.key)}</span>
@@ -271,7 +300,21 @@ export function Sidebar({
         ) : null}
         <ul className="nav-list">
           {projectItems.map((project) => (
-            <li key={project.id} className="nav-row">
+            <li
+              key={project.id}
+              className="nav-row"
+              onDragOver={allowTaskDrop}
+              onDrop={(event) => {
+                const id = taskDragId(event.dataTransfer);
+                if (id === null) {
+                  return;
+                }
+                event.preventDefault();
+                void api.moveTask(id, project.id).then(() => {
+                  void refreshTaskSurfaces(queryClient);
+                });
+              }}
+            >
               <SideLink to={`/list/${project.id}`} section onNavigate={onNavigate}>
                 <span
                   className="color-dot"
@@ -558,6 +601,12 @@ function Item({
       </SideLink>
     </li>
   );
+}
+
+function allowTaskDrop(event: DragEvent<HTMLLIElement>): void {
+  if (dragHasTask(event.dataTransfer)) {
+    event.preventDefault();
+  }
 }
 
 function ThemeIcon({ preference }: { readonly preference: ThemePreference }) {

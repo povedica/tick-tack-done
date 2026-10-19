@@ -27,6 +27,12 @@ export async function settleComplete(
   return 'reverted';
 }
 
+export const COMPLETE_LEAVE_MS = 250;
+
+export function completeLeaveMs(reducedMotion: boolean): number {
+  return reducedMotion ? 0 : COMPLETE_LEAVE_MS;
+}
+
 export function pushUndo<T extends { readonly id: string }>(
   items: readonly T[],
   item: T,

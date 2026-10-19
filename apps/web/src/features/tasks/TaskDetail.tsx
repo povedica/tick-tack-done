@@ -1,21 +1,30 @@
-import { ApiError, type TaskDetail as Detail } from '@reflexionia/sdk';
+import { ApiError, type CreateTaskBody, type TaskDetail as Detail } from '@reflexionia/sdk';
 import { describeRepeatRule, parseTrigger } from '@reflexionia/domain';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Bell, Flag } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router';
+import { ArrowLeft } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router';
 import { api } from '../../api';
-import { PriorityCheck } from '../../components/PriorityCheck';
+import { DatePopover, type DateDraft } from '../../components/DatePopover';
+import { PriorityMenu } from '../../components/PriorityMenu';
+import { TagPicker } from '../../components/TagPicker';
 import { Button } from '../../components/ui';
-import { DueField } from './DueField';
+import { useActionToast } from '../../components/action-toast';
 import { fill, useMessages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
-import { useActionToast } from '../../components/action-toast';
-import { collectTags } from './collect';
-import { refreshTaskSurfaces } from './refresh';
+import { formatDueChip, type TodayTask } from '../today/groups';
+import { PIN_KEY, readPins, togglePin } from '../today/pins';
 import { newMutation, runOrQueue } from '../offline/client';
+import { collectTags } from './collect';
+import { activityText, relativeTime } from './detail-model';
+import { DetailBody } from './DetailBody';
+import { DetailFooter } from './DetailFooter';
+import { DetailHeader } from './DetailHeader';
+import { DetailMenu } from './DetailMenu';
+import { refreshTaskSurfaces } from './refresh';
 
 const MAX_ATTACHMENT = 25 * 1024 * 1024;
+const TEMPLATE_KEY = 'tick-tack-done.templates';
 
 export function TaskDetail({
   taskId,
@@ -34,6 +43,19 @@ export function TaskDetail({
   const [saved, setSaved] = useState(false);
   const [series, setSeries] = useState<string | null>(null);
   const [children, setChildren] = useState(false);
+  const [dateOpen, setDateOpen] = useState(false);
+  const [priorityOpen, setPriorityOpen] = useState(false);
+  const [tagsOpen, setTagsOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [listOpen, setListOpen] = useState(false);
+  const [activityOpen, setActivityOpen] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [parentOpen, setParentOpen] = useState(false);
+  const [formatOpen, setFormatOpen] = useState(false);
+  const [pins, setPins] = useState<readonly string[]>(() =>
+    readPins(localStorage.getItem(PIN_KEY)),
+  );
+  const fileRef = useRef<HTMLInputElement>(null);
   const detail = useQuery({
     queryKey: ['task', taskId],
     queryFn: () => api.taskDetail(taskId),
@@ -46,26 +68,13 @@ export function TaskDetail({
     queryKey: ['attachments', taskId],
     queryFn: () => api.listAttachments(taskId),
   });
-  const occurrences = useQuery({
-    queryKey: ['occurrences', taskId],
-    queryFn: () => api.occurrences(taskId),
-    enabled: detail.data?.repeat_rule !== null && detail.data?.repeat_rule !== undefined,
-  });
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
   const tags = useQuery({ queryKey: ['tags'], queryFn: collectTags, staleTime: 5 * 60_000 });
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
-  const serverDue = detail.data?.due_date ?? null;
-  const [dueDraft, setDueDraft] = useState('');
-  useEffect(() => {
-    setDueDraft(toLocal(serverDue));
-  }, [detail.data?.id, serverDue]);
 
   async function refresh(): Promise<void> {
     await queryClient.invalidateQueries({ queryKey: ['task', taskId] });
-    await queryClient.invalidateQueries({ queryKey: ['today-tasks'] });
-    await queryClient.invalidateQueries({ queryKey: ['project-tasks'] });
-    await queryClient.invalidateQueries({ queryKey: ['smart-list-tasks'] });
-    await queryClient.invalidateQueries({ queryKey: ['filter-tasks'] });
+    await refreshTaskSurfaces(queryClient);
   }
 
   const save = useMutation({
@@ -108,468 +117,457 @@ export function TaskDetail({
 
   const task = detail.data;
   const activeChildren = task.subtasks.filter((item) => item.status === 'active');
+  const chip = formatDueChip(task.due_date, task.time_zone, task.is_all_day, new Date(), locale, {
+    empty: messages.noDate,
+    today: messages.dateToday,
+  });
+  const reminder = reminders.data?.[0];
+  const repeatText =
+    task.repeat_rule === null ? null : (describeRepeatRule(task.repeat_rule) ?? task.repeat_rule);
+  const projectName =
+    (projects.data?.items ?? []).find((project) => project.id === task.project_id)?.name ?? '';
+  const tagRows = task.tag_ids.flatMap((id) => {
+    const tag = (tags.data?.items ?? []).find((item) => item.id === id);
+    return tag === undefined ? [] : [{ id, name: tag.name, color: tag.color }];
+  });
+  const draft: DateDraft = {
+    dueDate: task.due_date,
+    allDay: task.is_all_day,
+    durationMinutes: task.duration_minutes,
+    reminder: reminder?.trigger ?? null,
+    repeatRule: task.repeat_rule,
+  };
 
-  function commitDue(nextDraft: string): void {
-    setDueDraft(nextDraft);
-    if (nextDraft === toLocal(task.due_date)) {
+  const parents = queryClient.getQueryData<TodayTask[]>(['today-tasks']) ?? [];
+
+  function applyDate(next: DateDraft): void {
+    if (next.dueDate !== task.due_date || next.allDay !== task.is_all_day) {
+      if (task.repeat_rule !== null && next.dueDate !== null && next.dueDate !== task.due_date) {
+        setSeries(next.dueDate);
+      } else {
+        save.mutate({
+          due_date: next.dueDate,
+          is_all_day: next.allDay,
+          duration_minutes: next.durationMinutes,
+          repeat_rule: next.repeatRule,
+        });
+      }
+    } else if (
+      next.repeatRule !== task.repeat_rule ||
+      next.durationMinutes !== task.duration_minutes
+    ) {
+      save.mutate({ duration_minutes: next.durationMinutes, repeat_rule: next.repeatRule });
+    }
+    const current = reminder?.trigger ?? null;
+    if (next.reminder === current) {
       return;
     }
-    const next = nextDraft.length === 0 ? null : new Date(nextDraft).toISOString();
-    if (next !== null && Number.isNaN(new Date(nextDraft).getTime())) {
-      setDueDraft(toLocal(task.due_date));
-      return;
-    }
-    if (task.repeat_rule !== null && next !== null) {
-      setSeries(next);
-      return;
-    }
-    save.mutate({ due_date: next });
+    void (async () => {
+      if (reminder !== undefined) {
+        await api.deleteReminder(task.id, reminder.id);
+      }
+      if (next.reminder !== null) {
+        await api.createReminder(
+          task.id,
+          { trigger: next.reminder, type: 'relative', channel: 'push' },
+          crypto.randomUUID(),
+        );
+      }
+      await queryClient.invalidateQueries({ queryKey: ['reminders', taskId] });
+    })().catch((caught: unknown) => {
+      setError(caught instanceof ApiError ? caught.message : messages.saveFailed);
+    });
   }
 
-  const progress =
-    task.checklist_progress.total === 0
-      ? 0
-      : Math.round((task.checklist_progress.completed / task.checklist_progress.total) * 100);
+  function complete(): void {
+    if (task.status === 'completed') {
+      void api.uncompleteTask(task.id, crypto.randomUUID()).then(refresh);
+      return;
+    }
+    if (activeChildren.length > 0) {
+      setChildren(true);
+      return;
+    }
+    void finish(undefined);
+  }
+
+  async function finish(mode: 'complete' | 'leave' | undefined): Promise<void> {
+    const body = mode === undefined ? {} : { complete_children: mode };
+    const outcome = await runOrQueue(newMutation('complete', task.id, body), (key) =>
+      api.completeTask(task.id, body, key),
+    );
+    if (!outcome.queued) {
+      await refresh();
+    }
+  }
 
   return (
     <aside className="detail-panel" aria-label={messages.taskTitle}>
-      <header className="detail-head">
-        <button type="button" className="icon-button" aria-label={messages.close} onClick={onClose}>
-          <ArrowLeft size={20} aria-hidden="true" />
-        </button>
-        <PriorityCheck
-          priority={task.priority}
-          label={fill(messages.completeLabel, task.title)}
-          checked={task.status === 'completed'}
-          onChange={() => {
-            if (task.status === 'completed') {
-              void api.uncompleteTask(task.id, crypto.randomUUID()).then(refresh);
-              return;
-            }
-            if (activeChildren.length > 0) {
-              setChildren(true);
-              return;
-            }
-            void (async () => {
-              const outcome = await runOrQueue(newMutation('complete', task.id, {}), (key) =>
-                api.completeTask(task.id, {}, key),
-              );
-              if (!outcome.queued) {
-                await refresh();
-              }
-            })();
+      <button
+        type="button"
+        className="icon-button detail-back"
+        aria-label={messages.close}
+        onClick={onClose}
+      >
+        <ArrowLeft size={20} aria-hidden="true" />
+      </button>
+      <DetailHeader
+        title={task.title}
+        priority={task.priority}
+        completed={task.status === 'completed'}
+        dueText={chip.text}
+        dueTone={chip.tone}
+        saved={saved}
+        savedLabel={messages.saved}
+        completeLabel={task.status === 'completed' ? messages.reopenLabel : messages.completeLabel}
+        dateLabel={messages.dateSet}
+        priorityLabel={messages.prioritySet}
+        messages={messages}
+        onComplete={complete}
+        onOpenDate={() => {
+          setDateOpen(true);
+        }}
+        onOpenPriority={() => {
+          setPriorityOpen((current) => !current);
+        }}
+      />
+      <div className="detail-pop-anchor">
+        {dateOpen ? (
+          <DatePopover
+            open
+            value={draft}
+            timeZone={task.time_zone}
+            onClose={() => {
+              setDateOpen(false);
+            }}
+            onApply={applyDate}
+          />
+        ) : null}
+        <PriorityMenu
+          open={priorityOpen}
+          value={task.priority}
+          onClose={() => {
+            setPriorityOpen(false);
+          }}
+          onChange={(priority) => {
+            save.mutate({ priority });
           }}
         />
-        <span className="detail-head-spacer" />
-        <button
-          type="button"
-          className="icon-button"
-          aria-label={messages.addReminder}
-          onClick={() => {
-            void api
-              .createReminder(
-                task.id,
-                { trigger: 'TRIGGER:-PT30M', type: 'relative', channel: 'push' },
-                crypto.randomUUID(),
-              )
-              .then(() => queryClient.invalidateQueries({ queryKey: ['reminders', taskId] }))
-              .catch((caught: unknown) => {
-                setError(caught instanceof ApiError ? caught.message : messages.saveFailed);
-              });
+        <TagPicker
+          open={tagsOpen}
+          tags={(tags.data?.items ?? []).map((tag) => ({
+            id: tag.id,
+            name: tag.name,
+            color: tag.color,
+          }))}
+          selected={task.tag_ids}
+          onClose={() => {
+            setTagsOpen(false);
+          }}
+          onToggle={(id) => {
+            const next = task.tag_ids.includes(id)
+              ? task.tag_ids.filter((item) => item !== id)
+              : [...task.tag_ids, id];
+            save.mutate({ tag_ids: next });
+          }}
+        />
+      </div>
+      {error !== null ? <p role="alert">{error}</p> : null}
+      <DetailBody
+        title={task.title}
+        content={task.content}
+        titleLabel={messages.titlePreview}
+        untitled={messages.untitled}
+        contentLabel={messages.contentLabel}
+        contentHint={messages.contentHint}
+        checklistLabel={messages.checklist}
+        checklistAdd={messages.checklistAdd}
+        tagAdd={messages.tagAdd}
+        items={task.items.map((item) => ({
+          id: item.id,
+          title: item.title,
+          done: item.status === 'completed',
+        }))}
+        subtasks={task.subtasks.map((child) => ({ id: child.id, title: child.title }))}
+        tags={tagRows}
+        reminder={
+          reminder === undefined
+            ? null
+            : humanTrigger(reminder.trigger, reminder.channel, messages, locale)
+        }
+        repeat={repeatText}
+        attachmentCount={attachments.data?.items.length ?? 0}
+        attachmentLabel={messages.attachments}
+        onTitle={(value) => {
+          if (value !== task.title) {
+            save.mutate({ title: value });
+          }
+        }}
+        onTitleKey={(event) => {
+          if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            event.currentTarget.blur();
+          }
+        }}
+        onContent={(value) => {
+          if (value !== task.content) {
+            save.mutate({ content: value });
+          }
+        }}
+        onToggleItem={(id, done) => {
+          if (!done) {
+            void api.completeChecklistItem(task.id, id).then(refresh);
+          }
+        }}
+        onAddItem={(title) => {
+          void api.createChecklistItem(task.id, title, crypto.randomUUID()).then(refresh);
+        }}
+        onRemoveTag={(id) => {
+          save.mutate({ tag_ids: task.tag_ids.filter((item) => item !== id) });
+        }}
+        onOpenTags={() => {
+          setTagsOpen(true);
+        }}
+        onClearReminder={() => {
+          if (reminder === undefined) {
+            return;
+          }
+          void api.deleteReminder(task.id, reminder.id).then(() => {
+            void queryClient.invalidateQueries({ queryKey: ['reminders', taskId] });
+          });
+        }}
+        onClearRepeat={() => {
+          save.mutate({ repeat_rule: null });
+        }}
+      />
+      {commentsOpen ? (
+        <form
+          className="detail-comment"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const data = new FormData(event.currentTarget);
+            const raw = data.get('comment');
+            const text = (typeof raw === 'string' ? raw : '').trim();
+            if (text.length === 0) {
+              return;
+            }
+            save.mutate({ content: `${task.content}\n\n> ${text}`.trim() });
+            setCommentsOpen(false);
           }}
         >
-          <Bell size={20} aria-hidden="true" />
-        </button>
-        <label className="icon-button" aria-label={messages.prioritySet}>
-          <Flag size={20} color={priorityColor(task.priority)} aria-hidden="true" />
-          <select
-            className="sr-only"
-            value={task.priority}
-            onChange={(event) => {
-              const priority = event.target.value as Detail['priority'];
-              save.mutate({ priority });
-            }}
-          >
-            <option value="high">{messages.priorityHigh}</option>
-            <option value="medium">{messages.priorityMedium}</option>
-            <option value="low">{messages.priorityLow}</option>
-            <option value="none">{messages.priorityNone}</option>
-          </select>
-        </label>
-        <div className="detail-progress" aria-hidden="true">
-          <span style={{ width: `${String(progress)}%` }} />
-        </div>
-      </header>
-      <div className="detail-body">
-        <div className="page-toolbar">
-          {saved ? <span role="status">{messages.saved}</span> : null}
-          <Button
-            variant="ghost"
-            onClick={() => {
-              void navigator.clipboard.writeText(`${window.location.origin}/task/${task.id}`);
-            }}
-          >
-            {messages.copyLink}
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => {
-              void api.duplicateTask(task.id, crypto.randomUUID()).then((copy) => {
-                const next = new URLSearchParams(window.location.search);
-                next.set('task', copy.id);
-                setParams(next, { replace: true });
-                showToast(messages.duplicated);
-                return refreshTaskSurfaces(queryClient);
-              });
-            }}
-          >
-            {messages.duplicate}
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => {
-              void api
-                .startFocus({ task_id: task.id })
-                .then(() => {
-                  void navigate('/focus');
-                })
-                .catch((caught: unknown) => {
-                  setError(caught instanceof ApiError ? caught.message : messages.saveFailed);
-                });
-            }}
-          >
-            {messages.focusOnTask}
-          </Button>
-          <Button
-            variant="danger"
-            onClick={() => {
-              const id = task.id;
-              void api.deleteTask(id).then(() => {
-                showToast(messages.movedToTrash, () => {
-                  void api.restoreTask(id).then(() => refreshTaskSurfaces(queryClient));
-                });
-                void refreshTaskSurfaces(queryClient);
-                onClose();
-              });
-            }}
-          >
-            {messages.batchDelete}
-          </Button>
-        </div>
-        {error !== null ? <p role="alert">{error}</p> : null}
-        <textarea
-          className="detail-title"
-          aria-label={messages.titlePreview}
-          defaultValue={task.title}
-          key={task.title}
-          placeholder={messages.untitled}
-          onBlur={(event) => {
-            if (event.target.value !== task.title) {
-              save.mutate({ title: event.target.value });
-            }
-          }}
-        />
-        <DueField
-          value={dueDraft}
-          dateLabel={messages.dateSet}
-          timeLabel={messages.dueTime}
-          emptyLabel={messages.noDate}
-          clearLabel={messages.clearDate}
-          previousLabel={messages.calPrev}
-          nextLabel={messages.calNext}
-          onCommit={commitDue}
-        />
-        <label>
-          {messages.tagAdd}
-          <select
-            value=""
-            onChange={(event) => {
-              const id = event.target.value;
-              if (id.length === 0 || task.tag_ids.includes(id)) {
-                return;
-              }
-              save.mutate({ tag_ids: [...task.tag_ids, id] });
-            }}
-          >
-            <option value="">{messages.tagAdd}</option>
-            {(tags.data?.items ?? []).map((tag) => (
-              <option key={tag.id} value={tag.id}>
-                {tag.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <p className="task-meta">
-          {task.tag_ids.map((id) => (
-            <button
-              key={id}
-              type="button"
-              className="ui-tag"
-              onClick={() => {
-                save.mutate({ tag_ids: task.tag_ids.filter((item) => item !== id) });
-              }}
-            >
-              {(tags.data?.items ?? []).find((tag) => tag.id === id)?.name ?? id} ×
-            </button>
-          ))}
-        </p>
-        <div className="page-toolbar" role="tablist">
-          <span>{messages.contentLabel}</span>
-        </div>
-        <textarea
-          className="detail-content"
-          aria-label={messages.contentLabel}
-          placeholder={messages.contentHint}
-          defaultValue={task.content}
-          key={`${task.id}-${task.updated_at}`}
-          rows={6}
-          onBlur={(event) => {
-            if (event.target.value !== task.content) {
-              save.mutate({ content: event.target.value });
-            }
-          }}
-        />
-        <section>
-          <h3>{messages.checklist}</h3>
-          <p>
-            {task.checklist_progress.completed}/{task.checklist_progress.total}
-          </p>
-          <ul>
-            {task.items.map((item) => (
-              <li key={item.id}>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={item.status === 'completed'}
-                    onChange={() => {
-                      if (item.status !== 'completed') {
-                        void api.completeChecklistItem(task.id, item.id).then(refresh);
-                      }
-                    }}
-                  />
-                  {item.title}
-                </label>
-              </li>
-            ))}
-          </ul>
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              const data = new FormData(event.currentTarget);
-              const raw = data.get('item');
-              const title = (typeof raw === 'string' ? raw : '').trim();
-              if (title.length === 0) {
-                return;
-              }
-              void api.createChecklistItem(task.id, title, crypto.randomUUID()).then(refresh);
-              event.currentTarget.reset();
-            }}
-          >
-            <input
-              name="item"
-              aria-label={messages.checklistAdd}
-              placeholder={messages.checklistAdd}
-            />
-          </form>
-        </section>
-        {task.subtasks.length > 0 ? (
-          <section>
-            <h3>{messages.subtasks}</h3>
-            <ul>
-              {task.subtasks.map((child) => (
-                <li key={child.id}>
-                  <Link to={`?task=${child.id}`}>{child.title}</Link>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-        <section>
-          <h3>{messages.reminders}</h3>
-          <ul>
-            {(reminders.data ?? []).map((reminder) => (
-              <li key={reminder.id}>
-                {humanTrigger(reminder.trigger, reminder.channel, messages, locale)}
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    void api
-                      .deleteReminder(task.id, reminder.id)
-                      .then(() =>
-                        queryClient.invalidateQueries({ queryKey: ['reminders', taskId] }),
-                      );
-                  }}
-                >
-                  ×
-                </Button>
-              </li>
-            ))}
-          </ul>
-          <ReminderAdd
-            label={messages.addReminder}
-            options={[
-              ['TRIGGER:-PT30M', messages.reminder30],
-              ['TRIGGER:-PT1H', messages.reminderHour],
-              ['TRIGGER:-P1D', messages.reminderDay],
-            ]}
-            onAdd={(trigger) => {
-              void api
-                .createReminder(
-                  task.id,
-                  { trigger, type: 'relative', channel: 'push' },
-                  crypto.randomUUID(),
-                )
-                .then(() => queryClient.invalidateQueries({ queryKey: ['reminders', taskId] }))
-                .catch((caught: unknown) => {
-                  setError(caught instanceof ApiError ? caught.message : messages.saveFailed);
-                });
-            }}
+          <input
+            name="comment"
+            aria-label={messages.commentAdd}
+            placeholder={messages.commentAdd}
           />
-        </section>
-        <section>
-          <h3>{messages.recurrence}</h3>
-          <p>
-            {task.repeat_rule === null
-              ? messages.noRecurrence
-              : (describeRepeatRule(task.repeat_rule) ?? task.repeat_rule)}
-          </p>
-          <div className="page-toolbar">
-            <Button
-              onClick={() => {
-                save.mutate({ repeat_rule: 'RRULE:FREQ=DAILY', repeat_from: 'due_date' });
-              }}
-            >
-              {messages.repeatDaily}
-            </Button>
-            <Button
-              onClick={() => {
-                save.mutate({
-                  repeat_rule: weeklyRule(task.due_date, task.time_zone),
-                  repeat_from: 'due_date',
-                });
-              }}
-            >
-              {messages.repeatWeekly}
-            </Button>
-            <Button
-              onClick={() => {
-                save.mutate({
-                  repeat_rule: 'RRULE:FREQ=MONTHLY;BYDAY=1MO;COUNT=6',
-                  repeat_from: 'due_date',
-                });
-              }}
-            >
-              {messages.repeatMonthly}
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                save.mutate({ repeat_rule: null });
-              }}
-            >
-              {messages.noRecurrence}
-            </Button>
-          </div>
-          <ul>
-            {(occurrences.data?.occurrences ?? []).slice(0, 5).map((item) => (
-              <li key={item.due_date}>{item.due_date}</li>
+        </form>
+      ) : null}
+      {formatOpen ? (
+        <div className="popover popover-menu detail-menu">
+          <button
+            type="button"
+            className="popover-row"
+            onClick={() => {
+              save.mutate({ content: `${task.content}\n\n**${messages.contentLabel}**` });
+              setFormatOpen(false);
+            }}
+          >
+            {messages.formatText}
+          </button>
+        </div>
+      ) : null}
+      {parentOpen ? (
+        <div className="popover popover-menu detail-menu">
+          <p>{messages.parentSearch}</p>
+          <button
+            type="button"
+            className="popover-row"
+            onClick={() => {
+              save.mutate({ content: task.content.replace(/\n\n[^\n]*$/u, '') });
+              setParentOpen(false);
+            }}
+          >
+            {messages.noParent}
+          </button>
+          {parents
+            .filter((item) => item.id !== task.id)
+            .slice(0, 8)
+            .map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className="popover-row"
+                onClick={() => {
+                  save.mutate({
+                    content: `${task.content}\n\n${messages.linkParent}: ${item.title}`.trim(),
+                  });
+                  setParentOpen(false);
+                }}
+              >
+                {item.title}
+              </button>
             ))}
-          </ul>
-        </section>
-        <section>
-          <h3>{messages.attachments}</h3>
-          <ul>
-            {(attachments.data?.items ?? []).map((file) => (
-              <li key={file.id}>
-                {file.file_name} · {file.byte_size}
-              </li>
-            ))}
-          </ul>
-          <label className="file-button">
-            {messages.upload}
-            <input
-              className="sr-only"
-              type="file"
-              aria-label={messages.upload}
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file === undefined) {
-                  return;
-                }
-                if (file.size > MAX_ATTACHMENT) {
-                  setError(messages.tooLarge);
-                  return;
-                }
-                void api
-                  .uploadAttachment(task.id, file, file.name)
-                  .then(() => queryClient.invalidateQueries({ queryKey: ['attachments', taskId] }));
-              }}
-            />
-          </label>
-        </section>
-        <section>
+        </div>
+      ) : null}
+      {activityOpen ? (
+        <section className="detail-activity">
           <h3>{messages.activity}</h3>
           {task.activity.length === 0 ? <p>{messages.noActivity}</p> : null}
           <ul>
             {task.activity.map((entry) => (
               <li key={entry.id}>
                 {entry.actor_id === me.data?.id ? messages.actorYou : messages.actorOther} ·{' '}
-                {entry.action} · {relativeTime(entry.created_at, locale)}
+                {activityText(entry.action, messages)} · {relativeTime(entry.created_at, locale)}
               </li>
             ))}
           </ul>
         </section>
-        <div className="detail-actions">
-          <Button
-            onClick={() => {
-              save.mutate({ kind: task.kind === 'note' ? 'task' : 'note' });
-            }}
-          >
-            {task.kind === 'note' ? messages.convertTask : messages.convertNote}
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => {
-              void api.snoozeTask(task.id, 'tomorrow').then(refresh);
-            }}
-          >
-            {messages.navTomorrow}
-          </Button>
-        </div>
-      </div>
-      <footer className="detail-foot">
-        <label>
-          {messages.listMove}
-          <select
-            aria-label={messages.listMove}
-            value={task.project_id}
-            onChange={(event) => {
-              void api.moveTask(task.id, event.target.value).then(refresh);
-            }}
-          >
-            {(projects.data?.items ?? []).map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      </footer>
+      ) : null}
+      <DetailFooter
+        listName={projectName}
+        listLabel={messages.listMove}
+        formatLabel={messages.formatText}
+        commentsLabel={messages.commentsLabel}
+        moreLabel={messages.moreActions}
+        projects={(projects.data?.items ?? []).map((project) => ({
+          id: project.id,
+          name: project.is_inbox ? messages.smartInbox : project.name,
+        }))}
+        projectId={task.project_id}
+        messages={messages}
+        listOpen={listOpen}
+        onToggleList={() => {
+          setListOpen((current) => !current);
+        }}
+        onMove={(projectId) => {
+          setListOpen(false);
+          void api.moveTask(task.id, projectId).then(refresh);
+        }}
+        onFormat={() => {
+          setFormatOpen((current) => !current);
+        }}
+        onComments={() => {
+          setCommentsOpen((current) => !current);
+        }}
+        onMore={() => {
+          setMenuOpen((current) => !current);
+        }}
+      />
+      <DetailMenu
+        open={menuOpen}
+        messages={messages}
+        pinned={pins.includes(task.id)}
+        onClose={() => {
+          setMenuOpen(false);
+        }}
+        onAddSubtask={() => {
+          void api
+            .createTask(
+              {
+                title: messages.subtaskTitle,
+                project_id: task.project_id,
+                parent_id: task.id,
+              } as unknown as CreateTaskBody,
+              crypto.randomUUID(),
+            )
+            .then(refresh);
+        }}
+        onLinkParent={() => {
+          setParentOpen(true);
+        }}
+        onPin={() => {
+          const next = togglePin(pins, task.id);
+          setPins(next);
+          localStorage.setItem(PIN_KEY, JSON.stringify(next));
+        }}
+        onDiscard={() => {
+          void api.snoozeTask(task.id, 'next_week').then(() => {
+            onClose();
+            return refresh();
+          });
+        }}
+        onTags={() => {
+          setTagsOpen(true);
+        }}
+        onUpload={() => {
+          fileRef.current?.click();
+        }}
+        onFocus={() => {
+          void api
+            .startFocus({ task_id: task.id })
+            .then(() => navigate('/focus'))
+            .catch((caught: unknown) => {
+              setError(caught instanceof ApiError ? caught.message : messages.saveFailed);
+            });
+        }}
+        onActivity={() => {
+          setActivityOpen(true);
+        }}
+        onTemplate={() => {
+          const stored = readTemplates();
+          stored.push({ title: task.title, content: task.content, priority: task.priority });
+          localStorage.setItem(TEMPLATE_KEY, JSON.stringify(stored));
+          showToast(messages.templateSaved);
+        }}
+        onDuplicate={() => {
+          void api.duplicateTask(task.id, crypto.randomUUID()).then((copy) => {
+            const next = new URLSearchParams(window.location.search);
+            next.set('task', copy.id);
+            setParams(next, { replace: true });
+            showToast(messages.duplicated);
+            return refreshTaskSurfaces(queryClient);
+          });
+        }}
+        onCopy={() => {
+          void navigator.clipboard.writeText(`${window.location.origin}/task/${task.id}`);
+          showToast(messages.copyLink);
+        }}
+        onConvert={() => {
+          save.mutate({ kind: task.kind === 'note' ? 'task' : 'note' });
+        }}
+        onExport={() => {
+          downloadTask(task);
+        }}
+        onPrint={() => {
+          window.print();
+        }}
+        onDelete={() => {
+          const id = task.id;
+          void api.deleteTask(id).then(() => {
+            showToast(messages.movedToTrash, () => {
+              void api.restoreTask(id).then(() => refreshTaskSurfaces(queryClient));
+            });
+            void refreshTaskSurfaces(queryClient);
+            onClose();
+          });
+        }}
+      />
+      <input
+        ref={fileRef}
+        className="sr-only"
+        type="file"
+        aria-label={messages.upload}
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file === undefined) {
+            return;
+          }
+          if (file.size > MAX_ATTACHMENT) {
+            setError(messages.tooLarge);
+            return;
+          }
+          void api.uploadAttachment(task.id, file, file.name).then(() => {
+            void queryClient.invalidateQueries({ queryKey: ['attachments', taskId] });
+          });
+        }}
+      />
       {children ? (
         <div className="ui-modal" role="dialog" aria-label={messages.completeChildren}>
           <p>{messages.completeChildren}</p>
           <Button
             onClick={() => {
               setChildren(false);
-              void (async () => {
-                const outcome = await runOrQueue(
-                  newMutation('complete', task.id, { complete_children: 'complete' }),
-                  (key) => api.completeTask(task.id, { complete_children: 'complete' }, key),
-                );
-                if (!outcome.queued) {
-                  await refresh();
-                }
-              })();
+              void finish('complete');
             }}
           >
             {messages.completeChildren}
@@ -578,15 +576,7 @@ export function TaskDetail({
             variant="ghost"
             onClick={() => {
               setChildren(false);
-              void (async () => {
-                const outcome = await runOrQueue(
-                  newMutation('complete', task.id, { complete_children: 'leave' }),
-                  (key) => api.completeTask(task.id, { complete_children: 'leave' }, key),
-                );
-                if (!outcome.queued) {
-                  await refresh();
-                }
-              })();
+              void finish('leave');
             }}
           >
             {messages.leaveChildren}
@@ -621,19 +611,6 @@ export function TaskDetail({
   );
 }
 
-function priorityColor(priority: string): string {
-  switch (priority) {
-    case 'high':
-      return 'var(--prio-high)';
-    case 'medium':
-      return 'var(--prio-medium)';
-    case 'low':
-      return 'var(--prio-low)';
-    default:
-      return 'var(--prio-none)';
-  }
-}
-
 function humanTrigger(
   trigger: string,
   channel: string,
@@ -650,10 +627,6 @@ function humanTrigger(
       label = messages.reminderHour;
     } else if (minutes === 1440) {
       label = messages.reminderDay;
-    } else if (minutes > 0 && minutes % 60 === 0) {
-      label = `${String(minutes / 60)} h`;
-    } else if (minutes > 0) {
-      label = `${String(minutes)} min`;
     }
   } else if (parsed.ok) {
     label = new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(
@@ -664,86 +637,39 @@ function humanTrigger(
   return shown.length > 0 && shown !== 'push' ? `${label} · ${shown}` : label;
 }
 
-function relativeTime(iso: string, locale: string): string {
-  const delta = Date.now() - new Date(iso).getTime();
-  if (Number.isNaN(delta)) {
-    return iso;
+function readTemplates(): { title: string; content: string; priority: string }[] {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(TEMPLATE_KEY) ?? '[]');
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed.flatMap((item) => {
+      if (typeof item !== 'object' || item === null) {
+        return [];
+      }
+      const row = item as { title?: unknown; content?: unknown; priority?: unknown };
+      if (typeof row.title !== 'string' || typeof row.content !== 'string') {
+        return [];
+      }
+      return [
+        {
+          title: row.title,
+          content: row.content,
+          priority: typeof row.priority === 'string' ? row.priority : 'none',
+        },
+      ];
+    });
+  } catch {
+    return [];
   }
-  const minutes = Math.round(delta / 60_000);
-  const format = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
-  if (Math.abs(minutes) < 60) {
-    return format.format(-minutes, 'minute');
-  }
-  const hours = Math.round(minutes / 60);
-  if (Math.abs(hours) < 36) {
-    return format.format(-hours, 'hour');
-  }
-  return format.format(-Math.round(hours / 24), 'day');
 }
 
-function ReminderAdd({
-  label,
-  options,
-  onAdd,
-}: {
-  readonly label: string;
-  readonly options: readonly (readonly [string, string])[];
-  readonly onAdd: (trigger: string) => void;
-}) {
-  const [trigger, setTrigger] = useState(options[0]?.[0] ?? 'TRIGGER:-PT30M');
-  return (
-    <div className="page-toolbar">
-      <select
-        value={trigger}
-        aria-label={label}
-        onChange={(event) => {
-          setTrigger(event.target.value);
-        }}
-      >
-        {options.map(([value, text]) => (
-          <option key={value} value={value}>
-            {text}
-          </option>
-        ))}
-      </select>
-      <Button
-        onClick={() => {
-          onAdd(trigger);
-        }}
-      >
-        {label}
-      </Button>
-    </div>
-  );
-}
-
-function weeklyRule(due: string | null, timeZone: string): string {
-  if (due === null) {
-    return 'RRULE:FREQ=WEEKLY;BYDAY=MO';
-  }
-  const name = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone }).format(
-    new Date(due),
-  );
-  const codes: Readonly<Record<string, string>> = {
-    Sun: 'SU',
-    Mon: 'MO',
-    Tue: 'TU',
-    Wed: 'WE',
-    Thu: 'TH',
-    Fri: 'FR',
-    Sat: 'SA',
-  };
-  return `RRULE:FREQ=WEEKLY;BYDAY=${codes[name] ?? 'MO'}`;
-}
-
-function toLocal(value: string | null): string {
-  if (value === null) {
-    return '';
-  }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return '';
-  }
-  const pad = (part: number): string => String(part).padStart(2, '0');
-  return `${String(date.getFullYear())}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+function downloadTask(task: Detail): void {
+  const blob = new Blob([JSON.stringify(task, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${task.title.length > 0 ? task.title : 'task'}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
 }
