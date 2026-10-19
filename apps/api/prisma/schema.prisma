@@ -91,6 +91,7 @@ enum ReminderDeliveryKind {
   daily_digest
   overdue
   due_soon
+  countdown
 }
 
 enum CountdownType {
@@ -779,6 +780,7 @@ model Countdown {
   updatedAt       DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt       DateTime?         @map("deleted_at") @db.Timestamptz(6)
   reminders       CountdownReminder[]
+  deliveries      ReminderDelivery[] @relation("CountdownDelivery")
 
   @@index([ownerId])
   @@index([targetDate])
@@ -789,6 +791,7 @@ model CountdownReminder {
   id          String    @id @default(uuid()) @db.Uuid
   countdownId String    @map("countdown_id") @db.Uuid
   countdown   Countdown @relation(fields: [countdownId], references: [id], onDelete: Cascade)
+  deliveries  ReminderDelivery[]
   offsetDays  Int       @map("offset_days")
   constant    Boolean   @default(false)
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -854,6 +857,10 @@ model ReminderDelivery {
   reminder   Reminder?              @relation(fields: [reminderId], references: [id], onDelete: Cascade)
   taskId     String?                @map("task_id") @db.Uuid
   task       Task?                  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  countdownId String?               @map("countdown_id") @db.Uuid
+  countdown   Countdown?            @relation("CountdownDelivery", fields: [countdownId], references: [id], onDelete: Cascade)
+  countdownReminderId String?       @map("countdown_reminder_id") @db.Uuid
+  countdownReminder CountdownReminder? @relation(fields: [countdownReminderId], references: [id], onDelete: Cascade)
   dedupeKey  String                 @unique @map("dedupe_key")
   fireAt     DateTime               @map("fire_at") @db.Timestamptz(6)
   channel    ReminderChannel        @default(push)

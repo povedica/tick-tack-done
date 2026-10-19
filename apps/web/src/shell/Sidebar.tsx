@@ -5,6 +5,7 @@ import {
   CalendarDays,
   CalendarRange,
   CheckCircle2,
+  Hourglass,
   Inbox,
   LayoutDashboard,
   ListTodo,
@@ -36,6 +37,7 @@ import { calendarDay, shiftDayKey, zonedWallTime } from '../features/today/group
 import { refreshTaskSurfaces } from '../features/tasks/refresh';
 import { smartPath } from '../features/tasks/model';
 import { orderedSmartLists, SIDEBAR_SMART_ORDER } from './smart-order';
+import { countdownsApi } from '../features/countdowns/api';
 
 const LIST_COLORS = ['#4772FA', '#E13E39', '#FAA80C', '#1F9D55', '#7C5CFF', '#F06595'] as const;
 
@@ -72,6 +74,11 @@ export function Sidebar({
   const projects = useQuery({ queryKey: ['projects'], queryFn: collectProjects, ...catalog });
   const filters = useQuery({ queryKey: ['filters'], queryFn: () => api.listFilters(), ...catalog });
   const tags = useQuery({ queryKey: ['tags'], queryFn: collectTags, ...catalog });
+  const countdowns = useQuery({
+    queryKey: ['countdowns', 'sidebar'],
+    queryFn: () => countdownsApi.list(false),
+    staleTime: 5 * 60_000,
+  });
   const [draft, setDraft] = useState('');
   const [addingList, setAddingList] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
@@ -108,6 +115,7 @@ export function Sidebar({
         right.active_task_count - left.active_task_count || left.name.localeCompare(right.name),
     );
   const projectItems = (projects.data?.items ?? []).filter((project) => !project.closed);
+  const showCountdowns = (countdowns.data?.items ?? []).some((item) => item.showInSidebar);
 
   useEffect(() => {
     if (menuId === null) {
@@ -508,6 +516,9 @@ export function Sidebar({
             <Item to="/review/weekly" label={messages.navReview} onNavigate={onNavigate} />
             <Item to="/focus" label={messages.navFocus} onNavigate={onNavigate} />
             <Item to="/habits" label={messages.navHabits} onNavigate={onNavigate} icon={Repeat} />
+            {showCountdowns ? (
+              <Item to="/countdowns" label="Cuenta atrás" onNavigate={onNavigate} icon={Hourglass} />
+            ) : null}
             <Item to="/settings/appearance" label={messages.navSettings} onNavigate={onNavigate} />
           </ul>
         ) : null}

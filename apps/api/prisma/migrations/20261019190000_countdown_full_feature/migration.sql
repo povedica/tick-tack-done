@@ -1,6 +1,7 @@
 CREATE TYPE "CountdownType" AS ENUM ('countdown', 'anniversary', 'birthday', 'holiday');
 CREATE TYPE "CountdownDayMode" AS ENUM ('standard', 'plus_one');
 CREATE TYPE "CountdownRepeat" AS ENUM ('none', 'daily', 'weekly', 'monthly', 'yearly');
+ALTER TYPE "ReminderDeliveryKind" ADD VALUE IF NOT EXISTS 'countdown';
 
 ALTER TABLE "countdowns"
   ADD COLUMN "type" "CountdownType" NOT NULL DEFAULT 'countdown',
@@ -30,3 +31,13 @@ CREATE TABLE "countdown_reminders" (
     FOREIGN KEY ("countdown_id") REFERENCES "countdowns"("id") ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT "countdown_reminders_offset_days_check" CHECK ("offset_days" BETWEEN 0 AND 365)
 );
+
+ALTER TABLE "reminder_deliveries"
+  ADD COLUMN "countdown_id" UUID,
+  ADD COLUMN "countdown_reminder_id" UUID,
+  ADD CONSTRAINT "reminder_deliveries_countdown_id_fkey"
+    FOREIGN KEY ("countdown_id") REFERENCES "countdowns"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT "reminder_deliveries_countdown_reminder_id_fkey"
+    FOREIGN KEY ("countdown_reminder_id") REFERENCES "countdown_reminders"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+CREATE INDEX "reminder_deliveries_countdown_id_idx" ON "reminder_deliveries"("countdown_id");

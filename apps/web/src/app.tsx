@@ -16,6 +16,7 @@ import { draftFromShare } from './features/capture/share-target';
 import { isCaptureShortcut } from './features/capture/draft';
 import { useCaptureNotice, openTaskComposer, useCaptureOpen } from './features/capture/notice';
 import { HabitsPage } from './features/habits/components/HabitsPage';
+import { CountdownsPage } from './features/countdowns/CountdownsPage';
 import {
   AccountPage,
   CalendarPage,
@@ -123,6 +124,7 @@ function Shell() {
             <Route path="/smart-lists/:key" element={<SmartListViewPage />} />
             <Route path="/task/:id" element={<TaskRoute />} />
             <Route path="/habits" element={<HabitsPage />} />
+            <Route path="/countdowns" element={<CountdownsPage />} />
             <Route path="/habits/:id" element={<HabitDetailPage />} />
             <Route path="/calendar" element={<Navigate to="/calendar/month" replace />} />
             <Route path="/calendar/:view" element={<CalendarPage />} />

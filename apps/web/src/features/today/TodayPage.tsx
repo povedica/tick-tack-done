@@ -53,6 +53,8 @@ import { listCommand } from './list-keys';
 import { PIN_KEY, readPins, togglePin } from './pins';
 import { TaskContextMenu } from './TaskContextMenu';
 import { TaskGroup } from './TaskGroup';
+import { countdownsApi } from '../countdowns/api';
+import { countdownLabel } from '../countdowns/presentation';
 
 const GROUP_KEY = 'tick-tack-done.today.group';
 const SORT_KEY = 'tick-tack-done.today.sort';
@@ -120,6 +122,11 @@ export function TodayPage() {
   const habits = useQuery({
     queryKey: ['habits'],
     queryFn: () => api.listHabits(),
+    refetchOnWindowFocus: false,
+  });
+  const countdowns = useQuery({
+    queryKey: ['countdowns', 'today'],
+    queryFn: () => countdownsApi.list(false, 7),
     refetchOnWindowFocus: false,
   });
   const plan = useQuery({
@@ -689,6 +696,12 @@ export function TodayPage() {
           </button>
         </section>
       )}
+      {countdowns.data?.items.filter((item) => item.kind === 'today' && item.showInSmartList).map((item) => (
+        <Link key={item.id} className="countdown-today" to="/countdowns">
+          <span aria-hidden="true">{item.emoji ?? '⏳'}</span>
+          <span><strong>{item.title}</strong><small>¡Es hoy!</small></span>
+        </Link>
+      ))}
       {actionError !== null ? (
         <p className="error" role="alert">
           {actionError}
@@ -798,6 +811,16 @@ export function TodayPage() {
             setHabitsHidden(true);
           }}
         />
+      ) : null}
+      {(countdowns.data?.items.length ?? 0) > 0 ? (
+        <section className="countdown-upcoming">
+          <h2>Próximas fechas</h2>
+          <ul>
+            {countdowns.data?.items.filter((item) => item.kind !== 'today').map((item) => (
+              <li key={item.id}><Link to="/countdowns">{item.emoji ?? '⏳'} {item.title}</Link><span>{countdownLabel(item.kind, item.days, item.effectiveDate)}</span></li>
+            ))}
+          </ul>
+        </section>
       ) : null}
       {empty ? (
         <div className="waiting today-clear">

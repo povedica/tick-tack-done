@@ -11,6 +11,7 @@ import './styles.css';
 import './shell/shell.css';
 import './components/ui.css';
 import './features/today/today.css';
+import './features/countdowns/countdowns.css';
 
 applyTheme(
   readThemePreference(localStorage),
