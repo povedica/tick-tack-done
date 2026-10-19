@@ -119,13 +119,13 @@ function listFilter(raw: string): TelegramCommand {
 
 function priorityOf(value: string): 'high' | 'medium' | 'low' | null {
   const key = value.toLowerCase().replace(/^!/, '');
-  if (key === 'alta' || key === 'high' || key === 'p3') {
+  if (key === 'alta' || key === 'high' || key === 'p1') {
     return 'high';
   }
   if (key === 'media' || key === 'medium' || key === 'p2') {
     return 'medium';
   }
-  if (key === 'baja' || key === 'low' || key === 'p1') {
+  if (key === 'baja' || key === 'low' || key === 'p3') {
     return 'low';
   }
   return null;

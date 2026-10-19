@@ -12,7 +12,7 @@
 
   --ink: #191919;
   --ink-2: rgba(25, 25, 25, 0.6);
-  /* 0.4 no llega a AA sobre #f2f5fe; 0.65 sí en texto de 12px. */
+  /* 0.4 no llega a AA sobre el azul del lateral; 0.65 sí en texto de 12px. */
   --ink-3: rgba(25, 25, 25, 0.65);
   --ink-faint: rgba(25, 25, 25, 0.55);
   --ink-inverse: #ffffff;
@@ -82,7 +82,7 @@
 
   --sidebar-w: 15rem;
   --sidebar-rail: 3.125rem;
-  --detail-w: 36%;
+  --detail-w: clamp(340px, 30vw, 440px);
   --content-max: 46rem;
   --bottombar-h: 3.5rem;
   --tap: 2.75rem;

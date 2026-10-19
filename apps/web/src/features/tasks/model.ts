@@ -20,6 +20,7 @@ export interface RowModel {
   readonly repeat: boolean;
   readonly source: string;
   readonly content: string;
+  readonly completedAt: string | null;
 }
 
 type ViewTask = ViewPage['groups'][number]['tasks'][number];
@@ -49,17 +50,19 @@ export function rowFromTask(
     projectId: task.project_id,
     projectName: names.get(task.project_id) ?? '',
     columnId: task.column_id,
-    tags: task.tag_ids.map((id) => ({ id, name: tags.get(id) ?? id, color: null })),
+    tags: namedTags(task.tag_ids, tags),
     checklist: progressOf(task.checklist_progress),
     kind: task.kind,
     status: task.status,
-    repeat: task.repeat_rule !== null && task.repeat_rule.length > 0,
+    repeat: hasRepeat(task.repeat_rule),
     source: task.source,
     content: task.content,
+    completedAt: task.completed_at,
   };
 }
 
 export function rowFromView(task: ViewTask): RowModel {
+  const tags = Array.isArray(task.tags) ? task.tags : [];
   return {
     id: task.id,
     title: task.title,
@@ -69,14 +72,29 @@ export function rowFromView(task: ViewTask): RowModel {
     projectId: task.project_id,
     projectName: task.project_name,
     columnId: task.column_id,
-    tags: task.tags.map((tag) => ({ id: tag.id, name: tag.name, color: colorOf(tag) })),
+    tags: tags.map((tag) => ({ id: tag.id, name: tag.name, color: colorOf(tag) })),
     checklist: progressOf(task.checklist_progress),
     kind: task.kind,
     status: task.status,
-    repeat: false,
-    source: 'manual',
-    content: task.content,
+    repeat: hasRepeat(task.repeat_rule),
+    source: typeof task.source === 'string' ? task.source : '',
+    content: typeof task.content === 'string' ? task.content : '',
+    completedAt: task.completed_at,
   };
+}
+
+function hasRepeat(rule: string | null | undefined): boolean {
+  return typeof rule === 'string' && rule.length > 0;
+}
+
+function namedTags(ids: readonly string[], tags: ReadonlyMap<string, string>): RowModel['tags'] {
+  return ids.flatMap((id) => {
+    const name = tags.get(id);
+    if (name === undefined || name === id) {
+      return [];
+    }
+    return [{ id, name, color: null }];
+  });
 }
 
 function colorOf(value: object): string | null {

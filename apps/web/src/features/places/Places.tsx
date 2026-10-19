@@ -1,34 +1,68 @@
-import type { Habit, Project, Task } from '@reflexionia/sdk';
+import { ApiError, type Habit, type Project, type Task } from '@reflexionia/sdk';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Link, NavLink, Outlet, useNavigate, useParams, useSearchParams } from 'react-router';
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import {
+  Link,
+  NavLink,
+  Outlet,
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router';
 import { applyQuadrantDrop, DEFAULT_QUADRANT_EFFECTS } from '@reflexionia/domain';
 import { api } from '../../api';
-import { Button, EmptyState, ErrorState, Kbd, SkeletonRows } from '../../components/ui';
+import { useActionToast } from '../../components/action-toast';
+import { Button, EmptyState, ErrorState, SkeletonRows } from '../../components/ui';
 import { fill, useMessages, type Messages } from '../../i18n';
-import { useLocale } from '../../i18n/locale';
+import { useAppLocale, useLocale } from '../../i18n/locale';
 import { usePreferences, type AccentId } from '../../theme/preferences';
-import { useThemePreference } from '../../theme/store';
-import { quadrantOf, rowFromTask, smartApiKey } from '../tasks/model';
+import { InboundEmailCard } from '../settings/InboundEmailCard';
+import { collectTags } from '../tasks/collect';
+import { quadrantOf, rowFromTask, smartApiKey, type RowModel } from '../tasks/model';
 import { refreshTaskSurfaces } from '../tasks/refresh';
 import { newMutation, runOrQueue } from '../offline/client';
 import { collectTasks } from '../today/board';
 import { TaskList } from '../tasks/TaskList';
 import {
+  calendarTaskLabel,
   dayFromParam,
+  isCalendarOverdue,
+  localDateParam,
   localToday,
   monthCells,
   monthQueryRange,
   overflowHref,
+  quarterMonths,
+  shiftView,
   tasksOnCell,
+  viewDays,
   yearQueryRange,
 } from './month';
 
 const ACCENTS: readonly AccentId[] = ['indigo', 'violet', 'teal', 'amber', 'rose', 'slate'];
-const CAL_VIEWS = ['day', 'week', 'multi-day', 'multi-week', 'month', 'year', 'agenda'] as const;
+const ACCENT_COLOR: Readonly<Record<AccentId, string>> = {
+  indigo: '#4772fa',
+  violet: '#7c3aed',
+  teal: '#0f766e',
+  amber: '#b45309',
+  rose: '#be123c',
+  slate: '#44403c',
+};
+const CAL_VIEWS = [
+  'day',
+  'week',
+  'multi-day',
+  'multi-week',
+  'month',
+  'quarter',
+  'year',
+  'agenda',
+] as const;
 
 export function InboxPage() {
   const messages = useMessages();
+  const locale = useAppLocale();
   const queryClient = useQueryClient();
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
   const inbox = projects.data?.items.find((project) => project.is_inbox);
@@ -43,7 +77,7 @@ export function InboxPage() {
       }),
     enabled: inbox !== undefined,
   });
-  const tags = useQuery({ queryKey: ['tags'], queryFn: () => api.listTags() });
+  const tags = useQuery({ queryKey: ['tags'], queryFn: collectTags, staleTime: 5 * 60_000 });
   const [process, setProcess] = useState(false);
   const [cursor, setCursor] = useState(0);
   const names = new Map((projects.data?.items ?? []).map((project) => [project.id, project.name]));
@@ -84,26 +118,30 @@ export function InboxPage() {
           messages={messages}
           taskTitle={current.title}
           projects={projects.data?.items ?? []}
-          onDate={() => {
-            void api.snoozeTask(current.id, 'tomorrow').then(() => {
-              step();
+          onDate={(preset, date) => {
+            void api.snoozeTask(current.id, preset, date).then(() => {
+              step(messages.processDate);
             });
           }}
           onMove={(projectId) => {
             void api.moveTask(current.id, projectId).then(() => {
-              step();
+              step(messages.processMove);
             });
           }}
           onDone={() => {
             void runOrQueue(newMutation('complete', current.id, {}), (key) =>
               api.completeTask(current.id, {}, key),
             ).then(() => {
-              step();
+              step(messages.processDoneAction);
             });
           }}
           onDelete={() => {
-            void api.deleteTask(current.id).then(() => {
-              step();
+            const id = current.id;
+            void api.deleteTask(id).then(() => {
+              useActionToast.getState().show(messages.movedToTrash, () => {
+                void api.restoreTask(id).then(() => refreshTaskSurfaces(queryClient));
+              });
+              step(messages.movedToTrash);
             });
           }}
           onSkip={() => {
@@ -121,7 +159,7 @@ export function InboxPage() {
           <TaskList
             messages={messages}
             rows={rows}
-            locale={navigator.language}
+            locale={locale}
             view="list"
             createProjectId={inbox?.id}
             onComplete={(row) => {
@@ -138,9 +176,12 @@ export function InboxPage() {
     </section>
   );
 
-  function step(): void {
+  function step(text?: string): void {
     setCursor((value) => value + 1);
-    void queryClient.invalidateQueries({ queryKey: ['inbox-tasks'] });
+    if (text !== undefined) {
+      useActionToast.getState().show(text);
+    }
+    void refreshTaskSurfaces(queryClient);
   }
 }
 
@@ -157,7 +198,7 @@ function ProcessCard({
   readonly messages: Messages;
   readonly taskTitle: string;
   readonly projects: readonly Project[];
-  readonly onDate: () => void;
+  readonly onDate: (preset: 'tomorrow' | 'next_week' | 'date', date?: string) => void;
   readonly onMove: (projectId: string) => void;
   readonly onDone: () => void;
   readonly onDelete: () => void;
@@ -167,7 +208,36 @@ function ProcessCard({
     <article>
       <h2>{taskTitle}</h2>
       <div className="page-toolbar">
-        <Button onClick={onDate}>{messages.processDate}</Button>
+        <Button
+          onClick={() => {
+            onDate('date', new Date().toISOString());
+          }}
+        >
+          {messages.processToday}
+        </Button>
+        <Button
+          onClick={() => {
+            onDate('tomorrow');
+          }}
+        >
+          {messages.processTomorrow}
+        </Button>
+        <Button
+          onClick={() => {
+            onDate('next_week');
+          }}
+        >
+          {messages.processWeek}
+        </Button>
+        <input
+          type="date"
+          aria-label={messages.processDate}
+          onChange={(event) => {
+            if (event.target.value.length > 0) {
+              onDate('date', `${event.target.value}T12:00:00.000Z`);
+            }
+          }}
+        />
         <label>
           {messages.processMove}
           <select
@@ -200,12 +270,17 @@ function ProcessCard({
 
 export function CalendarPage() {
   const messages = useMessages();
+  const locale = useAppLocale();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { view } = useParams();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const current = CAL_VIEWS.includes(view as (typeof CAL_VIEWS)[number]) ? view : 'month';
   const weekStart = usePreferences((state) => state.weekStart);
-  const [cursor, setCursor] = useState(() => startOfMonth(new Date()));
-  const cells = monthCells(cursor, weekStart);
+  const [cursor, setCursor] = useState(
+    () => dayFromParam(params.get('date') ?? '') ?? localToday(new Date()),
+  );
+  const cells = viewDays(current ?? 'month', cursor, weekStart);
   const range = current === 'year' ? yearQueryRange(cursor) : monthQueryRange(cells);
   const tasks = useQuery({
     queryKey: ['calendar-tasks', range.dueAfter, range.dueBefore],
@@ -218,19 +293,41 @@ export function CalendarPage() {
         dueBefore: range.dueBefore,
       }),
   });
+  const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
+  const colors = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const project of projects.data?.items ?? []) {
+      if (typeof project.color === 'string' && project.color.length > 0) {
+        map.set(project.id, project.color);
+      }
+    }
+    return map;
+  }, [projects.data]);
   const dated = (tasks.data ?? []).filter((task) => task.due_date !== null && task.kind === 'task');
-  const selected = params.get('date');
-  const day = current === 'day' ? (dayFromParam(selected ?? '') ?? localToday(new Date())) : null;
-  const title = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(
-    cursor,
-  );
+  const day = current === 'day' ? (cells[0] ?? localToday(cursor)) : null;
+  const title = calendarTitle(locale, current ?? 'month', cursor, cells);
+  const move = (delta: number): void => {
+    const next = shiftView(cursor, current ?? 'month', delta, weekStart);
+    setCursor(next);
+    if (current === 'day') {
+      const query = new URLSearchParams(params);
+      query.set('date', localDateParam(next));
+      setParams(query, { replace: true });
+    }
+  };
   return (
     <section className="screen-page is-wide">
       <header className="cal-toolbar">
         <h1>{messages.calendarTitle}</h1>
         <Button
           onClick={() => {
-            setCursor(startOfMonth(new Date()));
+            const today = localToday(new Date());
+            setCursor(today);
+            if (current === 'day') {
+              const query = new URLSearchParams(params);
+              query.set('date', localDateParam(today));
+              setParams(query, { replace: true });
+            }
           }}
         >
           {messages.calToday}
@@ -238,7 +335,7 @@ export function CalendarPage() {
         <Button
           aria-label={messages.calPrev}
           onClick={() => {
-            setCursor((currentMonth) => shiftMonth(currentMonth, -1));
+            move(-1);
           }}
         >
           ‹
@@ -246,7 +343,7 @@ export function CalendarPage() {
         <Button
           aria-label={messages.calNext}
           onClick={() => {
-            setCursor((currentMonth) => shiftMonth(currentMonth, 1));
+            move(1);
           }}
         >
           ›
@@ -265,35 +362,73 @@ export function CalendarPage() {
         </div>
       </header>
       <CalendarExtras messages={messages} />
-      {current === 'year' ? <Year tasks={dated} /> : null}
+      {current === 'quarter' ? (
+        <QuarterBoard
+          months={quarterMonths(cursor)}
+          tasks={dated}
+          weekStart={weekStart}
+          messages={messages}
+          onOpen={(month) => {
+            setCursor(month);
+            void navigate('/calendar/month');
+          }}
+        />
+      ) : null}
+      {current === 'year' ? (
+        <YearBoard
+          year={cursor.getFullYear()}
+          tasks={dated}
+          weekStart={weekStart}
+          colors={colors}
+          onOpen={(month) => {
+            setCursor(new Date(cursor.getFullYear(), month, 1));
+            void navigate('/calendar/month');
+          }}
+        />
+      ) : null}
+      {current === 'agenda' ? (
+        <Agenda tasks={dated} locale={locale} messages={messages} colors={colors} />
+      ) : null}
       {current === 'day' && day !== null ? (
-        <ul>
-          {tasksOnCell(dated, day).map((task) => (
-            <li key={task.id}>
-              <Link to={`/list/${task.project_id}?task=${task.id}`}>
-                {task.title.trim().length === 0 ? messages.untitled : task.title} · {task.due_date}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <TaskList
+          messages={messages}
+          rows={tasksOnCell(dated, day).map((task) =>
+            rowFromTask(
+              {
+                ...task,
+                title: calendarTaskLabel(
+                  task.title,
+                  task.due_date,
+                  task.time_zone,
+                  messages.untitled,
+                ),
+              },
+              new Map(),
+              new Map(),
+            ),
+          )}
+          locale={locale}
+          view="list"
+          hideCompleted={false}
+          onComplete={(row) => {
+            void api.completeTask(row.id, {}, crypto.randomUUID()).then(() => {
+              void refreshTaskSurfaces(queryClient);
+            });
+          }}
+        />
       ) : null}
-      {current === 'agenda' ||
-      current === 'week' ||
+      {current === 'week' ||
       current === 'multi-day' ||
-      current === 'multi-week' ? (
-        <ul className="task-list">
-          {dated.map((task) => (
-            <li key={task.id}>
-              <Link className="task-row" to={`/list/${task.project_id}?task=${task.id}`}>
-                <span className="task-title">{task.title}</span>
-                <time className="task-date">{localKey(new Date(task.due_date ?? ''))}</time>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      {current === 'month' ? (
-        <Month tasks={dated} messages={messages} weekStart={weekStart} cursor={cursor} />
+      current === 'multi-week' ||
+      current === 'month' ? (
+        <DayGrid
+          days={current === 'month' ? monthCells(startOfMonth(cursor), weekStart) : cells}
+          columns={current === 'multi-day' ? 3 : 7}
+          tasks={dated}
+          messages={messages}
+          cursor={cursor}
+          outsideMonth={current === 'month' || current === 'multi-week'}
+        />
       ) : null}
     </section>
   );
@@ -301,10 +436,6 @@ export function CalendarPage() {
 
 function startOfMonth(day: Date): Date {
   return new Date(day.getFullYear(), day.getMonth(), 1);
-}
-
-function shiftMonth(day: Date, delta: number): Date {
-  return new Date(day.getFullYear(), day.getMonth() + delta, 1);
 }
 
 function localKey(day: Date): string {
@@ -316,37 +447,75 @@ function localKey(day: Date): string {
   return `${String(day.getFullYear())}-${month}-${date}`;
 }
 
-function Month({
+function calendarTitle(locale: string, view: string, cursor: Date, cells: readonly Date[]): string {
+  if (view === 'year') {
+    return String(cursor.getFullYear());
+  }
+  if (view === 'quarter') {
+    const months = quarterMonths(cursor);
+    const first = months[0] ?? cursor;
+    const last = months[2] ?? cursor;
+    const start = new Intl.DateTimeFormat(locale, { month: 'long' }).format(first);
+    const end = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(last);
+    return `${start} – ${end}`;
+  }
+  if (view === 'day') {
+    return new Intl.DateTimeFormat(locale, {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }).format(cursor);
+  }
+  const first = cells[0] ?? cursor;
+  const last = cells.at(-1) ?? cursor;
+  if (view === 'week' || view === 'multi-day' || view === 'multi-week') {
+    const sameMonth = first.getMonth() === last.getMonth();
+    const start = new Intl.DateTimeFormat(
+      locale,
+      sameMonth ? { day: 'numeric' } : { day: 'numeric', month: 'short' },
+    ).format(first);
+    const end = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' }).format(last);
+    return `${start} – ${end}`;
+  }
+  return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(cursor);
+}
+
+function DayGrid({
+  days,
+  columns,
   tasks,
   messages,
-  weekStart,
   cursor,
+  outsideMonth,
 }: {
+  readonly days: readonly Date[];
+  readonly columns: number;
   readonly tasks: readonly Task[];
   readonly messages: Messages;
-  readonly weekStart: 'monday' | 'sunday';
   readonly cursor: Date;
+  readonly outsideMonth: boolean;
 }) {
-  const locale = navigator.language;
+  const locale = useAppLocale();
   const todayKey = localKey(new Date());
-  const cells = monthCells(cursor, weekStart);
-  const weekday = new Intl.DateTimeFormat(undefined, { weekday: 'short' });
-  const heads = Array.from({ length: 7 }, (_, index) => {
-    const day = new Date(2026, 0, weekStart === 'monday' ? 5 + index : 4 + index);
-    return weekday.format(day);
-  });
+  const weekday = new Intl.DateTimeFormat(locale, { weekday: 'short' });
+  const heads = Array.from({ length: columns }, (_, index) =>
+    weekday.format(days[index] ?? cursor),
+  );
   return (
-    <div className="cal-month">
-      {heads.map((label) => (
-        <div key={label} className="cal-head">
+    <div
+      className="cal-month"
+      style={{ gridTemplateColumns: `repeat(${String(columns)}, minmax(0, 1fr))` }}
+    >
+      {heads.map((label, index) => (
+        <div key={`${label}-${String(index)}`} className="cal-head">
           {label}
         </div>
       ))}
-      {cells.map((day) => {
+      {days.map((day) => {
         const items = tasksOnCell(tasks, day);
         const key = localKey(day);
         const weekend = day.getDay() === 0 || day.getDay() === 6;
-        const outside = day.getMonth() !== cursor.getMonth();
+        const outside = outsideMonth && day.getMonth() !== cursor.getMonth();
         const href = overflowHref(day);
         const hidden = items.length - 3;
         const when = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' }).format(day);
@@ -370,13 +539,13 @@ function Month({
               <Link
                 key={task.id}
                 className={
-                  new Date(task.due_date ?? '').getTime() < Date.now()
+                  isCalendarOverdue(task.due_date, task.time_zone, new Date())
                     ? 'cal-pill is-overdue'
                     : 'cal-pill'
                 }
                 to={`/list/${task.project_id}?task=${task.id}`}
               >
-                {task.title.trim().length === 0 ? messages.untitled : task.title}
+                {chipLabel(task, messages.untitled)}
               </Link>
             ))}
             {hidden > 0 ? (
@@ -391,17 +560,214 @@ function Month({
   );
 }
 
-function Year({ tasks }: { readonly tasks: readonly Task[] }) {
+function QuarterBoard({
+  months,
+  tasks,
+  weekStart,
+  messages,
+  onOpen,
+}: {
+  readonly months: readonly Date[];
+  readonly tasks: readonly Task[];
+  readonly weekStart: 'monday' | 'sunday';
+  readonly messages: Messages;
+  readonly onOpen: (month: Date) => void;
+}) {
+  const locale = useAppLocale();
+  const monthName = new Intl.DateTimeFormat(locale, { month: 'long' });
   return (
-    <div className="year-grid">
-      {Array.from({ length: 12 }, (_, month) => (
-        <section key={month}>
-          <h3>{month + 1}</h3>
-          <p className="ui-badge">
-            {tasks.filter((task) => new Date(task.due_date ?? '').getMonth() === month).length}
-          </p>
+    <div className="quarter-board">
+      {months.map((month) => (
+        <section key={localKey(month)} className="quarter-month">
+          <button
+            type="button"
+            onClick={() => {
+              onOpen(month);
+            }}
+          >
+            {monthName.format(month)}
+          </button>
+          <DayGrid
+            days={monthCells(month, weekStart)}
+            columns={7}
+            tasks={tasks}
+            messages={messages}
+            cursor={month}
+            outsideMonth
+          />
         </section>
       ))}
+    </div>
+  );
+}
+
+function YearBoard({
+  year,
+  tasks,
+  weekStart,
+  colors,
+  onOpen,
+}: {
+  readonly year: number;
+  readonly tasks: readonly Task[];
+  readonly weekStart: 'monday' | 'sunday';
+  readonly colors: ReadonlyMap<string, string>;
+  readonly onOpen: (month: number) => void;
+}) {
+  const locale = useAppLocale();
+  const todayKey = localKey(new Date());
+  const monthName = new Intl.DateTimeFormat(locale, { month: 'long' });
+  const weekday = new Intl.DateTimeFormat(locale, { weekday: 'narrow' });
+  const sample = monthCells(new Date(year, 0, 1), weekStart);
+  const heads = sample.slice(0, 7).map((day) => weekday.format(day));
+  return (
+    <div className="year-board">
+      {Array.from({ length: 12 }, (_, month) => {
+        const cells = monthCells(new Date(year, month, 1), weekStart);
+        return (
+          <section key={month} className="year-card">
+            <button
+              type="button"
+              className="year-month"
+              onClick={() => {
+                onOpen(month);
+              }}
+            >
+              {monthName.format(new Date(year, month, 1))}
+            </button>
+            <div className="year-mini">
+              {heads.map((label, index) => (
+                <span key={`${label}-${String(index)}`} className="year-dow">
+                  {label}
+                </span>
+              ))}
+              {cells.map((day) => {
+                const key = localKey(day);
+                const inside = day.getMonth() === month;
+                const marks = inside ? dayMarks(tasks, day, colors) : [];
+                const when = new Intl.DateTimeFormat(locale, {
+                  day: 'numeric',
+                  month: 'long',
+                }).format(day);
+                return (
+                  <Link
+                    key={key}
+                    className={[
+                      'year-day',
+                      inside ? '' : 'is-outside',
+                      key === todayKey ? 'is-today' : '',
+                    ]
+                      .filter((item) => item.length > 0)
+                      .join(' ')}
+                    to={`/calendar/day?date=${key}`}
+                    aria-label={marks.length > 0 ? `${when}, ${String(marks.length)}` : when}
+                  >
+                    <span className="year-num">{day.getDate()}</span>
+                    <span className="year-marks" aria-hidden="true">
+                      {marks.map((color) => (
+                        <i key={color} style={{ background: color }} />
+                      ))}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+function dayMarks(
+  tasks: readonly Task[],
+  day: Date,
+  colors: ReadonlyMap<string, string>,
+): string[] {
+  const seen = new Set<string>();
+  for (const task of tasksOnCell(tasks, day)) {
+    const color = colors.get(task.project_id);
+    seen.add(color !== undefined && /^#[0-9a-fA-F]{3,8}$/.test(color) ? color : 'var(--accent)');
+    if (seen.size === 3) {
+      break;
+    }
+  }
+  return [...seen];
+}
+
+function Agenda({
+  tasks,
+  locale,
+  messages,
+  colors,
+}: {
+  readonly tasks: readonly Task[];
+  readonly locale: string;
+  readonly messages: Messages;
+  readonly colors: ReadonlyMap<string, string>;
+}) {
+  const groups = new Map<string, Task[]>();
+  const ordered = [...tasks].sort((left, right) =>
+    (left.due_date ?? '').localeCompare(right.due_date ?? ''),
+  );
+  for (const task of ordered) {
+    const key = localKey(new Date(task.due_date ?? ''));
+    const bucket = groups.get(key);
+    if (bucket === undefined) {
+      groups.set(key, [task]);
+    } else {
+      bucket.push(task);
+    }
+  }
+  if (groups.size === 0) {
+    return <EmptyState title={messages.calendarTitle} body={messages.calEmpty} />;
+  }
+  const todayKey = localKey(new Date());
+  const weekday = new Intl.DateTimeFormat(locale, { weekday: 'short' });
+  return (
+    <div className="agenda">
+      {[...groups.entries()].map(([key, items]) => {
+        const day = dayFromParam(key) ?? new Date();
+        const sorted = [...items].sort((left, right) => {
+          if (left.is_all_day && !right.is_all_day) {
+            return -1;
+          }
+          if (!left.is_all_day && right.is_all_day) {
+            return 1;
+          }
+          return (left.due_date ?? '').localeCompare(right.due_date ?? '');
+        });
+        return (
+          <section key={key} className={key === todayKey ? 'agenda-day is-today' : 'agenda-day'}>
+            <header>
+              <strong>{day.getDate()}</strong>
+              <span>{weekday.format(day)}</span>
+            </header>
+            <ul>
+              {sorted.map((task) => {
+                const color = colors.get(task.project_id);
+                const title = calendarTaskLabel(
+                  task.title,
+                  task.due_date,
+                  task.time_zone,
+                  messages.untitled,
+                );
+                return (
+                  <li key={task.id}>
+                    <Link
+                      className="agenda-card"
+                      to={`/list/${task.project_id}?task=${task.id}`}
+                      style={cardPaint(color)}
+                    >
+                      {title}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        );
+      })}
     </div>
   );
 }
@@ -418,7 +784,11 @@ function CalendarExtras({ messages }: { readonly messages: Messages }) {
   const external = Array.isArray(events.data?.external) ? events.data.external : [];
   return (
     <>
-      <p className="ui-muted">{messages.externalEmpty}</p>
+      {external.length === 0 ? (
+        <p className="ui-muted">
+          <Link to="/settings/calendar">{messages.externalEmpty}</Link>
+        </p>
+      ) : null}
       {external.filter(isRecord).map((event) => (
         <p key={typeof event.id === 'string' ? event.id : 'event'}>
           {typeof event.title === 'string' ? event.title : ''}
@@ -426,6 +796,20 @@ function CalendarExtras({ messages }: { readonly messages: Messages }) {
       ))}
     </>
   );
+}
+
+function cardPaint(color: string | undefined): CSSProperties | undefined {
+  if (color === undefined || !/^#[0-9a-fA-F]{3,8}$/.test(color)) {
+    return undefined;
+  }
+  return {
+    background: `color-mix(in srgb, ${color} 18%, var(--surface))`,
+    boxShadow: `inset 3px 0 0 ${color}`,
+  };
+}
+
+function chipLabel(task: Task, untitled: string): string {
+  return calendarTaskLabel(task.title, task.due_date, task.time_zone, untitled);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -442,6 +826,8 @@ function labelView(messages: Messages, view: string): string {
       return messages.calMultiDay;
     case 'multi-week':
       return messages.calMultiWeek;
+    case 'quarter':
+      return messages.calQuarter;
     case 'year':
       return messages.calYear;
     case 'agenda':
@@ -584,56 +970,42 @@ export function ReviewPage() {
   );
 }
 
-export function FocusPage() {
-  const messages = useMessages();
-  const [left, setLeft] = useState(25 * 60);
-  const [running, setRunning] = useState(false);
-  useEffect(() => {
-    if (!running) {
-      return;
-    }
-    const id = window.setInterval(() => {
-      setLeft((value) => (value > 0 ? value - 1 : 0));
-    }, 1000);
-    return () => {
-      window.clearInterval(id);
-    };
-  }, [running]);
-  return (
-    <section className="screen-page">
-      <h1>{messages.focusTitle}</h1>
-      <p>{messages.focusHint}</p>
-      <p className="detail-title">{formatClock(left)}</p>
-      <div className="page-toolbar">
-        <Button
-          variant="primary"
-          onClick={() => {
-            setRunning((value) => !value);
-          }}
-        >
-          {running ? messages.focusPause : messages.focusStart}
-        </Button>
-        <Button
-          onClick={() => {
-            setLeft(25 * 60);
-            setRunning(false);
-          }}
-        >
-          {messages.focusReset}
-        </Button>
-      </div>
-    </section>
-  );
-}
-
-function formatClock(total: number): string {
-  const minutes = Math.floor(total / 60);
-  const seconds = total % 60;
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+function searchRow(item: unknown): RowModel | null {
+  if (typeof item !== 'object' || item === null) {
+    return null;
+  }
+  const row = item as Record<string, unknown>;
+  if (typeof row.id !== 'string' || typeof row.title !== 'string') {
+    return null;
+  }
+  const priority =
+    row.priority === 'low' || row.priority === 'medium' || row.priority === 'high'
+      ? row.priority
+      : 'none';
+  return {
+    id: row.id,
+    title: row.title,
+    priority,
+    dueDate: typeof row.due_date === 'string' ? row.due_date : null,
+    timeZone: typeof row.time_zone === 'string' ? row.time_zone : 'UTC',
+    projectId: typeof row.project_id === 'string' ? row.project_id : '',
+    projectName: typeof row.project_name === 'string' ? row.project_name : '',
+    columnId: null,
+    tags: [],
+    checklist: { completed: 0, total: 0 },
+    kind: row.kind === 'note' ? 'note' : 'task',
+    status: typeof row.status === 'string' ? row.status : 'active',
+    repeat: typeof row.repeat_rule === 'string' && row.repeat_rule.length > 0,
+    source: 'manual',
+    content: '',
+    completedAt: typeof row.completed_at === 'string' ? row.completed_at : null,
+  };
 }
 
 export function SearchPage() {
   const messages = useMessages();
+  const locale = useAppLocale();
+  const queryClient = useQueryClient();
   const [params, setParams] = useSearchParams();
   const q = params.get('q') ?? '';
   const search = useQuery({
@@ -661,31 +1033,45 @@ export function SearchPage() {
       {(search.data?.groups ?? []).map((group) => (
         <section key={group.type}>
           <h2>{groupLabel(messages, group.type)}</h2>
-          <ul className="task-list">
-            {group.items.map((item, index) => {
-              const title =
-                typeof item.title === 'string'
-                  ? item.title
-                  : typeof item.name === 'string'
-                    ? item.name
-                    : '';
-              const id = typeof item.id === 'string' ? item.id : String(index);
-              const projectId = typeof item.project_id === 'string' ? item.project_id : '';
-              const href =
-                group.type === 'list'
-                  ? `/list/${id}`
-                  : projectId.length > 0
-                    ? `/list/${projectId}?task=${id}`
-                    : `/search?q=${encodeURIComponent(title)}`;
-              return (
-                <li key={id}>
-                  <Link className="task-row" to={href}>
-                    <span className="task-title">{highlight(title, q)}</span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+          {group.type === 'task' || group.type === 'note' ? (
+            <TaskList
+              messages={messages}
+              rows={group.items.flatMap((item) => {
+                const row = searchRow(item);
+                return row === null ? [] : [row];
+              })}
+              locale={locale}
+              view="list"
+              hideCompleted={false}
+              onComplete={(row) => {
+                const call =
+                  row.status === 'completed'
+                    ? api.uncompleteTask(row.id, crypto.randomUUID())
+                    : api.completeTask(row.id, {}, crypto.randomUUID());
+                void call.then(() => refreshTaskSurfaces(queryClient));
+              }}
+            />
+          ) : (
+            <ul className="task-list">
+              {group.items.map((item, index) => {
+                const title =
+                  typeof item.title === 'string'
+                    ? item.title
+                    : typeof item.name === 'string'
+                      ? item.name
+                      : '';
+                const id = typeof item.id === 'string' ? item.id : String(index);
+                const href = group.type === 'tag' ? `/tag/${id}` : `/list/${id}`;
+                return (
+                  <li key={id}>
+                    <Link className="task-row" to={href}>
+                      <span className="task-title">{highlight(title, q)}</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </section>
       ))}
     </section>
@@ -871,34 +1257,83 @@ function highlight(title: string, query: string): ReactNode {
   );
 }
 
-export function SettingsLayout() {
+const SETTINGS_GROUPS = [
+  ['groupGeneral', ['/settings/account', '/settings/appearance']],
+  [
+    'groupWork',
+    ['/settings/capture', '/settings/notifications', '/settings/smart-lists', '/settings/calendar'],
+  ],
+  [
+    'groupAdvanced',
+    [
+      '/settings/tokens',
+      '/settings/integrations',
+      '/settings/automations',
+      '/settings/webhooks',
+      '/settings/plugins',
+      '/settings/sharing',
+      '/settings/data',
+      '/settings/shortcuts',
+    ],
+  ],
+] as const;
+
+function settingsLabel(messages: Messages, path: string): string {
+  const labels: Record<string, string> = {
+    '/settings/account': messages.settingsAccount,
+    '/settings/appearance': messages.appearanceTitle,
+    '/settings/capture': messages.settingsCapture,
+    '/settings/notifications': messages.settingsNotifications,
+    '/settings/smart-lists': messages.settingsSmart,
+    '/settings/calendar': messages.settingsCalendar,
+    '/settings/tokens': messages.settingsTokens,
+    '/settings/integrations': messages.settingsIntegrations,
+    '/settings/automations': messages.settingsAutomations,
+    '/settings/webhooks': messages.settingsWebhooks,
+    '/settings/data': messages.settingsData,
+    '/settings/plugins': messages.settingsPlugins,
+    '/settings/sharing': messages.settingsSharing,
+    '/settings/shortcuts': messages.settingsShortcuts,
+  };
+  return labels[path] ?? path;
+}
+
+export function SettingsHome() {
   const messages = useMessages();
-  const links = [
-    ['/settings/account', messages.settingsAccount],
-    ['/settings/appearance', messages.appearanceTitle],
-    ['/settings/capture', messages.settingsCapture],
-    ['/settings/notifications', messages.settingsNotifications],
-    ['/settings/smart-lists', messages.settingsSmart],
-    ['/settings/calendar', messages.settingsCalendar],
-    ['/settings/tokens', messages.settingsTokens],
-    ['/settings/integrations', messages.settingsIntegrations],
-    ['/settings/automations', messages.settingsAutomations],
-    ['/settings/webhooks', messages.settingsWebhooks],
-    ['/settings/data', messages.settingsData],
-    ['/settings/plugins', messages.settingsPlugins],
-    ['/settings/sharing', messages.settingsSharing],
-    ['/settings/shortcuts', messages.settingsShortcuts],
-  ] as const;
   return (
-    <div className="settings-layout">
-      <nav className="settings-nav" aria-label={messages.settingsTitle}>
-        {links.map(([to, label]) => (
-          <NavLink key={to} to={to}>
-            {label}
+    <section>
+      <h1>{messages.settingsTitle}</h1>
+      <p>{messages.settingsHome}</p>
+      <nav className="settings-nav">
+        {SETTINGS_GROUPS.flatMap(([, paths]) => paths).map((path) => (
+          <NavLink key={path} to={path}>
+            {settingsLabel(messages, path)}
           </NavLink>
         ))}
       </nav>
-      <div>
+    </section>
+  );
+}
+
+export function SettingsLayout() {
+  const messages = useMessages();
+  const location = useLocation();
+  const section = location.pathname === '/settings' ? 'index' : 'child';
+  return (
+    <div className="settings-layout" data-section={section}>
+      <nav className="settings-nav" aria-label={messages.settingsTitle}>
+        {SETTINGS_GROUPS.map(([group, paths]) => (
+          <div key={group}>
+            <h2>{messages[group]}</h2>
+            {paths.map((path) => (
+              <NavLink key={path} to={path}>
+                {settingsLabel(messages, path)}
+              </NavLink>
+            ))}
+          </div>
+        ))}
+      </nav>
+      <div className="settings-main">
         <Outlet />
       </div>
     </div>
@@ -965,118 +1400,258 @@ export function ForgotPage() {
 export function AccountPage() {
   const messages = useMessages();
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
-  const [name, setName] = useState('');
-  const [zone, setZone] = useState('');
+  const profile = me.data;
+  const [name, setName] = useState<string | null>(null);
+  const [zone, setZone] = useState<string | null>(null);
+  const [children, setChildren] = useState<'ask' | 'complete' | 'leave' | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [confirmEmail, setConfirmEmail] = useState('');
+  const [setup, setSetup] = useState<{ secret: string; otpauth: string } | null>(null);
   const [totpCode, setTotpCode] = useState('');
+  const [codes, setCodes] = useState<readonly string[] | null>(null);
+  const [totpError, setTotpError] = useState<string | null>(null);
+  const displayName = name ?? profile?.display_name ?? '';
+  const timeZone = zone ?? profile?.time_zone ?? '';
+  const childPolicy = children ?? profile?.task_complete_children ?? 'ask';
+  const zones = timeZones(timeZone);
   return (
-    <section>
-      <h1>{messages.settingsAccount}</h1>
-      <p>{messages.accountHint}</p>
-      {me.data === undefined ? <SkeletonRows /> : null}
-      {me.data !== undefined ? (
+    <section className="token-settings">
+      <header className="page-header">
+        <div>
+          <h1>{messages.settingsAccount}</h1>
+          <p className="lede">{messages.accountHint}</p>
+        </div>
+      </header>
+      {profile === undefined && me.isPending ? <SkeletonRows /> : null}
+      {me.isError ? <p role="alert">{messages.settingsFailed}</p> : null}
+      {profile !== undefined ? (
         <>
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              void api
-                .updateMe({
-                  display_name: name.length > 0 ? name : me.data.display_name,
-                  time_zone: zone.length > 0 ? zone : me.data.time_zone,
-                })
-                .then(() => {
-                  setStatus(messages.saved);
-                })
-                .catch(() => {
-                  setStatus(messages.saveFailed);
-                });
-            }}
-          >
-            <label>
-              {messages.displayName}
+          <section className="token-panel">
+            <form
+              className="token-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                setStatus(null);
+                void api
+                  .updateMe({
+                    display_name: displayName,
+                    time_zone: timeZone,
+                    task_complete_children: childPolicy,
+                  })
+                  .then(() => {
+                    setStatus(messages.saved);
+                  })
+                  .catch(() => {
+                    setStatus(messages.saveFailed);
+                  });
+              }}
+            >
+              <label className="token-label" htmlFor="account-name">
+                {messages.displayName}
+              </label>
               <input
-                defaultValue={me.data.display_name}
+                id="account-name"
+                className="token-name"
+                value={displayName}
                 onChange={(event) => {
                   setName(event.target.value);
                 }}
               />
-            </label>
-            <p>{me.data.email}</p>
-            <label>
-              {messages.timeZone}
-              <input
-                defaultValue={me.data.time_zone}
+              <p className="token-label">{messages.email}</p>
+              <p className="token-meta">{profile.email}</p>
+              <label className="token-label" htmlFor="account-zone">
+                {messages.timeZone}
+              </label>
+              {zones.length > 0 ? (
+                <select
+                  id="account-zone"
+                  className="token-name"
+                  value={timeZone}
+                  onChange={(event) => {
+                    setZone(event.target.value);
+                  }}
+                >
+                  {zones.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  id="account-zone"
+                  className="token-name"
+                  value={timeZone}
+                  onChange={(event) => {
+                    setZone(event.target.value);
+                  }}
+                />
+              )}
+              <p className="token-meta">{messages.timeZoneHint}</p>
+              <label className="token-label" htmlFor="account-children">
+                {messages.childrenPolicy}
+              </label>
+              <select
+                id="account-children"
+                className="token-name"
+                value={childPolicy}
                 onChange={(event) => {
-                  setZone(event.target.value);
+                  const next = event.target.value;
+                  if (next === 'ask' || next === 'complete' || next === 'leave') {
+                    setChildren(next);
+                  }
                 }}
-              />
-            </label>
-            <Button type="submit" variant="primary">
-              {messages.saveChanges}
-            </Button>
-            {status !== null ? <p role="status">{status}</p> : null}
-          </form>
-          <section className="settings-block">
-            <h2>{messages.enableTwoFactor}</h2>
-            <p>{messages.twoFactorUnavailable}</p>
-            <Button
-              type="button"
-              onClick={() => {
-                void api.beginTotp().then((body) => {
-                  const secret =
-                    typeof body.secret === 'string' ? body.secret : messages.twoFactorCode;
-                  setStatus(secret);
-                });
-              }}
-            >
-              {messages.enableTwoFactor}
-            </Button>
-            <label>
-              {messages.twoFactorCode}
-              <input
-                value={totpCode}
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                onChange={(event) => {
-                  setTotpCode(event.target.value);
-                }}
-              />
-            </label>
-            <Button
-              type="button"
-              onClick={() => {
-                void api.confirmTotp(totpCode).then(() => {
-                  setStatus(messages.saved);
-                });
-              }}
-            >
-              {messages.saveChanges}
-            </Button>
+              >
+                <option value="ask">{messages.childrenAsk}</option>
+                <option value="complete">{messages.completeChildren}</option>
+                <option value="leave">{messages.leaveChildren}</option>
+              </select>
+              <Button type="submit" variant="primary" size="sm">
+                {messages.saveChanges}
+              </Button>
+              {status !== null ? <p role="status">{status}</p> : null}
+            </form>
           </section>
-          <section className="settings-block">
-            <h2>{messages.accountDanger}</h2>
-            <label>
-              {messages.deleteAccountUnavailable}
+          <section className="token-panel">
+            <div className="token-panel-head">
+              <div>
+                <h2>{messages.password}</h2>
+                <p>{messages.forgotDev}</p>
+              </div>
+            </div>
+          </section>
+          <section className="token-panel">
+            <div className="token-panel-head">
+              <div>
+                <h2>{messages.enableTwoFactor}</h2>
+                <p>{messages.twoFactorHint}</p>
+              </div>
+            </div>
+            {setup === null ? (
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  setTotpError(null);
+                  void api
+                    .beginTotp()
+                    .then((body) => {
+                      const secret = textOf(body.secret);
+                      const otpauth = textOf(body.otpauth);
+                      if (secret.length === 0) {
+                        setTotpError(messages.settingsFailed);
+                        return;
+                      }
+                      setSetup({ secret, otpauth });
+                    })
+                    .catch(() => {
+                      setTotpError(messages.settingsFailed);
+                    });
+                }}
+              >
+                {messages.enableTwoFactor}
+              </Button>
+            ) : (
+              <div className="token-secret">
+                <p>{messages.twoFactorReady}</p>
+                <code>{setup.secret}</code>
+                {setup.otpauth.length > 0 ? <p className="settings-url">{setup.otpauth}</p> : null}
+              </div>
+            )}
+            {setup !== null && codes === null ? (
+              <form
+                className="token-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  if (totpCode.trim().length !== 6) {
+                    return;
+                  }
+                  setTotpError(null);
+                  void api
+                    .confirmTotp(totpCode.trim())
+                    .then((body) => {
+                      setCodes(stringsOf(body.recovery_codes));
+                      setTotpCode('');
+                    })
+                    .catch((reason: unknown) => {
+                      setTotpError(
+                        reason instanceof ApiError && reason.code === 'invalid_totp'
+                          ? messages.twoFactorInvalid
+                          : messages.settingsFailed,
+                      );
+                    });
+                }}
+              >
+                <label className="token-label" htmlFor="totp-code">
+                  {messages.twoFactorCode}
+                </label>
+                <input
+                  id="totp-code"
+                  className="token-name"
+                  value={totpCode}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  onChange={(event) => {
+                    setTotpCode(event.target.value);
+                  }}
+                />
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="sm"
+                  disabled={totpCode.trim().length !== 6}
+                >
+                  {messages.saveChanges}
+                </Button>
+              </form>
+            ) : null}
+            {codes !== null ? (
+              <div className="token-secret">
+                <p>{messages.twoFactorCodes}</p>
+                <pre className="token-snippet">{codes.join('\n')}</pre>
+              </div>
+            ) : null}
+            {totpError !== null ? <p role="alert">{totpError}</p> : null}
+          </section>
+          <section className="token-panel">
+            <div className="token-panel-head">
+              <div>
+                <h2>{messages.accountDanger}</h2>
+                <p>{messages.deleteAccountUnavailable}</p>
+              </div>
+            </div>
+            <form
+              className="token-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (confirmEmail !== profile.email) {
+                  return;
+                }
+                void api.deleteAccount(profile.email);
+              }}
+            >
+              <label className="token-label" htmlFor="account-delete">
+                {messages.email}
+              </label>
               <input
+                id="account-delete"
+                className="token-name"
+                type="email"
                 value={confirmEmail}
+                autoComplete="off"
                 onChange={(event) => {
                   setConfirmEmail(event.target.value);
                 }}
               />
-            </label>
-            <Button
-              type="button"
-              variant="danger"
-              disabled={confirmEmail !== me.data.email}
-              onClick={() => {
-                if (confirmEmail === me.data.email) {
-                  void api.deleteAccount(me.data.email);
-                }
-              }}
-            >
-              {messages.deleteAccountUnavailable}
-            </Button>
+              <Button
+                type="submit"
+                size="sm"
+                variant="danger"
+                disabled={confirmEmail !== profile.email}
+              >
+                {messages.deleteAccount}
+              </Button>
+            </form>
           </section>
         </>
       ) : null}
@@ -1088,15 +1663,25 @@ export function CaptureSettings() {
   const messages = useMessages();
   const parser = usePreferences((state) => state.parser);
   const setParser = usePreferences((state) => state.setParser);
-  const inbound = useQuery({ queryKey: ['inbound'], queryFn: () => api.inboundEmail() });
-  const [address, setAddress] = useState<string | null>(null);
   return (
-    <section>
-      <h1>{messages.settingsCapture}</h1>
-      <p>{messages.captureHint}</p>
-      <label>
-        {messages.parserLanguage}
+    <section className="token-settings">
+      <header className="page-header">
+        <div>
+          <h1>{messages.settingsCapture}</h1>
+          <p className="lede">{messages.captureLede}</p>
+        </div>
+      </header>
+      <section className="token-panel">
+        <div className="token-panel-head">
+          <div>
+            <h2 id="parser-title">{messages.parserLanguage}</h2>
+            <p>{messages.parserHint}</p>
+          </div>
+        </div>
         <select
+          id="parser-language"
+          className="token-name is-short"
+          aria-labelledby="parser-title"
           value={parser}
           onChange={(event) => {
             const value = event.target.value;
@@ -1107,30 +1692,8 @@ export function CaptureSettings() {
           <option value="es">{messages.languageEs}</option>
           <option value="en">{messages.languageEn}</option>
         </select>
-      </label>
-      <h2>{messages.inbound}</h2>
-      <p>{inbound.data?.active === true ? messages.online : messages.offline}</p>
-      {address !== null ? <p>{address}</p> : null}
-      <div className="page-toolbar">
-        <Button
-          onClick={() => {
-            void api.rotateInboundEmail().then((created) => {
-              setAddress(created.address);
-            });
-          }}
-        >
-          {messages.regenerate}
-        </Button>
-        <Button
-          variant="danger"
-          onClick={() => {
-            void api.revokeInboundEmail();
-            setAddress(null);
-          }}
-        >
-          {messages.revoke}
-        </Button>
-      </div>
+      </section>
+      <InboundEmailCard />
     </section>
   );
 }
@@ -1138,27 +1701,113 @@ export function CaptureSettings() {
 export function NotificationSettings() {
   const messages = useMessages();
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
+  const saved = me.data?.daily_reminder_time ?? '';
+  const [draft, setDraft] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const value = draft ?? saved;
+  const push = pushPermission();
   return (
-    <section>
-      <h1>{messages.settingsNotifications}</h1>
-      <p>{messages.notificationsHint}</p>
-      <label>
-        {messages.dailyReminder}
-        <input
-          type="time"
-          defaultValue={me.data?.daily_reminder_time ?? ''}
-          onBlur={(event) => {
-            void api.updateMe({
-              daily_reminder_time: event.target.value.length === 0 ? null : event.target.value,
-            });
+    <section className="token-settings">
+      <header className="page-header">
+        <div>
+          <h1>{messages.settingsNotifications}</h1>
+          <p className="lede">{messages.notificationsLede}</p>
+        </div>
+      </header>
+      <section className="token-panel">
+        <form
+          className="token-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (me.data === undefined || value === saved) {
+              return;
+            }
+            setStatus(null);
+            void api
+              .updateMe({ daily_reminder_time: value.length === 0 ? null : value })
+              .then(() => {
+                setDraft(null);
+                setStatus(messages.saved);
+              })
+              .catch(() => {
+                setStatus(messages.saveFailed);
+              });
           }}
-        />
-      </label>
-      <h2>{messages.quietHours}</h2>
-      <p>{messages.quietLocal}</p>
-      <p className="ui-muted">{messages.testUnavailable}</p>
+        >
+          <label className="token-label" htmlFor="daily-reminder">
+            {messages.dailyReminder}
+          </label>
+          <input
+            id="daily-reminder"
+            className="token-name is-time"
+            type="time"
+            value={value}
+            onChange={(event) => {
+              setDraft(event.target.value);
+              setStatus(null);
+            }}
+          />
+          <p className="token-meta">{messages.quietLocal}</p>
+          <Button
+            type="submit"
+            variant="primary"
+            size="sm"
+            disabled={me.data === undefined || value === saved}
+          >
+            {messages.saveChanges}
+          </Button>
+          {status !== null ? <p role="status">{status}</p> : null}
+        </form>
+      </section>
+      <section className="token-panel">
+        <div className="token-panel-head">
+          <div>
+            <h2>{messages.pushTitle}</h2>
+            <p>{pushText(messages, push)}</p>
+          </div>
+        </div>
+      </section>
     </section>
   );
+}
+
+function timeZones(current: string): readonly string[] {
+  const known =
+    typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('timeZone') : [];
+  if (current.length > 0 && !known.includes(current)) {
+    return [current, ...known];
+  }
+  return known;
+}
+
+function textOf(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
+function stringsOf(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : [];
+}
+
+function pushPermission(): NotificationPermission | 'missing' {
+  if (typeof Notification === 'undefined') {
+    return 'missing';
+  }
+  return Notification.permission;
+}
+
+function pushText(messages: Messages, permission: NotificationPermission | 'missing'): string {
+  if (permission === 'granted') {
+    return messages.pushGranted;
+  }
+  if (permission === 'denied') {
+    return messages.pushDenied;
+  }
+  if (permission === 'default') {
+    return messages.pushDefault;
+  }
+  return messages.pushMissing;
 }
 
 export function GapPage({ title, body }: { readonly title: string; readonly body: string }) {
@@ -1166,40 +1815,6 @@ export function GapPage({ title, body }: { readonly title: string; readonly body
     <section>
       <h1>{title}</h1>
       <EmptyState title={title} body={body} />
-    </section>
-  );
-}
-
-export function ShortcutSettings() {
-  const messages = useMessages();
-  const rows = [
-    ['?', messages.shortcutsTitle],
-    ['N', messages.fab],
-    ['Ctrl/Cmd+K', messages.paletteTitle],
-    ['/', messages.searchTitle],
-    ['G T', messages.navToday],
-    ['G I', messages.navInbox],
-    ['G C', messages.navCalendar],
-    ['G M', messages.navMatrix],
-    ['G S', messages.navSettings],
-    ['Esc', messages.close],
-    ['.', messages.syncNow],
-  ];
-  return (
-    <section>
-      <h1>{messages.settingsShortcuts}</h1>
-      <table className="shortcut-table">
-        <tbody>
-          {rows.map(([keys, label]) => (
-            <tr key={keys}>
-              <td>{label}</td>
-              <td>
-                <Kbd>{keys ?? ''}</Kbd>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </section>
   );
 }
@@ -1212,79 +1827,93 @@ export function AppearanceExtras() {
   const setAccent = usePreferences((state) => state.setAccent);
   const week = usePreferences((state) => state.weekStart);
   const setWeek = usePreferences((state) => state.setWeekStart);
-  const choice = useThemePreference((state) => state.preference);
   return (
-    <section>
-      <p>{messages.appearanceSaved}</p>
-      <p className="ui-muted">
-        {messages.themeLabel}: {choice}
-      </p>
-      <fieldset>
-        <legend>{messages.density}</legend>
-        <p>{messages.densityHint}</p>
-        <label>
-          <input
-            type="radio"
-            checked={density === 'comfortable'}
-            onChange={() => {
+    <>
+      <section className="token-panel">
+        <div className="token-panel-head">
+          <div>
+            <h2>{messages.density}</h2>
+            <p>{messages.densityHint}</p>
+          </div>
+        </div>
+        <div className="segmented" role="radiogroup" aria-label={messages.density}>
+          <button
+            type="button"
+            className={density === 'comfortable' ? 'is-active' : undefined}
+            aria-pressed={density === 'comfortable'}
+            onClick={() => {
               setDensity('comfortable');
             }}
-          />
-          {messages.densityComfortable}
-        </label>
-        <label>
-          <input
-            type="radio"
-            checked={density === 'compact'}
-            onChange={() => {
+          >
+            {messages.densityComfortable}
+          </button>
+          <button
+            type="button"
+            className={density === 'compact' ? 'is-active' : undefined}
+            aria-pressed={density === 'compact'}
+            onClick={() => {
               setDensity('compact');
             }}
-          />
-          {messages.densityCompact}
-        </label>
-      </fieldset>
-      <fieldset>
-        <legend>{messages.accent}</legend>
-        <p>{messages.accentHint}</p>
-        {ACCENTS.map((item) => (
-          <label key={item}>
-            <input
-              type="radio"
-              checked={accent === item}
-              onChange={() => {
+          >
+            {messages.densityCompact}
+          </button>
+        </div>
+      </section>
+      <section className="token-panel">
+        <div className="token-panel-head">
+          <div>
+            <h2>{messages.accent}</h2>
+            <p>{messages.accentHint}</p>
+          </div>
+        </div>
+        <div className="accent-swatches" role="radiogroup" aria-label={messages.accent}>
+          {ACCENTS.map((item) => (
+            <button
+              key={item}
+              type="button"
+              className={accent === item ? 'is-active' : undefined}
+              style={{ background: ACCENT_COLOR[item] }}
+              aria-label={item}
+              aria-pressed={accent === item}
+              onClick={() => {
                 setAccent(item);
               }}
             />
-            {item}
-          </label>
-        ))}
-      </fieldset>
-      <fieldset>
-        <legend>{messages.weekStart}</legend>
-        <p>{messages.weekStartHint}</p>
-        <label>
-          <input
-            type="radio"
-            checked={week === 'monday'}
-            onChange={() => {
+          ))}
+        </div>
+      </section>
+      <section className="token-panel">
+        <div className="token-panel-head">
+          <div>
+            <h2>{messages.weekStart}</h2>
+            <p>{messages.weekStartHint}</p>
+          </div>
+        </div>
+        <div className="segmented" role="radiogroup" aria-label={messages.weekStart}>
+          <button
+            type="button"
+            className={week === 'monday' ? 'is-active' : undefined}
+            aria-pressed={week === 'monday'}
+            onClick={() => {
               setWeek('monday');
             }}
-          />
-          {messages.monday}
-        </label>
-        <label>
-          <input
-            type="radio"
-            checked={week === 'sunday'}
-            onChange={() => {
+          >
+            {messages.monday}
+          </button>
+          <button
+            type="button"
+            className={week === 'sunday' ? 'is-active' : undefined}
+            aria-pressed={week === 'sunday'}
+            onClick={() => {
               setWeek('sunday');
             }}
-          />
-          {messages.sunday}
-        </label>
-      </fieldset>
+          >
+            {messages.sunday}
+          </button>
+        </div>
+      </section>
       <LanguageField />
-    </section>
+    </>
   );
 }
 
@@ -1293,25 +1922,30 @@ function LanguageField() {
   const choice = useLocale((state) => state.choice);
   const setChoice = useLocale((state) => state.setChoice);
   return (
-    <fieldset>
-      <legend>{messages.language}</legend>
-      {(['auto', 'es', 'en'] as const).map((item) => (
-        <label key={item}>
-          <input
-            type="radio"
-            checked={choice === item}
-            onChange={() => {
+    <section className="token-panel">
+      <div className="token-panel-head">
+        <h2>{messages.language}</h2>
+      </div>
+      <div className="segmented" role="radiogroup" aria-label={messages.language}>
+        {(['auto', 'es', 'en'] as const).map((item) => (
+          <button
+            key={item}
+            type="button"
+            className={choice === item ? 'is-active' : undefined}
+            aria-pressed={choice === item}
+            onClick={() => {
               setChoice(item);
             }}
-          />
-          {item === 'auto'
-            ? messages.languageAuto
-            : item === 'es'
-              ? messages.languageEs
-              : messages.languageEn}
-        </label>
-      ))}
-    </fieldset>
+          >
+            {item === 'auto'
+              ? messages.languageAuto
+              : item === 'es'
+                ? messages.languageEs
+                : messages.languageEn}
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 

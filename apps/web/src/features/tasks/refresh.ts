@@ -1,17 +1,19 @@
 import type { QueryClient } from '@tanstack/react-query';
 
-/** Lists and sidebar counters share these caches. A mutation refreshes both. */
+/** Counters always refresh. Mounted lists refresh; idle caches stay until they open. */
 export async function refreshTaskSurfaces(queryClient: QueryClient): Promise<void> {
+  const active = { refetchType: 'active' as const };
   await Promise.all([
-    queryClient.invalidateQueries({ queryKey: ['today-tasks'] }),
-    queryClient.invalidateQueries({ queryKey: ['inbox-tasks'] }),
-    queryClient.invalidateQueries({ queryKey: ['project-tasks'] }),
-    queryClient.invalidateQueries({ queryKey: ['smart-list-tasks'] }),
-    queryClient.invalidateQueries({ queryKey: ['filter-tasks'] }),
     queryClient.invalidateQueries({ queryKey: ['smart-lists'] }),
-    queryClient.invalidateQueries({ queryKey: ['projects'] }),
-    queryClient.invalidateQueries({ queryKey: ['tags'] }),
-    queryClient.invalidateQueries({ queryKey: ['search'] }),
-    queryClient.invalidateQueries({ queryKey: ['task'] }),
+    queryClient.invalidateQueries({ queryKey: ['today-tasks'], ...active }),
+    queryClient.invalidateQueries({ queryKey: ['inbox-tasks'], ...active }),
+    queryClient.invalidateQueries({ queryKey: ['project-tasks'], ...active }),
+    queryClient.invalidateQueries({ queryKey: ['smart-list-tasks'], ...active }),
+    queryClient.invalidateQueries({ queryKey: ['filter-tasks'], ...active }),
+    queryClient.invalidateQueries({ queryKey: ['tag-tasks'], ...active }),
+    queryClient.invalidateQueries({ queryKey: ['calendar-tasks'], ...active }),
+    queryClient.invalidateQueries({ queryKey: ['search'], ...active }),
+    queryClient.invalidateQueries({ queryKey: ['search-page'], ...active }),
+    queryClient.invalidateQueries({ queryKey: ['task'], ...active }),
   ]);
 }

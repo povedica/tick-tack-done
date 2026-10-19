@@ -21,7 +21,10 @@ interface TokenRow {
   readonly id: string;
   readonly ownerId: string;
   readonly scopes: string[];
+  readonly lastUsedAt: Date | null;
 }
+
+const TOUCH_AFTER_MS = 60_000;
 
 /**
  * Dev requests (X-Dev-User-Email, AUTH_MODE=dev) still receive every scope the route declares.
@@ -89,10 +92,7 @@ export class ApiAuthGuard implements CanActivate {
     const decision = this.rateLimit.consume(token.id);
     applyRateLimitHeaders(response, decision);
     request.user = { ...user, scopes: token.scopes, tokenId: token.id, sessionId: null };
-    await this.prisma.personalAccessToken.update({
-      where: { id: token.id },
-      data: { lastUsedAt: new Date() },
-    });
+    await this.touchLastUsed('token', token.id, token.lastUsedAt);
     const path = requestPath(request);
     if (!decision.allowed) {
       response.setHeader('Retry-After', String(decision.retryAfter));
@@ -132,7 +132,7 @@ export class ApiAuthGuard implements CanActivate {
   private async findToken(secret: string): Promise<TokenRow | null> {
     const row = await this.prisma.personalAccessToken.findFirst({
       where: { tokenHash: hashPersonalAccessToken(secret), revokedAt: null, deletedAt: null },
-      select: { id: true, ownerId: true, scopes: true },
+      select: { id: true, ownerId: true, scopes: true, lastUsedAt: true },
     });
     return row;
   }
@@ -189,16 +189,32 @@ export class ApiAuthGuard implements CanActivate {
   ): Promise<AuthUser> {
     const row = await this.prisma.session.findFirst({
       where: { tokenHash: hashSecret(secret), revokedAt: null, expiresAt: { gt: new Date() } },
-      select: { id: true, userId: true, csrfToken: true },
+      select: { id: true, userId: true, csrfToken: true, lastUsedAt: true },
     });
     if (row === null) {
       throw new DomainException(HttpStatus.UNAUTHORIZED, 'unauthorized', 'Invalid session');
     }
     assertCsrf(request, row.csrfToken);
     request.csrfToken = row.csrfToken;
-    await this.prisma.session.update({ where: { id: row.id }, data: { lastUsedAt: new Date() } });
+    await this.touchLastUsed('session', row.id, row.lastUsedAt);
     const user = await this.loadUser(row.userId);
     return { ...user, scopes: [...API_SCOPES], tokenId: null, sessionId: row.id };
+  }
+
+  private async touchLastUsed(
+    kind: 'session' | 'token',
+    id: string,
+    lastUsedAt: Date | null,
+  ): Promise<void> {
+    if (lastUsedAt !== null && Date.now() - lastUsedAt.getTime() < TOUCH_AFTER_MS) {
+      return;
+    }
+    const data = { lastUsedAt: new Date() };
+    if (kind === 'session') {
+      await this.prisma.session.update({ where: { id }, data });
+      return;
+    }
+    await this.prisma.personalAccessToken.update({ where: { id }, data });
   }
 }
 

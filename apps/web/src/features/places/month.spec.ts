@@ -1,35 +1,47 @@
 import { describe, expect, it } from 'vitest';
-import {
-  cellKey,
-  dayFromParam,
-  localDateParam,
-  overflowHref,
-  tasksOnCell,
-  type DatedTask,
-} from './month';
+import { calendarTaskLabel, quarterMonths, shiftView, viewDays } from './month';
 
-describe('month cells', () => {
-  it('links +N to the local day and the day view lists every task on that cell', () => {
-    const day = new Date(2026, 9, 18);
-    const key = cellKey(day);
-    const tasks: DatedTask[] = Array.from({ length: 5 }, (_, index) => ({
-      id: String(index),
-      title: `Tarea ${String(index)}`,
-      due_date: `${key}T12:00:00.000Z`,
-      project_id: 'list',
-    }));
-    const visible = tasks.slice(0, 3);
-    const href = overflowHref(day);
-    expect(visible).toHaveLength(3);
-    expect(href).toBe(`/calendar/day?date=${localDateParam(day)}`);
-    expect(localDateParam(day)).toBe('2026-10-18');
-    const utcKey = day.toISOString().slice(0, 10);
-    expect(href.includes(`date=${utcKey}`)).toBe(utcKey === '2026-10-18');
-    const opened = dayFromParam('2026-10-18');
-    expect(opened).not.toBeNull();
-    if (opened === null) {
-      return;
-    }
-    expect(tasksOnCell(tasks, opened)).toHaveLength(5);
+describe('calendar view windows', () => {
+  const monday = new Date(2026, 9, 19);
+
+  it('week is seven days starting Monday', () => {
+    const days = viewDays('week', monday, 'monday');
+    expect(days).toHaveLength(7);
+    expect(days[0]?.getDate()).toBe(19);
+    expect(days[6]?.getDate()).toBe(25);
+  });
+
+  it('multi-day is three days and multi-week is fourteen', () => {
+    expect(viewDays('multi-day', monday, 'monday')).toHaveLength(3);
+    expect(viewDays('multi-week', monday, 'monday')).toHaveLength(14);
+  });
+
+  it('quarter is October–December and the next step is January', () => {
+    const months = quarterMonths(monday);
+    expect(months.map((month) => month.getMonth())).toEqual([9, 10, 11]);
+    expect(viewDays('quarter', monday, 'monday')).toHaveLength(42 * 3);
+    const next = shiftView(monday, 'quarter', 1, 'monday');
+    expect(next.getFullYear()).toBe(2027);
+    expect(next.getMonth()).toBe(0);
+  });
+
+  it('drops a leading 29/10 when the task already sits on that day', () => {
+    const due = '2026-10-29T10:00:00.000Z';
+    expect(calendarTaskLabel('29/10 Cumple de Alberto', due, 'Europe/Madrid', 'Sin título')).toBe(
+      'Cumple de Alberto',
+    );
+    expect(calendarTaskLabel('29/10/2026 - Cumple', due, 'Europe/Madrid', 'Sin título')).toBe(
+      'Cumple',
+    );
+    expect(calendarTaskLabel('30/10 Otra cosa', due, 'Europe/Madrid', 'Sin título')).toBe(
+      '30/10 Otra cosa',
+    );
+    expect(calendarTaskLabel('29/10', due, 'Europe/Madrid', 'Sin título')).toBe('Sin título');
+  });
+
+  it('year shift keeps the month and moves the year', () => {
+    const next = shiftView(monday, 'year', 1, 'monday');
+    expect(next.getFullYear()).toBe(2027);
+    expect(next.getMonth()).toBe(9);
   });
 });

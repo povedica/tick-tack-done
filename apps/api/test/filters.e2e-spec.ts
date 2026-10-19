@@ -128,6 +128,9 @@ describe('filters, smart lists and search', () => {
 
     const today = await api.get('/api/v1/smart-lists/today/tasks?group_by=section').expect(200);
     expect(today.body.count).toBeGreaterThan(0);
+    const sample = today.body.groups[0].tasks[0] as { completed_at: unknown; source: unknown };
+    expect(sample.completed_at).toBeNull();
+    expect(sample.source).toBe('manual');
     expect(today.body.groups.some((group: { key: string }) => group.key === column.body.id)).toBe(
       true,
     );
@@ -275,6 +278,35 @@ describe('filters, smart lists and search', () => {
     await api.delete(`/api/v1/tasks/${await taskId(api, 'Leer el informe')}`).expect(204);
     const trash = await api.get('/api/v1/smart-lists/trash/tasks').expect(200);
     expect(trash.body.count).toBeGreaterThan(0);
+  });
+
+  it('GET /smart-lists answers in under 300ms with 1000 tasks and matches each list count', async () => {
+    const user = await createOwner('perf');
+    const project = await prisma.project.create({
+      data: { ownerId: user.id, name: 'Inbox', isInbox: true },
+    });
+    const now = new Date();
+    await prisma.task.createMany({
+      data: Array.from({ length: 1000 }, (_, index) => ({
+        ownerId: user.id,
+        projectId: project.id,
+        createdById: user.id,
+        title: `Perf ${index}`,
+        status: index % 4 === 0 ? 'completed' : 'active',
+        dueDate: new Date(now.getTime() - (index % 20) * 86_400_000),
+        completedAt: index % 4 === 0 ? now : null,
+      })),
+    });
+    const api = authed(user.email);
+    await api.get('/api/v1/smart-lists').expect(200);
+    const started = Date.now();
+    const listed = await api.get('/api/v1/smart-lists').expect(200);
+    expect(Date.now() - started).toBeLessThan(300);
+    for (const item of listed.body.items as { key: string; task_count: number }[]) {
+      const page = await api.get(`/api/v1/smart-lists/${item.key}/tasks?limit=1`).expect(200);
+      expect(page.body.count).toBe(item.task_count);
+    }
+    await removeOwner(user.id);
   });
 });
 

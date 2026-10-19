@@ -9,15 +9,15 @@ import {
   FilterViewPage,
   ProjectListPage,
   SmartListViewPage,
+  TagViewPage,
 } from './features/views/components/ViewPages';
 import { isPaletteShortcut } from './features/views/shortcuts';
 import { draftFromShare } from './features/capture/share-target';
 import { isCaptureShortcut } from './features/capture/draft';
-import { useCaptureNotice } from './features/capture/notice';
+import { useCaptureNotice, openTaskComposer, useCaptureOpen } from './features/capture/notice';
 import { HabitsPage } from './features/habits/components/HabitsPage';
 import {
   AccountPage,
-  AppearanceExtras,
   CalendarPage,
   CaptureSettings,
   ForgotPage,
@@ -27,23 +27,26 @@ import {
   NoteRoute,
   NotificationSettings,
   SearchPage,
+  SettingsHome,
   SettingsLayout,
-  ShortcutSettings,
   TaskRoute,
 } from './features/places/Places';
 import {
-  AutomationSettings,
   CalendarSettings,
   DashboardPage,
-  DataSettings,
   FocusPage,
   IntegrationSettings,
-  PluginSettings,
   ReportsPage,
   ReviewPage,
-  SharingSettings,
-  WebhookSettings,
 } from './features/product/ProductPages';
+import {
+  AutomationSettings,
+  DataSettings,
+  PluginSettings,
+  SharingSettings,
+  ShortcutSettings,
+  WebhookSettings,
+} from './features/settings/MoreSettings';
 import { AppearancePage } from './features/settings/AppearancePage';
 import { ConsentPage } from './features/auth/ConsentPage';
 import { LoginPage, RegisterPage } from './features/auth/AuthPages';
@@ -111,6 +114,8 @@ function Shell() {
             <Route path="/filter/:id" element={<FilterViewPage />} />
             <Route path="/filters" element={<FiltersPage />} />
             <Route path="/filters/:id" element={<FilterViewPage />} />
+            <Route path="/tag/:id" element={<TagViewPage />} />
+            <Route path="/trash" element={<Navigate to="/smart/trash" replace />} />
             <Route path="/smart/:key" element={<SmartListViewPage />} />
             <Route path="/smart-lists" element={<SmartListsPage />} />
             <Route path="/smart-lists/:key" element={<SmartListViewPage />} />
@@ -132,16 +137,8 @@ function Shell() {
             <Route path="/tokens" element={<TokensPage />} />
             <Route path="/oauth/consent" element={<ConsentPage />} />
             <Route path="/settings" element={<SettingsLayout />}>
-              <Route index element={<Navigate to="/settings/appearance" replace />} />
-              <Route
-                path="appearance"
-                element={
-                  <>
-                    <AppearancePage />
-                    <AppearanceExtras />
-                  </>
-                }
-              />
+              <Route index element={<SettingsHome />} />
+              <Route path="appearance" element={<AppearancePage />} />
               <Route path="account" element={<AccountPage />} />
               <Route path="capture" element={<CaptureSettings />} />
               <Route path="notifications" element={<NotificationSettings />} />
@@ -191,8 +188,6 @@ function QuickAddRoute() {
 }
 
 function CaptureHotkey() {
-  const navigate = useNavigate();
-
   useEffect(() => {
     function onKey(event: KeyboardEvent): void {
       const target = event.target;
@@ -211,17 +206,17 @@ function CaptureHotkey() {
         return;
       }
       event.preventDefault();
-      if (window.location.pathname === '/quick-add') {
+      if (window.location.pathname === '/quick-add' || useCaptureOpen.getState().open) {
         document.getElementById('capture-input')?.focus();
         return;
       }
-      void navigate('/quick-add');
+      openTaskComposer();
     }
     window.addEventListener('keydown', onKey);
     return () => {
       window.removeEventListener('keydown', onKey);
     };
-  }, [navigate]);
+  }, []);
 
   return null;
 }

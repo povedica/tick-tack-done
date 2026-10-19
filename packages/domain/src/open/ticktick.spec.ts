@@ -48,8 +48,12 @@ describe('open api', () => {
       content: 'texto',
       startDate: null,
       timeZone: 'Europe/Madrid',
+      status: 2,
+      completedTime: '2026-01-02T10:00:00.000Z',
     });
     expect(write?.priority).toBe('low');
+    expect(write?.status).toBe('completed');
+    expect(write?.completedAt).toBe('2026-01-02T10:00:00.000Z');
     expect(write?.repeatRule).toBeNull();
     expect(
       toOpenProject({

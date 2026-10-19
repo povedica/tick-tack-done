@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useAppLocale } from '../../i18n/locale';
 import { usePreferences } from '../../theme/preferences';
 
 export function DueField({
@@ -21,11 +22,12 @@ export function DueField({
   readonly onCommit: (next: string) => void;
 }) {
   const weekStart = usePreferences((state) => state.weekStart);
+  const locale = useAppLocale();
   const [open, setOpen] = useState(false);
   const day = value.length >= 10 ? value.slice(0, 10) : '';
   const time = value.length >= 16 ? value.slice(11, 16) : '09:00';
   const [cursor, setCursor] = useState(() => monthOf(day));
-  const label = day.length === 0 ? emptyLabel : formatDue(value);
+  const label = day.length === 0 ? emptyLabel : formatDue(value, locale);
   const start = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
   const shift = (start.getDay() - (weekStart === 'monday' ? 1 : 0) + 7) % 7;
   const cells = Array.from({ length: 42 }, (_, index) => {
@@ -33,7 +35,7 @@ export function DueField({
     date.setDate(index - shift + 1);
     return date;
   });
-  const weekday = new Intl.DateTimeFormat(undefined, { weekday: 'short' });
+  const weekday = new Intl.DateTimeFormat(locale, { weekday: 'short' });
   const heads = Array.from({ length: 7 }, (_, index) => {
     const date = new Date(2026, 0, weekStart === 'monday' ? 5 + index : 4 + index);
     return weekday.format(date);
@@ -68,9 +70,7 @@ export function DueField({
               ‹
             </button>
             <strong className="cal-title">
-              {new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(
-                cursor,
-              )}
+              {new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(cursor)}
             </strong>
             <button
               type="button"
@@ -159,12 +159,12 @@ function localKey(date: Date): string {
   return `${String(date.getFullYear())}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-function formatDue(value: string): string {
+function formatDue(value: string, locale: string): string {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) {
     return value;
   }
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(parsed);

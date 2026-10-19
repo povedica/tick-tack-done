@@ -846,6 +846,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tasks/trash/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Permanently delete one trashed task */
+        delete: operations["TasksController_purge"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tasks/trash/{id}/restore": {
         parameters: {
             query?: never;
@@ -2498,6 +2515,8 @@ export interface components {
         HealthResponseDto: {
             /** @enum {string} */
             status: "ok";
+            /** @example unknown */
+            commit: Record<string, never>;
         };
         HabitGoalDto: {
             times_per_period: number;
@@ -2759,6 +2778,10 @@ export interface components {
             sort_order: string;
             assignee_id: string | null;
             created_at: string;
+            completed_at: string | null;
+            repeat_rule: string | null;
+            /** @enum {string} */
+            source: "manual" | "import" | "api" | "automation" | "plugin";
             deleted_at: string | null;
         };
         ViewGroupDto: {
@@ -4841,6 +4864,27 @@ export interface operations {
             };
         };
     };
+    TasksController_purge: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     TasksController_restore: {
         parameters: {
             query?: never;
@@ -6176,7 +6220,9 @@ export interface operations {
     };
     FocusController_list: {
         parameters: {
-            query?: never;
+            query?: {
+                status?: "active" | "completed" | "aborted";
+            };
             header?: never;
             path?: never;
             cookie?: never;

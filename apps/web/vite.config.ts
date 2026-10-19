@@ -15,6 +15,20 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       react(),
+      {
+        name: 'manifest-json-redirect',
+        configureServer(server) {
+          server.middlewares.use((req, res, next) => {
+            if (req.url === '/manifest.json') {
+              res.statusCode = 308;
+              res.setHeader('Location', '/manifest.webmanifest');
+              res.end();
+              return;
+            }
+            next();
+          });
+        },
+      },
       VitePWA({
         strategies: 'injectManifest',
         srcDir: 'src',

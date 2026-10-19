@@ -1,7 +1,6 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import type { Filter, FilterMode } from '@prisma/client';
 import {
-  matchesClause,
   parseFilterRules,
   parseTaskView,
   savedFilterClause,
@@ -12,7 +11,6 @@ import {
 import { actorOf, type AuthUser } from '../../auth/auth-user';
 import { DomainEvent } from '../../events/domain-events';
 import { EventRecorder } from '../../events/event-recorder';
-import { whereFromClause } from '../../filters/where-from-clause';
 import { decodeCursor, slicePage, type Page } from '../../http/cursor';
 import { DomainException } from '../../http/domain.exception';
 import { asJson, iso } from '../../http/json';
@@ -21,8 +19,8 @@ import { IdempotencyService } from '../../idempotency/idempotency.service';
 import { placementPlan } from '../../ordering/placement';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { Tx } from '../../prisma/tx';
-import { buildViewPage, type ViewPageJson } from '../../reading/view-page';
-import { loadViewTasks, type ViewTask } from '../../reading/view-tasks';
+import type { ViewPageJson } from '../../reading/view-page';
+import { countViewTasks, pageViewTasks } from '../../reading/view-query';
 import type {
   CreateFilterDto,
   FilterResponseDto,
@@ -62,9 +60,11 @@ export class FiltersService {
       take: limit + 1,
     });
     const clock = this.clock(user);
-    const tasks = await this.ownerTasks(user.id);
+    const counts = await Promise.all(
+      rows.map((row) => countViewTasks(this.prisma, user.id, this.clause(row, clock), clock)),
+    );
     return slicePage(
-      rows.map((row) => this.toJson(row, this.count(tasks, this.clause(row, clock), clock))),
+      rows.map((row, index) => this.toJson(row, counts[index] ?? 0)),
       limit,
     );
   }
@@ -101,8 +101,10 @@ export class FiltersService {
   async get(user: AuthUser, id: string): Promise<FilterResponseDto> {
     const row = await this.require(this.prisma, user.id, id);
     const clock = this.clock(user);
-    const tasks = await this.ownerTasks(user.id);
-    return this.toJson(row, this.count(tasks, this.clause(row, clock), clock));
+    return this.toJson(
+      row,
+      await countViewTasks(this.prisma, user.id, this.clause(row, clock), clock),
+    );
   }
 
   async tasks(
@@ -162,8 +164,10 @@ export class FiltersService {
         },
       });
       const clock = this.clock(user);
-      const tasks = await loadViewTasks(tx, { ownerId: user.id, parentId: null });
-      const body = this.toJson(row, this.count(tasks, this.clause(row, clock), clock));
+      const body = this.toJson(
+        row,
+        await countViewTasks(tx, user.id, this.clause(row, clock), clock),
+      );
       await this.events.record(tx, actorOf(user), {
         type: DomainEvent.filterUpdated,
         entityType: 'filter',
@@ -220,8 +224,10 @@ export class FiltersService {
       },
     });
     const clock = this.clock(user);
-    const tasks = await loadViewTasks(tx, { ownerId: user.id, parentId: null });
-    const body = this.toJson(row, this.count(tasks, savedFilterClause(rules, clock), clock));
+    const body = this.toJson(
+      row,
+      await countViewTasks(tx, user.id, savedFilterClause(rules, clock), clock),
+    );
     await this.events.record(tx, actorOf(user), {
       type: DomainEvent.filterCreated,
       entityType: 'filter',
@@ -243,28 +249,19 @@ export class FiltersService {
     cursorRaw: string | undefined,
   ): Promise<ViewPageJson> {
     const view = this.view(groupBy, sort);
-    const rows = await loadViewTasks(this.prisma, {
-      AND: [{ ownerId: user.id }, { parentId: null }, whereFromClause(clause)],
-    });
-    const matched = rows.filter((row) => matchesClause(clause, row.subject, clock));
-    return buildViewPage(
-      matched,
-      { groupBy: view.groupBy, sort: view.sort, clock },
+    return pageViewTasks(this.prisma, {
+      ownerId: user.id,
+      clause,
+      clock,
+      groupBy: view.groupBy,
+      sort: view.sort,
       limit,
-      this.cursor(cursorRaw),
-    );
-  }
-
-  private async ownerTasks(ownerId: string): Promise<ViewTask[]> {
-    return loadViewTasks(this.prisma, { ownerId, parentId: null });
+      cursor: this.cursor(cursorRaw),
+    });
   }
 
   private clause(row: Filter, clock: FilterClock): FilterClause {
     return savedFilterClause(this.readRules(row), clock);
-  }
-
-  private count(tasks: readonly ViewTask[], clause: FilterClause, clock: FilterClock): number {
-    return tasks.filter((task) => matchesClause(clause, task.subject, clock)).length;
   }
 
   private parse(mode: FilterMode, rules: unknown): FilterRules {

@@ -1,11 +1,4 @@
+/** Monochrome stamp. `currentColor` keeps it visible on light and dark surfaces. */
 export function BrandMark({ size = 28 }: { readonly size?: number }) {
-  return (
-    <img
-      className="brand-mark"
-      src="/android-chrome-192x192.png"
-      alt=""
-      width={size}
-      height={size}
-    />
-  );
+  return <span className="brand-mark" aria-hidden="true" style={{ width: size, height: size }} />;
 }

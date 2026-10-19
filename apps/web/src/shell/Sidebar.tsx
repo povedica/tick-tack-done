@@ -8,6 +8,8 @@ import {
   Inbox,
   LayoutDashboard,
   ListTodo,
+  Monitor,
+  Moon,
   MoreHorizontal,
   Plus,
   PanelLeftClose,
@@ -15,6 +17,7 @@ import {
   Repeat,
   Sparkles,
   Sun,
+  Trash2,
   UserRound,
   type LucideIcon,
 } from 'lucide-react';
@@ -27,6 +30,7 @@ import { fill, useMessages, type Messages } from '../i18n';
 import { usePreferences } from '../theme/preferences';
 import { nextTheme, type ThemePreference } from '../theme/preference';
 import { useThemePreference } from '../theme/store';
+import { collectProjects, collectTags } from '../features/tasks/collect';
 import { smartPath } from '../features/tasks/model';
 import { orderedSmartLists, SIDEBAR_SMART_ORDER } from './smart-order';
 
@@ -60,10 +64,11 @@ export function Sidebar({
   const setPreference = useThemePreference((state) => state.setPreference);
   const showCounters = usePreferences((state) => state.showCounters);
   const queryClient = useQueryClient();
+  const catalog = { staleTime: 5 * 60_000 };
   const smart = useQuery({ queryKey: ['smart-lists'], queryFn: () => api.listSmartLists() });
-  const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
-  const filters = useQuery({ queryKey: ['filters'], queryFn: () => api.listFilters() });
-  const tags = useQuery({ queryKey: ['tags'], queryFn: () => api.listTags() });
+  const projects = useQuery({ queryKey: ['projects'], queryFn: collectProjects, ...catalog });
+  const filters = useQuery({ queryKey: ['filters'], queryFn: () => api.listFilters(), ...catalog });
+  const tags = useQuery({ queryKey: ['tags'], queryFn: collectTags, ...catalog });
   const [draft, setDraft] = useState('');
   const [addingList, setAddingList] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
@@ -73,6 +78,9 @@ export function Sidebar({
   const listField = useRef<HTMLInputElement>(null);
   const tagField = useRef<HTMLInputElement>(null);
   const [menuId, setMenuId] = useState<string | null>(null);
+  const [tagMenuId, setTagMenuId] = useState<string | null>(null);
+  const [tagQuery, setTagQuery] = useState('');
+  const [showUnused, setShowUnused] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const location = useLocation();
   const [confirmTrash, setConfirmTrash] = useState(false);
@@ -82,8 +90,20 @@ export function Sidebar({
     (item) => item.enabled && (SIDEBAR_SMART_ORDER as readonly string[]).includes(item.key),
   );
   const trash = ordered.find((item) => item.key === 'trash');
+  const trashVisible = trash === undefined || trash.enabled;
   const filterItems = filters.data?.items ?? [];
   const tagItems = tags.data?.items ?? [];
+  const tagNeedle = tagQuery.trim().toLowerCase();
+  const visibleTags = [...tagItems]
+    .filter((tag) =>
+      tagNeedle.length > 0
+        ? tag.name.toLowerCase().includes(tagNeedle)
+        : showUnused || tag.active_task_count > 0,
+    )
+    .sort(
+      (left, right) =>
+        right.active_task_count - left.active_task_count || left.name.localeCompare(right.name),
+    );
   const projectItems = (projects.data?.items ?? []).filter((project) => !project.closed);
 
   useEffect(() => {
@@ -160,7 +180,9 @@ export function Sidebar({
             <Plus size={16} aria-hidden="true" />
           </Link>
         </SectionHead>
-        {filterItems.length === 0 ? <p className="nav-empty">{messages.filtersEmpty}</p> : null}
+        {filters.isSuccess && filterItems.length === 0 ? (
+          <p className="nav-empty">{messages.filtersEmpty}</p>
+        ) : null}
         <ul className="nav-list">
           {filterItems.map((filter) => (
             <li key={filter.id}>
@@ -301,7 +323,7 @@ export function Sidebar({
             <Plus size={16} aria-hidden="true" />
           </button>
         </SectionHead>
-        {tagItems.length === 0 && !addingTag ? (
+        {tags.isSuccess && tagItems.length === 0 && !addingTag ? (
           <p className="nav-empty">{messages.tagsEmpty}</p>
         ) : null}
         {addingTag ? (
@@ -354,12 +376,31 @@ export function Sidebar({
             {tagError !== null ? <p className="error">{tagError}</p> : null}
           </form>
         ) : null}
+        <input
+          className="nav-create"
+          value={tagQuery}
+          aria-label={messages.tagSearch}
+          placeholder={messages.tagSearch}
+          onChange={(event) => {
+            setTagQuery(event.target.value);
+          }}
+        />
+        <button
+          type="button"
+          className="nav-unused"
+          aria-pressed={showUnused}
+          onClick={() => {
+            setShowUnused((current) => !current);
+          }}
+        >
+          {showUnused ? messages.hideUnusedTags : messages.showUnusedTags}
+        </button>
         <ul className="nav-list">
-          {tagItems.map((tag) => {
-            const href = `/search?q=${encodeURIComponent(`#${tag.name}`)}`;
+          {visibleTags.map((tag) => {
+            const href = `/tag/${tag.id}`;
             const current = `${location.pathname}${location.search}` === href;
             return (
-              <li key={tag.id}>
+              <li key={tag.id} className="nav-row">
                 <Link
                   aria-current={current ? 'page' : undefined}
                   className={current ? 'nav-link is-active is-section' : 'nav-link is-section'}
@@ -370,6 +411,27 @@ export function Sidebar({
                   <span className="nav-label">{tag.name}</span>
                   {showCounters ? <Badge value={tag.active_task_count} /> : null}
                 </Link>
+                <button
+                  type="button"
+                  className="nav-more-btn"
+                  aria-label={messages.tagRename}
+                  aria-expanded={tagMenuId === tag.id}
+                  onClick={() => {
+                    setTagMenuId((current) => (current === tag.id ? null : tag.id));
+                  }}
+                >
+                  <MoreHorizontal size={16} aria-hidden="true" />
+                </button>
+                {tagMenuId === tag.id ? (
+                  <TagMenu
+                    tag={tag}
+                    tags={tagItems}
+                    messages={messages}
+                    onClose={() => {
+                      setTagMenuId(null);
+                    }}
+                  />
+                ) : null}
               </li>
             );
           })}
@@ -408,11 +470,14 @@ export function Sidebar({
         ) : null}
       </nav>
       <div className="sidebar-footer">
-        <SideLink to="/smart/trash" onNavigate={onNavigate}>
-          <span className="nav-label">{messages.smartTrash}</span>
-          {showCounters ? <Badge value={trash?.task_count ?? 0} /> : null}
-        </SideLink>
-        {confirmTrash ? (
+        {trashVisible ? (
+          <SideLink to="/smart/trash" onNavigate={onNavigate}>
+            <span className="nav-label">{messages.smartTrash}</span>
+            {showCounters && smart.isPending ? <span className="ui-badge">—</span> : null}
+            {showCounters && smart.isSuccess ? <Badge value={trash?.task_count ?? 0} /> : null}
+          </SideLink>
+        ) : null}
+        {confirmTrash && trashVisible ? (
           <div className="nav-confirm">
             <p>{messages.emptyTrashBody}</p>
             <button
@@ -428,43 +493,46 @@ export function Sidebar({
               {messages.confirmEmpty}
             </button>
           </div>
-        ) : (
+        ) : null}
+        {trashVisible ? (
           <button
             type="button"
-            className="text-button"
+            className="icon-btn"
+            aria-label={messages.emptyTrash}
+            title={messages.emptyTrash}
+            disabled={!smart.isSuccess || (trash?.task_count ?? 0) === 0}
             onClick={() => {
               setConfirmTrash(true);
             }}
           >
-            {messages.emptyTrash}
+            <Trash2 size={16} aria-hidden="true" />
           </button>
-        )}
+        ) : null}
         <button
           type="button"
-          className="theme-cycle"
+          className="icon-btn"
           aria-label={`${messages.themeLabel}: ${themeLabel}`}
+          title={`${messages.themeLabel}: ${themeLabel}`}
           onClick={() => {
             setPreference(nextTheme(preference));
           }}
         >
-          <span>
-            {messages.themeLabel}: {themeLabel}
-          </span>
+          <ThemeIcon preference={preference} />
         </button>
         <button
           type="button"
-          className="collapse-button"
+          className="icon-btn collapse-button"
           aria-keyshortcuts="["
           aria-expanded={!collapsed}
           aria-label={collapsed ? messages.expandSidebar : messages.collapseSidebar}
+          title={collapsed ? messages.expandSidebar : messages.collapseSidebar}
           onClick={onToggleCollapsed}
         >
           {collapsed ? (
-            <PanelLeftOpen size={18} aria-hidden="true" />
+            <PanelLeftOpen size={16} aria-hidden="true" />
           ) : (
-            <PanelLeftClose size={18} aria-hidden="true" />
+            <PanelLeftClose size={16} aria-hidden="true" />
           )}
-          <span>{collapsed ? messages.expandSidebar : messages.collapseSidebar}</span>
         </button>
       </div>
     </aside>
@@ -490,6 +558,16 @@ function Item({
       </SideLink>
     </li>
   );
+}
+
+function ThemeIcon({ preference }: { readonly preference: ThemePreference }) {
+  if (preference === 'light') {
+    return <Sun size={16} aria-hidden="true" />;
+  }
+  if (preference === 'dark') {
+    return <Moon size={16} aria-hidden="true" />;
+  }
+  return <Monitor size={16} aria-hidden="true" />;
 }
 
 function SideLink({
@@ -529,6 +607,94 @@ function SectionHead({
     <div className="nav-section-row">
       <p className="nav-section">{title}</p>
       {children}
+    </div>
+  );
+}
+
+function TagMenu({
+  tag,
+  tags,
+  messages,
+  onClose,
+}: {
+  readonly tag: { id: string; name: string; color: string | null };
+  readonly tags: readonly { id: string; name: string }[];
+  readonly messages: Messages;
+  readonly onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [name, setName] = useState(tag.name);
+  const [confirm, setConfirm] = useState(false);
+  const refresh = (): void => {
+    void queryClient.invalidateQueries({ queryKey: ['tags'] });
+    onClose();
+  };
+  return (
+    <div className="list-menu" role="menu">
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          const next = normalizeTagName(name);
+          if (next === null) {
+            return;
+          }
+          void api.updateTag(tag.id, { name: next }).then(refresh);
+        }}
+      >
+        <input
+          value={name}
+          aria-label={messages.tagRename}
+          onChange={(event) => {
+            setName(event.target.value);
+          }}
+        />
+        <button type="submit" className="menu-item">
+          {messages.tagRename}
+        </button>
+      </form>
+      <input
+        type="color"
+        aria-label={messages.tagRename}
+        defaultValue={tag.color ?? '#4772fa'}
+        onChange={(event) => {
+          void api.updateTag(tag.id, { color: event.target.value }).then(() => {
+            void queryClient.invalidateQueries({ queryKey: ['tags'] });
+          });
+        }}
+      />
+      <label>
+        {messages.tagMerge}
+        <select
+          defaultValue=""
+          onChange={(event) => {
+            if (event.target.value.length > 0) {
+              void api.mergeTags(tag.id, event.target.value).then(refresh);
+            }
+          }}
+        >
+          <option value="">{messages.tagMerge}</option>
+          {tags
+            .filter((item) => item.id !== tag.id)
+            .map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
+        </select>
+      </label>
+      <button
+        type="button"
+        className="menu-item is-danger"
+        onClick={() => {
+          if (!confirm) {
+            setConfirm(true);
+            return;
+          }
+          void api.deleteTag(tag.id).then(refresh);
+        }}
+      >
+        {confirm ? messages.tagDeleteBody : messages.batchDelete}
+      </button>
     </div>
   );
 }

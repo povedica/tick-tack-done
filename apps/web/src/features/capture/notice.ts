@@ -48,6 +48,7 @@ export interface CaptureNotice {
 interface NoticeStore {
   notice: CaptureNotice | null;
   setNotice: (notice: CaptureNotice) => void;
+  clear: () => void;
 }
 
 export const useCaptureNotice = create<NoticeStore>((set) => ({
@@ -55,4 +56,36 @@ export const useCaptureNotice = create<NoticeStore>((set) => ({
   setNotice: (notice) => {
     set({ notice });
   },
+  clear: () => {
+    set({ notice: null });
+  },
 }));
+
+interface CaptureOpenState {
+  open: boolean;
+  text: string;
+  show: (text?: string) => void;
+  hide: () => void;
+}
+
+export const useCaptureOpen = create<CaptureOpenState>((set) => ({
+  open: false,
+  text: '',
+  show: (text = '') => {
+    set({ open: true, text });
+  },
+  hide: () => {
+    set({ open: false, text: '' });
+  },
+}));
+
+/** The list composer is the TickTick field. The sheet is only the fallback. */
+export function openTaskComposer(text = ''): void {
+  const field = document.querySelector<HTMLInputElement>('.quick-add input, .inline-add input');
+  if (field !== null && text.length === 0) {
+    field.scrollIntoView({ block: 'center' });
+    field.focus();
+    return;
+  }
+  useCaptureOpen.getState().show(text);
+}
