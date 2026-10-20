@@ -111,7 +111,7 @@ export function TickyPage({ taskHint }: { readonly taskHint?: string }) {
         <textarea
           id="ticky-input"
           value={draft}
-          onChange={(event) => setDraft(event.target.value)}
+          onChange={(event) => { setDraft(event.target.value); }}
           placeholder={messages.tickyPlaceholder}
           rows={3}
           disabled={!online || send.isPending}

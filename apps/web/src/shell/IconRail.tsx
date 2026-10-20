@@ -52,7 +52,7 @@ export function IconRail({
           ...(cursor === undefined ? {} : { cursor }),
         });
         total += batch.items.length;
-        if (batch.next_cursor === null || batch.next_cursor === undefined) {
+        if (batch.next_cursor === null) {
           break;
         }
         cursor = batch.next_cursor;

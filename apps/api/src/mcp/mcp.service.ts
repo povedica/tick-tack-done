@@ -793,10 +793,11 @@ function draftFromRecurrence(raw: Record<string, unknown>): RepeatDraft {
               'month_week.weekday is invalid',
             );
           }
-          const week: Weekday = weekday;
           return {
-            setpos,
-            weekday: week,
+            // Narrowed above; cast keeps exactOptionalPropertyTypes happy.
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- setpos union
+            setpos: setpos as 1 | 2 | 3 | 4 | -1,
+            weekday: weekday as Weekday,
           };
         })();
 

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-deprecated, @typescript-eslint/no-base-to-string, @typescript-eslint/no-unnecessary-condition -- stats screen uses SDK unknowns and prefetch */
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -92,8 +93,7 @@ export function StatisticsPage() {
       queryKey: ['stats', 'habits', params],
       queryFn: () => statsApi.habits(params),
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- prefetch on range change
-  }, [params.from, params.to, params.list, params.tag, params.priority]);
+  }, [params.from, params.to, params.list, params.tag, params.priority, queryClient]);
 
   const overview = useQuery({
     queryKey: ['stats', 'overview', params],
@@ -165,7 +165,7 @@ export function StatisticsPage() {
         <div className="stats-header-row">
           <h1>{messages.navStatistics}</h1>
           <div className="stats-range">
-            <button type="button" className="stats-icon-btn" onClick={() => nudge(-1)} aria-label="Período anterior">
+            <button type="button" className="stats-icon-btn" onClick={() => { nudge(-1); }} aria-label="Período anterior">
               ‹
             </button>
             {(
@@ -181,12 +181,12 @@ export function StatisticsPage() {
                 key={key}
                 type="button"
                 className={rangeKey === key ? 'is-active' : undefined}
-                onClick={() => setRange(key)}
+                onClick={() => { setRange(key); }}
               >
                 {label}
               </button>
             ))}
-            <button type="button" className="stats-icon-btn" onClick={() => nudge(1)} aria-label="Período siguiente">
+            <button type="button" className="stats-icon-btn" onClick={() => { nudge(1); }} aria-label="Período siguiente">
               ›
             </button>
           </div>
@@ -194,7 +194,7 @@ export function StatisticsPage() {
             <button
               type="button"
               className="stats-filter-btn"
-              onClick={() => setFiltersOpen((value) => !value)}
+              onClick={() => { setFiltersOpen((value) => !value); }}
             >
               <SlidersHorizontal size={16} aria-hidden="true" />
               Filtros{filterCount > 0 ? ` · ${String(filterCount)}` : ''}
@@ -434,21 +434,21 @@ function OverviewTab({
           label="Completadas"
           value={String(num(summary.completed))}
           delta={numOrNull(summary.completed_delta_percent)}
-          onClick={() => onOpen('tasks')}
+          onClick={() => { onOpen('tasks'); }}
         />
         <Kpi
           label="Tasa de completitud"
           value={summary.completion_rate === null ? '—' : `${String(summary.completion_rate)} %`}
           hint={`${String(num(summary.completion_completed))}/${String(num(summary.completion_planned))}`}
           delta={numOrNull(summary.completion_rate_delta_pt)}
-          onClick={() => onOpen('tasks')}
+          onClick={() => { onOpen('tasks'); }}
         />
         <Kpi
           label="Tiempo de foco"
           value={formatDuration(num(summary.focus_minutes))}
           hint={`${String(num(summary.pomodoros))} pomodoros`}
           delta={numOrNull(summary.focus_minutes_delta_percent)}
-          onClick={() => onOpen('focus')}
+          onClick={() => { onOpen('focus'); }}
         />
         <Kpi
           label="Hábitos cumplidos"
@@ -456,13 +456,13 @@ function OverviewTab({
           hint={`${String(num(summary.habit_done))}/${String(num(summary.habit_expected))} días`}
           delta={numOrNull(summary.habit_delta_pt)}
           worseIsUp={false}
-          onClick={() => onOpen('habits')}
+          onClick={() => { onOpen('habits'); }}
         />
         <Kpi
           label="Racha de días productivos"
           value={`${String(num(summary.streak_current))} días`}
           hint={`mejor: ${String(num(summary.streak_best_year))}`}
-          onClick={() => onOpen('tasks')}
+          onClick={() => { onOpen('tasks'); }}
         />
         <article className="stats-card stats-kpi stats-achievement">
           <p className="stats-kpi-label">Valor de logro</p>
@@ -484,7 +484,7 @@ function OverviewTab({
             <summary>¿Cómo se calcula?</summary>
             <Formula formula={isRecord(achievement?.formula) ? achievement.formula : null} />
           </details>
-          <button type="button" className="stats-link-btn" onClick={() => onOpen('tasks')}>
+          <button type="button" className="stats-link-btn" onClick={() => { onOpen('tasks'); }}>
             Ver detalle
           </button>
         </article>
