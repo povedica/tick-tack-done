@@ -1,6 +1,14 @@
-import { displayTitle, looksLikeUuid } from '../tasks/displayTitle';
+import { displayTitle } from '../tasks/displayTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowUpDown, ChevronDown, Lightbulb, Menu, Sprout } from 'lucide-react';
+import {
+  ArrowUpDown,
+  ChevronDown,
+  Lightbulb,
+  Menu,
+  Sprout,
+  CalendarCheck,
+  ChevronRight,
+} from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { api } from '../../api';
@@ -40,7 +48,6 @@ import {
   parseSort,
   parseSortDir,
   partitionToday,
-  planTaskIds,
   rangeIds,
   shiftDayKey,
   visibleTasks,
@@ -64,7 +71,6 @@ const GROUP_KEY = 'tick-tack-done.today.group';
 const SORT_KEY = 'tick-tack-done.today.sort';
 const SORT_DIR_KEY = 'tick-tack-done.today.sortDir';
 const COLLAPSE_KEY = 'tick-tack-done.today.collapsed';
-const PLAN_KEY = 'tick-tack-done.plan.accepted';
 
 export function TodayPage() {
   const messages = useMessages();
@@ -100,11 +106,6 @@ export function TodayPage() {
   const [habitsHidden, setHabitsHidden] = useState(() =>
     habitsDismissed(readStored(HABITS_DISMISS_KEY), Date.now()),
   );
-  const [planAccepted, setPlanAccepted] = useState(
-    () =>
-      readStored(PLAN_KEY) ===
-      calendarDay(new Date().toISOString(), Intl.DateTimeFormat().resolvedOptions().timeZone),
-  );
   const [matrixLayout, setMatrixLayout] = useState(() => readMatrixLayout('today'));
   const jobs = useRef(new Map<string, CompleteJob>());
   const leaveTimers = useRef(new Map<string, number>());
@@ -125,6 +126,7 @@ export function TodayPage() {
   const showClosing = flags.day_closing;
   const showReplan = flags.day_replan;
   const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const timeZone = zone;
   const load = useQuery({
     queryKey: ['day-load', zone],
     enabled: showLoad,
@@ -155,12 +157,6 @@ export function TodayPage() {
     queryFn: () => countdownsApi.list(false, 7),
     refetchOnWindowFocus: false,
   });
-  const plan = useQuery({
-    queryKey: ['review-daily'],
-    queryFn: () => api.reviewDaily(),
-    refetchOnWindowFocus: false,
-  });
-  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   useEffect(() => {
     if (params.get('disabled') !== '1') {
@@ -470,9 +466,6 @@ export function TodayPage() {
     month: 'long',
   }).format(new Date());
   const activeHabits = (habits.data?.items ?? []).filter((habit) => !habit.archived);
-  const planIds = planTaskIds(plan.data);
-  const accepted = planAccepted;
-  const planTasks = (tasks.data ?? []).filter((task) => planIds.includes(task.id)).slice(0, 5);
   const empty =
     !tasks.isPending && !tasks.isError && parts.overdue.length + parts.today.length === 0;
   const menuTask = (tasks.data ?? []).find((task) => task.id === menu?.id);
@@ -634,88 +627,27 @@ export function TodayPage() {
         </div>
       </header>
       <TaskComposer inputRef={addRef} viewDay="today" defaultProjectId={inbox?.id} />
-      {planIds.length === 0 || accepted ? (
-        <p className="plan-line">
-          <Link className="app-link" to="/plan/day">
-            {messages.planMyDay}
-          </Link>
-        </p>
-      ) : (
-        <section className="plan">
-          <h2>{messages.planTitle}</h2>
-          {showLoad && load.data?.available_minutes != null ? (
-            <p className="plan-line">
-              {load.data.status === 'overload' && showReplan ? (
-                <Link className="app-link" to="/replan">
-                  {messages.loadOver.replace(
-                    '{minutes}',
-                    String(load.data.task_minutes - load.data.available_minutes),
-                  )}
-                </Link>
-              ) : (
-                messages.loadChip
-                  .replace('{used}', hoursLabel(load.data.task_minutes))
-                  .replace('{available}', hoursLabel(load.data.available_minutes))
-                  .replace(
-                    '{status}',
-                    load.data.status === 'tight' ? messages.loadTight : messages.loadOk,
-                  )
-              )}
-              {load.data.unestimated_count > 0 ? (
-                <span
-                  title={messages.loadUnestimated
-                    .replace('{count}', String(load.data.unestimated_count))
-                    .replace('{minutes}', '30')}
-                >
-                  {' '}
-                  · {load.data.unestimated_count}
-                </span>
-              ) : null}
-            </p>
-          ) : null}
-          <p className="plan-line">
-            {showClosing ? (
-              <Link className="app-link" to="/cierre">
-                {messages.closeDay}
-                {eveningTasks.length +
-                  parts.today.filter((task) => task.eveningOnly !== true).length >
-                0
-                  ? ` (${String(parts.today.filter((task) => task.eveningOnly !== true).length)})`
-                  : ''}
-              </Link>
+      <div className="today-plan-card">
+        <Link className="today-plan-entry" to="/plan/day">
+          <CalendarCheck size={20} aria-hidden="true" />
+          <span>
+            <strong>{messages.planMyDay}</strong>
+            <small>{messages.planDayHint}</small>
+          </span>
+          <ChevronRight size={18} aria-hidden="true" />
+        </Link>
+        {(showLoad && load.data?.available_minutes != null) || showClosing || showReplan ? (
+          <div className="today-plan-links">
+            {showLoad && load.data?.available_minutes != null ? (
+              <span>
+                {hoursLabel(load.data.task_minutes)} / {hoursLabel(load.data.available_minutes)}
+              </span>
             ) : null}
-            {showClosing && showReplan ? ' · ' : null}
-            {showReplan ? (
-              <Link className="app-link" to="/replan">
-                {messages.replanDay}
-              </Link>
-            ) : null}
-          </p>
-          <p>{messages.planHideHint}</p>
-          <ul>
-            {(planTasks.length > 0 ? planTasks : planIds.map((id) => ({ id, title: id }))).map(
-              (item) => (
-                <li key={item.id}>
-                  {looksLikeUuid(item.title)
-                    ? messages.untitled
-                    : displayTitle(item.title) || messages.untitled}
-                </li>
-              ),
-            )}
-          </ul>
-          <button
-            type="button"
-            className="ui-button is-primary is-sm"
-            onClick={() => {
-              const day = calendarDay(new Date().toISOString(), timeZone);
-              localStorage.setItem(PLAN_KEY, day);
-              setPlanAccepted(true);
-            }}
-          >
-            {messages.planHide}
-          </button>
-        </section>
-      )}
+            {showClosing ? <Link to="/cierre">{messages.closeDay}</Link> : null}
+            {showReplan ? <Link to="/replan">{messages.replanDay}</Link> : null}
+          </div>
+        ) : null}
+      </div>
       {countdowns.data?.items
         .filter((item) => item.kind === 'today' && item.showInSmartList)
         .map((item) => (

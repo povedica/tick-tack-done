@@ -41,6 +41,7 @@ describe('RF-101/102/601/801: task composer explicit metadata', () => {
       await prisma.activityLog.deleteMany({ where: { ownerId: owner } });
       await prisma.outboxEvent.deleteMany({ where: { ownerId: owner } });
       await prisma.idempotencyRecord.deleteMany({ where: { ownerId: owner } });
+      await prisma.dayPlan.deleteMany({ where: { ownerId: owner } });
       await prisma.reminder.deleteMany({ where: { ownerId: owner } });
       await prisma.taskTag.deleteMany({ where: { task: { ownerId: owner } } });
       await prisma.task.deleteMany({ where: { ownerId: owner } });
@@ -92,5 +93,53 @@ describe('RF-101/102/601/801: task composer explicit metadata', () => {
     const before = await prisma.task.count({ where: { ownerId: owner } });
     await create({ raw_text: 'No crear mañana', reminder_trigger: 'invalid' }).expect(400);
     expect(await prisma.task.count({ where: { ownerId: owner } })).toBe(before);
+  });
+  it('RF-2301: today-only sessions include planned ranges and expose recurrence without importing overdue tasks', async () => {
+    const inbox = await prisma.project.findFirstOrThrow({
+      where: { ownerId: owner, isInbox: true },
+    });
+    const rows = await Promise.all(
+      [
+        { title: 'Today commitment', dueDate: new Date('2026-10-20T12:00:00Z') },
+        {
+          title: 'Planned range',
+          startDate: new Date('2026-10-19T22:00:00Z'),
+          dueDate: new Date('2026-10-23T12:00:00Z'),
+        },
+        { title: 'Old task', dueDate: new Date('2026-10-19T12:00:00Z') },
+        {
+          title: 'Repeating today',
+          dueDate: new Date('2026-10-20T12:00:00Z'),
+          repeatRule: 'RRULE:FREQ=DAILY',
+        },
+      ].map((data) =>
+        prisma.task.create({
+          data: { ownerId: owner, createdById: owner, projectId: inbox.id, ...data },
+        }),
+      ),
+    );
+    const response = await request(server)
+      .post('/api/v1/planning/sessions')
+      .set('X-Dev-User-Email', email)
+      .send({
+        local_date: '2026-10-20',
+        time_zone: 'Europe/Madrid',
+        today: true,
+        overdue: false,
+        inbox: false,
+        undated: false,
+      })
+      .expect(201);
+    const cards = response.body.cards as {
+      task_id: string;
+      recurring: boolean | null;
+      reason: string;
+    }[];
+    expect(cards.map((card) => card.task_id)).toEqual(
+      expect.arrayContaining([rows[0]?.id, rows[1]?.id, rows[3]?.id]),
+    );
+    expect(cards.map((card) => card.task_id)).not.toContain(rows[2]?.id);
+    expect(cards.find((card) => card.task_id === rows[1]?.id)?.reason).toBe('planned_today');
+    expect(cards.find((card) => card.task_id === rows[3]?.id)?.recurring).toBe(true);
   });
 });

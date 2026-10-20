@@ -33,7 +33,10 @@ async function fixture(page: Page, fail = false) {
     if (path === '/projects/work')
       body = { id: 'work', name: 'Trabajo', kind: 'TASK', view_mode: 'list' };
     if (path === '/tags')
-      body = { items: [{ id: 'tag-1', name: 'personal', color: '#4772FA' }], next_cursor: null };
+      body = {
+        items: [{ id: 'tag-1', name: 'personal importante', color: '#4772FA' }],
+        next_cursor: null,
+      };
     if (path === '/tasks' && route.request().method() === 'POST') {
       const request = route.request().postDataJSON() as Record<string, unknown>;
       creations.push(request);
@@ -111,6 +114,7 @@ for (const width of [1280, 390]) {
     for (const path of ['/today', '/smart/tomorrow', '/inbox', '/list/work']) {
       await page.goto(path);
       const field = page.locator('.task-composer input[name=title]');
+      await expect(page.locator('.task-composer>input[type=file]')).toBeHidden();
       await field.fill('Preparar propuesta');
       await page.getByRole('button', { name: 'Fecha', exact: true }).click();
       const calendar = page.getByRole('dialog', { name: 'Fecha', exact: true });
@@ -135,10 +139,14 @@ for (const width of [1280, 390]) {
       expect(creations.at(-1)?.raw_text).toBe('Preparar propuesta');
     }
     await page.goto('/today');
+    await expect(page.getByRole('region', { name: 'Agenda de hoy' })).toHaveCount(0);
     await expect(
       page.getByRole('link', { name: /Planifica tu día|Planificar mi día/ }).first(),
     ).toBeVisible();
-    await page.screenshot({ path: info.outputPath(`today-agenda-${width}.png`), fullPage: true });
+    await page.screenshot({
+      path: info.outputPath(`today-plan-entry-${width}.png`),
+      fullPage: true,
+    });
     await page.locator('.task-composer input[name=title]').fill('Nueva tarea');
     await page.getByRole('button', { name: 'Opciones de tarea', exact: true }).click();
     await page.screenshot({ path: info.outputPath(`options-${width}.png`), fullPage: true });
@@ -163,4 +171,67 @@ test('RF-102: explicit metadata survives failure and clearing the date overrides
   await expect(page.getByRole('alert')).toBeVisible();
   await expect(field).toHaveValue('No perder el borrador');
   expect(creations[0]?.due_date).toBeNull();
+});
+
+test('RF-102/601/801: date, time, duration, recurrence, reminder and list survive the options menus', async ({
+  page,
+}) => {
+  const creations = await fixture(page);
+  await page.goto('/today');
+  const field = page.locator('.task-composer input[name=title]');
+  await field.fill('Preparar la reunión');
+  await page.getByRole('button', { name: 'Fecha', exact: true }).click();
+  const calendar = page.getByRole('dialog', { name: 'Fecha', exact: true });
+  await calendar.getByRole('button', { name: 'Mañana', exact: true }).click();
+  await calendar.getByRole('tab', { name: 'Duración', exact: true }).click();
+  await calendar.getByRole('button', { name: '45 min', exact: true }).click();
+  await calendar.getByRole('tab', { name: 'Fecha', exact: true }).click();
+  await calendar.getByRole('button', { name: /^Hora/ }).click();
+  await calendar.getByRole('textbox', { name: 'Hora', exact: true }).fill('18:30');
+  await calendar.getByRole('button', { name: /^Recordatorio/ }).click();
+  await calendar.getByRole('button', { name: '15 min antes', exact: true }).click();
+  await calendar.getByRole('button', { name: /^Repetir/ }).click();
+  await calendar.getByRole('button', { name: 'Cada semana', exact: true }).click();
+  await calendar.getByRole('button', { name: 'OK', exact: true }).click();
+  await page.getByRole('button', { name: 'Opciones de tarea', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Bandeja', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Trabajo', exact: true }).click();
+  await page.getByRole('button', { name: 'Opciones de tarea', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Etiqueta', exact: true }).click();
+  await page
+    .getByRole('dialog')
+    .getByRole('checkbox', { name: 'personal importante', exact: true })
+    .check();
+  await page.getByRole('dialog').getByRole('button', { name: 'OK', exact: true }).click();
+  await field.press('Enter');
+  await expect(field).toHaveValue('');
+  expect(creations).toHaveLength(1);
+  expect(creations[0]).toMatchObject({
+    raw_text: 'Preparar la reunión',
+    project_id: 'work',
+    due_date: '2026-10-21T16:30:00.000Z',
+    is_all_day: false,
+    duration_minutes: 45,
+    repeat_rule: 'RRULE:FREQ=WEEKLY',
+    reminder_trigger: 'TRIGGER:-PT15M',
+    tag_ids: ['tag-1'],
+  });
+});
+
+test('RF-101/102: global capture uses the same composer, retains shared text and returns to Today', async ({
+  page,
+}, info) => {
+  const creations = await fixture(page);
+  await page.goto('/quick-add?text=Comprar%20pan');
+  const field = page.locator('.task-composer input[name=title]');
+  await expect(field).toHaveValue('Comprar pan');
+  await page.getByRole('button', { name: 'Opciones de tarea', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Opciones de tarea' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(field).toBeFocused();
+  await page.screenshot({ path: info.outputPath('global-capture.png'), fullPage: true });
+  await field.press('Enter');
+  await expect(page).toHaveURL(/\/today/);
+  expect(creations).toHaveLength(1);
+  expect(creations[0]?.raw_text).toBe('Comprar pan');
 });

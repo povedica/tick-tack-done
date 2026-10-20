@@ -140,3 +140,32 @@ describe('staleTaskIds', () => {
     ).toEqual(['a']);
   });
 });
+
+it('RF-2301: the daily plan includes active start/deadline ranges, excludes overdue and preserves recurrence protection', () => {
+  const queue = planQueue(
+    [
+      task({
+        id: 'planned',
+        startDate: '2026-10-18T22:00:00Z',
+        dueDate: '2026-10-23T12:00:00Z',
+        recurring: true,
+      }),
+      task({ id: 'due', dueDate: '2026-10-19T12:00:00Z' }),
+      task({ id: 'old', dueDate: '2026-10-18T12:00:00Z' }),
+      task({ id: 'future', startDate: '2026-10-20T12:00:00Z', dueDate: '2026-10-21T12:00:00Z' }),
+      task({ id: 'undated' }),
+    ],
+    {
+      localDate: LOCAL,
+      timeZone: ZONE,
+      sources: { today: true, overdue: false, inbox: false, undated: false },
+      limit: null,
+    },
+  );
+  expect(queue.cards.map((card) => card.taskId).sort()).toEqual(['due', 'planned']);
+  expect(queue.cards.find((card) => card.taskId === 'planned')).toMatchObject({
+    recurring: true,
+    reason: 'planned_today',
+    startDate: '2026-10-18T22:00:00Z',
+  });
+});

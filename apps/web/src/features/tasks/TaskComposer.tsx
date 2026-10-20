@@ -65,7 +65,7 @@ export function TaskComposer({
   const [date, setDate] = useState<DateDraft | null>(null);
   const [priority, setPriority] = useState<'none' | 'low' | 'medium' | 'high' | undefined>();
   const [project, setProject] = useState<string | null>(null);
-  const [tags, setTags] = useState<string[]>([]);
+  const [tags, setTags] = useState<string[] | null>(null);
   const [kind, setKind] = useState<'task' | 'note'>('task');
   const [content, setContent] = useState('');
   const [details, setDetails] = useState(false);
@@ -78,7 +78,8 @@ export function TaskComposer({
   const continuation = useRef<{ id: string; uploaded: number } | null>(null);
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
-  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const account = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
+  const zone = account.data?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
   const tagQuery = useQuery({ queryKey: ['tags'], queryFn: collectTags });
   const request = useMemo(
@@ -105,6 +106,16 @@ export function TaskComposer({
       },
     [date, request],
   );
+  const tagIds =
+    tags ??
+    tagQuery.data?.items
+      .filter((tag) =>
+        request.parsed.tagNames.some(
+          (name) => name.toLocaleLowerCase() === tag.name.toLocaleLowerCase(),
+        ),
+      )
+      .map((tag) => tag.id) ??
+    [];
   const chosenPriority = priority ?? request.parsed.priority ?? 'none';
   const lists = projects.data?.items ?? [];
   const chosenList =
@@ -149,16 +160,10 @@ export function TaskComposer({
       let queued = false;
       let notice: CaptureNotice = { title: request.parsed.title, warnings: [] };
       if (continuation.current === null) {
-        const raw = [
-          text,
-          ...tags
-            .map((id) => tagQuery.data?.items.find((tag) => tag.id === id)?.name)
-            .filter((name): name is string => name !== undefined)
-            .map((name) => `#${name}`),
-        ].join(' ');
         const body = {
           ...request.body,
-          raw_text: raw,
+          raw_text: text,
+          ...(tags === null ? {} : { tag_ids: tags }),
           kind,
           content,
           ...(project === null ? {} : { project_id: project }),
@@ -205,7 +210,7 @@ export function TaskComposer({
       setDate(null);
       setPriority(undefined);
       setProject(null);
-      setTags([]);
+      setTags(null);
       setContent('');
       setFiles([]);
       setKind('task');
@@ -234,7 +239,7 @@ export function TaskComposer({
           void submit();
         }}
       >
-        <div className="composer-main">
+        <div className={text.trim().length > 0 ? 'composer-main has-draft' : 'composer-main'}>
           <Plus size={17} className="composer-plus" aria-hidden="true" />
           <div className="quick-add-field composer-field">
             <div ref={mirror} className="quick-add-mirror" aria-hidden="true">
@@ -325,15 +330,15 @@ export function TaskComposer({
             }}
           />
         ) : null}
-        {tags.length || files.length || kind === 'note' ? (
+        {tagIds.length || files.length || kind === 'note' ? (
           <div className="composer-chips">
-            {tags.map((id) => (
+            {tagIds.map((id) => (
               <button
                 key={id}
                 disabled={frozen}
                 type="button"
                 onClick={() => {
-                  setTags((old) => old.filter((tag) => tag !== id));
+                  setTags((old) => (old ?? tagIds).filter((tag) => tag !== id));
                 }}
               >
                 #{tagQuery.data?.items.find((tag) => tag.id === id)?.name} ×
@@ -520,10 +525,12 @@ export function TaskComposer({
               <label key={tag.id} className="popover-row">
                 <input
                   type="checkbox"
-                  checked={tags.includes(tag.id)}
+                  checked={tagIds.includes(tag.id)}
                   onChange={(event) => {
                     setTags((old) =>
-                      event.target.checked ? [...old, tag.id] : old.filter((id) => id !== tag.id),
+                      event.target.checked
+                        ? [...(old ?? tagIds), tag.id]
+                        : (old ?? tagIds).filter((id) => id !== tag.id),
                     );
                   }}
                 />
@@ -572,7 +579,16 @@ export function TaskComposer({
       ) : null}
       {error ? (
         <p role="alert" className="composer-error">
-          {error}
+          {error}{' '}
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              void submit();
+            }}
+          >
+            {messages.retry}
+          </button>
         </p>
       ) : null}
     </div>

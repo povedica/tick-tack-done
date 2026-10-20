@@ -91,7 +91,8 @@
 .composer-submit {
   display: none;
 }
-.composer-main:focus-within .composer-submit {
+.composer-main:focus-within .composer-submit,
+.composer-main.has-draft .composer-submit {
   display: flex;
 }
 .composer-date:hover,
@@ -233,4 +234,53 @@
 .date-popover .popover-actions {
   padding-top: 8px;
   border-top: 1px solid var(--border);
+}
+.today-plan-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin: 16px 0 24px;
+  background: var(--sidebar-bg);
+}
+.today-plan-entry {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  text-decoration: none;
+  color: var(--accent-ink);
+}
+.today-plan-entry > span {
+  display: grid;
+  flex: 1;
+  gap: 5px;
+  min-width: 0;
+}
+.today-plan-entry strong {
+  font-size: 14px;
+  color: var(--ink);
+}
+.today-plan-entry small {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-3);
+}
+.today-plan-entry:hover {
+  background: var(--accent-soft);
+  border-radius: 12px;
+}
+.today-plan-links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 0 16px 12px;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.today-plan-links a {
+  color: var(--accent-ink);
+  text-decoration: none;
+}
+.task-composer > input[type='file'][hidden] {
+  display: none !important;
 }

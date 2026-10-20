@@ -1858,7 +1858,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Open a day-planning session. Nothing is changed yet. */
+        /**
+         * Open a day-planning session. Nothing is changed yet.
+         * @description Sources can restrict the session to today only. Today includes active start/deadline ranges, excluding overdue tasks when overdue=false. Cards expose start_date and recurring (null for legacy snapshots); clients disable bulk actions when recurrence safety is unknown or recurring=true.
+         */
         post: operations["PlanningController_start"];
         delete?: never;
         options?: never;

@@ -47,3 +47,76 @@
     padding-inline: 1rem;
   }
 }
+.plan-day .page-header {
+  align-items: flex-start;
+}
+.plan-overview {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 0;
+  color: var(--ink-3);
+  font-size: 13px;
+}
+.plan-decision-chip {
+  border: 0;
+  border-radius: 8px;
+  padding: 5px 8px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.plan-day .plan-preview {
+  margin: 20px 0;
+  padding: 16px;
+  gap: 12px;
+}
+.plan-preview h2 {
+  font-size: 15px;
+  margin: 0;
+}
+.plan-preview p {
+  color: var(--ink-3);
+  font-size: 12px;
+  margin: 6px 0 0;
+}
+.plan-preview ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.plan-preview li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.plan-preview li strong {
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  min-width: 0;
+}
+.plan-preview li span {
+  color: var(--ink-3);
+}
+.plan-preview > .ui-button {
+  align-self: flex-start;
+}
+@media (max-width: 640px) {
+  .plan-preview li {
+    flex-direction: column;
+    gap: 4px;
+  }
+}
+.plan-task-list .weekly-task-context small {
+  color: var(--ink-3);
+  font-size: 11px;
+}

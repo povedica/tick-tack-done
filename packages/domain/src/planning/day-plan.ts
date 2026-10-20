@@ -4,7 +4,8 @@ import type { Priority, TaskStatus } from '../types';
 /** A review cap never hides work that is already due today. */
 export type PlanSection = 'today_timed' | 'today' | 'overdue' | 'inbox' | 'undated';
 
-export type PlanReason = 'due_today_at' | 'due_today' | 'overdue' | 'inbox' | 'undated';
+export type PlanReason =
+  'due_today_at' | 'due_today' | 'planned_today' | 'overdue' | 'inbox' | 'undated';
 
 export type PlanDecisionKind =
   'done' | 'plan_day' | 'later' | 'cancel' | 'trash' | 'skip' | 'someday';
@@ -21,6 +22,7 @@ export interface PlanTaskInput {
   readonly title: string;
   readonly priority: Priority;
   readonly dueDate: string | null;
+  readonly startDate?: string | null;
   readonly isAllDay: boolean;
   readonly timeZone: string;
   readonly status: TaskStatus;
@@ -32,6 +34,7 @@ export interface PlanTaskInput {
   readonly updatedAt: string;
   readonly createdAt: string;
   readonly isSomeday?: boolean;
+  readonly recurring?: boolean;
 }
 
 export interface PlanCard {
@@ -42,12 +45,14 @@ export interface PlanCard {
   readonly reasonText: string;
   readonly priority: Priority;
   readonly dueDate: string | null;
+  readonly startDate?: string | null;
   readonly isAllDay: boolean;
   readonly timeZone: string;
   readonly projectId: string;
   readonly projectName: string;
   readonly updatedAt: string;
   readonly rank: number;
+  readonly recurring?: boolean;
 }
 
 export interface PlanQueue {
@@ -192,16 +197,25 @@ function classify(
 ): Classified | null {
   const zone = task.timeZone.length > 0 ? task.timeZone : fallbackZone;
   const dueDay = task.dueDate === null ? null : civilDate(task.dueDate, zone);
-  if (dueDay === localDate) {
-    if (!sources.today) {
-      return null;
-    }
-    const timed = !task.isAllDay && task.dueDate !== null;
+  const startDay = task.startDate == null ? null : civilDate(task.startDate, zone);
+  const from = startDay ?? dueDay;
+  const until = dueDay ?? from;
+  if (from !== null && until !== null && from <= localDate && localDate <= until) {
+    if (!sources.today) return null;
+    const scheduled = task.startDate != null;
+    const instant = task.startDate ?? task.dueDate;
+    const timed = !task.isAllDay && instant !== null && (startDay ?? dueDay) === localDate;
     return {
       task,
       section: timed ? 'today_timed' : 'today',
-      reason: timed ? 'due_today_at' : 'due_today',
-      reasonText: timed ? `Vence hoy a las ${clockLabel(task.dueDate, zone)}` : 'Vence hoy',
+      reason: scheduled ? 'planned_today' : timed ? 'due_today_at' : 'due_today',
+      reasonText: scheduled
+        ? timed
+          ? `Planificada para hoy a las ${clockLabel(instant, zone)}`
+          : 'Planificada para hoy'
+        : timed
+          ? `Vence hoy a las ${clockLabel(instant, zone)}`
+          : 'Vence hoy',
       dueDay,
     };
   }
@@ -250,7 +264,9 @@ function compareCards(left: Classified, right: Classified): number {
     return section;
   }
   if (left.section === 'today_timed') {
-    const due = (left.task.dueDate ?? '').localeCompare(right.task.dueDate ?? '');
+    const due = (left.task.startDate ?? left.task.dueDate ?? '').localeCompare(
+      right.task.startDate ?? right.task.dueDate ?? '',
+    );
     if (due !== 0) {
       return due;
     }
@@ -283,12 +299,14 @@ function toCard(card: Classified, rank: number): PlanCard {
     reasonText: card.reasonText,
     priority: card.task.priority,
     dueDate: card.task.dueDate,
+    startDate: card.task.startDate ?? null,
     isAllDay: card.task.isAllDay,
     timeZone: card.task.timeZone,
     projectId: card.task.projectId,
     projectName: card.task.projectName,
     updatedAt: card.task.updatedAt,
     rank,
+    recurring: card.task.recurring ?? false,
   };
 }
 

@@ -1,6 +1,13 @@
 import { displayTitle } from '../tasks/displayTitle';
 import { ApiError } from '@reflexionia/sdk';
 import { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Check, Sun, CalendarDays, Ban } from 'lucide-react';
+import { PriorityCheck } from '../../components/PriorityCheck';
+import { Button } from '../../components/ui';
+import { refreshTaskSurfaces } from '../tasks/refresh';
+import '../product/weekly.css';
+import { useWeeklyCopy } from '../product/weekly-text';
 import { Link } from 'react-router';
 import { api } from '../../api';
 import { closingRequest } from '../closing/api';
@@ -15,6 +22,9 @@ interface PlanCard {
   readonly section: string;
   readonly reason_text: string;
   readonly project_name: string;
+  readonly project_id: string;
+  readonly due_date: string | null;
+  readonly recurring: boolean | null;
 }
 
 interface PlanDecisionRow {
@@ -49,97 +59,114 @@ interface AppliedPlan {
   }[];
 }
 
-const DECISIONS = ['done', 'plan_day', 'later', 'someday', 'cancel', 'trash'] as const;
-
 export function PlanDayPage() {
   const locale = useAppLocale();
-  const text: Copy = locale.toLowerCase().startsWith('en') ? english : spanish;
+  const text: Copy = locale.startsWith('en') ? english : spanish;
+  const weekly = useWeeklyCopy();
+  const cache = useQueryClient();
   const [session, setSession] = useState<PlanSession | null>(null);
   const [applied, setApplied] = useState<AppliedPlan | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [dates, setDates] = useState<Record<string, string>>({});
+  const [selected, setSelected] = useState<string[]>([]);
+  const [attempt, setAttempt] = useState(0);
   const [loadLine, setLoadLine] = useState<string | null>(null);
-
   useEffect(() => {
-    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Madrid';
     let cancelled = false;
+    setError(null);
     api
       .getMe()
-      .then((me) => {
-        const timeZone = me.time_zone || zone;
+      .then(async (me) => {
+        const timeZone = me.time_zone || Intl.DateTimeFormat().resolvedOptions().timeZone;
         const localDate = new Intl.DateTimeFormat('en-CA', {
           timeZone,
           year: 'numeric',
           month: '2-digit',
           day: '2-digit',
         }).format(new Date());
-        void closingRequest<{
-          task_minutes: number;
-          available_minutes: number | null;
-          status: string;
-        }>(
+        void closingRequest<{ task_minutes: number; available_minutes: number | null }>(
           `/api/v1/planning/load?date=${localDate}&time_zone=${encodeURIComponent(timeZone)}`,
           'GET',
-        ).then((load) => {
-          if (!cancelled && load.available_minutes !== null) {
-            const moved = 0;
-            setLoadLine(
-              `${String(load.task_minutes - moved)} de ${String(load.available_minutes)} min planificados · ${load.status === 'ok' ? 'el día tiene hueco' : load.status === 'tight' ? 'día completo' : 'sobrecarga'}`,
-            );
-          }
-        });
+        )
+          .then((load) => {
+            if (!cancelled && load.available_minutes !== null)
+              setLoadLine(`${String(load.task_minutes)} / ${String(load.available_minutes)} min`);
+          })
+          .catch(() => {
+            if (!cancelled) setLoadLine(null);
+          });
         return api.startPlan({
           local_date: localDate,
           time_zone: timeZone,
           today: true,
-          overdue: true,
+          overdue: false,
           inbox: false,
           undated: false,
         });
       })
       .then((body) => {
-        if (!cancelled) {
-          setSession(readSession(body));
-        }
+        if (!cancelled) setSession(readSession(body));
       })
       .catch((reason: unknown) => {
-        if (!cancelled) {
-          setError(messageOf(reason, text));
-        }
+        if (!cancelled) setError(messageOf(reason, text));
       });
     return () => {
       cancelled = true;
     };
-  }, [text]);
-
-  async function choose(card: PlanCard, decision: Decision, targetDate?: string): Promise<void> {
-    if (session === null) {
-      return;
-    }
+  }, [text, attempt]);
+  const cards =
+    session?.cards.filter((card) => card.section === 'today' || card.section === 'today_timed') ??
+    [];
+  const eligible = cards.filter(
+    (card) => selected.includes(card.task_id) && card.recurring === false,
+  );
+  const chosen = new Map(
+    session?.decisions
+      .filter((item) => cards.some((card) => card.task_id === item.task_id))
+      .map((item) => [item.task_id, item]) ?? [],
+  );
+  const actionable = [...chosen.values()].filter((item) => item.decision !== 'skip');
+  async function choose(decision: Decision) {
+    if (!session || busy || !eligible.length) return;
     setBusy(true);
     setError(null);
     try {
-      const target =
-        decision === 'later'
-          ? (targetDate ?? dates[card.task_id] ?? nextCivil(session.local_date))
-          : undefined;
-      const next = await api.decidePlan(session.id, card.task_id, {
-        decision,
-        ...(target === undefined ? {} : { target_date: target }),
-      });
-      setSession(readSession(next));
+      for (const card of eligible) {
+        const next = await api.decidePlan(session.id, card.task_id, {
+          decision,
+          ...(decision === 'later' ? { target_date: nextCivil(session.local_date) } : {}),
+        });
+        setSession(readSession(next));
+        setSelected((old) => old.filter((id) => id !== card.task_id));
+      }
     } catch (reason) {
       setError(messageOf(reason, text));
     } finally {
       setBusy(false);
     }
   }
-
-  async function apply(): Promise<void> {
-    if (session === null) {
-      return;
+  async function reset(card: PlanCard) {
+    if (!session || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      setSession(readSession(await api.decidePlan(session.id, card.task_id, { decision: 'skip' })));
+    } catch (reason) {
+      setError(messageOf(reason, text));
+    } finally {
+      setBusy(false);
     }
+  }
+  async function apply() {
+    if (!session || busy || !actionable.length) return;
+    const irreversible = actionable.filter(
+      (item) => item.decision === 'done' || item.decision === 'cancel',
+    );
+    if (
+      irreversible.length &&
+      !window.confirm(text.confirmCount.replace('{count}', String(irreversible.length)))
+    )
+      return;
     setBusy(true);
     setError(null);
     try {
@@ -149,125 +176,213 @@ export function PlanDayPage() {
         crypto.randomUUID(),
       );
       setApplied(readApplied(result));
+      await refreshTaskSurfaces(cache);
     } catch (reason) {
       setError(messageOf(reason, text));
-      if (reason instanceof ApiError && reason.code === 'plan_revision') {
-        const fresh = await api.planSession(session.id);
-        setSession(readSession(fresh));
-      }
+      if (reason instanceof ApiError && reason.code === 'plan_revision')
+        setSession(readSession(await api.planSession(session.id)));
     } finally {
       setBusy(false);
     }
   }
-
-  const chosen = new Map(session?.decisions.map((decision) => [decision.task_id, decision]) ?? []);
-  const actionable = session?.decisions.some((decision) => decision.decision !== 'skip') ?? false;
-
   return (
-    <section className="screen-page plan-day">
+    <section className="screen-page is-wide weekly-page review-page plan-day">
       <header className="page-header">
-        <h1>{text.title}</h1>
-        <p className="lede">{text.lede}</p>
-      </header>
-      {error !== null ? <p className="plan-error">{error}</p> : null}
-      {applied !== null ? (
-        <div className="plan-result">
-          <h2>{text.applied}</h2>
-          <ul>
-            {applied.applied.map((item) => (
-              <li key={item.task_id}>{text.effects[item.effect] ?? item.effect}</li>
-            ))}
-          </ul>
-          <p>
-            <Link to="/today">{text.back}</Link>
-            {' · '}
-            <Link to="/wont-do">{text.wontDo}</Link>
-          </p>
+        <div>
+          <h1>{text.title}</h1>
+          <p className="lede">{text.lede}</p>
         </div>
-      ) : session === null ? (
-        <p className="ui-muted">{text.loading}</p>
+        <Link to="/today">{text.finish}</Link>
+      </header>
+      {error ? (
+        <p className="plan-error" role="alert">
+          {error}{' '}
+          <Button
+            disabled={busy}
+            onClick={() => {
+              if (session) {
+                setBusy(true);
+                void api
+                  .planSession(session.id)
+                  .then((body) => {
+                    setSession(readSession(body));
+                    setError(null);
+                  })
+                  .catch((reason: unknown) => {
+                    setError(messageOf(reason, text));
+                  })
+                  .finally(() => {
+                    setBusy(false);
+                  });
+              } else setAttempt((old) => old + 1);
+            }}
+          >
+            {text.retry}
+          </Button>
+        </p>
+      ) : null}
+      {applied ? (
+        <div className="week-card plan-result" role="status">
+          <h2>{text.applied}</h2>
+          <p>
+            {String(applied.applied.length)} {text.updated}
+          </p>
+          <Link to="/today">{text.back}</Link>
+        </div>
+      ) : !session ? (
+        !error ? (
+          <p role="status">{text.loading}</p>
+        ) : null
       ) : (
         <>
-          {loadLine !== null ? <p className="ui-muted">{loadLine}</p> : null}
-          {session.hidden_overdue > 0 ? (
-            <p className="ui-muted">
-              {text.hidden.replace('{count}', String(session.hidden_overdue))}
-            </p>
-          ) : null}
-          {session.cards.length === 0 ? <p className="ui-muted">{text.empty}</p> : null}
-          <ol className="plan-cards">
-            {session.cards.map((card) => {
-              const decision = chosen.get(card.task_id);
-              return (
-                <li key={card.task_id} className="plan-card">
-                  <div>
-                    <p className="detail-title">{displayTitle(card.title)}</p>
-                    <p className="ui-muted">
-                      {card.reason_text} · {card.project_name}
-                    </p>
-                  </div>
-                  <div className="plan-choices" role="group" aria-label={displayTitle(card.title)}>
-                    {DECISIONS.map((kind) => (
-                      <button
-                        key={kind}
-                        type="button"
-                        className={
-                          decision?.decision === kind
-                            ? 'ui-button is-primary is-sm'
-                            : 'ui-button is-sm'
-                        }
-                        aria-pressed={decision?.decision === kind}
-                        disabled={busy}
-                        onClick={() => {
-                          void choose(card, kind);
-                        }}
-                      >
-                        {text.decisions[kind]}
-                      </button>
-                    ))}
-                  </div>
-                  {decision?.decision === 'later' ? (
-                    <label className="plan-later">
-                      {text.laterDate}
-                      <input
-                        type="date"
-                        value={
-                          dates[card.task_id] ??
-                          decision.target_date ??
-                          nextCivil(session.local_date)
-                        }
-                        onChange={(event) => {
-                          const value = event.target.value;
-                          setDates((current) => ({ ...current, [card.task_id]: value }));
-                          void choose(card, 'later', value);
-                        }}
-                      />
-                    </label>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ol>
-          <aside className="plan-preview">
-            <h2>{text.preview}</h2>
-            <ul>
-              {session.preview.effects
-                .filter((effect) => chosen.has(effect.task_id))
-                .map((effect) => (
-                  <li key={effect.task_id}>{effect.summary}</li>
-                ))}
+          <div className="plan-overview">
+            <span>
+              {new Date(`${session.local_date}T12:00:00Z`).toLocaleDateString(locale, {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+              })}
+            </span>
+            {loadLine ? (
+              <span>
+                {text.load}: {loadLine}
+              </span>
+            ) : null}
+          </div>
+          <p className="ui-muted">{weekly.count(cards.length, eligible.length)}</p>
+          {cards.length === 0 ? (
+            <div className="week-card">
+              <h2>{text.empty}</h2>
+              <Link to="/today">{text.back}</Link>
+            </div>
+          ) : (
+            <ul className="weekly-tasks plan-task-list">
+              {cards.map((card) => {
+                const decision = chosen.get(card.task_id);
+                return (
+                  <li
+                    key={card.task_id}
+                    className={selected.includes(card.task_id) ? 'is-selected' : ''}
+                  >
+                    <PriorityCheck
+                      priority="none"
+                      label={weekly.select(displayTitle(card.title))}
+                      checked={selected.includes(card.task_id)}
+                      disabled={busy || card.recurring !== false}
+                      onChange={(event) => {
+                        setSelected((old) =>
+                          event.target.checked
+                            ? [...old, card.task_id]
+                            : old.filter((id) => id !== card.task_id),
+                        );
+                      }}
+                    />
+                    <Link
+                      className="weekly-task-title"
+                      to={`/list/${card.project_id}?task=${card.task_id}`}
+                      title={card.title}
+                    >
+                      {displayTitle(card.title)}
+                    </Link>
+                    <span className="weekly-task-context">
+                      <span>{card.project_name}</span>
+                      <small>{card.reason_text}</small>
+                      {decision && decision.decision !== 'skip' ? (
+                        <button
+                          type="button"
+                          className="plan-decision-chip"
+                          disabled={busy}
+                          aria-label={`${text.reset}: ${displayTitle(card.title)}`}
+                          onClick={() => {
+                            void reset(card);
+                          }}
+                        >
+                          {text.decisions[decision.decision]} ×
+                        </button>
+                      ) : null}
+                    </span>
+                    {card.recurring !== false ? (
+                      <span className="weekly-repeat">{weekly.recurring}</span>
+                    ) : null}
+                  </li>
+                );
+              })}
             </ul>
-            <button
-              type="button"
-              className="ui-button is-primary"
-              disabled={busy || !actionable}
-              onClick={() => {
-                void apply();
-              }}
-            >
-              {text.apply}
-            </button>
-          </aside>
+          )}
+          {actionable.length ? (
+            <aside className="plan-preview week-card">
+              <div>
+                <h2>
+                  {text.preview} · {String(actionable.length)}
+                </h2>
+                <p>{text.previewHelp}</p>
+              </div>
+              <ul>
+                {session.preview.effects
+                  .filter((effect) => actionable.some((item) => item.task_id === effect.task_id))
+                  .map((effect) => (
+                    <li key={effect.task_id}>
+                      <strong>
+                        {displayTitle(
+                          cards.find((card) => card.task_id === effect.task_id)?.title ?? '',
+                        )}
+                      </strong>
+                      <span>{effect.summary}</span>
+                    </li>
+                  ))}
+              </ul>
+              <Button
+                variant="primary"
+                disabled={busy}
+                onClick={() => {
+                  void apply();
+                }}
+              >
+                {text.apply}
+              </Button>
+            </aside>
+          ) : null}
+          {eligible.length ? (
+            <div className="weekly-actions" aria-label={weekly.actions}>
+              <span className="weekly-selection-count">{weekly.selected(eligible.length)}</span>
+              <Button
+                disabled={busy}
+                onClick={() => {
+                  void choose('done');
+                }}
+              >
+                <Check size={16} />
+                {weekly.done}
+              </Button>
+              <Button
+                disabled={busy}
+                onClick={() => {
+                  void choose('plan_day');
+                }}
+              >
+                <Sun size={16} />
+                {weekly.today}
+              </Button>
+              <Button
+                disabled={busy}
+                onClick={() => {
+                  void choose('later');
+                }}
+              >
+                <CalendarDays size={16} />
+                {weekly.tomorrow}
+              </Button>
+              <Button
+                disabled={busy}
+                onClick={() => {
+                  void choose('cancel');
+                }}
+              >
+                <Ban size={16} />
+                {weekly.cancel}
+              </Button>
+            </div>
+          ) : null}
         </>
       )}
     </section>
@@ -335,6 +450,9 @@ function readSession(value: unknown): PlanSession {
         section: stringOf(item.section),
         reason_text: stringOf(item.reason_text),
         project_name: stringOf(item.project_name),
+        project_id: stringOf(item.project_id),
+        due_date: typeof item.due_date === 'string' ? item.due_date : null,
+        recurring: typeof item.recurring === 'boolean' ? item.recurring : null,
       };
     }),
     decisions: arrayOf(row.decisions).flatMap((decision) => {
@@ -418,10 +536,17 @@ function messageOf(reason: unknown, text: Copy): string {
 }
 
 const spanish = {
-  title: 'Planifica tu día',
-  lede: 'Nada cambia hasta que confirmas. «La haré hoy» no mueve la fecha de vencimiento. «No lo haré» no cuenta como completada.',
+  title: 'Planificar mi día',
+  finish: 'Terminar planificación',
+  retry: 'Reintentar',
+  updated: 'tareas actualizadas',
+  load: 'Carga del día',
+  reset: 'Quitar decisión',
+  previewHelp: 'Revisa tus decisiones. Las tareas sin decisión se quedan como están.',
+  confirmCount: 'Vas a completar o marcar como «No haré» {count} tareas. ¿Confirmas?',
+  lede: 'Selecciona las tareas de hoy y decide cómo continuar. Nada cambia hasta confirmar el plan.',
   loading: 'Preparando el plan…',
-  empty: 'No hay compromisos para hoy ni vencidas pendientes.',
+  empty: 'No hay tareas para hoy.',
   hidden: 'Hay {count} vencidas que no caben en esta pasada. Siguen en la lista de vencidas.',
   preview: 'Qué va a pasar',
   apply: 'Confirmar plan',
@@ -436,8 +561,8 @@ const spanish = {
   revision: 'El plan cambió. Revisa la vista previa otra vez.',
   decisions: {
     done: 'Hecho',
-    plan_day: 'La haré hoy',
-    later: 'Después',
+    plan_day: 'Hoy',
+    later: 'Mañana',
     someday: 'Algún día',
     cancel: 'No haré',
     trash: 'Papelera',
@@ -455,10 +580,17 @@ type Copy = Omit<typeof spanish, 'effects'> & { readonly effects: Record<string,
 
 const english: Copy = {
   ...spanish,
-  title: 'Plan your day',
-  lede: 'Nothing changes until you confirm. “I’ll do it today” does not move the due date. “I won’t do it” is not a completion.',
+  title: 'Plan my day',
+  finish: 'Finish planning',
+  retry: 'Retry',
+  updated: 'tasks updated',
+  load: 'Day load',
+  reset: 'Clear decision',
+  previewHelp: 'Review your decisions. Tasks without a decision remain unchanged.',
+  confirmCount: 'You will complete or mark {count} tasks as won’t do. Confirm?',
+  lede: 'Select today’s tasks and decide what comes next. Nothing changes until you confirm the plan.',
   loading: 'Preparing the plan…',
-  empty: 'Nothing is due today and nothing is overdue.',
+  empty: 'No tasks for today.',
   hidden: '{count} overdue tasks stay out of this pass. They remain in the overdue list.',
   preview: 'What will happen',
   apply: 'Confirm plan',
@@ -473,8 +605,8 @@ const english: Copy = {
   revision: 'The plan changed. Review the preview again.',
   decisions: {
     done: 'Done',
-    plan_day: 'I’ll do it today',
-    later: 'Later',
+    plan_day: 'Today',
+    later: 'Tomorrow',
     someday: 'Someday',
     cancel: 'I won’t do it',
     trash: 'Trash',
