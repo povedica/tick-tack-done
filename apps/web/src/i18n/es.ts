@@ -301,7 +301,8 @@ export const es = {
   loginFailed: 'Correo o contraseña incorrectos.',
   registerFailed: 'No se ha podido crear la cuenta.',
   consentTitle: 'Permiso para la aplicación',
-  consentHint: 'La aplicación pide estos permisos. Puedes quitar los que no quieras y revocar el token después.',
+  consentHint:
+    'La aplicación pide estos permisos. Puedes quitar los que no quieras y revocar el token después.',
   consentClient: 'Aplicación',
   consentRedirect: 'Volverá a',
   consentAllow: 'Permitir',
