@@ -11,6 +11,7 @@ import {
   extractMarkdownChecklist,
   isRasterImage,
   isIanaTimeZone,
+  nextOccurrence,
   normalizeTaskTitle,
   occurrencesBetween,
   resolveSubtaskProject,
@@ -88,6 +89,15 @@ type TaskWithBits = Prisma.TaskGetPayload<{ include: typeof taskInclude }>;
 
 export interface CreatedTask extends TaskDetail {
   readonly warnings?: readonly CaptureWarning[];
+}
+
+/** RF-2012. Optional series payload returned by complete (and MCP). */
+export interface CompletedTask extends CreatedTask {
+  readonly series?: {
+    readonly materialized: boolean;
+    readonly next_due_date: string | null;
+    readonly eta_seconds: number | null;
+  };
 }
 
 export interface TaskDetail extends TaskSummaryJson {
@@ -515,7 +525,11 @@ export class TasksService {
       key,
       fingerprint: requestFingerprint('POST', `/api/v1/tasks/${id}/complete`, dto),
       statusCode: 200,
-      execute: (tx) => this.completeIn(tx, user, id, dto.complete_children ?? null),
+      execute: (tx) =>
+        this.completeIn(tx, user, id, dto.complete_children ?? null, {
+          advance: dto.advance ?? 'one_period',
+          materializeNext: dto.materialize_next === true,
+        }),
     });
   }
 
@@ -855,7 +869,10 @@ export class TasksService {
       }
       if (dto.action === 'complete') {
         for (const id of dto.ids) {
-          await this.completeIn(tx, user, id, dto.complete_children ?? null);
+          await this.completeIn(tx, user, id, dto.complete_children ?? null, {
+            advance: 'one_period',
+            materializeNext: false,
+          });
         }
       } else if (dto.action === 'move') {
         if (dto.project_id === undefined) {
@@ -1580,7 +1597,11 @@ export class TasksService {
     user: AuthUser,
     id: string,
     choice: CompleteChildrenChoice | null,
-  ): Promise<TaskDetail> {
+    seriesOpts: { advance: 'one_period' | 'next_future'; materializeNext: boolean } = {
+      advance: 'one_period',
+      materializeNext: false,
+    },
+  ): Promise<CompletedTask> {
     const current = await this.require(tx, user.id, id, false);
     if (current.status === 'completed') {
       return this.load(tx, user, id, false);
@@ -1656,11 +1677,22 @@ export class TasksService {
       }
     }
     await this.cancelDeliveries(tx, [id, ...completedChildIds]);
+    const meta = this.isRecordMeta(current.metadata) ? { ...current.metadata } : {};
+    if (
+      current.repeatRule !== null &&
+      current.seriesId !== null &&
+      seriesOpts.advance === 'next_future'
+    ) {
+      meta.series_advance = 'next_future';
+    } else {
+      delete meta.series_advance;
+    }
     await tx.task.update({
       where: { id },
       data: {
         status: 'completed',
         completedAt: now,
+        metadata: asJson(meta),
         fieldClocks: asJson(
           stampTerminal(readClocks(current.fieldClocks), now.toISOString(), 'complete'),
         ),
@@ -1675,7 +1707,194 @@ export class TasksService {
       data: { task: asJson(detail) },
       previous: { status: current.status },
     });
-    return this.load(tx, user, id, false);
+
+    if (current.repeatRule === null || current.seriesId === null) {
+      return detail;
+    }
+
+    const source = await tx.task.findFirstOrThrow({
+      where: { id },
+      include: taskInclude,
+    });
+    const planned = await this.planSeriesSuccessor(
+      tx,
+      source,
+      seriesOpts.advance,
+      now.toISOString(),
+    );
+
+    if (seriesOpts.materializeNext) {
+      if (planned === null) {
+        const closedMeta = { ...meta };
+        delete closedMeta.series_advance;
+        await tx.task.update({
+          where: { id },
+          data: { recurrenceOpen: false, metadata: asJson(closedMeta) },
+        });
+        return {
+          ...(await this.load(tx, user, id, false)),
+          series: { materialized: false, next_due_date: null, eta_seconds: null },
+        };
+      }
+      const open = await tx.task.findFirst({
+        where: { seriesId: current.seriesId, status: 'active', deletedAt: null },
+        select: { id: true },
+      });
+      if (open === null) {
+        await this.insertSeriesSuccessor(tx, user, source, planned);
+      }
+      const cleared = { ...meta };
+      delete cleared.series_advance;
+      await tx.task.update({ where: { id }, data: { metadata: asJson(cleared) } });
+      return {
+        ...(await this.load(tx, user, id, false)),
+        series: {
+          materialized: true,
+          next_due_date: planned.due.toISOString(),
+          eta_seconds: null,
+        },
+      };
+    }
+
+    return {
+      ...(await this.load(tx, user, id, false)),
+      series: {
+        materialized: false,
+        next_due_date: planned?.due.toISOString() ?? null,
+        eta_seconds: 60,
+      },
+    };
+  }
+
+  private async planSeriesSuccessor(
+    tx: Tx,
+    source: TaskWithBits,
+    advance: 'one_period' | 'next_future',
+    nowIso: string,
+  ): Promise<{ due: Date; start: Date | null } | null> {
+    if (source.repeatRule === null || source.seriesId === null) {
+      return null;
+    }
+    const completedCount = await tx.task.count({
+      where: { seriesId: source.seriesId, deletedAt: null, status: 'completed' },
+    });
+    const next = nextOccurrence({
+      repeatRule: source.repeatRule,
+      repeatFrom: source.repeatFrom,
+      dueDate: source.dueDate === null ? null : source.dueDate.toISOString(),
+      startDate: source.startDate === null ? null : source.startDate.toISOString(),
+      completedAt: source.completedAt === null ? null : source.completedAt.toISOString(),
+      timeZone: source.timeZone,
+      isAllDay: source.isAllDay,
+      occurrenceIndex: completedCount,
+      advance,
+      now: nowIso,
+    });
+    if (!next.ok || next.occurrence === null) {
+      return null;
+    }
+    return {
+      due: new Date(next.occurrence.dueDate),
+      start: next.occurrence.startDate === null ? null : new Date(next.occurrence.startDate),
+    };
+  }
+
+  private async insertSeriesSuccessor(
+    tx: Tx,
+    user: AuthUser,
+    source: TaskWithBits,
+    next: { due: Date; start: Date | null },
+  ): Promise<string> {
+    if (source.repeatRule === null || source.seriesId === null) {
+      throw new DomainException(HttpStatus.CONFLICT, 'not_recurring', 'The task is not repeating');
+    }
+    const id = randomUUID();
+    const duration = deriveDurationMinutes({
+      startDate: next.start === null ? null : next.start.toISOString(),
+      dueDate: next.due.toISOString(),
+      explicit: source.durationMinutes,
+    });
+    await tx.task.create({
+      data: {
+        id,
+        ownerId: source.ownerId,
+        projectId: source.projectId,
+        parentId: source.parentId,
+        columnId: source.columnId,
+        title: source.title,
+        content: source.content,
+        kind: source.kind,
+        priority: source.priority,
+        isAllDay: source.isAllDay,
+        startDate: next.start,
+        dueDate: next.due,
+        timeZone: source.timeZone,
+        durationMinutes: duration.ok ? duration.durationMinutes : source.durationMinutes,
+        eveningOnly: false,
+        isSomeday: source.isSomeday,
+        repeatRule: source.repeatRule,
+        repeatFrom: source.repeatFrom,
+        seriesId: source.seriesId,
+        recurrenceOpen: true,
+        sortOrder: source.sortOrder,
+        createdById: source.createdById,
+        source: 'automation',
+      },
+    });
+    let itemOrder = 0n;
+    for (const item of source.checklist) {
+      itemOrder = sortOrderAtEnd(itemOrder === 0n ? null : itemOrder);
+      await tx.checklistItem.create({
+        data: {
+          ownerId: source.ownerId,
+          taskId: id,
+          title: item.title,
+          status: 'active',
+          sortOrder: itemOrder,
+          isAllDay: item.isAllDay,
+          timeZone: item.timeZone,
+          startDate: item.startDate,
+          dueDate: item.dueDate,
+        },
+      });
+    }
+    const reminders = await tx.reminder.findMany({
+      where: { taskId: source.id, deletedAt: null },
+    });
+    for (const reminder of reminders) {
+      await tx.reminder.create({
+        data: {
+          ownerId: source.ownerId,
+          taskId: id,
+          type: reminder.type,
+          trigger: reminder.trigger,
+          absoluteAt: reminder.absoluteAt,
+          channel: reminder.channel,
+        },
+      });
+    }
+    await this.linkTags(
+      tx,
+      id,
+      source.tags.map((tag) => tag.tagId),
+    );
+    const detail = await this.load(tx, user, id, false);
+    await this.events.record(tx, actorOf(user), {
+      type: source.kind === 'note' ? DomainEvent.noteCreated : DomainEvent.taskCreated,
+      entityType: source.kind === 'note' ? 'note' : 'task',
+      entityId: id,
+      action: 'created',
+      data: {
+        task: asJson(detail),
+        materialized_from: source.id,
+      },
+      previous: null,
+    });
+    return id;
+  }
+
+  private isRecordMeta(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
   }
 
   private async copyTask(

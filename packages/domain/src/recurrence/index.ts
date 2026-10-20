@@ -13,6 +13,13 @@ export interface RecurrenceInput {
   readonly isAllDay: boolean;
   /** 1-based count of the occurrence just completed. Used when repeat_from is completion_date. */
   readonly occurrenceIndex: number | null;
+  /**
+   * RF-2012. `one_period` (default) steps one interval from the due/completion anchor.
+   * `next_future` jumps to the first occurrence strictly after `now` (skipped dues are gone).
+   */
+  readonly advance?: 'one_period' | 'next_future';
+  /** Instant used when advance is `next_future`. Defaults to wall-clock now. */
+  readonly now?: string;
 }
 
 export interface Occurrence {
@@ -41,6 +48,21 @@ export function nextOccurrence(input: RecurrenceInput): RecurrenceResult {
     return { ok: false, reason: 'missing_anchor' };
   }
   const rule = parsed.rule.dtstart === null ? { ...parsed.rule, dtstart: origin } : parsed.rule;
+
+  if (input.advance === 'next_future') {
+    const after = input.now ?? new Date().toISOString();
+    const due = firstAfter(rule, input.timeZone, after);
+    if (due === null) {
+      return { ok: true, occurrence: null };
+    }
+    return {
+      ok: true,
+      occurrence: {
+        dueDate: due,
+        startDate: shiftStart(input.startDate, input.dueDate ?? origin, due),
+      },
+    };
+  }
 
   if (input.repeatFrom === 'completion_date') {
     if (input.completedAt === null) {

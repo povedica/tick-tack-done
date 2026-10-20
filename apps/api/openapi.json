@@ -12719,6 +12719,16 @@
               "complete",
               "leave"
             ]
+          },
+          "advance": {
+            "type": "string",
+            "enum": [
+              "one_period",
+              "next_future"
+            ]
+          },
+          "materialize_next": {
+            "type": "boolean"
           }
         }
       },
