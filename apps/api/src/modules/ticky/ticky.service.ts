@@ -373,8 +373,10 @@ export class TickyService implements OnModuleInit {
     threadId: string,
     clientMessageId: string,
     text: string,
+    modelId?: string,
   ): Promise<{ status: number; body: Record<string, unknown> }> {
     requireBrowserSession(user);
+    this.requireReadEnabled();
     this.limit(user.id, 'chat');
     const thread = await this.prisma.tickyThread.findFirst({
       where: { id: threadId, ownerId: user.id, deletedAt: null },
@@ -386,39 +388,30 @@ export class TickyService implements OnModuleInit {
         'El hilo no es de esta cuenta.',
       );
     }
-    const fingerprint = createHash('sha256').update(text).digest('hex');
+    const fingerprint = createHash('sha256')
+      .update(modelId === undefined ? text : JSON.stringify([text, modelId]))
+      .digest('hex');
     const existing = await this.prisma.tickyClientMessage.findUnique({
       where: { ownerId_clientMessageId: { ownerId: user.id, clientMessageId } },
     });
     if (existing !== null) {
-      if (existing.fingerprint !== fingerprint) {
+      if (existing.fingerprint !== fingerprint || existing.threadId !== threadId) {
         throw new DomainException(
           HttpStatus.CONFLICT,
           'idempotency_conflict',
           'Ese mensaje ya se envió con otro texto.',
         );
       }
-      return { status: existing.statusCode, body: existing.response as Record<string, unknown> };
-    }
-    if (!tickyFlags().model) {
-      const body = {
-        type: 'guidance',
-        status: 'model_not_configured',
-        message: 'El modelo no está configurado. No se ha llamado a ningún proveedor.',
-      };
-      await this.prisma.tickyClientMessage.create({
-        data: {
-          ownerId: user.id,
-          threadId,
-          clientMessageId,
-          fingerprint,
-          statusCode: 200,
-          response: asJson(body),
-        },
-      });
-      return { status: 200, body };
+      // Python revalidates retention, authority and canonical run state on replay.
     }
     const authority = await this.requireAuthority(user.id);
+    if (modelId !== undefined && !tickyFlags().model) {
+      throw new DomainException(
+        HttpStatus.SERVICE_UNAVAILABLE,
+        'model_not_configured',
+        'La generación no está activada. Puedes consultar sin IA.',
+      );
+    }
     const run = await this.python(
       'POST',
       '/internal/v1/runs',
@@ -430,44 +423,169 @@ export class TickyService implements OnModuleInit {
         thread_id: threadId,
         text,
         timezone: user.timeZone,
+        ...(modelId === undefined ? {} : { model_id: modelId }),
       },
     );
-    await this.prisma.tickyClientMessage.create({
-      data: {
-        ownerId: user.id,
-        threadId,
-        clientMessageId,
-        fingerprint,
-        statusCode: run.status,
-        response: asJson(run.body),
-        ...(typeof run.body.run_id === 'string' ? { runId: run.body.run_id } : {}),
-      },
+    const projection = {
+      statusCode: run.status,
+      response: asJson(run.body),
+      ...(typeof run.body.run_id === 'string' ? { runId: run.body.run_id } : {}),
+    };
+    await this.prisma.tickyClientMessage.upsert({
+      where: { ownerId_clientMessageId: { ownerId: user.id, clientMessageId } },
+      create: { ownerId: user.id, threadId, clientMessageId, fingerprint, ...projection },
+      update: projection,
     });
     return run;
   }
 
+  async models(user: AuthUser): Promise<Record<string, unknown>> {
+    requireBrowserSession(user);
+    this.requireReadEnabled();
+    if (!tickyFlags().model) {
+      return { items: [] };
+    }
+    const authority = await this.requireAuthority(user.id);
+    return (
+      await this.python(
+        'GET',
+        '/internal/v1/models',
+        'ticky-runs',
+        user.id,
+        authority.version,
+        undefined,
+      )
+    ).body;
+  }
+
   async openThread(user: AuthUser): Promise<{ id: string }> {
     requireBrowserSession(user);
-    const id = randomUUID();
+    this.requireReadEnabled();
+    const authority = await this.requireAuthority(user.id);
+    const result = await this.python(
+      'POST',
+      '/internal/v1/threads',
+      'ticky-runs',
+      user.id,
+      authority.version,
+      undefined,
+    );
+    const id = result.body.thread_id;
+    if (
+      typeof id !== 'string' ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+    ) {
+      throw new DomainException(
+        HttpStatus.BAD_GATEWAY,
+        'ticky_invalid_response',
+        'El servicio no devolvió un hilo válido.',
+      );
+    }
     await this.prisma.tickyThread.create({ data: { id, ownerId: user.id } });
     return { id };
   }
 
-  async listThreads(user: AuthUser): Promise<{ items: { id: string }[] }> {
-    const rows = await this.prisma.tickyThread.findMany({
-      where: { ownerId: user.id, deletedAt: null },
-      select: { id: true },
-      orderBy: { createdAt: 'desc' },
-    });
-    return { items: rows };
+  async listThreads(user: AuthUser): Promise<{ items: { id: string }[]; next_before: unknown }> {
+    requireBrowserSession(user);
+    this.requireReadEnabled();
+    const authority = await this.requireAuthority(user.id);
+    const page = (
+      await this.python(
+        'GET',
+        '/internal/v1/threads',
+        'ticky-runs',
+        user.id,
+        authority.version,
+        undefined,
+      )
+    ).body;
+    if (!Array.isArray(page.threads)) {
+      throw new DomainException(
+        HttpStatus.BAD_GATEWAY,
+        'ticky_invalid_response',
+        'El historial no es válido.',
+      );
+    }
+    const items: { id: string }[] = [];
+    const rows: readonly unknown[] = page.threads;
+    for (const row of rows) {
+      if (
+        row === null ||
+        typeof row !== 'object' ||
+        !('thread_id' in row) ||
+        typeof row.thread_id !== 'string'
+      ) {
+        throw new DomainException(
+          HttpStatus.BAD_GATEWAY,
+          'ticky_invalid_response',
+          'El historial no es válido.',
+        );
+      }
+      const id = row.thread_id;
+      const existing = await this.prisma.tickyThread.findUnique({ where: { id } });
+      if (existing !== null && existing.ownerId !== user.id) {
+        throw new DomainException(
+          HttpStatus.CONFLICT,
+          'thread_owner_conflict',
+          'No se ha podido verificar el hilo.',
+        );
+      }
+      await this.prisma.tickyThread.upsert({
+        where: { id },
+        create: { id, ownerId: user.id },
+        update: {},
+      });
+      items.push({ id });
+    }
+    return { items, next_before: page.next_before ?? null };
   }
 
-  async deleteThread(user: AuthUser, id: string): Promise<void> {
+  async threadMessages(user: AuthUser, id: string): Promise<Record<string, unknown>> {
     requireBrowserSession(user);
+    this.requireReadEnabled();
+    const authority = await this.requireAuthority(user.id);
+    return (
+      await this.python(
+        'GET',
+        `/internal/v1/threads/${id}/messages`,
+        'ticky-runs',
+        user.id,
+        authority.version,
+        undefined,
+      )
+    ).body;
+  }
+
+  async deleteThread(user: AuthUser, id: string): Promise<Record<string, unknown>> {
+    requireBrowserSession(user);
+    const authority = await this.requireAuthority(user.id);
+    const result = (
+      await this.python(
+        'DELETE',
+        `/internal/v1/threads/${id}`,
+        'ticky-runs',
+        user.id,
+        authority.version,
+        undefined,
+      )
+    ).body;
+    if (result.state !== 'pending' && result.state !== 'deleted') {
+      throw new DomainException(
+        HttpStatus.BAD_GATEWAY,
+        'ticky_invalid_response',
+        'No se ha podido confirmar el borrado.',
+      );
+    }
+    // Python owns history/erasure. The local row only prevents reuse of this projection.
     await this.prisma.tickyThread.updateMany({
       where: { id, ownerId: user.id, deletedAt: null },
       data: { deletedAt: new Date() },
     });
+    await this.prisma.tickyClientMessage.updateMany({
+      where: { ownerId: user.id, threadId: id },
+      data: { response: {}, runId: null, statusCode: 410 },
+    });
+    return result;
   }
 
   async cancelRun(user: AuthUser, runId: string): Promise<Record<string, unknown>> {
@@ -492,6 +610,7 @@ export class TickyService implements OnModuleInit {
     cursor: string | undefined,
     req: { on: (event: string, listener: () => void) => void },
     res: {
+      on: (event: string, listener: () => void) => void;
       flushHeaders: () => void;
       write: (chunk: string) => void;
       end: () => void;
@@ -500,10 +619,18 @@ export class TickyService implements OnModuleInit {
   ): Promise<void> {
     requireBrowserSession(user);
     this.acquireStream(user.id);
+    const disconnected = new AbortController();
+    let released = false;
     const release = (): void => {
+      if (released) {
+        return;
+      }
+      released = true;
+      disconnected.abort();
       this.releaseStream(user.id);
     };
-    req.on('close', release);
+    res.on('close', release);
+    req.on('aborted', release);
     if (
       !tickyFlags().ui ||
       process.env.TICKY_SERVICE_URL === undefined ||
@@ -539,7 +666,7 @@ export class TickyService implements OnModuleInit {
           accept: 'text/event-stream',
           ...(cursor === undefined || cursor.length === 0 ? {} : { 'Last-Event-ID': cursor }),
         },
-        signal: AbortSignal.timeout(65_000),
+        signal: AbortSignal.any([disconnected.signal, AbortSignal.timeout(65_000)]),
       });
       if (!response.ok || response.body === null) {
         res.write(
@@ -556,13 +683,17 @@ export class TickyService implements OnModuleInit {
         if (chunk.done) {
           break;
         }
-        if (!(chunk.value instanceof Uint8Array)) throw new Error('Invalid stream chunk');
+        if (!(chunk.value instanceof Uint8Array)) {
+          throw new Error('invalid_stream_chunk');
+        }
         res.write(decoder.decode(chunk.value, { stream: true }));
       }
       res.end();
     } catch {
-      res.write(`event: failed\ndata: ${JSON.stringify({ code: 'stream_interrupted' })}\n\n`);
-      res.end();
+      if (!disconnected.signal.aborted) {
+        res.write(`event: failed\ndata: ${JSON.stringify({ code: 'stream_interrupted' })}\n\n`);
+        res.end();
+      }
     } finally {
       release();
     }
@@ -847,6 +978,37 @@ export class TickyService implements OnModuleInit {
     }
   }
 
+  private upstreamStatus(status: number): HttpStatus {
+    switch (status) {
+      case 400:
+        return HttpStatus.BAD_REQUEST;
+      case 401:
+        return HttpStatus.UNAUTHORIZED;
+      case 403:
+        return HttpStatus.FORBIDDEN;
+      case 404:
+        return HttpStatus.NOT_FOUND;
+      case 409:
+        return HttpStatus.CONFLICT;
+      case 422:
+        return HttpStatus.UNPROCESSABLE_ENTITY;
+      case 429:
+        return HttpStatus.TOO_MANY_REQUESTS;
+      default:
+        return HttpStatus.BAD_GATEWAY;
+    }
+  }
+
+  private requireReadEnabled(): void {
+    if (!tickyFlags().read) {
+      throw new DomainException(
+        HttpStatus.SERVICE_UNAVAILABLE,
+        'ticky_not_ready',
+        'La lectura de Ticky no está activada.',
+      );
+    }
+  }
+
   private async python(
     method: string,
     path: string,
@@ -873,16 +1035,52 @@ export class TickyService implements OnModuleInit {
         'Falta la clave de firma del BFF.',
       );
     }
-    const response = await fetch(new URL(path, base), {
-      method,
-      headers: {
-        authorization: `Bearer ${token}`,
-        'content-type': 'application/json',
-        prefer: 'respond-async',
-      },
-      body: JSON.stringify(body),
-    });
-    const payload = (await response.json()) as Record<string, unknown>;
-    return { status: response.status, body: payload };
+    let response: Response;
+    try {
+      response = await fetch(new URL(path, base), {
+        method,
+        headers: {
+          authorization: `Bearer ${token}`,
+          'content-type': 'application/json',
+          prefer: 'respond-async',
+        },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+        signal: AbortSignal.timeout(65_000),
+      });
+    } catch {
+      throw new DomainException(
+        HttpStatus.SERVICE_UNAVAILABLE,
+        'ticky_unavailable',
+        'No se ha podido confirmar la respuesta de Ticky. Revisa el historial antes de repetir.',
+      );
+    }
+    if (!response.ok) {
+      throw new DomainException(
+        this.upstreamStatus(response.status),
+        'ticky_upstream_rejected',
+        'Ticky no ha aceptado la solicitud.',
+      );
+    }
+    let payload: unknown;
+    try {
+      payload = await response.json();
+    } catch {
+      throw new DomainException(
+        HttpStatus.BAD_GATEWAY,
+        'ticky_invalid_response',
+        'La respuesta de Ticky no es válida.',
+      );
+    }
+    if (method === 'GET' && path === '/internal/v1/models' && Array.isArray(payload)) {
+      return { status: response.status, body: { items: payload } };
+    }
+    if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) {
+      throw new DomainException(
+        HttpStatus.BAD_GATEWAY,
+        'ticky_invalid_response',
+        'La respuesta de Ticky no es válida.',
+      );
+    }
+    return { status: response.status, body: payload as Record<string, unknown> };
   }
 }

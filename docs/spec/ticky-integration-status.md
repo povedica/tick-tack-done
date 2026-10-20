@@ -1,3 +1,52 @@
+# Revalidación de integración Ticky — 20-10-2026
+
+La app en producción ejecuta `8b1ad1f`; la inspección SSH confirma flags Ticky y
+TICKY_SERVICE_URL sin configurar, sin contenedores Python ni LiteLLM. La integración
+incluida en main no equivale a conexión operativa. No se ha modificado producción.
+
+Rama actual `codex/ticky-end-to-end`, base `7774826`. Se conserva el checkout del
+usuario y sus movimientos locales de documentos. Cambios del corte APP-03:
+
+- Hilos e historial canónicos en Python; la app mantiene una proyección owner/id.
+- El flag de modelo no impide consultas deterministas; selección model_id explícita.
+- GET `/api/v1/ticky/models`: catálogo server-side con `{items:[{id,label}]}`;
+  vacío con generación apagada. POST de mensaje admite model_id público opcional.
+- GET `/api/v1/ticky/threads/:id/messages`: historial canónico privado, con los
+  scopes de lectura de propuestas. La paginación privada no se expone aún completa.
+- DELETE de hilo devuelve el resultado real `pending` (202) o `deleted` (200),
+  borra contenido cacheado local y conserva tombstones de idempotencia.
+- Replay se revalida contra Python; no sirve contenido cacheado fuera de retención.
+- UI consume accepted/SSE, resultado final y títulos; reconecta el stream con cursor,
+  sin repetir POST. Las propuestas todavía necesitan su UI y almacenamiento.
+- Lint/tipos/pruebas anteriores de la app se han actualizado sin desactivar gates:
+  pairing one-time y replay Telegram sintéticos; flags existentes; APIs vigentes.
+
+Prueba real HTTP correcta con NestJS, FastAPI, bases PostgreSQL separadas y Redis:
+PAT acotado/capabilities → tarea real sintética → admisión async → SSE → replay →
+historial → borrado remoto y purga de cache local. No proveedor ni Telegram real.
+Harness reproducible en `scripts/crossrepo_smoke.sh` del repo Python. No acredita
+executor CAS/outbox, reinicio de checkpoints, UI completa ni producción.
+
+Pendiente: ContextSnapshot compatible y enviado, memoria/rutinas canónicas,
+propuestas/aprobación, pruebas de aislamiento/revocación/concurrencia y UI real.
+La aceptación generativa y las decisiones operativas siguen sin acreditarse.
+
+Despliegue autorizado por Pablo sobre infraestructura existente; nueva app privada
+para `ia-ticky.reflexionia.com`. La definición preparada en el repo Python conserva
+los efectos/modelo apagados, exige retención e imágenes por digest y un artefacto
+de migraciones. Requiere revisión humana explícita de políticas/privacidad/riesgos
+de imagen y backup/restore antes del rollout. No autoaprobar esos gates.
+
+Evidencia local: lint/tipos correctos;233 dominio,9 SDK,68 API,75 web,
+81 integración correctos; crossrepo aparte correcto con aviso de working tree.
+OpenAPI/SDK regenerados y builds API/UI correctos. Aún falta el par final por SHA,
+CI remota y revisión humana. No se ha ejecutado Playwright de UI real.
+
+Rollback: revertir el corte o apagar flags UI/read/model. No hay migraciones nuevas;
+conservar ledger/tombstones/supresiones y drenar escritores Python compatibles.
+
+## Matriz histórica (anterior a esta revalidación)
+
 # Matriz de integración Ticky (APP/TK/RF)
 
 Actualizado con la implementación en `feat/ticky-integration`. Flags de efecto apagados

@@ -1570,6 +1570,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ticky/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List models granted server-side; empty while generation is disabled */
+        get: operations["TickyController_models"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ticky/threads": {
         parameters: {
             query?: never;
@@ -1588,6 +1605,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ticky/threads/{id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read canonical Python conversation history for the authenticated owner */
+        get: operations["TickyController_threadMessages"];
+        put?: never;
+        /** Post a chat message (idempotent client_message_id) */
+        post: operations["TickyController_postMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ticky/threads/{id}": {
         parameters: {
             query?: never;
@@ -1598,25 +1633,8 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Soft-delete a thread (does not delete tasks/memories) */
+        /** Delete canonical conversation history; return pending until checkpoints are erased */
         delete: operations["TickyController_deleteThread"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/ticky/threads/{id}/messages": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Post a chat message (idempotent client_message_id) */
-        post: operations["TickyController_postMessage"];
-        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -4267,6 +4285,7 @@ export interface components {
             estimate_learning_enabled?: boolean;
         };
         PostTickyMessageDto: {
+            model_id?: string;
             client_message_id: string;
             text: string;
         };
@@ -7267,6 +7286,25 @@ export interface operations {
             };
         };
     };
+    TickyController_models: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     TickyController_listThreads: {
         parameters: {
             query?: never;
@@ -7305,7 +7343,7 @@ export interface operations {
             };
         };
     };
-    TickyController_deleteThread: {
+    TickyController_threadMessages: {
         parameters: {
             query?: never;
             header?: {
@@ -7344,6 +7382,27 @@ export interface operations {
         };
         responses: {
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TickyController_deleteThread: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

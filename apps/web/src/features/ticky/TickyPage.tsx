@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useMessages } from '../../i18n';
-import { tickyApi, type GuidanceBody } from './api';
+import { tickyApi, waitForTickyRun } from './api';
 import './ticky.css';
 
 type Phase =
@@ -23,11 +23,18 @@ export function TickyPage({ taskHint }: { readonly taskHint?: string }) {
   const [phase, setPhase] = useState<Phase>('idle');
   const [draft, setDraft] = useState(taskHint ?? '');
   const [log, setLog] = useState<string[]>([]);
+  const [modelId, setModelId] = useState('');
   const [threadId, setThreadId] = useState<string | null>(null);
 
   const flags = useQuery({
     queryKey: ['ticky', 'flags'],
     queryFn: () => tickyApi.flags(),
+  });
+
+  const models = useQuery({
+    queryKey: ['ticky', 'models'],
+    queryFn: () => tickyApi.models(),
+    enabled: flags.data?.model === true,
   });
 
   useEffect(() => {
@@ -56,15 +63,45 @@ export function TickyPage({ taskHint }: { readonly taskHint?: string }) {
       }
       setPhase('preparing');
       const clientMessageId = crypto.randomUUID();
-      const body = await tickyApi.postMessage(id, clientMessageId, draft.trim());
+      const body = await tickyApi.postMessage(
+        id,
+        clientMessageId,
+        draft.trim(),
+        modelId.length > 0 ? modelId : undefined,
+      );
+      if (typeof body.run_id === 'string' && body.status === 'accepted') {
+        return waitForTickyRun(body.run_id, AbortSignal.timeout(195_000));
+      }
       return body;
     },
     onSuccess: (body) => {
-      const guidance = body as GuidanceBody;
       const line =
-        typeof guidance.message === 'string' ? guidance.message : messages.tickyGenericReply;
-      setLog((prev) => [...prev, line]);
-      setPhase(guidance.status === 'model_not_configured' ? 'done' : 'review');
+        typeof body.text === 'string'
+          ? body.text
+          : typeof body.message === 'string'
+            ? body.message
+            : messages.tickyGenericReply;
+      const titles: string[] = [];
+      if (
+        body.card !== null &&
+        typeof body.card === 'object' &&
+        'tasks' in body.card &&
+        Array.isArray(body.card.tasks)
+      ) {
+        const tasks: readonly unknown[] = body.card.tasks;
+        for (const task of tasks) {
+          if (
+            task !== null &&
+            typeof task === 'object' &&
+            'title' in task &&
+            typeof task.title === 'string'
+          ) {
+            titles.push(task.title);
+          }
+        }
+      }
+      setLog((prev) => [...prev, line, ...titles]);
+      setPhase(body.proposal === null || body.proposal === undefined ? 'done' : 'review');
       setDraft('');
       void queryClient.invalidateQueries({ queryKey: ['ticky'] });
     },
@@ -95,6 +132,25 @@ export function TickyPage({ taskHint }: { readonly taskHint?: string }) {
           <li key={`${String(index)}-${line.slice(0, 12)}`}>{line}</li>
         ))}
       </ul>
+      {flags.data?.model === true && models.data !== undefined ? (
+        <label>
+          Modelo
+          <select
+            value={modelId}
+            onChange={(event) => {
+              setModelId(event.target.value);
+            }}
+            disabled={send.isPending}
+          >
+            <option value="">Sin IA</option>
+            {models.data.items.map((model) => (
+              <option key={model.id} value={model.id}>
+                {model.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
       <form
         className="ticky-composer"
         onSubmit={(event) => {

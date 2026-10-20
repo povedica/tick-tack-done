@@ -9,6 +9,7 @@ import {
   IsUUID,
   Max,
   MaxLength,
+  Matches,
   Min,
   MinLength,
 } from 'class-validator';
@@ -65,6 +66,12 @@ export class UpdateTickyAuthorityDto {
 }
 
 export class PostTickyMessageDto {
+  @ApiPropertyOptional({ pattern: '^[a-z][a-z0-9-]{0,63}$' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[a-z][a-z0-9-]{0,63}$/)
+  model_id?: string;
+
   @ApiProperty()
   @IsString()
   @MinLength(1)
