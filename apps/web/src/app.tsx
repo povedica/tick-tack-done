@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useNavigate, useSearchParams } from 'react-router';
 import { CaptureSheet } from './features/capture/components/CaptureSheet';
 import { TokensPage } from './features/tokens/components/TokensPage';
@@ -50,6 +50,8 @@ import {
   WebhookSettings,
 } from './features/settings/MoreSettings';
 import { AppearancePage } from './features/settings/AppearancePage';
+import { FeaturesPage } from './features/settings/FeaturesPage';
+import { useFeatures, type FeatureFlags } from './features/settings/feature-flags';
 import { ConsentPage } from './features/auth/ConsentPage';
 import { LoginPage, RegisterPage } from './features/auth/AuthPages';
 import { RequireSession, SessionBootstrap } from './features/auth/RequireSession';
@@ -128,12 +130,33 @@ function Shell() {
             <Route path="/smart-lists/:key" element={<SmartListViewPage />} />
             <Route path="/task/:id" element={<TaskRoute />} />
             <Route path="/habits" element={<HabitsPage />} />
-            <Route path="/countdowns" element={<CountdownsPage />} />
+            <Route
+              path="/countdowns"
+              element={
+                <FeatureRoute flag="countdowns">
+                  <CountdownsPage />
+                </FeatureRoute>
+              }
+            />
             <Route path="/habits/:id" element={<HabitDetailPage />} />
             <Route path="/calendar" element={<Navigate to="/calendar/month" replace />} />
             <Route path="/calendar/:view" element={<CalendarPage />} />
-            <Route path="/matrix" element={<MatrixPage />} />
-            <Route path="/focus" element={<FocusPage />} />
+            <Route
+              path="/matrix"
+              element={
+                <FeatureRoute flag="matrix">
+                  <MatrixPage />
+                </FeatureRoute>
+              }
+            />
+            <Route
+              path="/focus"
+              element={
+                <FeatureRoute flag="focus">
+                  <FocusPage />
+                </FeatureRoute>
+              }
+            />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/reports/weekly" element={<ReportsPage />} />
             <Route path="/reports/weekly/:week" element={<ReportsPage />} />
@@ -149,6 +172,7 @@ function Shell() {
             <Route path="/settings" element={<SettingsLayout />}>
               <Route index element={<SettingsHome />} />
               <Route path="appearance" element={<AppearancePage />} />
+              <Route path="features" element={<FeaturesPage />} />
               <Route path="account" element={<AccountPage />} />
               <Route path="capture" element={<CaptureSettings />} />
               <Route path="notifications" element={<NotificationSettings />} />
@@ -170,6 +194,20 @@ function Shell() {
       </Routes>
     </>
   );
+}
+
+function FeatureRoute({
+  flag,
+  children,
+}: {
+  readonly flag: keyof FeatureFlags;
+  readonly children: ReactNode;
+}) {
+  const enabled = useFeatures((state) => state.flags[flag]);
+  if (!enabled) {
+    return <Navigate to="/today?disabled=1" replace />;
+  }
+  return children;
 }
 
 function QuickAddRoute() {

@@ -33,6 +33,7 @@ import { newMutation, runOrQueue } from '../offline/client';
 import { collectTasks } from '../today/board';
 import { formatDueTime } from '../today/groups';
 import { TaskList } from '../tasks/TaskList';
+import { HourGrid } from './HourGrid';
 import {
   calendarTaskLabel,
   dayFromParam,
@@ -296,7 +297,6 @@ export function CalendarPage() {
   const messages = useMessages();
   const locale = useAppLocale();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { view } = useParams();
   const [params, setParams] = useSearchParams();
   const current = CAL_VIEWS.includes(view as (typeof CAL_VIEWS)[number]) ? view : 'month';
@@ -327,6 +327,7 @@ export function CalendarPage() {
   });
   const [showTasks, setShowTasks] = useState(true);
   const [openEvent, setOpenEvent] = useState<ExternalEventView | null>(null);
+  const [picked, setPicked] = useState<string | null>(null);
   const external = (
     Array.isArray(externalQuery.data?.external) ? externalQuery.data.external : []
   ).filter(isExternalEvent);
@@ -343,7 +344,6 @@ export function CalendarPage() {
   const dated = showTasks
     ? (tasks.data ?? []).filter((task) => task.due_date !== null && task.kind === 'task')
     : [];
-  const day = current === 'day' ? (cells[0] ?? localToday(cursor)) : null;
   const title = calendarTitle(locale, current ?? 'month', cursor, cells);
   const move = (delta: number): void => {
     const next = shiftView(cursor, current ?? 'month', delta, weekStart);
@@ -426,8 +426,6 @@ export function CalendarPage() {
         <QuarterBoard
           months={quarterMonths(cursor)}
           tasks={dated}
-          events={external}
-          onOpenEvent={setOpenEvent}
           weekStart={weekStart}
           messages={messages}
           onOpen={(month) => {
@@ -449,50 +447,48 @@ export function CalendarPage() {
         />
       ) : null}
       {current === 'agenda' ? (
-        <Agenda tasks={dated} locale={locale} messages={messages} colors={colors} />
-      ) : null}
-      {current === 'day' && day !== null ? (
-        <TaskList
-          messages={messages}
-          rows={tasksOnCell(dated, day).map((task) =>
-            rowFromTask(
-              {
-                ...task,
-                title: calendarTaskLabel(
-                  task.title,
-                  task.due_date,
-                  task.time_zone,
-                  messages.untitled,
-                ),
-              },
-              new Map(),
-              new Map(),
-            ),
-          )}
-          locale={locale}
-          view="list"
-          hideCompleted={false}
-          onComplete={(row) => {
-            void api.completeTask(row.id, {}, crypto.randomUUID()).then(() => {
-              void refreshTaskSurfaces(queryClient);
-            });
-          }}
-        />
-      ) : null}
-      {current === 'week' ||
-      current === 'multi-day' ||
-      current === 'multi-week' ||
-      current === 'month' ? (
-        <DayGrid
-          days={current === 'month' ? monthCells(startOfMonth(cursor), weekStart) : cells}
-          columns={current === 'multi-day' ? 3 : 7}
+        <Agenda
           tasks={dated}
           events={external}
-          onOpenEvent={setOpenEvent}
+          locale={locale}
           messages={messages}
-          cursor={cursor}
-          outsideMonth={current === 'month' || current === 'multi-week'}
+          colors={colors}
+          onOpenEvent={setOpenEvent}
         />
+      ) : null}
+      {current === 'day' || current === 'week' || current === 'multi-day' ? (
+        <HourGrid
+          days={cells}
+          tasks={dated}
+          events={external}
+          messages={messages}
+          onOpenEvent={setOpenEvent}
+        />
+      ) : null}
+      {current === 'multi-week' || current === 'month' ? (
+        <>
+          <DayGrid
+            days={current === 'month' ? monthCells(startOfMonth(cursor), weekStart) : cells}
+            columns={7}
+            tasks={dated}
+            events={external}
+            onOpenEvent={setOpenEvent}
+            messages={messages}
+            cursor={cursor}
+            outsideMonth
+            onPick={setPicked}
+          />
+          {picked !== null ? (
+            <DaySheet
+              dayKey={picked}
+              tasks={dated}
+              events={external}
+              messages={messages}
+              colors={colors}
+              onOpenEvent={setOpenEvent}
+            />
+          ) : null}
+        </>
       ) : null}
     </section>
   );
@@ -553,6 +549,8 @@ function DayGrid({
   messages,
   cursor,
   outsideMonth,
+  onPick,
+  dots = false,
 }: {
   readonly days: readonly Date[];
   readonly columns: number;
@@ -562,6 +560,8 @@ function DayGrid({
   readonly messages: Messages;
   readonly cursor: Date;
   readonly outsideMonth: boolean;
+  readonly onPick?: (dayKey: string) => void;
+  readonly dots?: boolean;
 }) {
   const locale = useAppLocale();
   const todayKey = localKey(new Date());
@@ -571,7 +571,7 @@ function DayGrid({
   );
   return (
     <div
-      className="cal-month"
+      className={dots ? 'cal-month is-dots' : 'cal-month'}
       style={{ gridTemplateColumns: `repeat(${String(columns)}, minmax(0, 1fr))` }}
     >
       {heads.map((label, index) => (
@@ -603,37 +603,55 @@ function DayGrid({
         return (
           <div key={key} className={classes}>
             <strong>
-              <Link to={href}>{day.getDate()}</Link>
-            </strong>
-            {chips.slice(0, 3).map((chip) =>
-              chip.kind === 'task' ? (
-                <Link
-                  key={chip.task.id}
-                  className={
-                    isCalendarOverdue(chip.task.due_date, chip.task.time_zone, new Date())
-                      ? 'cal-pill is-overdue'
-                      : 'cal-pill'
-                  }
-                  to={`/list/${chip.task.project_id}?task=${chip.task.id}`}
-                >
-                  {chipLabel(chip.task, messages.untitled, locale)}
-                </Link>
-              ) : (
+              {onPick !== undefined ? (
                 <button
-                  key={chip.event.id}
                   type="button"
-                  className="cal-pill"
-                  style={chipStyle(chip.event.color)}
                   onClick={() => {
-                    onOpenEvent?.(chip.event);
+                    onPick(key);
                   }}
                 >
-                  {chip.event.is_all_day ? '' : `${clockLabel(chip.event.starts_at, locale)} `}
-                  {chip.event.title}
+                  {day.getDate()}
                 </button>
-              ),
-            )}
-            {hidden > 0 ? (
+              ) : (
+                <Link to={href}>{day.getDate()}</Link>
+              )}
+            </strong>
+            <span className="cal-dots" aria-hidden="true">
+              {chips.slice(0, 3).map((chip) => (
+                <i key={chip.kind === 'task' ? chip.task.id : chip.event.id} />
+              ))}
+            </span>
+            {dots
+              ? null
+              : chips.slice(0, 3).map((chip) =>
+                  chip.kind === 'task' ? (
+                    <Link
+                      key={chip.task.id}
+                      className={
+                        isCalendarOverdue(chip.task.due_date, chip.task.time_zone, new Date())
+                          ? 'cal-pill is-overdue'
+                          : 'cal-pill'
+                      }
+                      to={`/list/${chip.task.project_id}?task=${chip.task.id}`}
+                    >
+                      {chipLabel(chip.task, messages.untitled, locale)}
+                    </Link>
+                  ) : (
+                    <button
+                      key={chip.event.id}
+                      type="button"
+                      className="cal-pill"
+                      style={chipStyle(chip.event.color)}
+                      onClick={() => {
+                        onOpenEvent?.(chip.event);
+                      }}
+                    >
+                      {chip.event.is_all_day ? '' : `${clockLabel(chip.event.starts_at, locale)} `}
+                      {chip.event.title}
+                    </button>
+                  ),
+                )}
+            {!dots && hidden > 0 ? (
               <Link to={href} aria-label={moreLabel}>
                 +{hidden}
               </Link>
@@ -648,16 +666,12 @@ function DayGrid({
 function QuarterBoard({
   months,
   tasks,
-  events,
-  onOpenEvent,
   weekStart,
   messages,
   onOpen,
 }: {
   readonly months: readonly Date[];
   readonly tasks: readonly Task[];
-  readonly events: readonly ExternalEventView[];
-  readonly onOpenEvent: (event: ExternalEventView) => void;
   readonly weekStart: 'monday' | 'sunday';
   readonly messages: Messages;
   readonly onOpen: (month: Date) => void;
@@ -680,11 +694,10 @@ function QuarterBoard({
             days={monthCells(month, weekStart)}
             columns={7}
             tasks={tasks}
-            events={events}
-            onOpenEvent={onOpenEvent}
             messages={messages}
             cursor={month}
             outsideMonth
+            dots
           />
         </section>
       ))}
@@ -788,27 +801,34 @@ function dayMarks(
 
 function Agenda({
   tasks,
+  events,
   locale,
   messages,
   colors,
+  onOpenEvent,
 }: {
   readonly tasks: readonly Task[];
+  readonly events: readonly ExternalEventView[];
   readonly locale: string;
   readonly messages: Messages;
   readonly colors: ReadonlyMap<string, string>;
+  readonly onOpenEvent: (event: ExternalEventView) => void;
 }) {
-  const groups = new Map<string, Task[]>();
-  const ordered = [...tasks].sort((left, right) =>
-    (left.due_date ?? '').localeCompare(right.due_date ?? ''),
-  );
-  for (const task of ordered) {
-    const key = localKey(new Date(task.due_date ?? ''));
-    const bucket = groups.get(key);
-    if (bucket === undefined) {
-      groups.set(key, [task]);
-    } else {
-      bucket.push(task);
+  const groups = new Map<string, { tasks: Task[]; events: ExternalEventView[] }>();
+  const ensure = (key: string): { tasks: Task[]; events: ExternalEventView[] } => {
+    const current = groups.get(key);
+    if (current !== undefined) {
+      return current;
     }
+    const created = { tasks: [], events: [] };
+    groups.set(key, created);
+    return created;
+  };
+  for (const task of tasks) {
+    ensure(localKey(new Date(task.due_date ?? ''))).tasks.push(task);
+  }
+  for (const event of events) {
+    ensure(localKey(new Date(event.starts_at))).events.push(event);
   }
   if (groups.size === 0) {
     return <EmptyState title={messages.calendarTitle} body={messages.calEmpty} />;
@@ -817,49 +837,95 @@ function Agenda({
   const weekday = new Intl.DateTimeFormat(locale, { weekday: 'short' });
   return (
     <div className="agenda">
-      {[...groups.entries()].map(([key, items]) => {
-        const day = dayFromParam(key) ?? new Date();
-        const sorted = [...items].sort((left, right) => {
-          if (left.is_all_day && !right.is_all_day) {
-            return -1;
-          }
-          if (!left.is_all_day && right.is_all_day) {
-            return 1;
-          }
-          return (left.due_date ?? '').localeCompare(right.due_date ?? '');
-        });
-        return (
-          <section key={key} className={key === todayKey ? 'agenda-day is-today' : 'agenda-day'}>
-            <header>
-              <strong>{day.getDate()}</strong>
-              <span>{weekday.format(day)}</span>
-            </header>
-            <ul>
-              {sorted.map((task) => {
-                const color = colors.get(task.project_id);
-                const title = calendarTaskLabel(
-                  task.title,
-                  task.due_date,
-                  task.time_zone,
-                  messages.untitled,
-                );
-                return (
-                  <li key={task.id}>
-                    <Link
+      {[...groups.entries()]
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, bucket]) => {
+          const day = dayFromParam(key) ?? new Date();
+          const sorted = [...bucket.tasks].sort((left, right) =>
+            (left.due_date ?? '').localeCompare(right.due_date ?? ''),
+          );
+          const timed = [...bucket.events].sort((left, right) =>
+            left.starts_at.localeCompare(right.starts_at),
+          );
+          return (
+            <section key={key} className={key === todayKey ? 'agenda-day is-today' : 'agenda-day'}>
+              <header>
+                <strong>{day.getDate()}</strong>
+                <span>{weekday.format(day)}</span>
+              </header>
+              <ul>
+                {timed.map((event) => (
+                  <li key={event.id}>
+                    <button
+                      type="button"
                       className="agenda-card"
-                      to={`/list/${task.project_id}?task=${task.id}`}
-                      style={cardPaint(color)}
+                      style={chipStyle(event.color)}
+                      onClick={() => {
+                        onOpenEvent(event);
+                      }}
                     >
-                      {title}
-                    </Link>
+                      {event.is_all_day ? '' : `${clockLabel(event.starts_at, locale)} `}
+                      {event.title}
+                    </button>
                   </li>
-                );
-              })}
-            </ul>
-          </section>
-        );
-      })}
+                ))}
+                {sorted.map((task) => {
+                  const color = colors.get(task.project_id);
+                  const title = calendarTaskLabel(
+                    task.title,
+                    task.due_date,
+                    task.time_zone,
+                    messages.untitled,
+                  );
+                  return (
+                    <li key={task.id}>
+                      <Link
+                        className="agenda-card"
+                        to={`/list/${task.project_id}?task=${task.id}`}
+                        style={cardPaint(color)}
+                      >
+                        {title}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          );
+        })}
     </div>
+  );
+}
+
+function DaySheet({
+  dayKey,
+  tasks,
+  events,
+  messages,
+  colors,
+  onOpenEvent,
+}: {
+  readonly dayKey: string;
+  readonly tasks: readonly Task[];
+  readonly events: readonly ExternalEventView[];
+  readonly messages: Messages;
+  readonly colors: ReadonlyMap<string, string>;
+  readonly onOpenEvent: (event: ExternalEventView) => void;
+}) {
+  const locale = useAppLocale();
+  const day = dayFromParam(dayKey);
+  if (day === null) {
+    return null;
+  }
+  return (
+    <Agenda
+      tasks={tasksOnCell(tasks, day)}
+      events={eventsOnDay(events, day)}
+      locale={locale}
+      messages={messages}
+      colors={colors}
+      onOpenEvent={onOpenEvent}
+    />
   );
 }
 
@@ -1464,7 +1530,7 @@ function highlight(title: string, query: string): ReactNode {
 }
 
 const SETTINGS_GROUPS = [
-  ['groupGeneral', ['/settings/account', '/settings/appearance']],
+  ['groupGeneral', ['/settings/account', '/settings/appearance', '/settings/features']],
   [
     'groupWork',
     ['/settings/capture', '/settings/notifications', '/settings/smart-lists', '/settings/calendar'],
@@ -1488,6 +1554,7 @@ function settingsLabel(messages: Messages, path: string): string {
   const labels: Record<string, string> = {
     '/settings/account': messages.settingsAccount,
     '/settings/appearance': messages.appearanceTitle,
+    '/settings/features': messages.settingsFeatures,
     '/settings/capture': messages.settingsCapture,
     '/settings/notifications': messages.settingsNotifications,
     '/settings/smart-lists': messages.settingsSmart,

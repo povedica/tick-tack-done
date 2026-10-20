@@ -15,6 +15,11 @@ export interface UpdateMeBody {
   readonly density?: 'comfortable' | 'compact';
   readonly accent?: 'indigo' | 'violet' | 'teal' | 'amber' | 'rose' | 'slate';
   readonly default_reminder_trigger?: string | null;
+  readonly features?: {
+    readonly countdowns?: boolean;
+    readonly focus?: boolean;
+    readonly matrix?: boolean;
+  };
 }
 export type InboundEmailStatus = components['schemas']['InboundEmailStatusDto'];
 export type InboundEmailAddress = components['schemas']['InboundEmailAddressDto'];

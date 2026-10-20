@@ -142,6 +142,16 @@ export function TodayPage() {
   );
 
   useEffect(() => {
+    if (params.get('disabled') !== '1') {
+      return;
+    }
+    showToast(messages.featureOffNotice);
+    const next = new URLSearchParams(params);
+    next.delete('disabled');
+    setParams(next, { replace: true });
+  }, [messages.featureOffNotice, params, setParams, showToast]);
+
+  useEffect(() => {
     if (notice === null) {
       return;
     }

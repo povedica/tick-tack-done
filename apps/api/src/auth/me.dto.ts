@@ -1,8 +1,34 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { ACCOUNT_REMINDER_TRIGGERS } from '@reflexionia/domain';
-import { IsBoolean, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsBoolean,
+  IsIn,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+  ValidateNested,
+} from 'class-validator';
 
 const REMINDER_CHOICES = [...ACCOUNT_REMINDER_TRIGGERS];
+
+export class FeatureFlagsDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  countdowns?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  focus?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  matrix?: boolean;
+}
 
 export class DeleteMeDto {
   @ApiProperty({ description: 'Must equal the account email' })
@@ -112,6 +138,12 @@ export class UpdateMeDto {
   @IsOptional()
   @IsBoolean()
   focus_notifications?: boolean;
+
+  @ApiProperty({ required: false, type: () => FeatureFlagsDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => FeatureFlagsDto)
+  features?: FeatureFlagsDto;
 }
 
 export class ChangePasswordDto {
@@ -243,4 +275,7 @@ export class MeResponseDto {
 
   @ApiProperty()
   focus_notifications!: boolean;
+
+  @ApiProperty({ type: FeatureFlagsDto })
+  features!: FeatureFlagsDto;
 }

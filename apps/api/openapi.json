@@ -7424,6 +7424,20 @@
           "password"
         ]
       },
+      "FeatureFlagsDto": {
+        "type": "object",
+        "properties": {
+          "countdowns": {
+            "type": "boolean"
+          },
+          "focus": {
+            "type": "boolean"
+          },
+          "matrix": {
+            "type": "boolean"
+          }
+        }
+      },
       "MeResponseDto": {
         "type": "object",
         "properties": {
@@ -7517,6 +7531,9 @@
           },
           "focus_notifications": {
             "type": "boolean"
+          },
+          "features": {
+            "$ref": "#/components/schemas/FeatureFlagsDto"
           }
         },
         "required": [
@@ -7536,7 +7553,8 @@
           "quiet_hours_start",
           "quiet_hours_end",
           "telegram_enabled",
-          "focus_notifications"
+          "focus_notifications",
+          "features"
         ]
       },
       "ChangePasswordDto": {
@@ -7656,6 +7674,9 @@
           },
           "focus_notifications": {
             "type": "boolean"
+          },
+          "features": {
+            "$ref": "#/components/schemas/FeatureFlagsDto"
           }
         }
       },

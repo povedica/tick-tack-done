@@ -76,6 +76,7 @@ export function TaskGroup({
 }) {
   return (
     <details
+      id={id}
       className="task-group"
       open={!collapsed}
       onToggle={(event) => {
