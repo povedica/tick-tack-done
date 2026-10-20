@@ -213,10 +213,16 @@ describe('V1 and V2 product', () => {
     const stamp = randomUUID().slice(0, 8);
     const title = `planta-${stamp}`;
     try {
-      await session()
-        .post('/api/v1/integrations/telegram/link')
-        .send({ chat_id: '4242' })
-        .expect(201);
+      const pairing = await session().post('/api/v1/integrations/telegram/pairing').expect(201);
+      const paired = await request(server)
+        .post('/api/v1/integrations/telegram/webhook')
+        .set('x-telegram-bot-api-secret-token', secret)
+        .send({
+          update_id: 10,
+          message: { chat: { id: 4242 }, text: `/start ${pairing.body.code as string}` },
+        })
+        .expect(200);
+      expect(paired.body).toEqual({ called_telegram: true, action: 'paired' });
       const created = await request(server)
         .post('/api/v1/integrations/telegram/webhook')
         .set('x-telegram-bot-api-secret-token', secret)

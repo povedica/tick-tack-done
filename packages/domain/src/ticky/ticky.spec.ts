@@ -87,12 +87,16 @@ describe('ticky contracts', () => {
   });
 
   it('RF-2002: a daily plan must not rewrite a deadline', async () => {
+    const first = cafe.items[0];
+    if (first === undefined) {
+      throw new Error('expected proposal item');
+    }
     await expect(
       validateProposal({
         ...cafe,
         items: [
           {
-            ...cafe.items[0]!,
+            ...first,
             tool: 'tasks.update',
             expected_version: 1,
             reason_code: 'DAILY_PLAN',

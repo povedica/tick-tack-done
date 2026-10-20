@@ -443,7 +443,7 @@ export function focusHeatmap(
       continue;
     }
     const day = dayKey(session.startedAt, tz);
-    if (day === null || !day.startsWith(String(year))) {
+    if (day?.startsWith(String(year)) !== true) {
       continue;
     }
     const row = byDay.get(day) ?? { minutes: 0, pomodoros: 0 };

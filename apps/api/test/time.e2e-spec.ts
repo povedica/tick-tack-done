@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/configure-app.js';
 import { loadRootEnv } from '../src/load-env.js';
+import { nextOccurrence } from '@reflexionia/domain';
 import { SchedulerService } from '../src/scheduler/scheduler.service.js';
 
 type SuperTestApp = Parameters<typeof request>[0];
@@ -129,7 +130,7 @@ describe('time API', () => {
     expect(new Date(snoozed.body.due_date as string).getTime()).toBeGreaterThan(Date.now());
   });
 
-  it('RF-704 and RF-706: completing a monthly task on the 31st does not create the next row', async () => {
+  it('RF-704, RF-706 and REC-1/2: completing an overdue monthly on the 31st materializes the next future 31st', async () => {
     const created = await authed()
       .post('/api/v1/tasks')
       .send({
@@ -146,13 +147,12 @@ describe('time API', () => {
       .expect(201);
     await authed()
       .post(`/api/v1/tasks/${created.body.id as string}/complete`)
-      .send({ complete_children: 'complete' })
+      .send({
+        complete_children: 'complete',
+        advance: 'next_future',
+        materialize_next: true,
+      })
       .expect(200);
-
-    const before = await prisma.task.count({
-      where: { ownerId: owner.id, title: 'cierre mensual', deletedAt: null },
-    });
-    expect(before).toBe(1);
 
     const listed = await authed()
       .get(
@@ -165,7 +165,6 @@ describe('time API', () => {
       '2026-03-31T07:00:00.000Z',
     ]);
 
-    await scheduler.run(new Date('2026-02-01T12:00:00.000Z'), false);
     const rows = await prisma.task.findMany({
       where: { ownerId: owner.id, title: 'cierre mensual', deletedAt: null },
       include: { checklist: true },
@@ -174,7 +173,25 @@ describe('time API', () => {
     expect(rows).toHaveLength(2);
     expect(rows[0]?.status).toBe('completed');
     expect(rows[1]?.status).toBe('active');
-    expect(rows[1]?.dueDate?.toISOString()).toBe('2026-02-28T08:00:00.000Z');
+    const completedAt = rows[0]?.completedAt?.toISOString() ?? new Date().toISOString();
+    const expected = nextOccurrence({
+      repeatRule: 'RRULE:FREQ=MONTHLY;BYMONTHDAY=31',
+      repeatFrom: 'due_date',
+      dueDate: '2026-01-31T08:00:00.000Z',
+      startDate: null,
+      completedAt,
+      timeZone: 'Europe/Madrid',
+      isAllDay: false,
+      occurrenceIndex: 1,
+      advance: 'next_future',
+      now: completedAt,
+    });
+    expect(expected.ok).toBe(true);
+    if (!expected.ok || expected.occurrence === null) {
+      throw new Error('expected a future monthly occurrence');
+    }
+    expect(rows[1]?.dueDate?.toISOString()).toBe(expected.occurrence.dueDate);
+    expect(Date.parse(expected.occurrence.dueDate)).toBeGreaterThan(Date.parse(completedAt));
     expect(rows[1]?.checklist[0]?.status).toBe('active');
     expect(rows[1]?.seriesId).toBe(rows[0]?.seriesId);
 
@@ -332,13 +349,32 @@ describe('time API', () => {
     expect(copy.body.series_id).not.toBe(created.body.series_id);
     await authed()
       .post(`/api/v1/tasks/${copy.body.id as string}/complete`)
-      .send({})
+      .send({ advance: 'next_future', materialize_next: true })
       .expect(200);
-    await scheduler.run(new Date('2026-10-19T12:00:00.000Z'), false);
+    const completed = await prisma.task.findFirstOrThrow({
+      where: { id: copy.body.id as string },
+    });
+    const completedAt = completed.completedAt?.toISOString() ?? new Date().toISOString();
+    const expected = nextOccurrence({
+      repeatRule: 'RRULE:FREQ=DAILY',
+      repeatFrom: 'due_date',
+      dueDate: '2026-10-19T07:00:00.000Z',
+      startDate: null,
+      completedAt,
+      timeZone: 'Europe/Madrid',
+      isAllDay: false,
+      occurrenceIndex: 1,
+      advance: 'next_future',
+      now: completedAt,
+    });
+    expect(expected.ok).toBe(true);
+    if (!expected.ok || expected.occurrence === null) {
+      throw new Error('expected a future daily occurrence');
+    }
     const next = await prisma.task.findFirst({
       where: { seriesId: copy.body.series_id as string, status: 'active', deletedAt: null },
     });
-    expect(next?.dueDate?.toISOString()).toBe('2026-10-20T07:00:00.000Z');
+    expect(next?.dueDate?.toISOString()).toBe(expected.occurrence.dueDate);
   });
 
   it('RF-803 and RF-804: a constant reminder reschedules, and snoozing drops that delivery', async () => {
