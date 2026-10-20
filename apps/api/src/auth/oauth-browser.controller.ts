@@ -2,6 +2,7 @@ import { Controller, Get, Inject, Query, Req, Res } from '@nestjs/common';
 import { ApiFoundResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { OauthService } from './oauth.service.js';
+import { queryString, requestIp } from './request-params.js';
 import { Public } from './scopes.decorator.js';
 
 @ApiTags('oauth')
@@ -19,26 +20,27 @@ export class OauthBrowserController {
   async authorize(
     @Req() req: Request,
     @Res() res: Response,
-    @Query('client_id') clientId = '',
-    @Query('redirect_uri') redirectUri = '',
-    @Query('scope') scope = '',
-    @Query('state') state = '',
-    @Query('code_challenge') challenge = '',
-    @Query('code_challenge_method') method = '',
-    @Query('resource') resource?: string,
+    @Query('client_id') clientId: unknown,
+    @Query('redirect_uri') redirectUri: unknown,
+    @Query('scope') scope: unknown,
+    @Query('state') state: unknown,
+    @Query('code_challenge') challenge: unknown,
+    @Query('code_challenge_method') method: unknown,
+    @Query('resource') resource: unknown,
   ): Promise<void> {
+    const resourceValue = queryString(resource);
     const location = await this.oauth.browserAuthorize(
       {
-        client_id: clientId,
-        redirect_uri: redirectUri,
-        scope,
-        state,
-        code_challenge: challenge,
-        code_challenge_method: method,
-        ...(resource === undefined ? {} : { resource }),
+        client_id: queryString(clientId),
+        redirect_uri: queryString(redirectUri),
+        scope: queryString(scope),
+        state: queryString(state),
+        code_challenge: queryString(challenge),
+        code_challenge_method: queryString(method),
+        ...(resourceValue.length === 0 ? {} : { resource: resourceValue }),
       },
       req.header('cookie'),
-      req.ip ?? 'unknown',
+      requestIp(req),
     );
     res.redirect(302, location);
   }

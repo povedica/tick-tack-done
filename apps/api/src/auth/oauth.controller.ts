@@ -28,6 +28,7 @@ import {
   RegisteredOauthClientDto,
 } from './oauth.dto.js';
 import { OauthService } from './oauth.service.js';
+import { queryString, requestIp } from './request-params.js';
 import { Public, Scopes } from './scopes.decorator.js';
 import { ACCOUNT_ADMIN_SCOPE } from './scopes.js';
 
@@ -56,7 +57,7 @@ export class OauthController {
     @Body() dto: RegisterOauthClientDto,
     @Req() req: Request,
   ): Promise<RegisteredOauthClientDto> {
-    return this.oauth.registerDynamic(dto, req.ip ?? 'unknown');
+    return this.oauth.registerDynamic(dto, requestIp(req));
   }
 
   @Get('authorize')
@@ -66,26 +67,27 @@ export class OauthController {
   describe(
     @CurrentUser() user: AuthUser,
     @Req() req: Request,
-    @Query('client_id') clientId: string,
-    @Query('redirect_uri') redirectUri: string,
-    @Query('scope') scope = '',
-    @Query('state') state: string,
-    @Query('code_challenge') challenge: string,
-    @Query('code_challenge_method') method: string,
-    @Query('resource') resource?: string,
+    @Query('client_id') clientId: unknown,
+    @Query('redirect_uri') redirectUri: unknown,
+    @Query('scope') scope: unknown,
+    @Query('state') state: unknown,
+    @Query('code_challenge') challenge: unknown,
+    @Query('code_challenge_method') method: unknown,
+    @Query('resource') resource: unknown,
   ): Promise<OauthConsentViewDto> {
+    const resourceValue = queryString(resource);
     return this.oauth.describe(
       user,
       {
-        client_id: clientId,
-        redirect_uri: redirectUri,
-        scope,
-        state,
-        code_challenge: challenge,
-        code_challenge_method: method,
-        ...(resource === undefined ? {} : { resource }),
+        client_id: queryString(clientId),
+        redirect_uri: queryString(redirectUri),
+        scope: queryString(scope),
+        state: queryString(state),
+        code_challenge: queryString(challenge),
+        code_challenge_method: queryString(method),
+        ...(resourceValue.length === 0 ? {} : { resource: resourceValue }),
       },
-      req.ip ?? 'unknown',
+      requestIp(req),
     );
   }
 
@@ -98,7 +100,7 @@ export class OauthController {
     @Body() dto: OauthConsentDto,
     @Req() req: Request,
   ): Promise<OauthRedirectDto> {
-    return this.oauth.consent(user, dto, req.ip ?? 'unknown');
+    return this.oauth.consent(user, dto, requestIp(req));
   }
 
   @Post('token')
@@ -107,7 +109,7 @@ export class OauthController {
   @ApiOperation({ summary: 'Exchange an authorization code or refresh token for a bearer token' })
   @ApiOkResponse({ type: OauthTokenResponseDto })
   token(@Body() dto: OauthTokenDto, @Req() req: Request): Promise<OauthTokenResponseDto> {
-    return this.oauth.token(dto, req.ip ?? 'unknown');
+    return this.oauth.token(dto, requestIp(req));
   }
 
   @Post('revoke')
@@ -115,6 +117,6 @@ export class OauthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Revoke an OAuth access or refresh token (RFC 7009)' })
   revoke(@Body() dto: OauthRevokeDto, @Req() req: Request): Promise<void> {
-    return this.oauth.revokePresented(dto.token, req.ip ?? 'unknown');
+    return this.oauth.revokePresented(dto.token, requestIp(req));
   }
 }
