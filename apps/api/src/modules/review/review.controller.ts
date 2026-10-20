@@ -44,7 +44,11 @@ export class ReviewController {
 
   @Get('weekly')
   @Scopes('tasks:read')
-  @ApiOperation({ summary: 'Guided weekly review (RF-2302, RF-2303)' })
+  @ApiOperation({
+    summary: 'Guided weekly review (RF-2302, RF-2303)',
+    description:
+      'Read-only candidates with listName and dueDate context. recurring=true if repeatRule or seriesId is present; clients must disable bulk actions on these tasks. Selection alone never mutates tasks.',
+  })
   async weekly(
     @CurrentUser() user: AuthUser,
     @Req() req: Request,

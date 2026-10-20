@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Check, Sun, CalendarDays, Ban } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
@@ -117,7 +118,15 @@ export function ReportsPage() {
               →
             </Button>
           </div>
-          <p className="week-status">{ongoing ? copy.until(dateLabel(today)) : copy.closedWeek}</p>
+          <p className="week-status">
+            {ongoing
+              ? typeof payload.calculated_at === 'string'
+                ? copy.until(
+                    dateLabel(calendarDay(payload.calculated_at, str(payload.time_zone) || zone)),
+                  )
+                : copy.inProgress
+              : copy.closedWeek}
+          </p>
           <p className="week-balance">
             {valid ? copy.balance(completed, created) : copy.unverified}
           </p>
@@ -134,12 +143,22 @@ export function ReportsPage() {
                   ? copy.habitCount(num(payload.habits_done), num(payload.habits_expected))
                   : copy.noData}
               </strong>
-              <span>{ongoing ? copy.through(dateLabel(today)) : copy.duringWeek}</span>
+              <span>
+                {ongoing
+                  ? typeof payload.calculated_at === 'string'
+                    ? copy.through(
+                        dateLabel(
+                          calendarDay(payload.calculated_at, str(payload.time_zone) || zone),
+                        ),
+                      )
+                    : copy.duringWeek
+                  : copy.duringWeek}
+              </span>
             </article>
             <article className="week-card">
               <Link to="/statistics/focus">{copy.focus}</Link>
               <strong>
-                {payload.focus_minutes === undefined
+                {typeof payload.focus_minutes !== 'number'
                   ? copy.noData
                   : `${num(payload.focus_minutes).toLocaleString(copy.locale, { maximumFractionDigits: 1 })} min`}
               </strong>
@@ -348,17 +367,19 @@ export function ReviewPage() {
                   : 0;
                 return (
                   <li key={id} className={selected.includes(id) ? 'is-selected' : ''}>
-                    <label className="week-select"><input
-                      type="checkbox"
-                      aria-label={copy.select(displayTitle(str(t.title)))}
-                      disabled={busy || recurring}
-                      checked={selected.includes(id)}
-                      onChange={(e) => {
-                        setSelected((old) =>
-                          e.target.checked ? [...old, id] : old.filter((value) => value !== id),
-                        );
-                      }}
-                    /></label>
+                    <label className="week-select">
+                      <input
+                        type="checkbox"
+                        aria-label={copy.select(displayTitle(str(t.title)))}
+                        disabled={busy || recurring}
+                        checked={selected.includes(id)}
+                        onChange={(e) => {
+                          setSelected((old) =>
+                            e.target.checked ? [...old, id] : old.filter((value) => value !== id),
+                          );
+                        }}
+                      />
+                    </label>
                     <Link
                       className="weekly-task-title"
                       to={`/list/${str(t.listId)}?task=${id}`}
@@ -388,6 +409,7 @@ export function ReviewPage() {
               void act('done');
             }}
           >
+            <Check size={16} aria-hidden="true" />
             {copy.done}
           </Button>
           <Button
@@ -396,6 +418,7 @@ export function ReviewPage() {
               void act('today');
             }}
           >
+            <Sun size={16} aria-hidden="true" />
             {copy.today}
           </Button>
           <Button
@@ -404,6 +427,7 @@ export function ReviewPage() {
               void act('tomorrow');
             }}
           >
+            <CalendarDays size={16} aria-hidden="true" />
             {copy.tomorrow}
           </Button>
           <Button
@@ -412,6 +436,7 @@ export function ReviewPage() {
               void act('cancel');
             }}
           >
+            <Ban size={16} aria-hidden="true" />
             {copy.cancel}
           </Button>
         </div>

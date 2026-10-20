@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-async function fixture(page: Page, state = 'ready') {
+async function fixture(page: Page, state = 'ready', mutations: string[] = []) {
   await page.addInitScript(() => {
     localStorage.setItem('tick-tack-done.account-prefs', '1');
     localStorage.setItem('tick-tack-done.locale', 'es');
@@ -8,6 +8,15 @@ async function fixture(page: Page, state = 'ready') {
   await page.clock.install({ time: new Date('2026-10-20T14:30:00Z') });
   await page.route('**/api/v1/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
+    if (path.includes('/tasks/') && route.request().method() !== 'GET') {
+      mutations.push(path);
+      await route.fulfill({ json: { id: 'one', title: 'Updated task', status: 'active' } });
+      return;
+    }
+    if (path.endsWith('/dashboard/data')) {
+      await route.fulfill({ json: { widgets: { overdue: 58 } } });
+      return;
+    }
     if (path.endsWith('/auth/session') || path.endsWith('/me')) {
       await route.fulfill({
         json: {
@@ -92,7 +101,8 @@ async function fixture(page: Page, state = 'ready') {
 for (const width of [1280, 390]) {
   test(`RF-2201 / RF-2302: weekly screens ${width}`, async ({ page }, info) => {
     await page.setViewportSize({ width, height: 850 });
-    await fixture(page);
+    const mutations: string[] = [];
+    await fixture(page, 'ready', mutations);
     await page.goto('/reports/weekly');
     await expect(page.getByRole('heading', { name: 'Tu semana' })).toBeVisible();
     await expect(page.locator('.week-main strong')).toHaveText('1');
@@ -106,11 +116,25 @@ for (const width of [1280, 390]) {
       .click();
     await expect(page.getByRole('checkbox', { name: /Revisar cada semana/ })).toBeDisabled();
     await page.getByRole('checkbox', { name: /Preparar la propuesta/ }).check();
-    await expect(page.getByRole('button', { name: '✓ Listo' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Listo', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
     await page.screenshot({ path: info.outputPath(`review-${width}.png`), fullPage: true });
+    const button = await page.getByRole('button', { name: 'Listo', exact: true }).boundingBox();
+    expect(button && button.y + button.height).toBeLessThan(width < 640 ? 790 : 850);
+    expect(mutations).toEqual([]);
+    page.once('dialog', (dialog) => {
+      expect(dialog.message()).toContain('1 tareas');
+      void dialog.dismiss();
+    });
+    await page.getByRole('button', { name: 'Listo', exact: true }).click();
+    expect(mutations).toEqual([]);
+    await page.locator('.weekly-actions').getByRole('button', { name: 'Hoy', exact: true }).click();
+    await expect(
+      page.getByRole('status').filter({ hasText: '1 tareas movidas a Hoy' }),
+    ).toBeVisible();
+    expect(mutations).toEqual(['/api/v1/tasks/one']);
   });
   for (const state of ['empty', 'loading', 'error']) {
     test(`weekly ${state} ${width}`, async ({ page }, info) => {

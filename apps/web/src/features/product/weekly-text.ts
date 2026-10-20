@@ -41,10 +41,10 @@ const es = {
   inbox: 'Bandeja',
   overdue: 'Vencidas',
   undated: 'Sin fecha',
-  done: '✓ Listo',
-  today: '☀ Hoy',
-  tomorrow: '→ Mañana',
-  cancel: '⊘ No haré',
+  done: 'Listo',
+  today: 'Hoy',
+  tomorrow: 'Mañana',
+  cancel: 'No haré',
   recurring: 'Esta tarea se repite; ábrela para decidir sobre esta ocurrencia o la serie.',
   oldReport:
     'Informe anterior: el balance usa exclusivamente el detalle diario guardado. Hábitos sin corte verificable; comparación omitida.',
@@ -91,10 +91,10 @@ const en: typeof es = {
   inbox: 'Inbox',
   overdue: 'Overdue',
   undated: 'Undated',
-  done: '✓ Done',
-  today: '☀ Today',
-  tomorrow: '→ Tomorrow',
-  cancel: '⊘ Won’t do',
+  done: 'Done',
+  today: 'Today',
+  tomorrow: 'Tomorrow',
+  cancel: 'Won’t do',
   recurring: 'This task repeats; open it to decide about this occurrence or the series.',
   oldReport:
     'Older report: the balance uses only saved daily details. Habits have no verifiable cutoff; comparison omitted.',
@@ -106,6 +106,7 @@ export function useWeeklyCopy() {
   return {
     ...copy,
     locale,
+    inProgress: english ? 'In progress' : 'En curso',
     previousWeek: english ? 'Previous week' : 'Semana anterior',
     nextWeek: english ? 'Next week' : 'Semana siguiente',
     steps: english ? 'Review steps' : 'Pasos de revisión',
@@ -140,7 +141,10 @@ export function useWeeklyCopy() {
       english
         ? `${String(n)} total · ${String(selected)} selected`
         : `${String(n)} en total · ${String(selected)} seleccionadas`,
-    selected: (n: number) => (english ? `${String(n)} selected` : `${String(n)} seleccionadas`),
+    selected: (n: number) =>
+      english
+        ? `${String(n)} selected`
+        : `${String(n)} ${n === 1 ? 'seleccionada' : 'seleccionadas'}`,
     select: (title: string) => (english ? `Select ${title}` : `Seleccionar ${title}`),
     daysAgo: (n: number) => (english ? `${String(n)} days ago` : `Hace ${String(n)} días`),
   };

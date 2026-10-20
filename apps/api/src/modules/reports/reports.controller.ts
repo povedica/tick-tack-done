@@ -15,7 +15,6 @@ import { IsArray, IsIn, IsOptional, IsString, Matches } from 'class-validator';
 import type { Request, Response } from 'express';
 import {
   isReportTone,
-  weeklyNarrative,
   dayKey,
   parseDayBounds,
   addCalendarDays,
@@ -67,7 +66,11 @@ export class ReportsController {
 
   @Get('reports/weekly')
   @Scopes('tasks:read')
-  @ApiOperation({ summary: 'Weekly report history (RF-2204)' })
+  @ApiOperation({
+    summary: 'Weekly report history (RF-2204)',
+    description:
+      'Returns stored payloads unchanged. Legacy reports may use trailing-seven-day totals; clients should derive consistent totals from saved days and disclose legacy coverage. No live recalculation on GET.',
+  })
   async list(
     @CurrentUser() user: AuthUser,
     @Req() req: Request,
@@ -113,7 +116,11 @@ export class ReportsController {
 
   @Post('reports/weekly')
   @Scopes('tasks:read')
-  @ApiOperation({ summary: 'Build this week’s honest report (RF-2201, RF-2203)' })
+  @ApiOperation({
+    summary: 'Build this week’s report (RF-2201, RF-2203)',
+    description:
+      'Explicitly rebuilds the current local Monday–Sunday week through calculated_at. metrics_version=2; completed and created are independent sums of local days. focus_minutes is null without focus records. habits_done/expected cover elapsed days. trend/trend_label are null without a comparable cutoff. Historical reports are unchanged.',
+  })
   async build(
     @CurrentUser() user: AuthUser,
     @Req() req: Request,
@@ -177,25 +184,12 @@ export class ReportsController {
     const periodStart = new Date(range?.startIso ?? week.toISOString());
     const snapshot = await loadDashboardSnapshot(this.prisma, user.id, now);
     const focusMinutes = await this.metrics.focusMinutes(user.id, periodStart, now);
+    const focusRows = await this.metrics.focusRows(user.id, periodStart, now);
     const habits = await this.metrics.activeHabitsExpectedDays(
       user.id,
       periodStart,
       now,
       user.timeZone,
-    );
-    const upcomingExternal = await this.prisma.externalEvent.count({
-      where: {
-        ownerId: user.id,
-        deletedAt: null,
-        startsAt: { gte: now, lt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) },
-        subscription: { deletedAt: null, visible: true },
-      },
-    });
-    const narrative = weeklyNarrative(
-      { ...snapshot, habit_percent: habits.percent },
-      settings.tone,
-      focusMinutes,
-      upcomingExternal,
     );
     const countdowns = await this.prisma.countdown.findMany({
       where: { ownerId: user.id, deletedAt: null, archivedAt: null },
@@ -223,7 +217,7 @@ export class ReportsController {
       },
       select: { createdAt: true, completedAt: true },
     });
-    const days = bucketWeek(week, touched, user.timeZone);
+    const days = bucketWeek(week, touched, user.timeZone, now);
     const completed = days.reduce((sum, day) => sum + day.completed, 0);
     const created = days.reduce((sum, day) => sum + day.created, 0);
     const payload = {
@@ -231,23 +225,17 @@ export class ReportsController {
       time_zone: user.timeZone,
       metrics_version: 2,
       summary: `${String(completed)} tareas completadas y ${String(created)} creadas. ${closingLine}`,
-      observations: narrative.observations,
-      snapshot,
+      observations: [],
+      snapshot: { ...snapshot, completed, created, trend: null },
       completed,
       created,
       overdue: snapshot.overdue,
-      focus_minutes: focusMinutes,
+      focus_minutes: focusRows.some((session) => session.type === 'focus') ? focusMinutes : null,
       habits_done: habits.done,
       habits_expected: habits.expected,
-      trend: snapshot.trend,
-      trend_label:
-        snapshot.trend === 0
-          ? 'igual que la semana anterior'
-          : snapshot.trend > 0
-            ? `+${String(snapshot.trend)} vs semana anterior`
-            : `${String(snapshot.trend)} vs semana anterior`,
+      trend: null,
+      trend_label: null,
       days,
-      weak: narrative.weak,
       countdowns: {
         upcoming: upcomingCountdowns.map((countdown) => ({
           id: countdown.id,

@@ -6604,6 +6604,7 @@
     },
     "/api/v1/reports/weekly": {
       "get": {
+        "description": "Returns stored payloads unchanged. Legacy reports may use trailing-seven-day totals; clients should derive consistent totals from saved days and disclose legacy coverage. No live recalculation on GET.",
         "operationId": "ReportsController_list",
         "parameters": [],
         "responses": {
@@ -6622,6 +6623,7 @@
         ]
       },
       "post": {
+        "description": "Explicitly rebuilds the current local Monday–Sunday week through calculated_at. metrics_version=2; completed and created are independent sums of local days. focus_minutes is null without focus records. habits_done/expected cover elapsed days. trend/trend_label are null without a comparable cutoff. Historical reports are unchanged.",
         "operationId": "ReportsController_build",
         "parameters": [],
         "responses": {
@@ -6629,7 +6631,7 @@
             "description": ""
           }
         },
-        "summary": "Build this week’s honest report (RF-2201, RF-2203)",
+        "summary": "Build this week’s report (RF-2201, RF-2203)",
         "tags": [
           "reports"
         ],
@@ -10310,6 +10312,7 @@
     },
     "/api/v1/review/weekly": {
       "get": {
+        "description": "Read-only candidates with listName and dueDate context. recurring=true if repeatRule or seriesId is present; clients must disable bulk actions on these tasks. Selection alone never mutates tasks.",
         "operationId": "ReviewController_weekly",
         "parameters": [],
         "responses": {

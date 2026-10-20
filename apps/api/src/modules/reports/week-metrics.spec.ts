@@ -36,3 +36,19 @@ it('RF-2201 / RF-604: buckets use local days at midnight and DST boundaries', ()
   expect(days[6]?.completed).toBe(1);
   expect(days.reduce((sum, day) => sum + day.created, 0)).toBe(1);
 });
+
+it('RF-2201: a task created before the cutoff does not count its future completion', () => {
+  const days = bucketWeek(
+    new Date('2026-10-19T00:00:00Z'),
+    [
+      {
+        createdAt: new Date('2026-10-19T08:00:00Z'),
+        completedAt: new Date('2026-10-23T08:00:00Z'),
+      },
+    ],
+    'Europe/Madrid',
+    new Date('2026-10-20T12:00:00Z'),
+  );
+  expect(days.reduce((sum, day) => sum + day.created, 0)).toBe(1);
+  expect(days.reduce((sum, day) => sum + day.completed, 0)).toBe(0);
+});
