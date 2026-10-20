@@ -25,6 +25,7 @@ export interface ListTasksQuery {
   readonly overdue?: boolean;
   readonly dueBefore?: string;
   readonly dueAfter?: string;
+  readonly listId?: string;
   readonly sort?: string;
 }
 export type Habit = components['schemas']['HabitResponseDto'];
@@ -502,6 +503,9 @@ function taskQuery(query: ListTasksQuery | undefined): string {
   }
   if (query.dueAfter !== undefined) {
     params.set('due_after', query.dueAfter);
+  }
+  if (query.listId !== undefined) {
+    params.set('list_id', query.listId);
   }
   if (query.sort !== undefined) {
     params.set('sort', query.sort);

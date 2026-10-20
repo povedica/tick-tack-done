@@ -1060,7 +1060,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List tasks. Subtasks stay nested unless flat=true (RF-205). */
+        /** List tasks. Subtasks stay nested unless flat=true (RF-205). list_id filters one list, same as project_id. */
         get: operations["TasksController_list"];
         put?: never;
         /** Create a task. raw_text is parsed on the server (RF-102); explicit fields override it. Checklist lines can be extracted from Markdown (RF-202). */

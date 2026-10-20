@@ -1,13 +1,16 @@
 import type { ViewPage } from '@reflexionia/sdk';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Menu } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { api } from '../../../api';
 import { ViewMenu } from '../../../components/ViewMenu';
 import { useMessages, type Messages } from '../../../i18n';
 import { useAppLocale } from '../../../i18n/locale';
 import { useShellActions } from '../../../shell/shell-actions';
+import { MatrixBoard, MatrixViewToggle } from '../../matrix/MatrixBoard';
+import { readMatrixLayout, writeMatrixLayout } from '../../matrix/layout';
+import { useFeatures } from '../../settings/feature-flags';
 import { newMutation, runOrQueue } from '../../offline/client';
 import {
   collectFilterTasks,
@@ -86,10 +89,12 @@ export function ProjectListPage() {
   }
   return (
     <Board
+      key={projectId}
       messages={messages}
       title={project?.name ?? messages.listName}
       queryKey={['project-tasks', projectId]}
       createProjectId={projectId}
+      matrixListId={project !== undefined && project.kind !== 'NOTE' ? projectId : undefined}
       columns={(columns.data?.items ?? []).map((column) => ({
         id: column.id,
         name: column.name,
@@ -133,6 +138,7 @@ function Board({
   viewKey,
   revealCompleted = false,
   initialGroup = 'section',
+  matrixListId,
 }: {
   readonly messages: Messages;
   readonly title: string;
@@ -147,15 +153,26 @@ function Board({
   readonly viewKey: string;
   readonly revealCompleted?: boolean | undefined;
   readonly initialGroup?: GroupBy | undefined;
+  readonly matrixListId?: string | undefined;
 }) {
   const queryClient = useQueryClient();
   const locale = useAppLocale();
   const shell = useShellActions();
+  const flags = useFeatures((state) => state.flags);
   const [params, setParams] = useSearchParams();
   const [groupBy, setGroupBy] = useState<GroupBy>(initialGroup);
   const [sort, setSort] = useState<Sort>('manual');
   const [details, setDetails] = useState(true);
   const [hideCompleted, setHideCompleted] = useState(!revealCompleted);
+  const [matrixLayout, setMatrixLayout] = useState(() =>
+    matrixListId === undefined ? 'list' : readMatrixLayout(`list:${matrixListId}`),
+  );
+  useEffect(() => {
+    if (matrixListId === undefined) {
+      return;
+    }
+    setMatrixLayout(readMatrixLayout(`list:${matrixListId}`));
+  }, [matrixListId]);
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
   const inboxId = projects.data?.items.find((project) => project.is_inbox)?.id;
   const view = parseView(params.get('view') ?? readStoredView(viewKey));
@@ -198,6 +215,15 @@ function Board({
           <h1>{title}</h1>
         </div>
         <div className="page-actions">
+          {flags.matrix && matrixListId !== undefined ? (
+            <MatrixViewToggle
+              value={matrixLayout}
+              onChange={(next) => {
+                writeMatrixLayout(`list:${matrixListId}`, next);
+                setMatrixLayout(next);
+              }}
+            />
+          ) : null}
           <span className="ui-badge">
             {page.isPending
               ? '—'
@@ -251,35 +277,39 @@ function Board({
       {notice !== undefined ? <p>{notice}</p> : null}
       {note && rows.length === 0 ? <p>{messages.noteEmpty}</p> : null}
       {page.isError ? <p className="error">{messages.previewFailed}</p> : null}
-      <TaskList
-        messages={messages}
-        rows={rows}
-        locale={locale}
-        view={view}
-        columns={columns}
-        showDetails={details}
-        hideCompleted={hideCompleted}
-        manualOrder={sort === 'manual'}
-        trash={viewKey === 'smart:trash'}
-        createProjectId={canCapture ? (createProjectId ?? inboxId) : undefined}
-        createViewDay={createViewDay}
-        onComplete={(row) => {
-          if (row.status === 'completed') {
-            void api.uncompleteTask(row.id, crypto.randomUUID()).then(() => {
+      {flags.matrix && matrixListId !== undefined && matrixLayout === 'matrix' ? (
+        <MatrixBoard scope={{ kind: 'list', listId: matrixListId }} embedded />
+      ) : (
+        <TaskList
+          messages={messages}
+          rows={rows}
+          locale={locale}
+          view={view}
+          columns={columns}
+          showDetails={details}
+          hideCompleted={hideCompleted}
+          manualOrder={sort === 'manual'}
+          trash={viewKey === 'smart:trash'}
+          createProjectId={canCapture ? (createProjectId ?? inboxId) : undefined}
+          createViewDay={createViewDay}
+          onComplete={(row) => {
+            if (row.status === 'completed') {
+              void api.uncompleteTask(row.id, crypto.randomUUID()).then(() => {
+                void refreshTaskSurfaces(queryClient);
+              });
+              return;
+            }
+            void runOrQueue(newMutation('complete', row.id, {}), (key) =>
+              api.completeTask(row.id, {}, key),
+            ).then(() => {
               void refreshTaskSurfaces(queryClient);
             });
-            return;
-          }
-          void runOrQueue(newMutation('complete', row.id, {}), (key) =>
-            api.completeTask(row.id, {}, key),
-          ).then(() => {
+          }}
+          onCreated={() => {
             void refreshTaskSurfaces(queryClient);
-          });
-        }}
-        onCreated={() => {
-          void refreshTaskSurfaces(queryClient);
-        }}
-      />
+          }}
+        />
+      )}
     </main>
   );
 }

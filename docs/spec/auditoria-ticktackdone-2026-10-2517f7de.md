@@ -20,16 +20,20 @@ Cada punto sigue el formato: qué es, resultado actual, resultado esperado, cóm
 **Resultado esperado:** como en TickTick: Escape cierra, clic fuera cierra, y abrir otro menú cierra el anterior.
 
 **Cómo arreglarlo:** el menú no usa el componente `Popover` (que ya tiene cierre por Escape y por clic fuera).
+
 - `apps/web/src/features/today/TaskContextMenu.tsx`: devuelve un `<div className="popover popover-menu task-context" role="menu" style={{left, top}}>` pelado, sin listeners.
 - `apps/web/src/components/Popover.tsx` (L33, L48): ya implementa `Escape` y `document.addEventListener('mousedown', ...)` con cierre al clicar fuera.
 
 Dos opciones, la primera es la recomendada:
+
 1. Envolver `TaskContextMenu` con `Popover` (anclado por coordenadas x/y) y pasar `onClose`.
 2. Si se quiere mantener el div fijo, añadir en `TaskContextMenu` un `useEffect` equivalente al de Popover:
 
 ```tsx
 useEffect(() => {
-  const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+  const onKey = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') onClose();
+  };
   const onDown = (e: MouseEvent) => {
     if (!(e.target as HTMLElement).closest('.task-context')) onClose();
   };
@@ -57,11 +61,14 @@ Mismo patrón afecta al panel "Más" de la barra inferior móvil (ver punto 7).
 **Resultado esperado:** TickTick usa un editor que crece con el contenido y un panel de detalle con scroll propio a altura completa (medido: contenedor interno con `overflow:auto`, scrollHeight 1721px dentro de un panel de 713px; nada se corta nunca).
 
 **Cómo arreglarlo:**
+
 - En `DetailBody.tsx`, llamar a `fit()` también al montar y cuando cambie el valor:
 
 ```tsx
 const contentRef = useRef<HTMLTextAreaElement>(null);
-useEffect(() => { if (contentRef.current) fit(contentRef.current); }, [task.id, value]);
+useEffect(() => {
+  if (contentRef.current) fit(contentRef.current);
+}, [task.id, value]);
 ```
 
 - Alternativa más robusta: quitar el textarea manual y usar un `contentEditable` o un editor tipo CodeMirror como TickTick, pero con el `useEffect` de arriba el bug queda resuelto.
@@ -74,6 +81,7 @@ useEffect(() => { if (contentRef.current) fit(contentRef.current); }, [task.id, 
 **Qué es:** en móvil (390x844) la barra azul de iconos de escritorio y su badge rojo de vencidas ("54") aparecen flotando encima del contenido en TODAS las páginas (Hoy, calendario, matriz, foco, countdowns...).
 
 **Resultado actual:** bug de cascada CSS. En `apps/web/src/shell/shell.css`:
+
 - L468 (dentro de `@media (max-width:1023px)`): `.icon-rail { display: none; }`
 - L611 (regla base, DESPUÉS en el archivo, misma especificidad): `.icon-rail { display: flex; ... }`
 
@@ -85,7 +93,9 @@ Al ir la regla base después, gana sobre la media query y el rail se pinta en m�
 
 ```css
 @media (max-width: 1023px) {
-  .shell .icon-rail { display: none; }
+  .shell .icon-rail {
+    display: none;
+  }
 }
 ```
 
@@ -104,6 +114,7 @@ Causa raíz en `apps/web/src/features/product/ProductPages.tsx` L166-201 (`Repor
 **Resultado esperado (rediseño, referencia TickTick "Summary"):** cada informe semanal debe mostrar contenido real: tareas completadas vs creadas en la semana, vencidas arrastradas, minutos de foco, hábitos cumplidos, tendencia respecto a la semana anterior. La lista de semanas debería ser un selector lateral o un desplegable, y la semana actual la vista principal con tarjetas y un gráfico sencillo.
 
 **Cómo arreglarlo:**
+
 - Backend: revisar qué guarda `buildWeeklyReport()` en `payload` (si solo hay `summary`, ampliar el payload: `completed`, `created`, `overdue`, `focusMinutes`, `habitsDone`, por día).
 - Frontend (`ReportsPage`): renderizar `current.payload` completo en tarjetas (reutilizar `CountCard` de la propia página de Revisión) + una tabla por día. Cuando `week` es `undefined`, mostrar la semana más reciente con su detalle, no solo la lista.
 
@@ -118,6 +129,7 @@ Causa raíz en `apps/web/src/features/product/ProductPages.tsx` L166-201 (`Repor
 **Resultado esperado (rediseño):** una revisión estilo "weekly review" de verdad: cada tarjeta clicable que despliega la lista concreta (las 58 vencidas, las 32 sin fecha...), con acciones rápidas por tarea (reprogramar a hoy/mañana, marcar "no haré", completar), y un flujo guiado: vaciar bandeja → revisar vencidas → poner fecha a las sin fecha → elegir las 3 de mañana.
 
 **Cómo arreglarlo:**
+
 - Convertir cada `CountCard` en enlace a la lista filtrada correspondiente (ya existen rutas: `/today?filter=overdue`, `/smart/no-date`, etc.) o desplegar la lista inline debajo de la tarjeta con los mismos componentes de fila de tarea de `TodayPage`.
 - Añadir acciones rápidas reutilizando los handlers del menú de tarea (`onDate('today' | 'tomorrow')`, `onWontDo`).
 - Evitar el flash de ceros: no renderizar las tarjetas hasta que `query.isSuccess` (o usar los valores anteriores con `placeholderData: keepPreviousData` de react-query).
@@ -131,6 +143,7 @@ Causa raíz en `apps/web/src/features/product/ProductPages.tsx` L166-201 (`Repor
 **Qué es:** cómo se llega a Cuenta atrás y cómo está montado el submenú "Más/Menos" de la barra lateral.
 
 **Resultado actual:**
+
 - Cuenta atrás NO está en la franja azul de iconos. `apps/web/src/shell/IconRail.tsx` solo tiene: Ajustes(avatar), Hoy, Calendario, Matriz, Foco, Hábitos, Buscar, campana, Ayuda, +, colapsar (L52-93).
 - En el submenú "Más" de la sidebar (`apps/web/src/shell/Sidebar.tsx` ~L549-580) aparece Cuenta atrás SOLO si alguna cuenta atrás tiene `showInSidebar` (L125), y el submenú mezcla cosas: duplica entradas que ya están en la franja azul (Calendario, Matriz, Foco, Hábitos, Ajustes), unas con icono y otras sin (Reportes, Revisión, Ajustes), sin orden claro. La etiqueta "Cuenta atrás" además está hardcodeada en español (L574) en vez de usar `messages`.
 - En TickTick, Countdown es un icono más de la barra izquierda (verificado: `#countdown` junto a Calendar, Matrix, Focus, Habit) y su página es una parrilla de tarjetas grandes y vistosas.
@@ -138,6 +151,7 @@ Causa raíz en `apps/web/src/features/product/ProductPages.tsx` L166-201 (`Repor
 **Resultado esperado:** Cuenta atrás como icono de la franja azul (como Matriz), siempre accesible. El submenú "Más" solo con lo que NO está en el rail (Jardín, Reportes, Revisión...), todas las entradas con icono y orden coherente.
 
 **Cómo arreglarlo:**
+
 - `IconRail.tsx`: añadir tras Matriz:
 
 ```tsx
@@ -147,6 +161,7 @@ Causa raíz en `apps/web/src/features/product/ProductPages.tsx` L166-201 (`Repor
 ```
 
 (añadir `navCountdowns` a los `messages` de i18n y reutilizar el icono `Hourglass` ya usado en Sidebar).
+
 - `Sidebar.tsx`: quitar del bloque "Más" las entradas duplicadas con el rail (Calendario, Matriz, Foco, Hábitos, Ajustes), dejar Jardín/Reportes/Revisión/Cuenta atrás todas con icono, y mostrar Cuenta atrás siempre (quitar el condicional `showCountdowns` de L125 o invertir su sentido: que `showInSidebar` controle el widget de la sidebar, no el acceso a la página). Cambiar el literal "Cuenta atrás" por `messages.navCountdowns`.
 - En la página de countdowns, inspirarse en TickTick: tarjetas grandes con emoji, número grande y fecha; en móvil el título se corta ("Cu...") — dar a la tarjeta `min-height` y permitir 2 líneas de título con `text-overflow` en 2 líneas (`-webkit-line-clamp: 2`).
 
@@ -157,6 +172,7 @@ Causa raíz en `apps/web/src/features/product/ProductPages.tsx` L166-201 (`Repor
 **Qué es:** la bottom nav del móvil y su hoja "Más".
 
 **Resultado actual:**
+
 1. La barra usa `background: var(--surface)` (`shell.css` ~L559-597), el mismo color del cuerpo de la app: se confunde con el contenido. Pablo lo quiere claramente diferenciada.
 2. La hoja "Más" (`apps/web/src/shell/BottomBar.tsx`, `.more-sheet`, L50) solo tiene Buscar, Hábitos, Filtros y Ajustes. NO tiene Matriz, Foco, Cuenta atrás, Jardín, Reportes ni Revisión → en móvil esas secciones son inalcanzables desde la navegación (y con el bug 3 arreglado ya no quedará ni el rail para colarse).
 3. La hoja no se cierra al tocar fuera ni con gesto de atrás (mismo patrón del bug 1: no hay listener de outside-click).
@@ -164,10 +180,14 @@ Causa raíz en `apps/web/src/features/product/ProductPages.tsx` L166-201 (`Repor
 **Resultado esperado:** barra con color propio (en TickTick la bottom bar tiene fondo sólido distinto y el icono activo en color de acento); hoja "Más" con TODAS las secciones y cierre al tocar fuera.
 
 **Cómo arreglarlo:**
+
 - `shell.css`: dar a `.bottom-bar` un fondo distinto (p.ej. `var(--surface-2)` o el azul de marca con iconos claros) y un borde superior más marcado:
 
 ```css
-.bottom-bar { background: var(--surface-2, #1e2430); border-top: 1px solid var(--border); }
+.bottom-bar {
+  background: var(--surface-2, #1e2430);
+  border-top: 1px solid var(--border);
+}
 ```
 
 - `BottomBar.tsx`: añadir a la hoja las rutas que faltan (`/matrix`, `/focus`, `/countdowns`, `/dashboard`, `/reports/weekly`, `/review/weekly`) y el mismo `useEffect` de cierre por fuera/Escape del punto 1 (o reutilizar `components/Popover.tsx`).
@@ -179,6 +199,7 @@ Causa raíz en `apps/web/src/features/product/ProductPages.tsx` L166-201 (`Repor
 **Qué es:** las vistas del calendario (`/calendar/:view`: day, week, multi-day, multi-week, month, quarter, year, agenda) en `apps/web/src/features/places/Places.tsx` (`CalendarPage`, ~L526+).
 
 **Resultado actual (todo verificado en vivo con capturas):**
+
 - **Mes:** funciona pero el grid desborda en horizontal: la columna del domingo queda cortada y aparece scrollbar inferior. Los eventos de Google Calendar aparecen como chips de color (bien), pero la celda queda apretada.
 - **Día:** no es una vista de calendario: es una lista plana de 2 filas de tareas, sin rejilla horaria y SIN los eventos externos (el evento "Karate Lucas y Lola 18:20-19:40" de ese día no aparece por ningún lado).
 - **Semana / Multi-día / Multi-semana:** mismo grid estilo mes cortado en filas, sin eje de horas, columnas recortadas a la derecha y mucho espacio vacío. Sin eventos externos en su franja horaria.
@@ -190,6 +211,7 @@ Causa raíz en `apps/web/src/features/product/ProductPages.tsx` L166-201 (`Repor
 **Resultado esperado:** día y semana = rejilla horaria con eventos externos en su bloque y tareas con hora; mes sin overflow; agenda mezclando tareas + eventos.
 
 **Cómo arreglarlo:**
+
 - Mes: quitar el ancho fijo que provoca el overflow (probablemente `grid-template-columns` con `minmax` + gap que suma más del 100% o un `min-width` en el contenedor); usar `grid-template-columns: repeat(7, minmax(0, 1fr))` y `min-width: 0` en las celdas para que los chips hagan ellipsis en vez de ensanchar el grid.
 - Día/Semana: crear una vista de rejilla horaria nueva (columnas = días, filas = horas 6:00-24:00). La API de sincronización de Google Calendar (PR #45) ya trae eventos con hora de inicio/fin: pintarlos como bloques posicionados (`top`/`height` calculados de la hora). Las tareas con `due_date` con hora van a su bloque; las de todo el día a una fila superior.
 - Agenda: incluir los eventos externos intercalados por hora con las tareas.
@@ -214,6 +236,7 @@ Causa raíz en `apps/web/src/features/product/ProductPages.tsx` L166-201 (`Repor
 **Qué es:** la página Jardín (`/dashboard`).
 
 **Resultado actual:** `DashboardPage` (`ProductPages.tsx` L113-165) pinta tarjetas planas con borde discontinuo. Problemas concretos verificados:
+
 - Se ve la clave cruda del widget **"next_countdowns"** como título de tarjeta: `widgetLabel()` (L63) no tiene traducción para esa clave y devuelve el propio key.
 - Estadísticas en crudo: "Creadas 312 · Completadas 214 · Saldo -98", "Foco 132:09" sin formato ni contexto.
 - El botón de mostrar/ocultar logros está sin estilos.
@@ -221,6 +244,7 @@ Causa raíz en `apps/web/src/features/product/ProductPages.tsx` L166-201 (`Repor
 **Resultado esperado (rediseño):** el Jardín debería ser la pantalla "bonita" de motivación: planta/jardín que crece con rachas, logros con icono y nombre traducido, widgets con título legible ("Próximas cuentas atrás"), números con formato (2 h 12 min en vez de 132:09).
 
 **Cómo arreglarlo:**
+
 - Inmediato: añadir el caso `next_countdowns` (y revisar el resto de keys) en `widgetLabel()` de `ProductPages.tsx` con su texto traducido en `messages`.
 - Rediseño: definir el set de widgets (próximas cuentas atrás, racha de hábitos, foco de la semana, tareas completadas esta semana, logros desbloqueados) con componente de tarjeta con icono + título + valor + tendencia. Formatear minutos con una utilidad tipo `formatDuration` (132:09 → "132 h 9 min" o "5 días 12 h").
 
@@ -263,6 +287,7 @@ Durante la auditoría los contadores de la sidebar (Hoy 55→56, Todas 93→95, 
 **Por qué:** hoy todas las secciones están siempre presentes aunque no se usen. TickTick hace exactamente esto: cada módulo (Countdown, Eisenhower, Pomo, Habit) se activa/desactiva desde Ajustes y los activos aparecen como iconos en la barra izquierda.
 
 **Resultado esperado:**
+
 - Ruta nueva `/settings/features` hija de `SettingsLayout` (`apps/web/src/app.tsx` L149-165 ya monta ~15 sub-páginas de ajustes; añadir una más siguiendo el mismo patrón, y su entrada en el nav de `SettingsLayout` en `Places.tsx` ~L1524).
 - Switches por función con persistencia por usuario (campo nuevo `features: { countdowns: bool, focus: bool, matrix: bool }` en preferencias del usuario, API de settings existente).
 - Efecto de cada toggle: ocultar/mostrar el icono del rail (`IconRail.tsx`), la entrada del "Más" (`Sidebar.tsx`), la hoja móvil (`BottomBar.tsx`) y desactivar la ruta (redirect a /today con aviso) si está apagada. Por defecto todo activado (comportamiento actual).
