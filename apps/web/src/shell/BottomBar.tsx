@@ -1,4 +1,5 @@
 import {
+  Award,
   CalendarCheck,
   CalendarDays,
   CircleDot,
@@ -147,6 +148,14 @@ export function BottomBar({ onOpenLists }: { readonly onOpenLists: () => void })
             to="/dashboard"
             label={messages.navDashboard}
             icon={LayoutDashboard}
+            onDone={() => {
+              setMore(false);
+            }}
+          />
+          <SheetLink
+            to="/statistics"
+            label={messages.navStatistics}
+            icon={Award}
             onDone={() => {
               setMore(false);
             }}

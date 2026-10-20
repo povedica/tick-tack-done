@@ -17,8 +17,10 @@ import { NotesModule } from './modules/notes/notes.module.js';
 import { PlanningModule } from './modules/planning/planning.module.js';
 import { PluginsModule } from './modules/plugins/plugins.module.js';
 import { RealtimeModule } from './modules/realtime/realtime.module.js';
+import { MetricsModule } from './modules/metrics/metrics.module.js';
 import { ReportsModule } from './modules/reports/reports.module.js';
 import { ReviewModule } from './modules/review/review.module.js';
+import { StatsModule } from './modules/stats/stats.module.js';
 import { TransferModule } from './modules/transfer/transfer.module.js';
 import { WebhooksModule } from './modules/webhooks/webhooks.module.js';
 import { OpenModule } from './open/open.module.js';
@@ -57,8 +59,10 @@ import { SchedulerModule } from './scheduler/scheduler.module.js';
     McpModule,
     SchedulerModule,
     CalendarModule,
+    MetricsModule,
     DashboardModule,
     ReportsModule,
+    StatsModule,
     ReviewModule,
     PlanningModule,
     WebhooksModule,

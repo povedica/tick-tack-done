@@ -46,6 +46,18 @@ function CountCard({ label, value }: { readonly label: string; readonly value: n
   );
 }
 
+function humanWeek(week: string): string {
+  const start = Date.parse(`${week}T00:00:00.000Z`);
+  if (Number.isNaN(start)) {
+    return week;
+  }
+  const from = new Date(start);
+  const to = new Date(start + 6 * 24 * 60 * 60 * 1000);
+  const fmt = (date: Date) =>
+    date.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', timeZone: 'UTC' });
+  return `Semana del ${fmt(from)} al ${fmt(to)}`;
+}
+
 function clock(seconds: number): string {
   return `${String(Math.floor(seconds / 60))}:${String(seconds % 60).padStart(2, '0')}`;
 }
@@ -87,7 +99,11 @@ function widgetText(messages: ReturnType<typeof useMessages>, key: string, value
   }
   const row = value as Record<string, unknown>;
   if (key === 'completed_week') {
-    return `${asText(row.value)} · ${messages.widgetTrend} ${asText(row.trend)}`;
+    const trend =
+      typeof row.trend_label === 'string' && row.trend_label.length > 0
+        ? row.trend_label
+        : `${messages.widgetTrend} ${asText(row.trend)}`;
+    return `${asText(row.value)} · ${trend}`;
   }
   if (key === 'flow') {
     return `${messages.widgetCreated} ${asText(row.created)} · ${messages.widgetCompleted} ${asText(row.completed)} · ${messages.widgetNet} ${asText(row.net)}`;
@@ -115,7 +131,9 @@ function widgetText(messages: ReturnType<typeof useMessages>, key: string, value
       .join(' · ');
   }
   if (key === 'calendar') {
-    return asText(row.upcoming);
+    return typeof row.label === 'string' && row.label.length > 0
+      ? row.label
+      : `${asText(row.upcoming)} próximos eventos`;
   }
   if (key === 'integrations') {
     return Object.entries(row)
@@ -167,8 +185,13 @@ export function DashboardPage() {
         <article className="widget garden-card">
           <h3>{messages.gardenAchievements}</h3>
           <p className="garden-value">
-            {score.data.enabled === true ? messages.achievementsOn : messages.achievementsOff}
+            {score.data.enabled === true
+              ? `${messages.achievementsOn}${typeof score.data.level === 'string' ? ` · ${score.data.level}` : ''}`
+              : messages.achievementsOff}
             {typeof score.data.score === 'number' ? ` · ${String(score.data.score)}` : ''}
+          </p>
+          <p>
+            <Link to="/statistics">{messages.reportSeeStats}</Link>
           </p>
           <Button
             onClick={() => {
@@ -177,7 +200,9 @@ export function DashboardPage() {
               });
             }}
           >
-            {score.data.enabled === true ? messages.achievementsOff : messages.achievementsOn}
+            {score.data.enabled === true
+              ? messages.achievementsDisable
+              : messages.achievementsEnable}
           </Button>
         </article>
       ) : null}
@@ -200,7 +225,11 @@ export function ReportsPage() {
   const overdue = numberOf(payload.overdue ?? snapshot.overdue);
   const focusMinutes = numberOf(payload.focus_minutes);
   const habitsDone = numberOf(payload.habits_done ?? snapshot.habit_percent);
-  const trend = numberOf(payload.trend ?? snapshot.trend);
+  const habitsExpected = numberOf(payload.habits_expected);
+  const trendLabel =
+    typeof payload.trend_label === 'string'
+      ? payload.trend_label
+      : String(numberOf(payload.trend ?? snapshot.trend));
   const days = Array.isArray(payload.days) ? payload.days.filter(isRow) : [];
   const peak = Math.max(1, ...days.map((day) => numberOf(day.completed) + numberOf(day.created)));
   return (
@@ -208,7 +237,14 @@ export function ReportsPage() {
       <header className="page-header">
         <div>
           <h1>{messages.reportsTitle}</h1>
-          <p className="lede">{text(payload.summary)}</p>
+          {reports.isLoading && rows.length === 0 ? (
+            <p className="lede">Cargando reporte…</p>
+          ) : (
+            <p className="lede">{text(payload.summary)}</p>
+          )}
+          <p>
+            <Link to="/statistics">{messages.reportSeeStats}</Link>
+          </p>
         </div>
         <Button
           variant="primary"
@@ -221,7 +257,9 @@ export function ReportsPage() {
           {messages.reportBuild}
         </Button>
       </header>
-      {rows.length === 0 ? (
+      {reports.isLoading && rows.length === 0 ? (
+        <p className="lede">Cargando…</p>
+      ) : rows.length === 0 ? (
         <EmptyState title={messages.reportsTitle} body={messages.reportEmpty} />
       ) : (
         <label className="token-label">
@@ -235,7 +273,7 @@ export function ReportsPage() {
           >
             {rows.map((row) => (
               <option key={text(row.week)} value={text(row.week)}>
-                {text(row.week)}
+                {humanWeek(text(row.week))}
               </option>
             ))}
           </select>
@@ -248,8 +286,18 @@ export function ReportsPage() {
             <CountCard label={messages.reportCreated} value={created} />
             <CountCard label={messages.reportOverdue} value={overdue} />
             <CountCard label={messages.reportFocus} value={focusMinutes} />
-            <CountCard label={messages.reportHabits} value={habitsDone} />
-            <CountCard label={messages.reportTrend} value={trend} />
+            <article className="widget">
+              <h3>{messages.reportHabits}</h3>
+              <p className="detail-title">
+                {habitsExpected > 0
+                  ? `${String(habitsDone)} de ${String(habitsExpected)}`
+                  : String(habitsDone)}
+              </p>
+            </article>
+            <article className="widget">
+              <h3>{messages.reportTrend}</h3>
+              <p className="detail-title">{trendLabel}</p>
+            </article>
           </ul>
           {days.length > 0 ? (
             <section>

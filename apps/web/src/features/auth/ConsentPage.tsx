@@ -32,6 +32,7 @@ const SCOPE_LABEL: Record<string, keyof Messages> = {
   'automations:manage': 'scopeAutomationsManage',
   'profile:read': 'scopeProfileRead',
   'profile:write': 'scopeProfileWrite',
+  'stats:read': 'scopeStatsRead',
   'backup:read': 'scopeBackupRead',
 };
 

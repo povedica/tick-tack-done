@@ -6715,6 +6715,458 @@
         ]
       }
     },
+    "/api/v1/stats/overview": {
+      "get": {
+        "operationId": "StatsController_overview",
+        "parameters": [
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-13",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-19",
+              "type": "string"
+            }
+          },
+          {
+            "name": "tz",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "Europe/Madrid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "list",
+            "required": false,
+            "in": "query",
+            "description": "Comma-separated project ids",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tag",
+            "required": false,
+            "in": "query",
+            "description": "Comma-separated tag ids",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "priority",
+            "required": false,
+            "in": "query",
+            "description": "Comma-separated priorities",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "description": "Focus session type filter",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Statistics overview KPIs and trend (RF-2321)",
+        "tags": [
+          "stats"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/stats/tasks": {
+      "get": {
+        "operationId": "StatsController_tasks",
+        "parameters": [
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-13",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-19",
+              "type": "string"
+            }
+          },
+          {
+            "name": "tz",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "Europe/Madrid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "list",
+            "required": false,
+            "in": "query",
+            "description": "Comma-separated project ids",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tag",
+            "required": false,
+            "in": "query",
+            "description": "Comma-separated tag ids",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "priority",
+            "required": false,
+            "in": "query",
+            "description": "Comma-separated priorities",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "description": "Focus session type filter",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Task statistics series and distributions (RF-2321)",
+        "tags": [
+          "stats"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/stats/focus": {
+      "get": {
+        "operationId": "StatsController_focus",
+        "parameters": [
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-13",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-19",
+              "type": "string"
+            }
+          },
+          {
+            "name": "tz",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "Europe/Madrid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "list",
+            "required": false,
+            "in": "query",
+            "description": "Comma-separated project ids",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tag",
+            "required": false,
+            "in": "query",
+            "description": "Comma-separated tag ids",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "priority",
+            "required": false,
+            "in": "query",
+            "description": "Comma-separated priorities",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "description": "Focus session type filter",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Focus statistics, heatmap and distribution (RF-2322)",
+        "tags": [
+          "stats"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/stats/habits": {
+      "get": {
+        "operationId": "StatsController_habits",
+        "parameters": [
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-13",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-19",
+              "type": "string"
+            }
+          },
+          {
+            "name": "tz",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "Europe/Madrid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "list",
+            "required": false,
+            "in": "query",
+            "description": "Comma-separated project ids",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tag",
+            "required": false,
+            "in": "query",
+            "description": "Comma-separated tag ids",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "priority",
+            "required": false,
+            "in": "query",
+            "description": "Comma-separated priorities",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "description": "Focus session type filter",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Habit statistics for the range (RF-2323)",
+        "tags": [
+          "stats"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/stats/achievement": {
+      "get": {
+        "operationId": "StatsController_achievement",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Achievement value, level and public formula (RF-2321)",
+        "tags": [
+          "stats"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/stats/export": {
+      "get": {
+        "operationId": "StatsController_export",
+        "parameters": [
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-13",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-19",
+              "type": "string"
+            }
+          },
+          {
+            "name": "tz",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "Europe/Madrid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "list",
+            "required": false,
+            "in": "query",
+            "description": "Comma-separated project ids",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tag",
+            "required": false,
+            "in": "query",
+            "description": "Comma-separated tag ids",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "priority",
+            "required": false,
+            "in": "query",
+            "description": "Comma-separated priorities",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "description": "Focus session type filter",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "format",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "csv",
+                "json"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Export statistics for the filtered range as CSV or JSON (RF-2324)",
+        "tags": [
+          "stats"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/review/daily": {
       "get": {
         "operationId": "ReviewController_daily",
@@ -8221,7 +8673,7 @@
             "description": ""
           }
         },
-        "summary": "Achievement score from the dashboard KPIs (RF-1602). Off means null.",
+        "summary": "Achievement score shared with Estadísticas (RF-1602 / RF-2321). Off means null.",
         "tags": [
           "me"
         ],
@@ -8985,7 +9437,8 @@
                 "automations:manage",
                 "profile:read",
                 "profile:write",
-                "backup:read"
+                "backup:read",
+                "stats:read"
               ]
             }
           }

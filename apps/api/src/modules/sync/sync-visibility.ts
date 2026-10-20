@@ -26,6 +26,7 @@ const PREFIX_SCOPE: Readonly<Record<string, string>> = {
   dashboard: 'profile:read',
   achievement: 'profile:read',
   report: 'profile:read',
+  stats: 'stats:read',
 };
 
 export function eventVisibleToCaller(

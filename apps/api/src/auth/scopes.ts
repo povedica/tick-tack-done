@@ -40,6 +40,7 @@ export const API_SCOPES = [
   'profile:read',
   'profile:write',
   'backup:read',
+  'stats:read',
 ] as const;
 
 /**
@@ -87,6 +88,7 @@ export const OAUTH_DEFAULT_SCOPES = [
   'profile:read',
   'webhooks:manage',
   'automations:manage',
+  'stats:read',
 ] as const satisfies readonly ApiScope[];
 
 /** Scopes the route requires and the caller was not granted (RF-2002). */
