@@ -1,180 +1,97 @@
-/** RF-1602 / RF-2321. One achievement score for the garden and Estadísticas. */
-
-export interface AchievementInput {
-  readonly enabled: boolean;
-  /** Legacy weekly KPIs (RF-1602). Used when detailed counters are omitted. */
-  readonly completedWeek?: number;
-  readonly habitPercent?: number;
-  readonly focusDays?: number;
-  /** Detailed counters for the public formula (RF-2321). */
-  readonly completedOnTime?: number;
-  readonly completedLate?: number;
-  readonly priorityPoints?: number;
-  readonly pomodoros?: number;
-  readonly habitCheckIns?: number;
-  readonly overdueCount?: number;
+/** Control v3: current state, never lifetime experience points. */
+export const FOCUS_WEEKLY_TARGET = 10;
+export interface ControlInput {
+  readonly enabled?: boolean;
+  readonly hasDatedTasks?: boolean;
+  readonly planned: number;
+  readonly onTime: number;
+  readonly overdue: { readonly under7: number; readonly d8to30: number; readonly over30: number };
+  readonly habitDone: number;
+  readonly habitExpected: number;
+  readonly pomodoros: number;
+  readonly lifetimePomodoros: number;
+  readonly usageDays: number;
 }
-
-export interface AchievementLevel {
-  readonly id: string;
-  readonly threshold: number;
-}
-
-/** Twelve named levels. Thresholds keep RF-1602 names at the same score breakpoints. */
-export const ACHIEVEMENT_LEVELS: readonly AchievementLevel[] = [
-  { id: 'inicio', threshold: 0 },
-  { id: 'arranque', threshold: 20 },
-  { id: 'ritmo', threshold: 50 },
-  { id: 'en marcha', threshold: 80 },
-  { id: 'dedicado', threshold: 120 },
-  { id: 'firme', threshold: 160 },
-  { id: 'constante', threshold: 200 },
-  { id: 'solido', threshold: 280 },
-  { id: 'maestro', threshold: 400 },
-  { id: 'experto', threshold: 600 },
-  { id: 'leyenda', threshold: 900 },
-  { id: 'elite', threshold: 1400 },
-] as const;
-
-export const ACHIEVEMENT_FORMULA = {
-  on_time_base: 10,
-  late_base: 5,
-  priority_high_bonus: 15,
-  priority_medium_bonus: 5,
-  priority_low_bonus: 2,
-  pomodoro: 15,
-  habit_check_in: 8,
-  overdue_penalty: 5,
-} as const;
-
-export interface AchievementScore {
-  readonly enabled: boolean;
-  readonly score: number | null;
-  readonly level: string | null;
-  readonly level_index: number | null;
-  readonly next_threshold: number | null;
-  readonly progress_to_next: number | null;
-  readonly formula: {
-    readonly on_time_points: number;
-    readonly late_points: number;
-    readonly priority_points: number;
-    readonly pomodoro_points: number;
-    readonly habit_points: number;
-    readonly overdue_penalty: number;
-    readonly weights: typeof ACHIEVEMENT_FORMULA;
-  } | null;
-}
-
-export function achievementScore(input: AchievementInput): AchievementScore {
-  if (!input.enabled) {
-    return {
-      enabled: false,
-      score: null,
-      level: null,
-      level_index: null,
-      next_threshold: null,
-      progress_to_next: null,
-      formula: null,
-    };
-  }
-  const detailed = hasDetailed(input);
-  const onTime = input.completedOnTime ?? 0;
-  const late = input.completedLate ?? 0;
-  const priorityPoints = input.priorityPoints ?? 0;
-  const pomodoros = input.pomodoros ?? 0;
-  const habits = input.habitCheckIns ?? 0;
-  const overdue = input.overdueCount ?? 0;
-
-  let score: number;
-  let onTimePoints = 0;
-  let latePoints = 0;
-  let pomodoroPoints = 0;
-  let habitPoints = 0;
-  let overduePenalty = 0;
-
-  if (detailed) {
-    onTimePoints = onTime * ACHIEVEMENT_FORMULA.on_time_base;
-    latePoints = late * ACHIEVEMENT_FORMULA.late_base;
-    pomodoroPoints = pomodoros * ACHIEVEMENT_FORMULA.pomodoro;
-    habitPoints = habits * ACHIEVEMENT_FORMULA.habit_check_in;
-    overduePenalty = overdue * ACHIEVEMENT_FORMULA.overdue_penalty;
-    score = Math.max(
-      0,
-      onTimePoints + latePoints + priorityPoints + pomodoroPoints + habitPoints - overduePenalty,
-    );
-  } else {
-    const completedWeek = input.completedWeek ?? 0;
-    const habitPercent = input.habitPercent ?? 0;
-    const focusDays = input.focusDays ?? 0;
-    score = completedWeek * 10 + Math.round(habitPercent / 10) + focusDays * 5;
-    onTimePoints = completedWeek * 10;
-    habitPoints = Math.round(habitPercent / 10);
-    pomodoroPoints = focusDays * 5;
-  }
-
-  const levelIndex = levelIndexFor(score);
-  const level = ACHIEVEMENT_LEVELS[levelIndex];
-  const next = ACHIEVEMENT_LEVELS[levelIndex + 1];
-  const progress =
-    next === undefined || level === undefined
-      ? 100
-      : Math.min(
-          100,
-          Math.round(
-            ((score - level.threshold) / Math.max(1, next.threshold - level.threshold)) * 100,
+export function controlScore(input: ControlInput) {
+  const { planned, onTime, overdue } = input;
+  const open = overdue.under7 + overdue.d8to30 + overdue.over30;
+  const tasksConfigured = input.hasDatedTasks === true || planned > 0 || open > 0;
+  const compliance = planned === 0 ? 25 : (25 * (Math.min(onTime, planned) + 2)) / (planned + 3);
+  const penalty = overdue.under7 + 2 * overdue.d8to30 + 3 * overdue.over30;
+  const arrears = Math.max(0, 25 - penalty);
+  const habitsConfigured = input.habitExpected > 0;
+  const focusConfigured = input.lifetimePomodoros > 0;
+  const habits = habitsConfigured
+    ? (20 * (Math.min(input.habitDone, input.habitExpected) + 1)) / (input.habitExpected + 2)
+    : 0;
+  const focus = focusConfigured ? 20 * Math.min(1, input.pomodoros / FOCUS_WEEKLY_TARGET) : 0;
+  const usage = (10 * Math.min(7, Math.max(0, input.usageDays))) / 7;
+  const max =
+    (tasksConfigured ? 50 : 0) + (habitsConfigured ? 20 : 0) + (focusConfigured ? 20 : 0) + 10;
+  const hasData = tasksConfigured || habitsConfigured || focusConfigured || input.usageDays > 0;
+  const enabled = input.enabled !== false;
+  const score =
+    !enabled || !hasData
+      ? null
+      : Math.max(
+          0,
+          Math.min(
+            100,
+            Math.round(
+              (100 * ((tasksConfigured ? compliance + arrears : 0) + habits + focus + usage)) / max,
+            ),
           ),
         );
-
-  return {
-    enabled: true,
-    score,
-    level: level?.id ?? 'inicio',
-    level_index: levelIndex,
-    next_threshold: next?.threshold ?? null,
-    progress_to_next: next === undefined ? 100 : progress,
-    formula: {
-      on_time_points: onTimePoints,
-      late_points: latePoints,
-      priority_points: detailed ? priorityPoints : 0,
-      pomodoro_points: pomodoroPoints,
-      habit_points: habitPoints,
-      overdue_penalty: overduePenalty,
-      weights: ACHIEVEMENT_FORMULA,
+  const components = {
+    tasks: {
+      earned: tasksConfigured ? compliance + arrears : 0,
+      max: 50,
+      configured: tasksConfigured,
+      cumplimiento: { earned: tasksConfigured ? compliance : 0, max: 25, onTime, planned },
+      atrasadas: { earned: tasksConfigured ? arrears : 0, max: 25, open, byAge: overdue, penalty },
     },
+    habits: {
+      earned: habits,
+      max: 20,
+      done: input.habitDone,
+      expected: input.habitExpected,
+      configured: habitsConfigured,
+    },
+    focus: {
+      earned: focus,
+      max: 20,
+      pomodoros: input.pomodoros,
+      target: FOCUS_WEEKLY_TARGET,
+      configured: focusConfigured,
+    },
+    usage: { earned: usage, max: 10, days: input.usageDays, windowDays: 7, configured: true },
+  };
+  const deductions = [
+    {
+      lost: tasksConfigured ? 25 - arrears : 0,
+      text: `${String(open)} vencidas${open === overdue.over30 ? ' de más de 30 días' : ''}: -${String(Math.min(25, penalty))} en Tareas`,
+    },
+    {
+      lost: tasksConfigured ? 25 - compliance : 0,
+      text: `Tareas a tiempo: ${String(onTime)}/${String(planned)} en los últimos 14 días`,
+    },
+    {
+      lost: habitsConfigured ? 20 - habits : 0,
+      text: `Hábitos: ${String(input.habitDone)}/${String(input.habitExpected)} días cumplidos`,
+    },
+    {
+      lost: focusConfigured ? 20 - focus : 0,
+      text: `Foco: ${String(input.pomodoros)}/${String(FOCUS_WEEKLY_TARGET)} pomodoros esta semana`,
+    },
+    { lost: 10 - usage, text: `Uso: ${String(input.usageDays)}/7 días registrados` },
+  ].sort((a, b) => b.lost - a.lost);
+  return {
+    enabled,
+    score,
+    label: score === null ? null : score >= 75 ? 'Al día' : score >= 50 ? 'Justo' : 'Atrasado',
+    components: enabled ? components : null,
+    topDeduction:
+      score === null ? null : deductions[0]?.lost === 0 ? null : (deductions[0]?.text ?? null),
   };
 }
-
-export function priorityBonus(priority: string): number {
-  switch (priority) {
-    case 'high':
-      return ACHIEVEMENT_FORMULA.priority_high_bonus;
-    case 'medium':
-      return ACHIEVEMENT_FORMULA.priority_medium_bonus;
-    case 'low':
-      return ACHIEVEMENT_FORMULA.priority_low_bonus;
-    default:
-      return 0;
-  }
-}
-
-function hasDetailed(input: AchievementInput): boolean {
-  return (
-    input.completedOnTime !== undefined ||
-    input.completedLate !== undefined ||
-    input.priorityPoints !== undefined ||
-    input.pomodoros !== undefined ||
-    input.habitCheckIns !== undefined ||
-    input.overdueCount !== undefined
-  );
-}
-
-function levelIndexFor(score: number): number {
-  let index = 0;
-  for (let i = 0; i < ACHIEVEMENT_LEVELS.length; i += 1) {
-    const level = ACHIEVEMENT_LEVELS[i];
-    if (level !== undefined && score >= level.threshold) {
-      index = i;
-    }
-  }
-  return index;
-}
+export type ControlScore = ReturnType<typeof controlScore>;

@@ -6,7 +6,7 @@ export async function loadGardenProjects(prisma: PrismaService, ownerId: string,
   const where = { ownerId, deletedAt: null };
   const [projects, active, created, completed, activity] = await Promise.all([
     prisma.project.findMany({
-      where: { ownerId, isInbox: false, OR: [{ deletedAt: null }, { deletedAt: { gte: week } }] },
+      where: { ownerId, isInbox: false },
       select: { id: true, name: true, kind: true, closed: true, createdAt: true, deletedAt: true },
       orderBy: { name: 'asc' },
     }),

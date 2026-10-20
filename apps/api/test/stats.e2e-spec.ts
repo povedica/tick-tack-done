@@ -267,9 +267,12 @@ describe('RF-2321–2324 statistics API', () => {
     const stats = await api().get('stats/achievement').expect(200);
     const me = await api().get('me/achievements').expect(200);
     expect(stats.body).toEqual(me.body);
-    expect(stats.body.levels).toHaveLength(12);
-    expect(stats.body.history).toHaveLength(90);
-    expect(stats.body.score).toBe(73);
+    expect(stats.body).not.toHaveProperty('levels');
+    expect(stats.body.history).toHaveLength(1);
+    expect(stats.body.score).toBeGreaterThanOrEqual(0);
+    expect(stats.body.score).toBeLessThanOrEqual(100);
+    expect(stats.body.components.tasks.max).toBe(50);
+    expect(stats.body.components.usage.days).toBe(0);
   });
   it('RF-2324 / §9: aggregates are available without leaking titles through focus or export', async () => {
     const path = `/api/v1/stats/focus?${query}`;

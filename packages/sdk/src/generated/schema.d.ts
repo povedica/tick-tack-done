@@ -2268,7 +2268,7 @@ export interface paths {
         };
         /**
          * KPI for one widget (RF-2102, RF-2104)
-         * @description Without widget, returns widgets, generated_at and period (from, to, time_zone). Activity covers the trailing seven days; completed_today uses the account time zone. Habits include total active habits. Calendar includes up to three events within the next seven days. Integration booleans reflect the authenticated account connection, not only server configuration. Projects exclude the inbox and include open/closed lists plus recent soft deletions, seven-day task activity and review signals (no pending tasks or no task changes for 30 days), excluding note lists and closed projects from suggestions.
+         * @description Without widget, returns widgets, generated_at and period (from, to, time_zone). Activity covers the trailing seven days; completed_today uses the account time zone. Habits include total active habits. Calendar includes up to three events within the next seven days. Integration booleans reflect the authenticated account connection, not only server configuration. Includes overdue_by_list with disjoint calendar-age buckets under_7, days_7_30 and over_30, based on the same canonical overdue set as the count. Habits, calendar and next_countdowns expose configured independently of current activity. Projects exclude the inbox and include open/closed lists plus all accessible soft deletions, seven-day task activity and review signals (no pending tasks or no task changes for 30 days), excluding note lists and closed projects from suggestions.
          */
         get: operations["DashboardController_data"];
         put?: never;
@@ -8505,32 +8505,53 @@ export interface operations {
                             achievement: {
                                 enabled: boolean;
                                 score: number | null;
-                                level: string | null;
-                                level_index: number | null;
-                                next_threshold: number | null;
-                                progress_to_next: number | null;
-                                formula: {
-                                    on_time_points: number;
-                                    late_points: number;
-                                    priority_points: number;
-                                    pomodoro_points: number;
-                                    habit_points: number;
-                                    overdue_penalty: number;
-                                    weights: {
-                                        on_time_base: number;
-                                        late_base: number;
-                                        priority_high_bonus: number;
-                                        priority_medium_bonus: number;
-                                        priority_low_bonus: number;
-                                        pomodoro: number;
-                                        habit_check_in: number;
-                                        overdue_penalty: number;
+                                label: string | null;
+                                components: {
+                                    tasks: {
+                                        earned: number;
+                                        max: number;
+                                        configured: boolean;
+                                        cumplimiento: {
+                                            earned: number;
+                                            max: number;
+                                            onTime: number;
+                                            planned: number;
+                                        };
+                                        atrasadas: {
+                                            earned: number;
+                                            max: number;
+                                            open: number;
+                                            penalty: number;
+                                            byAge: {
+                                                under7: number;
+                                                d8to30: number;
+                                                over30: number;
+                                            };
+                                        };
+                                    };
+                                    habits: {
+                                        earned: number;
+                                        max: number;
+                                        configured: boolean;
+                                        done: number;
+                                        expected: number;
+                                    };
+                                    focus: {
+                                        earned: number;
+                                        max: number;
+                                        configured: boolean;
+                                        pomodoros: number;
+                                        target: number;
+                                    };
+                                    usage: {
+                                        earned: number;
+                                        max: number;
+                                        configured: boolean;
+                                        days: number;
+                                        windowDays: number;
                                     };
                                 } | null;
-                                levels: {
-                                    id: string;
-                                    threshold: number;
-                                }[];
+                                topDeduction: string | null;
                                 history: {
                                     /** Format: date */
                                     date: string;
@@ -8908,32 +8929,53 @@ export interface operations {
                     "application/json": {
                         enabled: boolean;
                         score: number | null;
-                        level: string | null;
-                        level_index: number | null;
-                        next_threshold: number | null;
-                        progress_to_next: number | null;
-                        formula: {
-                            on_time_points: number;
-                            late_points: number;
-                            priority_points: number;
-                            pomodoro_points: number;
-                            habit_points: number;
-                            overdue_penalty: number;
-                            weights: {
-                                on_time_base: number;
-                                late_base: number;
-                                priority_high_bonus: number;
-                                priority_medium_bonus: number;
-                                priority_low_bonus: number;
-                                pomodoro: number;
-                                habit_check_in: number;
-                                overdue_penalty: number;
+                        label: string | null;
+                        components: {
+                            tasks: {
+                                earned: number;
+                                max: number;
+                                configured: boolean;
+                                cumplimiento: {
+                                    earned: number;
+                                    max: number;
+                                    onTime: number;
+                                    planned: number;
+                                };
+                                atrasadas: {
+                                    earned: number;
+                                    max: number;
+                                    open: number;
+                                    penalty: number;
+                                    byAge: {
+                                        under7: number;
+                                        d8to30: number;
+                                        over30: number;
+                                    };
+                                };
+                            };
+                            habits: {
+                                earned: number;
+                                max: number;
+                                configured: boolean;
+                                done: number;
+                                expected: number;
+                            };
+                            focus: {
+                                earned: number;
+                                max: number;
+                                configured: boolean;
+                                pomodoros: number;
+                                target: number;
+                            };
+                            usage: {
+                                earned: number;
+                                max: number;
+                                configured: boolean;
+                                days: number;
+                                windowDays: number;
                             };
                         } | null;
-                        levels: {
-                            id: string;
-                            threshold: number;
-                        }[];
+                        topDeduction: string | null;
                         history: {
                             /** Format: date */
                             date: string;
@@ -8997,32 +9039,53 @@ export interface operations {
                                 achievement: {
                                     enabled: boolean;
                                     score: number | null;
-                                    level: string | null;
-                                    level_index: number | null;
-                                    next_threshold: number | null;
-                                    progress_to_next: number | null;
-                                    formula: {
-                                        on_time_points: number;
-                                        late_points: number;
-                                        priority_points: number;
-                                        pomodoro_points: number;
-                                        habit_points: number;
-                                        overdue_penalty: number;
-                                        weights: {
-                                            on_time_base: number;
-                                            late_base: number;
-                                            priority_high_bonus: number;
-                                            priority_medium_bonus: number;
-                                            priority_low_bonus: number;
-                                            pomodoro: number;
-                                            habit_check_in: number;
-                                            overdue_penalty: number;
+                                    label: string | null;
+                                    components: {
+                                        tasks: {
+                                            earned: number;
+                                            max: number;
+                                            configured: boolean;
+                                            cumplimiento: {
+                                                earned: number;
+                                                max: number;
+                                                onTime: number;
+                                                planned: number;
+                                            };
+                                            atrasadas: {
+                                                earned: number;
+                                                max: number;
+                                                open: number;
+                                                penalty: number;
+                                                byAge: {
+                                                    under7: number;
+                                                    d8to30: number;
+                                                    over30: number;
+                                                };
+                                            };
+                                        };
+                                        habits: {
+                                            earned: number;
+                                            max: number;
+                                            configured: boolean;
+                                            done: number;
+                                            expected: number;
+                                        };
+                                        focus: {
+                                            earned: number;
+                                            max: number;
+                                            configured: boolean;
+                                            pomodoros: number;
+                                            target: number;
+                                        };
+                                        usage: {
+                                            earned: number;
+                                            max: number;
+                                            configured: boolean;
+                                            days: number;
+                                            windowDays: number;
                                         };
                                     } | null;
-                                    levels: {
-                                        id: string;
-                                        threshold: number;
-                                    }[];
+                                    topDeduction: string | null;
                                     history: {
                                         /** Format: date */
                                         date: string;

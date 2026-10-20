@@ -1,6 +1,6 @@
 import { formatInTimeZone } from 'date-fns-tz';
 import { instantFromWall } from '../dates/zoned';
-import { achievementScore, priorityBonus } from '../achievements/score';
+import { controlScore } from '../achievements/score';
 import { habitRangeSummary } from '../habits/habits';
 import type { HabitGoal, HabitWeekday } from '../types';
 import { isIanaTimeZone } from '../tasks/time-zone';
@@ -571,91 +571,120 @@ function round1(value: number): number {
 }
 
 /** RF-2321: prepare calendar boundaries once, then reconstruct scores without IO. */
-function prepareAchievement(tasks: readonly StatsTaskRow[], tz: string) {
-  return tasks
-    .filter((task) => task.status !== 'cancelled')
-    .map((task) => {
-      const dueDay = task.dueDate === null ? null : dayKey(task.dueDate, tz);
-      const bounds = task.isAllDay && dueDay !== null ? parseDayBounds(dueDay, dueDay, tz) : null;
-      return {
-        created: Date.parse(task.createdAt),
-        done: task.completedAt === null ? Infinity : Date.parse(task.completedAt),
-        due:
-          task.dueDate === null
-            ? Infinity
-            : bounds === null
-              ? Date.parse(task.dueDate)
-              : Date.parse(bounds.endIso) - 1,
-        bonus: priorityBonus(task.priority),
-      };
-    });
-}
-function scoreAt(
-  tasks: ReturnType<typeof prepareAchievement>,
+export function controlScoreAt(
+  tasks: readonly StatsTaskRow[],
   focus: readonly StatsFocusRow[],
-  logs: readonly { readonly date: string; readonly count: number }[],
+  habits: readonly StatsHabitRow[],
+  usageDays: ReadonlySet<string>,
   now: string,
   tz: string,
 ) {
   const cutoff = Date.parse(now);
   const today = dayKey(now, tz) ?? '';
-  let onTime = 0;
-  let late = 0;
-  let bonus = 0;
-  let overdue = 0;
+  const from14 = addCalendarDays(today, -13) ?? today;
+  const from7 = addCalendarDays(today, -6) ?? today;
+  let planned = 0,
+    onTime = 0,
+    hasDatedTasks = false;
+  const overdue = { under7: 0, d8to30: 0, over30: 0 };
   for (const task of tasks) {
-    if (task.created > cutoff) continue;
-    if (task.done <= cutoff) {
-      if (task.done <= task.due) {
-        onTime += 1;
-        bonus += task.bonus;
-      } else late += 1;
-    } else if (task.due < cutoff) overdue += 1;
+    if (task.status === 'cancelled' || task.dueDate === null || Date.parse(task.createdAt) > cutoff)
+      continue;
+    const dueDay = dayKey(task.dueDate, tz);
+    if (dueDay === null) continue;
+    hasDatedTasks = true;
+    const bounds = task.isAllDay ? parseDayBounds(dueDay, dueDay, tz) : null;
+    const end = bounds === null ? Date.parse(task.dueDate) : Date.parse(bounds.endIso) - 1;
+    const done = task.completedAt === null ? Infinity : Date.parse(task.completedAt);
+    if (dueDay >= from14 && dueDay <= today) {
+      planned += 1;
+      if (done <= end && done <= cutoff) onTime += 1;
+    }
+    // History knows only completed_at, not previous edits or deadline changes.
+    const activeNow = task.status === 'active' || (done > cutoff && Number.isFinite(done));
+    if (activeNow && done > cutoff && end < cutoff) {
+      const age = Math.max(0, Math.round((Date.parse(today) - Date.parse(dueDay)) / 86_400_000));
+      if (age < 7) overdue.under7 += 1;
+      else if (age <= 30) overdue.d8to30 += 1;
+      else overdue.over30 += 1;
+    }
   }
-  return achievementScore({
-    enabled: true,
-    completedOnTime: onTime,
-    completedLate: late,
-    priorityPoints: bonus,
-    overdueCount: overdue,
-    pomodoros: focus.filter(
-      (row) =>
-        row.type === 'focus' && row.completed && Date.parse(row.endedAt ?? row.startedAt) <= cutoff,
-    ).length,
-    habitCheckIns: logs.filter((row) => row.count > 0 && row.date <= today).length,
+  let habitDone = 0,
+    habitExpected = 0;
+  for (const habit of habits) {
+    const summary = habitRangeSummary({
+      goal: habit.goal,
+      days: habit.days,
+      logs: habit.logs,
+      from: from7,
+      to: today,
+      today,
+    });
+    habitDone += summary.done;
+    habitExpected += summary.expected;
+  }
+  const completedFocus = focus.filter(
+    (item) =>
+      item.type === 'focus' &&
+      item.completed &&
+      Date.parse(item.endedAt ?? item.startedAt) <= cutoff,
+  );
+  const pomodoros = completedFocus.filter(
+    (item) => (dayKey(item.endedAt ?? item.startedAt, tz) ?? '') >= from7,
+  ).length;
+  return controlScore({
+    hasDatedTasks,
+    planned,
+    onTime,
+    overdue,
+    habitDone,
+    habitExpected,
+    pomodoros,
+    lifetimePomodoros: completedFocus.length,
+    usageDays: [...usageDays].filter((day) => day >= from7 && day <= today).length,
   });
-}
-export function achievementAt(
-  tasks: readonly StatsTaskRow[],
-  focus: readonly StatsFocusRow[],
-  logs: readonly { readonly date: string; readonly count: number }[],
-  now: string,
-  tz: string,
-) {
-  return scoreAt(prepareAchievement(tasks, tz), focus, logs, now, tz);
 }
 export function achievementHistory(
   tasks: readonly StatsTaskRow[],
   focus: readonly StatsFocusRow[],
-  logs: readonly { readonly date: string; readonly count: number }[],
+  habits: readonly StatsHabitRow[],
+  usageDays: ReadonlySet<string>,
   days: readonly string[],
   now: string,
   tz: string,
 ) {
-  const prepared = prepareAchievement(tasks, tz);
   const today = dayKey(now, tz);
   return days.map((date) => ({
     date,
-    score: scoreAt(
-      prepared,
+    score: controlScoreAt(
+      tasks,
       focus,
-      logs,
+      habits,
+      usageDays,
       date === today
         ? now
         : new Date(Date.parse(parseDayBounds(date, date, tz)?.endIso ?? '') - 1).toISOString(),
       tz,
     ).score,
   }));
+}
+export function usageStreak(daysWithUse: ReadonlySet<string>, today: string) {
+  let cursor = daysWithUse.has(today) ? today : (addCalendarDays(today, -1) ?? today);
+  let current = 0;
+  while (daysWithUse.has(cursor)) {
+    current += 1;
+    cursor = addCalendarDays(cursor, -1) ?? '';
+  }
+  const year = today.slice(0, 4);
+  let best_year = 0,
+    run = 0,
+    previous = '';
+  for (const day of [...daysWithUse].filter((day) => day <= today && day.startsWith(year)).sort()) {
+    run = addCalendarDays(previous, 1) === day ? run + 1 : 1;
+    best_year = Math.max(best_year, run);
+    previous = day;
+  }
+  return { current, best_year };
 }
 
 /** RF-2321: grouping preserves the planned cohort instead of dividing unrelated completions. */

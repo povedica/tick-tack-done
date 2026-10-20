@@ -1,9 +1,29 @@
 import { describe, expect, it } from 'vitest';
-import { dashboardSnapshot, productivityPanel, weeklyNarrative } from './kpis';
+import { dashboardSnapshot, productivityPanel, weeklyNarrative, overdueAgeGroups } from './kpis';
 
 const now = '2026-10-18T12:00:00.000Z';
 
 describe('dashboard', () => {
+  it('groups overdue ages without overlap at days 0, 6, 7, 30 and 31', () => {
+    const groups = overdueAgeGroups(
+      [0, 6, 7, 30, 31].map((days_overdue) => ({ list_id: 'one', name: 'One', days_overdue })),
+    );
+    expect(groups).toEqual([
+      { list_id: 'one', name: 'One', total: 5, under_7: 2, days_7_30: 2, over_30: 1 },
+    ]);
+    expect(
+      groups.reduce((sum, item) => sum + item.under_7 + item.days_7_30 + item.over_30, 0),
+    ).toBe(5);
+  });
+  it('orders the worst lists first with stable name ties and a no-list bucket', () => {
+    const groups = overdueAgeGroups([
+      { list_id: 'a', name: 'Alfa', days_overdue: 7 },
+      { list_id: 'b', name: 'Beta', days_overdue: 31 },
+      { list_id: 'z', name: 'Zeta', days_overdue: 7 },
+      { list_id: null, name: '', days_overdue: 0 },
+    ]);
+    expect(groups.map((item) => item.name)).toEqual(['Beta', 'Alfa', 'Zeta', 'Sin lista']);
+  });
   it('counts today in the account time zone across UTC midnight', () => {
     const snapshot = dashboardSnapshot(
       [

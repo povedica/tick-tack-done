@@ -6534,7 +6534,7 @@
     },
     "/api/v1/dashboard/data": {
       "get": {
-        "description": "Without widget, returns widgets, generated_at and period (from, to, time_zone). Activity covers the trailing seven days; completed_today uses the account time zone. Habits include total active habits. Calendar includes up to three events within the next seven days. Integration booleans reflect the authenticated account connection, not only server configuration. Projects exclude the inbox and include open/closed lists plus recent soft deletions, seven-day task activity and review signals (no pending tasks or no task changes for 30 days), excluding note lists and closed projects from suggestions.",
+        "description": "Without widget, returns widgets, generated_at and period (from, to, time_zone). Activity covers the trailing seven days; completed_today uses the account time zone. Habits include total active habits. Calendar includes up to three events within the next seven days. Integration booleans reflect the authenticated account connection, not only server configuration. Includes overdue_by_list with disjoint calendar-age buckets under_7, days_7_30 and over_30, based on the same canonical overdue set as the count. Habits, calendar and next_countdowns expose configured independently of current activity. Projects exclude the inbox and include open/closed lists plus all accessible soft deletions, seven-day task activity and review signals (no pending tasks or no task changes for 30 days), excluding note lists and closed projects from suggestions.",
         "operationId": "DashboardController_data",
         "parameters": [],
         "responses": {
@@ -6878,114 +6878,198 @@
                               "type": "boolean"
                             },
                             "score": {
-                              "type": "number",
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 100,
                               "nullable": true
                             },
-                            "level": {
+                            "label": {
                               "type": "string",
                               "nullable": true
                             },
-                            "level_index": {
-                              "type": "integer",
-                              "nullable": true
-                            },
-                            "next_threshold": {
-                              "type": "number",
-                              "nullable": true
-                            },
-                            "progress_to_next": {
-                              "type": "number",
-                              "nullable": true
-                            },
-                            "formula": {
+                            "components": {
                               "type": "object",
                               "properties": {
-                                "on_time_points": {
-                                  "type": "number"
-                                },
-                                "late_points": {
-                                  "type": "number"
-                                },
-                                "priority_points": {
-                                  "type": "number"
-                                },
-                                "pomodoro_points": {
-                                  "type": "number"
-                                },
-                                "habit_points": {
-                                  "type": "number"
-                                },
-                                "overdue_penalty": {
-                                  "type": "number"
-                                },
-                                "weights": {
+                                "tasks": {
                                   "type": "object",
                                   "properties": {
-                                    "on_time_base": {
+                                    "earned": {
                                       "type": "number"
                                     },
-                                    "late_base": {
+                                    "max": {
                                       "type": "number"
                                     },
-                                    "priority_high_bonus": {
-                                      "type": "number"
+                                    "configured": {
+                                      "type": "boolean"
                                     },
-                                    "priority_medium_bonus": {
-                                      "type": "number"
+                                    "cumplimiento": {
+                                      "type": "object",
+                                      "properties": {
+                                        "earned": {
+                                          "type": "number"
+                                        },
+                                        "max": {
+                                          "type": "number"
+                                        },
+                                        "onTime": {
+                                          "type": "integer"
+                                        },
+                                        "planned": {
+                                          "type": "integer"
+                                        }
+                                      },
+                                      "required": [
+                                        "earned",
+                                        "max",
+                                        "onTime",
+                                        "planned"
+                                      ]
                                     },
-                                    "priority_low_bonus": {
-                                      "type": "number"
-                                    },
-                                    "pomodoro": {
-                                      "type": "number"
-                                    },
-                                    "habit_check_in": {
-                                      "type": "number"
-                                    },
-                                    "overdue_penalty": {
-                                      "type": "number"
+                                    "atrasadas": {
+                                      "type": "object",
+                                      "properties": {
+                                        "earned": {
+                                          "type": "number"
+                                        },
+                                        "max": {
+                                          "type": "number"
+                                        },
+                                        "open": {
+                                          "type": "integer"
+                                        },
+                                        "penalty": {
+                                          "type": "number"
+                                        },
+                                        "byAge": {
+                                          "type": "object",
+                                          "properties": {
+                                            "under7": {
+                                              "type": "integer"
+                                            },
+                                            "d8to30": {
+                                              "type": "integer"
+                                            },
+                                            "over30": {
+                                              "type": "integer"
+                                            }
+                                          },
+                                          "required": [
+                                            "under7",
+                                            "d8to30",
+                                            "over30"
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "earned",
+                                        "max",
+                                        "open",
+                                        "penalty",
+                                        "byAge"
+                                      ]
                                     }
                                   },
                                   "required": [
-                                    "on_time_base",
-                                    "late_base",
-                                    "priority_high_bonus",
-                                    "priority_medium_bonus",
-                                    "priority_low_bonus",
-                                    "pomodoro",
-                                    "habit_check_in",
-                                    "overdue_penalty"
+                                    "earned",
+                                    "max",
+                                    "configured",
+                                    "cumplimiento",
+                                    "atrasadas"
+                                  ]
+                                },
+                                "habits": {
+                                  "type": "object",
+                                  "properties": {
+                                    "earned": {
+                                      "type": "number"
+                                    },
+                                    "max": {
+                                      "type": "number"
+                                    },
+                                    "configured": {
+                                      "type": "boolean"
+                                    },
+                                    "done": {
+                                      "type": "integer"
+                                    },
+                                    "expected": {
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "required": [
+                                    "earned",
+                                    "max",
+                                    "configured",
+                                    "done",
+                                    "expected"
+                                  ]
+                                },
+                                "focus": {
+                                  "type": "object",
+                                  "properties": {
+                                    "earned": {
+                                      "type": "number"
+                                    },
+                                    "max": {
+                                      "type": "number"
+                                    },
+                                    "configured": {
+                                      "type": "boolean"
+                                    },
+                                    "pomodoros": {
+                                      "type": "integer"
+                                    },
+                                    "target": {
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "required": [
+                                    "earned",
+                                    "max",
+                                    "configured",
+                                    "pomodoros",
+                                    "target"
+                                  ]
+                                },
+                                "usage": {
+                                  "type": "object",
+                                  "properties": {
+                                    "earned": {
+                                      "type": "number"
+                                    },
+                                    "max": {
+                                      "type": "number"
+                                    },
+                                    "configured": {
+                                      "type": "boolean"
+                                    },
+                                    "days": {
+                                      "type": "integer"
+                                    },
+                                    "windowDays": {
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "required": [
+                                    "earned",
+                                    "max",
+                                    "configured",
+                                    "days",
+                                    "windowDays"
                                   ]
                                 }
                               },
                               "required": [
-                                "on_time_points",
-                                "late_points",
-                                "priority_points",
-                                "pomodoro_points",
-                                "habit_points",
-                                "overdue_penalty",
-                                "weights"
+                                "tasks",
+                                "habits",
+                                "focus",
+                                "usage"
                               ],
                               "nullable": true
                             },
-                            "levels": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "id": {
-                                    "type": "string"
-                                  },
-                                  "threshold": {
-                                    "type": "integer"
-                                  }
-                                },
-                                "required": [
-                                  "id",
-                                  "threshold"
-                                ]
-                              }
+                            "topDeduction": {
+                              "type": "string",
+                              "nullable": true
                             },
                             "history": {
                               "type": "array",
@@ -7011,12 +7095,9 @@
                           "required": [
                             "enabled",
                             "score",
-                            "level",
-                            "level_index",
-                            "next_threshold",
-                            "progress_to_next",
-                            "formula",
-                            "levels",
+                            "label",
+                            "components",
+                            "topDeduction",
                             "history"
                           ]
                         }
@@ -8457,114 +8538,198 @@
                       "type": "boolean"
                     },
                     "score": {
-                      "type": "number",
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 100,
                       "nullable": true
                     },
-                    "level": {
+                    "label": {
                       "type": "string",
                       "nullable": true
                     },
-                    "level_index": {
-                      "type": "integer",
-                      "nullable": true
-                    },
-                    "next_threshold": {
-                      "type": "number",
-                      "nullable": true
-                    },
-                    "progress_to_next": {
-                      "type": "number",
-                      "nullable": true
-                    },
-                    "formula": {
+                    "components": {
                       "type": "object",
                       "properties": {
-                        "on_time_points": {
-                          "type": "number"
-                        },
-                        "late_points": {
-                          "type": "number"
-                        },
-                        "priority_points": {
-                          "type": "number"
-                        },
-                        "pomodoro_points": {
-                          "type": "number"
-                        },
-                        "habit_points": {
-                          "type": "number"
-                        },
-                        "overdue_penalty": {
-                          "type": "number"
-                        },
-                        "weights": {
+                        "tasks": {
                           "type": "object",
                           "properties": {
-                            "on_time_base": {
+                            "earned": {
                               "type": "number"
                             },
-                            "late_base": {
+                            "max": {
                               "type": "number"
                             },
-                            "priority_high_bonus": {
-                              "type": "number"
+                            "configured": {
+                              "type": "boolean"
                             },
-                            "priority_medium_bonus": {
-                              "type": "number"
+                            "cumplimiento": {
+                              "type": "object",
+                              "properties": {
+                                "earned": {
+                                  "type": "number"
+                                },
+                                "max": {
+                                  "type": "number"
+                                },
+                                "onTime": {
+                                  "type": "integer"
+                                },
+                                "planned": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "earned",
+                                "max",
+                                "onTime",
+                                "planned"
+                              ]
                             },
-                            "priority_low_bonus": {
-                              "type": "number"
-                            },
-                            "pomodoro": {
-                              "type": "number"
-                            },
-                            "habit_check_in": {
-                              "type": "number"
-                            },
-                            "overdue_penalty": {
-                              "type": "number"
+                            "atrasadas": {
+                              "type": "object",
+                              "properties": {
+                                "earned": {
+                                  "type": "number"
+                                },
+                                "max": {
+                                  "type": "number"
+                                },
+                                "open": {
+                                  "type": "integer"
+                                },
+                                "penalty": {
+                                  "type": "number"
+                                },
+                                "byAge": {
+                                  "type": "object",
+                                  "properties": {
+                                    "under7": {
+                                      "type": "integer"
+                                    },
+                                    "d8to30": {
+                                      "type": "integer"
+                                    },
+                                    "over30": {
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "required": [
+                                    "under7",
+                                    "d8to30",
+                                    "over30"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "earned",
+                                "max",
+                                "open",
+                                "penalty",
+                                "byAge"
+                              ]
                             }
                           },
                           "required": [
-                            "on_time_base",
-                            "late_base",
-                            "priority_high_bonus",
-                            "priority_medium_bonus",
-                            "priority_low_bonus",
-                            "pomodoro",
-                            "habit_check_in",
-                            "overdue_penalty"
+                            "earned",
+                            "max",
+                            "configured",
+                            "cumplimiento",
+                            "atrasadas"
+                          ]
+                        },
+                        "habits": {
+                          "type": "object",
+                          "properties": {
+                            "earned": {
+                              "type": "number"
+                            },
+                            "max": {
+                              "type": "number"
+                            },
+                            "configured": {
+                              "type": "boolean"
+                            },
+                            "done": {
+                              "type": "integer"
+                            },
+                            "expected": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "earned",
+                            "max",
+                            "configured",
+                            "done",
+                            "expected"
+                          ]
+                        },
+                        "focus": {
+                          "type": "object",
+                          "properties": {
+                            "earned": {
+                              "type": "number"
+                            },
+                            "max": {
+                              "type": "number"
+                            },
+                            "configured": {
+                              "type": "boolean"
+                            },
+                            "pomodoros": {
+                              "type": "integer"
+                            },
+                            "target": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "earned",
+                            "max",
+                            "configured",
+                            "pomodoros",
+                            "target"
+                          ]
+                        },
+                        "usage": {
+                          "type": "object",
+                          "properties": {
+                            "earned": {
+                              "type": "number"
+                            },
+                            "max": {
+                              "type": "number"
+                            },
+                            "configured": {
+                              "type": "boolean"
+                            },
+                            "days": {
+                              "type": "integer"
+                            },
+                            "windowDays": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "earned",
+                            "max",
+                            "configured",
+                            "days",
+                            "windowDays"
                           ]
                         }
                       },
                       "required": [
-                        "on_time_points",
-                        "late_points",
-                        "priority_points",
-                        "pomodoro_points",
-                        "habit_points",
-                        "overdue_penalty",
-                        "weights"
+                        "tasks",
+                        "habits",
+                        "focus",
+                        "usage"
                       ],
                       "nullable": true
                     },
-                    "levels": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string"
-                          },
-                          "threshold": {
-                            "type": "integer"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "threshold"
-                        ]
-                      }
+                    "topDeduction": {
+                      "type": "string",
+                      "nullable": true
                     },
                     "history": {
                       "type": "array",
@@ -8590,12 +8755,9 @@
                   "required": [
                     "enabled",
                     "score",
-                    "level",
-                    "level_index",
-                    "next_threshold",
-                    "progress_to_next",
-                    "formula",
-                    "levels",
+                    "label",
+                    "components",
+                    "topDeduction",
                     "history"
                   ]
                 }
@@ -8795,114 +8957,198 @@
                                   "type": "boolean"
                                 },
                                 "score": {
-                                  "type": "number",
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 100,
                                   "nullable": true
                                 },
-                                "level": {
+                                "label": {
                                   "type": "string",
                                   "nullable": true
                                 },
-                                "level_index": {
-                                  "type": "integer",
-                                  "nullable": true
-                                },
-                                "next_threshold": {
-                                  "type": "number",
-                                  "nullable": true
-                                },
-                                "progress_to_next": {
-                                  "type": "number",
-                                  "nullable": true
-                                },
-                                "formula": {
+                                "components": {
                                   "type": "object",
                                   "properties": {
-                                    "on_time_points": {
-                                      "type": "number"
-                                    },
-                                    "late_points": {
-                                      "type": "number"
-                                    },
-                                    "priority_points": {
-                                      "type": "number"
-                                    },
-                                    "pomodoro_points": {
-                                      "type": "number"
-                                    },
-                                    "habit_points": {
-                                      "type": "number"
-                                    },
-                                    "overdue_penalty": {
-                                      "type": "number"
-                                    },
-                                    "weights": {
+                                    "tasks": {
                                       "type": "object",
                                       "properties": {
-                                        "on_time_base": {
+                                        "earned": {
                                           "type": "number"
                                         },
-                                        "late_base": {
+                                        "max": {
                                           "type": "number"
                                         },
-                                        "priority_high_bonus": {
-                                          "type": "number"
+                                        "configured": {
+                                          "type": "boolean"
                                         },
-                                        "priority_medium_bonus": {
-                                          "type": "number"
+                                        "cumplimiento": {
+                                          "type": "object",
+                                          "properties": {
+                                            "earned": {
+                                              "type": "number"
+                                            },
+                                            "max": {
+                                              "type": "number"
+                                            },
+                                            "onTime": {
+                                              "type": "integer"
+                                            },
+                                            "planned": {
+                                              "type": "integer"
+                                            }
+                                          },
+                                          "required": [
+                                            "earned",
+                                            "max",
+                                            "onTime",
+                                            "planned"
+                                          ]
                                         },
-                                        "priority_low_bonus": {
-                                          "type": "number"
-                                        },
-                                        "pomodoro": {
-                                          "type": "number"
-                                        },
-                                        "habit_check_in": {
-                                          "type": "number"
-                                        },
-                                        "overdue_penalty": {
-                                          "type": "number"
+                                        "atrasadas": {
+                                          "type": "object",
+                                          "properties": {
+                                            "earned": {
+                                              "type": "number"
+                                            },
+                                            "max": {
+                                              "type": "number"
+                                            },
+                                            "open": {
+                                              "type": "integer"
+                                            },
+                                            "penalty": {
+                                              "type": "number"
+                                            },
+                                            "byAge": {
+                                              "type": "object",
+                                              "properties": {
+                                                "under7": {
+                                                  "type": "integer"
+                                                },
+                                                "d8to30": {
+                                                  "type": "integer"
+                                                },
+                                                "over30": {
+                                                  "type": "integer"
+                                                }
+                                              },
+                                              "required": [
+                                                "under7",
+                                                "d8to30",
+                                                "over30"
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "earned",
+                                            "max",
+                                            "open",
+                                            "penalty",
+                                            "byAge"
+                                          ]
                                         }
                                       },
                                       "required": [
-                                        "on_time_base",
-                                        "late_base",
-                                        "priority_high_bonus",
-                                        "priority_medium_bonus",
-                                        "priority_low_bonus",
-                                        "pomodoro",
-                                        "habit_check_in",
-                                        "overdue_penalty"
+                                        "earned",
+                                        "max",
+                                        "configured",
+                                        "cumplimiento",
+                                        "atrasadas"
+                                      ]
+                                    },
+                                    "habits": {
+                                      "type": "object",
+                                      "properties": {
+                                        "earned": {
+                                          "type": "number"
+                                        },
+                                        "max": {
+                                          "type": "number"
+                                        },
+                                        "configured": {
+                                          "type": "boolean"
+                                        },
+                                        "done": {
+                                          "type": "integer"
+                                        },
+                                        "expected": {
+                                          "type": "integer"
+                                        }
+                                      },
+                                      "required": [
+                                        "earned",
+                                        "max",
+                                        "configured",
+                                        "done",
+                                        "expected"
+                                      ]
+                                    },
+                                    "focus": {
+                                      "type": "object",
+                                      "properties": {
+                                        "earned": {
+                                          "type": "number"
+                                        },
+                                        "max": {
+                                          "type": "number"
+                                        },
+                                        "configured": {
+                                          "type": "boolean"
+                                        },
+                                        "pomodoros": {
+                                          "type": "integer"
+                                        },
+                                        "target": {
+                                          "type": "integer"
+                                        }
+                                      },
+                                      "required": [
+                                        "earned",
+                                        "max",
+                                        "configured",
+                                        "pomodoros",
+                                        "target"
+                                      ]
+                                    },
+                                    "usage": {
+                                      "type": "object",
+                                      "properties": {
+                                        "earned": {
+                                          "type": "number"
+                                        },
+                                        "max": {
+                                          "type": "number"
+                                        },
+                                        "configured": {
+                                          "type": "boolean"
+                                        },
+                                        "days": {
+                                          "type": "integer"
+                                        },
+                                        "windowDays": {
+                                          "type": "integer"
+                                        }
+                                      },
+                                      "required": [
+                                        "earned",
+                                        "max",
+                                        "configured",
+                                        "days",
+                                        "windowDays"
                                       ]
                                     }
                                   },
                                   "required": [
-                                    "on_time_points",
-                                    "late_points",
-                                    "priority_points",
-                                    "pomodoro_points",
-                                    "habit_points",
-                                    "overdue_penalty",
-                                    "weights"
+                                    "tasks",
+                                    "habits",
+                                    "focus",
+                                    "usage"
                                   ],
                                   "nullable": true
                                 },
-                                "levels": {
-                                  "type": "array",
-                                  "items": {
-                                    "type": "object",
-                                    "properties": {
-                                      "id": {
-                                        "type": "string"
-                                      },
-                                      "threshold": {
-                                        "type": "integer"
-                                      }
-                                    },
-                                    "required": [
-                                      "id",
-                                      "threshold"
-                                    ]
-                                  }
+                                "topDeduction": {
+                                  "type": "string",
+                                  "nullable": true
                                 },
                                 "history": {
                                   "type": "array",
@@ -8928,12 +9174,9 @@
                               "required": [
                                 "enabled",
                                 "score",
-                                "level",
-                                "level_index",
-                                "next_threshold",
-                                "progress_to_next",
-                                "formula",
-                                "levels",
+                                "label",
+                                "components",
+                                "topDeduction",
                                 "history"
                               ]
                             }

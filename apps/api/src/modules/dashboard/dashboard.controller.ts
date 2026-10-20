@@ -12,13 +12,14 @@ import { respondJson } from '../../http/respond.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { loadDashboardSnapshot } from '../../reading/snapshot.js';
 import { loadGardenProjects } from '../../reading/garden-projects.js';
+import { listOverdueTaskRows } from '../../reading/overdue.js';
 import {
   driveConfigured,
   googleConfigured,
   telegramConfigured,
 } from '../../integrations/config.js';
 import { MetricsService } from '../metrics/metrics.service.js';
-import { dayKey, parseDayBounds } from '@reflexionia/domain';
+import { dayKey, parseDayBounds, overdueAgeGroups } from '@reflexionia/domain';
 
 export const WIDGET_KEYS = [
   'completed_today',
@@ -91,7 +92,7 @@ export class DashboardController {
   @ApiOperation({
     summary: 'KPI for one widget (RF-2102, RF-2104)',
     description:
-      'Without widget, returns widgets, generated_at and period (from, to, time_zone). Activity covers the trailing seven days; completed_today uses the account time zone. Habits include total active habits. Calendar includes up to three events within the next seven days. Integration booleans reflect the authenticated account connection, not only server configuration. Projects exclude the inbox and include open/closed lists plus recent soft deletions, seven-day task activity and review signals (no pending tasks or no task changes for 30 days), excluding note lists and closed projects from suggestions.',
+      'Without widget, returns widgets, generated_at and period (from, to, time_zone). Activity covers the trailing seven days; completed_today uses the account time zone. Habits include total active habits. Calendar includes up to three events within the next seven days. Integration booleans reflect the authenticated account connection, not only server configuration. Includes overdue_by_list with disjoint calendar-age buckets under_7, days_7_30 and over_30, based on the same canonical overdue set as the count. Habits, calendar and next_countdowns expose configured independently of current activity. Projects exclude the inbox and include open/closed lists plus all accessible soft deletions, seven-day task activity and review signals (no pending tasks or no task changes for 30 days), excluding note lists and closed projects from suggestions.',
   })
   async data(
     @CurrentUser() user: AuthUser,
@@ -103,6 +104,7 @@ export class DashboardController {
     const tz = user.timeZone || 'Europe/Madrid';
     const snapshot = await loadDashboardSnapshot(this.prisma, user.id, now, tz);
     const projects = await loadGardenProjects(this.prisma, user.id, now);
+    const overdueTasks = await listOverdueTaskRows(this.prisma, user.id);
     const today = dayKey(now.toISOString(), tz) ?? now.toISOString().slice(0, 10);
     const todayBounds = parseDayBounds(today, today, tz);
     const focusSeconds =
@@ -150,6 +152,11 @@ export class DashboardController {
       take: 3,
       select: { id: true, title: true, emoji: true, targetDate: true },
     });
+    const [configuredHabits, configuredCalendars, configuredCountdowns] = await Promise.all([
+      this.prisma.habit.count({ where: { ownerId: user.id, deletedAt: null } }),
+      this.prisma.calendarSubscription.count({ where: { ownerId: user.id, deletedAt: null } }),
+      this.prisma.countdown.count({ where: { ownerId: user.id, deletedAt: null } }),
+    ]);
     const values: Record<string, unknown> = {
       completed_today: snapshot.completed_today,
       completed_week: {
@@ -162,13 +169,19 @@ export class DashboardController {
               ? `+${String(snapshot.trend)} vs semana anterior`
               : `${String(snapshot.trend)} vs semana anterior`,
       },
-      overdue: snapshot.overdue,
+      overdue: overdueTasks.length,
+      overdue_by_list: overdueAgeGroups(overdueTasks),
       projects,
       next_7_days: snapshot.next_7_days,
       flow: { created: snapshot.created, completed: snapshot.completed, net: snapshot.net },
-      habits: { percent: snapshot.habit_percent, total: habitTotal },
+      habits: {
+        percent: snapshot.habit_percent,
+        total: habitTotal,
+        configured: configuredHabits > 0,
+      },
       load: { by_list: snapshot.by_list, by_tag: snapshot.by_tag },
       calendar: {
+        configured: configuredCalendars > 0 || account.googleRefreshToken !== null,
         upcoming,
         label: `${String(upcoming)} eventos en los próximos 7 días`,
         items: upcomingEvents.map((event) => ({
@@ -185,6 +198,7 @@ export class DashboardController {
       },
       focus: { seconds: focusSeconds },
       next_countdowns: {
+        configured: configuredCountdowns > 0,
         items: countdowns.map((countdown) => ({
           id: countdown.id,
           title: countdown.title,

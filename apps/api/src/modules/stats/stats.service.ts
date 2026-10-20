@@ -1,6 +1,6 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import {
-  achievementScore,
+  controlScore,
   addCalendarDays,
   ageOnComplete,
   buildDayBuckets,
@@ -18,11 +18,10 @@ import {
   hourInTz,
   overdueStockSeries,
   parseDayBounds,
-  achievementAt,
+  controlScoreAt,
   achievementHistory,
-  ACHIEVEMENT_LEVELS,
   focusSeries,
-  productiveStreak,
+  usageStreak,
   punctualityStats,
   weekdayInTz,
   type StatsFocusRow,
@@ -76,9 +75,8 @@ export class StatsService {
       dayKey(new Date().toISOString(), query.tz) ?? query.to,
     );
     const prevHabitPct = averageHabitPercent(habits, prev.from, prev.to);
-    const streak = productiveStreak(
-      tasks,
-      query.tz,
+    const streak = usageStreak(
+      await this.usageDays(user.id),
       dayKey(new Date().toISOString(), query.tz) ?? query.to,
     );
     const buckets = buildDayBuckets(
@@ -478,6 +476,21 @@ export class StatsService {
     };
   }
 
+  private async usageDays(ownerId: string): Promise<Set<string>> {
+    const logs = await this.prisma.activityLog.findMany({
+      where: { ownerId, entityType: 'daily_use', deletedAt: null },
+      select: { changes: true },
+    });
+    return new Set(
+      logs.flatMap((log) => {
+        const date =
+          typeof log.changes === 'object' && log.changes !== null && !Array.isArray(log.changes)
+            ? log.changes.date
+            : undefined;
+        return typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) ? [date] : [];
+      }),
+    );
+  }
   async achievement(user: AuthUser) {
     const row = await this.prisma.user.findFirst({
       where: { id: user.id },
@@ -485,47 +498,51 @@ export class StatsService {
     });
     const enabled = row?.achievementsEnabled ?? true;
     const tz = row?.timeZone ?? user.timeZone;
-    if (!enabled) {
+    if (!enabled)
       return {
-        ...achievementScore({ enabled: false }),
-        levels: ACHIEVEMENT_LEVELS,
-        history: [] as { date: string; score: number | null }[],
+        ...controlScore({
+          enabled: false,
+          planned: 0,
+          onTime: 0,
+          overdue: { under7: 0, d8to30: 0, over30: 0 },
+          habitDone: 0,
+          habitExpected: 0,
+          pomodoros: 0,
+          lifetimePomodoros: 0,
+          usageDays: 0,
+        }),
+        history: [],
       };
-    }
-    const tasks = await this.loadTasks(user, {
-      from: '2000-01-01',
-      to: '2100-12-31',
-      tz,
-    });
-    const focus = await this.loadFocus(
-      user,
-      new Date('2000-01-01T00:00:00.000Z'),
-      new Date('2100-01-01T00:00:00.000Z'),
-      { from: '', to: '', tz },
-    );
-    const logs = await this.prisma.habitLog.findMany({
-      where: { ownerId: user.id, deletedAt: null, count: { gt: 0 } },
-      select: { date: true, count: true },
-    });
-    const habitLogs = logs.map((log) => ({
-      date: log.date.toISOString().slice(0, 10),
-      count: log.count,
-    }));
+    const [tasks, focus, habits, usageDays] = await Promise.all([
+      this.loadTasks(user, { from: '2000-01-01', to: '2100-12-31', tz }),
+      this.loadFocus(user, new Date('2000-01-01T00:00:00Z'), new Date('2100-01-01T00:00:00Z'), {
+        from: '',
+        to: '',
+        tz,
+      }),
+      this.metrics.habitRows(user.id, tz),
+      this.usageDays(user.id),
+    ]);
     const now = new Date().toISOString();
     const today = dayKey(now, tz) ?? '';
-    const start = addCalendarDays(today, -89) ?? today;
-    const history = achievementHistory(
-      tasks,
-      focus,
-      habitLogs,
-      parseDayBounds(start, today, tz)?.days ?? [],
-      now,
-      tz,
-    );
+    const earliest = [...usageDays].sort()[0] ?? today;
+    const start = [addCalendarDays(today, -89) ?? today, earliest].sort().at(-1) ?? today;
+    const score = controlScoreAt(tasks, focus, habits, usageDays, now, tz);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { achievementScore: score.score ?? 0 },
+    });
     return {
-      ...achievementAt(tasks, focus, habitLogs, now, tz),
-      levels: ACHIEVEMENT_LEVELS,
-      history,
+      ...score,
+      history: achievementHistory(
+        tasks,
+        focus,
+        habits,
+        usageDays,
+        parseDayBounds(start, today, tz)?.days ?? [],
+        now,
+        tz,
+      ),
     };
   }
 

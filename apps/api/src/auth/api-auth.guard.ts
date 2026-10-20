@@ -20,6 +20,8 @@ import {
   SESSION_MAX_AGE_MS,
 } from './session-cookie.js';
 import { TokenAudit } from './token-audit.js';
+import { createHash } from 'node:crypto';
+import { dayKey } from '@reflexionia/domain';
 import { applyRateLimitHeaders, TokenRateLimiter } from './token-rate-limit.js';
 import { hashPersonalAccessToken, parseBearer } from './token-secret.js';
 
@@ -229,6 +231,26 @@ export class ApiAuthGuard implements CanActivate {
     request.csrfToken = row.csrfToken;
     await this.touchLastUsed('session', row.id, row.lastUsedAt);
     const user = await this.loadUser(row.userId);
+    const date = dayKey(new Date().toISOString(), user.timeZone);
+    if (date !== null) {
+      // The existing UUID primary key makes concurrent first requests idempotent.
+      const hash = createHash('sha256').update(`daily_use:${user.id}:${date}`).digest('hex');
+      const id = `${hash.slice(0, 8)}-${hash.slice(8, 12)}-5${hash.slice(13, 16)}-a${hash.slice(17, 20)}-${hash.slice(20, 32)}`;
+      await this.prisma.activityLog.createMany({
+        data: [
+          {
+            id,
+            ownerId: user.id,
+            actorId: user.id,
+            entityType: 'daily_use',
+            entityId: user.id,
+            action: 'accessed',
+            changes: { date },
+          },
+        ],
+        skipDuplicates: true,
+      });
+    }
     return {
       ...user,
       scopes: [...SESSION_SCOPES],

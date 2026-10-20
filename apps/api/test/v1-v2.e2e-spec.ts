@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import { dayKey } from '@reflexionia/domain';
+import { newPersonalAccessToken } from '../src/auth/token-secret.js';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaClient } from '@prisma/client';
@@ -62,6 +64,58 @@ describe('V1 and V2 product', () => {
     }
     await wipe(userId);
     await prisma.$disconnect();
+  });
+
+  it('Control v3: concurrent session requests record one local daily_use without extra data or backfill', async () => {
+    await prisma.activityLog.deleteMany({ where: { ownerId: userId, entityType: 'daily_use' } });
+    await prisma.user.update({ where: { id: userId }, data: { timeZone: 'Europe/Madrid' } });
+    await Promise.all(Array.from({ length: 8 }, () => session().get('/api/v1/me').expect(200)));
+    const logs = await prisma.activityLog.findMany({
+      where: { ownerId: userId, entityType: 'daily_use' },
+    });
+    expect(logs).toHaveLength(1);
+    expect(logs[0]).toMatchObject({
+      ownerId: userId,
+      actorId: userId,
+      entityId: userId,
+      action: 'accessed',
+      changes: { date: dayKey(new Date().toISOString(), 'Europe/Madrid') },
+    });
+    expect(Object.keys(logs[0]?.changes as object)).toEqual(['date']);
+    const result = await session()
+      .get('/api/v1/stats/overview?from=2026-10-19&to=2026-10-25&tz=Europe%2FMadrid')
+      .expect(200);
+    expect(result.body.summary.streak_current).toBe(1);
+    expect(result.body.summary.achievement.components.usage.days).toBe(1);
+    expect(result.body.summary.achievement.history).toHaveLength(1);
+  });
+
+  it('Control v3: API tokens and development headers never create daily_use', async () => {
+    const user = await prisma.user.create({
+      data: { email: `no-use-${randomUUID()}@reflexionia.test`, displayName: 'Token only' },
+    });
+    const token = newPersonalAccessToken();
+    try {
+      await prisma.personalAccessToken.create({
+        data: {
+          ownerId: user.id,
+          name: 'Read',
+          tokenHash: token.hash,
+          tokenPrefix: token.prefix,
+          scopes: ['tasks:read'],
+        },
+      });
+      await request(server).get('/api/v1/me').set('X-Dev-User-Email', user.email).expect(200);
+      await request(server)
+        .get('/api/v1/tasks')
+        .set('Authorization', `Bearer ${token.token}`)
+        .expect(200);
+      expect(
+        await prisma.activityLog.count({ where: { ownerId: user.id, entityType: 'daily_use' } }),
+      ).toBe(0);
+    } finally {
+      await wipe(user.id);
+    }
   });
 
   it('RF-1002: a column refuses a card past its WIP limit', async () => {
@@ -147,6 +201,57 @@ describe('V1 and V2 product', () => {
     });
     expect(data.body.period.time_zone).toBe('Europe/Madrid');
     expect(Date.parse(data.body.generated_at as string)).not.toBeNaN();
+    expect(data.body.widgets.habits.configured).toBe(false);
+  });
+
+  it('garden KISS: canonical overdue count equals the disjoint age groups and excludes completed/trash', async () => {
+    const project = await prisma.project.create({ data: { ownerId: userId, name: 'Antigüedad' } });
+    const start = new Date();
+    start.setUTCHours(0, 0, 0, 0);
+    await prisma.task.createMany({
+      data: [0, 6, 7, 30, 31].map((days) => ({
+        ownerId: userId,
+        createdById: userId,
+        projectId: project.id,
+        title: `Edad ${String(days)}`,
+        timeZone: 'UTC',
+        isAllDay: days !== 0,
+        dueDate:
+          days === 0 ? new Date(Date.now() - 1000) : new Date(start.getTime() - days * 86_400_000),
+      })),
+    });
+    await prisma.task.createMany({
+      data: [
+        { status: 'completed' as const, deletedAt: null },
+        { status: 'active' as const, deletedAt: new Date() },
+      ].map((extra) => ({
+        ownerId: userId,
+        createdById: userId,
+        projectId: project.id,
+        title: 'Excluida',
+        timeZone: 'UTC',
+        dueDate: new Date(start.getTime() - 31 * 86_400_000),
+        ...extra,
+      })),
+    });
+    const response = await session().get('/api/v1/dashboard/data').expect(200);
+    const groups = response.body.widgets.overdue_by_list as {
+      list_id: string;
+      total: number;
+      under_7: number;
+      days_7_30: number;
+      over_30: number;
+    }[];
+    expect(groups.find((group) => group.list_id === project.id)).toMatchObject({
+      total: 5,
+      under_7: 2,
+      days_7_30: 2,
+      over_30: 1,
+    });
+    expect(groups.reduce((sum, item) => sum + item.total, 0)).toBe(response.body.widgets.overdue);
+    expect(
+      groups.every((item) => item.total === item.under_7 + item.days_7_30 + item.over_30),
+    ).toBe(true);
   });
 
   it('RF-2103: saves widget visibility, ordering and size per account and emits an event', async () => {
@@ -184,6 +289,9 @@ describe('V1 and V2 product', () => {
     const deleted = await prisma.project.create({
       data: { ownerId: userId, name: 'Eliminado', createdAt: old, deletedAt: new Date() },
     });
+    const oldDeleted = await prisma.project.create({
+      data: { ownerId: userId, name: 'Borrado antiguo', createdAt: old, deletedAt: old },
+    });
     const response = await session().get('/api/v1/dashboard/data').expect(200);
     const projects = response.body.widgets.projects;
     expect(projects.items).toEqual(
@@ -196,6 +304,7 @@ describe('V1 and V2 product', () => {
         }),
         expect.objectContaining({ id: fresh.id, state: 'new', needs_review: false }),
         expect.objectContaining({ id: deleted.id, state: 'deleted', needs_review: false }),
+        expect.objectContaining({ id: oldDeleted.id, state: 'deleted', needs_review: false }),
       ]),
     );
     expect(projects.items.some((item: { id: string }) => item.id === projectId)).toBe(false);

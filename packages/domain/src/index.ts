@@ -322,13 +322,8 @@ export type {
   FocusStatSession,
   FocusStats,
 } from './focus/cycle';
-export {
-  ACHIEVEMENT_FORMULA,
-  ACHIEVEMENT_LEVELS,
-  achievementScore,
-  priorityBonus,
-} from './achievements/score';
-export type { AchievementInput, AchievementLevel, AchievementScore } from './achievements/score';
+export { controlScore, FOCUS_WEEKLY_TARGET } from './achievements/score';
+export type { ControlInput, ControlScore } from './achievements/score';
 export {
   ageOnComplete,
   buildDayBuckets,
@@ -342,7 +337,8 @@ export {
   habitRangePercent,
   averageHabitPercent,
   weakestHabitWeekday,
-  achievementAt,
+  controlScoreAt,
+  usageStreak,
   achievementHistory,
   taskSeries,
   focusSeries,
@@ -409,3 +405,4 @@ export {
 } from './navigation';
 export { humanDate } from './dates/presentation';
 export { gardenProjectContext, type GardenProjectInput } from './dashboard/projects';
+export { overdueAgeGroups } from './dashboard/kpis';
