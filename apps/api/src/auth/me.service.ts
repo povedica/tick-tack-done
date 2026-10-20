@@ -4,6 +4,7 @@ import { hashInboundToken, inboundAddress, newInboundToken } from '../inbound/em
 import { DomainException } from '../http/domain.exception.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { AuthUser } from './auth-user.js';
+import { featureFlags } from './feature-flags.js';
 import type {
   InboundEmailAddressDto,
   InboundEmailStatusDto,
@@ -60,9 +61,33 @@ export class MeService {
         ...(dto.focus_notifications !== undefined
           ? { focusNotifications: dto.focus_notifications }
           : {}),
+        ...(dto.features !== undefined
+          ? {
+              featureFlags: await this.mergeFeatures(user.id, dto.features),
+            }
+          : {}),
       },
     });
     return this.toJson(row);
+  }
+
+  private async mergeFeatures(
+    id: string,
+    patch: { countdowns?: boolean; focus?: boolean; matrix?: boolean },
+  ): Promise<{ countdowns: boolean; focus: boolean; matrix: boolean }> {
+    const current = featureFlags(
+      (
+        await this.prisma.user.findFirst({
+          where: { id },
+          select: { featureFlags: true },
+        })
+      )?.featureFlags,
+    );
+    return {
+      countdowns: patch.countdowns ?? current.countdowns,
+      focus: patch.focus ?? current.focus,
+      matrix: patch.matrix ?? current.matrix,
+    };
   }
 
   private async require(id: string): Promise<{
@@ -83,6 +108,7 @@ export class MeService {
     quietHoursEnd: string | null;
     telegramEnabled: boolean;
     focusNotifications: boolean;
+    featureFlags: unknown;
   }> {
     const row = await this.prisma.user.findFirst({
       where: { id, deletedAt: null },
@@ -104,6 +130,7 @@ export class MeService {
         quietHoursEnd: true,
         telegramEnabled: true,
         focusNotifications: true,
+        featureFlags: true,
       },
     });
     if (row === null) {
@@ -130,6 +157,7 @@ export class MeService {
     quietHoursEnd: string | null;
     telegramEnabled: boolean;
     focusNotifications: boolean;
+    featureFlags: unknown;
   }): MeResponseDto {
     return {
       id: row.id,
@@ -149,6 +177,7 @@ export class MeService {
       quiet_hours_end: row.quietHoursEnd,
       telegram_enabled: row.telegramEnabled,
       focus_notifications: row.focusNotifications,
+      features: featureFlags(row.featureFlags),
     };
   }
 

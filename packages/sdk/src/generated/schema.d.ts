@@ -2710,6 +2710,11 @@ export interface components {
             totp_code?: string;
             recovery_code?: string;
         };
+        FeatureFlagsDto: {
+            countdowns?: boolean;
+            focus?: boolean;
+            matrix?: boolean;
+        };
         MeResponseDto: {
             id: string;
             email: string;
@@ -2735,6 +2740,7 @@ export interface components {
             quiet_hours_end: string | null;
             telegram_enabled: boolean;
             focus_notifications: boolean;
+            features: components["schemas"]["FeatureFlagsDto"];
         };
         ChangePasswordDto: {
             /** @description Current password */
@@ -2768,6 +2774,7 @@ export interface components {
             quiet_hours_end?: Record<string, never> | null;
             telegram_enabled?: boolean;
             focus_notifications?: boolean;
+            features?: components["schemas"]["FeatureFlagsDto"];
         };
         InboundEmailStatusDto: {
             active: boolean;

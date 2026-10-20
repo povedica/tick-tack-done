@@ -2,12 +2,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { normalizeTagName } from '@reflexionia/domain';
 import { ApiError } from '@reflexionia/sdk';
 import {
-  CalendarCheck,
+  BarChart3,
   CalendarDays,
   CalendarRange,
   CheckCircle2,
-  CircleDot,
-  Grid2x2,
+  ClipboardList,
   Hourglass,
   Inbox,
   LayoutDashboard,
@@ -40,6 +39,7 @@ import { refreshTaskSurfaces } from '../features/tasks/refresh';
 import { smartPath } from '../features/tasks/model';
 import { orderedSmartLists, SIDEBAR_SMART_ORDER } from './smart-order';
 import { countdownsApi } from '../features/countdowns/api';
+import { useFeatures } from '../features/settings/feature-flags';
 
 const LIST_COLORS = ['#4772FA', '#E13E39', '#FAA80C', '#1F9D55', '#7C5CFF', '#F06595'] as const;
 
@@ -67,6 +67,7 @@ export function Sidebar({
   readonly onNavigate: () => void;
 }) {
   const messages = useMessages();
+  const flags = useFeatures((state) => state.flags);
   const preference = useThemePreference((state) => state.preference);
   const setPreference = useThemePreference((state) => state.setPreference);
   const showCounters = usePreferences((state) => state.showCounters);
@@ -545,39 +546,49 @@ export function Sidebar({
         >
           {moreOpen ? messages.hideMore : messages.showMore}
         </button>
+        {flags.countdowns && showCountdowns ? (
+          <ul className="nav-list countdown-side">
+            {(countdowns.data?.items ?? [])
+              .filter((item) => item.showInSidebar)
+              .slice(0, 3)
+              .map((item) => (
+                <li key={item.id}>
+                  <SideLink to="/countdowns" onNavigate={onNavigate}>
+                    <Hourglass size={20} aria-hidden="true" />
+                    <span className="nav-label">{item.title}</span>
+                  </SideLink>
+                </li>
+              ))}
+          </ul>
+        ) : null}
         {moreOpen ? (
           <ul className="nav-list">
-            <Item
-              to="/calendar/month"
-              label={messages.navCalendar}
-              onNavigate={onNavigate}
-              icon={CalendarDays}
-            />
-            <Item to="/matrix" label={messages.navMatrix} onNavigate={onNavigate} icon={Grid2x2} />
             <Item
               to="/dashboard"
               label={messages.navDashboard}
               onNavigate={onNavigate}
               icon={LayoutDashboard}
             />
-            <Item to="/reports/weekly" label={messages.navReports} onNavigate={onNavigate} />
-            <Item to="/review/weekly" label={messages.navReview} onNavigate={onNavigate} />
-            <Item to="/focus" label={messages.navFocus} onNavigate={onNavigate} icon={CircleDot} />
             <Item
-              to="/habits"
-              label={messages.navHabits}
+              to="/reports/weekly"
+              label={messages.navReports}
               onNavigate={onNavigate}
-              icon={CalendarCheck}
+              icon={BarChart3}
             />
-            {showCountdowns ? (
+            <Item
+              to="/review/weekly"
+              label={messages.navReview}
+              onNavigate={onNavigate}
+              icon={ClipboardList}
+            />
+            {flags.countdowns ? (
               <Item
                 to="/countdowns"
-                label="Cuenta atrás"
+                label={messages.navCountdowns}
                 onNavigate={onNavigate}
                 icon={Hourglass}
               />
             ) : null}
-            <Item to="/settings/appearance" label={messages.navSettings} onNavigate={onNavigate} />
           </ul>
         ) : null}
       </nav>

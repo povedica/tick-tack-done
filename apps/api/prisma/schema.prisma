@@ -230,6 +230,7 @@ model User {
   quietHoursEnd         String?                @map("quiet_hours_end")
   telegramEnabled       Boolean                @default(true) @map("telegram_enabled")
   focusNotifications    Boolean                @default(true) @map("focus_notifications")
+  featureFlags          Json                   @default("{}") @map("feature_flags")
   weeklyReportSettings  Json                   @default("{}") @map("weekly_report_settings")
   achievementScore      Int                    @default(0) @map("achievement_score")
   achievementsEnabled   Boolean                @default(true) @map("achievements_enabled")
