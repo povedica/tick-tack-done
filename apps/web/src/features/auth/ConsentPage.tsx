@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { createApiClient } from '@reflexionia/sdk';
+import { ApiError, createApiClient } from '@reflexionia/sdk';
 import { messagesFor, type Messages } from '../../i18n';
 import { readCsrfToken } from './session';
 
@@ -83,8 +83,8 @@ export function ConsentPage() {
         ...(resource === null || resource.length === 0 ? {} : { resource }),
       });
       window.location.assign(response.redirect_to);
-    } catch {
-      setError(messages.consentFailed);
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : messages.consentFailed);
     }
   }
 

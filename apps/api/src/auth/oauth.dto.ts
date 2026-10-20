@@ -72,7 +72,7 @@ export class OauthConsentDto {
 
   @ApiProperty()
   @IsString()
-  @MaxLength(500)
+  @MaxLength(2000)
   scope!: string;
 
   @ApiProperty()
