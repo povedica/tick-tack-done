@@ -11,6 +11,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Award,
+  CalendarDays,
   Download,
   Flame,
   LoaderCircle,
@@ -476,21 +477,39 @@ export function StatisticsPage() {
             </button>
           ))}
         </nav>
-        <p className={overview.isPlaceholderData ? 'stats-phrase stats-stale' : 'stats-phrase'}>
-          {day(bounds.from)} – {day(bounds.to)}
-          {overview.data && tab === 'overview' ? (
+        <div className={overview.isPlaceholderData ? 'stats-phrase stats-stale' : 'stats-phrase'}>
+          <p className="stats-period">
+            <CalendarDays size={14} aria-hidden="true" />
             <span>
-              {' '}
-              · {t('completed')}: {number(num(record(overview.data.summary).completed))} ·{' '}
-              {t('planned')}: {number(num(record(overview.data.summary).completion_planned))} ·{' '}
-              {t('focusTime')}: {duration(num(record(overview.data.summary).focus_minutes))} ·{' '}
-              {t('habits')}:{' '}
-              {num(record(overview.data.summary).habit_expected) === 0
-                ? '—'
-                : `${number(num(record(overview.data.summary).habit_percent))} %`}
+              <time dateTime={bounds.from}>{day(bounds.from)}</time> –{' '}
+              <time dateTime={bounds.to}>{day(bounds.to)}</time>
             </span>
+          </p>
+          {overview.data && tab === 'overview' ? (
+            <dl className="stats-summary-facts">
+              <div>
+                <dt>{t('completed')}</dt>
+                <dd>{number(num(record(overview.data.summary).completed))}</dd>
+              </div>
+              <div>
+                <dt>{t('planned')}</dt>
+                <dd>{number(num(record(overview.data.summary).completion_planned))}</dd>
+              </div>
+              <div>
+                <dt>{t('focusTime')}</dt>
+                <dd>{duration(num(record(overview.data.summary).focus_minutes))}</dd>
+              </div>
+              <div>
+                <dt>{t('habits')}</dt>
+                <dd>
+                  {num(record(overview.data.summary).habit_expected) === 0
+                    ? '—'
+                    : `${number(num(record(overview.data.summary).habit_percent))} %`}
+                </dd>
+              </div>
+            </dl>
           ) : null}
-        </p>
+        </div>
         <div
           role="tabpanel"
           id={`stats-panel-${tab}`}
