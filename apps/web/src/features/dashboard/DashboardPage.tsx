@@ -12,12 +12,11 @@ import {
   GripVertical,
   Leaf,
   Settings2,
-  Sprout,
   TrendingUp,
   X,
 } from 'lucide-react';
 import { api } from '../../api';
-import { Button } from '../../components/ui';
+import { Button, SkeletonRows } from '../../components/ui';
 import { countdownsApi } from '../countdowns/api';
 import { countdownLabel } from '../countdowns/presentation';
 import { formatDuration } from '../product/duration';
@@ -33,6 +32,7 @@ import {
   type WidgetKey,
 } from './model';
 import './dashboard.css';
+import { ProjectContext } from './ProjectContext';
 
 const number = (value: number) => value.toLocaleString('es-ES');
 
@@ -97,11 +97,13 @@ export function DashboardPage() {
     if (!Object.hasOwn(widgets, key) && key !== 'next_countdowns')
       return <p className="garden-empty">Este dato no está disponible todavía.</p>;
     switch (key) {
+      case 'projects':
+        return <ProjectContext value={widgets.projects} />;
       case 'completed_today':
         return (
           <>
             <strong className="garden-metric">{number(count(widgets.completed_today))}</strong>
-            <p>Un paso cada vez. Cada tarea cuenta.</p>
+            <p>Según la zona horaria de tu cuenta.</p>
           </>
         );
       case 'completed_week':
@@ -203,7 +205,7 @@ export function DashboardPage() {
         return count(habits.total) === 0 ? (
           <div className="garden-empty">
             <Leaf size={26} aria-hidden="true" />
-            <p>Empieza por algo pequeño.</p>
+            <p>Sin hábitos configurados.</p>
             <span>Crea tu primer hábito y sigue aquí tu constancia.</span>
           </div>
         ) : (
@@ -227,14 +229,14 @@ export function DashboardPage() {
               {formatDuration(count(row(widgets.focus).seconds))}
             </strong>
             <p>Tiempo de concentración de hoy.</p>
-            <p className="garden-insight">Reserva un rato para una sola cosa.</p>
+            <p className="garden-insight">Abre Foco para empezar una sesión.</p>
           </>
         );
       case 'calendar':
         return count(calendar.upcoming) === 0 ? (
           <div className="garden-empty">
             <Clock3 size={26} aria-hidden="true" />
-            <p>Tu calendario tiene espacio.</p>
+            <p>Sin eventos externos próximos.</p>
             <span>
               No hay eventos externos en los próximos 7 días. Tus tareas con fecha están en Agenda.
             </span>
@@ -286,7 +288,7 @@ export function DashboardPage() {
           <p role="status">Cargando fechas…</p>
         ) : countdowns.data.items.length === 0 ? (
           <div className="garden-empty">
-            <p>Algo que esperar.</p>
+            <p>Sin fechas próximas.</p>
             <span>Añade una fecha especial para tenerla a la vista.</span>
           </div>
         ) : (
@@ -308,16 +310,11 @@ export function DashboardPage() {
   }
 
   return (
-    <section className="digital-garden" aria-labelledby="garden-title">
-      <header className="garden-header">
-        <div className="garden-brand">
-          <span>
-            <Sprout size={24} aria-hidden="true" />
-          </span>
-          <div>
-            <p className="garden-eyebrow">TU ESPACIO, EN PERSPECTIVA</p>
-            <h1 id="garden-title">Jardín digital</h1>
-          </div>
+    <section className="screen-page is-wide digital-garden" aria-labelledby="garden-title">
+      <header className="page-header garden-header">
+        <div>
+          <h1 id="garden-title">Jardín digital</h1>
+          <p className="lede">Actividad reciente, estado de tus proyectos y próximos pasos.</p>
         </div>
         <Button
           disabled={!layout.isSuccess || draft !== null}
@@ -329,44 +326,18 @@ export function DashboardPage() {
           <Settings2 size={16} aria-hidden="true" /> Personalizar
         </Button>
       </header>
-      <div className="garden-welcome">
-        <div>
-          <p className="garden-eyebrow">UN MOMENTO PARA MIRAR EL CONJUNTO</p>
-          <h2>Cuida lo que tienes entre manos.</h2>
-          <p>
-            Avances, pendientes y próximos pasos. Una vista de tu actividad para decidir dónde poner
-            tu atención.
-          </p>
-          <div className="garden-hero-actions">
-            <Link
-              className="garden-primary"
-              to={overdue !== null && overdue > 0 ? '/review/weekly' : '/today'}
-            >
-              {overdue !== null && overdue > 0 ? 'Revisar mis pendientes' : 'Ir a mi día'}
-              <ArrowRight size={16} aria-hidden="true" />
-            </Link>
-            <Link to="/reports/weekly">
-              Ver mi reporte semanal <ArrowRight size={14} aria-hidden="true" />
-            </Link>
-          </div>
-        </div>
-        <div className="garden-summary">
-          <span className="garden-sprout" aria-hidden="true">
-            <Sprout size={42} strokeWidth={1.3} />
-          </span>
-          <p>
-            {overdue === null ? (
-              'Tu jardín se está actualizando'
-            ) : overdue > 0 ? (
-              <>
-                <strong>{number(overdue)}</strong> tareas necesitan una nueva decisión
-              </>
-            ) : (
-              <>Tus pendientes están al día</>
-            )}
-          </p>
-        </div>
-      </div>
+      <nav className="page-toolbar" aria-label="Acciones de Jardín">
+        <Link
+          className="ui-button is-primary is-md"
+          to={overdue !== null && overdue > 0 ? '/review/weekly' : '/today'}
+        >
+          {overdue !== null && overdue > 0 ? 'Revisar mis pendientes' : 'Ir a mi día'}
+          <ArrowRight size={16} aria-hidden="true" />
+        </Link>
+        <Link className="ui-button is-secondary is-md" to="/reports/weekly">
+          Ver mi reporte semanal
+        </Link>
+      </nav>
       <div className="garden-section-heading">
         <h2>Tu jardín de un vistazo</h2>
         <span>
@@ -386,7 +357,7 @@ export function DashboardPage() {
       {draft !== null ? (
         <section className="garden-customize" aria-label="Personalizar widgets">
           <div>
-            <h3>Haz sitio a lo que te importa</h3>
+            <h3>Personalizar widgets</h3>
             <p>
               Arrastra para ordenar, usa las flechas o cambia el tamaño. Desmarca lo que no quieras
               ver.
@@ -519,9 +490,9 @@ export function DashboardPage() {
           </Button>
         </div>
       ) : data.isPending || layout.isPending ? (
-        <p role="status" className="garden-loading">
-          Preparando tu jardín…
-        </p>
+        <div role="status" aria-label="Cargando Jardín">
+          <SkeletonRows />
+        </div>
       ) : layout.isError ? (
         <div className="garden-error" role="alert">
           <p>No se ha podido cargar tu distribución.</p>
@@ -565,6 +536,7 @@ export function DashboardPage() {
                       completed_today: 'Ver completadas',
                       completed_week: 'Explorar estadísticas',
                       flow: 'Ver mi actividad',
+                      projects: 'Abrir revisión semanal',
                     } satisfies Record<WidgetKey, string>
                   )[item.widget_key]
                 }
@@ -576,7 +548,7 @@ export function DashboardPage() {
       )}
       {visible.length === 0 && data.isSuccess && layout.isSuccess ? (
         <div className="garden-empty">
-          <p>Tu jardín está listo para que lo hagas tuyo.</p>
+          <p>No hay widgets visibles.</p>
           <span>Pulsa Personalizar para elegir qué quieres ver.</span>
         </div>
       ) : null}
@@ -584,9 +556,13 @@ export function DashboardPage() {
         <div>
           <Leaf size={18} aria-hidden="true" />
           <span>
-            {score.data?.enabled === true
-              ? `Logros activos · ${number(count(score.data.score))} puntos`
-              : 'Tu progreso tiene valor, con o sin puntos.'}
+            {score.isPending
+              ? 'Cargando logros…'
+              : score.isError
+                ? 'Logros no disponibles.'
+                : score.data.enabled === true
+                  ? `Logros activos · ${number(count(score.data.score))} puntos`
+                  : 'Logros desactivados.'}
           </span>
           <Link to="/settings/features">Configurar logros</Link>
         </div>

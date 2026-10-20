@@ -3,6 +3,7 @@ export const WIDGETS = {
   completed_week: { title: 'Completadas · 7 días', to: '/statistics/tasks', size: 's' },
   overdue: { title: 'Necesitan atención', to: '/review/weekly', size: 's' },
   next_7_days: { title: 'Próximos 7 días', to: '/smart/next7', size: 's' },
+  projects: { title: 'Estado de tus proyectos', to: '/review/weekly', size: 'l' },
   flow: { title: 'Tu ritmo esta semana', to: '/statistics/tasks', size: 'm' },
   load: { title: 'Dónde están tus pendientes', to: '/smart/all', size: 'm' },
   habits: { title: 'Hábitos de hoy', to: '/habits', size: 'm' },

@@ -2268,7 +2268,7 @@ export interface paths {
         };
         /**
          * KPI for one widget (RF-2102, RF-2104)
-         * @description Without widget, returns widgets, generated_at and period (from, to, time_zone). Activity covers the trailing seven days; completed_today uses the account time zone. Habits include total active habits. Calendar includes up to three events within the next seven days. Integration booleans reflect the authenticated account connection, not only server configuration.
+         * @description Without widget, returns widgets, generated_at and period (from, to, time_zone). Activity covers the trailing seven days; completed_today uses the account time zone. Habits include total active habits. Calendar includes up to three events within the next seven days. Integration booleans reflect the authenticated account connection, not only server configuration. Projects exclude the inbox and include open/closed lists plus recent soft deletions, seven-day task activity and review signals (no pending tasks or no task changes for 30 days), excluding note lists and closed projects from suggestions.
          */
         get: operations["DashboardController_data"];
         put?: never;

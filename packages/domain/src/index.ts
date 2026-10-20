@@ -408,3 +408,4 @@ export {
   type NavigationModule,
 } from './navigation';
 export { humanDate } from './dates/presentation';
+export { gardenProjectContext, type GardenProjectInput } from './dashboard/projects';

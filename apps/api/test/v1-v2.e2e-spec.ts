@@ -165,6 +165,42 @@ describe('V1 and V2 product', () => {
     ).toBeGreaterThan(0);
   });
 
+  it('RF-2102: contextualizes lists with inactivity, new projects and recent deletions', async () => {
+    const old = new Date(Date.now() - 60 * 86_400_000);
+    const stale = await prisma.project.create({
+      data: { ownerId: userId, name: 'Sin movimiento', createdAt: old },
+    });
+    await prisma.task.create({
+      data: {
+        ownerId: userId,
+        projectId: stale.id,
+        createdById: userId,
+        title: 'Siguiente paso',
+        createdAt: old,
+        updatedAt: old,
+      },
+    });
+    const fresh = await prisma.project.create({ data: { ownerId: userId, name: 'Nuevo' } });
+    const deleted = await prisma.project.create({
+      data: { ownerId: userId, name: 'Eliminado', createdAt: old, deletedAt: new Date() },
+    });
+    const response = await session().get('/api/v1/dashboard/data').expect(200);
+    const projects = response.body.widgets.projects;
+    expect(projects.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: stale.id,
+          state: 'stale',
+          needs_review: true,
+          active_tasks: 1,
+        }),
+        expect.objectContaining({ id: fresh.id, state: 'new', needs_review: false }),
+        expect.objectContaining({ id: deleted.id, state: 'deleted', needs_review: false }),
+      ]),
+    );
+    expect(projects.items.some((item: { id: string }) => item.id === projectId)).toBe(false);
+  });
+
   it('RF-2102: limits upcoming external events to the next seven days', async () => {
     const subscription = await prisma.calendarSubscription.create({ data: { ownerId: userId } });
     const now = Date.now();

@@ -38,7 +38,7 @@ const task = {
 
 async function fixtures(
   page: Page,
-  options: { dueDate?: string; title?: string; density?: string } = {},
+  options: { dueDate?: string; title?: string; density?: string; accent?: string } = {},
 ) {
   const sampleTask = {
     ...task,
@@ -53,6 +53,7 @@ async function fixtures(
     'completed_week',
     'overdue',
     'next_7_days',
+    'projects',
     'flow',
     'load',
     'habits',
@@ -63,7 +64,7 @@ async function fixtures(
   ].map((widget_key, position) => ({
     widget_key,
     position,
-    size: position < 4 ? 's' : 'm',
+    size: widget_key === 'projects' ? 'l' : position < 4 ? 's' : 'm',
     config: {},
   }));
   await page.clock.install({ time: new Date('2026-10-20T10:00:00Z') });
@@ -93,6 +94,7 @@ async function fixtures(
         time_zone: 'Europe/Madrid',
         locale: 'es',
         density: options.density ?? 'comfortable',
+        accent: options.accent ?? 'indigo',
         features: { navigation_order: order },
       };
     }
@@ -152,6 +154,42 @@ async function fixtures(
           completed_today: 3,
           completed_week: { value: 24, trend: 5 },
           overdue: 7,
+          projects: {
+            open: 2,
+            created_7d: 1,
+            deleted_7d: 1,
+            needs_review: 1,
+            review_after_days: 30,
+            items: [
+              {
+                id: 'stale',
+                name: 'Proyecto sin movimiento',
+                state: 'stale',
+                needs_review: true,
+                active_tasks: 3,
+                created_7d: 0,
+                completed_7d: 0,
+                last_activity_at: '2026-08-01T12:00:00Z',
+              },
+              {
+                id: 'new',
+                name: 'Proyecto nuevo',
+                state: 'new',
+                needs_review: false,
+                active_tasks: 2,
+                created_7d: 2,
+                completed_7d: 0,
+              },
+              {
+                id: 'deleted',
+                name: 'Proyecto eliminado',
+                state: 'deleted',
+                needs_review: false,
+                active_tasks: 0,
+                deleted_at: '2026-10-19T12:00:00Z',
+              },
+            ],
+          },
           next_7_days: 12,
           flow: { created: 30, completed: 24, net: -6 },
           load: { by_list: [{ list_id: 'audit-list', name: 'Lista de prueba', active: 7 }] },
@@ -175,6 +213,49 @@ async function fixtures(
 }
 
 test.use({ locale: 'es-ES', timezoneId: 'Europe/Madrid' });
+
+for (const accent of ['indigo', 'violet']) {
+  test(`garden respects the account accent and the shared sans typography (${accent})`, async ({
+    page,
+  }) => {
+    await fixtures(page, { accent });
+    await page.goto('/dashboard');
+    await expect(page.locator('.garden-bars .garden-track > span').first()).toBeVisible();
+    await expect(page.locator('html')).toHaveAttribute('data-accent', accent);
+    const style = await page.evaluate(() => ({
+      bar: getComputedStyle(document.querySelector('.garden-bars .garden-track > span')!)
+        .backgroundColor,
+      button: getComputedStyle(document.querySelector('.digital-garden .ui-button.is-primary')!)
+        .backgroundColor,
+      title: getComputedStyle(document.querySelector('#garden-title')!).fontFamily,
+      body: getComputedStyle(document.body).fontFamily,
+    }));
+    expect(style.bar).toBe(style.button);
+    expect(style.title).toBe(style.body);
+    await expect(page.locator('.garden-welcome')).toHaveCount(0);
+  });
+}
+
+test('garden contextualizes projects and filters review candidates and recent changes', async ({
+  page,
+}) => {
+  await fixtures(page);
+  await page.goto('/dashboard');
+  const projects = page.locator('[data-garden-widget="projects"]');
+  await expect(projects).toContainText('1 nuevo y 1 eliminado');
+  await projects.getByRole('button', { name: 'Por revisar (1)', exact: true }).click();
+  await expect(
+    projects.getByRole('link', { name: 'Proyecto sin movimiento', exact: true }),
+  ).toBeVisible();
+  await expect(projects.getByRole('link', { name: 'Proyecto nuevo', exact: true })).toHaveCount(0);
+  await expect(projects).toContainText('más de 30 días');
+  await projects.getByRole('button', { name: 'Nuevos y eliminados', exact: true }).click();
+  await expect(projects.getByRole('link', { name: 'Proyecto nuevo', exact: true })).toBeVisible();
+  await expect(projects).toContainText('Proyecto eliminado');
+  await expect(projects.getByRole('link', { name: 'Proyecto eliminado', exact: true })).toHaveCount(
+    0,
+  );
+});
 
 test('RF-2101/3: garden has actionable data and persists hidden, reordered, resized widgets', async ({
   page,
@@ -231,7 +312,7 @@ test('RF-2101: garden fits mobile, supports an empty layout, and keeps a failed 
   await expect(page.getByRole('alert')).toContainText('Tu selección sigue aquí');
   await page.unroute('**/api/v1/me/dashboard');
   await page.getByRole('button', { name: 'Guardar mi jardín', exact: true }).click();
-  await expect(page.getByText('Tu jardín está listo para que lo hagas tuyo.')).toBeVisible();
+  await expect(page.getByText('No hay widgets visibles.')).toBeVisible();
   await page.reload();
   await expect(page.locator('[data-garden-widget]')).toHaveCount(0);
 });

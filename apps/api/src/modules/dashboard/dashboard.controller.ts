@@ -11,6 +11,7 @@ import { asJson } from '../../http/json.js';
 import { respondJson } from '../../http/respond.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { loadDashboardSnapshot } from '../../reading/snapshot.js';
+import { loadGardenProjects } from '../../reading/garden-projects.js';
 import {
   driveConfigured,
   googleConfigured,
@@ -24,6 +25,7 @@ export const WIDGET_KEYS = [
   'completed_week',
   'overdue',
   'next_7_days',
+  'projects',
   'flow',
   'habits',
   'load',
@@ -36,7 +38,7 @@ export const WIDGET_KEYS = [
 const DEFAULT_LAYOUT = WIDGET_KEYS.map((key, index) => ({
   widget_key: key,
   position: index,
-  size: index < 4 ? 's' : 'm',
+  size: key === 'projects' ? 'l' : index < 4 ? 's' : 'm',
   config: {},
 }));
 
@@ -89,7 +91,7 @@ export class DashboardController {
   @ApiOperation({
     summary: 'KPI for one widget (RF-2102, RF-2104)',
     description:
-      'Without widget, returns widgets, generated_at and period (from, to, time_zone). Activity covers the trailing seven days; completed_today uses the account time zone. Habits include total active habits. Calendar includes up to three events within the next seven days. Integration booleans reflect the authenticated account connection, not only server configuration.',
+      'Without widget, returns widgets, generated_at and period (from, to, time_zone). Activity covers the trailing seven days; completed_today uses the account time zone. Habits include total active habits. Calendar includes up to three events within the next seven days. Integration booleans reflect the authenticated account connection, not only server configuration. Projects exclude the inbox and include open/closed lists plus recent soft deletions, seven-day task activity and review signals (no pending tasks or no task changes for 30 days), excluding note lists and closed projects from suggestions.',
   })
   async data(
     @CurrentUser() user: AuthUser,
@@ -100,6 +102,7 @@ export class DashboardController {
     const now = new Date();
     const tz = user.timeZone || 'Europe/Madrid';
     const snapshot = await loadDashboardSnapshot(this.prisma, user.id, now, tz);
+    const projects = await loadGardenProjects(this.prisma, user.id, now);
     const today = dayKey(now.toISOString(), tz) ?? now.toISOString().slice(0, 10);
     const todayBounds = parseDayBounds(today, today, tz);
     const focusSeconds =
@@ -160,6 +163,7 @@ export class DashboardController {
               : `${String(snapshot.trend)} vs semana anterior`,
       },
       overdue: snapshot.overdue,
+      projects,
       next_7_days: snapshot.next_7_days,
       flow: { created: snapshot.created, completed: snapshot.completed, net: snapshot.net },
       habits: { percent: snapshot.habit_percent, total: habitTotal },

@@ -25,6 +25,21 @@ RF-2012 de la spec específica de recurrencia MCP. No cambia el modelo Prisma ni
 los eventos de dominio. navigation_order se añade al JSON de preferencias
 existente, validado y documentado en OpenAPI; no requiere migración.
 
+## Criterio visual y contexto de proyectos
+
+Jardín reutiliza la cabecera, botones, tipografía sans y tokens de la aplicación.
+No tiene paleta propia ni banner decorativo. Gráficos, enlaces y estados siguen
+el acento elegido en Apariencia, comprobado con azul y violeta.
+
+El widget de proyectos muestra tareas pendientes, creadas/completadas en siete
+días y último cambio en tareas por lista. Incluye altas y bajas recientes,
+búsqueda y filtros para revisión o movimientos. Se señalan proyectos sin
+pendientes o sin cambios en tareas durante más de 30 días, con el motivo visible.
+Las listas de notas, los proyectos nuevos y los cerrados no reciben una
+sugerencia de cierre por falta de tareas. Son señales orientativas, sin acciones
+automáticas de cierre o borrado. Las bajas reflejan proyectos aún conservados
+con borrado lógico, no un historial de purgas definitivas.
+
 ## Evidencias y límites
 
 Revisión en `http://localhost:5173`, autenticada, a 1280×800 y 390×844.
@@ -176,10 +191,10 @@ de todos los datos y variantes posibles. Producción no forma parte de esta pasa
 ## Validación de cierre
 
 - E2e: `PLAYWRIGHT_BASE_URL=http://localhost:5173 pnpm --filter web exec playwright test e2e/ui-ux-v2.spec.ts --workers=1`.
-- E2e: 11/11 en verde; alineación en Hoy, listas, Matriz y Agenda a 1280/390 px,
+- E2e: 14/14 en verde; alineación en Hoy, listas, Matriz y Agenda a 1280/390 px,
   densidad cómoda/compacta, tolerancia de 1,5 px respecto a la primera línea.
-- Node 26: lint y typecheck en verde; 416 unitarios y 96 de integración en verde.
-  Cobertura de dominio: 89,75 % de líneas y 83,30 % de ramas.
+- Node 26: lint y typecheck en verde; 419 unitarios y 97 de integración en verde.
+  Cobertura de dominio superior al 80 % de líneas y ramas.
 - Build API/SDK/PWA y regeneración OpenAPI/SDK correctos. Vite mantiene el aviso
   de tamaño de bundle superior a 500 kB.
 - Prettier no encuentra problemas en los archivos de esta PR; el chequeo global
