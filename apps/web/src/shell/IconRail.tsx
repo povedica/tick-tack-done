@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, HelpCircle, ListTodo, PanelLeft, Plus } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router';
 import { api } from '../api';
-import { BrandMark } from '../components/BrandMark';
+import { AccountMenu } from './AccountMenu';
 import { useFeatures } from '../features/settings/feature-flags';
 import { useMessages } from '../i18n';
 import { formatClock, useActiveFocus } from './useActiveFocus';
@@ -60,14 +60,7 @@ export function IconRail({
 
   return (
     <nav className="icon-rail" aria-label={messages.appName}>
-      <NavLink
-        className="rail-avatar"
-        to="/settings/appearance"
-        aria-label={messages.navSettings}
-        title={messages.navSettings}
-      >
-        <BrandMark size={28} />
-      </NavLink>
+      <AccountMenu />
       <NavLink to="/today" end aria-label={messages.navToday} title={messages.navToday}>
         <ListTodo size={20} aria-hidden="true" />
       </NavLink>

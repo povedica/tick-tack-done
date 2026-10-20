@@ -28,7 +28,6 @@ import {
 import { useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import { Link, NavLink, useLocation, useMatch } from 'react-router';
 import { api } from '../api';
-import { BrandMark } from '../components/BrandMark';
 import { Badge } from '../components/ui';
 import { TagIcon } from '../components/TagIcon';
 import { fill, useMessages, type Messages } from '../i18n';
@@ -159,11 +158,7 @@ export function Sidebar({
       data-collapsed={collapsed ? 'true' : 'false'}
       inert={concealed ? true : undefined}
     >
-      <NavLink className="brand" to="/today" onClick={onNavigate}>
-        <BrandMark />
-        <span className="brand-name">{messages.appName}</span>
-      </NavLink>
-      <AccountMenu />
+      {mobileSection === 'more' ? <AccountMenu /> : null}
       {concealed ? null : <ControlChip />}
       {mobileSection !== 'more' && smart.isPending ? (
         <div className="ui-skeleton" aria-hidden="true">

@@ -970,3 +970,37 @@ for (const width of [1280, 390]) {
     await expect(today.locator('.smart-visibility-btn')).toHaveCount(0);
   });
 }
+
+for (const width of [1280, 390]) {
+  test(`account avatar menu replaces sidebar identity (${width}px)`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await fixtures(page);
+    await page.goto('/today');
+    if (width < 1024) {
+      await page.locator('.bottom-bar').getByRole('button', { name: 'Más', exact: true }).click();
+      await expect(page.locator('.sidebar')).toHaveCSS('transform', 'none');
+    }
+    await expect(page.locator('.sidebar .brand')).toHaveCount(0);
+    const account = page.locator(width < 1024 ? '.sidebar .account-menu' : '.icon-rail .account-menu');
+    const trigger = account.locator('summary');
+    await expect(trigger).toHaveText('A');
+    await trigger.click();
+    const panel = account.locator('.menu-card');
+    await expect(panel).toBeVisible();
+    await expect(panel.getByRole('link', { name: 'Ajustes', exact: true })).toHaveAttribute('href', '/settings/account');
+    await expect(panel.getByRole('link', { name: 'Estadísticas', exact: true })).toHaveAttribute('href', '/statistics');
+    const bounds = await panel.boundingBox();
+    expect(bounds!.x).toBeGreaterThanOrEqual(0);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
+    await page.screenshot({ path: test.info().outputPath(`account-menu-${width}.png`) });
+    await trigger.press('Escape');
+    await expect(panel).toBeHidden();
+    await trigger.click();
+    await page.locator('.sidebar').click({ position: { x: 5, y: 400 } });
+    await expect(panel).toBeHidden();
+    await trigger.click();
+    await panel.getByRole('link', { name: 'Estadísticas', exact: true }).click();
+    await expect(page).toHaveURL(/\/statistics$/);
+    await expect(account.locator('.menu-card')).toBeHidden();
+  });
+}
