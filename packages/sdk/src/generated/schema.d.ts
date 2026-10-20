@@ -4364,14 +4364,7 @@ export interface operations {
     };
     OauthController_describe: {
         parameters: {
-            query: {
-                client_id: string;
-                redirect_uri: string;
-                state: string;
-                code_challenge: string;
-                code_challenge_method: string;
-                resource: string;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
@@ -4457,9 +4450,7 @@ export interface operations {
     };
     OauthBrowserController_authorize: {
         parameters: {
-            query: {
-                resource: string;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
