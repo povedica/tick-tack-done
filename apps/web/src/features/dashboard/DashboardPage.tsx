@@ -12,7 +12,6 @@ import {
   GripVertical,
   Leaf,
   Settings2,
-  TrendingUp,
   X,
 } from 'lucide-react';
 import { api } from '../../api';
@@ -32,7 +31,11 @@ import {
   type WidgetKey,
 } from './model';
 import './dashboard.css';
+import { ControlSummary, useControlSummary } from '../statistics/ControlSummary';
 import { ProjectContext } from './ProjectContext';
+import { loadTodayTasks } from '../today/board';
+import { partitionToday, hasTime, formatDueTime } from '../today/groups';
+import { displayTitle } from '../tasks/displayTitle';
 
 const number = (value: number) => value.toLocaleString('es-ES');
 
@@ -44,7 +47,12 @@ export function DashboardPage() {
     refetchInterval: 60_000,
   });
   const layout = useQuery({ queryKey: ['dashboard-layout'], queryFn: () => api.dashboardLayout() });
-  const score = useQuery({ queryKey: ['achievements'], queryFn: () => api.achievements() });
+  const todayTasks = useQuery({
+    queryKey: ['today-tasks'],
+    queryFn: () => loadTodayTasks(api, new Date()),
+  });
+  const today = partitionToday(todayTasks.data ?? [], new Date()).today;
+  const score = useControlSummary();
   const countdowns = useQuery({
     queryKey: ['countdowns', 'dashboard'],
     queryFn: () => countdownsApi.list(false, 365),
@@ -65,6 +73,15 @@ export function DashboardPage() {
   const connections = row(widgets.integrations);
   const period = row(data.data?.period);
   const updated = label(data.data?.generated_at);
+  const unconfigured = visible.filter(
+    (item) =>
+      (item.widget_key === 'habits' && habits.configured === false) ||
+      (item.widget_key === 'calendar' && calendar.configured === false) ||
+      (item.widget_key === 'next_countdowns' &&
+        countdowns.isSuccess &&
+        row(widgets.next_countdowns).configured === false),
+  );
+  const configured = visible.filter((item) => !unconfigured.includes(item));
 
   function move(source: WidgetKey, target: WidgetKey) {
     if (draft === null || source === target) return;
@@ -110,25 +127,38 @@ export function DashboardPage() {
         return (
           <>
             <strong className="garden-metric">{number(count(week.value))}</strong>
-            <p>
-              <TrendingUp size={14} aria-hidden="true" />{' '}
-              {count(week.trend) === 0
-                ? 'Igual que los 7 días anteriores'
-                : `${count(week.trend) > 0 ? '+' : ''}${number(count(week.trend))} frente a los 7 días anteriores`}
-            </p>
+            <p>Completadas en los últimos 7 días.</p>
+            <p>Las completadas pueden incluir cierres en lote.</p>
           </>
         );
       case 'overdue':
         return (
           <>
-            <strong className={`garden-metric${overdue === 0 ? '' : ' is-attention'}`}>
-              {number(count(widgets.overdue))}
-            </strong>
-            <p>
-              {overdue === 0
-                ? 'No tienes tareas vencidas.'
-                : 'Tareas vencidas para revisar con calma.'}
-            </p>
+            {overdue !== null && overdue > 0 ? (
+              <details className="garden-overdue">
+                <summary>
+                  <strong className="garden-metric is-attention">{number(overdue)}</strong>
+                  <span>Ver vencidas por lista y antigüedad</span>
+                </summary>
+                <ul>
+                  {rows(widgets.overdue_by_list).map((item) => (
+                    <li key={label(item.list_id) || 'none'}>
+                      <strong>
+                        {label(item.name)} · {number(count(item.total))}
+                      </strong>
+                      <span>Menos de 7 días: {number(count(item.under_7))}</span>
+                      <span>7–30 días: {number(count(item.days_7_30))}</span>
+                      <span>Más de 30 días: {number(count(item.over_30))}</span>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            ) : (
+              <>
+                <strong className="garden-metric">{number(count(widgets.overdue))}</strong>
+                <p>No tienes tareas vencidas.</p>
+              </>
+            )}
           </>
         );
       case 'next_7_days':
@@ -138,35 +168,22 @@ export function DashboardPage() {
             <p>Tareas con fecha por delante.</p>
           </>
         );
-      case 'flow': {
-        const max = Math.max(1, count(flow.created), count(flow.completed));
+      case 'flow':
         return (
           <>
-            <p className="garden-context">Entradas y salidas · últimos 7 días</p>
-            <div className="garden-bars">
-              {[
-                ['Creadas', count(flow.created)],
-                ['Completadas', count(flow.completed)],
-              ].map(([name, value]) => (
-                <div key={name}>
-                  <span>{name}</span>
-                  <div className="garden-track">
-                    <span style={{ width: `${String((Number(value) / max) * 100)}%` }} />
-                  </div>
-                  <strong>{number(Number(value))}</strong>
-                </div>
-              ))}
-            </div>
-            <p className="garden-insight">
-              {count(flow.net) < 0
-                ? `${number(-count(flow.net))} tareas más entraron de las que completaste.`
-                : count(flow.net) > 0
-                  ? `Has completado ${number(count(flow.net))} tareas más de las que has creado.`
-                  : 'Has completado tantas tareas como has creado.'}
-            </p>
+            <dl className="garden-period-counts">
+              <div>
+                <dt>Creadas en los últimos 7 días</dt>
+                <dd>{number(count(flow.created))}</dd>
+              </div>
+              <div>
+                <dt>Completadas en los últimos 7 días</dt>
+                <dd>{number(count(flow.completed))}</dd>
+              </div>
+            </dl>
+            <p>Las completadas pueden incluir cierres en lote.</p>
           </>
         );
-      }
       case 'load': {
         const max = Math.max(1, ...load.map((item) => count(item.active)));
         return load.length === 0 ? (
@@ -205,8 +222,8 @@ export function DashboardPage() {
         return count(habits.total) === 0 ? (
           <div className="garden-empty">
             <Leaf size={26} aria-hidden="true" />
-            <p>Sin hábitos configurados.</p>
-            <span>Crea tu primer hábito y sigue aquí tu constancia.</span>
+            <p>Sin hábitos activos.</p>
+            <span>Puedes activar o crear un hábito desde Hábitos.</span>
           </div>
         ) : (
           <>
@@ -338,6 +355,71 @@ export function DashboardPage() {
           Ver mi reporte semanal
         </Link>
       </nav>
+      <section className="garden-today" aria-labelledby="garden-today-title">
+        <header>
+          <h2 id="garden-today-title">Hoy</h2>
+          {today.length > 3 ? <Link to="/today">Ver todas ({number(today.length)})</Link> : null}
+        </header>
+        {todayTasks.isPending ? (
+          <SkeletonRows />
+        ) : todayTasks.isError ? (
+          <div role="alert">
+            No se han podido cargar las tareas de hoy.{' '}
+            <Button
+              onClick={() => {
+                void todayTasks.refetch();
+              }}
+            >
+              Reintentar
+            </Button>
+          </div>
+        ) : today.length === 0 ? (
+          <p>No tienes tareas para hoy</p>
+        ) : (
+          <ul>
+            {today.slice(0, 3).map((task) => (
+              <li key={task.id}>
+                <Link to={`/list/${task.projectId}?task=${task.id}`}>
+                  <span>{displayTitle(task.title)}</span>
+                  <small>
+                    {label(load.find((item) => item.list_id === task.projectId)?.name)}
+                    {task.dueDate !== null && hasTime(task.dueDate, task.timeZone, task.allDay)
+                      ? ` · ${formatDueTime(task.dueDate, task.timeZone, 'es-ES')}`
+                      : ''}
+                  </small>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <section className="garden-score" aria-labelledby="garden-score-title">
+        <div>
+          <h2 id="garden-score-title">Puntuación de control</h2>
+          {score.isPending ? (
+            <p role="status">Cargando puntuación…</p>
+          ) : score.isError ? (
+            <div role="alert">
+              <p>No se ha podido cargar la puntuación.</p>
+              <Button
+                onClick={() => {
+                  void score.refetch();
+                }}
+              >
+                Reintentar puntuación
+              </Button>
+            </div>
+          ) : score.achievement.enabled === false ? (
+            <p>La puntuación está desactivada.</p>
+          ) : (
+            <ControlSummary value={score.achievement} />
+          )}
+        </div>
+        <div className="garden-score-next">
+          <Link to="/statistics">Ver puntuación y fórmula</Link>
+          <Link to="/settings/features">Configurar puntuación</Link>
+        </div>
+      </section>
       <div className="garden-section-heading">
         <h2>Tu jardín de un vistazo</h2>
         <span>
@@ -506,7 +588,7 @@ export function DashboardPage() {
         </div>
       ) : (
         <div className="garden-widgets">
-          {visible.map((item) => (
+          {configured.map((item) => (
             <article
               className={`garden-widget garden-size-${item.size}`}
               key={item.widget_key}
@@ -546,6 +628,26 @@ export function DashboardPage() {
           ))}
         </div>
       )}
+      {unconfigured.length > 0 && data.isSuccess ? (
+        <details className="garden-configuration">
+          <summary>Pendiente de configurar ({number(unconfigured.length)})</summary>
+          <ul>
+            {unconfigured.map((item) => (
+              <li key={item.widget_key}>
+                <Link
+                  to={
+                    item.widget_key === 'calendar'
+                      ? '/settings/calendar'
+                      : WIDGETS[item.widget_key].to
+                  }
+                >
+                  {WIDGETS[item.widget_key].title}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
       {visible.length === 0 && data.isSuccess && layout.isSuccess ? (
         <div className="garden-empty">
           <p>No hay widgets visibles.</p>
@@ -553,19 +655,6 @@ export function DashboardPage() {
         </div>
       ) : null}
       <footer className="garden-footer">
-        <div>
-          <Leaf size={18} aria-hidden="true" />
-          <span>
-            {score.isPending
-              ? 'Cargando logros…'
-              : score.isError
-                ? 'Logros no disponibles.'
-                : score.data.enabled === true
-                  ? `Logros activos · ${number(count(score.data.score))} puntos`
-                  : 'Logros desactivados.'}
-          </span>
-          <Link to="/settings/features">Configurar logros</Link>
-        </div>
         <details>
           <summary>Cómo se calculan estos datos</summary>
           <p>

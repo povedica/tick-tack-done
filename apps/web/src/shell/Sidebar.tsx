@@ -1,4 +1,4 @@
-import { MODULES, moduleEnabled } from './modules';
+import { ControlChip } from '../features/statistics/ControlSummary';
 import { AccountMenu } from './AccountMenu';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { normalizeTagName } from '@reflexionia/domain';
@@ -7,7 +7,6 @@ import {
   CalendarDays,
   CalendarRange,
   CheckCircle2,
-  Hash,
   ChevronDown,
   Inbox,
   Hourglass,
@@ -29,6 +28,7 @@ import { Link, NavLink, useLocation, useMatch } from 'react-router';
 import { api } from '../api';
 import { BrandMark } from '../components/BrandMark';
 import { Badge } from '../components/ui';
+import { TagIcon } from '../components/TagIcon';
 import { fill, useMessages, type Messages } from '../i18n';
 import { useFeatures } from '../features/settings/feature-flags';
 import { usePreferences } from '../theme/preferences';
@@ -171,6 +171,7 @@ export function Sidebar({
         <span className="brand-name">{messages.appName}</span>
       </NavLink>
       <AccountMenu />
+      {concealed ? null : <ControlChip />}
       {smart.isPending ? (
         <div className="ui-skeleton" aria-hidden="true">
           <span />
@@ -229,24 +230,6 @@ export function Sidebar({
                 </SideLink>
               </li>
             ))}
-          </ul>
-        </NavGroup>
-        <NavGroup id="modules" title={messages.navModules}>
-          <ul className="nav-list">
-            {flags.navigation_order
-              .filter((key) => moduleEnabled(key, flags))
-              .map((key) => {
-                const module = MODULES[key];
-                const Icon = module.icon;
-                return (
-                  <li key={key}>
-                    <SideLink to={module.to} onNavigate={onNavigate}>
-                      <Icon size={18} aria-hidden="true" />
-                      <span className="nav-label">{messages[module.label]}</span>
-                    </SideLink>
-                  </li>
-                );
-              })}
           </ul>
         </NavGroup>
         <NavGroup id="filters" title={messages.filtersTitle}>
@@ -553,7 +536,7 @@ export function Sidebar({
                     to={href}
                     onClick={onNavigate}
                   >
-                    <Hash size={15} aria-hidden="true" />
+                    <TagIcon color={tag.color} />
                     <span className="nav-label">{tag.name}</span>
                     {showCounters && tag.active_task_count > 0 ? (
                       <Badge value={tag.active_task_count} />

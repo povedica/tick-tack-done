@@ -10,6 +10,7 @@ import { Link } from 'react-router';
 import { PriorityCheck } from '../../components/PriorityCheck';
 import { attachmentHref } from './task-http';
 import Markdown from 'react-markdown';
+import { TagIcon } from '../../components/TagIcon';
 import { displayTitle } from './displayTitle';
 import { useMessages } from '../../i18n';
 import { collapseRepeatedContent } from './collapse-repeated';
@@ -371,10 +372,7 @@ export function DetailBody({
               onRemoveTag(tag.id);
             }}
           >
-            <span
-              className="tag-dot"
-              style={tag.color === null ? undefined : { background: tag.color }}
-            />
+            <TagIcon color={tag.color} />
             {tag.name}
             <X size={12} aria-hidden="true" />
           </button>

@@ -14,7 +14,10 @@ const STATES: Record<string, string> = {
 };
 export function ProjectContext({ value }: { readonly value: unknown }) {
   const data = row(value);
-  const projects = rows(data.items);
+  const all = rows(data.items);
+  const deleted = all.filter((item) => item.state === 'deleted');
+  const closed = all.filter((item) => item.state === 'closed');
+  const projects = all.filter((item) => item.state !== 'deleted' && item.state !== 'closed');
   const [filter, setFilter] = useState<'all' | 'review' | 'changes'>('all');
   const [search, setSearch] = useState('');
   const filtered = projects
@@ -44,7 +47,7 @@ export function ProjectContext({ value }: { readonly value: unknown }) {
             [
               ['all', 'Todos'],
               ['review', `Por revisar (${String(count(data.needs_review))})`],
-              ['changes', 'Nuevos y eliminados'],
+              ['changes', 'Nuevos'],
             ] as const
           ).map(([key, text]) => (
             <button
@@ -74,7 +77,7 @@ export function ProjectContext({ value }: { readonly value: unknown }) {
       {filtered.length === 0 ? (
         <p className="garden-empty">
           {projects.length === 0
-            ? 'Aún no tienes proyectos. Crea una lista para organizar algo que quieras llevar adelante.'
+            ? 'No tienes proyectos activos.'
             : 'No hay proyectos que coincidan con este filtro.'}
         </p>
       ) : (
@@ -142,6 +145,28 @@ export function ProjectContext({ value }: { readonly value: unknown }) {
           })}
         </ul>
       )}
+      {deleted.length > 0 ? (
+        <details className="garden-project-method">
+          <summary>Eliminados ({String(deleted.length)})</summary>
+          <ul className="garden-compact-names">
+            {deleted.map((item) => (
+              <li key={label(item.id)}>{label(item.name)}</li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+      {closed.length > 0 ? (
+        <details className="garden-project-method">
+          <summary>Cerrados ({String(closed.length)})</summary>
+          <ul className="garden-compact-names">
+            {closed.map((item) => (
+              <li key={label(item.id)}>
+                <Link to={`/list/${label(item.id)}`}>{label(item.name)}</Link>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
       <details className="garden-project-method">
         <summary>Criterio para revisar proyectos</summary>
         <p>

@@ -38,7 +38,14 @@ const task = {
 
 async function fixtures(
   page: Page,
-  options: { dueDate?: string; title?: string; density?: string; accent?: string } = {},
+  options: {
+    dueDate?: string;
+    title?: string;
+    density?: string;
+    accent?: string;
+    configured?: boolean;
+    todayCount?: number;
+  } = {},
 ) {
   const sampleTask = {
     ...task,
@@ -120,7 +127,20 @@ async function fixtures(
         subtasks: [{ ...sampleTask, id: 'child', title: 'Subtarea con título legible #personal' }],
         activity: [],
       };
-    if (path === '/tasks') body = { items: completed ? [] : [sampleTask], next_cursor: null };
+    if (path === '/tasks')
+      body = {
+        items: completed
+          ? []
+          : options.todayCount === undefined
+            ? [sampleTask]
+            : Array.from({ length: options.todayCount }, (_, i) => ({
+                ...sampleTask,
+                id: `today-${String(i)}`,
+                title: `Hoy ${String(i)}`,
+                due_date: `2026-10-20T${String(9 + i).padStart(2, '0')}:00:00Z`,
+              })),
+        next_cursor: null,
+      };
     if (path === '/tasks/audit-task/complete') {
       completions.push(route.request().postDataJSON());
       completed = true;
@@ -145,7 +165,25 @@ async function fixtures(
           },
         ],
       };
-    if (path === '/achievements') body = { enabled: false, score: null };
+    if (path === '/stats/overview')
+      body = {
+        summary: {
+          streak_current: 1,
+          achievement: {
+            enabled: true,
+            score: 79,
+            label: 'Al día',
+            components: {
+              tasks: { earned: 45.83, max: 50, configured: true },
+              habits: { earned: 0, max: 20, configured: false },
+              focus: { earned: 0, max: 20, configured: false },
+              usage: { earned: 1.43, max: 10, configured: true },
+            },
+            topDeduction: 'Uso: 1/7 días registrados',
+            history: [],
+          },
+        },
+      };
     if (path === '/dashboard/data')
       body = {
         generated_at: '2026-10-20T10:00:00Z',
@@ -154,6 +192,17 @@ async function fixtures(
           completed_today: 3,
           completed_week: { value: 24, trend: 5 },
           overdue: 7,
+          overdue_by_list: [
+            {
+              list_id: 'audit-list',
+              name: 'Lista de prueba',
+              total: 7,
+              under_7: 2,
+              days_7_30: 2,
+              over_30: 3,
+            },
+          ],
+          next_countdowns: { items: [], configured: options.configured ?? true },
           projects: {
             open: 2,
             created_7d: 1,
@@ -193,9 +242,9 @@ async function fixtures(
           next_7_days: 12,
           flow: { created: 30, completed: 24, net: -6 },
           load: { by_list: [{ list_id: 'audit-list', name: 'Lista de prueba', active: 7 }] },
-          habits: { total: 0, percent: 0 },
+          habits: { total: 0, percent: 0, configured: options.configured ?? true },
           focus: { seconds: 1500 },
-          calendar: { upcoming: 0, items: [] },
+          calendar: { upcoming: 0, items: [], configured: options.configured ?? true },
           integrations: { telegram: true, google: false, drive: false },
         },
       };
@@ -214,16 +263,114 @@ async function fixtures(
 
 test.use({ locale: 'es-ES', timezoneId: 'Europe/Madrid' });
 
+test('garden scoring: disabled and failed reads never display invented zero points', async ({
+  page,
+}) => {
+  await fixtures(page);
+  let fail = false;
+  const handler = async (route: import('@playwright/test').Route) =>
+    route.fulfill(
+      fail
+        ? { status: 500, json: { error: { code: 'failed', message: 'failed' } } }
+        : { json: { summary: { achievement: { enabled: false, score: null } } } },
+    );
+  await page.route('**/api/v1/stats/overview?*', handler);
+  await page.goto('/dashboard');
+  const score = page.getByRole('region', { name: 'Puntuación de control', exact: true });
+  await expect(score).toContainText('La puntuación está desactivada');
+  await expect(score.locator('.control-value')).toHaveCount(0);
+  fail = true;
+  await page.reload();
+  await expect(score.getByRole('alert')).toContainText('No se ha podido cargar la puntuación');
+  await page.unroute('**/api/v1/stats/overview?*', handler);
+  await score.getByRole('button', { name: 'Reintentar puntuación', exact: true }).click();
+  await expect(score).toContainText('79');
+});
+
+test('garden KISS: score is prominent, Today shows at most three, and overdue breakdown is accessible', async ({
+  page,
+}) => {
+  await fixtures(page, { todayCount: 4 });
+  await page.goto('/dashboard');
+  const score = page.getByRole('region', { name: 'Puntuación de control', exact: true });
+  await expect(score).toContainText('79');
+  await expect(score).toContainText('/ 100');
+  const today = page.getByRole('region', { name: 'Hoy', exact: true });
+  await expect(today.locator('li')).toHaveCount(3);
+  await expect(today.getByRole('link', { name: 'Ver todas (4)', exact: true })).toHaveAttribute(
+    'href',
+    '/today',
+  );
+  await expect(today.locator('li').first().getByRole('link')).toHaveAttribute(
+    'href',
+    '/list/audit-list?task=today-0',
+  );
+  const positions = await page.evaluate(() => ({
+    score: document.querySelector('.garden-score')!.getBoundingClientRect().top,
+    metrics: document.querySelector('.garden-widgets')!.getBoundingClientRect().top,
+    today: document.querySelector('.garden-today')!.getBoundingClientRect().top,
+    size: parseFloat(getComputedStyle(document.querySelector('.control-value strong')!).fontSize),
+  }));
+  expect(positions.today).toBeLessThan(positions.metrics);
+  expect(positions.score).toBeLessThan(positions.metrics);
+  expect(positions.size).toBeGreaterThanOrEqual(28);
+  const overdue = page.locator('[data-garden-widget="overdue"]');
+  await overdue.locator('summary').press('Enter');
+  await expect(overdue).toContainText('Menos de 7 días: 2');
+  await expect(overdue).toContainText('7–30 días: 2');
+  await expect(overdue).toContainText('Más de 30 días: 3');
+  await expect(page.locator('[data-garden-widget="flow"]')).not.toContainText('más entraron');
+  await expect(page.locator('[data-garden-widget="completed_week"]')).not.toContainText('+5');
+});
+
+test('garden KISS: unconfigured modules fold together and a configured empty calendar remains visible', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await fixtures(page, { configured: false });
+  await page.goto('/dashboard');
+  await expect(page.getByText('Pendiente de configurar (3)', { exact: true })).toBeVisible();
+  await expect(
+    page.locator(
+      '[data-garden-widget="habits"], [data-garden-widget="calendar"], [data-garden-widget="next_countdowns"]',
+    ),
+  ).toHaveCount(0);
+  await page.getByText('Pendiente de configurar (3)', { exact: true }).click();
+  await expect(
+    page
+      .locator('.garden-configuration')
+      .getByRole('link', { name: 'En tu calendario', exact: true }),
+  ).toHaveAttribute('href', '/settings/calendar');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test('garden KISS: overdue tasks do not fill Today and an error is not treated as unconfigured', async ({
+  page,
+}) => {
+  await fixtures(page, { configured: false });
+  await page.route('**/api/v1/countdowns?**', (route) =>
+    route.fulfill({ status: 500, json: { error: { code: 'failed', message: 'failed' } } }),
+  );
+  await page.goto('/dashboard');
+  await expect(page.getByRole('region', { name: 'Hoy', exact: true })).toContainText(
+    'No tienes tareas para hoy',
+  );
+  await expect(page.locator('[data-garden-widget="next_countdowns"]')).toContainText(
+    'No se han podido cargar las fechas',
+  );
+  await expect(page.getByText('Pendiente de configurar (2)', { exact: true })).toBeVisible();
+});
+
 for (const accent of ['indigo', 'violet']) {
   test(`garden respects the account accent and the shared sans typography (${accent})`, async ({
     page,
   }) => {
     await fixtures(page, { accent });
     await page.goto('/dashboard');
-    await expect(page.locator('.garden-bars .garden-track > span').first()).toBeVisible();
+    await expect(page.locator('.garden-load .garden-track > span').first()).toBeVisible();
     await expect(page.locator('html')).toHaveAttribute('data-accent', accent);
     const style = await page.evaluate(() => ({
-      bar: getComputedStyle(document.querySelector('.garden-bars .garden-track > span')!)
+      bar: getComputedStyle(document.querySelector('.garden-load .garden-track > span')!)
         .backgroundColor,
       button: getComputedStyle(document.querySelector('.digital-garden .ui-button.is-primary')!)
         .backgroundColor,
@@ -249,9 +396,16 @@ test('garden contextualizes projects and filters review candidates and recent ch
   ).toBeVisible();
   await expect(projects.getByRole('link', { name: 'Proyecto nuevo', exact: true })).toHaveCount(0);
   await expect(projects).toContainText('más de 30 días');
-  await projects.getByRole('button', { name: 'Nuevos y eliminados', exact: true }).click();
+  await projects.getByRole('button', { name: 'Nuevos', exact: true }).click();
   await expect(projects.getByRole('link', { name: 'Proyecto nuevo', exact: true })).toBeVisible();
-  await expect(projects).toContainText('Proyecto eliminado');
+  await expect(projects.locator('.garden-project-list')).not.toContainText('Proyecto eliminado');
+  await expect(
+    projects
+      .locator('details')
+      .filter({ has: page.locator('summary').filter({ hasText: 'Eliminados (1)' }) }),
+  ).not.toHaveAttribute('open');
+  await projects.getByText('Eliminados (1)', { exact: true }).click();
+  await expect(projects.getByText('Proyecto eliminado', { exact: true })).toBeVisible();
   await expect(projects.getByRole('link', { name: 'Proyecto eliminado', exact: true })).toHaveCount(
     0,
   );
@@ -264,13 +418,16 @@ test('RF-2101/3: garden has actionable data and persists hidden, reordered, resi
   await fixtures(page);
   await page.goto('/dashboard');
   await expect(page.getByRole('heading', { name: 'Jardín digital', exact: true })).toBeVisible();
+  await expect(page.locator('[data-garden-widget="calendar"]')).toContainText(
+    'Sin eventos externos próximos',
+  );
   await expect(
     page.getByRole('link', { name: 'Revisar mis pendientes', exact: true }),
   ).toHaveAttribute('href', '/review/weekly');
-  await expect(page.locator('[data-garden-widget="habits"]')).toContainText(
-    'Crea tu primer hábito',
+  await expect(page.locator('[data-garden-widget="habits"]')).toContainText('Sin hábitos activos');
+  await expect(page.locator('[data-garden-widget="flow"]')).toContainText(
+    'Las completadas pueden incluir cierres en lote',
   );
-  await expect(page.locator('[data-garden-widget="flow"]')).toContainText('6 tareas más entraron');
   await page.getByRole('button', { name: 'Personalizar', exact: true }).click();
   await page
     .locator('[data-garden-editor="flow"]')
@@ -317,7 +474,9 @@ test('RF-2101: garden fits mobile, supports an empty layout, and keeps a failed 
   await expect(page.locator('[data-garden-widget]')).toHaveCount(0);
 });
 
-test('module order: drag, persist across reload, and match both sidebars', async ({ page }) => {
+test('module order: drag, persist across reload, and avoid duplicate secondary navigation', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 1280, height: 1800 });
   await fixtures(page);
   await page.goto('/settings/features');
@@ -334,10 +493,11 @@ test('module order: drag, persist across reload, and match both sidebars', async
     'dashboard',
   );
   await expect(page.locator('.icon-rail a').nth(2)).toHaveAttribute('href', '/dashboard');
-  await expect(page.locator('.nav-group').nth(1).getByRole('link').first()).toHaveAttribute(
-    'href',
-    '/dashboard',
-  );
+  await expect(
+    page.locator('.sidebar').getByRole('button', { name: 'Módulos', exact: true }),
+  ).toHaveCount(0);
+  await expect(page.locator('.sidebar a[href="/dashboard"]')).toHaveCount(0);
+  await expect(page.locator('.sidebar a[href="/calendar/week"]')).toHaveCount(0);
 });
 
 test('REC-1/2 and TSK-6: UI completes with future materialization and a clean accessible title', async ({
@@ -454,3 +614,22 @@ for (const width of [1280, 390]) {
     });
   }
 }
+
+test('global Control chip stays available on mobile and collapsed desktop', async ({ page }) => {
+  await fixtures(page);
+  await page.goto('/today');
+  await page.locator('.sidebar .control-chip').click();
+  await expect(
+    page.getByRole('dialog', { name: 'Puntuación de control', exact: true }),
+  ).toContainText('79');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('[');
+  await expect(page.locator('.icon-rail .control-chip')).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('.mobile-control-bar .control-chip')).toBeVisible();
+  await page.locator('.mobile-control-bar .control-chip').click();
+  await expect(
+    page.getByRole('dialog', { name: 'Puntuación de control', exact: true }),
+  ).toContainText('Uso diario');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});

@@ -10,7 +10,6 @@ import {
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Award,
   CalendarDays,
   Download,
   Flame,
@@ -38,6 +37,7 @@ import {
   type RangeKey,
 } from './range';
 import './statistics.css';
+import { ControlSummary } from './ControlSummary';
 type Row = Record<string, unknown>;
 type Tab = 'overview' | 'tasks' | 'focus' | 'habits';
 const TABS: readonly Tab[] = ['overview', 'tasks', 'focus', 'habits'];
@@ -709,38 +709,8 @@ function Overview({ data, open }: { readonly data: Row; readonly open: (tab: Tab
         />
         {achievement.enabled === true ? (
           <article className="stats-card stats-kpi">
-            <p className="stats-kpi-label">
-              <Award size={16} /> {t('achievement')} · {t('lifetime')}
-            </p>
-            <p className="stats-kpi-value">
-              {t('level')} {number(num(achievement.level_index) + 1)} · {String(achievement.level)}
-            </p>
-            <p>
-              {number(num(achievement.score))} {t('points')}
-            </p>
-            <progress
-              max={100}
-              value={num(achievement.progress_to_next)}
-              aria-label={t('threshold')}
-            />
-            {achievement.next_threshold !== null ? (
-              <p>
-                {t('threshold')}: {number(num(achievement.next_threshold))} {t('points')} ·{' '}
-                {t('remaining')}:{' '}
-                {number(Math.max(0, num(achievement.next_threshold) - num(achievement.score)))}
-              </p>
-            ) : null}
-            <details>
-              <summary>{t('formula')}</summary>
-              <p>{t('formulaHelp')}</p>
-              <DataTable
-                caption={t('formula')}
-                headers={[t('value'), t('points')]}
-                rows={Object.entries(record(achievement.formula))
-                  .filter(([, value]) => typeof value === 'number')
-                  .map(([key, value]) => [formulaLabel(key, t), number(num(value))])}
-              />
-            </details>
+            <h2>{t('achievement')}</h2>
+            <ControlSummary value={achievement} />
             <a href="#stats-achievement-history">{t('history')}</a>
           </article>
         ) : null}
@@ -1181,20 +1151,6 @@ function Skeleton() {
       </div>
       <div className="stats-skeleton chart stats-span-12" />
     </div>
-  );
-}
-function formulaLabel(key: string, t: (key: StatisticsTextKey) => string) {
-  return t(
-    (
-      {
-        on_time_points: 'onTime',
-        late_points: 'late',
-        priority_points: 'priority',
-        pomodoro_points: 'pomodoros',
-        habit_points: 'habits',
-        overdue_penalty: 'overdue',
-      } as Record<string, StatisticsTextKey>
-    )[key] ?? 'points',
   );
 }
 function weekdayName(value: number) {

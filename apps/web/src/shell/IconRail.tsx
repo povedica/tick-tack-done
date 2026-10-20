@@ -1,3 +1,4 @@
+import { ControlChip } from '../features/statistics/ControlSummary';
 import { displayTitle } from '../features/tasks/displayTitle';
 import { MODULES, moduleEnabled } from './modules';
 import { useQuery } from '@tanstack/react-query';
@@ -82,6 +83,7 @@ export function IconRail({
             </NavLink>
           );
         })}
+      {collapsed ? <ControlChip compact /> : null}
       <span className="rail-spacer" />
       <button
         type="button"

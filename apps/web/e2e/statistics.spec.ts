@@ -29,21 +29,15 @@ function fixtures(empty: boolean, from = '2026-10-19', to = '2026-10-25') {
   const achievement = {
     enabled: !empty,
     score: 66,
-    level: 'ritmo',
-    level_index: 2,
-    next_threshold: 80,
-    progress_to_next: 53,
-    formula: {
-      on_time_points: 20,
-      late_points: 5,
-      priority_points: 15,
-      pomodoro_points: 15,
-      habit_points: 16,
-      overdue_penalty: 5,
-      weights: {},
+    label: 'Justo',
+    components: {
+      tasks: { earned: 30, max: 50, configured: true },
+      habits: { earned: 16, max: 20, configured: true },
+      focus: { earned: 15, max: 20, configured: true },
+      usage: { earned: 5, max: 10, configured: true },
     },
+    topDeduction: 'Vencidas',
     history: [{ date: first, score: 66 }],
-    levels: [],
   };
   const summary = {
     completed,
@@ -270,7 +264,7 @@ test('RF-2321 historical navigation, named filters, keyboard and local persisten
   await expect(page).toHaveURL(/from=2026-10-12/);
   await page.goBack();
   await expect(page).toHaveURL(/from=2026-10-19/);
-  await page.getByRole('button', { name: 'Filtros', exact: true }).click();
+  await page.locator('.stats-filter-btn').click();
   await page.getByLabel('Trabajo de prueba', { exact: true }).click();
   await expect(page.getByLabel('Trabajo de prueba', { exact: true })).toBeChecked();
   await expect(page.locator('.stats-chips')).toContainText('Trabajo de prueba');
@@ -294,7 +288,8 @@ test('RF-2324 export downloads query data and RF-2321 primary rail precedes Sear
   const targets = await page
     .locator('.icon-rail a')
     .evaluateAll((links) => links.map((link) => link.getAttribute('href')));
-  expect(targets.indexOf('/statistics')).toBe(targets.indexOf('/search') - 1);
+  expect(targets.indexOf('/statistics')).toBeLessThan(targets.indexOf('/search'));
+  expect(targets.indexOf('/dashboard')).toBe(targets.indexOf('/statistics') + 1);
   await expect(page.locator('.sidebar a[href="/statistics"]')).toHaveCount(0);
   await page.getByLabel('Exportar', { exact: true }).click();
   const download = page.waitForEvent('download');

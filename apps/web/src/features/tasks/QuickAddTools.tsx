@@ -1,3 +1,4 @@
+import { TagIcon } from '../../components/TagIcon';
 import { Calendar, ChevronDown, Flag } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { DatePopover, type DateDraft } from '../../components/DatePopover';
@@ -52,6 +53,7 @@ export function QuickAddTools({
       ) : null}
       {preview?.tags.map((tag) => (
         <span key={tag} className="ui-tag">
+          <TagIcon />
           {tag}
         </span>
       ))}
