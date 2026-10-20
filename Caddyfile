@@ -24,6 +24,35 @@
 		reverse_proxy api:3000
 	}
 
+	handle /.well-known/oauth-protected-resource* {
+		reverse_proxy api:3000
+	}
+
+	handle /.well-known/oauth-authorization-server* {
+		reverse_proxy api:3000
+	}
+
+	handle /.well-known/openid-configuration* {
+		header Content-Type application/json
+		respond `{"error":{"code":"not_found","message":"OpenID Connect discovery is not supported"}}` 404
+	}
+
+	handle /oauth/authorize {
+		reverse_proxy api:3000
+	}
+
+	handle /oauth/token {
+		reverse_proxy api:3000
+	}
+
+	handle /oauth/register {
+		reverse_proxy api:3000
+	}
+
+	handle /oauth/revoke {
+		reverse_proxy api:3000
+	}
+
 	handle /* {
 		reverse_proxy web:8080
 	}

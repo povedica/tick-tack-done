@@ -24,6 +24,17 @@ docker compose \
   --env-file "$env_file" \
   up -d --build --remove-orphans
 
-if [ -n "$site_dir" ] && { [ -w "$site_dir" ] || [ -w "$(dirname "$site_dir")" ]; }; then
-  cp deploy/production/todo.caddy "$site_dir/todo.caddy"
+if [ -n "$site_dir" ]; then
+  site_file=$site_dir/todo.caddy
+  if [ -w "$site_dir" ] || [ -w "$(dirname "$site_dir")" ]; then
+    cp deploy/production/todo.caddy "$site_file"
+  elif command -v sudo >/dev/null 2>&1 && sudo -n /usr/bin/install -o root -g root -m 644 deploy/production/todo.caddy "$site_file"; then
+    :
+  else
+    echo "warning: could not update $site_file (need write access or passwordless sudo install)" >&2
+  fi
+  if [ -n "${EDGE_CADDY_CONTAINER:-}" ]; then
+    sudo -n /usr/bin/docker exec "$EDGE_CADDY_CONTAINER" caddy reload --config /etc/caddy/Caddyfile \
+      || echo "warning: could not reload $EDGE_CADDY_CONTAINER" >&2
+  fi
 fi

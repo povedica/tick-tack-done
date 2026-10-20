@@ -1,6 +1,7 @@
 # Imported by the edge Caddy that already listens on 80/443.
 # This file does not open ports. Connect that Caddy to the EDGE_NETWORK used by this stack.
-{$SITE_ADDRESS:localhost} {
+# Default site address is production; override with SITE_ADDRESS for other hosts.
+{$SITE_ADDRESS:todo.reflexionia.com} {
 	encode zstd gzip
 
 	@docs path /api/docs*
@@ -23,12 +24,19 @@
 		reverse_proxy todo-api:3000
 	}
 
-	handle /.well-known/oauth-protected-resource {
+	# OAuth discovery (RFC 9728 / RFC 8414). Must run before the SPA fallback.
+	handle /.well-known/oauth-protected-resource* {
 		reverse_proxy todo-api:3000
 	}
 
-	handle /.well-known/oauth-authorization-server {
+	handle /.well-known/oauth-authorization-server* {
 		reverse_proxy todo-api:3000
+	}
+
+	# OIDC discovery is not implemented; never return the SPA HTML shell.
+	handle /.well-known/openid-configuration* {
+		header Content-Type application/json
+		respond `{"error":{"code":"not_found","message":"OpenID Connect discovery is not supported"}}` 404
 	}
 
 	handle /oauth/authorize {
