@@ -1,7 +1,6 @@
-import { useRef, useState } from 'react';
-import { CalendarCheck, MoreHorizontal, TriangleAlert } from 'lucide-react';
+import { CalendarCheck, TriangleAlert } from 'lucide-react';
 import { Link } from 'react-router';
-import { Popover } from '../../components/Popover';
+import { useDayPlanStatus } from '../planning/DayPlanEntry';
 import { useMessages } from '../../i18n';
 
 export interface DayLoadBody {
@@ -15,7 +14,6 @@ export function TodayPlanStrip({
   load,
   loading,
   showLoad,
-  showReplan,
 }: {
   readonly load: DayLoadBody | undefined;
   readonly loading: boolean;
@@ -23,12 +21,8 @@ export function TodayPlanStrip({
   readonly showReplan: boolean;
 }) {
   const m = useMessages();
-  const [open, setOpen] = useState(false);
-  const anchor = useRef<HTMLButtonElement>(null);
-  const close = () => {
-    setOpen(false);
-    anchor.current?.focus();
-  };
+  const status = useDayPlanStatus();
+  const saved = status.data?.initial_applied_at != null;
   const hasLoad = showLoad && load !== undefined && Number.isFinite(load.task_minutes);
   return (
     <section className="today-plan-strip" aria-label={m.todayPlanTitle}>
@@ -52,44 +46,24 @@ export function TodayPlanStrip({
           {m.todayUnestimated.replace('{count}', String(load.unestimated_count))}
         </span>
       ) : null}
+      {saved && status.data?.last_applied_at ? (
+        <span className="ui-muted today-plan-saved">
+          {m.planSavedAt
+            .replace(
+              '{time}',
+              new Date(status.data.last_applied_at).toLocaleTimeString(undefined, {
+                hour: '2-digit',
+                minute: '2-digit',
+              }),
+            )
+            .replace('{count}', String(status.data.adjustment_count))}
+        </span>
+      ) : null}
       <div className="today-plan-actions">
         <Link className="ui-button is-primary is-sm" aria-label={m.planMyDay} to="/plan/day">
-          {m.todayPlanAction}
+          {saved ? m.todayPlanTitle : m.todayPlanAction}
         </Link>
-        {showReplan ? (
-          <Link className="today-plan-secondary" to="/replan">
-            {m.todayReplanAction}
-          </Link>
-        ) : null}
-        {showReplan ? (
-          <button
-            type="button"
-            ref={anchor}
-            className="today-plan-more"
-            aria-label={m.todayPlanMore}
-            aria-haspopup="dialog"
-            aria-expanded={open}
-            onClick={() => {
-              setOpen((current) => !current);
-            }}
-          >
-            <MoreHorizontal size={20} />
-          </button>
-        ) : null}
       </div>
-      <Popover
-        open={open}
-        anchor={anchor}
-        label={m.todayPlanMore}
-        onClose={close}
-        className="popover today-plan-menu"
-      >
-        {showReplan ? (
-          <Link className="popover-row" to="/replan" onClick={close}>
-            {m.todayReplanAction}
-          </Link>
-        ) : null}
-      </Popover>
     </section>
   );
 }

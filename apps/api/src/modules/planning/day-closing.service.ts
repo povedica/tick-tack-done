@@ -88,8 +88,9 @@ export class DayClosingService {
     user: AuthUser,
     localDate: string,
     timeZone: string,
+    applySuggestions = true,
   ): Promise<Record<string, unknown>> {
-    return this.open(user, 'replan', localDate, timeZone, false);
+    return this.open(user, 'replan', localDate, timeZone, false, applySuggestions);
   }
 
   async decide(
@@ -130,6 +131,21 @@ export class DayClosingService {
     expectedRevision: number,
     key: string | undefined,
   ): Promise<Record<string, unknown>> {
+    return this.prisma.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${user.id}))`;
+        return this.applyLocked(user, sessionId, expectedRevision, key);
+      },
+      { timeout: 60_000 },
+    );
+  }
+
+  private async applyLocked(
+    user: AuthUser,
+    sessionId: string,
+    expectedRevision: number,
+    key: string | undefined,
+  ): Promise<Record<string, unknown>> {
     if (key === undefined || key.trim() === '') {
       throw new DomainException(
         HttpStatus.BAD_REQUEST,
@@ -147,6 +163,27 @@ export class DayClosingService {
     const pending = session.decisions.filter(
       (decision) => decision.decision !== 'skip' && !done.has(decision.taskId),
     );
+    const snapshot = session.snapshot as { cards?: { taskId: string; updatedAt: string }[] };
+    const current = await this.prisma.task.findMany({
+      where: { ownerId: user.id, id: { in: pending.map((item) => item.taskId) } },
+      select: { id: true, updatedAt: true, status: true, deletedAt: true },
+    });
+    if (
+      pending.some((item) => {
+        const task = current.find((task) => task.id === item.taskId);
+        const card = snapshot.cards?.find((card) => card.taskId === item.taskId);
+        return (
+          task?.status !== 'active' ||
+          task.deletedAt !== null ||
+          (card?.updatedAt !== undefined && task.updatedAt.toISOString() !== card.updatedAt)
+        );
+      })
+    )
+      throw new DomainException(
+        HttpStatus.CONFLICT,
+        'plan_conflict',
+        'A task changed since the preview',
+      );
     await this.prisma.planSession.update({
       where: { id: session.id },
       data: { state: 'applying' },
@@ -234,6 +271,7 @@ export class DayClosingService {
     localDate: string,
     timeZone: string,
     restrictDate: boolean,
+    applySuggestions = true,
   ): Promise<Record<string, unknown>> {
     this.assertDate(localDate);
     this.assertZone(timeZone);
@@ -290,7 +328,7 @@ export class DayClosingService {
       },
       include: { decisions: true, plan: true },
     });
-    if (kind === 'replan') {
+    if (kind === 'replan' && applySuggestions) {
       for (const suggestion of suggestions) {
         if (suggestion.decision === 'skip') {
           continue;
@@ -362,6 +400,10 @@ export class DayClosingService {
     decision: PlanDecision,
     key: string,
   ): Promise<string> {
+    const current = await this.prisma.task.findFirst({
+      where: { id: decision.taskId, ownerId: user.id, deletedAt: null, status: 'active' },
+    });
+    if (current === null) return 'unchanged';
     if (decision.decision === 'done') {
       await this.tasks.complete(user, decision.taskId, { complete_children: 'complete' }, key);
       return 'completed';
@@ -381,6 +423,7 @@ export class DayClosingService {
       return 'trashed';
     }
     if (decision.decision === 'someday') {
+      if (current.isSomeday && current.startDate === null) return 'unchanged';
       await this.prisma.task.update({
         where: { id: decision.taskId },
         data: { isSomeday: true, startDate: null },
@@ -391,6 +434,21 @@ export class DayClosingService {
     if (decision.decision === 'plan_day' || decision.decision === 'later') {
       const target = decision.targetDate ?? shiftCivilDate(session.plan.localDate, 1);
       const start = this.wallStart(target, session.plan.timeZone);
+      if (start === null)
+        throw new DomainException(
+          HttpStatus.BAD_REQUEST,
+          'validation_failed',
+          'Invalid target date',
+        );
+      if (
+        current.startDate?.getTime() === start.getTime() &&
+        !current.isSomeday &&
+        (!decision.evening || current.eveningOnly)
+      )
+        return 'unchanged';
+      await this.prisma.planMember.deleteMany({
+        where: { taskId: decision.taskId, planId: session.planId },
+      });
       await this.prisma.task.update({
         where: { id: decision.taskId },
         data: {

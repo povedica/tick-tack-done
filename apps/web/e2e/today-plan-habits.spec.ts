@@ -98,23 +98,9 @@ for (const width of [1280, 390])
       await expect(
         plan.getByRole('link', { name: 'Planificar mi día', exact: true }),
       ).toHaveAttribute('href', '/plan/day');
-      if (width === 390) {
-        await expect(plan.getByRole('link', { name: 'Cerrar el día', exact: true })).toHaveCount(0);
-        await plan.getByRole('button', { name: 'Más acciones del plan del día' }).click();
-        const menu = page.getByRole('dialog', { name: 'Más acciones del plan del día' });
-        await expect(menu.getByRole('link', { name: 'Cerrar el día' })).toHaveCount(0);
-        await expect(menu.getByRole('link', { name: 'Replanificar', exact: true })).toHaveAttribute(
-          'href',
-          '/replan',
-        );
-        await page.keyboard.press('Escape');
-        await expect(
-          plan.getByRole('button', { name: 'Más acciones del plan del día' }),
-        ).toBeFocused();
-      } else {
-        await expect(plan.getByRole('link', { name: 'Cerrar el día', exact: true })).toHaveCount(0);
-        expect((await plan.boundingBox())!.height).toBeLessThan(66);
-      }
+      await expect(plan.getByRole('link', { name: 'Replanificar', exact: true })).toHaveCount(0);
+      await expect(plan.getByRole('link', { name: 'Cerrar el día', exact: true })).toHaveCount(0);
+      if (width === 1280) expect((await plan.boundingBox())!.height).toBeLessThan(66);
       await expect(
         page.getByRole('link', { name: 'Añadir un hábito', exact: true }),
       ).toHaveAttribute('href', '/habits');

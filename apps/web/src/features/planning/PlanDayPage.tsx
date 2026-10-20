@@ -158,7 +158,7 @@ export function PlanDayPage() {
     }
   }
   async function apply() {
-    if (!session || busy || !actionable.length) return;
+    if (!session || busy) return;
     const irreversible = actionable.filter(
       (item) => item.decision === 'done' || item.decision === 'cancel',
     );
@@ -177,6 +177,8 @@ export function PlanDayPage() {
       );
       setApplied(readApplied(result));
       await refreshTaskSurfaces(cache);
+      await cache.invalidateQueries({ queryKey: ['day-plan-status'] });
+      await cache.invalidateQueries({ queryKey: ['day-load'] });
     } catch (reason) {
       setError(messageOf(reason, text));
       if (reason instanceof ApiError && reason.code === 'plan_revision')
@@ -341,6 +343,17 @@ export function PlanDayPage() {
                 {text.apply}
               </Button>
             </aside>
+          ) : null}
+          {!actionable.length ? (
+            <Button
+              variant="primary"
+              disabled={busy}
+              onClick={() => {
+                void apply();
+              }}
+            >
+              {text.apply}
+            </Button>
           ) : null}
           {eligible.length ? (
             <div className="weekly-actions" aria-label={weekly.actions}>
@@ -536,7 +549,7 @@ function messageOf(reason: unknown, text: Copy): string {
 }
 
 const spanish = {
-  title: 'Planificar mi día',
+  title: 'Plan del día',
   finish: 'Terminar planificación',
   retry: 'Reintentar',
   updated: 'tareas actualizadas',
@@ -580,7 +593,7 @@ type Copy = Omit<typeof spanish, 'effects'> & { readonly effects: Record<string,
 
 const english: Copy = {
   ...spanish,
-  title: 'Plan my day',
+  title: 'Day plan',
   finish: 'Finish planning',
   retry: 'Retry',
   updated: 'tasks updated',

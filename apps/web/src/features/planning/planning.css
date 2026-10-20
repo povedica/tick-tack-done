@@ -120,3 +120,29 @@
   color: var(--ink-3);
   font-size: 11px;
 }
+
+.plan-adjust-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.plan-adjust-list li {
+  padding: 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  display: grid;
+  gap: 6px;
+  overflow-wrap: anywhere;
+}
+.plan-adjust-list small {
+  color: var(--ink-2);
+}
+.plan-adjust-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.today-plan-saved {
+  font-size: 12px;
+}

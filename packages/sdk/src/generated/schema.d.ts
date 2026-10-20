@@ -1928,7 +1928,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Tasks the user planned for a local date */
+        /**
+         * Tasks the user planned for a local date
+         * @description Includes server-persisted initial_applied_at, last_applied_at and adjustment_count derived from applied plan/replan operations. First save is not an adjustment; later unchanged operations and replays do not count. Shutdown operations are excluded.
+         */
         get: operations["PlansController_day"];
         put?: never;
         post?: never;
@@ -4331,6 +4334,8 @@ export interface components {
             expected_revision: number;
         };
         SessionDateDto: {
+            /** @description When false, suggestions remain informational; only explicit decisions are applied. Defaults to true for existing clients. */
+            apply_suggestions?: boolean;
             /** @example 2026-10-20 */
             local_date: string;
             /** @example Europe/Madrid */

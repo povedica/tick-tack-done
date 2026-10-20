@@ -197,7 +197,11 @@ export class PlansController {
 
   @Get()
   @Scopes('tasks:read')
-  @ApiOperation({ summary: 'Tasks the user planned for a local date' })
+  @ApiOperation({
+    summary: 'Tasks the user planned for a local date',
+    description:
+      'Includes server-persisted initial_applied_at, last_applied_at and adjustment_count derived from applied plan/replan operations. First save is not an adjustment; later unchanged operations and replays do not count. Shutdown operations are excluded.',
+  })
   @ApiQuery({ name: 'date', required: true })
   @ApiQuery({ name: 'time_zone', required: true })
   async day(

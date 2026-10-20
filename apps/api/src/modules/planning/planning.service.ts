@@ -157,6 +157,21 @@ export class PlanningService {
     expectedRevision: number,
     key: string | undefined,
   ): Promise<Record<string, unknown>> {
+    return this.prisma.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${user.id}))`;
+        return this.applyLocked(user, sessionId, expectedRevision, key);
+      },
+      { timeout: 60_000 },
+    );
+  }
+
+  private async applyLocked(
+    user: AuthUser,
+    sessionId: string,
+    expectedRevision: number,
+    key: string | undefined,
+  ): Promise<Record<string, unknown>> {
     if (key === undefined || key.trim() === '') {
       throw new DomainException(
         HttpStatus.BAD_REQUEST,
@@ -226,6 +241,10 @@ export class PlanningService {
         ownerId_localDate_timeZone: { ownerId: user.id, localDate, timeZone },
       },
       include: {
+        sessions: {
+          where: { state: 'applied', kind: { in: ['plan', 'replan'] } },
+          include: { operations: { where: { status: 'applied' }, orderBy: { updatedAt: 'asc' } } },
+        },
         members: {
           orderBy: { rank: 'asc' },
           include: {
@@ -248,7 +267,22 @@ export class PlanningService {
     const members = (plan?.members ?? []).filter(
       (member) => member.task.deletedAt === null && member.task.status === 'active',
     );
+    const saves = (plan?.sessions ?? [])
+      .flatMap((session) =>
+        session.operations.map((operation) => ({
+          at: operation.updatedAt.toISOString(),
+          changed: readResult(operation.result).applied.some(
+            (effect) => effect.effect !== 'unchanged' && effect.effect !== 'skipped',
+          ),
+        })),
+      )
+      .sort((a, b) => a.at.localeCompare(b.at));
+    const first = saves[0];
+    const changes = saves.slice(1).filter((save) => save.changed);
     return {
+      initial_applied_at: first?.at ?? null,
+      last_applied_at: changes.at(-1)?.at ?? first?.at ?? null,
+      adjustment_count: changes.length,
       id: plan?.id ?? null,
       local_date: localDate,
       time_zone: timeZone,
@@ -296,6 +330,10 @@ export class PlanningService {
       return 'trashed';
     }
     if (decision.decision === 'plan_day') {
+      const existing = await this.prisma.planMember.findUnique({
+        where: { planId_taskId: { planId: session.planId, taskId: decision.taskId } },
+      });
+      if (existing !== null) return 'unchanged';
       await this.place(
         user.id,
         session.plan.localDate,

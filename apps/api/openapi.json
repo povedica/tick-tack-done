@@ -5799,6 +5799,7 @@
     },
     "/api/v1/plans": {
       "get": {
+        "description": "Includes server-persisted initial_applied_at, last_applied_at and adjustment_count derived from applied plan/replan operations. First save is not an adjustment; later unchanged operations and replays do not count. Shutdown operations are excluded.",
         "operationId": "PlansController_day",
         "parameters": [
           {
@@ -16161,6 +16162,10 @@
       "SessionDateDto": {
         "type": "object",
         "properties": {
+          "apply_suggestions": {
+            "type": "boolean",
+            "description": "When false, suggestions remain informational; only explicit decisions are applied. Defaults to true for existing clients."
+          },
           "local_date": {
             "type": "string",
             "example": "2026-10-20"

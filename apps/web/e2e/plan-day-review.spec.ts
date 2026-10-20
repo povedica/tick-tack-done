@@ -125,7 +125,7 @@ for (const width of [1280, 390]) {
     await page.setViewportSize({ width, height: 850 });
     const calls = await fixture(page);
     await page.goto('/plan/day');
-    await expect(page.getByRole('heading', { name: 'Planificar mi día' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Plan del día' })).toBeVisible();
     await expect(page.getByText('Vencida de otra semana')).toHaveCount(0);
     await expect(page.getByRole('checkbox', { name: /Revisión diaria recurrente/ })).toBeDisabled();
     expect(calls[0]?.body).toMatchObject({

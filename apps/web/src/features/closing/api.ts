@@ -61,6 +61,7 @@ export interface ClosingSession {
     };
     readonly tomorrow: { readonly status: string };
   };
+  readonly decisions?: readonly { task_id: string; decision: string; target_date: string | null }[];
   readonly closed?: boolean;
   readonly summary?: Record<string, number>;
 }

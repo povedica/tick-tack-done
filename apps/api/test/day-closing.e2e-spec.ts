@@ -206,6 +206,73 @@ describe('day closing, load and someday', () => {
     expect(bad.body.error.code).toBe('revision_conflict');
   });
 
+  it('RF-2671: persisted plan history counts real applications and concurrent replay once', async () => {
+    const date = '2026-10-20';
+    const url = `/api/v1/plans?date=${date}&time_zone=${encodeURIComponent(ZONE)}`;
+    const started = await api()
+      .post('/api/v1/planning/sessions')
+      .send({ local_date: date, time_zone: ZONE, today: true, overdue: false })
+      .expect(201);
+    const applyUrl = `/api/v1/planning/sessions/${started.body.id}/apply`;
+    const key = randomUUID();
+    const results = await Promise.all(
+      [1, 2].map(() =>
+        api()
+          .post(applyUrl)
+          .set('Idempotency-Key', key)
+          .send({ expected_revision: started.body.revision }),
+      ),
+    );
+    expect(results.map((result) => result.status)).toEqual([200, 200]);
+    const initial = await api().get(url).expect(200);
+    expect(initial.body.initial_applied_at).toBeTruthy();
+    expect(initial.body.adjustment_count).toBe(0);
+    const created = await api()
+      .post('/api/v1/tasks')
+      .set('Idempotency-Key', randomUUID())
+      .send({
+        project_id: owner.inboxId,
+        title: 'Ajuste sintético',
+        due_date: DAY,
+        is_all_day: true,
+        time_zone: ZONE,
+      })
+      .expect(201);
+    const adjustment = await api()
+      .post('/api/v1/planning/replan/sessions')
+      .send({ local_date: date, time_zone: ZONE, apply_suggestions: false })
+      .expect(201);
+    expect(adjustment.body.decisions).toEqual([]);
+    const viewed = await api().get(url).expect(200);
+    expect(viewed.body.adjustment_count).toBe(0);
+    const decided = await api()
+      .put(`/api/v1/planning/replan/sessions/${adjustment.body.id}/decisions/${created.body.id}`)
+      .send({ decision: 'someday' })
+      .expect(200);
+    const adjustKey = randomUUID();
+    for (let replay = 0; replay < 2; replay++)
+      await api()
+        .post(`/api/v1/planning/replan/sessions/${adjustment.body.id}/apply`)
+        .set('Idempotency-Key', adjustKey)
+        .send({ expected_revision: decided.body.revision })
+        .expect(200);
+    const saved = await api().get(url).expect(200);
+    expect(saved.body.adjustment_count).toBe(1);
+    expect(saved.body.initial_applied_at).toBe(initial.body.initial_applied_at);
+    const empty = await api()
+      .post('/api/v1/planning/sessions')
+      .send({ local_date: date, time_zone: ZONE, today: true, overdue: false })
+      .expect(201);
+    await api()
+      .post(`/api/v1/planning/sessions/${empty.body.id}/apply`)
+      .set('Idempotency-Key', randomUUID())
+      .send({ expected_revision: empty.body.revision })
+      .expect(200);
+    const unchanged = await api().get(url).expect(200);
+    expect(unchanged.body.adjustment_count).toBe(1);
+    expect(unchanged.body.last_applied_at).toBe(saved.body.last_applied_at);
+  });
+
   it('RF-2651: rejects shutdown for a date that is not today or yesterday', async () => {
     const response = await api()
       .post('/api/v1/planning/shutdown/sessions')

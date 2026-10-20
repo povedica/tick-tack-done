@@ -1,4 +1,13 @@
 export const extraEs = {
+  planAdjustHint:
+    'Ajusta lo pendiente. Nada cambia hasta aplicar; las tareas sin decisión se conservan.',
+  planKeep: 'Conservar',
+  planSuggestion: 'Sugerencia',
+  planUseSuggestion: 'Usar sugerencia',
+  planKeepHint: 'El plan se conserva. Elige una acción para preparar un ajuste.',
+  planChangesPreview: 'Cambios antes de aplicar',
+  planSavedAt: 'Guardado a las {time} · {count} ajustes',
+
   shortcutPaletteSearch: 'Buscar (paleta)',
   shortcutQuickSearch: 'Buscar (rápido)',
   shortcutGoSearch: 'Ir a Buscar',
@@ -820,6 +829,15 @@ export const extraEs = {
 } as const;
 
 export const extraEn = {
+  planAdjustHint:
+    'Adjust pending tasks. Nothing changes until applied; untouched tasks are preserved.',
+  planKeep: 'Keep',
+  planSuggestion: 'Suggestion',
+  planUseSuggestion: 'Use suggestion',
+  planKeepHint: 'The plan is unchanged. Choose an action to prepare an adjustment.',
+  planChangesPreview: 'Changes before applying',
+  planSavedAt: 'Saved at {time} · {count} adjustments',
+
   shortcutPaletteSearch: 'Search (palette)',
   shortcutQuickSearch: 'Search (quick)',
   shortcutGoSearch: 'Go to Search',

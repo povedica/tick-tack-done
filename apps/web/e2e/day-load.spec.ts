@@ -1,54 +1,88 @@
 import { expect, test } from '@playwright/test';
-
-test('RF-2671: replanificar muestra la propuesta y permite aplicarla', async ({ page }) => {
-  await page.route('**/api/v1/**', async (route) => {
-    const url = route.request().url();
-    if (
-      url.includes('/planning/replan/sessions') &&
-      route.request().method() === 'POST' &&
-      !url.includes('/apply')
-    ) {
-      await route.fulfill({
-        status: 201,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          id: '11111111-1111-4111-8111-111111111111',
-          revision: 1,
-          kind: 'replan',
-          load: {
-            today: { status: 'overload', task_minutes: 600, available_minutes: 540 },
-            tomorrow: { status: 'ok' },
-          },
-          queue: {
-            cards: [
-              {
-                task_id: '22222222-2222-4222-8222-222222222222',
-                title: 'Informe',
-                suggested: {
-                  decision: 'plan_day',
-                  target_date: '2026-10-21',
-                  reason: 'Mañana todavía cabe.',
-                },
-              },
-            ],
-          },
-        }),
+for (const width of [1440, 390])
+  for (const theme of ['light', 'dark']) {
+    test(`RF-2671 unified plan preserves untouched tasks and previews adjustments ${width} ${theme}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.addInitScript(() => localStorage.setItem('tick-tack-done.account-prefs', '1'));
+      let applied = 0;
+      let decisions: { task_id: string; decision: string; target_date: string | null }[] = [];
+      const card = {
+        task_id: 'one',
+        title: 'Informe sintético',
+        suggested: { decision: 'plan_day', target_date: '2026-10-22', reason: 'Carga' },
+      };
+      await page.route('**/api/v1/**', async (route) => {
+        const path = new URL(route.request().url()).pathname.replace('/api/v1', '');
+        let body: unknown = { items: [], next_cursor: null };
+        if (path === '/auth/session' || path === '/me')
+          body = {
+            id: 'test',
+            display_name: 'Prueba',
+            email: 'test@example.test',
+            csrf_token: 'test',
+            time_zone: 'Europe/Madrid',
+            features: { day_replan: true },
+            locale: 'es',
+          };
+        if (path === '/plans')
+          body = {
+            initial_applied_at: '2026-10-21T06:00:00Z',
+            last_applied_at: '2026-10-21T06:00:00Z',
+            adjustment_count: 0,
+          };
+        if (path === '/planning/replan/sessions') {
+          expect(route.request().postDataJSON()).toMatchObject({ apply_suggestions: false });
+          body = {
+            id: 'session',
+            revision: 1,
+            queue: { cards: [card] },
+            decisions: [],
+            load: {
+              today: { task_minutes: 600, available_minutes: 540, status: 'overload' },
+              tomorrow: { status: 'ok' },
+            },
+          };
+        }
+        if (path.includes('/decisions/')) {
+          decisions = [
+            {
+              task_id: 'one',
+              ...(route.request().postDataJSON() as {
+                decision: string;
+                target_date: string | null;
+              }),
+            },
+          ];
+          body = { id: 'session', revision: 2, decisions };
+        }
+        if (path.endsWith('/apply')) {
+          applied++;
+          body = { applied: [], closed: true };
+        }
+        await route.fulfill({ json: body });
       });
-      return;
-    }
-    if (url.includes('/apply')) {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ applied: true, closed: true }),
+      await page.goto('/replan');
+      await expect(page).toHaveURL(/\/plan\/day/);
+      await expect(page.getByRole('heading', { name: 'Plan del día', exact: true })).toBeVisible();
+      expect(applied).toBe(0);
+      await expect(page.getByRole('button', { name: 'Aplicar replanificación' })).toHaveCount(0);
+      await page.getByRole('button', { name: 'Usar sugerencia' }).click();
+      await expect(page.getByRole('heading', { name: 'Cambios antes de aplicar' })).toBeVisible();
+      expect(applied).toBe(0);
+      await page.evaluate(
+        (theme) => document.documentElement.setAttribute('data-theme', theme),
+        theme,
+      );
+      await page.screenshot({
+        path: `../../docs/reviews/assets/day-plan-2026-10-21/${width}-${theme}.png`,
       });
-      return;
-    }
-    await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
-  });
-  await page.goto('/replan');
-  await expect(page.getByRole('heading', { name: 'Replanificar el día' })).toBeVisible();
-  await expect(page.getByText('Mañana todavía cabe.')).toBeVisible();
-  await page.getByRole('button', { name: 'Aplicar propuesta tal cual' }).click();
-  await expect(page.getByText('Día cerrado')).toBeVisible();
-});
+      await page.getByRole('button', { name: /Aplicar/ }).click();
+      await expect(page.getByText('Guardado', { exact: true })).toBeVisible();
+      expect(applied).toBe(1);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
+      );
+    });
+  }
