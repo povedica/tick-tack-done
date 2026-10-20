@@ -253,3 +253,9 @@ Sin cambios de fórmula, datos, ubicación ni apertura: indicador transparente, 
 - Permanecen las cuatro cifras, reparto de pendientes, acciones de revisión/reporte y Personalizar. Proyectos muestra hasta tres `needs_review` reales, con nombre, pendientes y motivo; sin buscador, filtros, proyectos sanos de relleno ni scroll interno. Si no hay candidatos, muestra una frase breve. El acceso existente sigue siendo `/review/weekly`: no hay una vista completa de proyectos con filtros y no se añade otra ruta.
 - Ayudas y módulos pendientes de configurar quedan plegados al final. Se reducen márgenes y padding, con descripciones, enlaces y etiquetas de 14 px, colores y tipografía de la app. No cambian algoritmo, datos, endpoints ni almacenamiento.
 - Validación: 31 E2E relevantes, 84 unitarios del cliente, lint, tipos y build en verde. Capturas de escritorio/móvil con datos y sin datos inspeccionadas. En la cuenta local, a 1530 px de ancho, la altura inicial era 2557 px y pasó a 1096 px sin reducir texto. El chip global y su popover quedan intactos.
+
+### Menú Más móvil unificado con Listas
+
+«Más» reutiliza el mismo Sidebar y el mismo estado de apertura del shell que «Listas»: panel lateral izquierdo, fondo y anchura compartidos, enlaces SideLink, selección de ruta y cierre al navegar, pulsar fuera o usar Escape. El contenido conserva el orden y los flags de módulos, filtros y ajustes. Se elimina el popup independiente y sus reglas CSS, además de la entrada artificial de historial que creaba. El sidebar de escritorio sigue sin el grupo duplicado de módulos. Pruebas comparan geometría/fondo a 360 y 390 px, cierre y navegación; capturas inspeccionadas.
+
+Validación de este ajuste: 33 E2E de auditoría/navegación/Jardín, 84 unitarios del cliente, lint y tipos en verde.

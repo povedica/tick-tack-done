@@ -546,14 +546,14 @@ test('MOV-1/3: mobile More has readable links and Calendar opens Agenda', async 
   await fixtures(page);
   await page.goto('/today');
   await page.getByRole('button', { name: 'Más', exact: true }).click();
-  const links = page.locator('.more-sheet a');
+  const links = page.locator('.sidebar .nav-list .nav-link');
   await expect(links.first()).toBeVisible();
   expect(
     await links.evaluateAll((nodes) =>
       nodes.every(
         (node) =>
           getComputedStyle(node).color === 'rgb(25, 25, 25)' &&
-          node.getBoundingClientRect().height >= 44,
+          node.getBoundingClientRect().height >= 32,
       ),
     ),
   ).toBe(true);
@@ -790,4 +790,55 @@ for (const width of [1280, 390]) {
       ).toHaveCount(0);
     });
   }
+}
+
+for (const width of [360, 390]) {
+  test(`mobile More uses the same drawer as Lists (${width}px)`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await fixtures(page);
+    await page.goto('/dashboard');
+    const lists = page.locator('.bottom-bar').getByRole('button', { name: 'Listas', exact: true });
+    const more = page.locator('.bottom-bar').getByRole('button', { name: 'Más', exact: true });
+    await lists.click();
+    await expect(page.locator('.sidebar')).toHaveCSS('transform', 'none');
+    await expect(page.locator('.shell')).toHaveAttribute('data-drawer', 'open');
+    const style = await page.locator('.sidebar').evaluate((node) => ({
+      width: node.getBoundingClientRect().width,
+      background: getComputedStyle(node).backgroundColor,
+      left: node.getBoundingClientRect().left,
+    }));
+    await page.keyboard.press('Escape');
+    await more.click();
+    await expect(page.locator('.sidebar')).toHaveCSS('transform', 'none');
+    await expect(page.locator('.shell')).toHaveAttribute('data-drawer', 'open');
+    await expect(
+      page.locator('.sidebar').getByRole('link', { name: 'Jardín', exact: true }),
+    ).toBeVisible();
+    expect(
+      await page.locator('.sidebar').evaluate((node) => ({
+        width: node.getBoundingClientRect().width,
+        background: getComputedStyle(node).backgroundColor,
+        left: node.getBoundingClientRect().left,
+      })),
+    ).toEqual(style);
+    await expect(page.locator('.more-sheet')).toHaveCount(0);
+    await page.locator('.sidebar').getByRole('link', { name: 'Jardín', exact: true }).click();
+    await expect(page.locator('.shell')).toHaveAttribute('data-drawer', 'closed');
+    await more.click();
+    await expect(page.locator('.sidebar')).toHaveCSS('transform', 'none');
+    await page.locator('.scrim').click({ position: { x: width - 4, y: 400 } });
+    await expect(page.locator('.shell')).toHaveAttribute('data-drawer', 'closed');
+    await more.click();
+    await expect(page.locator('.sidebar')).toHaveCSS('transform', 'none');
+    await page.screenshot({ path: `test-results/mobile-more-drawer-${width}.png` });
+    await page.keyboard.press('Escape');
+    await lists.click();
+    await expect(page.locator('.sidebar')).toHaveCSS('transform', 'none');
+    await expect(
+      page.locator('.sidebar').getByRole('link', { name: 'Jardín', exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      page.locator('.sidebar').getByRole('button', { name: 'Listas', exact: true }),
+    ).toBeVisible();
+  });
 }

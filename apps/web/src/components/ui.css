@@ -452,32 +452,6 @@
   gap: var(--sp-2);
 }
 
-.more-sheet {
-  position: fixed;
-  right: var(--sp-3);
-  bottom: 4.5rem;
-  z-index: 40;
-  display: grid;
-  gap: var(--sp-2);
-  min-width: 10rem;
-  padding: var(--sp-3);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-md);
-  max-height: min(70vh, 28rem);
-  overflow: auto;
-}
-
-.more-sheet a {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  min-height: var(--tap);
-  color: var(--ink);
-  text-decoration: none;
-}
-
 .cal-month {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -2745,14 +2719,6 @@ a.link:hover {
 }
 .widget-grid > .widget {
   grid-column: auto;
-}
-.bottom-bar .more-sheet a {
-  flex-direction: row;
-  justify-content: flex-start;
-  text-align: left;
-}
-.more-sheet {
-  min-width: 13rem;
 }
 .search-snippet {
   display: block;
