@@ -4,6 +4,43 @@ import { dashboardSnapshot, productivityPanel, weeklyNarrative } from './kpis';
 const now = '2026-10-18T12:00:00.000Z';
 
 describe('dashboard', () => {
+  it('counts today in the account time zone across UTC midnight', () => {
+    const snapshot = dashboardSnapshot(
+      [
+        {
+          createdAt: '2026-10-19T12:00:00Z',
+          completedAt: '2026-10-19T23:30:00Z',
+          dueDate: null,
+          status: 'completed',
+          listId: 'one',
+          listName: 'One',
+          tagNames: [],
+        },
+      ],
+      [],
+      '2026-10-20T01:00:00Z',
+      'Europe/Madrid',
+    );
+    expect(snapshot.completed_today).toBe(1);
+    expect(
+      dashboardSnapshot(
+        [
+          {
+            createdAt: '2026-10-19T12:00:00Z',
+            completedAt: '2026-10-19T23:30:00Z',
+            dueDate: null,
+            status: 'completed',
+            listId: 'one',
+            listName: 'One',
+            tagNames: [],
+          },
+        ],
+        [],
+        '2026-10-20T01:00:00Z',
+        'UTC',
+      ).completed_today,
+    ).toBe(0);
+  });
   it('RF-2102: counts completed, overdue, the next week and habit percent', () => {
     const snapshot = dashboardSnapshot(
       [

@@ -48,6 +48,24 @@ async function fixtures(
   let order = [...initialOrder];
   const completions: unknown[] = [];
   let completed = false;
+  let gardenLayout = [
+    'completed_today',
+    'completed_week',
+    'overdue',
+    'next_7_days',
+    'flow',
+    'load',
+    'habits',
+    'focus',
+    'calendar',
+    'next_countdowns',
+    'integrations',
+  ].map((widget_key, position) => ({
+    widget_key,
+    position,
+    size: position < 4 ? 's' : 'm',
+    config: {},
+  }));
   await page.clock.install({ time: new Date('2026-10-20T10:00:00Z') });
   await page.addInitScript(() => localStorage.setItem('tick-tack-done.account-prefs', '1'));
   await page.route('**/api/v1/**', async (route) => {
@@ -126,6 +144,28 @@ async function fixtures(
         ],
       };
     if (path === '/achievements') body = { enabled: false, score: null };
+    if (path === '/dashboard/data')
+      body = {
+        generated_at: '2026-10-20T10:00:00Z',
+        period: { from: '2026-10-13T10:00:00Z', time_zone: 'Europe/Madrid' },
+        widgets: {
+          completed_today: 3,
+          completed_week: { value: 24, trend: 5 },
+          overdue: 7,
+          next_7_days: 12,
+          flow: { created: 30, completed: 24, net: -6 },
+          load: { by_list: [{ list_id: 'audit-list', name: 'Lista de prueba', active: 7 }] },
+          habits: { total: 0, percent: 0 },
+          focus: { seconds: 1500 },
+          calendar: { upcoming: 0, items: [] },
+          integrations: { telegram: true, google: false, drive: false },
+        },
+      };
+    if (path === '/me/dashboard') {
+      if (route.request().method() === 'PATCH')
+        gardenLayout = (route.request().postDataJSON() as { widgets: typeof gardenLayout }).widgets;
+      body = { name: 'Mi jardín', widgets: gardenLayout };
+    }
     if (path === '/review/daily') body = { task_ids: [], tasks: [] };
     if (path === '/smart-lists') body = { items: [] };
     if (path === '/sync') body = { changes: [], next_cursor: null };
@@ -135,6 +175,66 @@ async function fixtures(
 }
 
 test.use({ locale: 'es-ES', timezoneId: 'Europe/Madrid' });
+
+test('RF-2101/3: garden has actionable data and persists hidden, reordered, resized widgets', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await fixtures(page);
+  await page.goto('/dashboard');
+  await expect(page.getByRole('heading', { name: 'Jardín digital', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: 'Revisar mis pendientes', exact: true }),
+  ).toHaveAttribute('href', '/review/weekly');
+  await expect(page.locator('[data-garden-widget="habits"]')).toContainText(
+    'Crea tu primer hábito',
+  );
+  await expect(page.locator('[data-garden-widget="flow"]')).toContainText('6 tareas más entraron');
+  await page.getByRole('button', { name: 'Personalizar', exact: true }).click();
+  await page
+    .locator('[data-garden-editor="flow"]')
+    .dragTo(page.locator('[data-garden-editor="completed_today"]'));
+  await page
+    .getByRole('combobox', { name: 'Tamaño: Tu ritmo esta semana', exact: true })
+    .selectOption('l');
+  await page.getByRole('checkbox', { name: 'Hábitos de hoy', exact: true }).uncheck();
+  await page.getByRole('button', { name: 'Guardar mi jardín', exact: true }).click();
+  await expect(page.locator('[data-garden-widget="habits"]')).toHaveCount(0);
+  await page.reload();
+  await expect(page.locator('[data-garden-widget]').first()).toHaveAttribute(
+    'data-garden-widget',
+    'flow',
+  );
+  await expect(page.locator('[data-garden-widget="flow"]')).toHaveClass(/garden-size-l/);
+  await expect(page.locator('[data-garden-widget="habits"]')).toHaveCount(0);
+});
+
+test('RF-2101: garden fits mobile, supports an empty layout, and keeps a failed save editable', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await fixtures(page);
+  await page.goto('/dashboard');
+  await expect(page.locator('[data-garden-widget="flow"]')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.getByRole('button', { name: 'Personalizar', exact: true }).click();
+  const checked = page
+    .getByRole('region', { name: 'Personalizar widgets' })
+    .getByRole('checkbox', { checked: true });
+  while ((await checked.count()) > 0) await checked.first().uncheck();
+  await page.route('**/api/v1/me/dashboard', async (route) => {
+    if (route.request().method() === 'PATCH')
+      await route.fulfill({ status: 500, json: { error: { code: 'failed', message: 'failed' } } });
+    else await route.fallback();
+  });
+  await page.getByRole('button', { name: 'Guardar mi jardín', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Tu selección sigue aquí');
+  await page.unroute('**/api/v1/me/dashboard');
+  await page.getByRole('button', { name: 'Guardar mi jardín', exact: true }).click();
+  await expect(page.getByText('Tu jardín está listo para que lo hagas tuyo.')).toBeVisible();
+  await page.reload();
+  await expect(page.locator('[data-garden-widget]')).toHaveCount(0);
+});
 
 test('module order: drag, persist across reload, and match both sidebars', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 1800 });

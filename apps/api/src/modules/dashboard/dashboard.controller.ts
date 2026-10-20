@@ -36,7 +36,7 @@ export const WIDGET_KEYS = [
 const DEFAULT_LAYOUT = WIDGET_KEYS.map((key, index) => ({
   widget_key: key,
   position: index,
-  size: 'm',
+  size: index < 4 ? 's' : 'm',
   config: {},
 }));
 
@@ -86,7 +86,11 @@ export class DashboardController {
 
   @Get('dashboard/data')
   @Scopes('tasks:read')
-  @ApiOperation({ summary: 'KPI for one widget (RF-2102, RF-2104)' })
+  @ApiOperation({
+    summary: 'KPI for one widget (RF-2102, RF-2104)',
+    description:
+      'Without widget, returns widgets, generated_at and period (from, to, time_zone). Activity covers the trailing seven days; completed_today uses the account time zone. Habits include total active habits. Calendar includes up to three events within the next seven days. Integration booleans reflect the authenticated account connection, not only server configuration.',
+  })
   async data(
     @CurrentUser() user: AuthUser,
     @Query('widget') widget: string | undefined,
@@ -94,8 +98,8 @@ export class DashboardController {
     @Res() res: Response,
   ): Promise<void> {
     const now = new Date();
-    const snapshot = await loadDashboardSnapshot(this.prisma, user.id, now);
     const tz = user.timeZone || 'Europe/Madrid';
+    const snapshot = await loadDashboardSnapshot(this.prisma, user.id, now, tz);
     const today = dayKey(now.toISOString(), tz) ?? now.toISOString().slice(0, 10);
     const todayBounds = parseDayBounds(today, today, tz);
     const focusSeconds =
@@ -106,9 +110,32 @@ export class DashboardController {
             new Date(todayBounds.startIso),
             new Date(todayBounds.endIso),
           )) * 60;
-    const upcoming = await this.prisma.externalEvent.count({
-      where: { ownerId: user.id, deletedAt: null, startsAt: { gte: now } },
-    });
+    const until = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const eventWhere = {
+      ownerId: user.id,
+      deletedAt: null,
+      status: { not: 'cancelled' },
+      subscription: { visible: true, deletedAt: null },
+      startsAt: { gte: now, lte: until },
+    };
+    const [upcoming, upcomingEvents, habitTotal, account, telegramLink] = await Promise.all([
+      this.prisma.externalEvent.count({ where: eventWhere }),
+      this.prisma.externalEvent.findMany({
+        where: eventWhere,
+        orderBy: { startsAt: 'asc' },
+        take: 3,
+        select: { id: true, title: true, startsAt: true },
+      }),
+      this.prisma.habit.count({ where: { ownerId: user.id, deletedAt: null, archived: false } }),
+      this.prisma.user.findUniqueOrThrow({
+        where: { id: user.id },
+        select: { googleRefreshToken: true, telegramEnabled: true },
+      }),
+      this.prisma.telegramLink.findFirst({
+        where: { ownerId: user.id, deletedAt: null },
+        select: { id: true },
+      }),
+    ]);
     const countdowns = await this.prisma.countdown.findMany({
       where: {
         ownerId: user.id,
@@ -135,13 +162,22 @@ export class DashboardController {
       overdue: snapshot.overdue,
       next_7_days: snapshot.next_7_days,
       flow: { created: snapshot.created, completed: snapshot.completed, net: snapshot.net },
-      habits: { percent: snapshot.habit_percent },
+      habits: { percent: snapshot.habit_percent, total: habitTotal },
       load: { by_list: snapshot.by_list, by_tag: snapshot.by_tag },
-      calendar: { upcoming, label: `${String(upcoming)} próximos eventos` },
+      calendar: {
+        upcoming,
+        label: `${String(upcoming)} eventos en los próximos 7 días`,
+        items: upcomingEvents.map((event) => ({
+          id: event.id,
+          title: event.title,
+          starts_at: event.startsAt.toISOString(),
+          starts_on: dayKey(event.startsAt.toISOString(), tz),
+        })),
+      },
       integrations: {
-        telegram: telegramConfigured(),
-        google: googleConfigured(),
-        drive: driveConfigured(),
+        telegram: telegramConfigured() && account.telegramEnabled && telegramLink !== null,
+        google: googleConfigured() && account.googleRefreshToken !== null,
+        drive: driveConfigured() && account.googleRefreshToken !== null,
       },
       focus: { seconds: focusSeconds },
       next_countdowns: {
@@ -154,7 +190,21 @@ export class DashboardController {
       },
     };
     if (widget === undefined || widget.length === 0) {
-      respondJson(req, res, 200, { widgets: values }, false);
+      respondJson(
+        req,
+        res,
+        200,
+        {
+          widgets: values,
+          generated_at: now.toISOString(),
+          period: {
+            from: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+            to: now.toISOString(),
+            time_zone: tz,
+          },
+        },
+        false,
+      );
       return;
     }
     respondJson(req, res, 200, { widget, data: values[widget] ?? null }, false);

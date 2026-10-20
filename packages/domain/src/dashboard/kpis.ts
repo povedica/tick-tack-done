@@ -1,4 +1,13 @@
 import type { Priority } from '../types';
+import { formatInTimeZone } from 'date-fns-tz';
+
+function dayKey(iso: string, timeZone: string): string | null {
+  try {
+    return formatInTimeZone(iso, timeZone, 'yyyy-MM-dd');
+  } catch {
+    return null;
+  }
+}
 
 /** RF-2102. Inputs are already loaded. This function does not query anything. */
 export interface DashboardTask {
@@ -42,9 +51,10 @@ export function dashboardSnapshot(
   tasks: readonly DashboardTask[],
   habits: readonly DashboardHabit[],
   nowIso: string,
+  timeZone = 'UTC',
 ): DashboardSnapshot {
   const now = Date.parse(nowIso);
-  const todayKey = nowIso.slice(0, 10);
+  const todayKey = dayKey(nowIso, timeZone) ?? nowIso.slice(0, 10);
   const weekStart = now - 7 * DAY_MS;
   const previousStart = now - 14 * DAY_MS;
   let completedToday = 0;
@@ -63,7 +73,7 @@ export function dashboardSnapshot(
     }
     const completedMs = task.completedAt === null ? Number.NaN : Date.parse(task.completedAt);
     if (!Number.isNaN(completedMs)) {
-      if (task.completedAt?.slice(0, 10) === todayKey) {
+      if (task.completedAt !== null && dayKey(task.completedAt, timeZone) === todayKey) {
         completedToday += 1;
       }
       if (completedMs >= weekStart && completedMs <= now) {

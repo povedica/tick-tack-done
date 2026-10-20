@@ -13,8 +13,14 @@ Rama: `codex/ui-ux-v2-close-findings`. PR: #57.
 - Alineación transversal de texto y checkbox, incluyendo Agenda, listas, Matriz,
   Hoy y subtareas. Se acotan los estilos de formularios y los grid-area móviles
   para que no alteren el componente PriorityCheck.
+- Revisión integral de Jardín digital: jerarquía visual, estética, utilidad y
+  funcionamiento. Nuevo resumen con acciones, indicadores con periodo explícito,
+  barras de actividad/carga, estados vacíos y personalización de widgets mediante
+  el layout público existente (ocultar, arrastrar, flechas y tamaño; RF-2101–2104).
+  Se corrigen las conexiones por cuenta, el horizonte de eventos a siete días y
+  el cálculo de completadas hoy en la zona horaria del usuario.
 
-Requisitos relacionados: RF-702, RF-704, RF-706, RF-1102, RF-2101, RF-2102 y
+Requisitos relacionados: RF-702, RF-704, RF-706, RF-1102, RF-2101–2104 y
 RF-2012 de la spec específica de recurrencia MCP. No cambia el modelo Prisma ni
 los eventos de dominio. navigation_order se añade al JSON de preferencias
 existente, validado y documentado en OpenAPI; no requiere migración.
@@ -129,11 +135,11 @@ de todos los datos y variantes posibles. Producción no forma parte de esta pasa
 | FOC-1  | CUMPLE | `apps/web/src/features/product/ProductPages.tsx` — Copy corregido, presets con unidad y aria-pressed, métricas en tarjetas.                                                                                 |
 | FOC-2  | CUMPLE | `apps/web/src/features/product/ProductPages.tsx` — Copy corregido, presets con unidad y aria-pressed, métricas en tarjetas.                                                                                 |
 | FOC-3  | CUMPLE | `apps/web/src/features/product/ProductPages.tsx` — Copy corregido, presets con unidad y aria-pressed, métricas en tarjetas.                                                                                 |
-| JAR-2  | CUMPLE | `apps/web/src/features/product/ProductPages.tsx` — Estado de puntuación y control coherentes, unidades, carga real por lista e integraciones agrupadas.                                                     |
-| JAR-1  | CUMPLE | `apps/web/src/features/product/ProductPages.tsx` — Estado de puntuación y control coherentes, unidades, carga real por lista e integraciones agrupadas.                                                     |
-| JAR-3  | CUMPLE | `apps/web/src/features/product/ProductPages.tsx` — Estado de puntuación y control coherentes, unidades, carga real por lista e integraciones agrupadas.                                                     |
-| JAR-4  | CUMPLE | `apps/web/src/features/product/ProductPages.tsx` — Estado de puntuación y control coherentes, unidades, carga real por lista e integraciones agrupadas.                                                     |
-| JAR-5  | CUMPLE | `apps/web/src/features/product/ProductPages.tsx` — Estado de puntuación y control coherentes, unidades, carga real por lista e integraciones agrupadas.                                                     |
+| JAR-2  | CUMPLE | `apps/web/src/features/dashboard/DashboardPage.tsx` — Estado de puntuación y control coherentes, unidades, carga real por lista e integraciones agrupadas.                                                  |
+| JAR-1  | CUMPLE | `apps/web/src/features/dashboard/DashboardPage.tsx` — Estado de puntuación y control coherentes, unidades, carga real por lista e integraciones agrupadas.                                                  |
+| JAR-3  | CUMPLE | `apps/web/src/features/dashboard/DashboardPage.tsx` — Estado de puntuación y control coherentes, unidades, carga real por lista e integraciones agrupadas.                                                  |
+| JAR-4  | CUMPLE | `apps/web/src/features/dashboard/DashboardPage.tsx` — Estado de puntuación y control coherentes, unidades, carga real por lista e integraciones agrupadas.                                                  |
+| JAR-5  | CUMPLE | `apps/web/src/features/dashboard/DashboardPage.tsx` — Estado de puntuación y control coherentes, unidades, carga real por lista e integraciones agrupadas.                                                  |
 | REV-1  | CUMPLE | `apps/web/src/features/product/ProductPages.tsx` — Enlaces estilados y acciones alineadas; refresco de todas las superficies al completar.                                                                  |
 | PLN-1  | CUMPLE | `apps/web/src/features/planning/PlanDayPage.tsx` — Carga explicada, fecha humana, título limpio y No haré unificado.                                                                                        |
 | PLN-2  | CUMPLE | `apps/web/src/features/planning/PlanDayPage.tsx` — Carga explicada, fecha humana, título limpio y No haré unificado.                                                                                        |
@@ -170,10 +176,10 @@ de todos los datos y variantes posibles. Producción no forma parte de esta pasa
 ## Validación de cierre
 
 - E2e: `PLAYWRIGHT_BASE_URL=http://localhost:5173 pnpm --filter web exec playwright test e2e/ui-ux-v2.spec.ts --workers=1`.
-- E2e: 9/9 en verde; alineación en Hoy, listas, Matriz y Agenda a 1280/390 px,
+- E2e: 11/11 en verde; alineación en Hoy, listas, Matriz y Agenda a 1280/390 px,
   densidad cómoda/compacta, tolerancia de 1,5 px respecto a la primera línea.
-- Node 26: lint y typecheck en verde; 413 unitarios y 94 de integración en verde.
-  Cobertura de dominio: 89,77 % de líneas y 83,35 % de ramas.
+- Node 26: lint y typecheck en verde; 416 unitarios y 96 de integración en verde.
+  Cobertura de dominio: 89,75 % de líneas y 83,30 % de ramas.
 - Build API/SDK/PWA y regeneración OpenAPI/SDK correctos. Vite mantiene el aviso
   de tamaño de bundle superior a 500 kB.
 - Prettier no encuentra problemas en los archivos de esta PR; el chequeo global

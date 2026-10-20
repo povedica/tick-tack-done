@@ -6534,6 +6534,7 @@
     },
     "/api/v1/dashboard/data": {
       "get": {
+        "description": "Without widget, returns widgets, generated_at and period (from, to, time_zone). Activity covers the trailing seven days; completed_today uses the account time zone. Habits include total active habits. Calendar includes up to three events within the next seven days. Integration booleans reflect the authenticated account connection, not only server configuration.",
         "operationId": "DashboardController_data",
         "parameters": [],
         "responses": {

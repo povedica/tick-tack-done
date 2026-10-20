@@ -238,6 +238,12 @@ export interface ResourceClient {
   listAttachments(id: string): Promise<AttachmentPage>;
   uploadAttachment(id: string, file: Blob, fileName: string): Promise<Attachment>;
   dashboardData(): Promise<JsonObject>;
+  dashboardLayout(): Promise<JsonObject>;
+  saveDashboardLayout(body: {
+    name: string;
+    is_default: boolean;
+    widgets: readonly { widget_key: string; position: number; size: string; config: JsonObject }[];
+  }): Promise<JsonObject>;
   statsOverview(query: string): Promise<StatsOverview>;
   statsTasks(query: string): Promise<StatsTasks>;
   statsFocus(query: string): Promise<StatsFocus>;
@@ -463,6 +469,9 @@ export function resourceMethods(http: Http): ResourceClient {
       ask('GET', `/api/v1/tasks/${id}/attachments`, undefined, undefined, isAttachmentPage),
     uploadAttachment: (id, file, fileName) => upload(http, id, file, fileName),
     dashboardData: () => ask('GET', '/api/v1/dashboard/data', undefined, undefined, isJsonObject),
+    dashboardLayout: () => ask('GET', '/api/v1/me/dashboard', undefined, undefined, isJsonObject),
+    saveDashboardLayout: (body) =>
+      ask('PATCH', '/api/v1/me/dashboard', body, undefined, isJsonObject),
     statsOverview: (query) =>
       ask('GET', `/api/v1/stats/overview?${query}`, undefined, undefined, isStatsOverview),
     statsTasks: (query) =>

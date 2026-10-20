@@ -139,6 +139,71 @@ describe('V1 and V2 product', () => {
     expect(data.body.widgets).toEqual(
       expect.objectContaining({ completed_today: expect.any(Number) }),
     );
+    expect(data.body.widgets.habits.total).toBe(0);
+    expect(data.body.widgets.integrations).toEqual({
+      telegram: false,
+      google: false,
+      drive: false,
+    });
+    expect(data.body.period.time_zone).toBe('Europe/Madrid');
+    expect(Date.parse(data.body.generated_at as string)).not.toBeNaN();
+  });
+
+  it('RF-2103: saves widget visibility, ordering and size per account and emits an event', async () => {
+    const widgets = [
+      { widget_key: 'flow', position: 0, size: 'l', config: {} },
+      { widget_key: 'overdue', position: 1, size: 's', config: {} },
+    ];
+    await session()
+      .patch('/api/v1/me/dashboard')
+      .send({ name: 'Mi jardín', is_default: true, widgets })
+      .expect(200);
+    const saved = await session().get('/api/v1/me/dashboard').expect(200);
+    expect(saved.body.widgets).toEqual(widgets);
+    expect(
+      await prisma.outboxEvent.count({ where: { ownerId: userId, type: 'dashboard.updated@v1' } }),
+    ).toBeGreaterThan(0);
+  });
+
+  it('RF-2102: limits upcoming external events to the next seven days', async () => {
+    const subscription = await prisma.calendarSubscription.create({ data: { ownerId: userId } });
+    const now = Date.now();
+    await prisma.externalEvent.createMany({
+      data: [1, 30].map((days) => ({
+        ownerId: userId,
+        subscriptionId: subscription.id,
+        externalUid: `garden-${String(days)}`,
+        title: `Evento ${String(days)}`,
+        startsAt: new Date(now + days * 86_400_000),
+      })),
+    });
+    await prisma.externalEvent.create({
+      data: {
+        ownerId: userId,
+        subscriptionId: subscription.id,
+        externalUid: 'garden-cancelled',
+        title: 'Cancelado',
+        startsAt: new Date(now + 86_400_000),
+        status: 'cancelled',
+      },
+    });
+    const hidden = await prisma.calendarSubscription.create({
+      data: { ownerId: userId, visible: false },
+    });
+    await prisma.externalEvent.create({
+      data: {
+        ownerId: userId,
+        subscriptionId: hidden.id,
+        externalUid: 'garden-hidden',
+        title: 'Oculto',
+        startsAt: new Date(now + 86_400_000),
+      },
+    });
+    const response = await session().get('/api/v1/dashboard/data').expect(200);
+    expect(response.body.widgets.calendar.upcoming).toBe(1);
+    expect(response.body.widgets.calendar.items).toEqual([
+      expect.objectContaining({ title: 'Evento 1' }),
+    ]);
   });
 
   it('RF-2201: the weekly report is deterministic and stored', async () => {
@@ -580,6 +645,7 @@ async function wipe(id: string | undefined): Promise<void> {
   await prisma.focusSession.deleteMany({ where: { ownerId: id } });
   await prisma.stickyNote.deleteMany({ where: { ownerId: id } });
   await prisma.weeklyReport.deleteMany({ where: { ownerId: id } });
+  await prisma.dashboardLayout.deleteMany({ where: { ownerId: id } });
   await prisma.externalEvent.deleteMany({ where: { ownerId: id } });
   await prisma.calendarSubscription.deleteMany({ where: { ownerId: id } });
   await prisma.attachment.deleteMany({ where: { ownerId: id } });

@@ -1,13 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { countdownsApi } from '../countdowns/api';
-import { countdownNumber } from '../countdowns/presentation';
 import { calendarDay, shiftDayKey, zonedWallTime } from '../today/groups';
 import { refreshTaskSurfaces } from '../tasks/refresh';
 import { api } from '../../api';
 import { completeBody } from '../tasks/complete-body';
-import { formatDuration } from './duration';
 import { displayTitle } from '../tasks/displayTitle';
 import { Button, EmptyState } from '../../components/ui';
 import { InboundEmailCard } from '../settings/InboundEmailCard';
@@ -72,179 +69,11 @@ function clock(seconds: number): string {
   return `${String(Math.floor(seconds / 60))}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
-const WIDGET_LABEL = {
-  completed_today: 'widgetCompletedToday',
-  completed_week: 'widgetCompletedWeek',
-  overdue: 'widgetOverdue',
-  next_7_days: 'widgetNext7',
-  flow: 'widgetCreated',
-  habits: 'widgetHabit',
-  load: 'widgetListLoad',
-  calendar: 'calendarTitle',
-  integrations: 'settingsIntegrations',
-  focus: 'navFocus',
-  next_countdowns: 'widgetNextCountdowns',
-} as const;
-
-function widgetLabel(messages: ReturnType<typeof useMessages>, key: string): string {
-  if (!Object.hasOwn(WIDGET_LABEL, key)) {
-    return key;
-  }
-  return messages[WIDGET_LABEL[key as keyof typeof WIDGET_LABEL]];
-}
-
-function asText(value: unknown): string {
-  if (typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean') {
-    return String(value);
-  }
-  return '0';
-}
-
-function widgetText(messages: ReturnType<typeof useMessages>, key: string, value: unknown): string {
-  if (typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean') {
-    return String(value);
-  }
-  if (typeof value !== 'object' || value === null) {
-    return '';
-  }
-  const row = value as Record<string, unknown>;
-  if (key === 'completed_week') {
-    if (typeof row.trend_label === 'string' && row.trend_label.length > 0) {
-      return `${asText(row.value)} · ${row.trend_label}`;
-    }
-    const delta = typeof row.trend === 'number' ? row.trend : Number(row.trend);
-    const signed =
-      Number.isFinite(delta) && delta > 0
-        ? `+${String(delta)}`
-        : Number.isFinite(delta)
-          ? String(delta)
-          : asText(row.trend);
-    return `${asText(row.value)} · ${messages.widgetTrend} ${signed} ${messages.reportTrendVs}`;
-  }
-  if (key === 'flow') {
-    return `${messages.widgetCreated} ${asText(row.created)} · ${messages.widgetCompleted} ${asText(row.completed)} · ${messages.widgetNet} ${asText(row.net)}`;
-  }
-  if (key === 'habits') {
-    return `${asText(row.percent)}%`;
-  }
-  if (key === 'focus') {
-    const seconds = typeof row.seconds === 'number' ? row.seconds : 0;
-    return formatDuration(seconds);
-  }
-  if (key === 'next_countdowns') {
-    const items = Array.isArray(row.items) ? row.items : [];
-    return items
-      .slice(0, 3)
-      .map((item) => {
-        if (typeof item !== 'object' || item === null) {
-          return '';
-        }
-        const card = item as { emoji?: unknown; title?: unknown };
-        const emoji = typeof card.emoji === 'string' && card.emoji.length > 0 ? card.emoji : '⏳';
-        return `${emoji} ${typeof card.title === 'string' ? card.title : ''}`;
-      })
-      .filter((line) => line.trim().length > 0)
-      .join(' · ');
-  }
-  if (key === 'load') {
-    const lists = Array.isArray(row.by_list) ? row.by_list.filter(isRow) : [];
-    return (
-      lists.map((list) => `${asText(list.name)}: ${asText(list.active)}`).join(' · ') ||
-      messages.widgetEmpty
-    );
-  }
-  if (key === 'calendar') {
-    return typeof row.label === 'string' && row.label.length > 0
-      ? row.label
-      : `${asText(row.upcoming)} ${messages.widgetCalendarUnit}`;
-  }
-  if (key === 'integrations') {
-    const telegram = row.telegram === true;
-    const google = row.google === true || row.drive === true;
-    return [
-      `Telegram — ${telegram ? messages.online : messages.offline}`,
-      `Google (Calendar y Drive) — ${google ? messages.online : messages.offline}`,
-    ].join(' · ');
-  }
-  return '';
-}
-
 function text(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
-export function DashboardPage() {
-  const messages = useMessages();
-  const data = useQuery({ queryKey: ['dashboard'], queryFn: () => api.dashboardData() });
-  const score = useQuery({ queryKey: ['achievements'], queryFn: () => api.achievements() });
-  const countdowns = useQuery({
-    queryKey: ['countdowns', 'dashboard'],
-    queryFn: () => countdownsApi.list(false, 365),
-  });
-  const widgets = isRow(data.data?.widgets) ? data.data.widgets : {};
-  return (
-    <section className="screen-page is-wide">
-      <h1>{messages.dashboardTitle}</h1>
-      <p>{messages.gardenImportHint}</p>
-      <div className="widget-grid garden-grid">
-        {(countdowns.data?.items.length ?? 0) > 0 ? (
-          <article className="widget garden-card">
-            <h3>{messages.widgetNextCountdowns}</h3>
-            <ul className="countdown-widget">
-              {countdowns.data?.items.slice(0, 3).map((item) => (
-                <li key={item.id}>
-                  <span aria-hidden="true">{item.emoji ?? '⏳'}</span> {item.title}
-                  <strong>{countdownNumber(item)}</strong>
-                </li>
-              ))}
-            </ul>
-          </article>
-        ) : null}
-        {Object.entries(widgets)
-          .filter(([key]) => {
-            // JAR-4: avoid a second "próximas cuentas atrás" block when the list above exists.
-            if (key === 'next_countdowns') {
-              return false;
-            }
-            return true;
-          })
-          .map(([key, value]) => (
-            <article key={key} className="widget garden-card">
-              <h3>{widgetLabel(messages, key)}</h3>
-              <p className="garden-value">{widgetText(messages, key, value)}</p>
-            </article>
-          ))}
-      </div>
-      {score.isSuccess ? (
-        <article className="widget garden-card">
-          <h3>{messages.gardenAchievements}</h3>
-          <p className="garden-value">
-            {score.data.enabled === true
-              ? `${messages.achievementsOn}${typeof score.data.level === 'string' ? ` · ${score.data.level}` : ''}`
-              : messages.achievementsOff}
-            {typeof score.data.score === 'number'
-              ? ` · ${score.data.score.toLocaleString('es-ES')} ${messages.gardenPoints}`
-              : ''}
-          </p>
-          <p>
-            <Link to="/statistics">{messages.reportSeeStats}</Link>
-          </p>
-          <Button
-            onClick={() => {
-              void api.setAchievements(score.data.enabled !== true).then(() => {
-                void score.refetch();
-              });
-            }}
-          >
-            {score.data.enabled === true
-              ? messages.achievementsDisable
-              : messages.achievementsEnable}
-          </Button>
-        </article>
-      ) : null}
-    </section>
-  );
-}
+export { DashboardPage } from '../dashboard/DashboardPage';
 
 export function ReportsPage() {
   const messages = useMessages();
