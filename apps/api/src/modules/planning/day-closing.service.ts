@@ -440,7 +440,11 @@ export class DayClosingService {
           'validation_failed',
           'Invalid target date',
         );
+      const membership = await this.prisma.planMember.findUnique({
+        where: { planId_taskId: { planId: session.planId, taskId: decision.taskId } },
+      });
       if (
+        membership === null &&
         current.startDate?.getTime() === start.getTime() &&
         !current.isSomeday &&
         (!decision.evening || current.eveningOnly)

@@ -354,6 +354,16 @@ export class PlanningService {
     }
     if (decision.decision === 'later') {
       const target = decision.targetDate ?? nextCivil(session.plan.localDate);
+      const existing = await this.prisma.planMember.findFirst({
+        where: {
+          taskId: decision.taskId,
+          plan: { ownerId: user.id, localDate: target, timeZone: session.plan.timeZone },
+        },
+      });
+      const current = await this.prisma.planMember.findUnique({
+        where: { planId_taskId: { planId: session.planId, taskId: decision.taskId } },
+      });
+      if (existing !== null && current === null) return 'unchanged';
       await this.prisma.planMember.deleteMany({
         where: {
           taskId: decision.taskId,

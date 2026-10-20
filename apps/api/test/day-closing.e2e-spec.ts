@@ -271,6 +271,35 @@ describe('day closing, load and someday', () => {
     const unchanged = await api().get(url).expect(200);
     expect(unchanged.body.adjustment_count).toBe(1);
     expect(unchanged.body.last_applied_at).toBe(saved.body.last_applied_at);
+    // A later membership already present is also a real no-op, even with a new session/key.
+    const laterTask = await api()
+      .post('/api/v1/tasks')
+      .set('Idempotency-Key', randomUUID())
+      .send({
+        project_id: owner.inboxId,
+        title: 'Sin doble ajuste',
+        due_date: DAY,
+        is_all_day: true,
+        time_zone: ZONE,
+      })
+      .expect(201);
+    for (let pass = 0; pass < 2; pass++) {
+      const opened = await api()
+        .post('/api/v1/planning/sessions')
+        .send({ local_date: date, time_zone: ZONE, today: true, overdue: false })
+        .expect(201);
+      const choice = await api()
+        .put(`/api/v1/planning/sessions/${opened.body.id}/decisions/${laterTask.body.id}`)
+        .send({ decision: 'later', target_date: '2026-10-21' })
+        .expect(200);
+      await api()
+        .post(`/api/v1/planning/sessions/${opened.body.id}/apply`)
+        .set('Idempotency-Key', randomUUID())
+        .send({ expected_revision: choice.body.revision })
+        .expect(200);
+    }
+    const final = await api().get(url).expect(200);
+    expect(final.body.adjustment_count).toBe(2);
   });
 
   it('RF-2651: rejects shutdown for a date that is not today or yesterday', async () => {
