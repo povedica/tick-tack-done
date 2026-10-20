@@ -8,18 +8,17 @@ import {
   CalendarDays,
   CalendarRange,
   CheckCircle2,
+  SquareCheck,
+  SquareX,
+  Trash2,
   ChevronDown,
   Inbox,
   Hourglass,
   ListTodo,
   List,
   Settings,
-  Monitor,
-  Moon,
   MoreHorizontal,
   Plus,
-  PanelLeftClose,
-  PanelLeftOpen,
   Sparkles,
   CloudSun,
   Sun,
@@ -35,8 +34,6 @@ import { TagIcon } from '../components/TagIcon';
 import { fill, useMessages, type Messages } from '../i18n';
 import { useFeatures } from '../features/settings/feature-flags';
 import { usePreferences } from '../theme/preferences';
-import { nextTheme, type ThemePreference } from '../theme/preference';
-import { useThemePreference } from '../theme/store';
 import { collectProjects, collectTags } from '../features/tasks/collect';
 import { dragHasTask, taskDragId } from '../features/today/drag';
 import { calendarDay, shiftDayKey, zonedWallTime } from '../features/today/groups';
@@ -64,19 +61,15 @@ export function Sidebar({
   collapsed,
   mobileSection,
   concealed = false,
-  onToggleCollapsed,
   onNavigate,
 }: {
   readonly collapsed: boolean;
   readonly mobileSection?: 'lists' | 'more' | undefined;
   readonly concealed?: boolean;
-  readonly onToggleCollapsed: () => void;
   readonly onNavigate: () => void;
 }) {
   const messages = useMessages();
   const flags = useFeatures((state) => state.flags);
-  const preference = useThemePreference((state) => state.preference);
-  const setPreference = useThemePreference((state) => state.setPreference);
   const showCounters = usePreferences((state) => state.showCounters);
   const queryClient = useQueryClient();
   const catalog = { staleTime: 5 * 60_000 };
@@ -103,7 +96,6 @@ export function Sidebar({
   const [showUnused, setShowUnused] = useState(false);
   const folders = useQuery({ queryKey: ['folders'], queryFn: () => api.listFolders() });
   const location = useLocation();
-  const themeLabel = themeName(messages, preference);
   const showSomeday = useFeatures((state) => state.flags.when_deadline);
   const ordered = orderedSmartLists(smart.data?.items ?? []);
   const lists = ordered.filter(
@@ -632,49 +624,47 @@ export function Sidebar({
           </>
         )}
       </nav>
-      <div className="sidebar-footer">
-        <SideLink to="/tasks/cancelled" onNavigate={onNavigate}>
-          <span className="nav-label">{messages.navWont}</span>
-        </SideLink>
-        {ordered.some((item) => item.key === 'completed' && item.enabled) ? (
-          <SideLink to="/smart/completed" onNavigate={onNavigate}>
-            <span className="nav-label">{messages.smartCompleted}</span>
+      {mobileSection !== 'more' ? (
+        <div className="sidebar-footer">
+          <SideLink to="/tasks/cancelled" onNavigate={onNavigate}>
+            <SquareX
+              className="footer-mobile-icon"
+              size={16}
+              strokeWidth={1.5}
+              aria-hidden="true"
+            />
+            <span className="nav-label">{messages.navWont}</span>
           </SideLink>
-        ) : null}
-        {trashVisible ? (
-          <SideLink to="/smart/trash" onNavigate={onNavigate}>
-            <span className="nav-label">{messages.smartTrash}</span>
-            {showCounters && smart.isPending ? <span className="ui-badge">—</span> : null}
-            {showCounters && smart.isSuccess ? <Badge value={trash?.task_count ?? 0} /> : null}
-          </SideLink>
-        ) : null}
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label={`${messages.themeLabel}: ${themeLabel}`}
-          title={`${messages.themeLabel}: ${themeLabel}`}
-          onClick={() => {
-            setPreference(nextTheme(preference));
-          }}
-        >
-          <ThemeIcon preference={preference} />
-        </button>
-        <button
-          type="button"
-          className="icon-btn collapse-button"
-          aria-keyshortcuts="["
-          aria-expanded={!collapsed}
-          aria-label={collapsed ? messages.expandSidebar : messages.collapseSidebar}
-          title={collapsed ? messages.expandSidebar : messages.collapseSidebar}
-          onClick={onToggleCollapsed}
-        >
-          {collapsed ? (
-            <PanelLeftOpen size={16} aria-hidden="true" />
-          ) : (
-            <PanelLeftClose size={16} aria-hidden="true" />
-          )}
-        </button>
-      </div>
+          {ordered.some((item) => item.key === 'completed' && item.enabled) ? (
+            <SideLink to="/smart/completed" onNavigate={onNavigate}>
+              <SquareCheck
+                className="footer-mobile-icon"
+                size={16}
+                strokeWidth={1.5}
+                aria-hidden="true"
+              />
+              <span className="nav-label">{messages.smartCompleted}</span>
+            </SideLink>
+          ) : null}
+          {trashVisible ? (
+            <SideLink to="/smart/trash" onNavigate={onNavigate}>
+              <Trash2
+                className="footer-mobile-icon"
+                size={16}
+                strokeWidth={1.5}
+                aria-hidden="true"
+              />
+              <span className="nav-label">{messages.smartTrash}</span>
+              {showCounters && smart.isPending ? <span className="ui-badge">—</span> : null}
+              {showCounters &&
+              smart.isSuccess &&
+              ((trash?.task_count ?? 0) > 0 || mobileSection === undefined) ? (
+                <Badge value={trash?.task_count ?? 0} />
+              ) : null}
+            </SideLink>
+          ) : null}
+        </div>
+      ) : null}
     </aside>
   );
 }
@@ -688,16 +678,6 @@ function allowTaskDrop(event: DragEvent<HTMLLIElement>): void {
   if (dragHasTask(event.dataTransfer)) {
     event.preventDefault();
   }
-}
-
-function ThemeIcon({ preference }: { readonly preference: ThemePreference }) {
-  if (preference === 'light') {
-    return <Sun size={16} aria-hidden="true" />;
-  }
-  if (preference === 'dark') {
-    return <Moon size={16} aria-hidden="true" />;
-  }
-  return <Monitor size={16} aria-hidden="true" />;
 }
 
 function SideLink({
@@ -961,17 +941,6 @@ function smartLabel(messages: Messages, key: string): string {
       return messages.smartSomeday;
     default:
       return key;
-  }
-}
-
-function themeName(messages: Messages, preference: ThemePreference): string {
-  switch (preference) {
-    case 'light':
-      return messages.themeLight;
-    case 'dark':
-      return messages.themeDark;
-    case 'auto':
-      return messages.themeAuto;
   }
 }
 

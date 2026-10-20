@@ -259,3 +259,7 @@ Sin cambios de fórmula, datos, ubicación ni apertura: indicador transparente, 
 «Más» reutiliza el mismo Sidebar y el mismo estado de apertura del shell que «Listas»: panel lateral izquierdo, fondo y anchura compartidos, enlaces SideLink, selección de ruta y cierre al navegar, pulsar fuera o usar Escape. El contenido conserva el orden y los flags de módulos, filtros y ajustes. Se elimina el popup independiente y sus reglas CSS, además de la entrada artificial de historial que creaba. El sidebar de escritorio sigue sin el grupo duplicado de módulos. Pruebas comparan geometría/fondo a 360 y 390 px, cierre y navegación; capturas inspeccionadas.
 
 Validación de este ajuste: 33 E2E de auditoría/navegación/Jardín, 84 unitarios del cliente, lint y tipos en verde.
+
+### Pie móvil y controles del sidebar secundario
+
+En móvil, el pie queda solo en Listas, con Completadas, No haré y Papelera en ese orden e iconos lucide de contorno de 16 px. Respeta las listas inteligentes activadas y oculta el contador de papelera cuando es cero. Más no renderiza el pie. Según la petición posterior, se eliminan los botones de tema y colapsar del sidebar secundario también en escritorio; el tema sigue en Ajustes y se conserva el control de colapsar del rail principal. Verificados cinco E2E afectados, lint y tipos; capturas de ambos paneles inspeccionadas.

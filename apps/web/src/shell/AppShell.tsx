@@ -143,7 +143,6 @@ export function AppShell() {
           collapsed={collapsed}
           mobileSection={narrow ? drawerSection : undefined}
           concealed={narrow ? !drawer : collapsed}
-          onToggleCollapsed={toggleCollapsed}
           onNavigate={closeDrawer}
         />
         <a className="skip-link" href="#content">

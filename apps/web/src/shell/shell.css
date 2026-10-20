@@ -894,3 +894,29 @@
     display: none;
   }
 }
+
+@media (max-width: 1023px) {
+  .sidebar-footer .nav-link > svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+}
+
+.sidebar-footer .footer-mobile-icon {
+  display: none;
+}
+@media (max-width: 1023px) {
+  .sidebar-footer .footer-mobile-icon {
+    display: block;
+  }
+  .sidebar-footer .nav-link[href='/smart/completed'] {
+    order: 0;
+  }
+  .sidebar-footer .nav-link[href='/tasks/cancelled'] {
+    order: 1;
+  }
+  .sidebar-footer .nav-link[href='/smart/trash'] {
+    order: 2;
+  }
+}

@@ -842,3 +842,57 @@ for (const width of [360, 390]) {
     ).toBeVisible();
   });
 }
+
+test('mobile Lists footer matches the reference and More has no footer', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await fixtures(page);
+  await page.route('**/api/v1/smart-lists', (route) =>
+    route.fulfill({
+      json: {
+        items: [
+          { id: 'completed', key: 'completed', enabled: true, task_count: 0, sort_order: '0' },
+          { id: 'trash', key: 'trash', enabled: true, task_count: 0, sort_order: '1' },
+        ],
+      },
+    }),
+  );
+  await page.goto('/dashboard');
+  await page.locator('.bottom-bar').getByRole('button', { name: 'Listas', exact: true }).click();
+  await expect(page.locator('.sidebar')).toHaveCSS('transform', 'none');
+  const footer = page.locator('.sidebar-footer');
+  await expect(footer.getByRole('link', { name: 'Completadas', exact: true })).toBeVisible();
+  await expect(footer.getByRole('link', { name: 'No haré', exact: true })).toBeVisible();
+  await expect(footer.getByRole('link', { name: 'Papelera', exact: true })).toBeVisible();
+  const positions = await footer.locator('.nav-link').evaluateAll((nodes) =>
+    nodes
+      .map((node) => ({ text: node.textContent?.trim(), top: node.getBoundingClientRect().top }))
+      .sort((a, b) => a.top - b.top)
+      .map((item) => item.text),
+  );
+  expect(positions).toEqual(['Completadas', 'No haré', 'Papelera']);
+  for (const icon of await footer.locator('svg.footer-mobile-icon').all()) {
+    await expect(icon).toBeVisible();
+    await expect(icon).toHaveAttribute('width', '16');
+  }
+  await expect(footer.locator('.sidebar-theme-button')).not.toBeVisible();
+  await expect(footer.locator('.collapse-button')).not.toBeVisible();
+  await page.screenshot({ path: 'test-results/mobile-lists-footer.png' });
+  await page.keyboard.press('Escape');
+  await page.locator('.bottom-bar').getByRole('button', { name: 'Más', exact: true }).click();
+  await expect(page.locator('.sidebar')).toHaveCSS('transform', 'none');
+  await expect(page.locator('.sidebar-footer')).toHaveCount(0);
+  await expect(
+    page.locator('.sidebar').getByRole('link', { name: 'Jardín', exact: true }),
+  ).toBeVisible();
+  await page.screenshot({ path: 'test-results/mobile-more-no-footer.png' });
+});
+
+test('secondary sidebar has no theme or collapse controls on desktop', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 844 });
+  await fixtures(page);
+  await page.goto('/dashboard');
+  await expect(page.locator('.sidebar-footer button')).toHaveCount(0);
+  await expect(
+    page.locator('.icon-rail').getByRole('button', { name: 'Contraer la barra', exact: true }),
+  ).toBeVisible();
+});
