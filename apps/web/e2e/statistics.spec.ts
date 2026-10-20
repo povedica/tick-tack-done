@@ -290,7 +290,7 @@ test('RF-2324 export downloads query data and RF-2321 primary rail precedes Sear
     .evaluateAll((links) => links.map((link) => link.getAttribute('href')));
   expect(targets.indexOf('/statistics')).toBeLessThan(targets.indexOf('/search'));
   expect(targets.indexOf('/dashboard')).toBe(targets.indexOf('/statistics') + 1);
-  await expect(page.locator('.sidebar a[href="/statistics"]')).toHaveCount(0);
+  await expect(page.locator('.sidebar nav a[href="/statistics"]')).toHaveCount(0);
   await page.getByLabel('Exportar', { exact: true }).click();
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'CSV', exact: true }).click();

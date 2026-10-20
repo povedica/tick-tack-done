@@ -1,3 +1,4 @@
+import { addCalendarDays } from '@reflexionia/domain';
 import { useQuery } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -32,6 +33,11 @@ export function ControlSummary({ value }: { readonly value: unknown }) {
   const { t, number, locale } = useStatisticsText();
   const score = typeof data.score === 'number' ? data.score : null;
   const components = row(data.components);
+  const history = Array.isArray(data.history) ? data.history.map(row) : [];
+  const lastDate = history.at(-1)?.date;
+  const weekAgo = typeof lastDate === 'string' ? addCalendarDays(lastDate, -7) : null;
+  const previous = history.find((item) => item.date === weekAgo)?.score;
+  const delta = score !== null && typeof previous === 'number' ? score - previous : null;
   return (
     <div className="control-summary">
       <p className="control-value">
@@ -42,8 +48,14 @@ export function ControlSummary({ value }: { readonly value: unknown }) {
             : t(score >= 75 ? 'controlGood' : score >= 50 ? 'controlFair' : 'controlBehind')}
         </span>
       </p>
-      <progress max={100} value={score ?? 0} aria-label={t('achievement')} />
-    <dl className="control-components">
+      {score === null ? null : <progress max={100} value={score} aria-label={t('achievement')} />}
+      {delta === null ? null : (
+        <p>
+          {delta > 0 ? '+' : ''}
+          {number(delta)} {t('controlChange')}
+        </p>
+      )}
+      <dl className="control-components">
         {(['tasks', 'habits', 'focus', 'usage'] as const).map((key) => {
           const component = row(components[key]);
           return (
@@ -58,12 +70,14 @@ export function ControlSummary({ value }: { readonly value: unknown }) {
           );
         })}
       </dl>
-      {typeof data.topDeduction === 'string' && locale.startsWith('es') ? (
-        <p>{data.topDeduction}</p>
+      {typeof data.topDeduction === 'string' ? (
+        <p>{locale.startsWith('en') ? englishDeduction(data.topDeduction) : data.topDeduction}</p>
       ) : null}
       <details>
         <summary>{t('formula')}</summary>
-        <p>{t('controlFormula')}</p><p>{t('controlBands')}</p><p>{t('controlUndated')}</p>
+        <p>{t('controlFormula')}</p>
+        <p>{t('controlBands')}</p>
+        <p>{t('controlUndated')}</p>
         <p>{t('controlUsageHelp')}</p>
       </details>
     </div>
@@ -156,4 +170,21 @@ export function ControlChip({ compact = false }: { readonly compact?: boolean })
         : null}
     </>
   );
+}
+
+// Translate the API's controlled reason vocabulary without recalculating the score.
+function englishDeduction(text: string): string {
+  return text
+    .replace(
+      /^(\d+) vencidas( de más de 30 días)?: -(\d+) en Tareas$/,
+      (_, count: string, old: string | undefined, points: string) =>
+        `${count} overdue tasks${old ? ' over 30 days old' : ''}: -${points} in Tasks`,
+    )
+    .replace(
+      /^Tareas a tiempo: (.*) en los últimos 14 días$/,
+      'On-time tasks: $1 in the last 14 days',
+    )
+    .replace(/^Hábitos: (.*) días cumplidos$/, 'Habits: $1 scheduled days completed')
+    .replace(/^Foco: (.*) pomodoros esta semana$/, 'Focus: $1 pomodoros this week')
+    .replace(/^Uso: (.*) días registrados$/, 'Use: $1 recorded days');
 }

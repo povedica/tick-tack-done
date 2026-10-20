@@ -114,6 +114,8 @@ describe('V1 and V2 product', () => {
         await prisma.activityLog.count({ where: { ownerId: user.id, entityType: 'daily_use' } }),
       ).toBe(0);
     } finally {
+      await prisma.activityLog.deleteMany({ where: { ownerId: user.id } });
+      await prisma.personalAccessToken.deleteMany({ where: { ownerId: user.id } });
       await wipe(user.id);
     }
   });

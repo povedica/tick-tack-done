@@ -72,12 +72,12 @@ export class StatsService {
       habits,
       query.from,
       query.to,
-      dayKey(new Date().toISOString(), query.tz) ?? query.to,
+      dayKey(new Date().toISOString(), user.timeZone) ?? query.to,
     );
     const prevHabitPct = averageHabitPercent(habits, prev.from, prev.to);
     const streak = usageStreak(
       await this.usageDays(user.id),
-      dayKey(new Date().toISOString(), query.tz) ?? query.to,
+      dayKey(new Date().toISOString(), user.timeZone) ?? query.to,
     );
     const buckets = buildDayBuckets(
       bounds.days,
@@ -346,7 +346,7 @@ export class StatsService {
       })),
       ...(noTask > 0 ? [{ key: 'none', label: 'Sin tarea', color: null, value: noTask }] : []),
     ]);
-    const day = query.day ?? dayKey(new Date().toISOString(), query.tz) ?? query.to;
+    const day = query.day ?? dayKey(new Date().toISOString(), user.timeZone) ?? query.to;
     if (parseDayBounds(day, day, query.tz) === null)
       throw new DomainException(
         HttpStatus.BAD_REQUEST,
@@ -464,7 +464,7 @@ export class StatsService {
     ).map((bucket) => ({
       date: bucket.date,
       percent:
-        bucket.date > (dayKey(new Date().toISOString(), query.tz) ?? query.to)
+        bucket.date > (dayKey(new Date().toISOString(), user.timeZone) ?? query.to)
           ? null
           : bucket.habit_percent,
     }));
@@ -498,7 +498,8 @@ export class StatsService {
     });
     const enabled = row?.achievementsEnabled ?? true;
     const tz = row?.timeZone ?? user.timeZone;
-    if (!enabled)
+    if (!enabled) {
+      await this.prisma.user.update({ where: { id: user.id }, data: { achievementScore: 0 } });
       return {
         ...controlScore({
           enabled: false,
@@ -513,6 +514,7 @@ export class StatsService {
         }),
         history: [],
       };
+    }
     const [tasks, focus, habits, usageDays] = await Promise.all([
       this.loadTasks(user, { from: '2000-01-01', to: '2100-12-31', tz }),
       this.loadFocus(user, new Date('2000-01-01T00:00:00Z'), new Date('2100-01-01T00:00:00Z'), {

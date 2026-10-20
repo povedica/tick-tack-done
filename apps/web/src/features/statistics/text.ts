@@ -136,15 +136,25 @@ const messages = {
   ],
   enable: ['Mostrar valor de logro', 'Show achievement value'],
   usage: ['Uso diario', 'Daily use'],
+  controlChange: ['puntos respecto a hace 7 días', 'points compared with 7 days ago'],
   controlGood: ['Al día', 'On track'],
   controlFair: ['Justo', 'Tight'],
   controlBehind: ['Atrasado', 'Behind'],
   noControl: ['Sin datos', 'No data'],
   notConfigured: ['No configurado', 'Not configured'],
   viewStatistics: ['Ver estadísticas', 'View statistics'],
-  controlFormula: ['De 0 a 100: Tareas (50) = lo que cierras a tiempo estas 2 semanas y cuántas vencidas arrastras; Hábitos (20) = check-ins de la semana; Foco (20) = pomodoros de la semana sobre un objetivo de 10; Uso (10) = días que abres la app.', 'From 0 to 100: Tasks (50) = on-time completions over 2 weeks and overdue backlog; Habits (20) = weekly check-ins; Focus (20) = weekly pomodoros against a target of 10; Use (10) = days you open the app.'],
-  controlBands: ['75+ Al día · 50-74 Justo · <50 Atrasado.', '75+ On track · 50-74 Tight · <50 Behind.'],
-  controlUndated: ['Las tareas sin fecha no puntúan. Cerrar tareas viejas en lote no infla lo de "a tiempo", solo limpia vencidas.', 'Undated tasks do not count. Bulk closing old tasks does not inflate on-time completions; it only clears backlog.'],
+  controlFormula: [
+    'De 0 a 100: Tareas (50) = lo que cierras a tiempo estas 2 semanas y cuántas vencidas arrastras; Hábitos (20) = check-ins de la semana; Foco (20) = pomodoros de la semana sobre un objetivo de 10; Uso (10) = días que abres la app.',
+    'From 0 to 100: Tasks (50) = on-time completions over 2 weeks and overdue backlog; Habits (20) = weekly check-ins; Focus (20) = weekly pomodoros against a target of 10; Use (10) = days you open the app.',
+  ],
+  controlBands: [
+    '75+ Al día · 50-74 Justo · <50 Atrasado.',
+    '75+ On track · 50-74 Tight · <50 Behind.',
+  ],
+  controlUndated: [
+    'Las tareas sin fecha no puntúan. Cerrar tareas viejas en lote no infla lo de "a tiempo", solo limpia vencidas.',
+    'Undated tasks do not count. Bulk closing old tasks does not inflate on-time completions; it only clears backlog.',
+  ],
   controlUsageHelp: [
     'Hábitos, foco y uso cubren los últimos 7 días. Solo cuentan tareas con fecha. La racha empieza con los días de uso registrados desde hoy; no se reconstruye el pasado. El histórico se recalcula con los datos actuales.',
     'Habits, focus and use cover the last 7 days. Only dated tasks count. Streaks start with recorded use from today; past use is not reconstructed. History is recalculated from current data.',

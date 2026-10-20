@@ -40,6 +40,31 @@ sugerencia de cierre por falta de tareas. Son señales orientativas, sin accione
 automáticas de cierre o borrado. Las bajas reflejan proyectos aún conservados
 con borrado lógico, no un historial de purgas definitivas.
 
+## Ampliación KISS y puntuación visible
+
+Aplicada por petición de Pablo junto con el documento KISS de 20/10/2026:
+
+- Puntuación Control 0–100 destacada al principio, con etiqueta y componentes calculados por el mismo
+  endpoint de Logros/Estadísticas (RF-1602). Desactivado, carga y error tienen
+  estados propios; no se inventan cero puntos ni un scoring nuevo.
+- Hoy reutiliza `loadTodayTasks` y `partitionToday`: hasta tres tareas del conjunto
+  de hoy, en su orden por fecha. No rellena con vencidas, completadas o sin fecha.
+- Eliminados fuera de las tarjetas activas, en una línea plegada con todos los
+  proyectos con borrado lógico accesibles en este ámbito, no solo los últimos siete
+  días. Cerrados se conservan como categoría distinta. Los activos vacíos siguen visibles.
+- Vencidas utiliza las mismas filas canónicas para contador y desglose. La consulta
+  calcula días de calendario en la zona de cada tarea. Grupos 0–6, 7–30 y 31+;
+  orden por 31+, 7–30, total y nombre. Se prueban suma, exclusiones y límites.
+- Ritmo semanal presenta creadas y completadas como recuentos independientes,
+  basados en `createdAt`/`completedAt`, con nota sobre cierres en lote. Sin deltas,
+  comparaciones de rendimiento ni deducciones desde `updatedAt`.
+- Sin configurar se decide por registros existentes de hábitos/calendarios/cuentas
+  atrás, incluyendo los archivados cuando existen. Un calendario vinculado sin
+  eventos sigue configurado. Carga/error no se agrupan como ausencia de configuración.
+
+No se añaden tablas, migraciones, dependencias ni escrituras de tareas/listas.
+La fecha de completado de importaciones conserva el límite explicado abajo.
+
 ## Evidencias y límites
 
 Revisión en `http://localhost:5173`, autenticada, a 1280×800 y 390×844.
@@ -191,11 +216,27 @@ de todos los datos y variantes posibles. Producción no forma parte de esta pasa
 ## Validación de cierre
 
 - E2e: `PLAYWRIGHT_BASE_URL=http://localhost:5173 pnpm --filter web exec playwright test e2e/ui-ux-v2.spec.ts --workers=1`.
-- E2e: 14/14 en verde; alineación en Hoy, listas, Matriz y Agenda a 1280/390 px,
+- E2e de auditoría/Jardín: 19/19 en verde; alineación en Hoy, listas, Matriz y Agenda a 1280/390 px,
   densidad cómoda/compacta, tolerancia de 1,5 px respecto a la primera línea.
-- Node 26: lint y typecheck en verde; 419 unitarios y 97 de integración en verde.
+- Node 26: lint y typecheck en verde; 425 unitarios y 100 de integración en verde.
   Cobertura de dominio superior al 80 % de líneas y ramas.
 - Build API/SDK/PWA y regeneración OpenAPI/SDK correctos. Vite mantiene el aviso
   de tamaño de bundle superior a 500 kB.
 - Prettier no encuentra problemas en los archivos de esta PR; el chequeo global
   solo señala dos specs locales preexistentes no versionadas, ajenas a este cambio.
+
+### Ampliación: navegación sin duplicados
+
+Por petición del usuario, se retira el grupo «Módulos» del sidebar secundario. La barra primaria conserva los módulos y el orden personalizable; en móvil siguen accesibles mediante «Más». Esta decisión sustituye la interpretación inicial de SB-1: visibilidad en la navegación principal, sin duplicar enlaces en ambas barras.
+
+### Ampliación: Control v3 y racha de uso (RF-1602 / RF-2321)
+
+- Sustituye el acumulado y los 12 niveles por la fórmula adjunta: Tareas 50 (cumplimiento 25 + atraso 25), Hábitos 20, Foco 20 y Uso 10. Se normaliza sobre los componentes activos y se redondea a 0–100. Casos de aceptación: 79, 90, 51, 76 y 81; cierres en lote fuera de la cohorte no inflan cumplimiento.
+- La banda intermedia de atraso incluye el día 7: 7–30, coherente con el desglose KISS. Se aclara el hueco 7/8 del documento sin dejar tareas sin penalización.
+- Según aprobación explícita, una sesión autenticada registra un `daily_use` por usuario y fecha local en el ActivityLog existente, mediante UUID determinista y `createMany(skipDuplicates)`. La prueba dispara ocho peticiones simultáneas. No se registran señales desde tokens API/MCP ni cabeceras de desarrollo; el payload solo contiene la fecha. No hay tablas ni migraciones nuevas ni reconstrucción del pasado.
+- La racha y el uso se leen de esos registros. El histórico empieza con el primer día observado; no se inventa una variación de siete días antes de tener datos. Durante la primera semana el uso sigue dividiéndose por siete según la fórmula aprobada.
+- El campo legado no nullable `User.achievementScore` guarda 0–100 (0 si el cálculo no tiene datos); la API conserva `score:null` para distinguir ausencia de un cero real.
+- Jardín, Estadísticas y chip global comparten presentación y la caché `stats/overview`, con cinco minutos de staleTime e invalidaciones de estadísticas existentes, sin nuevo polling. Chip bajo la cuenta, compacto en rail y en cabecera móvil. Sin niveles, umbrales ni barra de experiencia.
+- Etiqueta lucide de contorno de 16 px compartida en selector, chips, detalle, captura y sidebar; gris por defecto, color de etiqueta cuando existe.
+
+Verificación autenticada en localhost (20/10/2026): Control **36/100 · Atrasado**, Tareas **25/50**, Hábitos excluido, Foco **2/20**, Uso **1,43/10**, racha **1 día**. El motivo principal son **58 vencidas de más de 30 días** (−25 en Tareas). Confirmado visualmente el sidebar secundario sin «Módulos» y Jardín después de Estadísticas en el primario. Estos valores son de la base local; no se presentan como resultados de producción.
