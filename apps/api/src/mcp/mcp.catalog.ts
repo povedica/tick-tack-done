@@ -137,7 +137,11 @@ export const MCP_TOOLS: readonly McpTool[] = [
       'Apply a shutdown session. Same idempotency key returns the same result. A stale expected_revision returns revision_conflict.',
     scopes: ['tasks:write'],
     inputSchema: objectSchema(
-      { session_id: id, expected_revision: { type: 'integer', minimum: 1 }, idempotency_key: { type: 'string' } },
+      {
+        session_id: id,
+        expected_revision: { type: 'integer', minimum: 1 },
+        idempotency_key: { type: 'string' },
+      },
       ['session_id', 'expected_revision', 'idempotency_key'],
     ),
   },

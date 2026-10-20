@@ -30,6 +30,7 @@ import { SearchModule } from './modules/search/search.module.js';
 import { SyncModule } from './modules/sync/sync.module.js';
 import { TagsModule } from './modules/tags/tags.module.js';
 import { TasksModule } from './modules/tasks/tasks.module.js';
+import { TickyModule } from './modules/ticky/ticky.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { SchedulerModule } from './scheduler/scheduler.module.js';
 
@@ -50,6 +51,7 @@ import { SchedulerModule } from './scheduler/scheduler.module.js';
     SearchModule,
     TagsModule,
     TasksModule,
+    TickyModule,
     SyncModule,
     ExportModule,
     McpModule,

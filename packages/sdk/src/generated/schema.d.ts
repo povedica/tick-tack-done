@@ -1485,6 +1485,280 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ticky/flags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ticky feature flags (all off by default) */
+        get: operations["TickyController_flags"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ticky/capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Closed read_capabilities.proposed.v1 for the Ticky reader (APP-02) */
+        get: operations["TickyController_capabilities"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ticky/authority": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Ticky authority (own lists only; APP-02) */
+        patch: operations["TickyController_updateAuthority"];
+        trace?: never;
+    };
+    "/api/v1/ticky/reader": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Issue a list-restricted read-only PAT for the Python reader */
+        post: operations["TickyController_issueReader"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ticky/context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Build a ContextSnapshot for planning (APP-05) */
+        get: operations["TickyController_context"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ticky/threads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Ticky chat threads */
+        get: operations["TickyController_listThreads"];
+        put?: never;
+        /** Open a Ticky chat thread (APP-03) */
+        post: operations["TickyController_openThread"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ticky/threads/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Soft-delete a thread (does not delete tasks/memories) */
+        delete: operations["TickyController_deleteThread"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ticky/threads/{id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post a chat message (idempotent client_message_id) */
+        post: operations["TickyController_postMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ticky/runs/{id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Proxy async run events (SSE; APP-03) */
+        get: operations["TickyController_runEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ticky/runs/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel a run (does not undo domain effects) */
+        post: operations["TickyController_cancelRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ticky/proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Store an immutable proposal document */
+        post: operations["TickyController_storeProposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ticky/proposals/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve a subset of proposal actions (APP-04) */
+        post: operations["TickyController_approve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ticky/actions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ledger status for an action_id (uncertain delivery) */
+        get: operations["TickyController_actionStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ticky/memories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List remembered preferences (APP-08) */
+        get: operations["TickyController_listMemories"];
+        put?: never;
+        /** Store a memory entry */
+        post: operations["TickyController_remember"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ticky/memories/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Forget a memory (soft) */
+        delete: operations["TickyController_forgetMemory"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ticky/routines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List shadow routines (paused by default; APP-08) */
+        get: operations["TickyController_listRoutines"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sync": {
         parameters: {
             query?: never;
@@ -2663,6 +2937,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/integrations/telegram/pairing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Issue a one-time pairing code. Send /start <code> in Telegram (APP-07a). Does not accept raw chat_id. */
+        post: operations["IntegrationsController_pairing"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/integrations/telegram/link": {
         parameters: {
             query?: never;
@@ -2672,7 +2963,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Remember a chat id so the bot can act as this user (RF-2003). */
+        /** Deprecated: linking by raw chat_id is refused. Use POST /integrations/telegram/pairing (APP-07a). */
         post: operations["IntegrationsController_link"];
         delete?: never;
         options?: never;
@@ -3048,7 +3339,7 @@ export interface components {
         CreateTokenDto: {
             /** @description Agent or script this token belongs to */
             name: string;
-            scopes: ("tasks:read" | "tasks:write" | "lists:read" | "lists:write" | "tags:read" | "tags:write" | "filters:read" | "filters:write" | "habits:read" | "habits:write" | "countdowns:read" | "countdowns:write" | "focus:read" | "focus:write" | "notes:read" | "notes:write" | "calendar:read" | "calendar:write" | "reminders:write" | "webhooks:manage" | "automations:manage" | "profile:read" | "profile:write" | "backup:read")[];
+            scopes: ("tasks:read" | "tasks:write" | "tasks:create" | "tasks:update" | "tasks:complete" | "tasks:trash" | "lists:read" | "lists:write" | "tags:read" | "tags:write" | "filters:read" | "filters:write" | "habits:read" | "habits:write" | "countdowns:read" | "countdowns:write" | "focus:read" | "focus:write" | "focus:start" | "focus:stop" | "notes:read" | "notes:write" | "calendar:read" | "calendar:write" | "reminders:write" | "notifications:self:write" | "ticky:proposals:read" | "ticky:proposals:write" | "ticky:routines:read" | "ticky:routines:write" | "webhooks:manage" | "automations:manage" | "profile:read" | "profile:write" | "backup:read")[];
         };
         TokenCreatedDto: {
             id: string;
@@ -3664,6 +3955,8 @@ export interface components {
             due_date: string | null;
             time_zone: string;
             duration_minutes: number | null;
+            /** @description Monotonic CAS version (>=1). Additive for Ticky expected_version (APP-02a). */
+            version: number;
             is_someday: boolean;
             evening_only: boolean;
             repeat_rule: string | null;
@@ -3753,6 +4046,8 @@ export interface components {
             due_date: string | null;
             time_zone: string;
             duration_minutes: number | null;
+            /** @description Monotonic CAS version (>=1). Additive for Ticky expected_version (APP-02a). */
+            version: number;
             is_someday: boolean;
             evening_only: boolean;
             repeat_rule: string | null;
@@ -3851,6 +4146,33 @@ export interface components {
             time_zone?: string;
             before_id?: Record<string, never> | null;
             move_to_end?: boolean;
+        };
+        UpdateTickyAuthorityDto: {
+            list_ids?: string[];
+            autonomy?: number;
+            paused?: boolean;
+            revoked?: boolean;
+            inbox_list_id?: string | null;
+            action_scopes?: string[];
+            workday_start?: string | null;
+            workday_end?: string | null;
+            estimate_learning_enabled?: boolean;
+        };
+        PostTickyMessageDto: {
+            client_message_id: string;
+            text: string;
+        };
+        StoreProposalDto: {
+            /** @description Immutable proposal JSON document (stringified schema body). */
+            document: string;
+        };
+        ApproveProposalDto: {
+            digest: string;
+            selected_actions: string[];
+        };
+        CreateMemoryDto: {
+            body: string;
+            source_message_id?: string | null;
         };
         RestoreBackupDto: {
             stamp: string;
@@ -6738,6 +7060,382 @@ export interface operations {
             };
         };
     };
+    TickyController_flags: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TickyController_capabilities: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TickyController_updateAuthority: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTickyAuthorityDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TickyController_issueReader: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TickyController_context: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TickyController_listThreads: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TickyController_openThread: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TickyController_deleteThread: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TickyController_postMessage: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PostTickyMessageDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TickyController_runEvents: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TickyController_cancelRun: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TickyController_storeProposal: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreProposalDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TickyController_approve: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApproveProposalDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TickyController_actionStatus: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TickyController_listMemories: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TickyController_remember: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateMemoryDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TickyController_forgetMemory: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TickyController_listRoutines: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     SyncController_delta: {
         parameters: {
             query: {
@@ -8525,6 +9223,23 @@ export interface operations {
         requestBody?: never;
         responses: {
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    IntegrationsController_pairing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };

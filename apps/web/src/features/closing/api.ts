@@ -37,7 +37,11 @@ export async function closingRequest<T>(
 export interface ClosingCard {
   readonly task_id: string;
   readonly title: string;
-  readonly suggested: { readonly decision: string; readonly target_date: string | null; readonly reason: string } | null;
+  readonly suggested: {
+    readonly decision: string;
+    readonly target_date: string | null;
+    readonly reason: string;
+  } | null;
 }
 
 export interface ClosingSession {
@@ -45,9 +49,16 @@ export interface ClosingSession {
   readonly revision: number;
   readonly kind: string;
   readonly queue?: { readonly cards: readonly ClosingCard[] };
-  readonly review?: { readonly done_today: readonly { id: string; title: string }[]; readonly focus_minutes: number };
+  readonly review?: {
+    readonly done_today: readonly { id: string; title: string }[];
+    readonly focus_minutes: number;
+  };
   readonly load?: {
-    readonly today: { readonly status: string; readonly task_minutes: number; readonly available_minutes: number | null };
+    readonly today: {
+      readonly status: string;
+      readonly task_minutes: number;
+      readonly available_minutes: number | null;
+    };
     readonly tomorrow: { readonly status: string };
   };
   readonly closed?: boolean;

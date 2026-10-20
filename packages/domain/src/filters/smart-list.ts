@@ -51,7 +51,12 @@ export function smartListClause(key: SmartListKey, input: SmartListInput): Filte
   if (key === 'someday') {
     return {
       op: 'and',
-      items: [{ op: 'someday', value: true }, { op: 'status', status: 'active' }, { op: 'deleted', deleted: false }, notArchived()],
+      items: [
+        { op: 'someday', value: true },
+        { op: 'status', status: 'active' },
+        { op: 'deleted', deleted: false },
+        notArchived(),
+      ],
     };
   }
   const items: FilterClause[] = [compileRules(rulesFor(key, input), input.clock)];

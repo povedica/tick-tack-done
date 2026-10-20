@@ -16,6 +16,8 @@ import {
   resolveSubtaskProject,
   parseTrigger,
   reminderFireAt,
+  listVisible,
+  projectConstraint,
   resolveDefaultReminder,
   snoozeDue,
   snoozeReminder,
@@ -159,12 +161,16 @@ export class TasksService {
       query.tagId === undefined
         ? null
         : await this.tagScope(user.id, query.tagId, query.includeDescendants);
+    const listFilter = projectConstraint(user.listIds, query.projectId);
+    if (listFilter.id !== undefined) {
+      return { items: [], next_cursor: null };
+    }
     const rows = await this.prisma.task.findMany({
       where: {
         ownerId: user.id,
         ...(query.deleted ? { deletedAt: { not: null } } : { deletedAt: null }),
         ...visibleParents(query),
-        ...(query.projectId === undefined ? {} : { projectId: query.projectId }),
+        ...(listFilter.projectId === undefined ? {} : { projectId: listFilter.projectId }),
         ...(query.deleted || query.status === 'all' ? {} : { status: query.status }),
         ...(query.priority === undefined ? {} : { priority: query.priority }),
         ...(tagIds === null ? {} : { tags: { some: { tagId: { in: tagIds } } } }),
@@ -233,6 +239,7 @@ export class TasksService {
       scopes: ['tasks:write'],
       tokenId: null,
       sessionId: null,
+      listIds: null,
     };
     const metadata: Record<string, unknown> = { capture: 'email' };
     if (messageId !== null) {
@@ -249,7 +256,7 @@ export class TasksService {
           select: { id: true },
         });
         if (existing !== null) {
-          return { task: await this.load(tx, user.id, existing.id, false), fresh: false };
+          return { task: await this.load(tx, user, existing.id, false), fresh: false };
         }
       }
       return {
@@ -287,7 +294,7 @@ export class TasksService {
   }
 
   get(user: AuthUser, id: string): Promise<TaskDetail> {
-    return this.load(this.prisma, user.id, id, false);
+    return this.load(this.prisma, user, id, false);
   }
 
   async update(user: AuthUser, id: string, dto: UpdateTaskDto): Promise<TaskDetail> {
@@ -318,16 +325,14 @@ export class TasksService {
       const structural =
         dto.before_id !== undefined || dto.move_to_end === true || dto.extract_checklist === true;
       if (!selected.changed && !structural) {
-        return this.load(tx, user.id, id, false);
+        return this.load(tx, user, id, false);
       }
       dto = selected.dto;
-      const previous = await this.load(tx, user.id, id, false);
+      const previous = await this.load(tx, user, id, false);
       const title = dto.title === undefined ? current.title : this.title(dto.title);
       const timeZone = dto.time_zone === undefined ? current.timeZone : this.zone(dto.time_zone);
       const someday = dto.someday ?? current.isSomeday;
-      const start = someday
-        ? null
-        : this.nextDate(current.startDate, dto.start_date, 'start_date');
+      const start = someday ? null : this.nextDate(current.startDate, dto.start_date, 'start_date');
       const due = this.nextDate(current.dueDate, dto.due_date, 'due_date');
       const isAllDay = dto.is_all_day ?? current.isAllDay;
       this.assertTimed(due, isAllDay, timeZone);
@@ -409,7 +414,7 @@ export class TasksService {
       if (dueChanged) {
         await this.cancelDeliveries(tx, [id]);
       }
-      const detail = await this.load(tx, user.id, id, false);
+      const detail = await this.load(tx, user, id, false);
       await this.events.record(tx, actorOf(user), {
         type: this.updateEvent(previous.kind, detail.kind),
         entityType: detail.kind === 'note' ? 'note' : 'task',
@@ -418,7 +423,7 @@ export class TasksService {
         data: { task: asJson(detail) },
         previous: asJson(previous),
       });
-      return this.load(tx, user.id, id, false);
+      return this.load(tx, user, id, false);
     });
   }
 
@@ -426,7 +431,7 @@ export class TasksService {
     return this.prisma.$transaction(async (tx) => {
       const current = await this.require(tx, user.id, id, false);
       if (current.status === 'cancelled') {
-        return this.load(tx, user.id, id, false);
+        return this.load(tx, user, id, false);
       }
       const children = await tx.task.findMany({
         where: { parentId: id, ownerId: user.id, status: 'active', deletedAt: null },
@@ -448,7 +453,7 @@ export class TasksService {
           previous: { status: 'active' },
         });
       }
-      const detail = await this.load(tx, user.id, id, false);
+      const detail = await this.load(tx, user, id, false);
       await this.events.record(tx, actorOf(user), {
         type: DomainEvent.taskCancelled,
         entityType: 'task',
@@ -486,7 +491,7 @@ export class TasksService {
           ),
         },
       });
-      const detail = await this.load(tx, user.id, id, true);
+      const detail = await this.load(tx, user, id, true);
       await this.events.record(tx, actorOf(user), {
         type: DomainEvent.taskDeleted,
         entityType: 'task',
@@ -518,7 +523,7 @@ export class TasksService {
     return this.prisma.$transaction(async (tx) => {
       const current = await this.require(tx, user.id, id, false);
       if (current.status !== 'completed') {
-        return this.load(tx, user.id, id, false);
+        return this.load(tx, user, id, false);
       }
       if (current.seriesId !== null) {
         const successor = await tx.task.findFirst({
@@ -542,7 +547,7 @@ export class TasksService {
         where: { id },
         data: { status: 'active', completedAt: null, recurrenceOpen: current.repeatRule !== null },
       });
-      const detail = await this.load(tx, user.id, id, false);
+      const detail = await this.load(tx, user, id, false);
       await this.events.record(tx, actorOf(user), {
         type: DomainEvent.taskUncompleted,
         entityType: 'task',
@@ -589,7 +594,7 @@ export class TasksService {
           durationMinutes: this.duration(start, due, current.durationMinutes),
         },
       });
-      const detail = await this.load(tx, user.id, id, false);
+      const detail = await this.load(tx, user, id, false);
       await this.events.record(tx, actorOf(user), {
         type: DomainEvent.taskUpdated,
         entityType: 'task',
@@ -687,7 +692,7 @@ export class TasksService {
             startDate: current.startDate,
           },
         });
-        const detail = await this.load(tx, user.id, id, false);
+        const detail = await this.load(tx, user, id, false);
         await this.events.record(tx, actorOf(user), {
           type: DomainEvent.taskUpdated,
           entityType: 'task',
@@ -730,7 +735,7 @@ export class TasksService {
           (tag) => ({ taskId: copyId, tagId: tag.tagId }),
         ),
       });
-      const created = await this.load(tx, user.id, copyId, false);
+      const created = await this.load(tx, user, copyId, false);
       await this.events.record(tx, actorOf(user), {
         type: DomainEvent.taskUpdated,
         entityType: 'task',
@@ -801,7 +806,7 @@ export class TasksService {
           data: { projectId: project.id, columnId: null },
         });
       }
-      const detail = await this.load(tx, user.id, id, false);
+      const detail = await this.load(tx, user, id, false);
       await this.events.record(tx, actorOf(user), {
         type: DomainEvent.taskMoved,
         entityType: 'task',
@@ -830,7 +835,7 @@ export class TasksService {
           throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
         }
         const copyId = await this.copyTask(tx, user, source, source.projectId, null);
-        return this.load(tx, user.id, copyId, false);
+        return this.load(tx, user, copyId, false);
       },
     });
   }
@@ -959,7 +964,7 @@ export class TasksService {
         }
       }
       await tx.task.update({ where: { id }, data: { deletedAt: null, parentId } });
-      const detail = await this.load(tx, user.id, id, false);
+      const detail = await this.load(tx, user, id, false);
       await this.events.record(tx, actorOf(user), {
         type: DomainEvent.taskRestored,
         entityType: 'task',
@@ -1553,7 +1558,7 @@ export class TasksService {
     if (extracted !== null) {
       await this.materializeExtract(tx, user, row, extracted.items, dto.extract_as ?? 'checklist');
     }
-    const detail = await this.load(tx, user.id, row.id, false);
+    const detail = await this.load(tx, user, row.id, false);
     await this.events.record(tx, actorOf(user), {
       type: detail.kind === 'note' ? DomainEvent.noteCreated : DomainEvent.taskCreated,
       entityType: detail.kind === 'note' ? 'note' : 'task',
@@ -1562,7 +1567,7 @@ export class TasksService {
       data: { task: asJson(detail) },
       previous: null,
     });
-    const created = await this.load(tx, user.id, row.id, false);
+    const created = await this.load(tx, user, row.id, false);
     const warnings = captured?.warnings ?? [];
     if (warnings.length === 0) {
       return created;
@@ -1578,7 +1583,7 @@ export class TasksService {
   ): Promise<TaskDetail> {
     const current = await this.require(tx, user.id, id, false);
     if (current.status === 'completed') {
-      return this.load(tx, user.id, id, false);
+      return this.load(tx, user, id, false);
     }
     const activeItems = await tx.checklistItem.count({
       where: { taskId: id, ownerId: user.id, status: 'active', deletedAt: null },
@@ -1661,7 +1666,7 @@ export class TasksService {
         ),
       },
     });
-    const detail = await this.load(tx, user.id, id, false);
+    const detail = await this.load(tx, user, id, false);
     await this.events.record(tx, actorOf(user), {
       type: DomainEvent.taskCompleted,
       entityType: 'task',
@@ -1670,7 +1675,7 @@ export class TasksService {
       data: { task: asJson(detail) },
       previous: { status: current.status },
     });
-    return this.load(tx, user.id, id, false);
+    return this.load(tx, user, id, false);
   }
 
   private async copyTask(
@@ -1748,7 +1753,7 @@ export class TasksService {
         await this.copyTask(tx, user, child, projectId, copy.id);
       }
     }
-    const detail = await this.load(tx, user.id, copy.id, false);
+    const detail = await this.load(tx, user, copy.id, false);
     await this.events.record(tx, actorOf(user), {
       type: DomainEvent.taskCreated,
       entityType: 'task',
@@ -1837,7 +1842,7 @@ export class TasksService {
   }
 
   private async emitUpdated(tx: Tx, user: AuthUser, id: string): Promise<void> {
-    const detail = await this.load(tx, user.id, id, false);
+    const detail = await this.load(tx, user, id, false);
     await this.events.record(tx, actorOf(user), {
       type: DomainEvent.taskUpdated,
       entityType: 'task',
@@ -1850,10 +1855,12 @@ export class TasksService {
 
   private async load(
     tx: Tx | PrismaService,
-    ownerId: string,
+    user: AuthUser | string,
     id: string,
     deleted: boolean,
   ): Promise<TaskDetail> {
+    const ownerId = typeof user === 'string' ? user : user.id;
+    const listIds = typeof user === 'string' ? null : user.listIds;
     const row = await tx.task.findFirst({
       where: { id, ownerId, ...(deleted ? { deletedAt: { not: null } } : { deletedAt: null }) },
       include: {
@@ -1868,7 +1875,7 @@ export class TasksService {
         },
       },
     });
-    if (row === null) {
+    if (row === null || !listVisible(listIds, row.projectId)) {
       throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
     }
     const activity = await tx.activityLog.findMany({

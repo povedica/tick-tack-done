@@ -839,11 +839,17 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async fire(now: Date, catchUp: boolean): Promise<{ fired: number; late: number }> {
+    const workerId = `scheduler-${process.pid}`;
     const due = await this.prisma.reminderDelivery.findMany({
       where: {
-        OR: [
-          { status: 'scheduled', fireAt: { lte: now } },
-          { status: 'failed', nextRetryAt: { lte: now }, attempts: { lt: 3 } },
+        AND: [
+          { OR: [{ leaseUntil: null }, { leaseUntil: { lt: now } }] },
+          {
+            OR: [
+              { status: 'scheduled', fireAt: { lte: now } },
+              { status: 'failed', nextRetryAt: { lte: now }, attempts: { lt: 3 } },
+            ],
+          },
         ],
       },
       include: {
@@ -861,16 +867,38 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         reminder: { select: { constant: true, constantIntervalMinutes: true, taskId: true } },
         countdown: { select: { id: true } },
       },
+      take: 50,
     });
     let fired = 0;
     let late = 0;
     for (const row of due) {
+      const claimed = await this.prisma.reminderDelivery.updateMany({
+        where: {
+          id: row.id,
+          status: row.status,
+          OR: [{ leaseUntil: null }, { leaseUntil: { lt: now } }],
+        },
+        data: {
+          leaseOwner: workerId,
+          leaseUntil: new Date(now.getTime() + 60_000),
+          fenceGeneration: { increment: 1 },
+        },
+      });
+      if (claimed.count !== 1) {
+        continue;
+      }
       const payload = asRecord(row.payload);
       if (row.kind === 'countdown') {
         const mark = catchUp && row.fireAt.getTime() < now.getTime() ? 'late' : 'fired';
         const reached = payload.reached === true;
         const result = reached
-          ? { email: 'skipped' as const, push: 'skipped' as const, telegram: 'skipped' as const }
+          ? {
+              email: 'skipped' as const,
+              push: 'skipped' as const,
+              telegram: 'skipped' as const,
+              telegram_message_id: null,
+              retry_after_seconds: null,
+            }
           : await this.transport.deliver({
               channel: row.channel,
               email: typeof payload.email === 'string' ? payload.email : row.owner.email,
@@ -883,7 +911,16 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         await this.prisma.$transaction(async (tx) => {
           await tx.reminderDelivery.update({
             where: { id: row.id },
-            data: { status: mark, firedAt: now, payload: asJson({ ...payload, delivery: result }) },
+            data: {
+              status: mark,
+              firedAt: now,
+              payload: asJson({ ...payload, delivery: result }),
+              telegramMessageId:
+                result.telegram_message_id === null ? null : String(result.telegram_message_id),
+              channelState: asJson(result),
+              reconcileRequired: result.telegram === 'unknown',
+              leaseUntil: null,
+            },
           });
           if (row.countdownId !== null) {
             await this.events.record(tx, automation(row.ownerId), {
@@ -951,9 +988,28 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
               ],
             }),
       });
-      if (result.telegram === 'failed') {
+      if (result.telegram === 'unknown' || result.telegram === 'disconnected') {
+        await this.prisma.reminderDelivery.update({
+          where: { id: row.id },
+          data: {
+            status: result.telegram === 'disconnected' ? 'failed' : 'fired',
+            firedAt: now,
+            attempts: row.attempts + 1,
+            nextRetryAt: null,
+            payload: asJson({ ...payload, delivery: result }),
+            channelState: asJson(result),
+            reconcileRequired: result.telegram === 'unknown',
+            leaseUntil: null,
+          },
+        });
+        continue;
+      }
+      if (result.telegram === 'failed' || result.telegram === 'rate_limited') {
         const attempts = row.attempts + 1;
-        const delay = retryDelayMs(attempts);
+        const delay =
+          result.retry_after_seconds !== null
+            ? result.retry_after_seconds * 1000
+            : retryDelayMs(attempts);
         await this.prisma.reminderDelivery.update({
           where: { id: row.id },
           data: {
@@ -961,6 +1017,8 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
             attempts,
             nextRetryAt: delay === null ? null : new Date(now.getTime() + delay),
             payload: asJson({ ...payload, delivery: result }),
+            channelState: asJson(result),
+            leaseUntil: null,
           },
         });
         continue;
@@ -969,7 +1027,15 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       await this.prisma.$transaction(async (tx) => {
         await tx.reminderDelivery.update({
           where: { id: row.id },
-          data: { status: mark, firedAt: now, payload: asJson({ ...payload, delivery: result }) },
+          data: {
+            status: mark,
+            firedAt: now,
+            payload: asJson({ ...payload, delivery: result }),
+            telegramMessageId:
+              result.telegram_message_id === null ? null : String(result.telegram_message_id),
+            channelState: asJson(result),
+            leaseUntil: null,
+          },
         });
         const habitId = typeof payload.habit_id === 'string' ? payload.habit_id : null;
         const signal = row.kind === 'overdue' || row.kind === 'due_soon';

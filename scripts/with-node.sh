@@ -23,9 +23,9 @@ if [[ -n "${CI:-}" || -n "${HOST_NODE:-}" || -n "${IN_NODE_26:-}" ]]; then
 fi
 
 compose_file="docker-compose.dev.yml"
-compose_project=()
+compose_args=(-f "$compose_file")
 if [[ -f "$ROOT/docker-compose.worktree.local.yml" ]]; then
   compose_file="docker-compose.worktree.local.yml"
-  compose_project=(-p "${COMPOSE_PROJECT_NAME:-ttd-audit}")
+  compose_args=(-p "${COMPOSE_PROJECT_NAME:-$(basename "$ROOT")}" -f "$compose_file")
 fi
-exec docker compose "${compose_project[@]}" -f "$compose_file" run --rm node "$@"
+exec docker compose "${compose_args[@]}" run --rm node "$@"

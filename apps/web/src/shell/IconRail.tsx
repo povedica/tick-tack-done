@@ -8,6 +8,7 @@ import {
   HelpCircle,
   Hourglass,
   ListTodo,
+  MessageSquare,
   PanelLeft,
   Plus,
   Search,
@@ -86,6 +87,9 @@ export function IconRail({
       ) : null}
       <NavLink to="/habits" end aria-label={messages.navHabits}>
         <CalendarCheck size={20} aria-hidden="true" />
+      </NavLink>
+      <NavLink to="/ticky" end aria-label={messages.navTicky}>
+        <MessageSquare size={20} aria-hidden="true" />
       </NavLink>
       <NavLink to="/search" aria-label={messages.navSearch}>
         <Search size={20} aria-hidden="true" />

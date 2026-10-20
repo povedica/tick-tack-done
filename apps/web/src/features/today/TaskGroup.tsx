@@ -226,7 +226,13 @@ export function TaskGroup({
                     </time>
                   ) : null}
                   {deadlineText(task, deadlineSoonDays) !== null ? (
-                    <span className={deadlineText(task, deadlineSoonDays)?.tone === 'late' ? 'task-date is-overdue' : 'task-date'}>
+                    <span
+                      className={
+                        deadlineText(task, deadlineSoonDays)?.tone === 'late'
+                          ? 'task-date is-overdue'
+                          : 'task-date'
+                      }
+                    >
                       {deadlineText(task, deadlineSoonDays)?.label}
                     </span>
                   ) : null}

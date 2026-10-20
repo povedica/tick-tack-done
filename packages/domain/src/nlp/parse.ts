@@ -333,7 +333,8 @@ const OFFSET =
 
 const DEADLINE =
   /(?<![\p{L}\p{N}])(?:para\s+el|a\s+m[aá]s\s+tardar(?:\s+el)?|fecha\s+l[ií]mite:\s*|deadline\s+)\s*(lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo|monday|tuesday|wednesday|thursday|friday|saturday|sunday)(?![\p{L}\p{N}])/giu;
-const DURATION = /(?<![\p{L}\p{N}])~(?:(\d+)\s*h(?:\s*(\d+))?|(\d+)\s*m(?:in(?:utos)?)?)(?![\p{L}\p{N}])/giu;
+const DURATION =
+  /(?<![\p{L}\p{N}])~(?:(\d+)\s*h(?:\s*(\d+))?|(\d+)\s*m(?:in(?:utos)?)?)(?![\p{L}\p{N}])/giu;
 const SOMEDAY = /(?<![\p{L}\p{N}])(?:alg[uú]n\s+d[ií]a|someday)(?![\p{L}\p{N}])/giu;
 const EVENING =
   /(?<![\p{L}\p{N}])(?:esta\s+noche|this\s+evening)(?:\s+(?:a\s+las|at)\s+(\d{1,2})(?::(\d{2}))?)?(?![\p{L}\p{N}])/giu;
@@ -352,7 +353,15 @@ function matchDeadline(
     if (weekday === undefined) {
       return null;
     }
-    return dateFound(match.index, { end: match.index + match[0].length, clock: null }, clock.now, null, clock.timeZone, weekday, 'due');
+    return dateFound(
+      match.index,
+      { end: match.index + match[0].length, clock: null },
+      clock.now,
+      null,
+      clock.timeZone,
+      weekday,
+      'due',
+    );
   });
 }
 

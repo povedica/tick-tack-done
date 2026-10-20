@@ -559,7 +559,9 @@ function taskSchedule(args: Record<string, unknown>): {
   evening_only?: boolean;
 } {
   return {
-    ...(args.due_date === null || typeof args.due_date === 'string' ? { due_date: args.due_date } : {}),
+    ...(args.due_date === null || typeof args.due_date === 'string'
+      ? { due_date: args.due_date }
+      : {}),
     ...(args.start_date === null || typeof args.start_date === 'string'
       ? { start_date: args.start_date }
       : {}),
@@ -588,7 +590,11 @@ function decisionOf(args: Record<string, unknown>): PlanDecisionKind {
 
 function revisionOf(args: Record<string, unknown>): number {
   if (typeof args.expected_revision !== 'number' || !Number.isInteger(args.expected_revision)) {
-    throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'expected_revision is invalid');
+    throw new DomainException(
+      HttpStatus.BAD_REQUEST,
+      'validation_failed',
+      'expected_revision is invalid',
+    );
   }
   return args.expected_revision;
 }
@@ -602,7 +608,11 @@ function decisionList(args: Record<string, unknown>): {
     return [];
   }
   if (!Array.isArray(args.decisions)) {
-    throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'decisions must be a list');
+    throw new DomainException(
+      HttpStatus.BAD_REQUEST,
+      'validation_failed',
+      'decisions must be a list',
+    );
   }
   return args.decisions.map((item) => {
     if (!isRecord(item)) {

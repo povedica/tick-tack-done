@@ -18,6 +18,7 @@ import { isCaptureShortcut } from './features/capture/draft';
 import { useCaptureNotice, openTaskComposer, useCaptureOpen } from './features/capture/notice';
 import { HabitsPage } from './features/habits/components/HabitsPage';
 import { CountdownsPage } from './features/countdowns/CountdownsPage';
+import { TickyPage } from './features/ticky/TickyPage';
 import {
   AccountPage,
   CalendarPage,
@@ -170,6 +171,7 @@ function Shell() {
             <Route path="/review/daily" element={<ReviewPage />} />
             <Route path="/review/weekly" element={<ReviewPage />} />
             <Route path="/search" element={<SearchPage />} />
+            <Route path="/ticky" element={<TickyPage />} />
             <Route path="/sticky" element={<DashboardPage />} />
             <Route path="/tokens" element={<TokensPage />} />
             <Route path="/oauth/consent" element={<ConsentPage />} />

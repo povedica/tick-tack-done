@@ -534,6 +534,7 @@ export class CalendarService {
         scopes: ['calendar:write'],
         tokenId: null,
         sessionId: null,
+        listIds: null,
       };
       try {
         await this.refresh(user, row.id);

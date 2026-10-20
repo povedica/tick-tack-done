@@ -6,13 +6,7 @@ export type PlanSection = 'today_timed' | 'today' | 'overdue' | 'inbox' | 'undat
 export type PlanReason = 'due_today_at' | 'due_today' | 'overdue' | 'inbox' | 'undated';
 
 export type PlanDecisionKind =
-  | 'done'
-  | 'plan_day'
-  | 'later'
-  | 'cancel'
-  | 'trash'
-  | 'skip'
-  | 'someday';
+  'done' | 'plan_day' | 'later' | 'cancel' | 'trash' | 'skip' | 'someday';
 
 export interface PlanSources {
   readonly today: boolean;

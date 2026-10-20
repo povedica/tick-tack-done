@@ -408,6 +408,7 @@ export class OauthService {
       scopes: input.scopes,
       tokenId: null,
       sessionId: null,
+      listIds: null,
     };
     const access = await this.tokens.issueOauthAccess(tx, {
       user,

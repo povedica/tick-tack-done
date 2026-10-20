@@ -28,6 +28,7 @@ function row(partial: Pick<Task, 'id' | 'title' | 'due_date'> & Partial<Task>): 
     created_by: 'user',
     completed_at: null,
     source: 'manual',
+    version: 1,
     checklist_progress: { completed: 0, total: 0 },
     created_at: '2026-10-01T00:00:00.000Z',
     updated_at: '2026-10-01T00:00:00.000Z',

@@ -89,7 +89,13 @@ export class DayClosingController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    respondJson(req, res, 201, await this.closing.startShutdown(user, dto.local_date, dto.time_zone), false);
+    respondJson(
+      req,
+      res,
+      201,
+      await this.closing.startShutdown(user, dto.local_date, dto.time_zone),
+      false,
+    );
   }
 
   @Put('shutdown/sessions/:id/decisions/:taskId')
@@ -107,7 +113,14 @@ export class DayClosingController {
       req,
       res,
       200,
-      await this.closing.decide(user, id, taskId, dto.decision, dto.target_date ?? null, dto.evening === true),
+      await this.closing.decide(
+        user,
+        id,
+        taskId,
+        dto.decision,
+        dto.target_date ?? null,
+        dto.evening === true,
+      ),
       false,
     );
   }
@@ -136,7 +149,13 @@ export class DayClosingController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    respondJson(req, res, 200, await this.closing.apply(user, id, dto.expected_revision, key), false);
+    respondJson(
+      req,
+      res,
+      200,
+      await this.closing.apply(user, id, dto.expected_revision, key),
+      false,
+    );
   }
 
   @Post('replan/sessions')
@@ -148,7 +167,13 @@ export class DayClosingController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    respondJson(req, res, 201, await this.closing.startReplan(user, dto.local_date, dto.time_zone), false);
+    respondJson(
+      req,
+      res,
+      201,
+      await this.closing.startReplan(user, dto.local_date, dto.time_zone),
+      false,
+    );
   }
 
   @Put('replan/sessions/:id/decisions/:taskId')
@@ -166,7 +191,14 @@ export class DayClosingController {
       req,
       res,
       200,
-      await this.closing.decide(user, id, taskId, dto.decision, dto.target_date ?? null, dto.evening === true),
+      await this.closing.decide(
+        user,
+        id,
+        taskId,
+        dto.decision,
+        dto.target_date ?? null,
+        dto.evening === true,
+      ),
       false,
     );
   }
@@ -182,6 +214,12 @@ export class DayClosingController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    respondJson(req, res, 200, await this.closing.apply(user, id, dto.expected_revision, key), false);
+    respondJson(
+      req,
+      res,
+      200,
+      await this.closing.apply(user, id, dto.expected_revision, key),
+      false,
+    );
   }
 }

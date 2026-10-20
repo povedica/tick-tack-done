@@ -251,8 +251,22 @@ export type {
   ReportTone,
   WeeklyNarrative,
 } from './dashboard/kpis';
-export { dayLoad, formatDayLoadLine, formatMinutes, civilDateKey, shiftCivilDate, isBusinessDay, loadStatus } from './planning/day-load';
-export type { DayLoadEvent, DayLoadResult, DayLoadSettings, DayLoadStatus, DayLoadTask } from './planning/day-load';
+export {
+  dayLoad,
+  formatDayLoadLine,
+  formatMinutes,
+  civilDateKey,
+  shiftCivilDate,
+  isBusinessDay,
+  loadStatus,
+} from './planning/day-load';
+export type {
+  DayLoadEvent,
+  DayLoadResult,
+  DayLoadSettings,
+  DayLoadStatus,
+  DayLoadTask,
+} from './planning/day-load';
 export { FEATURE_FLAG_KEYS, featureEnabled, sanitizeFeatureFlags } from './planning/features';
 export type { FeatureFlagKey } from './planning/features';
 export { proposeReplan } from './planning/replan';
@@ -322,3 +336,35 @@ export { formatCaptureReply } from './integrations/capture-reply';
 export type { CaptureReply } from './integrations/capture-reply';
 export { matchTaskByTitle, parseTelegramCommand } from './integrations/telegram';
 export type { TelegramCommand, TelegramTaskRef, TitleMatch } from './integrations/telegram';
+export { canonicalJson } from './ticky/canonical-json';
+export { buildContextSnapshot } from './ticky/context-snapshot';
+export type { ContextSnapshot } from './ticky/context-snapshot';
+export { occupiedIntervals, unionIntervals } from './ticky/free-busy';
+export type { BusyInterval, CalendarFact, SubscriptionFact } from './ticky/free-busy';
+export {
+  actionBlocked,
+  approvalMatches,
+  APP_TITLE_MAX,
+  normalizeProposal,
+  proposalDigest,
+  ProposalError,
+  titleNeedsEdit,
+  validateProposal,
+} from './ticky/proposal';
+export type {
+  ProposalBody,
+  ProposalItem,
+  TaskChanges,
+  TickyReason,
+  TickyTool,
+} from './ticky/proposal';
+export {
+  intersectOwnedLists,
+  legacyGrantsTickyScope,
+  listVisible,
+  projectConstraint,
+  readCapabilities,
+  TICKY_FINE_SCOPES,
+  TICKY_READ_SCOPES,
+} from './ticky/read-policy';
+export type { ReadCapabilities } from './ticky/read-policy';

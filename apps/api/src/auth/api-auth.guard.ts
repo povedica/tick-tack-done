@@ -28,6 +28,8 @@ interface TokenRow {
   readonly ownerId: string;
   readonly scopes: string[];
   readonly lastUsedAt: Date | null;
+  readonly listRestricted: boolean;
+  readonly listIds: string[];
 }
 
 const TOUCH_AFTER_MS = 60_000;
@@ -96,7 +98,13 @@ export class ApiAuthGuard implements CanActivate {
     const user = await this.loadUser(token.ownerId);
     const decision = this.rateLimit.consume(token.id);
     applyRateLimitHeaders(response, decision);
-    request.user = { ...user, scopes: token.scopes, tokenId: token.id, sessionId: null };
+    request.user = {
+      ...user,
+      scopes: token.scopes,
+      tokenId: token.id,
+      sessionId: null,
+      listIds: token.listRestricted ? token.listIds : null,
+    };
     await this.touchLastUsed('token', token.id, token.lastUsedAt);
     const path = requestPath(request);
     if (!decision.allowed) {
@@ -142,12 +150,21 @@ export class ApiAuthGuard implements CanActivate {
         deletedAt: null,
         OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
       },
-      select: { id: true, ownerId: true, scopes: true, lastUsedAt: true },
+      select: {
+        id: true,
+        ownerId: true,
+        scopes: true,
+        lastUsedAt: true,
+        listRestricted: true,
+        listIds: true,
+      },
     });
     return row;
   }
 
-  private async loadUser(id: string): Promise<Omit<AuthUser, 'scopes' | 'tokenId' | 'sessionId'>> {
+  private async loadUser(
+    id: string,
+  ): Promise<Omit<AuthUser, 'scopes' | 'tokenId' | 'sessionId' | 'listIds'>> {
     const user = await this.prisma.user.findFirst({
       where: { id, deletedAt: null },
       select: { id: true, email: true, timeZone: true, taskCompleteChildren: true },
@@ -186,6 +203,7 @@ export class ApiAuthGuard implements CanActivate {
       scopes: [...SESSION_SCOPES],
       tokenId: null,
       sessionId: null,
+      listIds: null,
     };
   }
 
@@ -211,7 +229,13 @@ export class ApiAuthGuard implements CanActivate {
     request.csrfToken = row.csrfToken;
     await this.touchLastUsed('session', row.id, row.lastUsedAt);
     const user = await this.loadUser(row.userId);
-    return { ...user, scopes: [...SESSION_SCOPES], tokenId: null, sessionId: row.id };
+    return {
+      ...user,
+      scopes: [...SESSION_SCOPES],
+      tokenId: null,
+      sessionId: row.id,
+      listIds: null,
+    };
   }
 
   private async touchLastUsed(

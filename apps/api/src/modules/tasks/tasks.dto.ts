@@ -546,6 +546,12 @@ export class TaskResponseDto {
   @ApiProperty({ nullable: true, type: Number })
   duration_minutes!: number | null;
 
+  @ApiProperty({
+    description: 'Monotonic CAS version (>=1). Additive for Ticky expected_version (APP-02a).',
+    minimum: 1,
+  })
+  version!: number;
+
   @ApiProperty()
   is_someday!: boolean;
 

@@ -8,6 +8,8 @@ export interface AuthUser {
   readonly scopes: readonly string[];
   readonly tokenId: string | null;
   readonly sessionId: string | null;
+  /** null = unrestricted (session). PAT list allowlist when list-restricted. */
+  readonly listIds: readonly string[] | null;
 }
 
 export interface EventActor {

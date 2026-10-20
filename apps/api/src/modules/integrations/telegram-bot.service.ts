@@ -1,3 +1,4 @@
+import { createHash, randomBytes } from 'node:crypto';
 import { HttpStatus, Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import {
   afternoonInstant,
@@ -7,7 +8,7 @@ import {
   type TelegramCommand,
 } from '@reflexionia/domain';
 import { type AuthUser } from '../../auth/auth-user.js';
-import { API_SCOPES } from '../../auth/scopes.js';
+import { hashSecret } from '../../auth/session-cookie.js';
 import { DomainEvent } from '../../events/domain-events.js';
 import { EventRecorder } from '../../events/event-recorder.js';
 import { asJson } from '../../http/json.js';
@@ -20,6 +21,15 @@ import { ListsService } from '../lists/lists.service.js';
 import type { CaptureWarning } from '../tasks/quick-add.js';
 import { TasksService, type TaskListQuery } from '../tasks/tasks.service.js';
 import { TelegramApi } from './telegram-api.js';
+
+const TELEGRAM_BOT_SCOPES = [
+  'tasks:read',
+  'tasks:write',
+  'lists:read',
+  'lists:write',
+  'reminders:write',
+] as const;
+const PAIRING_TTL_MS = 10 * 60 * 1000;
 
 const LIST_NAME_MAX = 200;
 export const TELEGRAM_BOT_COMMANDS: readonly { command: string; description: string }[] = [
@@ -68,14 +78,43 @@ export class TelegramBotService implements OnModuleInit {
     }
   }
 
+  async createPairing(user: AuthUser): Promise<{ code: string; expires_at: string }> {
+    const code = randomBytes(16).toString('base64url');
+    const expiresAt = new Date(Date.now() + PAIRING_TTL_MS);
+    await this.prisma.telegramPairing.create({
+      data: {
+        ownerId: user.id,
+        codeHash: hashSecret(code),
+        expiresAt,
+      },
+    });
+    return { code, expires_at: expiresAt.toISOString() };
+  }
+
   async handle(body: unknown): Promise<TelegramOutcome> {
     const incoming = readTelegramUpdate(body);
     if (incoming === null) {
       return { called_telegram: false, action: 'ignored' };
     }
+    const accepted = await this.acceptUpdate(incoming.updateId);
+    if (!accepted) {
+      return { called_telegram: false, action: 'duplicate' };
+    }
+    if (incoming.kind === 'text') {
+      const paired = await this.tryPair(incoming.chatId, incoming.text);
+      if (paired !== null) {
+        await this.send(incoming.chatId, plain(paired));
+        return { called_telegram: true, action: 'paired' };
+      }
+    }
     const user = await this.userFor(incoming.chatId);
     if (user === null) {
-      await this.send(incoming.chatId, plain('Este chat no está vinculado a una cuenta.'));
+      await this.send(
+        incoming.chatId,
+        plain(
+          'Este chat no está vinculado. Genera un código en Ajustes → Integraciones y envía /start <código>.',
+        ),
+      );
       return { called_telegram: true, action: 'unlinked' };
     }
     try {
@@ -106,6 +145,58 @@ export class TelegramBotService implements OnModuleInit {
       }
       return { called_telegram: true, action: 'error' };
     }
+  }
+
+  private async acceptUpdate(updateId: string): Promise<boolean> {
+    try {
+      await this.prisma.telegramUpdateReceipt.create({
+        data: { updateId },
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private async tryPair(chatId: string, text: string): Promise<string | null> {
+    const match = text.trim().match(/^\/start(?:@\w+)?(?:\s+|_)([A-Za-z0-9_-]{16,})$/);
+    if (match === null) {
+      return null;
+    }
+    const code = match[1] ?? '';
+    const row = await this.prisma.telegramPairing.findFirst({
+      where: { codeHash: hashSecret(code), usedAt: null, expiresAt: { gt: new Date() } },
+    });
+    if (row === null) {
+      return 'El código de emparejamiento no es válido o ya se usó.';
+    }
+    await this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.telegramPairing.updateMany({
+        where: { id: row.id, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+      if (claimed.count !== 1) {
+        throw new DomainException(HttpStatus.CONFLICT, 'pairing_used', 'pairing used');
+      }
+      await tx.telegramLink.upsert({
+        where: { chatId },
+        create: { ownerId: row.ownerId, chatId },
+        update: { ownerId: row.ownerId, deletedAt: null },
+      });
+      await this.events.record(
+        tx,
+        { ownerId: row.ownerId, actorId: row.ownerId, actorKind: 'user', tokenId: null },
+        {
+          type: DomainEvent.telegramLinked,
+          entityType: 'telegram_link',
+          entityId: row.ownerId,
+          action: 'created',
+          data: asJson({ chat_id: chatId, bot_configured: true, pairing: true }),
+          previous: null,
+        },
+      );
+    });
+    return 'Chat vinculado. Ya puedes capturar tareas con /capturar.';
   }
 
   private async replyFor(user: AuthUser, text: string, updateId: string): Promise<Reply> {
@@ -317,7 +408,40 @@ export class TelegramBotService implements OnModuleInit {
 
   private async completeButton(user: AuthUser, incoming: TelegramIncoming): Promise<void> {
     const data = incoming.callbackData;
-    const id = data.startsWith('c:') ? data.slice(2) : '';
+    let id = '';
+    if (data.startsWith('t:')) {
+      const token = data.slice(2);
+      const row = await this.prisma.telegramCallback.findFirst({
+        where: {
+          tokenHash: createHash('sha256').update(token).digest('hex'),
+          ownerId: user.id,
+          action: 'complete',
+          usedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+      });
+      if (row === null) {
+        await this.telegram.call('answerCallbackQuery', {
+          callback_query_id: incoming.callbackId,
+          text: 'Ese botón ya no es válido',
+          show_alert: true,
+        });
+        return;
+      }
+      await this.prisma.telegramCallback.update({
+        where: { id: row.id },
+        data: { usedAt: new Date() },
+      });
+      id = row.resourceId;
+    } else if (data.startsWith('c:')) {
+      // Legacy editable callback ids are refused (APP-07a).
+      await this.telegram.call('answerCallbackQuery', {
+        callback_query_id: incoming.callbackId,
+        text: 'Pide de nuevo la lista para usar botones seguros',
+        show_alert: true,
+      });
+      return;
+    }
     if (!TASK_UUID.test(id)) {
       await this.telegram.call('answerCallbackQuery', {
         callback_query_id: incoming.callbackId,
@@ -440,7 +564,7 @@ export class TelegramBotService implements OnModuleInit {
     const title = kind === 'today' ? 'Hoy' : kind === 'tomorrow' ? 'Mañana' : 'Esta semana';
     const path =
       kind === 'today' ? '/today' : kind === 'tomorrow' ? '/smart/tomorrow' : '/calendar/week';
-    return this.checklist(title, rows, await this.projectNames(user.id), true, path);
+    return this.checklist(user.id, title, rows, await this.projectNames(user.id), true, path);
   }
 
   private async projectList(user: AuthUser): Promise<Reply> {
@@ -479,6 +603,7 @@ export class TelegramBotService implements OnModuleInit {
       return plain(`No hay tareas con #${tag.name}.`);
     }
     return this.checklist(
+      user.id,
       `#${tag.name}`,
       rows,
       await this.projectNames(user.id),
@@ -494,6 +619,7 @@ export class TelegramBotService implements OnModuleInit {
       return plain(`No hay tareas con prioridad ${label}.`);
     }
     return this.checklist(
+      user.id,
       `Prioridad ${label}`,
       rows,
       await this.projectNames(user.id),
@@ -515,7 +641,7 @@ export class TelegramBotService implements OnModuleInit {
       return plain(`«${project.name}» no tiene tareas activas.`);
     }
     const path = project.isInbox ? '/inbox' : `/list/${project.id}`;
-    return this.checklist(project.name, rows, new Map(), false, path);
+    return this.checklist(user.id, project.name, rows, new Map(), false, path);
   }
 
   private async dated(
@@ -551,23 +677,48 @@ export class TelegramBotService implements OnModuleInit {
     return new Map(projects.map((row) => [row.id, row.name]));
   }
 
-  private checklist(
+  private async checklist(
+    ownerId: string,
     title: string,
     rows: readonly TaskSummaryJson[],
     names: ReadonlyMap<string, string>,
     withList: boolean,
     path: string,
-  ): Reply {
+  ): Promise<Reply> {
     const lines = rows.map((row, index) => {
       const list = names.get(row.project_id);
       const name = withList && list !== undefined ? `${row.title} — ${list}` : row.title;
       return `${String(index + 1)}. ☐ ${escapeHtml(name)}`;
     });
+    const buttons = await Promise.all(
+      rows.map(async (row) => ({
+        text: `☐ ${row.title}`.slice(0, 64),
+        data: await this.opaqueCallback(ownerId, 'complete', row.id),
+      })),
+    );
     return {
       text: `${escapeHtml(title)}\n${lines.join('\n')}\n\n<a href="${webBase()}${path}">Ver en la app</a>`,
       html: true,
-      buttons: rows.map((row) => ({ text: `☐ ${row.title}`.slice(0, 64), data: `c:${row.id}` })),
+      buttons,
     };
+  }
+
+  private async opaqueCallback(
+    ownerId: string,
+    action: string,
+    resourceId: string,
+  ): Promise<string> {
+    const token = randomBytes(18).toString('base64url');
+    await this.prisma.telegramCallback.create({
+      data: {
+        ownerId,
+        tokenHash: createHash('sha256').update(token).digest('hex'),
+        action,
+        resourceId,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      },
+    });
+    return `t:${token}`;
   }
 
   private async userFor(chatId: string): Promise<AuthUser | null> {
@@ -575,15 +726,11 @@ export class TelegramBotService implements OnModuleInit {
       where: { chatId, deletedAt: null },
       select: { ownerId: true },
     });
-    const ownerId = link?.ownerId ?? (await this.soleOwner());
-    if (ownerId === null) {
+    if (link === null) {
       return null;
     }
-    if (link === null) {
-      await this.remember(ownerId, chatId);
-    }
     const user = await this.prisma.user.findFirst({
-      where: { id: ownerId, deletedAt: null },
+      where: { id: link.ownerId, deletedAt: null },
       select: { id: true, email: true, timeZone: true, taskCompleteChildren: true },
     });
     if (user === null) {
@@ -594,19 +741,11 @@ export class TelegramBotService implements OnModuleInit {
       email: user.email,
       timeZone: user.timeZone,
       completeChildren: user.taskCompleteChildren,
-      scopes: [...API_SCOPES],
+      scopes: [...TELEGRAM_BOT_SCOPES],
       tokenId: null,
       sessionId: null,
+      listIds: null,
     };
-  }
-
-  private async soleOwner(): Promise<string | null> {
-    const rows = await this.prisma.user.findMany({
-      where: { deletedAt: null },
-      select: { id: true },
-      take: 2,
-    });
-    return rows.length === 1 ? (rows[0]?.id ?? null) : null;
   }
 
   private async remember(ownerId: string, chatId: string): Promise<void> {

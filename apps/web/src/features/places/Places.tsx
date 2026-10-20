@@ -1455,7 +1455,10 @@ function highlight(title: string, query: string): ReactNode {
 }
 
 const SETTINGS_GROUPS = [
-  ['groupGeneral', ['/settings/account', '/settings/appearance', '/settings/workday', '/settings/features']],
+  [
+    'groupGeneral',
+    ['/settings/account', '/settings/appearance', '/settings/workday', '/settings/features'],
+  ],
   [
     'groupWork',
     ['/settings/capture', '/settings/notifications', '/settings/smart-lists', '/settings/calendar'],

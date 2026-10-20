@@ -103,7 +103,11 @@ export class DayClosingService {
     const session = await this.requireOpen(user.id, sessionId);
     const queue = await this.queue(user.id, session.plan.localDate, session.plan.timeZone);
     if (!queue.some((task) => task.id === taskId)) {
-      throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_in_plan', 'Task is not in this plan');
+      throw new DomainException(
+        HttpStatus.NOT_FOUND,
+        'task_not_in_plan',
+        'Task is not in this plan',
+      );
     }
     const target = this.targetFor(session.plan.localDate, decision, targetDate);
     await this.prisma.planDecision.upsert({
@@ -143,10 +147,18 @@ export class DayClosingService {
     const pending = session.decisions.filter(
       (decision) => decision.decision !== 'skip' && !done.has(decision.taskId),
     );
-    await this.prisma.planSession.update({ where: { id: session.id }, data: { state: 'applying' } });
+    await this.prisma.planSession.update({
+      where: { id: session.id },
+      data: { state: 'applying' },
+    });
     const applied = [...stored];
     for (const decision of pending) {
-      const effect = await this.applyOne(user, session, decision, `${key.trim()}:${decision.taskId}`);
+      const effect = await this.applyOne(
+        user,
+        session,
+        decision,
+        `${key.trim()}:${decision.taskId}`,
+      );
       applied.push({ task_id: decision.taskId, decision: decision.decision, effect });
       await this.prisma.planOperation.update({
         where: { id: operation.id },
@@ -184,11 +196,15 @@ export class DayClosingService {
     user: AuthUser,
     date: string | undefined,
     autoApply: boolean,
-    overrides: readonly { readonly task_id: string; readonly decision: PlanDecisionKind; readonly target_date?: string | null }[],
+    overrides: readonly {
+      readonly task_id: string;
+      readonly decision: PlanDecisionKind;
+      readonly target_date?: string | null;
+    }[],
     key: string | undefined,
   ): Promise<Record<string, unknown>> {
     const zone = user.timeZone;
-    const local = date ?? (civilDateKey(new Date().toISOString(), zone) ?? '');
+    const local = date ?? civilDateKey(new Date().toISOString(), zone) ?? '';
     const session = await this.startReplan(user, local, zone);
     const id = String(session.id);
     const revision = Number(session.revision);
@@ -318,7 +334,8 @@ export class DayClosingService {
       queue: {
         cards: queue.map((task) => {
           const suggestion = suggestions.find((item) => item.taskId === task.id);
-          const deadline = task.dueDate === null ? null : civilDateKey(task.dueDate.toISOString(), task.timeZone);
+          const deadline =
+            task.dueDate === null ? null : civilDateKey(task.dueDate.toISOString(), task.timeZone);
           return {
             task_id: task.id,
             title: task.title,
@@ -326,7 +343,11 @@ export class DayClosingService {
             deadline,
             project_name: task.project.name,
             suggested: suggestion
-              ? { decision: suggestion.decision, target_date: suggestion.targetDate, reason: suggestion.reason }
+              ? {
+                  decision: suggestion.decision,
+                  target_date: suggestion.targetDate,
+                  reason: suggestion.reason,
+                }
               : null,
             over_deadline: this.overDeadline(task, suggestion?.targetDate ?? null, timeZone),
           };
@@ -401,7 +422,11 @@ export class DayClosingService {
     return 'skipped';
   }
 
-  private async queue(ownerId: string, localDate: string, timeZone: string): Promise<ClosingTask[]> {
+  private async queue(
+    ownerId: string,
+    localDate: string,
+    timeZone: string,
+  ): Promise<ClosingTask[]> {
     const rows = await this.prisma.task.findMany({
       where: {
         ownerId,
@@ -423,8 +448,7 @@ export class DayClosingService {
     timeZone: string,
   ): boolean {
     const zone = task.timeZone.length > 0 ? task.timeZone : timeZone;
-    const when =
-      task.startDate === null ? null : civilDateKey(task.startDate.toISOString(), zone);
+    const when = task.startDate === null ? null : civilDateKey(task.startDate.toISOString(), zone);
     const due = task.dueDate === null ? null : civilDateKey(task.dueDate.toISOString(), zone);
     const start = when ?? due;
     if (start === null) {
@@ -489,7 +513,14 @@ export class DayClosingService {
     return rows.flatMap((row) =>
       row.endsAt === null
         ? []
-        : [{ id: row.id, startsAt: row.startsAt.toISOString(), endsAt: row.endsAt.toISOString(), isAllDay: row.isAllDay }],
+        : [
+            {
+              id: row.id,
+              startsAt: row.startsAt.toISOString(),
+              endsAt: row.endsAt.toISOString(),
+              isAllDay: row.isAllDay,
+            },
+          ],
     );
   }
 
@@ -503,7 +534,9 @@ export class DayClosingService {
     const occupancy: Record<string, DayOccupancy> = {};
     for (let offset = 1; offset <= 7; offset += 1) {
       const date = shiftCivilDate(today, offset);
-      const tasks = (await this.queue(ownerId, date, timeZone)).filter((task) => !movingIds.has(task.id));
+      const tasks = (await this.queue(ownerId, date, timeZone)).filter(
+        (task) => !movingIds.has(task.id),
+      );
       occupancy[date] = {
         tasks: tasks.map((task) => ({
           id: task.id,
@@ -729,7 +762,11 @@ export class DayClosingService {
       return null;
     }
     if (targetDate !== null && !DATE.test(targetDate)) {
-      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'target_date is invalid');
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'target_date is invalid',
+      );
     }
     return targetDate ?? (decision === 'plan_day' ? shiftCivilDate(localDate, 1) : null);
   }
@@ -754,7 +791,11 @@ export class DayClosingService {
       if (closed?.sessionId === session.id && closed.status === 'applied') {
         return closed;
       }
-      throw new DomainException(HttpStatus.CONFLICT, 'plan_closed', 'This session is already closed');
+      throw new DomainException(
+        HttpStatus.CONFLICT,
+        'plan_closed',
+        'This session is already closed',
+      );
     }
     if (session.revision !== expectedRevision) {
       throw new DomainException(HttpStatus.CONFLICT, 'revision_conflict', 'The session changed', {
@@ -806,7 +847,11 @@ export class DayClosingService {
       include: { decisions: true, plan: true },
     });
     if (session === null) {
-      throw new DomainException(HttpStatus.NOT_FOUND, 'plan_not_found', 'Plan session was not found');
+      throw new DomainException(
+        HttpStatus.NOT_FOUND,
+        'plan_not_found',
+        'Plan session was not found',
+      );
     }
     return session;
   }
@@ -814,7 +859,11 @@ export class DayClosingService {
   private async requireOpen(ownerId: string, id: string): Promise<SessionRow> {
     const session = await this.owned(ownerId, id);
     if (session.state !== 'draft') {
-      throw new DomainException(HttpStatus.CONFLICT, 'plan_closed', 'This session is already closed');
+      throw new DomainException(
+        HttpStatus.CONFLICT,
+        'plan_closed',
+        'This session is already closed',
+      );
     }
     return session;
   }
@@ -829,13 +878,21 @@ export class DayClosingService {
 
   private assertDate(value: string): void {
     if (!DATE.test(value)) {
-      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'date must be YYYY-MM-DD');
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'date must be YYYY-MM-DD',
+      );
     }
   }
 
   private assertZone(value: string): void {
     if (value.trim().length === 0) {
-      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'time_zone is required');
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'time_zone is required',
+      );
     }
   }
 }

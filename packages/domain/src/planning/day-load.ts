@@ -152,11 +152,7 @@ interface Window {
   readonly availableMinutes: number;
 }
 
-function workWindow(
-  date: string,
-  timeZone: string,
-  settings: DayLoadSettings,
-): Window | null {
+function workWindow(date: string, timeZone: string, settings: DayLoadSettings): Window | null {
   if (settings.workDayStart === null || settings.workDayEnd === null) {
     return null;
   }

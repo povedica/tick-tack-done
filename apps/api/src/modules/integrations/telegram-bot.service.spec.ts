@@ -9,6 +9,9 @@ describe('TelegramBotService', () => {
     const createTask = vi.fn();
     const send = vi.fn(() => Promise.resolve({}));
     const prisma = {
+      telegramUpdateReceipt: {
+        create: vi.fn(() => Promise.resolve({})),
+      },
       telegramLink: {
         findFirst: vi.fn(() => Promise.resolve({ ownerId: 'owner' })),
       },
@@ -74,6 +77,9 @@ describe('TelegramBotService', () => {
     );
     const send = vi.fn((_method: string, body: { text: string }) => Promise.resolve(body));
     const prisma = {
+      telegramUpdateReceipt: {
+        create: vi.fn(() => Promise.resolve({})),
+      },
       telegramLink: {
         findFirst: vi.fn(() => Promise.resolve({ ownerId: 'owner' })),
       },
@@ -125,5 +131,39 @@ describe('TelegramBotService', () => {
     expect(sent?.text).toContain('#cole');
     expect(sent?.text).toContain('Bandeja de entrada');
     expect(sent?.text).toContain('Etiqueta creada: cole.');
+  });
+
+  it('APP-07a: unlinked chats are not auto-bound to the sole owner', async () => {
+    const send = vi.fn(() => Promise.resolve({}));
+    const prisma = {
+      telegramUpdateReceipt: {
+        create: vi.fn(() => Promise.resolve({})),
+      },
+      telegramLink: {
+        findFirst: vi.fn(() => Promise.resolve(null)),
+      },
+      user: {
+        findMany: vi.fn(() => Promise.resolve([{ id: 'only' }])),
+      },
+    };
+    const service = new TelegramBotService(
+      prisma as never,
+      { record: vi.fn() },
+      { create: vi.fn() } as never,
+      { createProject: vi.fn() } as never,
+      { call: send } as never,
+    );
+    const outcome = await service.handle({
+      update_id: 99,
+      message: { message_id: 1, chat: { id: 55 }, text: 'hola' },
+    });
+    expect(outcome.action).toBe('unlinked');
+    expect(prisma.user.findMany).not.toHaveBeenCalled();
+    expect(send).toHaveBeenCalledWith(
+      'sendMessage',
+      expect.objectContaining({
+        text: expect.stringContaining('código'),
+      }),
+    );
   });
 });

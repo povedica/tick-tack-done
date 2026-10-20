@@ -713,6 +713,7 @@ export class GoogleSyncService {
       scopes: ['calendar:read', 'calendar:write'],
       tokenId: null,
       sessionId: null,
+      listIds: null,
     };
   }
 

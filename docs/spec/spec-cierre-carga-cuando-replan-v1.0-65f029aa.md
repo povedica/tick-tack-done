@@ -145,6 +145,7 @@ La duración ya existe en el modelo (`Task.durationMinutes`) y en el panel de de
   ```
 
   Reglas: `availableMinutes = workDayEnd − workDayStart` (jornada null → `availableMinutes = null` y proyección desactivada). Eventos de todo el día cuentan 0; eventos con hora cuentan solo su **solape con la jornada**. Tareas: activas del día (RF-2641), cada una cuenta `durationMinutes ?? defaultTaskDuration`; las `eveningOnly` y las de Algún día no cuentan; las de todo el día sin duración también cuentan el defecto. `status`: `≤ 0,85` ok; `≤ 1,0` tight; `> 1,0` overload.
+
 - **RF-2641** — Endpoint `GET /api/v1/planning/load?date=YYYY-MM-DD&time_zone=...` (scope `tasks:read`): tareas del día = activas con cuándo ≤ fecha ≤ límite (o límite null) **o** miembros del plan de esa fecha **o** límite = fecha; eventos = `ExternalEvent` visibles del día. Devuelve el desglose de RF-2640. Sin caché en BD (volumen: decenas de tareas/día, un usuario).
 - **RF-2642** — Hoy, cabecera de la sección de plan: chip `3 h 30 min de 9 h · bien / justo / no cabe` (verde/ámbar/rojo). En `overload`, el chip enlaza a replanificar (RF-2671) con texto `No cabe: sobran 45 min`. Si hay tareas sin estimar, tooltip `N sin duración (cuentan 30 min)`.
 - **RF-2643** — Wizard de planificación: cabecera con la carga resultante recalculada en vivo al decidir cada tarjeta; aviso ámbar al pasar de tight y rojo al pasar de 100 %.
@@ -301,12 +302,20 @@ Todo lo de esta entrega trabaja en fecha civil del usuario (`settings.timezone`,
   "kind": "shutdown",
   "revision": 1,
   "review": {
-    "done_today": [{ "id": "…", "title": "Preparar la comida", "completed_at": "2026-10-20T13:40:00+02:00" }],
+    "done_today": [
+      { "id": "…", "title": "Preparar la comida", "completed_at": "2026-10-20T13:40:00+02:00" }
+    ],
     "focus_minutes": 50
   },
   "queue": {
     "cards": [
-      { "task_id": "…", "title": "Enviar el informe", "priority": "high", "deadline": "2026-10-21", "suggested": { "decision": "plan_day", "target_date": "2026-10-21" } }
+      {
+        "task_id": "…",
+        "title": "Enviar el informe",
+        "priority": "high",
+        "deadline": "2026-10-21",
+        "suggested": { "decision": "plan_day", "target_date": "2026-10-21" }
+      }
     ]
   }
 }

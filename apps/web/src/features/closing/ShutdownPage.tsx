@@ -17,7 +17,10 @@ export function ShutdownPage({ kind }: { readonly kind: 'shutdown' | 'replan' })
   }).format(new Date());
 
   useEffect(() => {
-    const path = kind === 'shutdown' ? '/api/v1/planning/shutdown/sessions' : '/api/v1/planning/replan/sessions';
+    const path =
+      kind === 'shutdown'
+        ? '/api/v1/planning/shutdown/sessions'
+        : '/api/v1/planning/replan/sessions';
     void closingRequest<ClosingSession>(path, 'POST', { local_date: today, time_zone: zone })
       .then(setSession)
       .catch((reason: unknown) => {
@@ -63,12 +66,13 @@ export function ShutdownPage({ kind }: { readonly kind: 'shutdown' | 'replan' })
         <>
           {kind === 'shutdown' ? (
             <p>
-              {messages.doneToday}: {session?.review?.done_today.length ?? 0}. {messages.focusMinutes}:{' '}
-              {session?.review?.focus_minutes ?? 0}
+              {messages.doneToday}: {session?.review?.done_today.length ?? 0}.{' '}
+              {messages.focusMinutes}: {session?.review?.focus_minutes ?? 0}
             </p>
           ) : (
             <p>
-              {messages.loadBefore}: {session?.load?.today.status ?? '…'} → {session?.load?.tomorrow.status ?? '…'}
+              {messages.loadBefore}: {session?.load?.today.status ?? '…'} →{' '}
+              {session?.load?.tomorrow.status ?? '…'}
             </p>
           )}
           {cards.length === 0 ? <p>{messages.dayClosedEmpty}</p> : null}
@@ -76,7 +80,9 @@ export function ShutdownPage({ kind }: { readonly kind: 'shutdown' | 'replan' })
             {cards.map((card) => (
               <li key={card.task_id}>
                 <strong>{card.title}</strong>
-                {card.suggested?.reason !== undefined ? <span> — {card.suggested.reason}</span> : null}
+                {card.suggested?.reason !== undefined ? (
+                  <span> — {card.suggested.reason}</span>
+                ) : null}
                 <div>
                   <button type="button" onClick={() => void choose(card.task_id, 'done', null)}>
                     {messages.decisionDone}

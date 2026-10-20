@@ -1,7 +1,12 @@
 import { Controller, Get, Inject, Req, Res } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
-import { proposeDaily, proposeWeekly, type ReviewCandidate } from '@reflexionia/domain';
+import {
+  projectConstraint,
+  proposeDaily,
+  proposeWeekly,
+  type ReviewCandidate,
+} from '@reflexionia/domain';
 import type { AuthUser } from '../../auth/auth-user.js';
 import { CurrentUser } from '../../auth/current-user.decorator.js';
 import { Scopes } from '../../auth/scopes.decorator.js';
@@ -22,7 +27,7 @@ export class ReviewController {
     @Res() res: Response,
   ): Promise<void> {
     const now = new Date();
-    const tasks = await this.candidates(user.id);
+    const tasks = await this.candidates(user);
     const proposal = proposeDaily(tasks, now.toISOString(), null, {
       now: now.toISOString(),
       timeZone: user.timeZone,
@@ -45,15 +50,18 @@ export class ReviewController {
     @Res() res: Response,
   ): Promise<void> {
     const now = new Date();
-    const tasks = await this.candidates(user.id);
-    const habits = await this.prisma.habit.findMany({
-      where: { ownerId: user.id, deletedAt: null, archived: false },
-      select: {
-        id: true,
-        name: true,
-        logs: { where: { deletedAt: null }, select: { date: true, count: true } },
-      },
-    });
+    const tasks = await this.candidates(user);
+    const canReadHabits = user.scopes.includes('habits:read');
+    const habits = canReadHabits
+      ? await this.prisma.habit.findMany({
+          where: { ownerId: user.id, deletedAt: null, archived: false },
+          select: {
+            id: true,
+            name: true,
+            logs: { where: { deletedAt: null }, select: { date: true, count: true } },
+          },
+        })
+      : [];
     const habitRows = habits.map((habit) => ({
       id: habit.id,
       name: habit.name,
@@ -68,6 +76,12 @@ export class ReviewController {
       200,
       {
         ...review,
+        habits_scope: canReadHabits ? 'granted' : 'missing',
+        habits: canReadHabits
+          ? habitRows
+              .filter((habit) => review.habits_at_risk.includes(habit.id))
+              .map((habit) => ({ id: habit.id, name: habit.name }))
+          : null,
         tasks: tasks
           .filter((task) => wanted.has(task.id))
           .map((task) => ({
@@ -79,17 +93,20 @@ export class ReviewController {
             status: task.status,
           })),
         lists: review.stale_list_ids.map((id) => ({ id, name: names.get(id) ?? id })),
-        habits: habitRows
-          .filter((habit) => review.habits_at_risk.includes(habit.id))
-          .map((habit) => ({ id: habit.id, name: habit.name })),
       },
       false,
     );
   }
 
-  private async candidates(ownerId: string): Promise<ReviewCandidate[]> {
+  private async candidates(user: AuthUser): Promise<ReviewCandidate[]> {
+    const listFilter = projectConstraint(user.listIds);
     const rows = await this.prisma.task.findMany({
-      where: { ownerId, deletedAt: null },
+      where: {
+        ownerId: user.id,
+        deletedAt: null,
+        ...(listFilter.projectId === undefined ? {} : { projectId: listFilter.projectId }),
+        ...(listFilter.id === undefined ? {} : { id: listFilter.id }),
+      },
       include: {
         tags: { select: { tag: { select: { name: true } } } },
         project: { select: { name: true } },

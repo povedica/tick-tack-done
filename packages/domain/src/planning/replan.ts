@@ -97,16 +97,16 @@ function firstFit(
     }
     const load = projected(input, date, placed, task);
     if (load.status !== 'overload') {
-      return place(
-        task,
-        date,
-        placed,
-        `Mañana no cabe. El primer hueco laborable es el ${date}.`,
-      );
+      return place(task, date, placed, `Mañana no cabe. El primer hueco laborable es el ${date}.`);
     }
   }
   const fallback = shiftCivilDate(input.today, 7);
-  return place(task, fallback, placed, 'Ningún día de la próxima semana queda por debajo del 100 %.');
+  return place(
+    task,
+    fallback,
+    placed,
+    'Ningún día de la próxima semana queda por debajo del 100 %.',
+  );
 }
 
 function place(

@@ -98,10 +98,7 @@ describe('day closing, load and someday', () => {
     expect(load.body.available_minutes).toBe(540);
     expect(load.body.status).toBe('ok');
 
-    await api()
-      .patch('/api/v1/me')
-      .send({ work_day_start: null, work_day_end: null })
-      .expect(200);
+    await api().patch('/api/v1/me').send({ work_day_start: null, work_day_end: null }).expect(200);
     const off = await api()
       .get(`/api/v1/planning/load?date=${localDate}&time_zone=${encodeURIComponent(ZONE)}`)
       .expect(200);
@@ -115,17 +112,14 @@ describe('day closing, load and someday', () => {
   });
 
   it('RF-2610: rejects a deadline before when with 422', async () => {
-    const response = await api()
-      .post('/api/v1/tasks')
-      .set('Idempotency-Key', randomUUID())
-      .send({
-        project_id: owner.inboxId,
-        title: 'Informe',
-        start_date: DAY_LATER,
-        due_date: DAY,
-        is_all_day: true,
-        time_zone: ZONE,
-      });
+    const response = await api().post('/api/v1/tasks').set('Idempotency-Key', randomUUID()).send({
+      project_id: owner.inboxId,
+      title: 'Informe',
+      start_date: DAY_LATER,
+      due_date: DAY,
+      is_all_day: true,
+      time_zone: ZONE,
+    });
     expect(response.status).toBe(422);
     expect(response.body.error.code).toBe('deadline_before_when');
   });
@@ -174,9 +168,11 @@ describe('day closing, load and someday', () => {
       .send({ local_date: '2026-10-20', time_zone: ZONE })
       .expect(201);
     expect(session.body.kind).toBe('shutdown');
-    expect(session.body.queue.cards.some((card: { task_id: string }) => card.task_id === created.body.id)).toBe(
-      true,
-    );
+    expect(
+      session.body.queue.cards.some(
+        (card: { task_id: string }) => card.task_id === created.body.id,
+      ),
+    ).toBe(true);
 
     const decided = await api()
       .put(`/api/v1/planning/shutdown/sessions/${session.body.id}/decisions/${created.body.id}`)

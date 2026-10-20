@@ -56,7 +56,11 @@ export function WorkdaySettings() {
         >
           <label>
             {messages.workdayStart}
-            <input name="work_day_start" defaultValue={data.work_day_start ?? ''} placeholder="09:00" />
+            <input
+              name="work_day_start"
+              defaultValue={data.work_day_start ?? ''}
+              placeholder="09:00"
+            />
           </label>
           <p>{messages.workdayStartHelp}</p>
           <label>
@@ -77,7 +81,13 @@ export function WorkdaySettings() {
           <p>{messages.defaultDurationHelp}</p>
           <label>
             {messages.deadlineSoon}
-            <input name="deadline_soon_days" type="number" min={1} max={14} defaultValue={data.deadline_soon_days} />
+            <input
+              name="deadline_soon_days"
+              type="number"
+              min={1}
+              max={14}
+              defaultValue={data.deadline_soon_days}
+            />
           </label>
           <p>{messages.deadlineSoonHelp}</p>
           <label>
@@ -87,7 +97,11 @@ export function WorkdaySettings() {
           <p>{messages.eveningStartHelp}</p>
           <label>
             {messages.shutdownTime}
-            <input name="shutdown_reminder_time" defaultValue={data.shutdown_reminder_time ?? ''} placeholder="21:30" />
+            <input
+              name="shutdown_reminder_time"
+              defaultValue={data.shutdown_reminder_time ?? ''}
+              placeholder="21:30"
+            />
           </label>
           <p>{messages.shutdownTimeHelp}</p>
           <button type="submit">{messages.repeatSave}</button>

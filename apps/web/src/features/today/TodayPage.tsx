@@ -751,7 +751,11 @@ export function TodayPage() {
                   )
               )}
               {load.data.unestimated_count > 0 ? (
-                <span title={messages.loadUnestimated.replace('{count}', String(load.data.unestimated_count)).replace('{minutes}', '30')}>
+                <span
+                  title={messages.loadUnestimated
+                    .replace('{count}', String(load.data.unestimated_count))
+                    .replace('{minutes}', '30')}
+                >
                   {' '}
                   · {load.data.unestimated_count}
                 </span>
@@ -762,7 +766,9 @@ export function TodayPage() {
             {showClosing ? (
               <Link to="/cierre">
                 {messages.closeDay}
-                {eveningTasks.length + parts.today.filter((task) => task.eveningOnly !== true).length > 0
+                {eveningTasks.length +
+                  parts.today.filter((task) => task.eveningOnly !== true).length >
+                0
                   ? ` (${String(parts.today.filter((task) => task.eveningOnly !== true).length)})`
                   : ''}
               </Link>
@@ -842,9 +848,7 @@ export function TodayPage() {
           {showWhen && eveningTasks.length > 0 ? (
             <section className="plan">
               <h2>{messages.eveningTitle}</h2>
-              <p>
-                {messages.eveningHint.replace('18:00', profile?.evening_start ?? '18:00')}
-              </p>
+              <p>{messages.eveningHint.replace('18:00', profile?.evening_start ?? '18:00')}</p>
               <TaskGroup {...groupProps('evening', eveningTasks)} />
             </section>
           ) : null}

@@ -7,6 +7,10 @@ export const ACCOUNT_ADMIN_SCOPE = 'account:admin';
 export const API_SCOPES = [
   'tasks:read',
   'tasks:write',
+  'tasks:create',
+  'tasks:update',
+  'tasks:complete',
+  'tasks:trash',
   'lists:read',
   'lists:write',
   'tags:read',
@@ -19,17 +23,32 @@ export const API_SCOPES = [
   'countdowns:write',
   'focus:read',
   'focus:write',
+  'focus:start',
+  'focus:stop',
   'notes:read',
   'notes:write',
   'calendar:read',
   'calendar:write',
   'reminders:write',
+  'notifications:self:write',
+  'ticky:proposals:read',
+  'ticky:proposals:write',
+  'ticky:routines:read',
+  'ticky:routines:write',
   'webhooks:manage',
   'automations:manage',
   'profile:read',
   'profile:write',
   'backup:read',
 ] as const;
+
+/**
+ * Legacy coarse scopes do not grant Ticky fine action scopes.
+ * `tasks:write` still satisfies ordinary task write routes via explicit route scopes.
+ */
+export const LEGACY_SCOPE_ALIASES: Readonly<Record<string, readonly string[]>> = {
+  'focus:write': ['focus:read', 'focus:write'],
+};
 
 export type ApiScope = (typeof API_SCOPES)[number];
 

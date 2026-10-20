@@ -275,10 +275,11 @@ export class ReportsController {
     const moved = sessions.reduce(
       (sum, session) =>
         sum +
-        session.decisions.filter((decision) =>
-          decision.decision === 'plan_day' ||
-          decision.decision === 'later' ||
-          decision.decision === 'someday',
+        session.decisions.filter(
+          (decision) =>
+            decision.decision === 'plan_day' ||
+            decision.decision === 'later' ||
+            decision.decision === 'someday',
         ).length,
       0,
     );

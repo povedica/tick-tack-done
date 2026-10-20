@@ -4761,6 +4761,630 @@
         "security": []
       }
     },
+    "/api/v1/ticky/flags": {
+      "get": {
+        "operationId": "TickyController_flags",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Ticky feature flags (all off by default)",
+        "tags": [
+          "ticky"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ticky/capabilities": {
+      "get": {
+        "operationId": "TickyController_capabilities",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Closed read_capabilities.proposed.v1 for the Ticky reader (APP-02)",
+        "tags": [
+          "ticky"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ticky/authority": {
+      "patch": {
+        "operationId": "TickyController_updateAuthority",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTickyAuthorityDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Update Ticky authority (own lists only; APP-02)",
+        "tags": [
+          "ticky"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ticky/reader": {
+      "post": {
+        "operationId": "TickyController_issueReader",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Issue a list-restricted read-only PAT for the Python reader",
+        "tags": [
+          "ticky"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ticky/context": {
+      "get": {
+        "operationId": "TickyController_context",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Build a ContextSnapshot for planning (APP-05)",
+        "tags": [
+          "ticky"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ticky/threads": {
+      "post": {
+        "operationId": "TickyController_openThread",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Open a Ticky chat thread (APP-03)",
+        "tags": [
+          "ticky"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "get": {
+        "operationId": "TickyController_listThreads",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "List Ticky chat threads",
+        "tags": [
+          "ticky"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ticky/threads/{id}": {
+      "delete": {
+        "operationId": "TickyController_deleteThread",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Soft-delete a thread (does not delete tasks/memories)",
+        "tags": [
+          "ticky"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ticky/threads/{id}/messages": {
+      "post": {
+        "operationId": "TickyController_postMessage",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostTickyMessageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Post a chat message (idempotent client_message_id)",
+        "tags": [
+          "ticky"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ticky/runs/{id}/events": {
+      "get": {
+        "operationId": "TickyController_runEvents",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Proxy async run events (SSE; APP-03)",
+        "tags": [
+          "ticky"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ticky/runs/{id}/cancel": {
+      "post": {
+        "operationId": "TickyController_cancelRun",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Cancel a run (does not undo domain effects)",
+        "tags": [
+          "ticky"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ticky/proposals": {
+      "post": {
+        "operationId": "TickyController_storeProposal",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StoreProposalDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Store an immutable proposal document",
+        "tags": [
+          "ticky"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ticky/proposals/{id}/approve": {
+      "post": {
+        "operationId": "TickyController_approve",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveProposalDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Approve a subset of proposal actions (APP-04)",
+        "tags": [
+          "ticky"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ticky/actions/{id}": {
+      "get": {
+        "operationId": "TickyController_actionStatus",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Ledger status for an action_id (uncertain delivery)",
+        "tags": [
+          "ticky"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ticky/memories": {
+      "get": {
+        "operationId": "TickyController_listMemories",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "List remembered preferences (APP-08)",
+        "tags": [
+          "ticky"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "TickyController_remember",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMemoryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Store a memory entry",
+        "tags": [
+          "ticky"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ticky/memories/{id}": {
+      "delete": {
+        "operationId": "TickyController_forgetMemory",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Forget a memory (soft)",
+        "tags": [
+          "ticky"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ticky/routines": {
+      "get": {
+        "operationId": "TickyController_listRoutines",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "List shadow routines (paused by default; APP-08)",
+        "tags": [
+          "ticky"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/sync": {
       "get": {
         "operationId": "SyncController_delta",
@@ -7356,6 +7980,26 @@
         ]
       }
     },
+    "/api/v1/integrations/telegram/pairing": {
+      "post": {
+        "operationId": "IntegrationsController_pairing",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Issue a one-time pairing code. Send /start <code> in Telegram (APP-07a). Does not accept raw chat_id.",
+        "tags": [
+          "integrations"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/integrations/telegram/link": {
       "post": {
         "operationId": "IntegrationsController_link",
@@ -7375,7 +8019,7 @@
             "description": ""
           }
         },
-        "summary": "Remember a chat id so the bot can act as this user (RF-2003).",
+        "summary": "Deprecated: linking by raw chat_id is refused. Use POST /integrations/telegram/pairing (APP-07a).",
         "tags": [
           "integrations"
         ],
@@ -8309,6 +8953,10 @@
               "enum": [
                 "tasks:read",
                 "tasks:write",
+                "tasks:create",
+                "tasks:update",
+                "tasks:complete",
+                "tasks:trash",
                 "lists:read",
                 "lists:write",
                 "tags:read",
@@ -8321,11 +8969,18 @@
                 "countdowns:write",
                 "focus:read",
                 "focus:write",
+                "focus:start",
+                "focus:stop",
                 "notes:read",
                 "notes:write",
                 "calendar:read",
                 "calendar:write",
                 "reminders:write",
+                "notifications:self:write",
+                "ticky:proposals:read",
+                "ticky:proposals:write",
+                "ticky:routines:read",
+                "ticky:routines:write",
                 "webhooks:manage",
                 "automations:manage",
                 "profile:read",
@@ -10935,6 +11590,11 @@
             "type": "number",
             "nullable": true
           },
+          "version": {
+            "type": "number",
+            "description": "Monotonic CAS version (>=1). Additive for Ticky expected_version (APP-02a).",
+            "minimum": 1
+          },
           "is_someday": {
             "type": "boolean"
           },
@@ -11008,6 +11668,7 @@
           "due_date",
           "time_zone",
           "duration_minutes",
+          "version",
           "is_someday",
           "evening_only",
           "repeat_rule",
@@ -11297,6 +11958,11 @@
             "type": "number",
             "nullable": true
           },
+          "version": {
+            "type": "number",
+            "description": "Monotonic CAS version (>=1). Additive for Ticky expected_version (APP-02a).",
+            "minimum": 1
+          },
           "is_someday": {
             "type": "boolean"
           },
@@ -11376,6 +12042,7 @@
           "due_date",
           "time_zone",
           "duration_minutes",
+          "version",
           "is_someday",
           "evening_only",
           "repeat_rule",
@@ -11683,6 +12350,109 @@
             "type": "boolean"
           }
         }
+      },
+      "UpdateTickyAuthorityDto": {
+        "type": "object",
+        "properties": {
+          "list_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "autonomy": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2
+          },
+          "paused": {
+            "type": "boolean"
+          },
+          "revoked": {
+            "type": "boolean"
+          },
+          "inbox_list_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "action_scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "workday_start": {
+            "type": "string",
+            "nullable": true
+          },
+          "workday_end": {
+            "type": "string",
+            "nullable": true
+          },
+          "estimate_learning_enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PostTickyMessageDto": {
+        "type": "object",
+        "properties": {
+          "client_message_id": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_message_id",
+          "text"
+        ]
+      },
+      "StoreProposalDto": {
+        "type": "object",
+        "properties": {
+          "document": {
+            "type": "string",
+            "description": "Immutable proposal JSON document (stringified schema body)."
+          }
+        },
+        "required": [
+          "document"
+        ]
+      },
+      "ApproveProposalDto": {
+        "type": "object",
+        "properties": {
+          "digest": {
+            "type": "string"
+          },
+          "selected_actions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "digest",
+          "selected_actions"
+        ]
+      },
+      "CreateMemoryDto": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "source_message_id": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "body"
+        ]
       },
       "RestoreBackupDto": {
         "type": "object",

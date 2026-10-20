@@ -129,32 +129,37 @@ export class IntegrationsController {
     res.status(204).end();
   }
 
-  @Post('telegram/link')
+  @Post('telegram/pairing')
   @Scopes('profile:write')
-  @ApiOperation({ summary: 'Remember a chat id so the bot can act as this user (RF-2003).' })
-  async link(
+  @ApiOperation({
+    summary:
+      'Issue a one-time pairing code. Send /start <code> in Telegram (APP-07a). Does not accept raw chat_id.',
+  })
+  async pairing(
     @CurrentUser() user: AuthUser,
-    @Body() dto: LinkDto,
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    const row = await this.prisma.$transaction(async (tx) => {
-      const saved = await tx.telegramLink.upsert({
-        where: { chatId: dto.chat_id },
-        create: { ownerId: user.id, chatId: dto.chat_id },
-        update: { ownerId: user.id, deletedAt: null },
-      });
-      await this.events.record(tx, actorOf(user), {
-        type: DomainEvent.telegramLinked,
-        entityType: 'telegram_link',
-        entityId: saved.id,
-        action: 'created',
-        data: asJson({ chat_id: dto.chat_id, bot_configured: telegramConfigured() }),
-        previous: null,
-      });
-      return saved;
-    });
-    respondJson(req, res, 201, { id: row.id, configured: telegramConfigured() }, false);
+    respondJson(req, res, 201, await this.telegram.createPairing(user), false);
+  }
+
+  @Post('telegram/link')
+  @Scopes('profile:write')
+  @ApiOperation({
+    summary:
+      'Deprecated: linking by raw chat_id is refused. Use POST /integrations/telegram/pairing (APP-07a).',
+  })
+  link(
+    @CurrentUser() _user: AuthUser,
+    @Body() _dto: LinkDto,
+    @Req() _req: Request,
+    @Res() _res: Response,
+  ): void {
+    throw new DomainException(
+      HttpStatus.GONE,
+      'telegram_pairing_required',
+      'Vincula el chat con un código de un solo uso desde Ajustes. No se acepta chat_id directo.',
+    );
   }
 
   @Post('telegram/webhook')

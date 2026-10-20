@@ -110,7 +110,11 @@ export function Sidebar({
   const navLists = lists.filter(
     (item) => item.enabled && item.key !== 'trash' && item.key !== 'completed',
   );
-  if (showSomeday && someday?.enabled === true && !navLists.some((item) => item.key === 'someday')) {
+  if (
+    showSomeday &&
+    someday?.enabled === true &&
+    !navLists.some((item) => item.key === 'someday')
+  ) {
     const afterDates = navLists.findIndex((item) => item.key === 'next_7_days');
     navLists.splice(afterDates + 1, 0, someday);
   }
@@ -189,40 +193,40 @@ export function Sidebar({
         <p className="nav-section">{messages.smartListsTitle}</p>
         <ul className="nav-list">
           {navLists.map((item) => (
-              <li
-                key={item.id}
-                onDragOver={allowTaskDrop}
-                onDrop={(event) => {
-                  const id = taskDragId(event.dataTransfer);
-                  if (id === null || (item.key !== 'today' && item.key !== 'tomorrow')) {
-                    return;
-                  }
-                  event.preventDefault();
-                  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-                  const today = calendarDay(new Date().toISOString(), zone);
-                  const due = zonedWallTime(
-                    shiftDayKey(today, item.key === 'today' ? 0 : 1),
-                    0,
-                    0,
-                    zone,
-                  );
-                  if (due === null) {
-                    return;
-                  }
-                  void api
-                    .patchTask(id, { due_date: due, is_all_day: true, time_zone: zone })
-                    .then(() => {
-                      void refreshTaskSurfaces(queryClient);
-                    });
-                }}
-              >
-                <SideLink to={smartPath(item.key)} onNavigate={onNavigate}>
-                  <SmartIcon name={item.key} />
-                  <span className="nav-label">{smartLabel(messages, item.key)}</span>
-                  {showCounters ? <Badge value={item.task_count} /> : null}
-                </SideLink>
-              </li>
-            ))}
+            <li
+              key={item.id}
+              onDragOver={allowTaskDrop}
+              onDrop={(event) => {
+                const id = taskDragId(event.dataTransfer);
+                if (id === null || (item.key !== 'today' && item.key !== 'tomorrow')) {
+                  return;
+                }
+                event.preventDefault();
+                const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                const today = calendarDay(new Date().toISOString(), zone);
+                const due = zonedWallTime(
+                  shiftDayKey(today, item.key === 'today' ? 0 : 1),
+                  0,
+                  0,
+                  zone,
+                );
+                if (due === null) {
+                  return;
+                }
+                void api
+                  .patchTask(id, { due_date: due, is_all_day: true, time_zone: zone })
+                  .then(() => {
+                    void refreshTaskSurfaces(queryClient);
+                  });
+              }}
+            >
+              <SideLink to={smartPath(item.key)} onNavigate={onNavigate}>
+                <SmartIcon name={item.key} />
+                <span className="nav-label">{smartLabel(messages, item.key)}</span>
+                {showCounters ? <Badge value={item.task_count} /> : null}
+              </SideLink>
+            </li>
+          ))}
         </ul>
         <SectionHead title={messages.filtersTitle}>
           <Link
