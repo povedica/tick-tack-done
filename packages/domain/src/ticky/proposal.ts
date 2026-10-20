@@ -1,8 +1,7 @@
 import { subtle, utf8 } from '../crypto/web';
 import { canonicalJson } from './canonical-json';
 
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const TOOLS = ['tasks.update', 'tasks.complete', 'tasks.create', 'tasks.trash'] as const;
 const REASONS = ['USER_REQUEST', 'DAILY_PLAN', 'CAPTURE'] as const;
 const CHANGE_KEYS = ['title', 'due_at', 'completed', 'project_id', 'trashed'] as const;
@@ -128,11 +127,17 @@ function validateShape(body: ProposalBody): void {
   }
 }
 
-export function actionBlocked(item: ProposalItem): 'side_effects_undescribed' | 'title_needs_edit' | null {
+export function actionBlocked(
+  item: ProposalItem,
+): 'side_effects_undescribed' | 'title_needs_edit' | null {
   if (item.tool === 'tasks.complete' || item.tool === 'tasks.trash') {
     return 'side_effects_undescribed';
   }
-  if (item.after.title !== undefined && item.after.title !== null && titleNeedsEdit(item.after.title)) {
+  if (
+    item.after.title !== undefined &&
+    item.after.title !== null &&
+    titleNeedsEdit(item.after.title)
+  ) {
     return 'title_needs_edit';
   }
   return null;
@@ -156,7 +161,10 @@ export async function approvalMatches(
   if (ownerId !== body.owner_id || approval.owner_id !== ownerId) {
     throw new ProposalError('owner_mismatch');
   }
-  if (approval.proposal_id !== body.proposal_id || approval.digest !== (await proposalDigest(body))) {
+  if (
+    approval.proposal_id !== body.proposal_id ||
+    approval.digest !== (await proposalDigest(body))
+  ) {
     throw new ProposalError('approval_invalid');
   }
   if (Number.isNaN(now) || Number.isNaN(expires) || Number.isNaN(approved)) {
@@ -167,7 +175,10 @@ export async function approvalMatches(
   }
   const ids = new Set(body.items.map((item) => item.action_id));
   const selected = new Set(approval.selected_actions);
-  if (selected.size !== approval.selected_actions.length || approval.selected_actions.length === 0) {
+  if (
+    selected.size !== approval.selected_actions.length ||
+    approval.selected_actions.length === 0
+  ) {
     throw new ProposalError('invalid_selection');
   }
   for (const id of approval.selected_actions) {
@@ -204,7 +215,11 @@ function assertChanges(changes: TaskChanges): void {
   if (changes.title !== undefined && changes.title !== null && changes.title.length < 1) {
     throw new ProposalError('proposal_invalid');
   }
-  if (changes.project_id !== undefined && changes.project_id !== null && !UUID.test(changes.project_id)) {
+  if (
+    changes.project_id !== undefined &&
+    changes.project_id !== null &&
+    !UUID.test(changes.project_id)
+  ) {
     throw new ProposalError('proposal_invalid');
   }
 }

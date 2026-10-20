@@ -25,12 +25,7 @@ export interface ReminderMessage {
 }
 
 export type ChannelOutcome =
-  | 'sent'
-  | 'skipped'
-  | 'failed'
-  | 'unknown'
-  | 'rate_limited'
-  | 'disconnected';
+  'sent' | 'skipped' | 'failed' | 'unknown' | 'rate_limited' | 'disconnected';
 
 export interface DeliveryResult {
   readonly email: ChannelOutcome;

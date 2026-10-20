@@ -111,7 +111,9 @@ export class TelegramBotService implements OnModuleInit {
     if (user === null) {
       await this.send(
         incoming.chatId,
-        plain('Este chat no está vinculado. Genera un código en Ajustes → Integraciones y envía /start <código>.'),
+        plain(
+          'Este chat no está vinculado. Genera un código en Ajustes → Integraciones y envía /start <código>.',
+        ),
       );
       return { called_telegram: true, action: 'unlinked' };
     }
@@ -600,7 +602,8 @@ export class TelegramBotService implements OnModuleInit {
     if (rows.length === 0) {
       return plain(`No hay tareas con #${tag.name}.`);
     }
-    return this.checklist(user.id, 
+    return this.checklist(
+      user.id,
       `#${tag.name}`,
       rows,
       await this.projectNames(user.id),
@@ -615,7 +618,8 @@ export class TelegramBotService implements OnModuleInit {
     if (rows.length === 0) {
       return plain(`No hay tareas con prioridad ${label}.`);
     }
-    return this.checklist(user.id, 
+    return this.checklist(
+      user.id,
       `Prioridad ${label}`,
       rows,
       await this.projectNames(user.id),
@@ -699,7 +703,11 @@ export class TelegramBotService implements OnModuleInit {
     };
   }
 
-  private async opaqueCallback(ownerId: string, action: string, resourceId: string): Promise<string> {
+  private async opaqueCallback(
+    ownerId: string,
+    action: string,
+    resourceId: string,
+  ): Promise<string> {
     const token = randomBytes(18).toString('base64url');
     await this.prisma.telegramCallback.create({
       data: {

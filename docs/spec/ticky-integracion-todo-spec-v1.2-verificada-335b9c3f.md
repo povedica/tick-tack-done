@@ -11,6 +11,7 @@ Versión 1.2 (verificada contra ambos repos) · 20 de octubre de 2026 · documen
 **El repositorio `povedica/tick-tack-done` es público** (decisión de Pablo). Todo lo que commitees ahí es visible. No incluyas en commits ni en `docs/spec`: rutas locales (`/Users/...`), IP/usuario/claves del servidor, detalles de amenazas o contratos del repo privado de Ticky que no estén ya decididos como públicos, ni este documento tal cual sin que Pablo lo apruebe. Guarda la matriz de estado y los informes que mencionen el repo privado fuera del árbol público, o pregunta antes.
 
 **Preflight obligatorio (antes de escribir código), y registrar el resultado en la primera PR:**
+
 1. `git status`, rama y HEAD de `todo`; SHA y tag de `ticky.ticktackdone`. Anotar el par de SHAs. Referencias de este documento, **ya verificadas contra ambos remotos el 20-oct-2026** (sección 8): todo `26a02b29f7ae2ea443fc6f9428f009f3d908831d` (coincide con `main` remoto); Ticky `0ec7fc99f5f3172d9331bed7304da4d997db4693` (es exactamente el tag `milestone/async-service`). Si cualquiera difiere, revisa qué cambió en los archivos que cita cada corte antes de seguir; no asumas que el resto del documento sigue valiendo.
 2. Comprobar que existen los artefactos que cita la sección 1 (schemas, OpenAPI, hashes). Si falta alguno, ese corte queda bloqueado y se anota; no inventes el contrato.
 3. Ejecutar la línea base (`lint`, `typecheck`, `test`) en entorno sintético para saber qué falla ya antes de tocar nada.
@@ -252,20 +253,20 @@ RF-1704/1705/2001/2002/2006 y sección 16; TK-801–804/900–910/1000–1021.
 
 ## 5. Orden y gates de trabajo
 
-| Corte   | Dependencia                           | Qué puede quedar utilizable antes del siguiente                              |
-| ------- | ------------------------------------- | ---------------------------------------------------------------------------- |
-| Preflight | Sección 0                           | SHAs registrados, línea base conocida                                        |
-| APP-01  | Estado actual revalidado              | Lectura existente más segura, sin conectar IA                                |
-| APP-07a | Ninguna (independiente de Ticky)      | Pairing de Telegram desde sesión, dedupe de updates/callbacks. Es un fix de seguridad: se hace en esta primera tanda, no al final |
-| APP-02a | Preflight                             | `Task.version` real y mantenida por todos los writers                        |
-| APP-02  | APP-01, APP-02a                       | Capabilities y autoridad; lectura read-only verificada                       |
-| APP-03  | Contrato/identidad de APP-02          | Chat/listados/SSE sin efectos, con flags                                     |
-| APP-04  | APP-01/02/02a, digest coordinado      | Executor aislado probado; sigue apagado hasta revisión                       |
-| APP-05  | Fuentes auditadas APP-01/02           | Plan/revisión con hechos verificados o fuente ausente                        |
-| APP-06  | BFF; approvals después de APP-04      | UI de lectura/propuestas inicialmente; aplicación solo al existir executor   |
-| APP-07b | APP-07a; decisión de incertidumbre Telegram | Broker único, fencing/lease, estados por canal. Ticky-envíos apagados hasta grants/E2E autorizado |
-| APP-08  | Outbox/autoridad; BFF/memoria         | Shadow/previews/pausa; no notificar por inferencia. El puente de autoridad es requisito para activar lectura (ver APP-02) |
-| APP-09  | Cortes aplicables                     | Evidencia cruzada y entrega para revisión; no despliegue automático          |
+| Corte     | Dependencia                                 | Qué puede quedar utilizable antes del siguiente                                                                                   |
+| --------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Preflight | Sección 0                                   | SHAs registrados, línea base conocida                                                                                             |
+| APP-01    | Estado actual revalidado                    | Lectura existente más segura, sin conectar IA                                                                                     |
+| APP-07a   | Ninguna (independiente de Ticky)            | Pairing de Telegram desde sesión, dedupe de updates/callbacks. Es un fix de seguridad: se hace en esta primera tanda, no al final |
+| APP-02a   | Preflight                                   | `Task.version` real y mantenida por todos los writers                                                                             |
+| APP-02    | APP-01, APP-02a                             | Capabilities y autoridad; lectura read-only verificada                                                                            |
+| APP-03    | Contrato/identidad de APP-02                | Chat/listados/SSE sin efectos, con flags                                                                                          |
+| APP-04    | APP-01/02/02a, digest coordinado            | Executor aislado probado; sigue apagado hasta revisión                                                                            |
+| APP-05    | Fuentes auditadas APP-01/02                 | Plan/revisión con hechos verificados o fuente ausente                                                                             |
+| APP-06    | BFF; approvals después de APP-04            | UI de lectura/propuestas inicialmente; aplicación solo al existir executor                                                        |
+| APP-07b   | APP-07a; decisión de incertidumbre Telegram | Broker único, fencing/lease, estados por canal. Ticky-envíos apagados hasta grants/E2E autorizado                                 |
+| APP-08    | Outbox/autoridad; BFF/memoria               | Shadow/previews/pausa; no notificar por inferencia. El puente de autoridad es requisito para activar lectura (ver APP-02)         |
+| APP-09    | Cortes aplicables                           | Evidencia cruzada y entrega para revisión; no despliegue automático                                                               |
 
 APP-07 se divide así: **07a** (puntos 1-3 de sus prerrequisitos: pairing, dedupe, callbacks, comandos deterministas) y **07b** (broker, lease/fencing, clasificación de errores, ventana tardía, focus). Los criterios de aceptación de APP-07 se reparten de la misma forma.
 
@@ -311,22 +312,21 @@ Antes de cerrar un corte, actualizar matriz APP/TK/RF con estados pendiente/impl
 
 **Decisiones pendientes de Pablo, sin valores silenciosos.** Cada una indica qué corte bloquea y la recomendación del documento (no es una decisión tomada). Mientras no se resuelva, la función afectada queda apagada y se continúa con lo independiente.
 
-| Decisión | Bloquea | Recomendación inicial |
-| -------- | ------- | --------------------- |
-| Proveedor/modelos, región, presupuesto y precios (vía LiteLLM) | Cualquier run con modelo real; selector de modelo (APP-06) | Empezar solo con comandos deterministas y fixtures; sin llamadas facturables hasta que Pablo fije proveedor, región y tope mensual |
-| Jornada y política de silencios (coaching vs recordatorios explícitos) | APP-05 planificación, APP-07b ventana tardía, APP-08 rutinas | Dos ajustes separados, ambos visibles; sin valor por defecto inventado |
-| Retención de chat, ledger, tombstones y backups; TTL de reanudación de propuestas | APP-03 borrado, APP-04 | TTL de propuesta corto y explícito, nunca heredar las 24 h de idempotencia HTTP; tombstones del ledger con retención mayor que el TTL de la propuesta |
-| Alcance de listas compartidas en la política Ticky | APP-01/02 | Solo listas propias hasta decidir; las compartidas quedan excluidas |
-| Significado de `duration_minutes = 0` y fuente de duración real | APP-02 contrato, APP-05 estimaciones | Documentar la discrepancia app (0 permitido) vs Python (1-1440 o null); no convertir 0 a null sin decisión; sin observaciones de duración reales no hay aprendizaje |
-| Longitud máxima de título (500 app vs 1000 Python) | APP-04 | Validar a 500 en la app y pedir edición; alinear contratos solo con cambio coordinado |
-| Efectos colaterales de `complete`/`trash` (hijos/checklist) | APP-04 habilitar esas acciones | Bloquear la operación hasta que el diff las describa |
-| Política de incertidumbre en Telegram (unknown/reintento) | APP-07b | No reenviar tras timeout posible sin reconciliar |
-| Backend de trazas, capacidad y backup del despliegue | APP-09, activación | Trazas sin contenido; sin activar hasta tener restore probado |
+| Decisión                                                                          | Bloquea                                                      | Recomendación inicial                                                                                                                                               |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Proveedor/modelos, región, presupuesto y precios (vía LiteLLM)                    | Cualquier run con modelo real; selector de modelo (APP-06)   | Empezar solo con comandos deterministas y fixtures; sin llamadas facturables hasta que Pablo fije proveedor, región y tope mensual                                  |
+| Jornada y política de silencios (coaching vs recordatorios explícitos)            | APP-05 planificación, APP-07b ventana tardía, APP-08 rutinas | Dos ajustes separados, ambos visibles; sin valor por defecto inventado                                                                                              |
+| Retención de chat, ledger, tombstones y backups; TTL de reanudación de propuestas | APP-03 borrado, APP-04                                       | TTL de propuesta corto y explícito, nunca heredar las 24 h de idempotencia HTTP; tombstones del ledger con retención mayor que el TTL de la propuesta               |
+| Alcance de listas compartidas en la política Ticky                                | APP-01/02                                                    | Solo listas propias hasta decidir; las compartidas quedan excluidas                                                                                                 |
+| Significado de `duration_minutes = 0` y fuente de duración real                   | APP-02 contrato, APP-05 estimaciones                         | Documentar la discrepancia app (0 permitido) vs Python (1-1440 o null); no convertir 0 a null sin decisión; sin observaciones de duración reales no hay aprendizaje |
+| Longitud máxima de título (500 app vs 1000 Python)                                | APP-04                                                       | Validar a 500 en la app y pedir edición; alinear contratos solo con cambio coordinado                                                                               |
+| Efectos colaterales de `complete`/`trash` (hijos/checklist)                       | APP-04 habilitar esas acciones                               | Bloquear la operación hasta que el diff las describa                                                                                                                |
+| Política de incertidumbre en Telegram (unknown/reintento)                         | APP-07b                                                      | No reenviar tras timeout posible sin reconciliar                                                                                                                    |
+| Backend de trazas, capacidad y backup del despliegue                              | APP-09, activación                                           | Trazas sin contenido; sin activar hasta tener restore probado                                                                                                       |
 
 **La integración local solo está terminada cuando:** contratos reales de ambos lados coinciden, permisos se aplican en servidor, no hay credencial de escritura en Python/browser, propuesta no cambia dominio sin aprobación vinculada, CAS/ledger/outbox/auditoría sobreviven carrera/replay/crash, incertidumbre no se representa como cero/éxito, UI funciona por teclado/móvil y los tests cruzados pasan. La entrega real Telegram, revisión humana de política/privacidad y operación de producción son gates separados que requieren su evidencia/autorización. No afirmar spec completa por sumar tests o por haber añadido un botón de chat.
 
 **Nota de procedencia:** la redacción de este archivo fue análisis estático: no ejecutó cambios de código, migraciones, tests de la app ni operaciones externas. Las afirmaciones sobre el repo `todo` se contrastaron con `main` remoto (mismo HEAD citado) y las del repo privado de Ticky se contrastaron el 20-oct-2026 contra el tag `milestone/async-service` con acceso de solo lectura (sección 8); lo no verificable queda dicho allí explícitamente. El alcance de ejecución es el de la sección 0. Una frase de este documento no concede permisos.
-
 
 ## 8. Anexo de verificación v1.2 (20-oct-2026)
 

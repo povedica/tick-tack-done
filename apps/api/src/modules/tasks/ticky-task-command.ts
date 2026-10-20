@@ -57,7 +57,11 @@ async function createTask(
   }
   const projectId = item.after.project_id;
   if (typeof projectId !== 'string') {
-    throw new DomainException(HttpStatus.BAD_REQUEST, 'project_required', 'La lista de destino es obligatoria.');
+    throw new DomainException(
+      HttpStatus.BAD_REQUEST,
+      'project_required',
+      'La lista de destino es obligatoria.',
+    );
   }
   await assertOwnedList(tx, user.id, projectId);
   const due = dueDate(item.after) ?? null;
@@ -77,7 +81,16 @@ async function createTask(
     },
     select: { id: true, projectId: true, version: true },
   });
-  await record(tx, events, user, row.id, row.projectId, row.version, DomainEvent.taskCreated, correlation);
+  await record(
+    tx,
+    events,
+    user,
+    row.id,
+    row.projectId,
+    row.version,
+    DomainEvent.taskCreated,
+    correlation,
+  );
   return { resource_id: row.id, version: row.version, applied: true };
 }
 
@@ -93,7 +106,11 @@ async function updateTask(
     select: { id: true, projectId: true, version: true },
   });
   if (current === null || !visible(user, current.projectId)) {
-    throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'La tarea no está en las listas autorizadas.');
+    throw new DomainException(
+      HttpStatus.NOT_FOUND,
+      'task_not_found',
+      'La tarea no está en las listas autorizadas.',
+    );
   }
   if (item.after.project_id !== undefined && item.after.project_id !== null) {
     await assertOwnedList(tx, user.id, item.after.project_id);
@@ -134,9 +151,22 @@ async function updateTask(
     select: { id: true, projectId: true, version: true },
   });
   if (saved === null) {
-    throw new DomainException(HttpStatus.CONFLICT, 'proposal_stale', 'La tarea cambió desde la vista previa.');
+    throw new DomainException(
+      HttpStatus.CONFLICT,
+      'proposal_stale',
+      'La tarea cambió desde la vista previa.',
+    );
   }
-  await record(tx, events, user, saved.id, saved.projectId, saved.version, DomainEvent.taskUpdated, correlation);
+  await record(
+    tx,
+    events,
+    user,
+    saved.id,
+    saved.projectId,
+    saved.version,
+    DomainEvent.taskUpdated,
+    correlation,
+  );
   return { resource_id: saved.id, version: saved.version, applied: true };
 }
 
@@ -177,7 +207,11 @@ async function assertOwnedList(tx: Tx, ownerId: string, listId: string): Promise
     select: { id: true },
   });
   if (project === null) {
-    throw new DomainException(HttpStatus.FORBIDDEN, 'list_not_granted', 'La lista no es propia o no está concedida.');
+    throw new DomainException(
+      HttpStatus.FORBIDDEN,
+      'list_not_granted',
+      'La lista no es propia o no está concedida.',
+    );
   }
 }
 
@@ -194,30 +228,53 @@ function dueDate(changes: ProposalItem['after']): Date | null | undefined {
   }
   const parsed = new Date(changes.due_at);
   if (Number.isNaN(parsed.getTime())) {
-    throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'due_at no es una fecha válida.');
+    throw new DomainException(
+      HttpStatus.BAD_REQUEST,
+      'validation_failed',
+      'due_at no es una fecha válida.',
+    );
   }
   return parsed;
 }
 
-export async function parseProposalDocument(document: string, ownerId: string): Promise<ProposalBody> {
+export async function parseProposalDocument(
+  document: string,
+  ownerId: string,
+): Promise<ProposalBody> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(document);
   } catch {
-    throw new DomainException(HttpStatus.BAD_REQUEST, 'proposal_invalid', 'La propuesta no es JSON válido.');
+    throw new DomainException(
+      HttpStatus.BAD_REQUEST,
+      'proposal_invalid',
+      'La propuesta no es JSON válido.',
+    );
   }
   if (typeof parsed !== 'object' || parsed === null) {
-    throw new DomainException(HttpStatus.BAD_REQUEST, 'proposal_invalid', 'La propuesta no es válida.');
+    throw new DomainException(
+      HttpStatus.BAD_REQUEST,
+      'proposal_invalid',
+      'La propuesta no es válida.',
+    );
   }
   const body = parsed as ProposalBody;
   if (body.owner_id !== ownerId) {
-    throw new DomainException(HttpStatus.FORBIDDEN, 'owner_mismatch', 'La propuesta es de otra cuenta.');
+    throw new DomainException(
+      HttpStatus.FORBIDDEN,
+      'owner_mismatch',
+      'La propuesta es de otra cuenta.',
+    );
   }
   try {
     await validateProposal(body);
   } catch (error) {
     if (error instanceof ProposalError) {
-      throw new DomainException(HttpStatus.BAD_REQUEST, error.code, 'La propuesta no cumple el contrato.');
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        error.code,
+        'La propuesta no cumple el contrato.',
+      );
     }
     throw error;
   }
@@ -234,7 +291,9 @@ export async function parseProposalDocument(document: string, ownerId: string): 
 }
 
 export async function proposalFingerprint(body: ProposalBody): Promise<string> {
-  return createHash('sha256').update(await proposalDigest(body)).digest('hex');
+  return createHash('sha256')
+    .update(await proposalDigest(body))
+    .digest('hex');
 }
 
 export function newId(): string {

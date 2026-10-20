@@ -81,7 +81,9 @@ export class TickyService implements OnModuleInit {
     const body = readCapabilities({
       ownerId: user.id,
       listIds,
-      scopes: user.scopes.filter((scope) => (TICKY_READ_SCOPES as readonly string[]).includes(scope)),
+      scopes: user.scopes.filter((scope) =>
+        (TICKY_READ_SCOPES as readonly string[]).includes(scope),
+      ),
     });
     if (!body.scopes.includes('tasks:read')) {
       throw new DomainException(HttpStatus.FORBIDDEN, 'scope_missing', 'Falta tasks:read.');
@@ -116,7 +118,11 @@ export class TickyService implements OnModuleInit {
     const owned = await this.ownedLists(user.id);
     const listIds =
       patch.list_ids === undefined ? null : intersectOwnedLists(owned, patch.list_ids);
-    if (patch.list_ids !== undefined && listIds !== null && listIds.length !== new Set(patch.list_ids).size) {
+    if (
+      patch.list_ids !== undefined &&
+      listIds !== null &&
+      listIds.length !== new Set(patch.list_ids).size
+    ) {
       throw new DomainException(
         HttpStatus.BAD_REQUEST,
         'shared_lists_excluded',
@@ -150,8 +156,12 @@ export class TickyService implements OnModuleInit {
           ...(patch.estimate_learning_enabled === undefined
             ? {}
             : { estimateLearningEnabled: patch.estimate_learning_enabled }),
-          ...(patch.coaching_silence === undefined ? {} : { coachingSilence: asJson(patch.coaching_silence) }),
-          ...(patch.reminder_silence === undefined ? {} : { reminderSilence: asJson(patch.reminder_silence) }),
+          ...(patch.coaching_silence === undefined
+            ? {}
+            : { coachingSilence: asJson(patch.coaching_silence) }),
+          ...(patch.reminder_silence === undefined
+            ? {}
+            : { reminderSilence: asJson(patch.reminder_silence) }),
         },
       });
       if (listIds !== null) {
@@ -190,7 +200,10 @@ export class TickyService implements OnModuleInit {
       return { authority, lists, eventId };
     });
     await this.pushAuthority(user.id, saved.eventId);
-    return this.authorityView(saved.authority, saved.lists.map((row) => row.listId));
+    return this.authorityView(
+      saved.authority,
+      saved.lists.map((row) => row.listId),
+    );
   }
 
   async issueReader(user: AuthUser): Promise<{ token: string; prefix: string }> {
@@ -236,7 +249,11 @@ export class TickyService implements OnModuleInit {
         body: asJson(body),
       },
     });
-    return { proposal_id: row.id, approval_digest: row.digest, expires_at: row.expiresAt.toISOString() };
+    return {
+      proposal_id: row.id,
+      approval_digest: row.digest,
+      expires_at: row.expiresAt.toISOString(),
+    };
   }
 
   async approve(
@@ -248,11 +265,21 @@ export class TickyService implements OnModuleInit {
     requireBrowserSession(user);
     this.limit(user.id, 'approve');
     if (!tickyFlags().execution) {
-      throw new DomainException(HttpStatus.FORBIDDEN, 'execution_disabled', 'El executor está apagado.');
+      throw new DomainException(
+        HttpStatus.FORBIDDEN,
+        'execution_disabled',
+        'El executor está apagado.',
+      );
     }
-    const row = await this.prisma.tickyProposal.findFirst({ where: { id: proposalId, ownerId: user.id } });
+    const row = await this.prisma.tickyProposal.findFirst({
+      where: { id: proposalId, ownerId: user.id },
+    });
     if (row === null) {
-      throw new DomainException(HttpStatus.NOT_FOUND, 'proposal_not_found', 'No hay esa propuesta.');
+      throw new DomainException(
+        HttpStatus.NOT_FOUND,
+        'proposal_not_found',
+        'No hay esa propuesta.',
+      );
     }
     const body = row.body as unknown as ProposalBody;
     const now = new Date().toISOString();
@@ -353,7 +380,11 @@ export class TickyService implements OnModuleInit {
       where: { id: threadId, ownerId: user.id, deletedAt: null },
     });
     if (thread === null) {
-      throw new DomainException(HttpStatus.NOT_FOUND, 'thread_not_found', 'El hilo no es de esta cuenta.');
+      throw new DomainException(
+        HttpStatus.NOT_FOUND,
+        'thread_not_found',
+        'El hilo no es de esta cuenta.',
+      );
     }
     const fingerprint = createHash('sha256').update(text).digest('hex');
     const existing = await this.prisma.tickyClientMessage.findUnique({
@@ -361,7 +392,11 @@ export class TickyService implements OnModuleInit {
     });
     if (existing !== null) {
       if (existing.fingerprint !== fingerprint) {
-        throw new DomainException(HttpStatus.CONFLICT, 'idempotency_conflict', 'Ese mensaje ya se envió con otro texto.');
+        throw new DomainException(
+          HttpStatus.CONFLICT,
+          'idempotency_conflict',
+          'Ese mensaje ya se envió con otro texto.',
+        );
       }
       return { status: existing.statusCode, body: existing.response as Record<string, unknown> };
     }
@@ -384,12 +419,19 @@ export class TickyService implements OnModuleInit {
       return { status: 200, body };
     }
     const authority = await this.requireAuthority(user.id);
-    const run = await this.python('POST', '/internal/v1/runs', 'ticky-runs', user.id, authority.version, {
-      client_message_id: clientMessageId,
-      thread_id: threadId,
-      text,
-      timezone: user.timeZone,
-    });
+    const run = await this.python(
+      'POST',
+      '/internal/v1/runs',
+      'ticky-runs',
+      user.id,
+      authority.version,
+      {
+        client_message_id: clientMessageId,
+        thread_id: threadId,
+        text,
+        timezone: user.timeZone,
+      },
+    );
     await this.prisma.tickyClientMessage.create({
       data: {
         ownerId: user.id,
@@ -433,7 +475,14 @@ export class TickyService implements OnModuleInit {
     this.limit(user.id, 'cancel');
     const authority = await this.requireAuthority(user.id);
     return (
-      await this.python('POST', `/internal/v1/runs/${runId}/cancel`, 'ticky-runs', user.id, authority.version, {})
+      await this.python(
+        'POST',
+        `/internal/v1/runs/${runId}/cancel`,
+        'ticky-runs',
+        user.id,
+        authority.version,
+        {},
+      )
     ).body;
   }
 
@@ -455,7 +504,11 @@ export class TickyService implements OnModuleInit {
       this.releaseStream(user.id);
     };
     req.on('close', release);
-    if (!tickyFlags().ui || process.env.TICKY_SERVICE_URL === undefined || process.env.TICKY_SERVICE_URL.length === 0) {
+    if (
+      !tickyFlags().ui ||
+      process.env.TICKY_SERVICE_URL === undefined ||
+      process.env.TICKY_SERVICE_URL.length === 0
+    ) {
       res.status(503).end();
       release();
       return;
@@ -550,7 +603,11 @@ export class TickyService implements OnModuleInit {
     });
   }
 
-  async remember(user: AuthUser, body: string, sourceMessageId: string | null): Promise<{ id: string }> {
+  async remember(
+    user: AuthUser,
+    body: string,
+    sourceMessageId: string | null,
+  ): Promise<{ id: string }> {
     requireBrowserSession(user);
     const row = await this.prisma.tickyMemory.create({
       data: { ownerId: user.id, body, sourceMessageId },
@@ -558,7 +615,9 @@ export class TickyService implements OnModuleInit {
     return { id: row.id };
   }
 
-  async listMemories(user: AuthUser): Promise<{ items: { id: string; version: number; body: string }[] }> {
+  async listMemories(
+    user: AuthUser,
+  ): Promise<{ items: { id: string; version: number; body: string }[] }> {
     const rows = await this.prisma.tickyMemory.findMany({
       where: { ownerId: user.id, forgottenAt: null },
       select: { id: true, version: true, body: true },
@@ -569,7 +628,11 @@ export class TickyService implements OnModuleInit {
   acquireStream(ownerId: string): void {
     const current = streams.get(ownerId) ?? 0;
     if (current >= 2) {
-      throw new DomainException(HttpStatus.TOO_MANY_REQUESTS, 'rate_limited', 'Demasiadas conexiones abiertas.');
+      throw new DomainException(
+        HttpStatus.TOO_MANY_REQUESTS,
+        'rate_limited',
+        'Demasiadas conexiones abiertas.',
+      );
     }
     streams.set(ownerId, current + 1);
   }
@@ -582,18 +645,36 @@ export class TickyService implements OnModuleInit {
     user: AuthUser,
     body: ProposalBody,
     actionId: string,
-    authority: { version: number; revoked: boolean; paused: boolean; scopes: readonly string[]; listIds: readonly string[] },
+    authority: {
+      version: number;
+      revoked: boolean;
+      paused: boolean;
+      scopes: readonly string[];
+      listIds: readonly string[];
+    },
   ): Promise<Record<string, unknown>> {
     const item = body.items.find((candidate) => candidate.action_id === actionId);
     if (item === undefined) {
-      throw new DomainException(HttpStatus.CONFLICT, 'invalid_selection', 'La acción no está en la propuesta.');
+      throw new DomainException(
+        HttpStatus.CONFLICT,
+        'invalid_selection',
+        'La acción no está en la propuesta.',
+      );
     }
     if (authority.revoked || authority.paused || authority.version !== body.authority_version) {
-      throw new DomainException(HttpStatus.CONFLICT, 'authority_revoked', 'La autoridad cambió. No se aplica.');
+      throw new DomainException(
+        HttpStatus.CONFLICT,
+        'authority_revoked',
+        'La autoridad cambió. No se aplica.',
+      );
     }
     const required = PROPOSAL_TOOLS[item.tool];
     if (required === undefined || !legacyGrantsTickyScope(authority.scopes, required)) {
-      throw new DomainException(HttpStatus.FORBIDDEN, 'scope_missing', 'Esa acción no está concedida.');
+      throw new DomainException(
+        HttpStatus.FORBIDDEN,
+        'scope_missing',
+        'Esa acción no está concedida.',
+      );
     }
     try {
       return await this.prisma.$transaction(async (tx) => {
@@ -602,7 +683,11 @@ export class TickyService implements OnModuleInit {
         });
         if (prior !== null) {
           if (prior.digest !== body.approval_digest) {
-            throw new DomainException(HttpStatus.CONFLICT, 'digest_mismatch', 'Esa acción ya se aplicó con otro digest.');
+            throw new DomainException(
+              HttpStatus.CONFLICT,
+              'digest_mismatch',
+              'Esa acción ya se aplicó con otro digest.',
+            );
           }
           return { action_id: actionId, replayed: true, result: prior.result };
         }
@@ -636,7 +721,11 @@ export class TickyService implements OnModuleInit {
         if (prior !== null && prior.digest === body.approval_digest) {
           return { action_id: actionId, replayed: true, result: prior.result };
         }
-        throw new DomainException(HttpStatus.CONFLICT, 'digest_mismatch', 'Esa acción ya se aplicó con otro digest.');
+        throw new DomainException(
+          HttpStatus.CONFLICT,
+          'digest_mismatch',
+          'Esa acción ya se aplicó con otro digest.',
+        );
       }
       throw error;
     }
@@ -663,7 +752,7 @@ export class TickyService implements OnModuleInit {
       version: authority.version,
       revoked: authority.revoked,
       paused: authority.paused,
-    scopes: authority.actionScopes,
+      scopes: authority.actionScopes,
       listIds: authority.lists.map((row) => row.listId),
       workdayStart: authority.workdayStart,
       workdayEnd: authority.workdayEnd,
@@ -699,7 +788,11 @@ export class TickyService implements OnModuleInit {
     const now = Date.now();
     const recent = (hits.get(key) ?? []).filter((at) => now - at < 60_000);
     if (recent.length >= 30) {
-      throw new DomainException(HttpStatus.TOO_MANY_REQUESTS, 'rate_limited', 'Demasiadas peticiones. Espera un minuto.');
+      throw new DomainException(
+        HttpStatus.TOO_MANY_REQUESTS,
+        'rate_limited',
+        'Demasiadas peticiones. Espera un minuto.',
+      );
     }
     recent.push(now);
     hits.set(key, recent);
@@ -744,7 +837,11 @@ export class TickyService implements OnModuleInit {
     } catch {
       await this.prisma.tickyBridgeDelivery.updateMany({
         where: { ownerId, eventId, kind: 'authority' },
-        data: { status: 'pending', attempts: { increment: 1 }, nextRetryAt: new Date(Date.now() + 30_000) },
+        data: {
+          status: 'pending',
+          attempts: { increment: 1 },
+          nextRetryAt: new Date(Date.now() + 30_000),
+        },
       });
     }
   }
@@ -759,13 +856,21 @@ export class TickyService implements OnModuleInit {
   ): Promise<{ status: number; body: Record<string, unknown> }> {
     const base = process.env.TICKY_SERVICE_URL ?? '';
     if (base.length === 0) {
-      throw new DomainException(HttpStatus.SERVICE_UNAVAILABLE, 'ticky_unavailable', 'El servicio Ticky no está configurado.');
+      throw new DomainException(
+        HttpStatus.SERVICE_UNAVAILABLE,
+        'ticky_unavailable',
+        'El servicio Ticky no está configurado.',
+      );
     }
     let token = '';
     try {
       token = signTickyJwt({ audience, subject: ownerId, authorityVersion });
     } catch {
-      throw new DomainException(HttpStatus.SERVICE_UNAVAILABLE, 'ticky_not_ready', 'Falta la clave de firma del BFF.');
+      throw new DomainException(
+        HttpStatus.SERVICE_UNAVAILABLE,
+        'ticky_not_ready',
+        'Falta la clave de firma del BFF.',
+      );
     }
     const response = await fetch(new URL(path, base), {
       method,

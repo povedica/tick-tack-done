@@ -331,7 +331,13 @@ export {
   titleNeedsEdit,
   validateProposal,
 } from './ticky/proposal';
-export type { ProposalBody, ProposalItem, TaskChanges, TickyReason, TickyTool } from './ticky/proposal';
+export type {
+  ProposalBody,
+  ProposalItem,
+  TaskChanges,
+  TickyReason,
+  TickyTool,
+} from './ticky/proposal';
 export {
   intersectOwnedLists,
   legacyGrantsTickyScope,

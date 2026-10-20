@@ -1,7 +1,12 @@
 import { Controller, Get, Inject, Req, Res } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
-import { projectConstraint, proposeDaily, proposeWeekly, type ReviewCandidate } from '@reflexionia/domain';
+import {
+  projectConstraint,
+  proposeDaily,
+  proposeWeekly,
+  type ReviewCandidate,
+} from '@reflexionia/domain';
 import type { AuthUser } from '../../auth/auth-user.js';
 import { CurrentUser } from '../../auth/current-user.decorator.js';
 import { Scopes } from '../../auth/scopes.decorator.js';

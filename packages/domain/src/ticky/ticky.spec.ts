@@ -79,14 +79,25 @@ describe('ticky contracts', () => {
   it('canonical JSON keeps emoji and rejects NaN', () => {
     expect(canonicalJson({ b: 1, a: 'á' })).toBe('{"a":"á","b":1}');
     expect(() => canonicalJson(Number.NaN)).toThrow('canonical_json_nan');
-    expect(createHash('sha256').update(canonicalJson({ a: 1 })).digest('hex')).toHaveLength(64);
+    expect(
+      createHash('sha256')
+        .update(canonicalJson({ a: 1 }))
+        .digest('hex'),
+    ).toHaveLength(64);
   });
 
   it('RF-2002: a daily plan must not rewrite a deadline', async () => {
     await expect(
       validateProposal({
         ...cafe,
-        items: [{ ...cafe.items[0]!, tool: 'tasks.update', expected_version: 1, reason_code: 'DAILY_PLAN' }],
+        items: [
+          {
+            ...cafe.items[0]!,
+            tool: 'tasks.update',
+            expected_version: 1,
+            reason_code: 'DAILY_PLAN',
+          },
+        ],
       }),
     ).rejects.toThrow('deadline_reprogramming_forbidden');
   });
@@ -96,9 +107,10 @@ describe('ticky contracts', () => {
       id: '00000000-0000-0000-0000-000000000000',
     });
     expect(projectConstraint(['list-a'])).toEqual({ projectId: { in: ['list-a'] } });
-    expect(readCapabilities({ ownerId: 'o', listIds: ['a'], scopes: ['tasks:read', 'tasks:write'] }).scopes).toEqual([
-      'tasks:read',
-    ]);
+    expect(
+      readCapabilities({ ownerId: 'o', listIds: ['a'], scopes: ['tasks:read', 'tasks:write'] })
+        .scopes,
+    ).toEqual(['tasks:read']);
   });
 
   it('APP-05: a stale calendar is unknown, not free', () => {

@@ -62,9 +62,7 @@ export function TickyPage({ taskHint }: { readonly taskHint?: string }) {
     onSuccess: (body) => {
       const guidance = body as GuidanceBody;
       const line =
-        typeof guidance.message === 'string'
-          ? guidance.message
-          : messages.tickyGenericReply;
+        typeof guidance.message === 'string' ? guidance.message : messages.tickyGenericReply;
       setLog((prev) => [...prev, line]);
       setPhase(guidance.status === 'model_not_configured' ? 'done' : 'review');
       setDraft('');
@@ -129,10 +127,7 @@ export function TickyPage({ taskHint }: { readonly taskHint?: string }) {
   );
 }
 
-function phaseLabel(
-  phase: Phase,
-  messages: ReturnType<typeof useMessages>,
-): string {
+function phaseLabel(phase: Phase, messages: ReturnType<typeof useMessages>): string {
   switch (phase) {
     case 'consulting':
       return messages.tickyPhaseConsulting;

@@ -59,7 +59,9 @@ export function buildContextSnapshot(input: {
     review: input.review,
     task_energy: input.taskEnergy.slice(0, 100),
     duration_observations: input.durationObservations
-      .filter((row) => row.minutes >= 1 && row.minutes <= 1440 && Date.parse(row.observed_at) <= issued)
+      .filter(
+        (row) => row.minutes >= 1 && row.minutes <= 1440 && Date.parse(row.observed_at) <= issued,
+      )
       .slice(0, 100),
   };
 }
