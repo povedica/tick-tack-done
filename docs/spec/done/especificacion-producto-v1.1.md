@@ -54,16 +54,15 @@ Construir una aplicación propia que:
 
 Pablo resolvió todas las decisiones que estaban abiertas (detalle en la sección 21). Resumen:
 
-| # | Decisión | Resolución |
-|---|----------|------------|
-| D1 | Plataformas cliente | **Web PWA como único cliente en fase 1**, cuidada tanto en móvil como en escritorio (responsive, instalable, push, offline). Las apps nativas (móvil/escritorio) llegan más adelante sobre la misma API. |
-| D2 | Stack backend | **TypeScript extremo a extremo: NestJS + PostgreSQL + Prisma.** Confirmado. |
-| D3 | Stack frontend | **React + TypeScript.** Confirmado. |
-| D4 | Alojamiento | **Un VPS con Docker**, con Docker Compose (API, PostgreSQL, Redis si las colas lo requieren) y **Caddy como reverse proxy con HTTPS automático**. Instancia única de uso personal, empaquetada para ser portable. |
-| D5 | Multiusuario | **Multiusuario desde el modelo de datos**, aunque en el lanzamiento solo hay un usuario activo. La colaboración (compartir listas con permisos read/comment/write, p. ej. una lista compartida con su pareja) sigue en el roadmap (sección 9.18). |
-| D6 | Prioridad de módulos | Ver sección 19. Cambios clave: **hábitos (con recordatorios) y servidor MCP + PATs con scopes entran en el MVP; Pomodoro pasa a V2; el importador externo (RF-1701) queda fuera del MVP** (arranque desde cero). |
-| D7 | Nombre y dominio | **`todo.reflexionia.com`** para app, API, feeds iCal, email-to-task y emails transaccionales. |
-
+| #   | Decisión             | Resolución                                                                                                                                                                                                                                        |
+| --- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | Plataformas cliente  | **Web PWA como único cliente en fase 1**, cuidada tanto en móvil como en escritorio (responsive, instalable, push, offline). Las apps nativas (móvil/escritorio) llegan más adelante sobre la misma API.                                          |
+| D2  | Stack backend        | **TypeScript extremo a extremo: NestJS + PostgreSQL + Prisma.** Confirmado.                                                                                                                                                                       |
+| D3  | Stack frontend       | **React + TypeScript.** Confirmado.                                                                                                                                                                                                               |
+| D4  | Alojamiento          | **Un VPS con Docker**, con Docker Compose (API, PostgreSQL, Redis si las colas lo requieren) y **Caddy como reverse proxy con HTTPS automático**. Instancia única de uso personal, empaquetada para ser portable.                                 |
+| D5  | Multiusuario         | **Multiusuario desde el modelo de datos**, aunque en el lanzamiento solo hay un usuario activo. La colaboración (compartir listas con permisos read/comment/write, p. ej. una lista compartida con su pareja) sigue en el roadmap (sección 9.18). |
+| D6  | Prioridad de módulos | Ver sección 19. Cambios clave: **hábitos (con recordatorios) y servidor MCP + PATs con scopes entran en el MVP; Pomodoro pasa a V2; el importador externo (RF-1701) queda fuera del MVP** (arranque desde cero).                                  |
+| D7  | Nombre y dominio     | **`todo.reflexionia.com`** para app, API, feeds iCal, email-to-task y emails transaccionales.                                                                                                                                                     |
 
 ---
 
@@ -122,61 +121,61 @@ Todos los IDs son `uuid` (o ULID si se prefiere ordenación). Todas las entidade
 
 ### 5.1 Task (tarea)
 
-| Campo | Tipo | Notas |
-|---|---|---|
-| id | uuid | |
-| project_id | fk → Project | lista contenedora; la "bandeja de entrada" es un Project de sistema |
-| parent_id | fk → Task, nullable | subtarea de primer nivel como tarea completa (además del checklist, ver 9.2) |
-| title | text | máx. 500 chars, se guarda tal cual (espacios de los extremos incluidos; vacío permitido) |
-| content | text | descripción larga en Markdown |
-| kind | enum: `task`, `note` | se permiten notas dentro de listas (`kind: NOTE`) |
-| status | enum: `active`, `completed`, `archived` | equivalente a `status` 0/2 de la Open API pública (RF-503) |
-| priority | enum: `none`, `low`, `medium`, `high` | mapeo numérico 0/1/3/5 (RF-503) |
-| is_all_day | bool | |
-| start_date | timestamptz, nullable | |
-| due_date | timestamptz, nullable | |
-| time_zone | text (IANA) | zona en la que el usuario introdujo las fechas |
-| duration_minutes | int, nullable | para Timeline y time-blocking; si hay start+due se deriva |
-| repeat_rule | text (RRULE), nullable | p. ej. `RRULE:FREQ=DAILY;INTERVAL=1` |
-| repeat_from | enum: `due_date`, `completion_date` | repetir desde la fecha de completado |
-| sort_order | bigint | orden manual dentro de la lista |
-| tags | m2m → Tag | |
-| assignee_id | fk → User, nullable | (V2 colaboración) |
-| created_by | fk → User | |
-| completed_at | timestamptz, nullable | |
-| source | enum: `manual`, `import`, `api`, `automation`, `plugin` | trazabilidad |
-| metadata | jsonb | espacio libre para plugins/integraciones |
+| Campo            | Tipo                                                    | Notas                                                                                    |
+| ---------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| id               | uuid                                                    |                                                                                          |
+| project_id       | fk → Project                                            | lista contenedora; la "bandeja de entrada" es un Project de sistema                      |
+| parent_id        | fk → Task, nullable                                     | subtarea de primer nivel como tarea completa (además del checklist, ver 9.2)             |
+| title            | text                                                    | máx. 500 chars, se guarda tal cual (espacios de los extremos incluidos; vacío permitido) |
+| content          | text                                                    | descripción larga en Markdown                                                            |
+| kind             | enum: `task`, `note`                                    | se permiten notas dentro de listas (`kind: NOTE`)                                        |
+| status           | enum: `active`, `completed`, `archived`                 | equivalente a `status` 0/2 de la Open API pública (RF-503)                               |
+| priority         | enum: `none`, `low`, `medium`, `high`                   | mapeo numérico 0/1/3/5 (RF-503)                                                          |
+| is_all_day       | bool                                                    |                                                                                          |
+| start_date       | timestamptz, nullable                                   |                                                                                          |
+| due_date         | timestamptz, nullable                                   |                                                                                          |
+| time_zone        | text (IANA)                                             | zona en la que el usuario introdujo las fechas                                           |
+| duration_minutes | int, nullable                                           | para Timeline y time-blocking; si hay start+due se deriva                                |
+| repeat_rule      | text (RRULE), nullable                                  | p. ej. `RRULE:FREQ=DAILY;INTERVAL=1`                                                     |
+| repeat_from      | enum: `due_date`, `completion_date`                     | repetir desde la fecha de completado                                                     |
+| sort_order       | bigint                                                  | orden manual dentro de la lista                                                          |
+| tags             | m2m → Tag                                               |                                                                                          |
+| assignee_id      | fk → User, nullable                                     | (V2 colaboración)                                                                        |
+| created_by       | fk → User                                               |                                                                                          |
+| completed_at     | timestamptz, nullable                                   |                                                                                          |
+| source           | enum: `manual`, `import`, `api`, `automation`, `plugin` | trazabilidad                                                                             |
+| metadata         | jsonb                                                   | espacio libre para plugins/integraciones                                                 |
 
 Índices: `(project_id, status, sort_order)`, `(due_date) where status='active'`, GIN sobre `tags`, FTS sobre `title + content`.
 
 ### 5.2 ChecklistItem (ítem de checklist dentro de una tarea)
 
-| Campo | Tipo | Notas |
-|---|---|---|
-| id | uuid | |
-| task_id | fk → Task | |
-| title | text | |
-| status | enum: `active`, `completed` | Open API pública: 0/1 |
-| sort_order | bigint | |
-| start_date / due_date | timestamptz, nullable | se permite fecha por ítem |
-| is_all_day | bool | |
-| time_zone | text | |
-| completed_at | timestamptz | |
+| Campo                 | Tipo                        | Notas                     |
+| --------------------- | --------------------------- | ------------------------- |
+| id                    | uuid                        |                           |
+| task_id               | fk → Task                   |                           |
+| title                 | text                        |                           |
+| status                | enum: `active`, `completed` | Open API pública: 0/1     |
+| sort_order            | bigint                      |                           |
+| start_date / due_date | timestamptz, nullable       | se permite fecha por ítem |
+| is_all_day            | bool                        |                           |
+| time_zone             | text                        |                           |
+| completed_at          | timestamptz                 |                           |
 
 ### 5.3 Project (lista)
 
-| Campo | Tipo | Notas |
-|---|---|---|
-| id | uuid | |
-| name | text | |
-| color | text (hex) | p. ej. `#F18181` |
-| folder_id | fk → Folder, nullable | agrupación de listas (carpetas / `groupId`) |
-| view_mode | enum: `list`, `kanban`, `timeline` | lista, kanban o timeline |
-| kind | enum: `TASK`, `NOTE` | listas de tareas o de notas |
-| closed | bool | lista archivada |
-| is_inbox | bool | bandeja de entrada del sistema (una por usuario) |
-| sort_order | bigint | |
-| permission | derivado | `read`, `write`, `comment` en compartidas (V2) |
+| Campo      | Tipo                               | Notas                                            |
+| ---------- | ---------------------------------- | ------------------------------------------------ |
+| id         | uuid                               |                                                  |
+| name       | text                               |                                                  |
+| color      | text (hex)                         | p. ej. `#F18181`                                 |
+| folder_id  | fk → Folder, nullable              | agrupación de listas (carpetas / `groupId`)      |
+| view_mode  | enum: `list`, `kanban`, `timeline` | lista, kanban o timeline                         |
+| kind       | enum: `TASK`, `NOTE`               | listas de tareas o de notas                      |
+| closed     | bool                               | lista archivada                                  |
+| is_inbox   | bool                               | bandeja de entrada del sistema (una por usuario) |
+| sort_order | bigint                             |                                                  |
+| permission | derivado                           | `read`, `write`, `comment` en compartidas (V2)   |
 
 ### 5.4 Folder (carpeta de listas)
 
@@ -196,14 +195,14 @@ Listas inteligentes de sistema (una por usuario, no borrables, activables/desact
 
 Filter (filtro personalizado del usuario):
 
-| Campo | Tipo | Notas |
-|---|---|---|
-| id | uuid | |
-| name | text | |
-| icon/color | text | |
-| mode | enum: `normal`, `advanced` | ambos modos |
-| rules | jsonb | ver gramática abajo |
-| sort_order | bigint | |
+| Campo      | Tipo                       | Notas               |
+| ---------- | -------------------------- | ------------------- |
+| id         | uuid                       |                     |
+| name       | text                       |                     |
+| icon/color | text                       |                     |
+| mode       | enum: `normal`, `advanced` | ambos modos         |
+| rules      | jsonb                      | ver gramática abajo |
+| sort_order | bigint                     |                     |
 
 Gramática de `rules` (persistida, portable por API):
 
@@ -229,17 +228,17 @@ Campos filtrables mínimos: lista, etiqueta, fecha (hoy/mañana/próximos 7 día
 
 ### 5.8 Reminder (recordatorio)
 
-| Campo | Tipo | Notas |
-|---|---|---|
-| id | uuid | |
-| task_id | fk → Task | |
-| trigger | text | formato iCalendar: `TRIGGER:PT0S`, `TRIGGER:P0DT9H0M0S` (offset relativo a due/start), o absoluto `at` |
-| absolute_at | timestamptz, nullable | recordatorio en hora fija |
-| type | enum: `relative`, `absolute`, `location`, `daily_digest` | |
-| location | jsonb, nullable | `{lat, lon, radius_m, label}` (recordatorio por ubicación) |
-| channel | enum: `push`, `email`, `both` | incluye recordatorio por email |
-| constant | bool | "recordatorio constante": renotifica hasta completar |
-| snoozed_until | timestamptz | |
+| Campo         | Tipo                                                     | Notas                                                                                                  |
+| ------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| id            | uuid                                                     |                                                                                                        |
+| task_id       | fk → Task                                                |                                                                                                        |
+| trigger       | text                                                     | formato iCalendar: `TRIGGER:PT0S`, `TRIGGER:P0DT9H0M0S` (offset relativo a due/start), o absoluto `at` |
+| absolute_at   | timestamptz, nullable                                    | recordatorio en hora fija                                                                              |
+| type          | enum: `relative`, `absolute`, `location`, `daily_digest` |                                                                                                        |
+| location      | jsonb, nullable                                          | `{lat, lon, radius_m, label}` (recordatorio por ubicación)                                             |
+| channel       | enum: `push`, `email`, `both`                            | incluye recordatorio por email                                                                         |
+| constant      | bool                                                     | "recordatorio constante": renotifica hasta completar                                                   |
+| snoozed_until | timestamptz                                              |                                                                                                        |
 
 ### 5.9 Habit y HabitLog
 
@@ -251,17 +250,17 @@ Estadísticas derivadas: racha actual, mejor racha, % de cumplimiento por semana
 
 ### 5.10 FocusSession (Pomodoro / Focus)
 
-| Campo | Tipo | Notas |
-|---|---|---|
-| id | uuid | |
-| task_id | fk → Task, nullable | asociar sesión a una tarea (se permite) |
-| type | enum: `focus`, `short_break`, `long_break` | |
-| planned_minutes | int | |
-| actual_seconds | int | |
-| started_at / ended_at | timestamptz | |
-| completed | bool | terminó vs. abandonado |
-| ambient_sound | text, nullable | white noise usado |
-| interrupted_count | int | |
+| Campo                 | Tipo                                       | Notas                                   |
+| --------------------- | ------------------------------------------ | --------------------------------------- |
+| id                    | uuid                                       |                                         |
+| task_id               | fk → Task, nullable                        | asociar sesión a una tarea (se permite) |
+| type                  | enum: `focus`, `short_break`, `long_break` |                                         |
+| planned_minutes       | int                                        |                                         |
+| actual_seconds        | int                                        |                                         |
+| started_at / ended_at | timestamptz                                |                                         |
+| completed             | bool                                       | terminó vs. abandonado                  |
+| ambient_sound         | text, nullable                             | white noise usado                       |
+| interrupted_count     | int                                        |                                         |
 
 Configuración por usuario (`FocusSettings`): duración pomodoro (default 25), descanso corto (5), descanso largo (15-30), pomodoros antes de descanso largo (4), auto-inicio de descansos/pomodoros, sonidos ambientales disponibles, "modo estricto" (no pausar).
 
@@ -331,25 +330,25 @@ Rutas limpias y compartibles: `/list/{id}`, `/filter/{id}`, `/today`, `/calendar
 
 ## 8. Alcance funcional y extensiones propias
 
-| Función | Gestores de referencia | Este producto |
-|---|---|---|
-| Tareas, listas, carpetas, secciones, etiquetas anidadas, prioridades, checklist | Sí | Paridad total |
-| Filtros (normal y avanzado con AND/OR) y smart lists | Sí | Paridad + evaluación por API |
-| Recurrencias RRULE, "repetir desde completado" | Sí | Paridad + ocurrencias teóricas por API |
-| Recordatorios (múltiples, constante, email, ubicación, daily) | Sí (ubicación solo iOS) | Paridad multiplataforma donde el cliente lo permita |
-| Vistas lista/kanban/timeline, calendario, Eisenhower | Sí | Paridad |
-| Pomodoro con estadísticas y white noise | Sí | Paridad + sesiones y stats por API |
-| Hábitos con estadísticas | Sí | Paridad + check-ins por API |
-| Notas y sticky notes | Sí | Paridad |
-| Suscripción iCal / Google Calendar | Sí (parcial de pago) | Gratis + feeds iCal propios por lista/filtro |
-| Colaboración | Sí | V2, con mismos permisos read/comment/write |
-| Open API | Muy limitada (tasks/projects, 2 scopes) | **API completa del dominio + servidor MCP + compatibilidad `/open/v1`** |
-| Webhooks | No | **Sí, catálogo completo con firma y reintentos** |
-| Automatizaciones internas | No | **Sí, motor trigger-condición-acción** |
-| Plugins | No | **Sí (V2): comandos, NLP, vistas, acciones** |
-| Exportación completa | Parcial | **JSON completo versionado + CSV + iCal + backup diario** |
-| Plantillas de lista/tarea, WIP limits, `estimated_pomodoros` | No | Sí (extensiones propias) |
-| Dashboard de KPIs configurable y reporte semanal honesto | No | Sí (extensiones propias, secciones 9.21 y 9.22) |
+| Función                                                                         | Gestores de referencia                  | Este producto                                                           |
+| ------------------------------------------------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------- |
+| Tareas, listas, carpetas, secciones, etiquetas anidadas, prioridades, checklist | Sí                                      | Paridad total                                                           |
+| Filtros (normal y avanzado con AND/OR) y smart lists                            | Sí                                      | Paridad + evaluación por API                                            |
+| Recurrencias RRULE, "repetir desde completado"                                  | Sí                                      | Paridad + ocurrencias teóricas por API                                  |
+| Recordatorios (múltiples, constante, email, ubicación, daily)                   | Sí (ubicación solo iOS)                 | Paridad multiplataforma donde el cliente lo permita                     |
+| Vistas lista/kanban/timeline, calendario, Eisenhower                            | Sí                                      | Paridad                                                                 |
+| Pomodoro con estadísticas y white noise                                         | Sí                                      | Paridad + sesiones y stats por API                                      |
+| Hábitos con estadísticas                                                        | Sí                                      | Paridad + check-ins por API                                             |
+| Notas y sticky notes                                                            | Sí                                      | Paridad                                                                 |
+| Suscripción iCal / Google Calendar                                              | Sí (parcial de pago)                    | Gratis + feeds iCal propios por lista/filtro                            |
+| Colaboración                                                                    | Sí                                      | V2, con mismos permisos read/comment/write                              |
+| Open API                                                                        | Muy limitada (tasks/projects, 2 scopes) | **API completa del dominio + servidor MCP + compatibilidad `/open/v1`** |
+| Webhooks                                                                        | No                                      | **Sí, catálogo completo con firma y reintentos**                        |
+| Automatizaciones internas                                                       | No                                      | **Sí, motor trigger-condición-acción**                                  |
+| Plugins                                                                         | No                                      | **Sí (V2): comandos, NLP, vistas, acciones**                            |
+| Exportación completa                                                            | Parcial                                 | **JSON completo versionado + CSV + iCal + backup diario**               |
+| Plantillas de lista/tarea, WIP limits, `estimated_pomodoros`                    | No                                      | Sí (extensiones propias)                                                |
+| Dashboard de KPIs configurable y reporte semanal honesto                        | No                                      | Sí (extensiones propias, secciones 9.21 y 9.22)                         |
 
 ---
 
@@ -725,15 +724,16 @@ Reglas `when → if → then` definidas por el usuario (UI + API, scope `automat
 ```json
 {
   "name": "Vencidas importantes a revisión",
-  "trigger": {"event": "task.overdue@v1"},
-  "conditions": {"combinator": "AND", "conditions": [
-    {"field": "priority", "op": "gte", "value": "medium"}
-  ]},
+  "trigger": { "event": "task.overdue@v1" },
+  "conditions": {
+    "combinator": "AND",
+    "conditions": [{ "field": "priority", "op": "gte", "value": "medium" }]
+  },
   "actions": [
-    {"type": "add_tag", "tag": "revisar"},
-    {"type": "notify", "channel": "push", "text": "Tarea importante vencida: {{task.title}}"},
-    {"type": "webhook", "url": "https://..."},
-    {"type": "create_task", "project": "Inbox", "title": "Replanificar {{task.title}}"}
+    { "type": "add_tag", "tag": "revisar" },
+    { "type": "notify", "channel": "push", "text": "Tarea importante vencida: {{task.title}}" },
+    { "type": "webhook", "url": "https://..." },
+    { "type": "create_task", "project": "Inbox", "title": "Replanificar {{task.title}}" }
   ]
 }
 ```
@@ -818,16 +818,16 @@ Objetivo: que cualquier funcionalidad nueva (integración con otra app, una vist
 
 ## 16. Requisitos no funcionales
 
-| Área | Requisito |
-|---|---|
-| Rendimiento | p95 < 200 ms en lecturas de listas típicas (<5k tareas visibles); quick add < 300 ms incluyendo NLP; búsqueda < 300 ms con 100k tareas |
-| Escalabilidad | diseño válido hasta 50 usuarios / 1M tareas por instancia sin cambios (sobra para uso personal y pequeño equipo) |
-| Disponibilidad | backup diario + restauración probada (RF-1704); RPO 24 h, RTO 1 h |
-| i18n | español e inglés desde el MVP; todas las cadenas externalizadas; NLP al menos en ambos |
-| Accesibilidad | WCAG 2.1 AA en web: navegación completa por teclado, contraste, aria-labels en vistas complejas |
-| Navegadores | últimas 2 versiones de Chrome/Firefox/Safari/Edge; PWA instalable en Android/iOS |
-| Observabilidad | logs estructurados JSON, métricas (Prometheus), alertas básicas (cola de recordatorios atrasada, webhooks fallando) |
-| Tests | pirámide: unitarios de dominio (recurrencias, filtros, NLP) con cobertura >80% en esos módulos, integración de API, e2e de flujos críticos (crear→recordar→completar) |
+| Área           | Requisito                                                                                                                                                             |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Rendimiento    | p95 < 200 ms en lecturas de listas típicas (<5k tareas visibles); quick add < 300 ms incluyendo NLP; búsqueda < 300 ms con 100k tareas                                |
+| Escalabilidad  | diseño válido hasta 50 usuarios / 1M tareas por instancia sin cambios (sobra para uso personal y pequeño equipo)                                                      |
+| Disponibilidad | backup diario + restauración probada (RF-1704); RPO 24 h, RTO 1 h                                                                                                     |
+| i18n           | español e inglés desde el MVP; todas las cadenas externalizadas; NLP al menos en ambos                                                                                |
+| Accesibilidad  | WCAG 2.1 AA en web: navegación completa por teclado, contraste, aria-labels en vistas complejas                                                                       |
+| Navegadores    | últimas 2 versiones de Chrome/Firefox/Safari/Edge; PWA instalable en Android/iOS                                                                                      |
+| Observabilidad | logs estructurados JSON, métricas (Prometheus), alertas básicas (cola de recordatorios atrasada, webhooks fallando)                                                   |
+| Tests          | pirámide: unitarios de dominio (recurrencias, filtros, NLP) con cobertura >80% en esos módulos, integración de API, e2e de flujos críticos (crear→recordar→completar) |
 
 ---
 
@@ -873,15 +873,15 @@ colaboración (compartir listas con permisos — p. ej. la lista compartida con 
 
 ## 20. Riesgos y mitigaciones
 
-| Riesgo | Mitigación |
-|---|---|
-| Alcance enorme para un solo desarrollador/agente | Fases duras; el MVP ya es usable; cada RF es independiente y testeable |
-| Recurrencias y zonas horarias: fuente clásica de bugs | Usar librería probada (rrule.js / dateutil), suite de tests de casos límite (RF-706) |
-| NLP en español pobre | Empezar con reglas, no ML; resaltar lo detectado para corrección manual inmediata |
-| PWA: push y background timer limitados en iOS | Sesiones de focus persistidas en servidor (RF-1205); Web Push en iOS requiere app instalada: documentarlo |
-| Exposición a agentes externos (MCP/PAT) desde fase 1 | Scopes granulares, tokens revocables con último uso visible, rate limiting por token; el servidor MCP hereda los límites del token (RF-2001) |
-| Instancia única en un VPS: punto único de fallo | Backup diario externo y restauración probada (RF-1704); RPO 24 h / RTO 1 h asumidos en sección 16 |
-| Importador externo (RF-1701, aplazado) limitado por la Open API pública si se retoma | Documentar lo no exportable (hábitos/pomodoros) y ofrecer recreación guiada |
+| Riesgo                                                                               | Mitigación                                                                                                                                   |
+| ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Alcance enorme para un solo desarrollador/agente                                     | Fases duras; el MVP ya es usable; cada RF es independiente y testeable                                                                       |
+| Recurrencias y zonas horarias: fuente clásica de bugs                                | Usar librería probada (rrule.js / dateutil), suite de tests de casos límite (RF-706)                                                         |
+| NLP en español pobre                                                                 | Empezar con reglas, no ML; resaltar lo detectado para corrección manual inmediata                                                            |
+| PWA: push y background timer limitados en iOS                                        | Sesiones de focus persistidas en servidor (RF-1205); Web Push en iOS requiere app instalada: documentarlo                                    |
+| Exposición a agentes externos (MCP/PAT) desde fase 1                                 | Scopes granulares, tokens revocables con último uso visible, rate limiting por token; el servidor MCP hereda los límites del token (RF-2001) |
+| Instancia única en un VPS: punto único de fallo                                      | Backup diario externo y restauración probada (RF-1704); RPO 24 h / RTO 1 h asumidos en sección 16                                            |
+| Importador externo (RF-1701, aplazado) limitado por la Open API pública si se retoma | Documentar lo no exportable (hábitos/pomodoros) y ofrecer recreación guiada                                                                  |
 
 ---
 
@@ -897,7 +897,6 @@ Las preguntas abiertas originales quedaron resueltas así:
 6. **Prioridad de módulos**: los hábitos con recordatorios entran en fase 1, con foco en que sean fáciles de adoptar y configurar. El Pomodoro pasa a fase 2 (V2).
 7. **Migración**: sin importación desde otro gestor; se empieza desde cero. Importador fuera del MVP (RF-1701 aplazado).
 8. **Integraciones**: prioridad 1) agentes personales (ChatGPT, Cursor, Instinct...) vía **servidor MCP + API REST con PATs de scopes granulares, requisito de fase 1**; 2) Telegram (consultar y crear tareas); 3) Google Calendar; 4) Google Drive.
-
 
 ---
 
@@ -923,4 +922,4 @@ Resumen verificado contra la documentación pública (developer.ticktick.com, oc
 
 ---
 
-*Fin del documento. Mantener versionado junto al código; cada fase cerrada actualiza la sección 19.*
+_Fin del documento. Mantener versionado junto al código; cada fase cerrada actualiza la sección 19._

@@ -4,10 +4,13 @@ import { ApiError } from '@reflexionia/sdk';
 import {
   Award,
   BarChart3,
+  CalendarCheck,
   CalendarDays,
   CalendarRange,
   CheckCircle2,
+  CircleDot,
   ClipboardList,
+  Grid2x2,
   Hourglass,
   Inbox,
   LayoutDashboard,
@@ -224,10 +227,67 @@ export function Sidebar({
               <SideLink to={smartPath(item.key)} onNavigate={onNavigate}>
                 <SmartIcon name={item.key} />
                 <span className="nav-label">{smartLabel(messages, item.key)}</span>
-                {showCounters ? <Badge value={item.task_count} /> : null}
+                {showCounters && item.task_count > 0 ? <Badge value={item.task_count} /> : null}
               </SideLink>
             </li>
           ))}
+        </ul>
+        <p className="nav-section">{messages.navModules}</p>
+        <ul className="nav-list">
+          <li>
+            <SideLink to="/calendar/month" onNavigate={onNavigate}>
+              <CalendarDays size={18} aria-hidden="true" />
+              <span className="nav-label">{messages.navCalendar}</span>
+            </SideLink>
+          </li>
+          <li>
+            <SideLink to="/dashboard" onNavigate={onNavigate}>
+              <LayoutDashboard size={18} aria-hidden="true" />
+              <span className="nav-label">{messages.navDashboard}</span>
+            </SideLink>
+          </li>
+          <li>
+            <SideLink to="/reports/weekly" onNavigate={onNavigate}>
+              <BarChart3 size={18} aria-hidden="true" />
+              <span className="nav-label">{messages.navReports}</span>
+            </SideLink>
+          </li>
+          <li>
+            <SideLink to="/review/weekly" onNavigate={onNavigate}>
+              <ClipboardList size={18} aria-hidden="true" />
+              <span className="nav-label">{messages.navReview}</span>
+            </SideLink>
+          </li>
+          {flags.countdowns ? (
+            <li>
+              <SideLink to="/countdowns" onNavigate={onNavigate}>
+                <Hourglass size={18} aria-hidden="true" />
+                <span className="nav-label">{messages.navCountdowns}</span>
+              </SideLink>
+            </li>
+          ) : null}
+          {flags.focus ? (
+            <li>
+              <SideLink to="/focus" onNavigate={onNavigate}>
+                <CircleDot size={18} aria-hidden="true" />
+                <span className="nav-label">{messages.navFocus}</span>
+              </SideLink>
+            </li>
+          ) : null}
+          <li>
+            <SideLink to="/habits" onNavigate={onNavigate}>
+              <CalendarCheck size={18} aria-hidden="true" />
+              <span className="nav-label">{messages.navHabits}</span>
+            </SideLink>
+          </li>
+          {flags.matrix ? (
+            <li>
+              <SideLink to="/matrix" onNavigate={onNavigate}>
+                <Grid2x2 size={18} aria-hidden="true" />
+                <span className="nav-label">{messages.navMatrix}</span>
+              </SideLink>
+            </li>
+          ) : null}
         </ul>
         <SectionHead title={messages.filtersTitle}>
           <Link

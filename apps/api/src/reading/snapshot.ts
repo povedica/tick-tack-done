@@ -1,6 +1,7 @@
 import type { DashboardHabit, DashboardSnapshot, DashboardTask } from '@reflexionia/domain';
 import { dashboardSnapshot } from '@reflexionia/domain';
 import type { PrismaService } from '../prisma/prisma.service.js';
+import { countOverdueTasks } from './overdue.js';
 
 /** Shared read of the user's tasks and habits. Widgets and the weekly report use this, not a second formula. */
 export async function loadDashboardSnapshot(
@@ -44,7 +45,10 @@ export async function loadDashboardSnapshot(
       count: log.count,
     })),
   }));
-  return dashboardSnapshot(mappedTasks, mappedHabits, now.toISOString());
+  const snapshot = dashboardSnapshot(mappedTasks, mappedHabits, now.toISOString());
+  // DAT-1: overdue matches the badge SQL (all-day uses the calendar day in the task zone).
+  const overdue = await countOverdueTasks(prisma, ownerId);
+  return { ...snapshot, overdue };
 }
 
 function targetOf(goal: unknown): number {

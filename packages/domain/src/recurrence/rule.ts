@@ -237,7 +237,7 @@ export function describeRepeatRule(rule: string): string | null {
       const day = byMonthDay[0] ?? -1;
       label = day === -1 ? 'El último día de cada mes' : `${String(-day)} días antes de fin de mes`;
     } else if (byMonthDay.length > 0) {
-      label = `El día ${byMonthDay.join(' y ')} de cada mes`;
+      label = `El ${joinEs(byMonthDay.map(monthDayLabel))} de cada mes`;
     } else {
       label = interval === 1 ? 'Cada mes' : `Cada ${String(interval)} meses`;
     }
@@ -255,6 +255,20 @@ function joinEs(items: readonly string[]): string {
     return items[0] ?? '';
   }
   return `${items.slice(0, -1).join(', ')} y ${items[items.length - 1] ?? ''}`;
+}
+
+/** REC-3: negative BYMONTHDAY is relative to month end (−1 = último día). */
+function monthDayLabel(day: number): string {
+  if (day === -1) {
+    return 'último día';
+  }
+  if (day === -2) {
+    return 'penúltimo día';
+  }
+  if (day < 0) {
+    return `día ${String(day)}`;
+  }
+  return `día ${String(day)}`;
 }
 
 function parseBody(body: string): Omit<ParsedRule, 'exdates' | 'dtstart' | 'rruleBody'> | null {

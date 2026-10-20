@@ -134,12 +134,12 @@
 .task-row {
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 4px;
   height: var(--row-h);
   min-height: var(--row-h);
   min-width: 0;
-  padding: 0 8px;
+  padding: 0 36px 0 8px;
   border-radius: 10px;
   transition:
     background-color var(--dur-base) var(--ease),
@@ -200,13 +200,14 @@
 }
 
 .task-more {
-  right: 4px;
+  right: 8px;
   width: 28px;
   height: 28px;
   border: 0;
   border-radius: 8px;
   background: transparent;
   cursor: pointer;
+  flex: none;
 }
 
 .task-row:hover .task-grip,
@@ -220,8 +221,9 @@
   position: relative;
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
+  margin-top: 4px;
   flex: none;
 }
 
@@ -483,6 +485,11 @@ a.task-title {
 }
 
 .plan-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+
   margin: 8px 12px 0;
   color: var(--ink-3);
   font-size: 13px;
@@ -1172,7 +1179,51 @@ a.task-title {
 
 .detail-title {
   min-height: 32px;
+  max-height: none;
   overflow-wrap: anywhere;
+}
+
+.detail-attach-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.detail-attach-btn input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.search-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: var(--sp-4);
+}
+
+.search-input {
+  flex: 1;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
+.detail-content {
+  min-height: 6rem;
+  max-height: min(50vh, 24rem);
+  overflow: auto;
 }
 
 .detail-block-head,
@@ -1256,4 +1307,24 @@ a.task-title {
   .detail-title {
     font-size: 20px;
   }
+}
+
+.today-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--surface);
+  padding-bottom: var(--sp-2);
+}
+
+.review-card {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.review-card .review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
 }

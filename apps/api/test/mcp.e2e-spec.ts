@@ -508,9 +508,6 @@ describe('MCP server', () => {
     });
     expect(skip.body.result.isError).toBe(false);
 
-    const seriesRow = await prisma.task.findFirst({
-      where: { ownerId: owner.id, seriesId: created.series_id, status: 'active', deletedAt: null },
-    });
     // After detaching the current due, either a successor is pending via SeriesAdvance
     // or the same task lost its series; recreate a fresh recurring task for complete.
     const remade = await rpc(server, bearer, 'tools/call', {
@@ -561,7 +558,6 @@ describe('MCP server', () => {
       where: { seriesId: plant.series_id, deletedAt: null },
     });
     expect(after).toBe(before);
-    void seriesRow;
   });
 });
 

@@ -327,11 +327,7 @@ export {
   achievementScore,
   priorityBonus,
 } from './achievements/score';
-export type {
-  AchievementInput,
-  AchievementLevel,
-  AchievementScore,
-} from './achievements/score';
+export type { AchievementInput, AchievementLevel, AchievementScore } from './achievements/score';
 export {
   ageOnComplete,
   buildDayBuckets,
@@ -351,12 +347,7 @@ export {
   weekdayInTz,
   addCalendarDays,
 } from './stats/aggregate';
-export type {
-  DayBucket,
-  StatsFocusRow,
-  StatsHabitRow,
-  StatsTaskRow,
-} from './stats/aggregate';
+export type { DayBucket, StatsFocusRow, StatsHabitRow, StatsTaskRow } from './stats/aggregate';
 export { parsePluginManifest, PLUGIN_PERMISSIONS, pluginMay } from './plugins/manifest';
 export type {
   ManifestFailure,

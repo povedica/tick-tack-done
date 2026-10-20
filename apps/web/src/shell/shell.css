@@ -601,6 +601,20 @@
   .bottom-bar button[aria-expanded='true'] {
     color: var(--ink-inverse);
   }
+
+  .bottom-bar .more-sheet {
+    color: var(--ink);
+    background: var(--surface);
+  }
+
+  .bottom-bar .more-sheet a {
+    color: var(--ink);
+  }
+
+  .bottom-bar .more-sheet a:hover {
+    background: var(--surface-2);
+    color: var(--ink);
+  }
 }
 
 @media (min-width: 1024px) {

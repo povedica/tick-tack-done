@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-deprecated, @typescript-eslint/no-base-to-string, @typescript-eslint/no-unnecessary-condition -- stats screen uses SDK unknowns and prefetch */
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -92,8 +93,7 @@ export function StatisticsPage() {
       queryKey: ['stats', 'habits', params],
       queryFn: () => statsApi.habits(params),
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- prefetch on range change
-  }, [params.from, params.to, params.list, params.tag, params.priority]);
+  }, [params.from, params.to, params.list, params.tag, params.priority, queryClient]);
 
   const overview = useQuery({
     queryKey: ['stats', 'overview', params],
@@ -165,7 +165,14 @@ export function StatisticsPage() {
         <div className="stats-header-row">
           <h1>{messages.navStatistics}</h1>
           <div className="stats-range">
-            <button type="button" className="stats-icon-btn" onClick={() => nudge(-1)} aria-label="Período anterior">
+            <button
+              type="button"
+              className="stats-icon-btn"
+              onClick={() => {
+                nudge(-1);
+              }}
+              aria-label="Período anterior"
+            >
               ‹
             </button>
             {(
@@ -181,12 +188,21 @@ export function StatisticsPage() {
                 key={key}
                 type="button"
                 className={rangeKey === key ? 'is-active' : undefined}
-                onClick={() => setRange(key)}
+                onClick={() => {
+                  setRange(key);
+                }}
               >
                 {label}
               </button>
             ))}
-            <button type="button" className="stats-icon-btn" onClick={() => nudge(1)} aria-label="Período siguiente">
+            <button
+              type="button"
+              className="stats-icon-btn"
+              onClick={() => {
+                nudge(1);
+              }}
+              aria-label="Período siguiente"
+            >
               ›
             </button>
           </div>
@@ -194,7 +210,9 @@ export function StatisticsPage() {
             <button
               type="button"
               className="stats-filter-btn"
-              onClick={() => setFiltersOpen((value) => !value)}
+              onClick={() => {
+                setFiltersOpen((value) => !value);
+              }}
             >
               <SlidersHorizontal size={16} aria-hidden="true" />
               Filtros{filterCount > 0 ? ` · ${String(filterCount)}` : ''}
@@ -313,30 +331,47 @@ export function StatisticsPage() {
         <div className="stats-chips">
           {list ? (
             <span className="stats-chip">
-              lista <button type="button" onClick={() => {
-                const copy = new URLSearchParams(search);
-                copy.delete('list');
-                setSearch(copy, { replace: true });
-              }}>×</button>
+              lista{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  const copy = new URLSearchParams(search);
+                  copy.delete('list');
+                  setSearch(copy, { replace: true });
+                }}
+              >
+                ×
+              </button>
             </span>
           ) : null}
           {tag ? (
             <span className="stats-chip">
-              etiqueta <button type="button" onClick={() => {
-                const copy = new URLSearchParams(search);
-                copy.delete('tag');
-                setSearch(copy, { replace: true });
-              }}>×</button>
+              etiqueta{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  const copy = new URLSearchParams(search);
+                  copy.delete('tag');
+                  setSearch(copy, { replace: true });
+                }}
+              >
+                ×
+              </button>
             </span>
           ) : null}
           {priority ? (
             <span className="stats-chip">
               {priority}{' '}
-              <button type="button" onClick={() => {
-                const copy = new URLSearchParams(search);
-                copy.delete('priority');
-                setSearch(copy, { replace: true });
-              }}>×</button>
+              <button
+                type="button"
+                onClick={() => {
+                  const copy = new URLSearchParams(search);
+                  copy.delete('priority');
+                  setSearch(copy, { replace: true });
+                }}
+              >
+                ×
+              </button>
             </span>
           ) : null}
         </div>
@@ -357,7 +392,9 @@ export function StatisticsPage() {
           ))}
         </nav>
         <p className="stats-phrase">
-          {overview.isLoading ? 'Cargando resumen…' : phrase || `Del ${formatHumanDay(bounds.from)} al ${formatHumanDay(bounds.to)}.`}
+          {overview.isLoading
+            ? 'Cargando resumen…'
+            : phrase || `Del ${formatHumanDay(bounds.from)} al ${formatHumanDay(bounds.to)}.`}
         </p>
       </header>
 
@@ -434,21 +471,27 @@ function OverviewTab({
           label="Completadas"
           value={String(num(summary.completed))}
           delta={numOrNull(summary.completed_delta_percent)}
-          onClick={() => onOpen('tasks')}
+          onClick={() => {
+            onOpen('tasks');
+          }}
         />
         <Kpi
           label="Tasa de completitud"
           value={summary.completion_rate === null ? '—' : `${String(summary.completion_rate)} %`}
           hint={`${String(num(summary.completion_completed))}/${String(num(summary.completion_planned))}`}
           delta={numOrNull(summary.completion_rate_delta_pt)}
-          onClick={() => onOpen('tasks')}
+          onClick={() => {
+            onOpen('tasks');
+          }}
         />
         <Kpi
           label="Tiempo de foco"
           value={formatDuration(num(summary.focus_minutes))}
           hint={`${String(num(summary.pomodoros))} pomodoros`}
           delta={numOrNull(summary.focus_minutes_delta_percent)}
-          onClick={() => onOpen('focus')}
+          onClick={() => {
+            onOpen('focus');
+          }}
         />
         <Kpi
           label="Hábitos cumplidos"
@@ -456,13 +499,17 @@ function OverviewTab({
           hint={`${String(num(summary.habit_done))}/${String(num(summary.habit_expected))} días`}
           delta={numOrNull(summary.habit_delta_pt)}
           worseIsUp={false}
-          onClick={() => onOpen('habits')}
+          onClick={() => {
+            onOpen('habits');
+          }}
         />
         <Kpi
           label="Racha de días productivos"
           value={`${String(num(summary.streak_current))} días`}
           hint={`mejor: ${String(num(summary.streak_best_year))}`}
-          onClick={() => onOpen('tasks')}
+          onClick={() => {
+            onOpen('tasks');
+          }}
         />
         <article className="stats-card stats-kpi stats-achievement">
           <p className="stats-kpi-label">Valor de logro</p>
@@ -484,7 +531,13 @@ function OverviewTab({
             <summary>¿Cómo se calcula?</summary>
             <Formula formula={isRecord(achievement?.formula) ? achievement.formula : null} />
           </details>
-          <button type="button" className="stats-link-btn" onClick={() => onOpen('tasks')}>
+          <button
+            type="button"
+            className="stats-link-btn"
+            onClick={() => {
+              onOpen('tasks');
+            }}
+          >
             Ver detalle
           </button>
         </article>
@@ -681,9 +734,7 @@ function HabitsTab({
   const cards = arrayOf(data.habits);
   return (
     <div className="stats-body">
-      {filtersIgnored ? (
-        <p className="stats-note">Los filtros no aplican a hábitos.</p>
-      ) : null}
+      {filtersIgnored ? <p className="stats-note">Los filtros no aplican a hábitos.</p> : null}
       <article className="stats-card stats-span-12">
         <h2>Cumplimiento global</h2>
         <Charts.HabitLineChart
@@ -771,7 +822,11 @@ function Delta({ value, worseIsUp }: { readonly value: number; readonly worseIsU
   const good = worseIsUp === true ? !up : up;
   return (
     <p className={good ? 'stats-delta is-up' : 'stats-delta is-down'}>
-      {up ? <TrendingUp size={14} aria-hidden="true" /> : <TrendingDown size={14} aria-hidden="true" />}
+      {up ? (
+        <TrendingUp size={14} aria-hidden="true" />
+      ) : (
+        <TrendingDown size={14} aria-hidden="true" />
+      )}
       {up ? '+' : ''}
       {String(value)} %
     </p>
@@ -799,7 +854,8 @@ function DistributionCard({
         <ul className="stats-bars">
           {rows.map((row, index) => {
             const color = priority
-              ? theme.prio[String(row.key) as 'high' | 'medium' | 'low' | 'none'] ?? theme.charts[index % 8]
+              ? (theme.prio[String(row.key) as 'high' | 'medium' | 'low' | 'none'] ??
+                theme.charts[index % 8])
               : typeof row.color === 'string' && row.color.length > 0
                 ? row.color
                 : theme.charts[index % 8];

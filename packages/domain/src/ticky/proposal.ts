@@ -212,14 +212,10 @@ function assertChanges(changes: TaskChanges): void {
   if ('trashed' in changes && changes.trashed === null) {
     throw new ProposalError('field_cannot_be_cleared');
   }
-  if (changes.title !== undefined && changes.title !== null && changes.title.length < 1) {
+  if (changes.title !== undefined && changes.title.length < 1) {
     throw new ProposalError('proposal_invalid');
   }
-  if (
-    changes.project_id !== undefined &&
-    changes.project_id !== null &&
-    !UUID.test(changes.project_id)
-  ) {
+  if (changes.project_id !== undefined && !UUID.test(changes.project_id)) {
     throw new ProposalError('proposal_invalid');
   }
 }

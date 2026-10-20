@@ -104,6 +104,10 @@ const MONTH_NAME: Readonly<Record<string, number>> = {
 const RELATIVE =
   /(?<![\p{L}\p{N}])(pasado\s+mañana|day\s+after\s+tomorrow|mañana|tomorrow|hoy|today)(?![\p{L}\p{N}])/giu;
 
+/** REC-4: "cada día 19 de mes" must be MONTHLY, not DAILY. */
+const MONTH_DAY_EVERY =
+  /(?<![\p{L}\p{N}])(?:cada|el)\s+(?:d[ií]a\s+)?(\d{1,2})\s+de\s+(?:cada\s+)?mes(?![\p{L}\p{N}])/giu;
+
 const EVERY =
   /(?<![\p{L}\p{N}])(?:cada|todos\s+los|every)\s+(lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo|d[ií]a|semana|mes|a[nñ]o|monday|tuesday|wednesday|thursday|friday|saturday|sunday|weekday|weekdays|day|week|month|year)(?![\p{L}\p{N}])/giu;
 
@@ -244,6 +248,7 @@ const builtinMatchers: readonly Matcher[] = [
   matchSomeday,
   matchEvening,
   matchRelative,
+  matchMonthDayEvery,
   matchEvery,
   matchNumericDate,
   matchMonthWord,
@@ -632,6 +637,28 @@ function opensAtBoundary(text: string, index: number): boolean {
   }
   const previous = text[index - 1] ?? '';
   return !/[\p{L}\p{N}]/u.test(previous);
+}
+
+function matchMonthDayEvery(
+  text: string,
+  from: number,
+  _language: QuickAddLanguage,
+  clock: ClockContext | null,
+): Found | null {
+  if (clock === null) {
+    return null;
+  }
+  const match = firstMatch(text, from, MONTH_DAY_EVERY);
+  if (match?.[1] === undefined) {
+    return null;
+  }
+  const day = Number(match[1]);
+  if (!Number.isInteger(day) || day < 1 || day > 31) {
+    return null;
+  }
+  const timed = extendWithTime(text, match.index + match[0].length);
+  const rule = ruleOf({ freq: 'monthly', monthDay: day });
+  return rule === null ? null : dateFound(match.index, timed, clock.now, rule, clock.timeZone);
 }
 
 function matchEvery(

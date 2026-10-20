@@ -232,6 +232,15 @@ describe('parseQuickAdd', () => {
     expect(parsed('stand up 15:35').due?.isAllDay).toBe(false);
   });
 
+  it('REC-4: cada día 19 de mes is monthly, not daily', () => {
+    expect(parsed('Revisión cada día 19 de mes').repeatRule).toBe(
+      'RRULE:FREQ=MONTHLY;BYMONTHDAY=19',
+    );
+    expect(parsed('pago el día 19 de cada mes').repeatRule).toBe(
+      'RRULE:FREQ=MONTHLY;BYMONTHDAY=19',
+    );
+  });
+
   it('RF-102: cada día, cada mes and a las 9:00 build daily and monthly rules', () => {
     expect(parsed('cada día').repeatRule).toBe('RRULE:FREQ=DAILY');
     const monthly = parsed('cada mes a las 9:00');

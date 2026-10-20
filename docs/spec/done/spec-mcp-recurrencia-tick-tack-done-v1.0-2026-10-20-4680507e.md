@@ -21,7 +21,7 @@ Verificado leyendo el repo en `8b1ad1f` y llamando a `POST https://todo.reflexio
 ### 1.2 Lo que la API REST ya soporta (y el MCP no expone)
 
 - `TaskCreateDto` / `TaskUpdateDto` ya aceptan `repeat_rule` (string, máx 500) y `repeat_from` (`due_date` | `completion_date`) — `tasks.dto.ts` L123-128 y L233-238.
-- `TasksService.canonicalRule` valida y ancla la regla: `DTSTART` sale de la `due_date` en la zona horaria de la tarea; errores `missing_anchor` → *"a repeating task needs a due_date"* e `invalid_rule` → *"repeat_rule must be an RRULE"*.
+- `TasksService.canonicalRule` valida y ancla la regla: `DTSTART` sale de la `due_date` en la zona horaria de la tarea; errores `missing_anchor` → _"a repeating task needs a due_date"_ e `invalid_rule` → _"repeat_rule must be an RRULE"_.
 - `GET /api/v1/tasks/{id}/occurrences?from&to` — ocurrencias teóricas sin persistir (RF-704).
 - `POST /api/v1/tasks/{id}/occurrences/detach` — desvincular una ocurrencia con `EXDATE` (RF-705).
 - `packages/domain/src/recurrence/rule.ts` ya incluye **todo lo necesario**:
@@ -73,7 +73,7 @@ Añadir a ambos schemas una propiedad `recurrence` (objeto) y `repeat_from` (enu
 
 Reglas de combinación (validar y rechazar con error claro, no ignorar):
 
-1. `recurrence` exige `due_date` en la misma llamada (o que la tarea ya la tenga, en update). Si no → error `missing_anchor`: *"una tarea recurrente necesita due_date"*.
+1. `recurrence` exige `due_date` en la misma llamada (o que la tarea ya la tenga, en update). Si no → error `missing_anchor`: _"una tarea recurrente necesita due_date"_.
 2. `weekdays` solo con `weekly`; `month_day`/`month_week` solo con `monthly`/`yearly`; `month_day` y `month_week` son mutuamente excluyentes.
 3. `month_week` y `weekdays` se mapean a `RepeatDraft.monthWeek` / `RepeatDraft.weekdays` tal cual; `buildRepeatRule` ya valida intervalo (1-999), `monthDay` (1-31) y formato de `until`.
 4. **"Último día del mes":** el parser acepta `BYMONTHDAY=-1..-31` pero `buildRepeatRule` solo admite 1-31. Ampliar `RepeatDraft.monthDay` a `-31..-1` (cambio de dos líneas en el dominio) y exponerlo en `month_day` del schema; si no se hace, documentar que "el último día del mes" solo se puede crear con `repeat_rule` cruda (`BYMONTHDAY=-1`). Ojo al renderizar la etiqueta: `describeRepeatRule` hoy imprime "El día -1 de cada mes" para `BYMONTHDAY=-1` (bug de texto tratado en la auditoría UI v2; corregir a "El último día de cada mes" / "N días antes de fin de mes" en la misma pasada).
@@ -100,7 +100,8 @@ name: get_task_occurrences
 scopes: tasks:read
 params: { id (uuid, requerido), from (date-time), to (date-time) }
 ```
-Envuelve `GET /tasks/{id}/occurrences?from&to` (RF-704). Descripción: *"List the theoretical occurrences of a repeating task in a range. Nothing is stored: only the current occurrence exists as a row."*
+
+Envuelve `GET /tasks/{id}/occurrences?from&to` (RF-704). Descripción: _"List the theoretical occurrences of a repeating task in a range. Nothing is stored: only the current occurrence exists as a row."_
 
 ### RF-2010 — Tool `detach_occurrence`
 
@@ -109,7 +110,8 @@ name: detach_occurrence
 scopes: tasks:write
 params: { id (uuid), due_date (date-time, la ocurrencia a desvincular), title (string, opcional) }
 ```
-Envuelve `POST /tasks/{id}/occurrences/detach` (RF-705). Descripción: *"Edit or skip ONE occurrence without breaking the series: it is excluded with an EXDATE and becomes (or stops being) its own task."* Restricción heredada: nunca regenerar el RRULE persistido ni quitar `INTERVAL=1` al añadir el `EXDATE` (regla de la spec de bugs de importación).
+
+Envuelve `POST /tasks/{id}/occurrences/detach` (RF-705). Descripción: _"Edit or skip ONE occurrence without breaking the series: it is excluded with an EXDATE and becomes (or stops being) its own task."_ Restricción heredada: nunca regenerar el RRULE persistido ni quitar `INTERVAL=1` al añadir el `EXDATE` (regla de la spec de bugs de importación).
 
 ### RF-2011 — `complete_task` consciente de la recurrencia
 
@@ -152,13 +154,13 @@ Y en `update_task`: añadir que `recurrence: null` quita la repetición y que ca
 
 Mapear los fallos del dominio a mensajes accionables (el MCP ya envuelve `DomainException` como `toolError(code)`; añadir el mensaje):
 
-| Situación | Código | Mensaje |
-|---|---|---|
-| `recurrence` sin `due_date` | `missing_anchor` | "a repeating task needs a due_date" |
-| Regla mal formada (raw) | `invalid_rule` | "repeat_rule must be an RRULE" + qué línea falló si se sabe |
-| `weekdays` con `freq != weekly`, etc. | `validation_failed` | "weekdays only applies to weekly recurrence" |
-| `recurrence` y `repeat_rule` a la vez | `validation_failed` | "use either recurrence or repeat_rule, not both" |
-| Zona horaria no IANA | `invalid_zone` | "time_zone must be an IANA name like Europe/Madrid" |
+| Situación                             | Código              | Mensaje                                                     |
+| ------------------------------------- | ------------------- | ----------------------------------------------------------- |
+| `recurrence` sin `due_date`           | `missing_anchor`    | "a repeating task needs a due_date"                         |
+| Regla mal formada (raw)               | `invalid_rule`      | "repeat_rule must be an RRULE" + qué línea falló si se sabe |
+| `weekdays` con `freq != weekly`, etc. | `validation_failed` | "weekdays only applies to weekly recurrence"                |
+| `recurrence` y `repeat_rule` a la vez | `validation_failed` | "use either recurrence or repeat_rule, not both"            |
+| Zona horaria no IANA                  | `invalid_zone`      | "time_zone must be an IANA name like Europe/Madrid"         |
 
 ### RF-2014 — Scopes y seguridad
 
@@ -201,14 +203,14 @@ Detectados comparando catálogo MCP vs API REST. No van en esta entrega salvo el
 
 ## 6. Referencias de código
 
-| Pieza | Archivo |
-|---|---|
-| Catálogo de tools | `apps/api/src/mcp/mcp.catalog.ts` |
-| Dispatch/validación MCP | `apps/api/src/mcp/mcp.service.ts` |
-| DTO con `repeat_rule`/`repeat_from` | `apps/api/src/modules/tasks/tasks.dto.ts` (L123, L233, L562) |
-| Canonicalización y ancla DTSTART | `apps/api/src/modules/tasks/tasks.service.ts` (`canonicalRule`, ~L1508 create / ~L356 update) |
-| Builder/etiqueta/parser RRULE | `packages/domain/src/recurrence/rule.ts` (`buildRepeatRule`, `describeRepeatRule`, `parseRepeatRule`, `canonicalizeRepeatRule`) |
-| Expansión de ocurrencias | `packages/domain/src/recurrence/expand.ts` (`firstAfter`, `advanceFromCompletion`, `occurrencesInRange`) |
-| Scheduler que materializa (60 s) | `apps/api/src/scheduler/scheduler.service.ts` (`TICK_MS`, `advanceCompleted`) |
-| Endpoints REST a envolver | `apps/api/src/modules/tasks/tasks.controller.ts` (`:id/occurrences`, `:id/occurrences/detach`) |
-| Spec producto (RF-701..706, RF-2001) | `docs/spec/especificacion-producto-v1.1.md` |
+| Pieza                                | Archivo                                                                                                                         |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| Catálogo de tools                    | `apps/api/src/mcp/mcp.catalog.ts`                                                                                               |
+| Dispatch/validación MCP              | `apps/api/src/mcp/mcp.service.ts`                                                                                               |
+| DTO con `repeat_rule`/`repeat_from`  | `apps/api/src/modules/tasks/tasks.dto.ts` (L123, L233, L562)                                                                    |
+| Canonicalización y ancla DTSTART     | `apps/api/src/modules/tasks/tasks.service.ts` (`canonicalRule`, ~L1508 create / ~L356 update)                                   |
+| Builder/etiqueta/parser RRULE        | `packages/domain/src/recurrence/rule.ts` (`buildRepeatRule`, `describeRepeatRule`, `parseRepeatRule`, `canonicalizeRepeatRule`) |
+| Expansión de ocurrencias             | `packages/domain/src/recurrence/expand.ts` (`firstAfter`, `advanceFromCompletion`, `occurrencesInRange`)                        |
+| Scheduler que materializa (60 s)     | `apps/api/src/scheduler/scheduler.service.ts` (`TICK_MS`, `advanceCompleted`)                                                   |
+| Endpoints REST a envolver            | `apps/api/src/modules/tasks/tasks.controller.ts` (`:id/occurrences`, `:id/occurrences/detach`)                                  |
+| Spec producto (RF-701..706, RF-2001) | `docs/spec/especificacion-producto-v1.1.md`                                                                                     |

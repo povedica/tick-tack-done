@@ -363,10 +363,11 @@ export function TokensPage() {
                     {revoked ? messages.tokenRevoked : messages.tokenActive}
                   </span>
                 </div>
-                <ul className="token-chips">
-                  {token.scopes.map((scope) => (
-                    <li key={scope} className="token-chip">
-                      {scopeLabel(messages, scope)}
+                <ul className="token-scope-table">
+                  {groupedScopes(token.scopes, messages).map((row) => (
+                    <li key={row.resource}>
+                      <span>{row.resource}</span>
+                      <span>{row.access}</span>
                     </li>
                   ))}
                 </ul>
@@ -375,7 +376,7 @@ export function TokensPage() {
                   {' · '}
                   {token.last_used_at === null
                     ? messages.tokenNeverUsed
-                    : `${messages.tokenLastUsed} ${when(token.last_used_at, locale)}`}
+                    : `${messages.tokenLastUsed} ${whenRelative(token.last_used_at, locale, messages)}`}
                 </p>
                 <div className="token-actions">
                   <Button
@@ -394,7 +395,7 @@ export function TokensPage() {
                     <Button
                       type="button"
                       size="sm"
-                      variant="ghost"
+                      variant="danger"
                       onClick={() => {
                         setConfirmId(token.id);
                       }}
@@ -495,12 +496,111 @@ function when(iso: string, locale: string): string {
   if (Number.isNaN(date.getTime())) {
     return iso;
   }
-  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'medium' }).format(date);
+  return new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
+
+function whenRelative(iso: string, locale: string, messages: Messages): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return iso;
+  }
+  const startToday = new Date();
+  startToday.setHours(0, 0, 0, 0);
+  const startThat = new Date(date);
+  startThat.setHours(0, 0, 0, 0);
+  const dayDelta = Math.round((startToday.getTime() - startThat.getTime()) / 86_400_000);
+  const clock = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(
+    date,
+  );
+  if (dayDelta === 0) {
+    return `${messages.navToday.toLocaleLowerCase()}, ${clock}`;
+  }
+  if (dayDelta === 1) {
+    return `${messages.yesterdayLabel}, ${clock}`;
+  }
+  return when(iso, locale);
 }
 
 function scopeLabel(messages: Messages, scope: string): string {
   const key = SCOPE_LABEL[scope];
   return key === undefined ? scope : messages[key];
+}
+
+/** TOK-1: one line per resource instead of a chip wall. */
+function groupedScopes(
+  scopes: readonly string[],
+  messages: Messages,
+): readonly { readonly resource: string; readonly access: string }[] {
+  const unique = [...new Set(scopes)];
+  const byResource = new Map<string, { read: boolean; write: boolean; other: string[] }>();
+  for (const scope of unique) {
+    const [resource = scope, verb = ''] = scope.split(':');
+    const row = byResource.get(resource) ?? { read: false, write: false, other: [] };
+    if (verb === 'read') {
+      row.read = true;
+    } else if (verb === 'write' || verb === 'manage' || verb === 'start') {
+      row.write = true;
+    } else if (verb.length > 0) {
+      row.other.push(scopeLabel(messages, scope));
+    } else {
+      row.other.push(scopeLabel(messages, scope));
+    }
+    byResource.set(resource, row);
+  }
+  return [...byResource.entries()].map(([resource, access]) => {
+    const parts: string[] = [];
+    if (access.read && access.write) {
+      parts.push(messages.tokenAccessReadWrite);
+    } else if (access.read) {
+      parts.push(messages.tokenAccessRead);
+    } else if (access.write) {
+      parts.push(messages.tokenAccessWrite);
+    }
+    parts.push(...access.other);
+    return {
+      resource: resourceLabel(messages, resource),
+      access: parts.join(' · ') || messages.tokenAccessRead,
+    };
+  });
+}
+
+function resourceLabel(messages: Messages, resource: string): string {
+  switch (resource) {
+    case 'tasks':
+      return messages.tokenGroupTasks;
+    case 'lists':
+      return messages.tokenGroupLists;
+    case 'tags':
+      return messages.tokenGroupTags;
+    case 'filters':
+      return messages.tokenGroupFilters;
+    case 'habits':
+      return messages.tokenGroupHabits;
+    case 'focus':
+      return messages.tokenGroupFocus;
+    case 'notes':
+      return messages.tokenGroupNotes;
+    case 'calendar':
+      return messages.tokenGroupCalendar;
+    case 'reminders':
+      return messages.tokenGroupReminders;
+    case 'webhooks':
+      return messages.tokenGroupWebhooks;
+    case 'automations':
+      return messages.tokenGroupAutomations;
+    case 'profile':
+      return messages.tokenGroupProfile;
+    case 'backup':
+      return messages.tokenGroupBackup;
+    default:
+      return resource;
+  }
 }
 
 function actionLabel(messages: Messages, action: string): string {

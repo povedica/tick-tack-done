@@ -48,15 +48,17 @@ export class StatsService {
   async overview(user: AuthUser, query: StatsQuery) {
     const bounds = this.bounds(query);
     const prev = previousRange(query.from, query.to);
-    const [tasks, focus, habits, prevTasks, prevFocus, prevHabits, achievement] = await Promise.all([
-      this.loadTasks(user.id, query),
-      this.loadFocus(user.id, bounds.start, bounds.end, query),
-      this.loadHabits(user.id),
-      this.loadTasks(user.id, { ...query, from: prev.from, to: prev.to }),
-      this.loadFocus(user.id, prev.start, prev.end, query),
-      this.loadHabits(user.id),
-      this.achievement(user),
-    ]);
+    const [tasks, focus, habits, prevTasks, prevFocus, prevHabits, achievement] = await Promise.all(
+      [
+        this.loadTasks(user.id, query),
+        this.loadFocus(user.id, bounds.start, bounds.end, query),
+        this.loadHabits(user.id),
+        this.loadTasks(user.id, { ...query, from: prev.from, to: prev.to }),
+        this.loadFocus(user.id, prev.start, prev.end, query),
+        this.loadHabits(user.id),
+        this.achievement(user),
+      ],
+    );
     const current = countCompletedCreated(tasks, query.from, query.to, query.tz);
     const previous = countCompletedCreated(prevTasks, prev.from, prev.to, query.tz);
     const rate = completionRate(tasks, query.from, query.to, query.tz);
@@ -116,8 +118,7 @@ export class StatsService {
         habit_percent: habitPct.percent,
         habit_done: habitPct.done,
         habit_expected: habitPct.expected,
-        habit_delta_pt:
-          Math.round((habitPct.percent - prevHabitPct.percent) * 10) / 10,
+        habit_delta_pt: Math.round((habitPct.percent - prevHabitPct.percent) * 10) / 10,
         streak_current: streak.current,
         streak_best_year: streak.best_year,
         achievement,
@@ -131,9 +132,7 @@ export class StatsService {
       completion_series: buckets.map((bucket) => ({
         date: bucket.date,
         rate:
-          bucket.planned === 0
-            ? null
-            : Math.round((bucket.completed / bucket.planned) * 1000) / 10,
+          bucket.planned === 0 ? null : Math.round((bucket.completed / bucket.planned) * 1000) / 10,
         completed: bucket.completed,
         planned: bucket.planned,
       })),
@@ -185,9 +184,7 @@ export class StatsService {
       completion_series: buckets.map((bucket) => ({
         date: bucket.date,
         rate:
-          bucket.planned === 0
-            ? null
-            : Math.round((bucket.completed / bucket.planned) * 1000) / 10,
+          bucket.planned === 0 ? null : Math.round((bucket.completed / bucket.planned) * 1000) / 10,
         completed: bucket.completed,
         planned: bucket.planned,
       })),
@@ -230,8 +227,9 @@ export class StatsService {
         : sessions.filter((session) => session.type === query.type);
     const buckets = buildDayBuckets(bounds.days, [], typed, [], query.tz);
     const completed = typed.filter((session) => session.completed).length;
-    const abandoned = typed.filter((session) => !session.completed && session.endedAt !== null)
-      .length;
+    const abandoned = typed.filter(
+      (session) => !session.completed && session.endedAt !== null,
+    ).length;
     const interruptions =
       typed.length === 0
         ? 0
@@ -247,10 +245,10 @@ export class StatsService {
         row.minutes += Math.round(session.actualSeconds / 60);
       }
     }
-    const best = hours.reduce(
-      (winner, row) => (row.minutes > winner.minutes ? row : winner),
-      { hour: 0, minutes: 0 },
-    );
+    const best = hours.reduce((winner, row) => (row.minutes > winner.minutes ? row : winner), {
+      hour: 0,
+      minutes: 0,
+    });
     const year = Number(query.to.slice(0, 4));
     const lists = new Map<string, { label: string; color: string | null; value: number }>();
     const tags = new Map<string, { label: string; color: string | null; value: number }>();
@@ -291,9 +289,7 @@ export class StatsService {
         color: value.color,
         value: value.value,
       })),
-      ...(noTask > 0
-        ? [{ key: 'none', label: 'Sin tarea', color: null, value: noTask }]
-        : []),
+      ...(noTask > 0 ? [{ key: 'none', label: 'Sin tarea', color: null, value: noTask }] : []),
     ]);
     const day = query.from === query.to ? query.from : query.to;
     const timeline = typed
@@ -392,7 +388,7 @@ export class StatsService {
       select: { achievementsEnabled: true, timeZone: true },
     });
     const enabled = row?.achievementsEnabled ?? true;
-    const tz = row?.timeZone ?? user.timeZone ?? 'Europe/Madrid';
+    const tz = row?.timeZone ?? user.timeZone;
     if (!enabled) {
       return achievementScore({ enabled: false });
     }
@@ -429,9 +425,7 @@ export class StatsService {
     }
     const overdue = tasks.filter(
       (task) =>
-        task.status === 'active' &&
-        task.dueDate !== null &&
-        Date.parse(task.dueDate) < Date.now(),
+        task.status === 'active' && task.dueDate !== null && Date.parse(task.dueDate) < Date.now(),
     ).length;
     const habitCheckIns = await this.prisma.habitLog.count({
       where: { ownerId: user.id, deletedAt: null, count: { gt: 0 } },
@@ -508,9 +502,7 @@ export class StatsService {
         deletedAt: null,
         ...(lists === undefined ? {} : { projectId: { in: lists } }),
         ...(priorities === undefined ? {} : { priority: { in: priorities as never } }),
-        ...(tags === undefined
-          ? {}
-          : { tags: { some: { tagId: { in: tags } } } }),
+        ...(tags === undefined ? {} : { tags: { some: { tagId: { in: tags } } } }),
       },
       select: {
         id: true,
@@ -551,13 +543,9 @@ export class StatsService {
   ): Promise<StatsFocusRow[]> {
     const rows = await this.metrics.focusRows(ownerId, from, to);
     const lists =
-      query.list === undefined || query.list.length === 0
-        ? null
-        : new Set(query.list.split(','));
+      query.list === undefined || query.list.length === 0 ? null : new Set(query.list.split(','));
     const tags =
-      query.tag === undefined || query.tag.length === 0
-        ? null
-        : new Set(query.tag.split(','));
+      query.tag === undefined || query.tag.length === 0 ? null : new Set(query.tag.split(','));
     return rows.filter((row) => {
       if (lists !== null && (row.listId === null || !lists.has(row.listId))) {
         return false;
@@ -633,7 +621,10 @@ function deltaPercent(current: number, previous: number): number | null {
   return Math.round(((current - previous) / previous) * 1000) / 10;
 }
 
-function previousRange(from: string, to: string): {
+function previousRange(
+  from: string,
+  to: string,
+): {
   from: string;
   to: string;
   start: Date;
@@ -663,7 +654,9 @@ function buildPhrase(
   const hours = Math.floor(focusMinutes / 60);
   const minutes = focusMinutes % 60;
   const focus =
-    hours === 0 ? `${String(minutes)} min de foco` : `${String(hours)} h ${String(minutes)} min de foco`;
+    hours === 0
+      ? `${String(minutes)} min de foco`
+      : `${String(hours)} h ${String(minutes)} min de foco`;
   const rateText =
     rate.rate === null
       ? `${String(completed)} completadas`
@@ -673,9 +666,7 @@ function buildPhrase(
 
 function habitStreaks(habit: StatsHabitRow): { current: number; best: number } {
   const done = new Set(
-    habit.logs
-      .filter((log) => log.count >= habit.goal)
-      .map((log) => log.date.slice(0, 10)),
+    habit.logs.filter((log) => log.count >= habit.goal).map((log) => log.date.slice(0, 10)),
   );
   const sorted = [...done].sort();
   let best = 0;

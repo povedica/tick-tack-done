@@ -62,8 +62,7 @@ const recurrenceSchema = {
       },
       required: ['setpos', 'weekday'],
       additionalProperties: false,
-      description:
-        "Only with freq=monthly: last Friday of the month = {setpos:-1, weekday:'FR'}.",
+      description: "Only with freq=monthly: last Friday of the month = {setpos:-1, weekday:'FR'}.",
     },
     until: {
       type: 'string',
@@ -141,8 +140,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
         advance: {
           type: 'string',
           enum: ['one_period', 'next_future'],
-          description:
-            "How to pick the next due date for a repeating task. Default 'one_period'.",
+          description: "How to pick the next due date for a repeating task. Default 'one_period'.",
         },
         materialize_next: {
           type: 'boolean',
@@ -156,7 +154,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   {
     name: 'update_task',
     description:
-      "Update a task. start_date is when you plan to do it; due_date is the deadline and may be cleared without changing when. someday=true clears when and keeps the deadline. To change repetition pass recurrence or repeat_rule (same rules as create_task). recurrence:null (or repeat_rule:null) removes the series; changing the rule does not regenerate past occurrences or the series_id unless you clear it.",
+      'Update a task. start_date is when you plan to do it; due_date is the deadline and may be cleared without changing when. someday=true clears when and keeps the deadline. To change repetition pass recurrence or repeat_rule (same rules as create_task). recurrence:null (or repeat_rule:null) removes the series; changing the rule does not regenerate past occurrences or the series_id unless you clear it.',
     scopes: ['tasks:write'],
     inputSchema: objectSchema(
       {

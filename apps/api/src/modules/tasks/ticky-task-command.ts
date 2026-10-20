@@ -223,7 +223,7 @@ function dueDate(changes: ProposalItem['after']): Date | null | undefined {
   if (!('due_at' in changes)) {
     return undefined;
   }
-  if (changes.due_at === null || changes.due_at === undefined) {
+  if (changes.due_at === null) {
     return null;
   }
   const parsed = new Date(changes.due_at);

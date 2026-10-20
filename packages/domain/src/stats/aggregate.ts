@@ -58,7 +58,11 @@ export function parseDayBounds(
   to: string,
   timeZone: string,
 ): { startIso: string; endIso: string; days: string[] } | null {
-  if (!isIanaTimeZone(timeZone) || !/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+  if (
+    !isIanaTimeZone(timeZone) ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(from) ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(to)
+  ) {
     return null;
   }
   if (from > to) {
@@ -143,7 +147,12 @@ export function weekdayInTz(iso: string, timeZone: string): number | null {
 }
 
 /** RF-2321: completion rate = completed in range / due in range (TickTick). Cancelled excluded. */
-export function completionRate(tasks: readonly StatsTaskRow[], from: string, to: string, tz: string) {
+export function completionRate(
+  tasks: readonly StatsTaskRow[],
+  from: string,
+  to: string,
+  tz: string,
+) {
   let planned = 0;
   let completed = 0;
   for (const task of tasks) {
@@ -320,7 +329,12 @@ export function ageOnComplete(
 }
 
 export function distributionBy(
-  items: readonly { readonly key: string; readonly label: string; readonly color: string | null; readonly value: number }[],
+  items: readonly {
+    readonly key: string;
+    readonly label: string;
+    readonly color: string | null;
+    readonly value: number;
+  }[],
   limit = 8,
 ) {
   const sorted = [...items].filter((item) => item.value > 0).sort((a, b) => b.value - a.value);
@@ -436,14 +450,19 @@ export function focusHeatmap(
   sessions: readonly StatsFocusRow[],
   year: number,
   tz: string,
-): readonly { readonly date: string; readonly minutes: number; readonly pomodoros: number; readonly level: number }[] {
+): readonly {
+  readonly date: string;
+  readonly minutes: number;
+  readonly pomodoros: number;
+  readonly level: number;
+}[] {
   const byDay = new Map<string, { minutes: number; pomodoros: number }>();
   for (const session of sessions) {
     if (session.type !== 'focus') {
       continue;
     }
     const day = dayKey(session.startedAt, tz);
-    if (day === null || !day.startsWith(String(year))) {
+    if (day?.startsWith(String(year)) !== true) {
       continue;
     }
     const row = byDay.get(day) ?? { minutes: 0, pomodoros: 0 };
@@ -453,9 +472,14 @@ export function focusHeatmap(
     }
     byDay.set(day, row);
   }
-  const values = [...byDay.values()].map((row) => row.minutes).filter((value) => value > 0).sort((a, b) => a - b);
+  const values = [...byDay.values()]
+    .map((row) => row.minutes)
+    .filter((value) => value > 0)
+    .sort((a, b) => a - b);
   const q = (p: number) =>
-    values.length === 0 ? 0 : values[Math.min(values.length - 1, Math.floor(values.length * p))] ?? 0;
+    values.length === 0
+      ? 0
+      : (values[Math.min(values.length - 1, Math.floor(values.length * p))] ?? 0);
   const t1 = q(0.25);
   const t2 = q(0.5);
   const t3 = q(0.75);

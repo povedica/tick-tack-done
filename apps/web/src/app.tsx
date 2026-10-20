@@ -128,6 +128,7 @@ function Shell() {
             <Route path="/filters/:id" element={<FilterViewPage />} />
             <Route path="/tag/:id" element={<TagViewPage />} />
             <Route path="/trash" element={<Navigate to="/smart/trash" replace />} />
+            <Route path="/tasks/completed" element={<Navigate to="/smart/completed" replace />} />
             <Route path="/tasks/cancelled" element={<CancelledPage />} />
             <Route path="/smart/:key" element={<SmartListViewPage />} />
             <Route path="/smart-lists" element={<SmartListsPage />} />
