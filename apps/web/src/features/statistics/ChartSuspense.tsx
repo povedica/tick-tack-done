@@ -21,11 +21,25 @@ const HabitLineChart = lazy(async () => {
   return { default: mod.HabitLineChart };
 });
 
+const OverdueChart = lazy(async () => ({ default: (await import('./charts')).OverdueChart }));
+const AchievementChart = lazy(async () => ({
+  default: (await import('./charts')).AchievementChart,
+}));
 function Shell({ children }: { readonly children: ReactNode }) {
   return <Suspense fallback={<div className="stats-skeleton chart" />}>{children}</Suspense>;
 }
 
 export const Charts = {
+  OverdueChart: (props: Parameters<typeof OverdueChart>[0]) => (
+    <Shell>
+      <OverdueChart {...props} />
+    </Shell>
+  ),
+  AchievementChart: (props: Parameters<typeof AchievementChart>[0]) => (
+    <Shell>
+      <AchievementChart {...props} />
+    </Shell>
+  ),
   TrendChart: (props: Parameters<typeof TrendChart>[0]) => (
     <Shell>
       <TrendChart {...props} />

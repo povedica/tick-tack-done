@@ -12,6 +12,7 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
+    env: { SCHEDULER_AUTOSTART: 'false', BUS_AUTOSTART: 'false' },
     include: ['test/**/*.e2e-spec.ts'],
     passWithNoTests: true,
     fileParallelism: false,

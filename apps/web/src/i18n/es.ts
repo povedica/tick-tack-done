@@ -1,6 +1,7 @@
 import { extraEs } from './extra';
 
 export const es = {
+  focusLifetime: 'Histórico completo',
   appName: 'tick-tack-done',
   todayTitle: 'Hoy',
   todayHint: 'Captura una tarea con N o con el botón. El resto de la agenda llega después.',

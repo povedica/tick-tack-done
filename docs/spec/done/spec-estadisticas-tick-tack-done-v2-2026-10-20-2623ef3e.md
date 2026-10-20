@@ -526,3 +526,7 @@ Antes de dar F4 por cerrada, revisión visual obligatoria (como esta auditoría)
 - Estado actual verificado en: https://todo.reflexionia.com/reports/weekly, /dashboard, /focus, /habits (2026-10-20, commit `8b1ad1f`, capturas en 1280px y 390px)
 - Tokens medidos en vivo: `--accent #4772fa`, `--sidebar-bg #f2f5fe`, escala `--sp-*`, radios, breakpoints 1024/800/720/640, `data-theme`/`data-density`/`data-accent` (§10.1)
 - Repo: github.com/povedica/tick-tack-done (`apps/api/src/modules/reports`, `focus`, `habits`; `apps/api/prisma/schema.prisma`; `apps/web/package.json` sin librería de gráficos, lucide-react 1.59)
+
+## Seguimiento de implementación — revisión de 20 de octubre de 2026
+
+La PR #54 corrige RF-2321–2324 y los hallazgos F-01–F-11 sin reabrir D1–D10. Por instrucción del usuario, la entrada temporal D8 se sitúa en el rail principal inmediatamente antes de Buscar y se retira del sidebar secundario. El [informe de cierre](../../reviews/cierre-estadisticas-v2-2026-10-20.md) registra pruebas, límites de verificación y deuda explícita de granularidad de errores por endpoint. Las propuestas de esta spec se conservan como fuente de verdad; este seguimiento no altera sus criterios.

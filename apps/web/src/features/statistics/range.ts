@@ -9,6 +9,14 @@ function addCalendarDays(day: string, delta: number): string | null {
   return `${String(date.getUTCFullYear())}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
 }
 
+export function validDay(day: string): boolean {
+  return (
+    /^\d{4}-\d{2}-\d{2}$/.test(day) &&
+    !Number.isNaN(Date.parse(`${day}T00:00:00Z`)) &&
+    new Date(`${day}T00:00:00Z`).toISOString().slice(0, 10) === day
+  );
+}
+
 const STORAGE_KEY = 'tick-tack-done.stats.range';
 
 export function todayKey(timeZone: string): string {
@@ -38,6 +46,8 @@ export function rangeFor(
   custom?: { from: string; to: string },
 ): { from: string; to: string } {
   const today = todayKey(timeZone);
+  if (custom && validDay(custom.from) && validDay(custom.to) && custom.from <= custom.to)
+    return custom;
   if (key === 'today') {
     return { from: today, to: today };
   }
@@ -129,9 +139,25 @@ export function formatHumanDay(day: string, locale = 'es-ES'): string {
 
 export function formatDuration(minutes: number): string {
   const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
+  const rest = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 2 }).format(minutes % 60);
   if (hours === 0) {
-    return `${String(rest)} min`;
+    return `${rest} min`;
   }
-  return `${String(hours)} h ${String(rest)} min`;
+  return `${String(hours)} h ${rest} min`;
+}
+
+const STATE_KEY = 'tick-tack-done.stats.state';
+export function readStatsState(): string {
+  try {
+    return localStorage.getItem(STATE_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+export function writeStatsState(search: string): void {
+  try {
+    localStorage.setItem(STATE_KEY, search);
+  } catch {
+    /* Storage is optional. */
+  }
 }

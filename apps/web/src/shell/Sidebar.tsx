@@ -2,7 +2,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { normalizeTagName } from '@reflexionia/domain';
 import { ApiError } from '@reflexionia/sdk';
 import {
-  Award,
   BarChart3,
   CalendarCheck,
   CalendarDays,
@@ -642,12 +641,6 @@ export function Sidebar({
               label={messages.navDashboard}
               onNavigate={onNavigate}
               icon={LayoutDashboard}
-            />
-            <Item
-              to="/statistics"
-              label={messages.navStatistics}
-              onNavigate={onNavigate}
-              icon={Award}
             />
             <Item
               to="/reports/weekly"

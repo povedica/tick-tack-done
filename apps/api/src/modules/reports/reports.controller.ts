@@ -13,7 +13,14 @@ import {
 import { ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsArray, IsIn, IsOptional, IsString, Matches } from 'class-validator';
 import type { Request, Response } from 'express';
-import { isReportTone, weeklyNarrative, type ReportTone } from '@reflexionia/domain';
+import {
+  isReportTone,
+  weeklyNarrative,
+  dayKey,
+  parseDayBounds,
+  addCalendarDays,
+  type ReportTone,
+} from '@reflexionia/domain';
 import { actorOf, type AuthUser } from '../../auth/auth-user.js';
 import { CurrentUser } from '../../auth/current-user.decorator.js';
 import { Scopes } from '../../auth/scopes.decorator.js';
@@ -72,12 +79,18 @@ export class ReportsController {
       take: 20,
     });
     respond(req, res, {
-      items: rows.map((row) => ({
-        week: row.weekStart.toISOString().slice(0, 10),
-        tone: row.tone,
-        sent_at: row.sentAt?.toISOString() ?? null,
-        payload: row.payload,
-      })),
+      items: await Promise.all(
+        rows.map(async (row) => ({
+          week: row.weekStart.toISOString().slice(0, 10),
+          tone: row.tone,
+          sent_at: row.sentAt?.toISOString() ?? null,
+          payload: await this.normalizedPayload(
+            user,
+            row.weekStart.toISOString().slice(0, 10),
+            row.payload,
+          ),
+        })),
+      ),
     });
   }
 
@@ -96,7 +109,12 @@ export class ReportsController {
     if (row === null) {
       throw new DomainException(HttpStatus.NOT_FOUND, 'report_not_found', 'Report was not found');
     }
-    respond(req, res, { week, tone: row.tone, payload: row.payload, sent_at: row.sentAt });
+    respond(req, res, {
+      week,
+      tone: row.tone,
+      payload: await this.normalizedPayload(user, week, row.payload),
+      sent_at: row.sentAt,
+    });
   }
 
   @Post('reports/weekly')
@@ -157,11 +175,21 @@ export class ReportsController {
         })
       )?.weeklyReportSettings,
     );
-    const week = weekStart(now);
-    const weekEnd = new Date(week.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const local = dayKey(now.toISOString(), user.timeZone) ?? now.toISOString().slice(0, 10);
+    const weekday = new Date(`${local}T12:00:00Z`).getUTCDay();
+    const monday = addCalendarDays(local, -(weekday === 0 ? 6 : weekday - 1)) ?? local;
+    const range = parseDayBounds(monday, addCalendarDays(monday, 6) ?? monday, user.timeZone);
+    const week = new Date(`${monday}T00:00:00Z`);
+    const periodStart = new Date(range?.startIso ?? week.toISOString());
+    const weekEnd = new Date(range?.endIso ?? week.toISOString());
     const snapshot = await loadDashboardSnapshot(this.prisma, user.id, now);
-    const focusMinutes = await this.metrics.focusMinutes(user.id, week, weekEnd);
-    const habits = await this.metrics.activeHabitsExpectedDays(user.id, week, weekEnd);
+    const focusMinutes = await this.metrics.focusMinutes(user.id, periodStart, weekEnd);
+    const habits = await this.metrics.activeHabitsExpectedDays(
+      user.id,
+      periodStart,
+      weekEnd,
+      user.timeZone,
+    );
     const upcomingExternal = await this.prisma.externalEvent.count({
       where: {
         ownerId: user.id,
@@ -170,7 +198,12 @@ export class ReportsController {
         subscription: { deletedAt: null, visible: true },
       },
     });
-    const narrative = weeklyNarrative(snapshot, settings.tone, focusMinutes, upcomingExternal);
+    const narrative = weeklyNarrative(
+      { ...snapshot, habit_percent: habits.percent },
+      settings.tone,
+      focusMinutes,
+      upcomingExternal,
+    );
     const countdowns = await this.prisma.countdown.findMany({
       where: { ownerId: user.id, deletedAt: null, archivedAt: null },
       select: { id: true, title: true, emoji: true, targetDate: true },
@@ -191,8 +224,8 @@ export class ReportsController {
         ownerId: user.id,
         deletedAt: null,
         OR: [
-          { createdAt: { gte: week, lt: weekEnd } },
-          { completedAt: { gte: week, lt: weekEnd } },
+          { createdAt: { gte: periodStart, lt: weekEnd } },
+          { completedAt: { gte: periodStart, lt: weekEnd } },
         ],
       },
       select: { createdAt: true, completedAt: true },
@@ -254,6 +287,43 @@ export class ReportsController {
     return { id: row.id, week: week.toISOString().slice(0, 10), ...payload, tone: settings.tone };
   }
 
+  private async normalizedPayload(user: AuthUser, week: string, payload: unknown) {
+    const base =
+      typeof payload === 'object' && payload !== null ? (payload as Record<string, unknown>) : {};
+    const bounds = parseDayBounds(week, addCalendarDays(week, 6) ?? week, user.timeZone);
+    if (bounds === null) return base;
+    const from = new Date(bounds.startIso);
+    const to = new Date(bounds.endIso);
+    const [focus, habits] = await Promise.all([
+      this.metrics.focusMinutes(user.id, from, to),
+      this.metrics.activeHabitsExpectedDays(user.id, from, to, user.timeZone),
+    ]);
+    const summary =
+      typeof base.summary === 'string'
+        ? base.summary
+            .replace(
+              /Tiempo de foco: [\d.,]+ minutos\./,
+              `Tiempo de foco: ${String(focus)} minutos.`,
+            )
+            .replace(
+              /Hábitos de hoy: [\d.,]+ %\./,
+              `Hábitos de la semana: ${String(habits.percent)} %.`,
+            )
+        : '';
+    const trend = typeof base.trend === 'number' ? base.trend : 0;
+    return {
+      ...base,
+      summary,
+      focus_minutes: focus,
+      habits_done: habits.done,
+      habits_expected: habits.expected,
+      trend_label:
+        trend === 0
+          ? 'igual que la semana anterior'
+          : `${trend > 0 ? '+' : ''}${String(trend)} vs semana anterior`,
+    };
+  }
+
   private async closingLine(ownerId: string, week: Date): Promise<string> {
     const sessions = await this.prisma.planSession.findMany({
       where: {
@@ -312,13 +382,4 @@ function normalizeSettings(value: unknown): ReportSettings {
       ? record.channels.filter((item): item is string => typeof item === 'string')
       : ['email'],
   };
-}
-
-function weekStart(now: Date): Date {
-  const day = now.getUTCDay();
-  const mondayOffset = day === 0 ? 6 : day - 1;
-  const start = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - mondayOffset),
-  );
-  return start;
 }

@@ -2388,7 +2388,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Focus statistics, heatmap and distribution (RF-2322) */
+        /**
+         * Focus statistics, heatmap and distribution (RF-2322)
+         * @description stats:read grants aggregates. Task titles and per-task distribution require tasks:read; otherwise titles are null and by_task is empty. PAT list restrictions also apply.
+         */
         get: operations["StatsController_focus"];
         put?: never;
         post?: never;
@@ -4225,6 +4228,9 @@ export interface components {
         CompleteTaskDto: {
             /** @enum {string} */
             complete_children?: "complete" | "leave";
+            /** @enum {string} */
+            advance?: "one_period" | "next_future";
+            materialize_next?: boolean;
         };
         MoveTaskDto: {
             project_id: string;
@@ -8459,6 +8465,9 @@ export interface operations {
                 priority?: string;
                 /** @description Focus session type filter */
                 type?: string;
+                /** @description Selected timeline day, independent of the filtered period */
+                day?: string;
+                group?: "day" | "week" | "month";
             };
             header?: never;
             path?: never;
@@ -8470,7 +8479,100 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        summary: {
+                            completed: number;
+                            completed_previous: number;
+                            completed_delta_percent: number | null;
+                            completion_rate: number | null;
+                            completion_rate_delta_pt: number | null;
+                            completion_completed: number;
+                            completion_planned: number;
+                            focus_minutes: number;
+                            focus_minutes_delta_percent: number | null;
+                            pomodoros: number;
+                            habit_percent: number | null;
+                            habit_done: number;
+                            habit_expected: number;
+                            habit_delta_pt: number | null;
+                            streak_current: number;
+                            streak_best_year: number;
+                            achievement: {
+                                enabled: boolean;
+                                score: number | null;
+                                level: string | null;
+                                level_index: number | null;
+                                next_threshold: number | null;
+                                progress_to_next: number | null;
+                                formula: {
+                                    on_time_points: number;
+                                    late_points: number;
+                                    priority_points: number;
+                                    pomodoro_points: number;
+                                    habit_points: number;
+                                    overdue_penalty: number;
+                                    weights: {
+                                        on_time_base: number;
+                                        late_base: number;
+                                        priority_high_bonus: number;
+                                        priority_medium_bonus: number;
+                                        priority_low_bonus: number;
+                                        pomodoro: number;
+                                        habit_check_in: number;
+                                        overdue_penalty: number;
+                                    };
+                                } | null;
+                                levels: {
+                                    id: string;
+                                    threshold: number;
+                                }[];
+                                history: {
+                                    /** Format: date */
+                                    date: string;
+                                    score: number | null;
+                                }[];
+                            };
+                        };
+                        trend: {
+                            /** Format: date */
+                            date: string;
+                            completed: number;
+                            created: number;
+                        }[];
+                        daily: {
+                            /** Format: date */
+                            date: string;
+                            completed: number;
+                            created: number;
+                            planned: number;
+                            completion_completed: number;
+                            focus_seconds: number;
+                            focus_minutes: number;
+                            pomodoros: number;
+                            habit_percent: number | null;
+                        }[];
+                        best_moment: {
+                            by_weekday: {
+                                weekday: number;
+                                completed: number;
+                            }[];
+                            by_band: {
+                                morning: number;
+                                afternoon: number;
+                                evening: number;
+                            };
+                        };
+                        completion_series: {
+                            /** Format: date */
+                            date: string;
+                            rate: number | null;
+                            completed: number;
+                            planned: number;
+                        }[];
+                        phrase: string;
+                    };
+                };
             };
         };
     };
@@ -8488,6 +8590,9 @@ export interface operations {
                 priority?: string;
                 /** @description Focus session type filter */
                 type?: string;
+                /** @description Selected timeline day, independent of the filtered period */
+                day?: string;
+                group?: "day" | "week" | "month";
             };
             header?: never;
             path?: never;
@@ -8499,7 +8604,83 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        trend: {
+                            /** Format: date */
+                            date: string;
+                            completed: number;
+                            created: number;
+                        }[];
+                        daily: {
+                            /** Format: date */
+                            date: string;
+                            completed: number;
+                            created: number;
+                            planned: number;
+                            completion_completed: number;
+                            focus_seconds: number;
+                            focus_minutes: number;
+                            pomodoros: number;
+                            habit_percent: number | null;
+                        }[];
+                        completion_rate: {
+                            completed: number;
+                            planned: number;
+                            rate: number | null;
+                        };
+                        completion_series: {
+                            /** Format: date */
+                            date: string;
+                            rate: number | null;
+                            completed: number;
+                            planned: number;
+                        }[];
+                        by_list: {
+                            key: string;
+                            label: string;
+                            color: string | null;
+                            value: number;
+                            percent: number;
+                        }[];
+                        by_tag: {
+                            key: string;
+                            label: string;
+                            color: string | null;
+                            value: number;
+                            percent: number;
+                        }[];
+                        by_priority: {
+                            key: string;
+                            label: string;
+                            color: string | null;
+                            value: number;
+                            percent: number;
+                        }[];
+                        punctuality: {
+                            sample: number;
+                            delay_cap_days: number;
+                            capped_samples: number;
+                            on_time: number;
+                            late: number;
+                            on_time_percent: number | null;
+                            mean_delay_days: number | null;
+                            median_delay_days: number | null;
+                        };
+                        age_on_complete: {
+                            mean_days: number | null;
+                            median_days: number | null;
+                            sample: number;
+                        };
+                        overdue_stock: {
+                            /** Format: date */
+                            date: string;
+                            under_7: number;
+                            days_7_30: number;
+                            over_30: number;
+                        }[];
+                    };
+                };
             };
         };
     };
@@ -8517,6 +8698,9 @@ export interface operations {
                 priority?: string;
                 /** @description Focus session type filter */
                 type?: string;
+                /** @description Selected timeline day, independent of the filtered period */
+                day?: string;
+                group?: "day" | "week" | "month";
             };
             header?: never;
             path?: never;
@@ -8528,7 +8712,78 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        focus_minutes: number;
+                        focus_seconds: number;
+                        pomodoros: number;
+                        completed_sessions: number;
+                        abandoned_sessions: number;
+                        completed_percent: number | null;
+                        interruptions_per_session: number;
+                        trend: {
+                            /** Format: date */
+                            date: string;
+                            minutes: number;
+                            pomodoros: number;
+                        }[];
+                        best_hour: number | null;
+                        hours: {
+                            hour: number;
+                            minutes: number;
+                        }[];
+                        /** Format: date */
+                        timeline_day: string;
+                        period_timeline: {
+                            id: string;
+                            /** Format: date-time */
+                            start: string;
+                            /** Format: date-time */
+                            end: string | null;
+                            minutes: number;
+                            task_title: string | null;
+                            completed: boolean;
+                        }[];
+                        timeline: {
+                            id: string;
+                            /** Format: date-time */
+                            start: string;
+                            /** Format: date-time */
+                            end: string | null;
+                            minutes: number;
+                            task_title: string | null;
+                            completed: boolean;
+                        }[];
+                        heatmap: {
+                            /** Format: date */
+                            date: string;
+                            minutes: number;
+                            pomodoros: number;
+                            level: number;
+                        }[];
+                        by_list: {
+                            key: string;
+                            label: string;
+                            color: string | null;
+                            value: number;
+                            percent: number;
+                        }[];
+                        by_tag: {
+                            key: string;
+                            label: string;
+                            color: string | null;
+                            value: number;
+                            percent: number;
+                        }[];
+                        by_task: {
+                            key: string;
+                            label: string;
+                            color: string | null;
+                            value: number;
+                            percent: number;
+                        }[];
+                    };
+                };
             };
         };
     };
@@ -8546,6 +8801,9 @@ export interface operations {
                 priority?: string;
                 /** @description Focus session type filter */
                 type?: string;
+                /** @description Selected timeline day, independent of the filtered period */
+                day?: string;
+                group?: "day" | "week" | "month";
             };
             header?: never;
             path?: never;
@@ -8557,7 +8815,75 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        habits: {
+                            id: string;
+                            name: string;
+                            icon: string | null;
+                            color: string | null;
+                            streak_current: number;
+                            streak_best: number;
+                            percent: number;
+                            done: number;
+                            expected: number;
+                            heatmap: {
+                                /** Format: date */
+                                date: string;
+                                count: number;
+                                met: boolean;
+                                scheduled: boolean;
+                                level: number;
+                            }[];
+                            weakest_weekday: number | null;
+                        }[];
+                        ranking_best: {
+                            id: string;
+                            name: string;
+                            icon: string | null;
+                            color: string | null;
+                            streak_current: number;
+                            streak_best: number;
+                            percent: number;
+                            done: number;
+                            expected: number;
+                            heatmap: {
+                                /** Format: date */
+                                date: string;
+                                count: number;
+                                met: boolean;
+                                scheduled: boolean;
+                                level: number;
+                            }[];
+                            weakest_weekday: number | null;
+                        }[];
+                        ranking_worst: {
+                            id: string;
+                            name: string;
+                            icon: string | null;
+                            color: string | null;
+                            streak_current: number;
+                            streak_best: number;
+                            percent: number;
+                            done: number;
+                            expected: number;
+                            heatmap: {
+                                /** Format: date */
+                                date: string;
+                                count: number;
+                                met: boolean;
+                                scheduled: boolean;
+                                level: number;
+                            }[];
+                            weakest_weekday: number | null;
+                        }[];
+                        global_series: {
+                            /** Format: date */
+                            date: string;
+                            percent: number | null;
+                        }[];
+                    };
+                };
             };
         };
     };
@@ -8574,7 +8900,43 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        enabled: boolean;
+                        score: number | null;
+                        level: string | null;
+                        level_index: number | null;
+                        next_threshold: number | null;
+                        progress_to_next: number | null;
+                        formula: {
+                            on_time_points: number;
+                            late_points: number;
+                            priority_points: number;
+                            pomodoro_points: number;
+                            habit_points: number;
+                            overdue_penalty: number;
+                            weights: {
+                                on_time_base: number;
+                                late_base: number;
+                                priority_high_bonus: number;
+                                priority_medium_bonus: number;
+                                priority_low_bonus: number;
+                                pomodoro: number;
+                                habit_check_in: number;
+                                overdue_penalty: number;
+                            };
+                        } | null;
+                        levels: {
+                            id: string;
+                            threshold: number;
+                        }[];
+                        history: {
+                            /** Format: date */
+                            date: string;
+                            score: number | null;
+                        }[];
+                    };
+                };
             };
         };
     };
@@ -8592,6 +8954,9 @@ export interface operations {
                 priority?: string;
                 /** @description Focus session type filter */
                 type?: string;
+                /** @description Selected timeline day, independent of the filtered period */
+                day?: string;
+                group?: "day" | "week" | "month";
                 format: "csv" | "json";
             };
             header?: never;
@@ -8604,7 +8969,317 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "text/csv": string;
+                    "application/json": {
+                        overview: {
+                            summary: {
+                                completed: number;
+                                completed_previous: number;
+                                completed_delta_percent: number | null;
+                                completion_rate: number | null;
+                                completion_rate_delta_pt: number | null;
+                                completion_completed: number;
+                                completion_planned: number;
+                                focus_minutes: number;
+                                focus_minutes_delta_percent: number | null;
+                                pomodoros: number;
+                                habit_percent: number | null;
+                                habit_done: number;
+                                habit_expected: number;
+                                habit_delta_pt: number | null;
+                                streak_current: number;
+                                streak_best_year: number;
+                                achievement: {
+                                    enabled: boolean;
+                                    score: number | null;
+                                    level: string | null;
+                                    level_index: number | null;
+                                    next_threshold: number | null;
+                                    progress_to_next: number | null;
+                                    formula: {
+                                        on_time_points: number;
+                                        late_points: number;
+                                        priority_points: number;
+                                        pomodoro_points: number;
+                                        habit_points: number;
+                                        overdue_penalty: number;
+                                        weights: {
+                                            on_time_base: number;
+                                            late_base: number;
+                                            priority_high_bonus: number;
+                                            priority_medium_bonus: number;
+                                            priority_low_bonus: number;
+                                            pomodoro: number;
+                                            habit_check_in: number;
+                                            overdue_penalty: number;
+                                        };
+                                    } | null;
+                                    levels: {
+                                        id: string;
+                                        threshold: number;
+                                    }[];
+                                    history: {
+                                        /** Format: date */
+                                        date: string;
+                                        score: number | null;
+                                    }[];
+                                };
+                            };
+                            trend: {
+                                /** Format: date */
+                                date: string;
+                                completed: number;
+                                created: number;
+                            }[];
+                            daily: {
+                                /** Format: date */
+                                date: string;
+                                completed: number;
+                                created: number;
+                                planned: number;
+                                completion_completed: number;
+                                focus_seconds: number;
+                                focus_minutes: number;
+                                pomodoros: number;
+                                habit_percent: number | null;
+                            }[];
+                            best_moment: {
+                                by_weekday: {
+                                    weekday: number;
+                                    completed: number;
+                                }[];
+                                by_band: {
+                                    morning: number;
+                                    afternoon: number;
+                                    evening: number;
+                                };
+                            };
+                            completion_series: {
+                                /** Format: date */
+                                date: string;
+                                rate: number | null;
+                                completed: number;
+                                planned: number;
+                            }[];
+                            phrase: string;
+                        };
+                        tasks: {
+                            trend: {
+                                /** Format: date */
+                                date: string;
+                                completed: number;
+                                created: number;
+                            }[];
+                            daily: {
+                                /** Format: date */
+                                date: string;
+                                completed: number;
+                                created: number;
+                                planned: number;
+                                completion_completed: number;
+                                focus_seconds: number;
+                                focus_minutes: number;
+                                pomodoros: number;
+                                habit_percent: number | null;
+                            }[];
+                            completion_rate: {
+                                completed: number;
+                                planned: number;
+                                rate: number | null;
+                            };
+                            completion_series: {
+                                /** Format: date */
+                                date: string;
+                                rate: number | null;
+                                completed: number;
+                                planned: number;
+                            }[];
+                            by_list: {
+                                key: string;
+                                label: string;
+                                color: string | null;
+                                value: number;
+                                percent: number;
+                            }[];
+                            by_tag: {
+                                key: string;
+                                label: string;
+                                color: string | null;
+                                value: number;
+                                percent: number;
+                            }[];
+                            by_priority: {
+                                key: string;
+                                label: string;
+                                color: string | null;
+                                value: number;
+                                percent: number;
+                            }[];
+                            punctuality: {
+                                sample: number;
+                                delay_cap_days: number;
+                                capped_samples: number;
+                                on_time: number;
+                                late: number;
+                                on_time_percent: number | null;
+                                mean_delay_days: number | null;
+                                median_delay_days: number | null;
+                            };
+                            age_on_complete: {
+                                mean_days: number | null;
+                                median_days: number | null;
+                                sample: number;
+                            };
+                            overdue_stock: {
+                                /** Format: date */
+                                date: string;
+                                under_7: number;
+                                days_7_30: number;
+                                over_30: number;
+                            }[];
+                        };
+                        focus: {
+                            focus_minutes: number;
+                            focus_seconds: number;
+                            pomodoros: number;
+                            completed_sessions: number;
+                            abandoned_sessions: number;
+                            completed_percent: number | null;
+                            interruptions_per_session: number;
+                            trend: {
+                                /** Format: date */
+                                date: string;
+                                minutes: number;
+                                pomodoros: number;
+                            }[];
+                            best_hour: number | null;
+                            hours: {
+                                hour: number;
+                                minutes: number;
+                            }[];
+                            /** Format: date */
+                            timeline_day: string;
+                            period_timeline: {
+                                id: string;
+                                /** Format: date-time */
+                                start: string;
+                                /** Format: date-time */
+                                end: string | null;
+                                minutes: number;
+                                task_title: string | null;
+                                completed: boolean;
+                            }[];
+                            timeline: {
+                                id: string;
+                                /** Format: date-time */
+                                start: string;
+                                /** Format: date-time */
+                                end: string | null;
+                                minutes: number;
+                                task_title: string | null;
+                                completed: boolean;
+                            }[];
+                            heatmap: {
+                                /** Format: date */
+                                date: string;
+                                minutes: number;
+                                pomodoros: number;
+                                level: number;
+                            }[];
+                            by_list: {
+                                key: string;
+                                label: string;
+                                color: string | null;
+                                value: number;
+                                percent: number;
+                            }[];
+                            by_tag: {
+                                key: string;
+                                label: string;
+                                color: string | null;
+                                value: number;
+                                percent: number;
+                            }[];
+                            by_task: {
+                                key: string;
+                                label: string;
+                                color: string | null;
+                                value: number;
+                                percent: number;
+                            }[];
+                        };
+                        habits: {
+                            habits: {
+                                id: string;
+                                name: string;
+                                icon: string | null;
+                                color: string | null;
+                                streak_current: number;
+                                streak_best: number;
+                                percent: number;
+                                done: number;
+                                expected: number;
+                                heatmap: {
+                                    /** Format: date */
+                                    date: string;
+                                    count: number;
+                                    met: boolean;
+                                    scheduled: boolean;
+                                    level: number;
+                                }[];
+                                weakest_weekday: number | null;
+                            }[];
+                            ranking_best: {
+                                id: string;
+                                name: string;
+                                icon: string | null;
+                                color: string | null;
+                                streak_current: number;
+                                streak_best: number;
+                                percent: number;
+                                done: number;
+                                expected: number;
+                                heatmap: {
+                                    /** Format: date */
+                                    date: string;
+                                    count: number;
+                                    met: boolean;
+                                    scheduled: boolean;
+                                    level: number;
+                                }[];
+                                weakest_weekday: number | null;
+                            }[];
+                            ranking_worst: {
+                                id: string;
+                                name: string;
+                                icon: string | null;
+                                color: string | null;
+                                streak_current: number;
+                                streak_best: number;
+                                percent: number;
+                                done: number;
+                                expected: number;
+                                heatmap: {
+                                    /** Format: date */
+                                    date: string;
+                                    count: number;
+                                    met: boolean;
+                                    scheduled: boolean;
+                                    level: number;
+                                }[];
+                                weakest_weekday: number | null;
+                            }[];
+                            global_series: {
+                                /** Format: date */
+                                date: string;
+                                percent: number | null;
+                            }[];
+                        };
+                        from: string;
+                        to: string;
+                    };
+                };
             };
         };
     };

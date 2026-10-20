@@ -1,0 +1,172 @@
+import { useLocale } from '../../i18n/locale';
+const messages = {
+  remaining: ['Faltan', 'Remaining'],
+  habitMean: ['Media por hábito', 'Average per habit'],
+  insufficient: ['Sin datos suficientes (mínimo 25 min)', 'Insufficient data (at least 25 min)'],
+  lifetime: ['Histórico completo', 'All time'],
+  cap: [
+    'Retraso limitado a 30 días; muestras ajustadas',
+    'Delay capped at 30 days; adjusted samples',
+  ],
+  previousValue: ['Período anterior', 'Previous period'],
+  title: ['Estadísticas', 'Statistics'],
+  overview: ['Resumen', 'Overview'],
+  tasks: ['Tareas', 'Tasks'],
+  focus: ['Foco', 'Focus'],
+  habits: ['Hábitos', 'Habits'],
+  today: ['Hoy', 'Today'],
+  week: ['Semana', 'Week'],
+  month: ['Mes', 'Month'],
+  year: ['Año', 'Year'],
+  custom: ['Personalizado', 'Custom'],
+  previous: ['Período anterior', 'Previous period'],
+  next: ['Período siguiente', 'Next period'],
+  from: ['Desde', 'From'],
+  to: ['Hasta', 'To'],
+  filters: ['Filtros', 'Filters'],
+  lists: ['Listas', 'Lists'],
+  tags: ['Etiquetas', 'Tags'],
+  priority: ['Prioridad', 'Priority'],
+  clear: ['Quitar filtros', 'Clear filters'],
+  export: ['Exportar', 'Export'],
+  generating: ['Generando…', 'Generating…'],
+  report: ['Reporte semanal narrativo', 'Weekly narrative report'],
+  completed: ['Completadas', 'Completed'],
+  created: ['Creadas', 'Created'],
+  rate: ['Tasa de completitud', 'Completion rate'],
+  planned: ['Planificadas', 'Planned'],
+  focusTime: ['Tiempo de foco', 'Focus time'],
+  pomodoros: ['Pomodoros', 'Pomodoros'],
+  pomodoro: ['pomodoro', 'pomodoro'],
+  habitRate: ['Hábitos cumplidos', 'Habits completed'],
+  streak: ['Racha de días productivos', 'Productive streak'],
+  best: ['Mejor racha', 'Best streak'],
+  days: ['días', 'days'],
+  day: ['día', 'day'],
+  achievement: ['Valor de logro', 'Achievement value'],
+  level: ['Nivel', 'Level'],
+  points: ['puntos', 'points'],
+  threshold: ['Siguiente nivel', 'Next level'],
+  formula: ['¿Cómo se calcula?', 'How is it calculated?'],
+  history: ['Evolución del valor de logro', 'Achievement history'],
+  formulaHelp: [
+    'Máximo de 0 y: a tiempo ×10 + tarde ×5 + prioridad alta ×15/media ×5/baja ×2 + pomodoros ×15 + check-ins ×8 − vencidas ×5. Solo actividad propia; los cambios de asignación o borrado recalculan el histórico.',
+    'Maximum of 0 and: on time ×10 + late ×5 + high priority ×15/medium ×5/low ×2 + pomodoros ×15 + check-ins ×8 − overdue ×5. Own activity only; assignment/deletion changes recalculate history.',
+  ],
+  disabled: ['Desactivado', 'Disabled'],
+  settings: ['Configurar en Ajustes', 'Configure in Settings'],
+  trend: ['Completadas y creadas', 'Completed and created'],
+  moment: ['Mejor momento', 'Best time'],
+  morning: ['Mañana', 'Morning'],
+  afternoon: ['Tarde', 'Afternoon'],
+  evening: ['Noche', 'Evening'],
+  punctuality: ['Puntualidad', 'Punctuality'],
+  onTime: ['A tiempo', 'On time'],
+  late: ['Tarde', 'Late'],
+  mean: ['Media', 'Mean'],
+  median: ['Mediana', 'Median'],
+  delay: ['Retraso', 'Delay'],
+  age: ['Edad al completar', 'Age at completion'],
+  overdue: ['Vencidas arrastradas', 'Overdue backlog'],
+  under7: ['Menos de 7 días', 'Under 7 days'],
+  mid: ['7–30 días', '7–30 days'],
+  over30: ['Más de 30 días', 'Over 30 days'],
+  byList: ['Por lista', 'By list'],
+  byTag: ['Por etiqueta', 'By tag'],
+  byPriority: ['Por prioridad', 'By priority'],
+  byTask: ['Por tarea', 'By task'],
+  high: ['Alta', 'High'],
+  medium: ['Media', 'Medium'],
+  low: ['Baja', 'Low'],
+  none: ['Sin prioridad', 'No priority'],
+  focusTrend: ['Minutos y pomodoros', 'Minutes and pomodoros'],
+  bestHour: ['Hora más enfocada', 'Most focused hour'],
+  quality: ['Sesiones completadas', 'Completed sessions'],
+  interruptions: ['Interrupciones por sesión', 'Interruptions per session'],
+  timeline: ['Línea temporal del día', 'Daily timeline'],
+  annual: ['Rejilla anual', 'Year grid'],
+  sessionType: ['Tipo de sesión', 'Session type'],
+  short_break: ['Descanso corto', 'Short break'],
+  long_break: ['Descanso largo', 'Long break'],
+  minutes: ['min', 'min'],
+  ignored: ['Los filtros no aplican a hábitos', 'Filters do not apply to habits'],
+  global: ['Cumplimiento global', 'Overall completion'],
+  ranking: ['Hábitos más y menos cumplidos', 'Most and least completed habits'],
+  weakest: ['Día más flojo', 'Weakest weekday'],
+  table: ['Ver como tabla', 'View as table'],
+  date: ['Fecha', 'Date'],
+  value: ['Valor', 'Value'],
+  percent: ['Porcentaje', 'Percentage'],
+  hour: ['Hora', 'Hour'],
+  less: ['Menos', 'Less'],
+  more: ['Más', 'More'],
+  quartiles: [
+    'Intensidad por cuartiles de los días con actividad del año',
+    'Intensity by quartiles of active days in the year',
+  ],
+  selectDay: ['Seleccionar día', 'Select day'],
+  close: ['Cerrar detalle', 'Close details'],
+  sessions: ['Sesiones', 'Sessions'],
+  noTask: ['Sin tarea', 'No task'],
+  emptyTasks: [
+    'Completa tu primera tarea para empezar a ver tendencias',
+    'Complete your first task to start seeing trends',
+  ],
+  emptyFocus: [
+    'Aún no hay sesiones en este rango. Empieza una desde Foco.',
+    'No sessions in this range yet. Start one from Focus.',
+  ],
+  emptyHabits: [
+    'Aún no hay hábitos activos. Crea uno desde Hábitos.',
+    'No active habits yet. Create one from Habits.',
+  ],
+  empty: ['Sin datos en este rango', 'No data in this range'],
+  noMatch: ['Ningún dato coincide con estos filtros', 'No data matches these filters'],
+  error: ['No se pudo cargar', 'Could not load'],
+  retry: ['Reintentar', 'Retry'],
+  loading: ['Cargando estadísticas', 'Loading statistics'],
+  invalidRange: [
+    'Elige fechas válidas, desde antes de hasta y un máximo de dos años',
+    'Choose valid dates, from before to, up to two years',
+  ],
+  previousRange: ['vs período anterior', 'vs previous period'],
+  unchanged: ['sin cambio', 'unchanged'],
+  percentagePoints: ['pt', 'pp'],
+  other: ['Otros', 'Other'],
+  noTag: ['Sin etiqueta', 'No tag'],
+  total: ['Total', 'Total'],
+  sample: ['muestra', 'sample'],
+  precision: [
+    'Las duraciones conservan los segundos originales; se muestran minutos redondeados.',
+    'Durations preserve original seconds; displayed minutes are rounded.',
+  ],
+  enable: ['Mostrar valor de logro', 'Show achievement value'],
+  dailyFocus: ['Foco de hoy', 'Today’s focus'],
+} as const;
+export type StatisticsTextKey = keyof typeof messages;
+export function useStatisticsText() {
+  const choice = useLocale((state) => state.choice);
+  const locale = choice === 'auto' ? navigator.language : choice;
+  const index = locale.startsWith('en') ? 1 : 0;
+  const t = (key: StatisticsTextKey): string => messages[key][index];
+  const number = (value: number) =>
+    new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(value);
+  const day = (value: string) =>
+    new Date(`${value}T12:00:00Z`).toLocaleDateString(locale, {
+      day: 'numeric',
+      month: 'short',
+      timeZone: 'UTC',
+    });
+  const weekday = (index: number) =>
+    new Date(Date.UTC(2026, 9, 18 + index)).toLocaleDateString(locale, {
+      weekday: 'short',
+      timeZone: 'UTC',
+    });
+  const duration = (minutes: number) =>
+    minutes < 60
+      ? `${number(minutes)} min`
+      : `${number(Math.floor(minutes / 60))} h ${number(minutes % 60)} min`;
+  const countDays = (value: number) =>
+    `${number(value)} ${t(new Intl.PluralRules(locale).select(value) === 'one' ? 'day' : 'days')}`;
+  return { t, number, day, weekday, duration, countDays, locale };
+}

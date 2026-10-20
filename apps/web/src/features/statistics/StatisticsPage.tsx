@@ -1,998 +1,1214 @@
-/* eslint-disable @typescript-eslint/no-deprecated, @typescript-eslint/no-base-to-string, @typescript-eslint/no-unnecessary-condition -- stats screen uses SDK unknowns and prefetch */
-import { useEffect, useMemo, useState } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Award,
   Download,
   Flame,
-  Minus,
+  LoaderCircle,
   SlidersHorizontal,
   TrendingDown,
   TrendingUp,
 } from 'lucide-react';
-import { useMessages } from '../../i18n';
-import { Button } from '../../components/ui';
-import { statsApi, type StatsParams } from './api';
+import { api } from '../../api';
+import { collectProjects, collectTags } from '../tasks/collect';
+import { isIanaTimeZone } from '@reflexionia/domain';
+import { statsApi, createStatisticsFile, type StatsParams } from './api';
 import { Charts } from './ChartSuspense';
 import { DayTimeline } from './DayTimeline';
 import { YearHeatmap } from './YearHeatmap';
+import { DataTable } from './DataTable';
 import { useChartTheme } from './chart-theme';
+import { useStatisticsText, type StatisticsTextKey } from './text';
 import {
-  formatDuration,
-  formatHumanDay,
   rangeFor,
-  readStoredRange,
   shiftRange,
-  writeStoredRange,
+  readStatsState,
+  writeStatsState,
+  validDay,
   type RangeKey,
 } from './range';
 import './statistics.css';
-
+type Row = Record<string, unknown>;
 type Tab = 'overview' | 'tasks' | 'focus' | 'habits';
-
-const TABS: readonly { key: Tab; path: string; label: string }[] = [
-  { key: 'overview', path: '/statistics', label: 'Resumen' },
-  { key: 'tasks', path: '/statistics/tasks', label: 'Tareas' },
-  { key: 'focus', path: '/statistics/focus', label: 'Foco' },
-  { key: 'habits', path: '/statistics/habits', label: 'Hábitos' },
-];
-
+const TABS: readonly Tab[] = ['overview', 'tasks', 'focus', 'habits'];
+const RANGES: readonly RangeKey[] = ['today', 'week', 'month', 'year', 'custom'];
+const FilterContext = createContext<{ active: boolean; clear: () => void }>({
+  active: false,
+  clear: () => undefined,
+});
+function keyboardOptions(event: KeyboardEvent<HTMLElement>) {
+  if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(event.key)) return;
+  const buttons = Array.from(
+    event.currentTarget.querySelectorAll<HTMLButtonElement>('[data-option]'),
+  );
+  const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
+  const next =
+    event.key === 'Home'
+      ? 0
+      : event.key === 'End'
+        ? buttons.length - 1
+        : (index + (event.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length;
+  event.preventDefault();
+  buttons[next]?.focus();
+  buttons[next]?.click();
+}
 export function StatisticsPage() {
-  const messages = useMessages();
+  const { t, day, number, duration } = useStatisticsText();
   const navigate = useNavigate();
   const { tab: tabParam } = useParams();
   const [search, setSearch] = useSearchParams();
-  const queryClient = useQueryClient();
-  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Madrid';
-  const tab: Tab =
-    tabParam === 'tasks' || tabParam === 'focus' || tabParam === 'habits' ? tabParam : 'overview';
-  const rangeKey = (search.get('range') as RangeKey | null) ?? readStoredRange();
-  const customFrom = search.get('from');
-  const customTo = search.get('to');
-  const bounds = useMemo(
-    () =>
-      rangeFor(
-        rangeKey,
-        tz,
-        customFrom && customTo ? { from: customFrom, to: customTo } : undefined,
-      ),
-    [rangeKey, tz, customFrom, customTo],
-  );
-  const list = search.get('list');
-  const tag = search.get('tag');
-  const priority = search.get('priority');
+  const client = useQueryClient();
+  const account = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
+  const stored = new URLSearchParams(readStatsState());
+  const rangeValue = search.get('range') ?? stored.get('range') ?? 'week';
+  const rangeKey: RangeKey = RANGES.includes(rangeValue as RangeKey)
+    ? (rangeValue as RangeKey)
+    : 'week';
+  const requestedTz =
+    search.get('tz') ??
+    stored.get('tz') ??
+    account.data?.time_zone ??
+    Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const waitingForTimeZone = !search.has('tz') && !stored.has('tz') && account.isPending;
+  const tz = isIanaTimeZone(requestedTz) ? requestedTz : 'Europe/Madrid';
+  const tab: Tab = TABS.includes(tabParam as Tab) ? (tabParam as Tab) : 'overview';
+  const source = search.size === 0 ? stored : search;
+  const from = source.get('from');
+  const to = source.get('to');
+  const custom = from && to ? { from, to } : undefined;
+  const bounds = rangeFor(rangeKey, tz, custom);
+  const invalid =
+    !isIanaTimeZone(requestedTz) ||
+    (!!custom &&
+      (!validDay(custom.from) ||
+        !validDay(custom.to) ||
+        custom.from > custom.to ||
+        (Date.parse(custom.to) - Date.parse(custom.from)) / 86400000 > 731));
   const params: StatsParams = {
     from: bounds.from,
     to: bounds.to,
     tz,
-    ...(list !== null && list.length > 0 ? { list } : {}),
-    ...(tag !== null && tag.length > 0 ? { tag } : {}),
-    ...(priority !== null && priority.length > 0 ? { priority } : {}),
+    ...Object.fromEntries(
+      ['list', 'tag', 'priority', 'type', 'day'].flatMap((key) =>
+        source.get(key) ? [[key, source.get(key)]] : [],
+      ),
+    ),
   };
-  const filterCount = [list, tag, priority].filter(
-    (value) => value !== null && value.length > 0,
-  ).length;
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
-
+  const [exportError, setExportError] = useState(false);
+  const filterCount = ['list', 'tag', 'priority'].reduce(
+    (sum, key) => sum + (source.get(key)?.split(',').length ?? 0),
+    0,
+  );
+  const filterRef = useRef<HTMLDivElement>(null);
+  const path = (next: Tab) => (next === 'overview' ? '/statistics' : `/statistics/${next}`);
+  function update(values: Record<string, string | null>, replace = false) {
+    const copy = new URLSearchParams(source);
+    for (const [key, value] of Object.entries(values)) {
+      if (value === null || value === '') copy.delete(key);
+      else copy.set(key, value);
+    }
+    setSearch(copy, { replace });
+  }
+  function clear() {
+    update({ list: null, tag: null, priority: null });
+  }
   useEffect(() => {
-    writeStoredRange(rangeKey);
-  }, [rangeKey]);
-
+    if (waitingForTimeZone) return;
+    if (search.size === 0) {
+      const copy = new URLSearchParams(stored);
+      copy.set('range', rangeKey);
+      copy.set('from', bounds.from);
+      copy.set('to', bounds.to);
+      copy.set('tz', tz);
+      let fallback: string | null = null;
+      try {
+        fallback = localStorage.getItem('tick-tack-done.stats.tab');
+      } catch {
+        /* Optional storage. */
+      }
+      if (
+        tabParam === undefined &&
+        fallback !== null &&
+        fallback !== 'overview' &&
+        TABS.includes(fallback as Tab)
+      ) {
+        void navigate(`${path(fallback as Tab)}?${copy.toString()}`, { replace: true });
+      } else setSearch(copy, { replace: true });
+    } else writeStatsState(search.toString());
+  }, [search, bounds.from, bounds.to, rangeKey, tz, setSearch, waitingForTimeZone]);
   useEffect(() => {
-    void queryClient.prefetchQuery({
-      queryKey: ['stats', 'tasks', params],
-      queryFn: () => statsApi.tasks(params),
-    });
-    void queryClient.prefetchQuery({
-      queryKey: ['stats', 'focus', params],
-      queryFn: () => statsApi.focus(params),
-    });
-    void queryClient.prefetchQuery({
-      queryKey: ['stats', 'habits', params],
-      queryFn: () => statsApi.habits(params),
-    });
-  }, [params.from, params.to, params.list, params.tag, params.priority, queryClient]);
-
-  const overview = useQuery({
-    queryKey: ['stats', 'overview', params],
-    queryFn: () => statsApi.overview(params),
-    placeholderData: keepPreviousData,
+    try {
+      localStorage.setItem('tick-tack-done.stats.tab', tab);
+    } catch {
+      /* optional */
+    }
+  }, [tab]);
+  const options = (kind: 'overview' | 'tasks' | 'focus' | 'habits') => ({
+    queryKey: ['stats', kind, params],
+    queryFn: async (): Promise<Row> => statsApi[kind](params),
     staleTime: 5 * 60_000,
+  });
+  const overview = useQuery({
+    ...options('overview'),
+    enabled: !waitingForTimeZone && !invalid && tab === 'overview',
+    placeholderData: keepPreviousData,
   });
   const tasks = useQuery({
-    queryKey: ['stats', 'tasks', params],
-    queryFn: () => statsApi.tasks(params),
-    enabled: tab === 'tasks' || tab === 'overview',
+    ...options('tasks'),
+    enabled: !waitingForTimeZone && !invalid && tab === 'tasks',
     placeholderData: keepPreviousData,
-    staleTime: 5 * 60_000,
   });
   const focus = useQuery({
-    queryKey: ['stats', 'focus', params],
-    queryFn: () => statsApi.focus(params),
-    enabled: tab === 'focus',
+    ...options('focus'),
+    enabled: !waitingForTimeZone && !invalid && tab === 'focus',
     placeholderData: keepPreviousData,
-    staleTime: 5 * 60_000,
   });
   const habits = useQuery({
-    queryKey: ['stats', 'habits', params],
-    queryFn: () => statsApi.habits(params),
-    enabled: tab === 'habits',
+    ...options('habits'),
+    enabled: !waitingForTimeZone && !invalid && tab === 'habits',
     placeholderData: keepPreviousData,
+  });
+  const projects = useQuery({
+    queryKey: ['stats', 'lists'],
+    queryFn: collectProjects,
     staleTime: 5 * 60_000,
   });
-
+  const tags = useQuery({
+    queryKey: ['stats', 'tags'],
+    queryFn: collectTags,
+    staleTime: 5 * 60_000,
+  });
+  useEffect(() => {
+    if (tab === 'overview' && !invalid && !waitingForTimeZone) {
+      for (const kind of ['tasks', 'focus', 'habits'] as const)
+        void client.query(options(kind)).catch(() => undefined);
+    }
+  }, [
+    tab,
+    params.from,
+    params.to,
+    params.list,
+    params.tag,
+    params.priority,
+    params.type,
+    tz,
+    invalid,
+    waitingForTimeZone,
+    client,
+  ]);
+  useEffect(() => {
+    const refresh = () => {
+      void client.invalidateQueries({ queryKey: ['stats'] });
+    };
+    window.addEventListener('focus', refresh);
+    return () => {
+      window.removeEventListener('focus', refresh);
+    };
+  }, [client]);
   function setRange(next: RangeKey) {
     const nextBounds = rangeFor(next, tz);
-    const copy = new URLSearchParams(search);
-    copy.set('range', next);
-    copy.set('from', nextBounds.from);
-    copy.set('to', nextBounds.to);
-    setSearch(copy, { replace: true });
+    update({ range: next, ...nextBounds });
   }
-
   function nudge(direction: -1 | 1) {
-    const next = shiftRange(rangeKey, bounds.from, bounds.to, direction);
-    const copy = new URLSearchParams(search);
-    copy.set('range', rangeKey === 'today' ? 'custom' : rangeKey);
-    copy.set('from', next.from);
-    copy.set('to', next.to);
-    setSearch(copy, { replace: true });
+    update({
+      range: rangeKey === 'today' ? 'custom' : rangeKey,
+      ...shiftRange(rangeKey, bounds.from, bounds.to, direction),
+    });
   }
-
-  async function exportFormat(format: 'csv' | 'json') {
+  async function exportFile(format: 'csv' | 'json') {
     setExporting(true);
+    setExportError(false);
     try {
-      const blob = await statsApi.export(params, format);
+      const [overviewData, tasksData, focusData, habitsData] = await Promise.all(
+        (['overview', 'tasks', 'focus', 'habits'] as const).map((kind) =>
+          client.query(options(kind)),
+        ),
+      );
+      const blob = createStatisticsFile(
+        {
+          overview: overviewData ?? {},
+          tasks: tasksData ?? {},
+          focus: focusData ?? {},
+          habits: habitsData ?? {},
+          from: params.from,
+          to: params.to,
+        },
+        format,
+      );
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;
       anchor.download = `stats-${params.from}_${params.to}.${format}`;
       anchor.click();
-      URL.revokeObjectURL(url);
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+      }, 1000);
+    } catch {
+      setExportError(true);
     } finally {
       setExporting(false);
     }
   }
-
-  const summary = isRecord(overview.data?.summary) ? overview.data.summary : null;
-  const phrase = typeof overview.data?.phrase === 'string' ? overview.data.phrase : '';
-
+  const query =
+    tab === 'tasks' ? tasks : tab === 'focus' ? focus : tab === 'habits' ? habits : overview;
+  const listRows = rows(projects.data?.items);
+  const tagRows = rows(tags.data?.items);
   return (
-    <section className="stats-page">
-      <header className="stats-header">
-        <div className="stats-header-row">
-          <h1>{messages.navStatistics}</h1>
-          <div className="stats-range">
-            <button
-              type="button"
-              className="stats-icon-btn"
-              onClick={() => {
-                nudge(-1);
-              }}
-              aria-label="Período anterior"
+    <FilterContext.Provider value={{ active: filterCount > 0, clear }}>
+      <section className="stats-page">
+        <header className="stats-header">
+          <div className="stats-header-row">
+            <h1>{t('title')}</h1>
+            <div
+              className="stats-range"
+              role="group"
+              aria-label={t('date')}
+              onKeyDown={keyboardOptions}
             >
-              ‹
-            </button>
-            {(
-              [
-                ['today', 'Hoy'],
-                ['week', 'Semana'],
-                ['month', 'Mes'],
-                ['year', 'Año'],
-                ['custom', 'Personalizado'],
-              ] as const
-            ).map(([key, label]) => (
               <button
-                key={key}
                 type="button"
-                className={rangeKey === key ? 'is-active' : undefined}
                 onClick={() => {
-                  setRange(key);
+                  nudge(-1);
                 }}
+                aria-label={t('previous')}
               >
-                {label}
+                ‹
               </button>
-            ))}
-            <button
-              type="button"
-              className="stats-icon-btn"
-              onClick={() => {
-                nudge(1);
-              }}
-              aria-label="Período siguiente"
-            >
-              ›
-            </button>
-          </div>
-          <div className="stats-actions">
-            <button
-              type="button"
-              className="stats-filter-btn"
-              onClick={() => {
-                setFiltersOpen((value) => !value);
-              }}
-            >
-              <SlidersHorizontal size={16} aria-hidden="true" />
-              Filtros{filterCount > 0 ? ` · ${String(filterCount)}` : ''}
-            </button>
-            <details className="stats-export">
-              <summary aria-label="Exportar">
-                <Download size={16} aria-hidden="true" />
-                {exporting ? 'Generando…' : ''}
-              </summary>
-              <div>
-                <button type="button" onClick={() => void exportFormat('csv')}>
-                  CSV
+              {RANGES.map((key) => (
+                <button
+                  data-option
+                  key={key}
+                  type="button"
+                  aria-pressed={rangeKey === key}
+                  className={rangeKey === key ? 'is-active' : undefined}
+                  onClick={() => {
+                    setRange(key);
+                  }}
+                >
+                  {t(key)}
                 </button>
-                <button type="button" onClick={() => void exportFormat('json')}>
-                  JSON
+              ))}
+              <button
+                type="button"
+                onClick={() => {
+                  nudge(1);
+                }}
+                aria-label={t('next')}
+              >
+                ›
+              </button>
+            </div>
+            <div className="stats-actions">
+              {tab !== 'habits' ? (
+                <button
+                  className="stats-filter-btn"
+                  type="button"
+                  aria-expanded={filtersOpen}
+                  onClick={() => {
+                    setFiltersOpen(!filtersOpen);
+                  }}
+                >
+                  <SlidersHorizontal size={16} />
+                  {t('filters')}
+                  {filterCount ? ` · ${String(filterCount)}` : ''}
                 </button>
-              </div>
-            </details>
-            <Link className="stats-link" to="/reports/weekly">
-              Reporte semanal
-            </Link>
+              ) : null}
+              <details className="stats-export">
+                <summary aria-label={t('export')}>
+                  {exporting ? (
+                    <LoaderCircle className="stats-spinner" size={16} />
+                  ) : (
+                    <Download size={16} />
+                  )}
+                  <span>{exporting ? t('generating') : t('export')}</span>
+                </summary>
+                <div>
+                  {(['csv', 'json'] as const).map((format) => (
+                    <button
+                      key={format}
+                      type="button"
+                      disabled={exporting || invalid}
+                      onClick={() => void exportFile(format)}
+                    >
+                      {format.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </details>
+              <Link className="stats-link" to="/reports/weekly">
+                {t('report')}
+              </Link>
+            </div>
           </div>
-        </div>
-        {rangeKey === 'custom' ? (
-          <div className="stats-custom">
-            <label>
-              Desde
-              <input
-                type="date"
-                value={bounds.from}
-                onChange={(event) => {
-                  const copy = new URLSearchParams(search);
-                  copy.set('range', 'custom');
-                  copy.set('from', event.target.value);
-                  copy.set('to', bounds.to);
-                  setSearch(copy, { replace: true });
-                }}
-              />
-            </label>
-            <label>
-              Hasta
-              <input
-                type="date"
-                value={bounds.to}
-                onChange={(event) => {
-                  const copy = new URLSearchParams(search);
-                  copy.set('range', 'custom');
-                  copy.set('from', bounds.from);
-                  copy.set('to', event.target.value);
-                  setSearch(copy, { replace: true });
-                }}
-              />
-            </label>
+          {rangeKey === 'custom' ? (
+            <div className="stats-custom">
+              {(['from', 'to'] as const).map((key) => (
+                <label key={key}>
+                  {t(key)}
+                  <input
+                    type="date"
+                    value={source.get(key) ?? bounds[key]}
+                    onChange={(event) => {
+                      update({ [key]: event.target.value });
+                    }}
+                  />
+                </label>
+              ))}
+            </div>
+          ) : null}
+          {invalid ? <p role="alert">{t('invalidRange')}</p> : null}
+          {exportError ? (
+            <p role="alert">
+              {t('error')}{' '}
+              <button type="button" onClick={() => void exportFile('csv')}>
+                {t('retry')}
+              </button>
+            </p>
+          ) : null}
+          {filtersOpen && tab !== 'habits' ? (
+            <div
+              ref={filterRef}
+              className="stats-filters-panel"
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                  setFiltersOpen(false);
+                }
+              }}
+            >
+              {(
+                [
+                  ['list', 'lists', listRows],
+                  ['tag', 'tags', tagRows],
+                  [
+                    'priority',
+                    'priority',
+                    ['high', 'medium', 'low', 'none'].map((id) => ({
+                      id,
+                      name: t(id as StatisticsTextKey),
+                    })),
+                  ],
+                ] as const
+              ).map(([key, label, choices]) => (
+                <fieldset key={key}>
+                  <legend>{t(label)}</legend>
+                  {choices.map((choice) => (
+                    <label key={String(choice.id)}>
+                      <input
+                        type="checkbox"
+                        checked={(source.get(key)?.split(',') ?? []).includes(String(choice.id))}
+                        onChange={(event) => {
+                          const selected = new Set(source.get(key)?.split(',') ?? []);
+                          if (event.target.checked) selected.add(String(choice.id));
+                          else selected.delete(String(choice.id));
+                          update({ [key]: [...selected].join(',') });
+                        }}
+                      />
+                      {String(choice.name)}
+                    </label>
+                  ))}
+                </fieldset>
+              ))}
+            </div>
+          ) : null}
+          <div className="stats-chips">
+            {(['list', 'tag', 'priority'] as const).flatMap((key) =>
+              (source.get(key)?.split(',') ?? []).map((id) => {
+                const label =
+                  key === 'priority'
+                    ? t(id as 'high' | 'medium' | 'low' | 'none')
+                    : text(
+                        (key === 'list' ? listRows : tagRows).find((row) => row.id === id)?.name ??
+                          t(key === 'list' ? 'lists' : 'tags'),
+                      );
+                return (
+                  <span className="stats-chip" key={`${key}-${id}`}>
+                    {label}
+                    <button
+                      type="button"
+                      aria-label={`${t('clear')}: ${label}`}
+                      onClick={() => {
+                        update({
+                          [key]: (source.get(key)?.split(',') ?? [])
+                            .filter((value) => value !== id)
+                            .join(','),
+                        });
+                      }}
+                    >
+                      ×
+                    </button>
+                  </span>
+                );
+              }),
+            )}
           </div>
-        ) : null}
-        {filtersOpen ? (
-          <div className="stats-filters-panel">
-            <p>Los filtros de lista, etiqueta y prioridad se aplican a Resumen, Tareas y Foco.</p>
-            <label>
-              Lista (id)
-              <input
-                value={list ?? ''}
-                onChange={(event) => {
-                  const copy = new URLSearchParams(search);
-                  if (event.target.value) copy.set('list', event.target.value);
-                  else copy.delete('list');
-                  setSearch(copy, { replace: true });
-                }}
-              />
-            </label>
-            <label>
-              Etiqueta (id)
-              <input
-                value={tag ?? ''}
-                onChange={(event) => {
-                  const copy = new URLSearchParams(search);
-                  if (event.target.value) copy.set('tag', event.target.value);
-                  else copy.delete('tag');
-                  setSearch(copy, { replace: true });
-                }}
-              />
-            </label>
-            <label>
-              Prioridad
-              <select
-                value={priority ?? ''}
-                onChange={(event) => {
-                  const copy = new URLSearchParams(search);
-                  if (event.target.value) copy.set('priority', event.target.value);
-                  else copy.delete('priority');
-                  setSearch(copy, { replace: true });
-                }}
-              >
-                <option value="">Todas</option>
-                <option value="high">Alta</option>
-                <option value="medium">Media</option>
-                <option value="low">Baja</option>
-                <option value="none">Ninguna</option>
-              </select>
-            </label>
-            {filterCount > 0 ? (
-              <Button
-                onClick={() => {
-                  const copy = new URLSearchParams(search);
-                  copy.delete('list');
-                  copy.delete('tag');
-                  copy.delete('priority');
-                  setSearch(copy, { replace: true });
-                }}
-              >
-                Quitar filtros
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
-        <div className="stats-chips">
-          {list ? (
-            <span className="stats-chip">
-              lista{' '}
-              <button
-                type="button"
-                onClick={() => {
-                  const copy = new URLSearchParams(search);
-                  copy.delete('list');
-                  setSearch(copy, { replace: true });
-                }}
-              >
-                ×
-              </button>
-            </span>
-          ) : null}
-          {tag ? (
-            <span className="stats-chip">
-              etiqueta{' '}
-              <button
-                type="button"
-                onClick={() => {
-                  const copy = new URLSearchParams(search);
-                  copy.delete('tag');
-                  setSearch(copy, { replace: true });
-                }}
-              >
-                ×
-              </button>
-            </span>
-          ) : null}
-          {priority ? (
-            <span className="stats-chip">
-              {priority}{' '}
-              <button
-                type="button"
-                onClick={() => {
-                  const copy = new URLSearchParams(search);
-                  copy.delete('priority');
-                  setSearch(copy, { replace: true });
-                }}
-              >
-                ×
-              </button>
-            </span>
-          ) : null}
-        </div>
-        <nav className="stats-tabs" role="tablist" aria-label="Secciones de estadísticas">
-          {TABS.map((item) => (
+        </header>
+        <nav
+          className="stats-tabs"
+          role="tablist"
+          aria-label={t('title')}
+          onKeyDown={keyboardOptions}
+        >
+          {TABS.map((key) => (
             <button
-              key={item.key}
+              data-option
+              id={`stats-tab-${key}`}
               type="button"
               role="tab"
-              aria-selected={tab === item.key}
-              className={tab === item.key ? 'is-active' : undefined}
-              onClick={() => {
-                void navigate(`${item.path}?${search.toString()}`);
-              }}
+              aria-selected={tab === key}
+              aria-controls={`stats-panel-${key}`}
+              tabIndex={tab === key ? 0 : -1}
+              key={key}
+              className={tab === key ? 'is-active' : undefined}
+              onClick={() => void navigate(`${path(key)}?${source.toString()}`)}
             >
-              {item.label}
+              {t(key)}
             </button>
           ))}
         </nav>
-        <p className="stats-phrase">
-          {overview.isLoading
-            ? 'Cargando resumen…'
-            : phrase || `Del ${formatHumanDay(bounds.from)} al ${formatHumanDay(bounds.to)}.`}
+        <p className={overview.isPlaceholderData ? 'stats-phrase stats-stale' : 'stats-phrase'}>
+          {day(bounds.from)} – {day(bounds.to)}
+          {overview.data && tab === 'overview' ? (
+            <span>
+              {' '}
+              · {t('completed')}: {number(num(record(overview.data.summary).completed))} ·{' '}
+              {t('planned')}: {number(num(record(overview.data.summary).completion_planned))} ·{' '}
+              {t('focusTime')}: {duration(num(record(overview.data.summary).focus_minutes))} ·{' '}
+              {t('habits')}:{' '}
+              {num(record(overview.data.summary).habit_expected) === 0
+                ? '—'
+                : `${number(num(record(overview.data.summary).habit_percent))} %`}
+            </span>
+          ) : null}
         </p>
-      </header>
-
-      {tab === 'overview' ? (
-        <OverviewTab
-          loading={overview.isLoading && !overview.data}
-          error={overview.isError}
-          onRetry={() => void overview.refetch()}
-          summary={summary}
-          trend={arrayOf(overview.data?.trend)}
-          completion={arrayOf(overview.data?.completion_series)}
-          onOpen={(next) => {
-            void navigate(`/statistics/${next}?${search.toString()}`);
-          }}
-        />
-      ) : null}
-      {tab === 'tasks' ? (
-        <TasksTab
-          loading={tasks.isLoading && !tasks.data}
-          error={tasks.isError}
-          onRetry={() => void tasks.refetch()}
-          data={tasks.data}
-        />
-      ) : null}
-      {tab === 'focus' ? (
-        <FocusTab
-          loading={focus.isLoading && !focus.data}
-          error={focus.isError}
-          onRetry={() => void focus.refetch()}
-          data={focus.data}
-        />
-      ) : null}
-      {tab === 'habits' ? (
-        <HabitsTab
-          loading={habits.isLoading && !habits.data}
-          error={habits.isError}
-          onRetry={() => void habits.refetch()}
-          data={habits.data}
-          filtersIgnored={filterCount > 0}
-        />
-      ) : null}
-    </section>
-  );
-}
-
-function OverviewTab({
-  loading,
-  error,
-  onRetry,
-  summary,
-  trend,
-  completion,
-  onOpen,
-}: {
-  readonly loading: boolean;
-  readonly error: boolean;
-  readonly onRetry: () => void;
-  readonly summary: Record<string, unknown> | null;
-  readonly trend: readonly Record<string, unknown>[];
-  readonly completion: readonly Record<string, unknown>[];
-  readonly onOpen: (tab: Tab) => void;
-}) {
-  if (loading) {
-    return <SkeletonGrid />;
-  }
-  if (error || summary === null) {
-    return <BlockError onRetry={onRetry} />;
-  }
-  const achievement = isRecord(summary.achievement) ? summary.achievement : null;
-  return (
-    <div className="stats-body">
-      <div className="stats-kpi-grid">
-        <Kpi
-          label="Completadas"
-          value={String(num(summary.completed))}
-          delta={numOrNull(summary.completed_delta_percent)}
-          onClick={() => {
-            onOpen('tasks');
-          }}
-        />
-        <Kpi
-          label="Tasa de completitud"
-          value={summary.completion_rate === null ? '—' : `${String(summary.completion_rate)} %`}
-          hint={`${String(num(summary.completion_completed))}/${String(num(summary.completion_planned))}`}
-          delta={numOrNull(summary.completion_rate_delta_pt)}
-          onClick={() => {
-            onOpen('tasks');
-          }}
-        />
-        <Kpi
-          label="Tiempo de foco"
-          value={formatDuration(num(summary.focus_minutes))}
-          hint={`${String(num(summary.pomodoros))} pomodoros`}
-          delta={numOrNull(summary.focus_minutes_delta_percent)}
-          onClick={() => {
-            onOpen('focus');
-          }}
-        />
-        <Kpi
-          label="Hábitos cumplidos"
-          value={`${String(num(summary.habit_percent))} %`}
-          hint={`${String(num(summary.habit_done))}/${String(num(summary.habit_expected))} días`}
-          delta={numOrNull(summary.habit_delta_pt)}
-          worseIsUp={false}
-          onClick={() => {
-            onOpen('habits');
-          }}
-        />
-        <Kpi
-          label="Racha de días productivos"
-          value={`${String(num(summary.streak_current))} días`}
-          hint={`mejor: ${String(num(summary.streak_best_year))}`}
-          onClick={() => {
-            onOpen('tasks');
-          }}
-        />
-        <article className="stats-card stats-kpi stats-achievement">
-          <p className="stats-kpi-label">Valor de logro</p>
-          <p className="stats-kpi-value">
-            <Award size={20} aria-hidden="true" />{' '}
-            {achievement?.enabled === true
-              ? `Nivel ${String(num(achievement.level_index) + 1)} · ${String(achievement.level ?? '')}`
-              : 'Desactivado'}
-          </p>
-          {typeof achievement?.score === 'number' ? (
+        <div
+          role="tabpanel"
+          id={`stats-panel-${tab}`}
+          aria-labelledby={`stats-tab-${tab}`}
+          aria-busy={query.isFetching}
+          className={query.isPlaceholderData ? 'stats-stale' : undefined}
+        >
+          {invalid ? null : query.isLoading ? (
+            <Skeleton />
+          ) : query.isError ? (
+            <div className="stats-error" role="alert">
+              {t('error')}
+              <button type="button" onClick={() => void query.refetch()}>
+                {t('retry')}
+              </button>
+            </div>
+          ) : query.data ? (
             <>
-              <p className="stats-kpi-hint">{String(achievement.score)} puntos</p>
-              <div className="stats-progress">
-                <span style={{ width: `${String(num(achievement.progress_to_next))}%` }} />
-              </div>
+              {tab === 'overview' ? (
+                <Overview
+                  data={query.data}
+                  open={(next) => void navigate(`${path(next)}?${source.toString()}`)}
+                />
+              ) : null}
+              {tab === 'tasks' ? <Tasks data={query.data} /> : null}
+              {tab === 'focus' ? (
+                <>
+                  <label className="stats-session-type">
+                    {t('sessionType')}
+                    <select
+                      value={source.get('type') ?? 'focus'}
+                      onChange={(event) => {
+                        update({ type: event.target.value });
+                      }}
+                    >
+                      {(['focus', 'short_break', 'long_break'] as const).map((type) => (
+                        <option key={type} value={type}>
+                          {t(type)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <Focus
+                    data={query.data}
+                    tz={tz}
+                    selectedDay={
+                      source.get('day') ?? (text(record(query.data).timeline_day) || bounds.to)
+                    }
+                    select={(day) => {
+                      update({ day });
+                    }}
+                  />
+                </>
+              ) : null}
+              {tab === 'habits' ? <Habits data={query.data} /> : null}
             </>
           ) : null}
-          <details className="stats-formula">
-            <summary>¿Cómo se calcula?</summary>
-            <Formula formula={isRecord(achievement?.formula) ? achievement.formula : null} />
-          </details>
-          <button
-            type="button"
-            className="stats-link-btn"
-            onClick={() => {
-              onOpen('tasks');
-            }}
-          >
-            Ver detalle
-          </button>
-        </article>
-      </div>
-      <article className="stats-card stats-span-12">
-        <h2>Tendencia: completadas vs creadas</h2>
-        <Charts.TrendChart
-          data={trend.map((row) => ({
-            date: String(row.date ?? ''),
-            completed: num(row.completed),
-            created: num(row.created),
-          }))}
-        />
-      </article>
-      <article className="stats-card stats-span-6">
-        <h2>Tasa de completitud</h2>
-        <Charts.RateChart
-          data={completion.map((row) => ({
-            date: String(row.date ?? ''),
-            rate: typeof row.rate === 'number' ? row.rate : null,
-            completed: num(row.completed),
-            planned: num(row.planned),
-          }))}
-        />
-      </article>
-      <article className="stats-card stats-span-6">
-        <h2>Mejor momento</h2>
-        <BestMoment summary={summary} />
-      </article>
-    </div>
+        </div>
+      </section>
+    </FilterContext.Provider>
   );
 }
-
-function TasksTab({
-  loading,
-  error,
-  onRetry,
-  data,
+function Card({
+  title,
+  children,
+  span = 12,
 }: {
-  readonly loading: boolean;
-  readonly error: boolean;
-  readonly onRetry: () => void;
-  readonly data: Record<string, unknown> | undefined;
+  readonly title: string;
+  readonly children: ReactNode;
+  readonly span?: 4 | 6 | 8 | 12;
 }) {
-  const theme = useChartTheme();
-  if (loading) return <SkeletonGrid />;
-  if (error || data === undefined) return <BlockError onRetry={onRetry} />;
-  const punctuality = isRecord(data.punctuality) ? data.punctuality : {};
-  const age = isRecord(data.age_on_complete) ? data.age_on_complete : {};
   return (
-    <div className="stats-body">
-      <article className="stats-card stats-span-12">
-        <h2>Tendencia</h2>
-        <Charts.TrendChart
-          data={arrayOf(data.trend).map((row) => ({
-            date: String(row.date ?? ''),
-            completed: num(row.completed),
-            created: num(row.created),
-          }))}
-        />
-      </article>
-      <article className="stats-card stats-span-6">
-        <h2>Tasa de completitud</h2>
-        <Charts.RateChart
-          data={arrayOf(data.completion_series).map((row) => ({
-            date: String(row.date ?? ''),
-            rate: typeof row.rate === 'number' ? row.rate : null,
-            completed: num(row.completed),
-            planned: num(row.planned),
-          }))}
-        />
-      </article>
-      <article className="stats-card stats-span-6">
-        <h2>Puntualidad</h2>
-        <StackedBar
-          left={num(punctuality.on_time_percent)}
-          leftColor={theme.success}
-          right={100 - num(punctuality.on_time_percent)}
-          rightColor={theme.danger}
-          leftLabel="A tiempo"
-          rightLabel="Tarde"
-        />
-        <p className="stats-caption">
-          Retraso medio {String(punctuality.mean_delay_days ?? '—')} días · mediana{' '}
-          {String(punctuality.median_delay_days ?? '—')} días
-        </p>
-      </article>
-      <DistributionCard title="Por lista" rows={arrayOf(data.by_list)} />
-      <DistributionCard title="Por etiqueta" rows={arrayOf(data.by_tag)} />
-      <DistributionCard title="Por prioridad" rows={arrayOf(data.by_priority)} priority />
-      <article className="stats-card stats-span-6">
-        <h2>Edad al completar</h2>
-        <p className="stats-kpi-value">{String(age.mean_days ?? '—')} d</p>
-        <p className="stats-kpi-hint">media · mediana {String(age.median_days ?? '—')} d</p>
-      </article>
-      <article className="stats-card stats-span-6">
-        <h2>Vencidas arrastradas</h2>
-        <OverdueList rows={arrayOf(data.overdue_stock)} />
-      </article>
-    </div>
+    <article className={`stats-card stats-span-${String(span)}`}>
+      <h2>{title}</h2>
+      {children}
+    </article>
   );
 }
-
-function FocusTab({
-  loading,
-  error,
-  onRetry,
-  data,
-}: {
-  readonly loading: boolean;
-  readonly error: boolean;
-  readonly onRetry: () => void;
-  readonly data: Record<string, unknown> | undefined;
-}) {
-  if (loading) return <SkeletonGrid />;
-  if (error || data === undefined) return <BlockError onRetry={onRetry} />;
+function Empty({ kind = 'tasks' }: { readonly kind?: 'tasks' | 'focus' | 'habits' }) {
+  const { t } = useStatisticsText();
+  const filter = useContext(FilterContext);
   return (
-    <div className="stats-body">
-      <div className="stats-kpi-grid is-four">
-        <Kpi label="Minutos de foco" value={formatDuration(num(data.focus_minutes))} />
-        <Kpi label="Pomodoros" value={String(num(data.pomodoros))} />
-        <Kpi
-          label="% sesiones completadas"
-          value={data.completed_percent === null ? '—' : `${String(data.completed_percent)} %`}
-        />
-        <Kpi label="Interrupciones / sesión" value={String(data.interruptions_per_session ?? 0)} />
-      </div>
-      <article className="stats-card stats-span-8">
-        <h2>Tendencia de foco</h2>
-        <Charts.FocusTrendChart
-          data={arrayOf(data.trend).map((row) => ({
-            date: String(row.date ?? ''),
-            minutes: num(row.minutes),
-            pomodoros: num(row.pomodoros),
-          }))}
-        />
-      </article>
-      <article className="stats-card stats-span-4">
-        <h2>Hora más enfocada</h2>
-        <Charts.HourHistogram
-          data={arrayOf(data.hours).map((row) => ({
-            hour: num(row.hour),
-            minutes: num(row.minutes),
-          }))}
-          bestHour={typeof data.best_hour === 'number' ? data.best_hour : null}
-        />
-      </article>
-      <article className="stats-card stats-span-12">
-        <h2>Línea temporal · {String(data.timeline_day ?? '')}</h2>
-        <DayTimeline
-          day={String(data.timeline_day ?? '')}
-          blocks={arrayOf(data.timeline).map((row) => ({
-            id: String(row.id ?? ''),
-            start: String(row.start ?? ''),
-            end: typeof row.end === 'string' ? row.end : null,
-            minutes: num(row.minutes),
-            task_title: typeof row.task_title === 'string' ? row.task_title : null,
-          }))}
-        />
-      </article>
-      <article className="stats-card stats-span-12">
-        <h2>Rejilla anual</h2>
-        <YearHeatmap
-          cells={arrayOf(data.heatmap).map((row) => ({
-            date: String(row.date ?? ''),
-            minutes: num(row.minutes),
-            pomodoros: num(row.pomodoros),
-            level: num(row.level),
-          }))}
-        />
-      </article>
-      <DistributionCard title="Foco por lista" rows={arrayOf(data.by_list)} />
-      <DistributionCard title="Foco por etiqueta" rows={arrayOf(data.by_tag)} />
-      <DistributionCard title="Foco por tarea" rows={arrayOf(data.by_task)} span={12} />
-    </div>
-  );
-}
-
-function HabitsTab({
-  loading,
-  error,
-  onRetry,
-  data,
-  filtersIgnored,
-}: {
-  readonly loading: boolean;
-  readonly error: boolean;
-  readonly onRetry: () => void;
-  readonly data: Record<string, unknown> | undefined;
-  readonly filtersIgnored: boolean;
-}) {
-  if (loading) return <SkeletonGrid />;
-  if (error || data === undefined) return <BlockError onRetry={onRetry} />;
-  const cards = arrayOf(data.habits);
-  return (
-    <div className="stats-body">
-      {filtersIgnored ? <p className="stats-note">Los filtros no aplican a hábitos.</p> : null}
-      <article className="stats-card stats-span-12">
-        <h2>Cumplimiento global</h2>
-        <Charts.HabitLineChart
-          data={arrayOf(data.global_series).map((row) => ({
-            date: String(row.date ?? ''),
-            percent: typeof row.percent === 'number' ? row.percent : null,
-          }))}
-        />
-      </article>
-      {cards.length === 0 ? (
-        <p className="stats-empty">Aún no hay hábitos activos. Crea uno desde Hábitos.</p>
+    <div className="stats-empty">
+      <p>
+        {filter.active
+          ? t('noMatch')
+          : t(kind === 'tasks' ? 'emptyTasks' : kind === 'focus' ? 'emptyFocus' : 'emptyHabits')}
+      </p>
+      {filter.active ? (
+        <button type="button" onClick={filter.clear}>
+          {t('clear')}
+        </button>
       ) : (
-        cards.map((habit) => (
-          <article key={String(habit.id)} className="stats-card stats-span-4">
-            <h2>
-              <span aria-hidden="true">{String(habit.icon ?? '🌱')}</span> {String(habit.name)}
-            </h2>
-            <p className="stats-habit-metrics">
-              <Flame size={14} aria-hidden="true" /> {String(num(habit.streak_current))} · mejor{' '}
-              {String(num(habit.streak_best))} · {String(num(habit.percent))} %
-            </p>
-            <YearHeatmap
-              {...(typeof habit.color === 'string' ? { color: habit.color } : {})}
-              cells={arrayOf(habit.heatmap).map((row) => ({
-                date: String(row.date ?? ''),
-                count: num(row.count),
-                level: num(row.level),
-              }))}
-            />
-          </article>
-        ))
+        <Link to={kind === 'tasks' ? '/today' : `/${kind}`}>{t(kind)}</Link>
       )}
     </div>
   );
 }
-
 function Kpi({
   label,
   value,
   hint,
   delta,
-  worseIsUp,
+  points = false,
   onClick,
 }: {
   readonly label: string;
   readonly value: string;
-  readonly hint?: string;
+  readonly hint?: string | undefined;
   readonly delta?: number | null;
-  readonly worseIsUp?: boolean;
+  readonly points?: boolean;
   readonly onClick?: () => void;
 }) {
-  if (onClick !== undefined) {
-    return (
-      <button type="button" className="stats-card stats-kpi" onClick={onClick}>
-        <p className="stats-kpi-label">{label}</p>
-        <p className="stats-kpi-value">{value}</p>
-        {hint ? <p className="stats-kpi-hint">{hint}</p> : null}
-        {delta !== undefined && delta !== null ? (
-          <Delta value={delta} {...(worseIsUp !== undefined ? { worseIsUp } : {})} />
-        ) : null}
-      </button>
-    );
-  }
-  return (
-    <article className="stats-card stats-kpi">
+  const { t, number } = useStatisticsText();
+  const content = (
+    <>
       <p className="stats-kpi-label">{label}</p>
       <p className="stats-kpi-value">{value}</p>
       {hint ? <p className="stats-kpi-hint">{hint}</p> : null}
       {delta !== undefined && delta !== null ? (
-        <Delta value={delta} {...(worseIsUp !== undefined ? { worseIsUp } : {})} />
+        <p className={`stats-delta ${delta > 0 ? 'is-up' : delta < 0 ? 'is-down' : 'is-flat'}`}>
+          {delta > 0 ? <TrendingUp size={14} /> : delta < 0 ? <TrendingDown size={14} /> : null}
+          {delta === 0
+            ? t('unchanged')
+            : `${delta > 0 ? '+' : ''}${number(delta)} ${points ? t('percentagePoints') : '%'}`}{' '}
+          · {t('previousRange')}
+        </p>
       ) : null}
-    </article>
+    </>
+  );
+  return onClick ? (
+    <button className="stats-card stats-kpi" type="button" onClick={onClick}>
+      {content}
+    </button>
+  ) : (
+    <article className="stats-card stats-kpi">{content}</article>
   );
 }
-
-function Delta({ value, worseIsUp }: { readonly value: number; readonly worseIsUp?: boolean }) {
-  if (value === 0) {
-    return (
-      <p className="stats-delta is-flat">
-        <Minus size={14} aria-hidden="true" /> sin cambio
-      </p>
-    );
-  }
-  const up = value > 0;
-  const good = worseIsUp === true ? !up : up;
-  return (
-    <p className={good ? 'stats-delta is-up' : 'stats-delta is-down'}>
-      {up ? (
-        <TrendingUp size={14} aria-hidden="true" />
-      ) : (
-        <TrendingDown size={14} aria-hidden="true" />
-      )}
-      {up ? '+' : ''}
-      {String(value)} %
-    </p>
-  );
-}
-
-function DistributionCard({
-  title,
-  rows,
-  priority,
-  span = 4,
-}: {
-  readonly title: string;
-  readonly rows: readonly Record<string, unknown>[];
-  readonly priority?: boolean;
-  readonly span?: 4 | 12;
-}) {
-  const theme = useChartTheme();
-  return (
-    <article className={`stats-card stats-span-${String(span)}`}>
-      <h2>{title}</h2>
-      {rows.length === 0 ? (
-        <p className="stats-empty">Sin datos en este rango.</p>
-      ) : (
-        <ul className="stats-bars">
-          {rows.map((row, index) => {
-            const color = priority
-              ? (theme.prio[String(row.key) as 'high' | 'medium' | 'low' | 'none'] ??
-                theme.charts[index % 8])
-              : typeof row.color === 'string' && row.color.length > 0
-                ? row.color
-                : theme.charts[index % 8];
-            return (
-              <li key={String(row.key)}>
-                <span className="stats-bars-label">{String(row.label)}</span>
-                <span className="stats-bars-track">
-                  <span style={{ width: `${String(num(row.percent))}%`, background: color }} />
-                </span>
-                <span className="stats-bars-value">
-                  {String(num(row.value))} · {String(num(row.percent))} %
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </article>
-  );
-}
-
-function StackedBar({
-  left,
-  right,
-  leftColor,
-  rightColor,
-  leftLabel,
-  rightLabel,
-}: {
-  readonly left: number;
-  readonly right: number;
-  readonly leftColor: string;
-  readonly rightColor: string;
-  readonly leftLabel: string;
-  readonly rightLabel: string;
-}) {
-  return (
-    <div className="stats-stacked">
-      <div className="stats-stacked-bar">
-        <span style={{ width: `${String(left)}%`, background: leftColor }} />
-        <span style={{ width: `${String(right)}%`, background: rightColor }} />
-      </div>
-      <p>
-        {leftLabel} {String(left)} % · {rightLabel} {String(right)} %
-      </p>
-    </div>
-  );
-}
-
-function OverdueList({ rows }: { readonly rows: readonly Record<string, unknown>[] }) {
-  const last = rows[rows.length - 1];
-  if (last === undefined) {
-    return <p className="stats-empty">Sin vencidas arrastradas.</p>;
-  }
-  return (
-    <ul className="stats-overdue">
-      <li>&lt;7 días: {String(num(last.under_7))}</li>
-      <li>7–30 días: {String(num(last.days_7_30))}</li>
-      <li>&gt;30 días: {String(num(last.over_30))}</li>
-    </ul>
-  );
-}
-
-function BestMoment({ summary }: { readonly summary: Record<string, unknown> }) {
-  const best = isRecord(summary.best_moment) ? summary.best_moment : null;
-  const weekdays = arrayOf(best?.by_weekday);
-  const band = isRecord(best?.by_band) ? best.by_band : {};
-  const names = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
-  return (
-    <div className="stats-best">
-      <div className="stats-best-days">
-        {weekdays.map((row, index) => (
-          <div key={names[index]}>
-            <strong>{names[index]}</strong>
-            <span>{String(num(row.completed))}</span>
-          </div>
-        ))}
-      </div>
-      <p className="stats-caption">
-        Mañana {String(num(band.morning))} · Tarde {String(num(band.afternoon))} · Noche{' '}
-        {String(num(band.evening))}
-      </p>
-    </div>
-  );
-}
-
-function Formula({ formula }: { readonly formula: Record<string, unknown> | null }) {
-  if (formula === null) {
-    return <p>Activa la puntuación en el Jardín para ver el desglose.</p>;
-  }
-  const weights = isRecord(formula.weights) ? formula.weights : {};
-  return (
-    <ul>
-      <li>
-        A tiempo: {String(num(formula.on_time_points))} (×{String(num(weights.on_time_base))})
-      </li>
-      <li>Tarde: {String(num(formula.late_points))}</li>
-      <li>Prioridad: {String(num(formula.priority_points))}</li>
-      <li>Pomodoros: {String(num(formula.pomodoro_points))}</li>
-      <li>Hábitos: {String(num(formula.habit_points))}</li>
-      <li>Penalización vencidas: −{String(num(formula.overdue_penalty))}</li>
-    </ul>
-  );
-}
-
-function SkeletonGrid() {
+function Overview({ data, open }: { readonly data: Row; readonly open: (tab: Tab) => void }) {
+  const { t, number, duration, countDays } = useStatisticsText();
+  const s = record(data.summary);
+  const achievement = record(s.achievement);
+  const best = record(data.best_moment);
+  const productive = num(s.completed) > 0 || rows(data.trend).some((row) => num(row.created) > 0);
   return (
     <div className="stats-body">
-      {Array.from({ length: 6 }, (_, index) => (
-        <div key={index} className="stats-skeleton kpi" />
+      <div className="stats-kpi-grid">
+        <Kpi
+          label={t('completed')}
+          value={number(num(s.completed))}
+          hint={`${t('previousValue')}: ${number(num(s.completed_previous))}`}
+          delta={num(s.completed_previous) >= 5 ? nullable(s.completed_delta_percent) : null}
+          onClick={() => {
+            open('tasks');
+          }}
+        />
+        <Kpi
+          label={t('rate')}
+          value={s.completion_rate === null ? '—' : `${number(num(s.completion_rate))} %`}
+          hint={`${number(num(s.completion_completed))}/${number(num(s.completion_planned))}`}
+          delta={nullable(s.completion_rate_delta_pt)}
+          points
+          onClick={() => {
+            open('tasks');
+          }}
+        />
+        <Kpi
+          label={t('focusTime')}
+          value={duration(num(s.focus_minutes))}
+          hint={`${number(num(s.pomodoros))} ${t(num(s.pomodoros) === 1 ? 'pomodoro' : 'pomodoros')}`}
+          delta={nullable(s.focus_minutes_delta_percent)}
+          onClick={() => {
+            open('focus');
+          }}
+        />
+        <Kpi
+          label={t('habitRate')}
+          value={num(s.habit_expected) === 0 ? '—' : `${number(num(s.habit_percent))} %`}
+          hint={
+            num(s.habit_expected) > 0
+              ? `${number(num(s.habit_done))}/${number(num(s.habit_expected))}`
+              : undefined
+          }
+          delta={num(s.habit_expected) > 0 ? nullable(s.habit_delta_pt) : null}
+          points
+          onClick={() => {
+            open('habits');
+          }}
+        />
+        <Kpi
+          label={t('streak')}
+          value={countDays(num(s.streak_current))}
+          hint={`${t('best')}: ${countDays(num(s.streak_best_year))}`}
+          onClick={() => {
+            open('tasks');
+          }}
+        />
+        {achievement.enabled === true ? (
+          <article className="stats-card stats-kpi">
+            <p className="stats-kpi-label">
+              <Award size={16} /> {t('achievement')} · {t('lifetime')}
+            </p>
+            <p className="stats-kpi-value">
+              {t('level')} {number(num(achievement.level_index) + 1)} · {String(achievement.level)}
+            </p>
+            <p>
+              {number(num(achievement.score))} {t('points')}
+            </p>
+            <progress
+              max={100}
+              value={num(achievement.progress_to_next)}
+              aria-label={t('threshold')}
+            />
+            {achievement.next_threshold !== null ? (
+              <p>
+                {t('threshold')}: {number(num(achievement.next_threshold))} {t('points')} ·{' '}
+                {t('remaining')}:{' '}
+                {number(Math.max(0, num(achievement.next_threshold) - num(achievement.score)))}
+              </p>
+            ) : null}
+            <details>
+              <summary>{t('formula')}</summary>
+              <p>{t('formulaHelp')}</p>
+              <DataTable
+                caption={t('formula')}
+                headers={[t('value'), t('points')]}
+                rows={Object.entries(record(achievement.formula))
+                  .filter(([, value]) => typeof value === 'number')
+                  .map(([key, value]) => [formulaLabel(key, t), number(num(value))])}
+              />
+            </details>
+            <a href="#stats-achievement-history">{t('history')}</a>
+          </article>
+        ) : null}
+      </div>
+      <Card title={t('trend')}>
+        {productive ? <Charts.TrendChart data={graphRows(data.trend)} /> : <Empty />}
+      </Card>
+      <Card title={t('rate')} span={6}>
+        {num(s.completion_planned) > 0 ? (
+          <Charts.RateChart data={graphRows(data.completion_series)} />
+        ) : (
+          <Empty />
+        )}
+      </Card>
+      <Card title={t('moment')} span={6}>
+        {productive ? (
+          <>
+            <Distribution
+              rows={rows(best.by_weekday).map((row) => ({
+                key: String(row.weekday),
+                label: weekdayName(num(row.weekday)),
+                value: num(row.completed),
+                percent: num(s.completed) === 0 ? 0 : (num(row.completed) / num(s.completed)) * 100,
+              }))}
+            />
+            <DataTable
+              caption={t('moment')}
+              headers={[t('hour'), t('completed')]}
+              rows={(['morning', 'afternoon', 'evening'] as const).map((key) => [
+                t(key),
+                number(num(record(best.by_band)[key])),
+              ])}
+            />
+          </>
+        ) : (
+          <Empty />
+        )}
+      </Card>
+      {achievement.enabled === true ? (
+        <div className="stats-span-12" id="stats-achievement-history">
+          <Card title={t('history')}>
+            <Charts.AchievementChart data={graphRows(achievement.history)} />
+          </Card>
+        </div>
+      ) : (
+        <p>
+          <Link to="/settings/features">{t('settings')}</Link>
+        </p>
+      )}
+    </div>
+  );
+}
+function Tasks({ data }: { readonly data: Row }) {
+  const { t, number } = useStatisticsText();
+  const punctuality = record(data.punctuality);
+  const age = record(data.age_on_complete);
+  return (
+    <div className="stats-body">
+      <Card title={t('trend')}>
+        {rows(data.trend).some((row) => num(row.completed) + num(row.created) > 0) ? (
+          <Charts.TrendChart data={graphRows(data.trend)} />
+        ) : (
+          <Empty />
+        )}
+      </Card>
+      <Card title={t('rate')} span={6}>
+        {rows(data.completion_series).some((row) => num(row.planned) > 0) ? (
+          <Charts.RateChart data={graphRows(data.completion_series)} />
+        ) : (
+          <Empty />
+        )}
+      </Card>
+      <Card title={t('punctuality')} span={6}>
+        {punctuality.on_time_percent === null ? (
+          <Empty />
+        ) : (
+          <>
+            <div className="stats-stacked-bar">
+              <span
+                style={{
+                  width: `${String(num(punctuality.on_time_percent))}%`,
+                  background: 'var(--success)',
+                }}
+              />
+              <span
+                style={{
+                  width: `${String(100 - num(punctuality.on_time_percent))}%`,
+                  background: 'var(--danger)',
+                }}
+              />
+            </div>
+            <p>
+              {t('onTime')} {number(num(punctuality.on_time_percent))} % · {t('late')}{' '}
+              {number(100 - num(punctuality.on_time_percent))} %
+            </p>
+            <p>
+              {t('sample')}: {number(num(punctuality.sample))} · {t('cap')}:{' '}
+              {number(num(punctuality.capped_samples))}
+            </p>
+            <p>
+              {t('delay')} · {t('mean')} {number(num(punctuality.mean_delay_days))} {t('days')} ·{' '}
+              {t('median')} {number(num(punctuality.median_delay_days))} {t('days')}
+            </p>
+          </>
+        )}
+      </Card>
+      {(['by_list', 'by_tag', 'by_priority'] as const).map((key, index) => (
+        <Card
+          key={key}
+          title={t((['byList', 'byTag', 'byPriority'] as const)[index] ?? 'byList')}
+          span={4}
+        >
+          <Distribution rows={rows(data[key])} priority={key === 'by_priority'} />
+        </Card>
       ))}
+      <Card title={t('overdue')} span={6}>
+        <Charts.OverdueChart data={graphRows(data.overdue_stock)} />
+      </Card>
+      <Card title={t('age')} span={6}>
+        {num(age.sample) > 0 ? (
+          <>
+            <p className="stats-kpi-value">
+              {number(num(age.mean_days))} {t('days')}
+            </p>
+            <p>
+              {t('mean')} · {t('median')} {number(num(age.median_days))} {t('days')} · {t('sample')}{' '}
+              {number(num(age.sample))}
+            </p>
+          </>
+        ) : (
+          <Empty />
+        )}
+      </Card>
+    </div>
+  );
+}
+function Focus({
+  data,
+  tz,
+  selectedDay,
+  select,
+}: {
+  readonly data: Row;
+  readonly tz: string;
+  readonly selectedDay: string;
+  readonly select: (day: string) => void;
+}) {
+  const { t, number, duration, day } = useStatisticsText();
+  const detail = useRef<HTMLDivElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const blocks = rows(data.timeline).map((row) => ({
+    id: String(row.id),
+    start: String(row.start),
+    end: typeof row.end === 'string' ? row.end : null,
+    minutes: num(row.minutes),
+    task_title: typeof row.task_title === 'string' ? row.task_title : null,
+  }));
+  useEffect(() => {
+    if (expanded) detail.current?.focus();
+  }, [expanded, selectedDay]);
+  return (
+    <div className="stats-body">
+      <div className="stats-kpi-grid is-four">
+        <Kpi label={t('focusTime')} value={duration(num(data.focus_minutes))} />
+        <Kpi label={t('pomodoros')} value={number(num(data.pomodoros))} />
+        <Kpi
+          label={t('quality')}
+          hint={`${number(num(data.completed_sessions))}/${number(num(data.completed_sessions) + num(data.abandoned_sessions))} ${t('sessions')}`}
+          value={data.completed_percent === null ? '—' : `${number(num(data.completed_percent))} %`}
+        />
+        <Kpi label={t('interruptions')} value={number(num(data.interruptions_per_session))} />
+      </div>
+      <Card title={t('focusTrend')} span={8}>
+        {num(data.focus_seconds) > 0 ? (
+          <Charts.FocusTrendChart data={graphRows(data.trend)} />
+        ) : (
+          <Empty kind="focus" />
+        )}
+      </Card>
+      <Card title={t('bestHour')} span={4}>
+        {num(data.focus_seconds) >= 25 * 60 ? (
+          <Charts.HourHistogram data={graphRows(data.hours)} bestHour={nullable(data.best_hour)} />
+        ) : (
+          <p className="stats-empty">{t('insufficient')}</p>
+        )}
+      </Card>
+      <Card title={t('timeline')}>
+        <label className="stats-select-day">
+          {t('selectDay')}
+          <input
+            type="date"
+            value={selectedDay}
+            onChange={(event) => {
+              if (validDay(event.target.value)) select(event.target.value);
+            }}
+          />
+        </label>
+        <PeriodTimeline data={rows(data.period_timeline)} tz={tz} />
+        <details>
+          <summary>
+            {t('selectDay')}: {day(selectedDay)}
+          </summary>
+          <DayTimeline day={selectedDay} blocks={blocks} tz={tz} />
+        </details>
+      </Card>
+      <Card title={t('annual')}>
+        <YearHeatmap
+          cells={rows(data.heatmap).map((row) => ({
+            date: String(row.date),
+            minutes: num(row.minutes),
+            pomodoros: num(row.pomodoros),
+            level: num(row.level),
+          }))}
+          onSelect={(cell) => {
+            select(cell.date);
+            setExpanded(true);
+          }}
+        />
+        {expanded ? (
+          <div
+            ref={detail}
+            tabIndex={-1}
+            className="stats-day-detail"
+            role="dialog"
+            aria-label={`${t('sessions')} ${day(selectedDay)}`}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') setExpanded(false);
+            }}
+          >
+            <h3>{day(selectedDay)}</h3>
+            {blocks.length === 0 ? (
+              <p>{t('empty')}</p>
+            ) : (
+              <ul>
+                {blocks.map((block) => (
+                  <li key={block.id}>
+                    {new Date(block.start).toLocaleTimeString(undefined, {
+                      timeZone: tz,
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}{' '}
+                    · {block.task_title ?? t('noTask')} · {duration(block.minutes)}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setExpanded(false);
+              }}
+            >
+              {t('close')}
+            </button>
+          </div>
+        ) : null}
+      </Card>
+      {(['by_list', 'by_tag', 'by_task'] as const).map((key, index) => (
+        <Card
+          key={key}
+          title={t((['byList', 'byTag', 'byTask'] as const)[index] ?? 'byTask')}
+          span={key === 'by_task' ? 12 : 6}
+        >
+          <Distribution rows={rows(data[key])} unit="min" />
+        </Card>
+      ))}
+      <p className="stats-caption stats-span-12">{t('precision')}</p>
+    </div>
+  );
+}
+function PeriodTimeline({ data, tz }: { readonly data: readonly Row[]; readonly tz: string }) {
+  const { t, day } = useStatisticsText();
+  const groups = new Map<string, Row[]>();
+  for (const row of data) {
+    const key = new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date(String(row.start)));
+    const group = groups.get(key) ?? [];
+    group.push(row);
+    groups.set(key, group);
+  }
+  return data.length === 0 ? (
+    <Empty kind="focus" />
+  ) : (
+    <>
+      {[...groups]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([date, items]) => (
+          <section key={date}>
+            <h3>{day(date)}</h3>
+            <DayTimeline
+              day={date}
+              tz={tz}
+              blocks={items.map((row) => ({
+                id: String(row.id),
+                start: String(row.start),
+                end: typeof row.end === 'string' ? row.end : null,
+                minutes: num(row.minutes),
+                task_title: typeof row.task_title === 'string' ? row.task_title : null,
+              }))}
+            />
+          </section>
+        ))}
+      <p className="stats-caption">{t('precision')}</p>
+    </>
+  );
+}
+function Habits({ data }: { readonly data: Row }) {
+  const { t, number, weekday } = useStatisticsText();
+  const filter = useContext(FilterContext);
+  const cards = rows(data.habits);
+  return (
+    <div className="stats-body">
+      {filter.active ? <p className="stats-note stats-span-12">{t('ignored')}</p> : null}
+      <Card title={t('global')}>
+        {cards.length ? (
+          <Charts.HabitLineChart data={graphRows(data.global_series)} />
+        ) : (
+          <Empty kind="habits" />
+        )}
+      </Card>
+      {cards.map((habit) => (
+        <Card key={String(habit.id)} title={`${text(habit.icon)} ${String(habit.name)}`} span={4}>
+          <p className="stats-habit-metrics">
+            <Flame size={16} />
+            {number(num(habit.streak_current))} · {t('best')} {number(num(habit.streak_best))} ·{' '}
+            {number(num(habit.percent))} %
+          </p>
+          <YearHeatmap
+            {...(typeof habit.color === 'string' ? { color: habit.color } : {})}
+            cells={rows(habit.heatmap).map((row) => ({
+              date: String(row.date),
+              count: num(row.count),
+              level: num(row.level),
+            }))}
+          />
+        </Card>
+      ))}
+      {cards.length ? (
+        <Card title={t('ranking')}>
+          <DataTable
+            caption={t('ranking')}
+            headers={[t('habits'), t('percent'), t('weakest')]}
+            rows={[...cards]
+              .sort((a, b) => num(b.percent) - num(a.percent))
+              .map((habit) => [
+                String(habit.name),
+                `${number(num(habit.percent))} %`,
+                habit.weakest_weekday === null ? '—' : weekday(num(habit.weakest_weekday)),
+              ])}
+          />
+          <ol>
+            {[...cards]
+              .sort((a, b) => num(b.percent) - num(a.percent))
+              .map((habit) => (
+                <li key={String(habit.id)}>
+                  {String(habit.name)} · {number(num(habit.percent))} % · {t('weakest')}:{' '}
+                  {habit.weakest_weekday === null ? '—' : weekday(num(habit.weakest_weekday))}
+                </li>
+              ))}
+          </ol>
+        </Card>
+      ) : null}
+    </div>
+  );
+}
+function Distribution({
+  rows: items,
+  priority = false,
+  unit = '',
+}: {
+  readonly rows: readonly Row[];
+  readonly priority?: boolean;
+  readonly unit?: string;
+}) {
+  const theme = useChartTheme();
+  const { t, number } = useStatisticsText();
+  if (items.length === 0) return <Empty />;
+  const label = (row: Row) =>
+    priority
+      ? t(String(row.key) as 'high' | 'medium' | 'low' | 'none')
+      : row.key === 'other'
+        ? t('other')
+        : row.key === 'none'
+          ? t('noTask')
+          : row.label === 'Sin etiqueta'
+            ? t('noTag')
+            : String(row.label);
+  return (
+    <>
+      <ul className="stats-bars">
+        {items.map((row, index) => (
+          <li key={String(row.key)}>
+            <span className="stats-bars-label">{label(row)}</span>
+            <span className="stats-bars-track">
+              <span
+                style={{
+                  width: `${String(num(row.percent))}%`,
+                  background: priority
+                    ? theme.prio[String(row.key) as 'high' | 'medium' | 'low' | 'none']
+                    : row.key === 'other' || row.key === 'none'
+                      ? theme.charts[7]
+                      : typeof row.color === 'string'
+                        ? row.color
+                        : theme.charts[index % 7],
+                }}
+              />
+            </span>
+            <span className="stats-bars-value">
+              {number(num(row.value))} {unit} · {number(num(row.percent))} %
+            </span>
+          </li>
+        ))}
+      </ul>
+      <DataTable
+        caption={t('value')}
+        headers={[t('value'), unit || t('completed'), t('percent')]}
+        rows={items.map((row) => [
+          label(row),
+          number(num(row.value)),
+          `${number(num(row.percent))} %`,
+        ])}
+      />
+    </>
+  );
+}
+function Skeleton() {
+  const { t } = useStatisticsText();
+  return (
+    <div className="stats-body" aria-label={t('loading')}>
+      <div className="stats-kpi-grid">
+        {Array.from({ length: 6 }, (_, i) => (
+          <div className="stats-skeleton kpi" key={i} />
+        ))}
+      </div>
       <div className="stats-skeleton chart stats-span-12" />
     </div>
   );
 }
-
-function BlockError({ onRetry }: { readonly onRetry: () => void }) {
-  return (
-    <div className="stats-error">
-      <p>No se pudo cargar</p>
-      <Button onClick={onRetry}>Reintentar</Button>
-    </div>
+function formulaLabel(key: string, t: (key: StatisticsTextKey) => string) {
+  return t(
+    (
+      {
+        on_time_points: 'onTime',
+        late_points: 'late',
+        priority_points: 'priority',
+        pomodoro_points: 'pomodoros',
+        habit_points: 'habits',
+        overdue_penalty: 'overdue',
+      } as Record<string, StatisticsTextKey>
+    )[key] ?? 'points',
   );
 }
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
+function weekdayName(value: number) {
+  return new Date(Date.UTC(2026, 9, 18 + value)).toLocaleDateString(
+    document.documentElement.lang || 'es-ES',
+    { weekday: 'short', timeZone: 'UTC' },
+  );
 }
-
-function arrayOf(value: unknown): readonly Record<string, unknown>[] {
-  return Array.isArray(value) ? value.filter(isRecord) : [];
+function record(value: unknown): Row {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Row) : {};
 }
-
+function rows(value: unknown): Row[] {
+  return Array.isArray(value)
+    ? value.filter((row): row is Row => typeof row === 'object' && row !== null)
+    : [];
+}
 function num(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
+function nullable(value: unknown): number | null {
+  return typeof value === 'number' ? value : null;
+}
+function graphRows(value: unknown): Record<string, string | number | null>[] {
+  return rows(value).map((row) =>
+    Object.fromEntries(
+      Object.entries(row).filter(
+        (entry): entry is [string, string | number | null] =>
+          typeof entry[1] === 'string' || typeof entry[1] === 'number' || entry[1] === null,
+      ),
+    ),
+  );
+}
 
-function numOrNull(value: unknown): number | null {
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+function text(value: unknown): string {
+  return typeof value === 'string' ? value : '';
 }

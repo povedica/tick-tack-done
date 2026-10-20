@@ -455,41 +455,42 @@ function bestWeekStreak(model: Model): number {
   return best;
 }
 
+/** RF-1303 / RF-2323: arbitrary ranges use the same elapsed-day/weekly-goal model. */
+export function habitRangeSummary(input: {
+  readonly goal: HabitGoal;
+  readonly days: readonly HabitWeekday[];
+  readonly logs: readonly HabitLogEntry[];
+  readonly from: string;
+  readonly to: string;
+  readonly today: string;
+}): { done: number; expected: number; percent: number } {
+  return rangeSummary(
+    modelOf(input.goal, input.days, input.logs, input.today),
+    input.from,
+    input.to,
+  );
+}
+
 function completionPercent(model: Model, start: string, end: string): number {
+  return rangeSummary(model, start, end).percent;
+}
+
+function rangeSummary(model: Model, start: string, end: string) {
   const until = end < model.today ? end : model.today;
-  if (until < start) {
-    return 100;
+  const weeks = new Set<string>();
+  let expected = 0;
+  let done = 0;
+  for (const date of eachDate(start, until)) {
+    if (!isScheduled(model, date)) continue;
+    expected += 1;
+    weeks.add(mondayOf(date));
+    if (metOn(model, date)) done += 1;
   }
   if (model.goal.period === 'week') {
-    const weeks = new Set<string>();
-    let met = 0;
-    for (const date of eachDate(start, until)) {
-      if (!isScheduled(model, date)) {
-        continue;
-      }
-      weeks.add(mondayOf(date));
-      if (metOn(model, date)) {
-        met += 1;
-      }
-    }
-    const expected = model.goal.timesPerPeriod * weeks.size;
-    if (expected === 0) {
-      return 100;
-    }
-    return ratio(Math.min(met, expected), expected);
+    expected = model.goal.timesPerPeriod * weeks.size;
+    done = Math.min(done, expected);
   }
-  let total = 0;
-  let met = 0;
-  for (const date of eachDate(start, until)) {
-    if (!isScheduled(model, date)) {
-      continue;
-    }
-    total += 1;
-    if (metOn(model, date)) {
-      met += 1;
-    }
-  }
-  return ratio(met, total);
+  return { done, expected, percent: ratio(done, expected) };
 }
 
 function periodMet(model: Model, date: string): boolean {
@@ -574,7 +575,7 @@ function countOn(logs: readonly HabitLogEntry[], date: string): number {
 function eachDate(start: string, end: string): readonly string[] {
   const dates: string[] = [];
   let cursor = start;
-  for (let guard = 0; cursor <= end && guard < 400; guard += 1) {
+  for (let guard = 0; cursor <= end && guard < 732; guard += 1) {
     dates.push(cursor);
     cursor = addDays(cursor, 1);
   }

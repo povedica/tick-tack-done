@@ -41,6 +41,11 @@ export type {
   ViewPage,
 } from './client';
 export type {
+  StatsOverview,
+  StatsTasks,
+  StatsFocus,
+  StatsHabits,
+  StatsAchievement,
   ActivityEntry,
   Attachment,
   BatchBody,

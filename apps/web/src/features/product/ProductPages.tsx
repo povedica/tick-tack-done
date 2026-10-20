@@ -39,10 +39,18 @@ function idCount(value: unknown, key: string): number {
   return Array.isArray(ids) ? ids.length : 0;
 }
 
-function CountCard({ label, value }: { readonly label: string; readonly value: number }) {
+function CountCard({
+  label,
+  value,
+  to,
+}: {
+  readonly label: string;
+  readonly value: number;
+  readonly to?: string;
+}) {
   return (
     <article className="widget">
-      <h3>{label}</h3>
+      <h3>{to ? <Link to={to}>{label}</Link> : label}</h3>
       <p className="detail-title">{value}</p>
     </article>
   );
@@ -303,12 +311,14 @@ export function ReportsPage() {
       {current !== undefined ? (
         <>
           <ul className="widget-grid">
-            <CountCard label={messages.reportCompleted} value={completed} />
-            <CountCard label={messages.reportCreated} value={created} />
-            <CountCard label={messages.reportOverdue} value={overdue} />
-            <CountCard label={messages.reportFocus} value={focusMinutes} />
+            <CountCard to="/statistics/tasks" label={messages.reportCompleted} value={completed} />
+            <CountCard to="/statistics/tasks" label={messages.reportCreated} value={created} />
+            <CountCard to="/statistics/tasks" label={messages.reportOverdue} value={overdue} />
+            <CountCard to="/statistics/focus" label={messages.reportFocus} value={focusMinutes} />
             <article className="widget">
-              <h3>{messages.reportHabits}</h3>
+              <h3>
+                <Link to="/statistics/habits">{messages.reportHabits}</Link>
+              </h3>
               <p className="detail-title">
                 {habitsExpected > 0
                   ? `${String(habitsDone)} de ${String(habitsExpected)}`
@@ -316,7 +326,9 @@ export function ReportsPage() {
               </p>
             </article>
             <article className="widget">
-              <h3>{messages.reportTrend}</h3>
+              <h3>
+                <Link to="/statistics/tasks">{messages.reportTrend}</Link>
+              </h3>
               <p className="detail-title">{trendLabel}</p>
             </article>
           </ul>
@@ -626,6 +638,7 @@ export function FocusPage() {
     <section className="screen-page">
       <h1>{messages.focusTitle}</h1>
       <p>{messages.focusHint}</p>
+      <p className="ui-muted">{messages.focusLifetime}</p>
       {focused.data !== undefined ? (
         <p>
           <Link to={`/list/${focused.data.project_id}?task=${focused.data.id}`}>
@@ -673,6 +686,8 @@ export function FocusPage() {
                 void api.finishFocus(live.id as string).then(() => {
                   void queryClient.invalidateQueries({ queryKey: ['focus-sessions'] });
                   void queryClient.invalidateQueries({ queryKey: ['focus-stats'] });
+                  void queryClient.invalidateQueries({ queryKey: ['stats'] });
+                  void queryClient.invalidateQueries({ queryKey: ['achievements'] });
                 });
               }}
             >
@@ -683,6 +698,8 @@ export function FocusPage() {
                 void api.abortFocus(live.id as string).then(() => {
                   void queryClient.invalidateQueries({ queryKey: ['focus-sessions'] });
                   void queryClient.invalidateQueries({ queryKey: ['focus-stats'] });
+                  void queryClient.invalidateQueries({ queryKey: ['stats'] });
+                  void queryClient.invalidateQueries({ queryKey: ['achievements'] });
                 });
               }}
             >
