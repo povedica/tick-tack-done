@@ -4228,6 +4228,9 @@ export interface components {
         CompleteTaskDto: {
             /** @enum {string} */
             complete_children?: "complete" | "leave";
+            /** @enum {string} */
+            advance?: "one_period" | "next_future";
+            materialize_next?: boolean;
         };
         MoveTaskDto: {
             project_id: string;

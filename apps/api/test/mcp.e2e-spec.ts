@@ -451,6 +451,114 @@ describe('MCP server', () => {
       }
     }
   });
+
+  it('RF-2007..RF-2012: MCP can create, inspect, detach and advance a repeating task', async () => {
+    const bearer = await tasksBearer(server, owner.email);
+    const due = '2026-05-31T08:00:00.000Z';
+
+    const made = await rpc(server, bearer, 'tools/call', {
+      name: 'create_task',
+      arguments: {
+        title: 'Pagar asistenta',
+        project_id: owner.inboxId,
+        due_date: due,
+        is_all_day: false,
+        recurrence: { freq: 'monthly', month_day: 31 },
+      },
+    });
+    expect(made.body.result.isError).toBe(false);
+    const created = JSON.parse(toolText(made.body as unknown)) as {
+      id: string;
+      repeat_rule: string;
+      repeat_label: string;
+      next_occurrence: string | null;
+      series_id: string;
+    };
+    expect(created.repeat_rule).toContain('FREQ=MONTHLY');
+    expect(created.repeat_rule).toContain('BYMONTHDAY=31');
+    expect(created.repeat_label).toMatch(/día 31|último día/i);
+    expect(created.next_occurrence).toBeTruthy();
+
+    const got = await rpc(server, bearer, 'tools/call', {
+      name: 'get_task',
+      arguments: { id: created.id },
+    });
+    const detail = JSON.parse(toolText(got.body as unknown)) as {
+      repeat_label: string;
+      next_occurrence: string | null;
+    };
+    expect(detail.repeat_label).toBe(created.repeat_label);
+
+    const range = await rpc(server, bearer, 'tools/call', {
+      name: 'get_task_occurrences',
+      arguments: {
+        id: created.id,
+        from: '2026-05-01T00:00:00.000Z',
+        to: '2026-08-31T23:59:59.000Z',
+      },
+    });
+    const occurrences = JSON.parse(toolText(range.body as unknown)) as {
+      occurrences: { due_date: string }[];
+    };
+    expect(occurrences.occurrences.length).toBeGreaterThanOrEqual(2);
+
+    const skip = await rpc(server, bearer, 'tools/call', {
+      name: 'detach_occurrence',
+      arguments: { id: created.id, due_date: due, title: 'Pagar asistenta (mayo)' },
+    });
+    expect(skip.body.result.isError).toBe(false);
+
+    // After detaching the current due, either a successor is pending via SeriesAdvance
+    // or the same task lost its series; recreate a fresh recurring task for complete.
+    const remade = await rpc(server, bearer, 'tools/call', {
+      name: 'create_task',
+      arguments: {
+        title: 'Regar plantas',
+        project_id: owner.inboxId,
+        due_date: '2026-01-15T09:00:00.000Z',
+        recurrence: { freq: 'monthly', month_day: 15 },
+      },
+    });
+    const plant = JSON.parse(toolText(remade.body as unknown)) as { id: string; series_id: string };
+
+    const done = await rpc(server, bearer, 'tools/call', {
+      name: 'complete_task',
+      arguments: {
+        id: plant.id,
+        advance: 'next_future',
+        materialize_next: true,
+      },
+    });
+    const completed = JSON.parse(toolText(done.body as unknown)) as {
+      status: string;
+      series?: { materialized: boolean; next_due_date: string | null; eta_seconds: number | null };
+    };
+    expect(completed.status).toBe('completed');
+    expect(completed.series?.materialized).toBe(true);
+    const nextDue = completed.series?.next_due_date;
+    expect(nextDue).toBeTruthy();
+    expect(new Date(nextDue ?? 0).getTime()).toBeGreaterThan(Date.now() - 60_000);
+
+    const active = await prisma.task.findMany({
+      where: { seriesId: plant.series_id, status: 'active', deletedAt: null },
+    });
+    expect(active).toHaveLength(1);
+    const activeDue = active[0]?.dueDate;
+    expect(activeDue).toBeTruthy();
+    expect((activeDue ?? new Date(0)).getTime()).toBeGreaterThan(Date.now() - 60_000);
+
+    // Scheduler must stay idempotent: a second materialize pass must not duplicate.
+    const before = await prisma.task.count({
+      where: { seriesId: plant.series_id, deletedAt: null },
+    });
+    const { SchedulerService } = await import('../src/scheduler/scheduler.service.js');
+    const scheduler = app.get(SchedulerService);
+    await scheduler.run(new Date(), false);
+    const after = await prisma.task.count({
+      where: { seriesId: plant.series_id, deletedAt: null },
+    });
+    expect(after).toBe(before);
+  });
 });
 
 function toolText(body: unknown): string {

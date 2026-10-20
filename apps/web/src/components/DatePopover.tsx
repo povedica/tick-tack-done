@@ -504,7 +504,7 @@ export function DatePopover({
         <Button
           type="button"
           size="sm"
-          variant="ghost"
+          variant="danger"
           onClick={() => {
             commit({
               ...draft,

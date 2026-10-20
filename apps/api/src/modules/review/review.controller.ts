@@ -12,6 +12,7 @@ import { CurrentUser } from '../../auth/current-user.decorator.js';
 import { Scopes } from '../../auth/scopes.decorator.js';
 import { respondJson } from '../../http/respond.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { listOverdueTaskIds } from '../../reading/overdue.js';
 
 @ApiTags('review')
 @Controller('review')
@@ -68,18 +69,21 @@ export class ReviewController {
       missedDays: missed(habit.logs, now),
     }));
     const review = proposeWeekly(tasks, habitRows, now.toISOString(), 7);
-    const wanted = new Set([...review.overdue_ids, ...review.undated_ids]);
+    // DAT-1: overdue list uses the same calendar-day SQL as the badge and Jardín.
+    const overdueIds = await listOverdueTaskIds(this.prisma, user.id);
+    const aligned = { ...review, overdue_ids: overdueIds };
+    const wanted = new Set([...aligned.overdue_ids, ...aligned.undated_ids]);
     const names = new Map(tasks.map((task) => [task.listId, task.listName]));
     respondJson(
       req,
       res,
       200,
       {
-        ...review,
+        ...aligned,
         habits_scope: canReadHabits ? 'granted' : 'missing',
         habits: canReadHabits
           ? habitRows
-              .filter((habit) => review.habits_at_risk.includes(habit.id))
+              .filter((habit) => aligned.habits_at_risk.includes(habit.id))
               .map((habit) => ({ id: habit.id, name: habit.name }))
           : null,
         tasks: tasks
@@ -92,7 +96,7 @@ export class ReviewController {
             listName: task.listName,
             status: task.status,
           })),
-        lists: review.stale_list_ids.map((id) => ({ id, name: names.get(id) ?? id })),
+        lists: aligned.stale_list_ids.map((id) => ({ id, name: names.get(id) ?? id })),
       },
       false,
     );

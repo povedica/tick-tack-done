@@ -35,6 +35,7 @@ export type {
 
 export { nextOccurrence, occurrencesBetween } from './recurrence/index';
 export type { Occurrence, RecurrenceInput, RecurrenceResult } from './recurrence/index';
+export { firstAfter } from './recurrence/expand';
 export {
   buildRepeatRule,
   canonicalizeRepeatRule,

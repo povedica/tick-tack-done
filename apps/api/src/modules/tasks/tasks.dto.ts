@@ -284,6 +284,18 @@ export class CompleteTaskDto {
   @IsOptional()
   @IsIn(['complete', 'leave'])
   complete_children?: 'complete' | 'leave';
+
+  /** RF-2012. Default one_period keeps the historical scheduler behaviour. */
+  @ApiProperty({ required: false, enum: ['one_period', 'next_future'] })
+  @IsOptional()
+  @IsIn(['one_period', 'next_future'])
+  advance?: 'one_period' | 'next_future';
+
+  /** RF-2012. When true, create the next occurrence in this request. */
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  materialize_next?: boolean;
 }
 
 export class MoveTaskDto {

@@ -1,9 +1,15 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import {
+  buildRepeatRule,
   civilDateKey,
+  describeRepeatRule,
+  firstAfter,
   HABIT_WEEKDAYS,
+  parseRepeatRule,
   proposeDaily,
   type PlanDecisionKind,
+  type RepeatDraft,
+  type Weekday,
 } from '@reflexionia/domain';
 import { actorOf, type AuthUser } from '../auth/auth-user.js';
 import { missingScopes } from '../auth/scopes.js';
@@ -74,13 +80,14 @@ export class McpService {
     } catch (error) {
       if (error instanceof DomainException) {
         const code = exceptionCode(error);
+        const message = exceptionMessage(error);
         if (code === 'method_not_found') {
           return failure(id, -32601, 'Method not found');
         }
         if (body.method === 'tools/call') {
-          return { jsonrpc: '2.0', id, result: toolError(code) };
+          return { jsonrpc: '2.0', id, result: toolError(code, message) };
         }
-        return failure(id, -32602, code);
+        return failure(id, -32602, message.length > 0 ? `${code}: ${message}` : code);
       }
       throw error;
     }
@@ -148,7 +155,7 @@ export class McpService {
       case 'list_tasks': {
         const projectId = uuidOrEmpty(args.project_id);
         const cursor = cursorOf(args);
-        return this.tasks.list(user, {
+        const page = await this.tasks.list(user, {
           limit,
           ...(cursor === undefined ? {} : { cursor }),
           ...(projectId === undefined ? {} : { projectId }),
@@ -160,28 +167,82 @@ export class McpService {
           overdue: false,
           someday: args.someday === true,
         });
+        return {
+          ...page,
+          items: page.items.map((item) => enrichTask(item)),
+        };
       }
       case 'get_task':
-        return this.tasks.get(user, requiredUuid(args, 'id'));
-      case 'create_task':
-        return (
-          await this.tasks.create(
+        return enrichTask(await this.tasks.get(user, requiredUuid(args, 'id')));
+      case 'create_task': {
+        const schedule = taskSchedule(args);
+        const recurrence = recurrenceFields(args, schedule.due_date ?? null, null);
+        return enrichTask(
+          (
+            await this.tasks.create(
+              user,
+              {
+                title: requiredString(args, 'title', 500),
+                project_id: await this.projectId(user, args),
+                ...schedule,
+                ...recurrence,
+              },
+              undefined,
+            )
+          ).body,
+        );
+      }
+      case 'complete_task': {
+        const advance =
+          args.advance === 'next_future' || args.advance === 'one_period'
+            ? args.advance
+            : 'one_period';
+        const body = (
+          await this.tasks.complete(
             user,
+            requiredUuid(args, 'id'),
             {
-              title: requiredString(args, 'title', 500),
-              project_id: await this.projectId(user, args),
-              ...taskSchedule(args),
+              advance,
+              materialize_next: args.materialize_next === true,
             },
             undefined,
           )
         ).body;
-      case 'complete_task':
-        return (await this.tasks.complete(user, requiredUuid(args, 'id'), {}, undefined)).body;
-      case 'update_task':
-        return this.tasks.update(user, requiredUuid(args, 'id'), {
-          ...(typeof args.title === 'string' ? { title: requiredString(args, 'title', 500) } : {}),
-          ...taskSchedule(args),
-        });
+        return enrichTask(body);
+      }
+      case 'update_task': {
+        const id = requiredUuid(args, 'id');
+        const schedule = taskSchedule(args);
+        const existing = await this.tasks.get(user, id);
+        const dueForAnchor =
+          schedule.due_date !== undefined ? schedule.due_date : (existing.due_date ?? null);
+        const recurrence = recurrenceFields(args, dueForAnchor, existing.repeat_rule);
+        return enrichTask(
+          await this.tasks.update(user, id, {
+            ...(typeof args.title === 'string'
+              ? { title: requiredString(args, 'title', 500) }
+              : {}),
+            ...schedule,
+            ...recurrence,
+          }),
+        );
+      }
+      case 'get_task_occurrences':
+        return this.tasks.occurrences(
+          user,
+          requiredUuid(args, 'id'),
+          requiredString(args, 'from', 40),
+          requiredString(args, 'to', 40),
+        );
+      case 'detach_occurrence':
+        return enrichTask(
+          await this.tasks.detach(
+            user,
+            requiredUuid(args, 'id'),
+            requiredString(args, 'due_date', 40),
+            typeof args.title === 'string' ? requiredString(args, 'title', 500) : undefined,
+          ),
+        );
       case 'get_day_load':
         return this.closing.load(
           user,
@@ -516,8 +577,232 @@ function exceptionCode(error: DomainException): string {
   return 'request_failed';
 }
 
-function toolError(text: string): { content: { type: 'text'; text: string }[]; isError: true } {
+function exceptionMessage(error: DomainException): string {
+  const response: unknown = error.getResponse();
+  if (isRecord(response) && typeof response.message === 'string') {
+    return response.message;
+  }
+  return error.message;
+}
+
+/** RF-2014: surface code and actionable message to the MCP client. */
+function toolError(
+  code: string,
+  message?: string,
+): { content: { type: 'text'; text: string }[]; isError: true } {
+  const text =
+    message !== undefined && message.length > 0 && message !== code ? `${code}: ${message}` : code;
   return { content: [{ type: 'text', text }], isError: true };
+}
+
+function enrichTask<T extends { repeat_rule?: string | null; time_zone?: string }>(
+  task: T,
+): T & { repeat_label?: string | null; next_occurrence?: string | null } {
+  const rule = typeof task.repeat_rule === 'string' ? task.repeat_rule : null;
+  if (rule === null || rule.length === 0) {
+    return task;
+  }
+  const label = describeRepeatRule(rule);
+  const parsed = parseRepeatRule(rule);
+  const zone = typeof task.time_zone === 'string' ? task.time_zone : 'UTC';
+  let next: string | null = null;
+  if (parsed.ok) {
+    next = firstAfter(parsed.rule, zone, new Date().toISOString());
+  }
+  return {
+    ...task,
+    repeat_label: label,
+    next_occurrence: next,
+  };
+}
+
+const WEEKDAYS: readonly Weekday[] = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
+
+/**
+ * RF-2007 / RF-2008 / RF-2014. Maps structured `recurrence` or raw `repeat_rule`
+ * into the TasksService DTO fields. Validates combinations before the service runs.
+ */
+function recurrenceFields(
+  args: Record<string, unknown>,
+  dueDate: string | null,
+  existingRule: string | null,
+): { repeat_rule?: string | null; repeat_from?: 'due_date' | 'completion_date' } {
+  const hasRecurrence = Object.prototype.hasOwnProperty.call(args, 'recurrence');
+  const hasRaw = Object.prototype.hasOwnProperty.call(args, 'repeat_rule');
+  if (hasRecurrence && hasRaw) {
+    throw new DomainException(
+      HttpStatus.BAD_REQUEST,
+      'validation_failed',
+      'use either recurrence or repeat_rule, not both',
+    );
+  }
+
+  const out: { repeat_rule?: string | null; repeat_from?: 'due_date' | 'completion_date' } = {};
+  if (args.repeat_from === 'due_date' || args.repeat_from === 'completion_date') {
+    out.repeat_from = args.repeat_from;
+  }
+
+  if (hasRaw) {
+    if (args.repeat_rule === null) {
+      out.repeat_rule = null;
+      return out;
+    }
+    if (typeof args.repeat_rule !== 'string' || args.repeat_rule.trim().length === 0) {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'invalid_rule',
+        'repeat_rule must be an RRULE',
+      );
+    }
+    if (dueDate === null && existingRule === null) {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'missing_anchor',
+        'a repeating task needs a due_date',
+      );
+    }
+    out.repeat_rule = args.repeat_rule.trim();
+    return out;
+  }
+
+  if (!hasRecurrence) {
+    return out;
+  }
+
+  if (args.recurrence === null) {
+    out.repeat_rule = null;
+    return out;
+  }
+
+  if (!isRecord(args.recurrence)) {
+    throw new DomainException(
+      HttpStatus.BAD_REQUEST,
+      'validation_failed',
+      'recurrence must be an object',
+    );
+  }
+
+  if (dueDate === null) {
+    throw new DomainException(
+      HttpStatus.BAD_REQUEST,
+      'missing_anchor',
+      'a repeating task needs a due_date',
+    );
+  }
+
+  const draft = draftFromRecurrence(args.recurrence);
+  const built = buildRepeatRule(draft);
+  if (!built.ok) {
+    throw new DomainException(
+      HttpStatus.BAD_REQUEST,
+      'invalid_rule',
+      'repeat_rule must be an RRULE',
+    );
+  }
+  out.repeat_rule = built.rule;
+  return out;
+}
+
+function draftFromRecurrence(raw: Record<string, unknown>): RepeatDraft {
+  const freq = raw.freq;
+  if (freq !== 'daily' && freq !== 'weekly' && freq !== 'monthly' && freq !== 'yearly') {
+    throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'freq is required');
+  }
+
+  if (raw.weekdays !== undefined) {
+    if (freq !== 'weekly') {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'weekdays only applies to weekly recurrence',
+      );
+    }
+  }
+  if (raw.month_day !== undefined || raw.month_week !== undefined) {
+    if (freq !== 'monthly' && freq !== 'yearly') {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'month_day and month_week only apply to monthly or yearly recurrence',
+      );
+    }
+  }
+  if (raw.month_day !== undefined && raw.month_week !== undefined) {
+    throw new DomainException(
+      HttpStatus.BAD_REQUEST,
+      'validation_failed',
+      'use either month_day or month_week, not both',
+    );
+  }
+
+  const weekdays =
+    raw.weekdays === undefined
+      ? undefined
+      : (() => {
+          if (!Array.isArray(raw.weekdays)) {
+            throw new DomainException(
+              HttpStatus.BAD_REQUEST,
+              'validation_failed',
+              'weekdays must be an array',
+            );
+          }
+          return raw.weekdays.map((day) => {
+            if (typeof day !== 'string' || !WEEKDAYS.includes(day as Weekday)) {
+              throw new DomainException(
+                HttpStatus.BAD_REQUEST,
+                'validation_failed',
+                'weekdays must be MO..SU',
+              );
+            }
+            return day as Weekday;
+          });
+        })();
+
+  const monthWeek =
+    raw.month_week === undefined
+      ? undefined
+      : (() => {
+          if (!isRecord(raw.month_week)) {
+            throw new DomainException(
+              HttpStatus.BAD_REQUEST,
+              'validation_failed',
+              'month_week is invalid',
+            );
+          }
+          const setpos = raw.month_week.setpos;
+          const weekday = raw.month_week.weekday;
+          if (setpos !== 1 && setpos !== 2 && setpos !== 3 && setpos !== 4 && setpos !== -1) {
+            throw new DomainException(
+              HttpStatus.BAD_REQUEST,
+              'validation_failed',
+              'month_week.setpos is invalid',
+            );
+          }
+          if (typeof weekday !== 'string' || !WEEKDAYS.includes(weekday as Weekday)) {
+            throw new DomainException(
+              HttpStatus.BAD_REQUEST,
+              'validation_failed',
+              'month_week.weekday is invalid',
+            );
+          }
+          return {
+            // Narrowed above; cast keeps exactOptionalPropertyTypes happy.
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- setpos union
+            setpos: setpos as 1 | 2 | 3 | 4 | -1,
+            weekday: weekday as Weekday,
+          };
+        })();
+
+  const draft: RepeatDraft = { freq };
+  return {
+    ...draft,
+    ...(typeof raw.interval === 'number' ? { interval: raw.interval } : {}),
+    ...(weekdays === undefined ? {} : { weekdays }),
+    ...(typeof raw.month_day === 'number' ? { monthDay: raw.month_day } : {}),
+    ...(monthWeek === undefined ? {} : { monthWeek }),
+    ...(typeof raw.until === 'string' ? { until: `${raw.until}T23:59:59.000Z` } : {}),
+    ...(typeof raw.count === 'number' ? { count: raw.count } : {}),
+  };
 }
 
 function failure(id: string | number | null, code: number, message: string): RpcFailure {

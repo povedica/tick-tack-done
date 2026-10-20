@@ -99,12 +99,50 @@ describe('recurrence', () => {
     ).toEqual({ ok: true, rule: 'RRULE:FREQ=MONTHLY;BYDAY=1MO' });
     expect(describeRepeatRule('RRULE:FREQ=MONTHLY;BYDAY=1MO')).toBe('El primer lunes de cada mes');
     expect(describeRepeatRule('RRULE:FREQ=MONTHLY;BYMONTHDAY=31')).toBe('El día 31 de cada mes');
+    expect(describeRepeatRule('RRULE:FREQ=MONTHLY;BYMONTHDAY=-1')).toBe(
+      'El último día de cada mes',
+    );
+    expect(describeRepeatRule('RRULE:FREQ=MONTHLY;BYMONTHDAY=-3')).toBe(
+      '3 días antes de fin de mes',
+    );
     expect(describeRepeatRule('RRULE:FREQ=DAILY;INTERVAL=3;COUNT=10')).toBe(
       'Cada 3 días, 10 veces',
     );
     expect(buildRepeatRule({ freq: 'daily', interval: 0 })).toEqual({
       ok: false,
       reason: 'invalid_rule',
+    });
+    expect(buildRepeatRule({ freq: 'monthly', monthDay: -1 })).toEqual({
+      ok: true,
+      rule: 'RRULE:FREQ=MONTHLY;BYMONTHDAY=-1',
+    });
+    expect(buildRepeatRule({ freq: 'monthly', monthDay: 0 })).toEqual({
+      ok: false,
+      reason: 'invalid_rule',
+    });
+    // RF-2007 / RF-2013 examples from MCP tool descriptions
+    expect(buildRepeatRule({ freq: 'daily' })).toEqual({ ok: true, rule: 'RRULE:FREQ=DAILY' });
+    expect(buildRepeatRule({ freq: 'weekly', weekdays: ['MO', 'TH'] })).toEqual({
+      ok: true,
+      rule: 'RRULE:FREQ=WEEKLY;BYDAY=MO,TH',
+    });
+    expect(buildRepeatRule({ freq: 'monthly', monthDay: 19 })).toEqual({
+      ok: true,
+      rule: 'RRULE:FREQ=MONTHLY;BYMONTHDAY=19',
+    });
+    expect(buildRepeatRule({ freq: 'monthly', monthWeek: { setpos: -1, weekday: 'FR' } })).toEqual({
+      ok: true,
+      rule: 'RRULE:FREQ=MONTHLY;BYDAY=-1FR',
+    });
+    expect(
+      buildRepeatRule({
+        freq: 'weekly',
+        weekdays: ['MO', 'TU', 'WE', 'TH', 'FR'],
+      }),
+    ).toEqual({ ok: true, rule: 'RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR' });
+    expect(buildRepeatRule({ freq: 'daily', interval: 3 })).toEqual({
+      ok: true,
+      rule: 'RRULE:FREQ=DAILY;INTERVAL=3',
     });
   });
 
@@ -131,6 +169,30 @@ describe('recurrence', () => {
       ok: true,
       occurrence: { dueDate: '2026-10-24T07:00:00.000Z', startDate: null },
     });
+  });
+
+  it('REC-1 / RF-2012: overdue due_date series jumps with advance next_future', () => {
+    const jumped = nextOccurrence({
+      ...due('2026-05-17T07:00:00.000Z'),
+      repeatRule: 'RRULE:FREQ=WEEKLY',
+      repeatFrom: 'due_date',
+      completedAt: '2026-10-20T12:00:00.000Z',
+      advance: 'next_future',
+      now: '2026-10-20T12:00:00.000Z',
+    });
+    expect(jumped.ok).toBe(true);
+    if (!jumped.ok || jumped.occurrence === null) {
+      throw new Error('expected a future occurrence');
+    }
+    expect(Date.parse(jumped.occurrence.dueDate)).toBeGreaterThan(
+      Date.parse('2026-10-20T12:00:00.000Z'),
+    );
+  });
+
+  it('REC-3: negative BYMONTHDAY reads as last day of month', () => {
+    expect(describeRepeatRule('RRULE:FREQ=MONTHLY;BYMONTHDAY=-1')).toBe(
+      'El último día de cada mes',
+    );
   });
 
   it('RF-704: the range lists theoretical occurrences and does not invent a stored row', () => {
@@ -451,16 +513,18 @@ describe('recurrence', () => {
     ).toEqual({ ok: false, reason: 'missing_anchor' });
   });
 
-  it('RF-706: a late completion does not skip the next due-date occurrence', () => {
+  it('REC-1 / RF-2012: a late completion with next_future skips elapsed dues', () => {
     expect(
       nextOccurrence({
         ...due('2026-10-19T07:00:00.000Z'),
         repeatRule: 'RRULE:FREQ=DAILY',
         completedAt: '2026-10-21T13:00:00.000Z',
+        advance: 'next_future',
+        now: '2026-10-21T13:00:00.000Z',
       }),
     ).toEqual({
       ok: true,
-      occurrence: { dueDate: '2026-10-20T07:00:00.000Z', startDate: null },
+      occurrence: { dueDate: '2026-10-22T07:00:00.000Z', startDate: null },
     });
   });
 });

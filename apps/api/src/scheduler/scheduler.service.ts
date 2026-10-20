@@ -181,6 +181,13 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     const completedCount = await this.prisma.task.count({
       where: { seriesId, deletedAt: null, status: 'completed' },
     });
+    const meta =
+      typeof source.metadata === 'object' &&
+      source.metadata !== null &&
+      !Array.isArray(source.metadata)
+        ? (source.metadata as Record<string, unknown>)
+        : {};
+    const advance = meta.series_advance === 'next_future' ? 'next_future' : 'one_period';
     const next = nextOccurrence({
       repeatRule,
       repeatFrom: source.repeatFrom,
@@ -190,6 +197,8 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       timeZone: source.timeZone,
       isAllDay: source.isAllDay,
       occurrenceIndex: completedCount,
+      advance,
+      now: new Date().toISOString(),
     });
     if (!next.ok || next.occurrence === null) {
       if (source.recurrenceOpen) {
@@ -203,9 +212,17 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     const due = new Date(next.occurrence.dueDate);
     const start = next.occurrence.startDate === null ? null : new Date(next.occurrence.startDate);
     try {
-      await this.prisma.$transaction((tx) =>
-        this.insertSuccessor(tx, source, { seriesId, repeatRule, due, start }),
-      );
+      await this.prisma.$transaction(async (tx) => {
+        await this.insertSuccessor(tx, source, { seriesId, repeatRule, due, start });
+        if (meta.series_advance === 'next_future') {
+          const cleared = { ...meta };
+          delete cleared.series_advance;
+          await tx.task.update({
+            where: { id: source.id },
+            data: { metadata: asJson(cleared) },
+          });
+        }
+      });
       return true;
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {

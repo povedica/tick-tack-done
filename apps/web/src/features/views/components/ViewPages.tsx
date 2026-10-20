@@ -4,6 +4,7 @@ import { Menu } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { api } from '../../../api';
+import { completeBody } from '../../tasks/complete-body';
 import { ViewMenu } from '../../../components/ViewMenu';
 import { useMessages, type Messages } from '../../../i18n';
 import { useAppLocale } from '../../../i18n/locale';
@@ -300,7 +301,7 @@ function Board({
               return;
             }
             void runOrQueue(newMutation('complete', row.id, {}), (key) =>
-              api.completeTask(row.id, {}, key),
+              api.completeTask(row.id, completeBody(), key),
             ).then(() => {
               void refreshTaskSurfaces(queryClient);
             });
@@ -344,7 +345,7 @@ export function CancelledPage() {
         view="list"
         hideCompleted={false}
         onComplete={(row) => {
-          void api.completeTask(row.id, {}, crypto.randomUUID()).then(() => {
+          void api.completeTask(row.id, completeBody(), crypto.randomUUID()).then(() => {
             void refreshTaskSurfaces(queryClient);
             void queryClient.invalidateQueries({ queryKey: ['cancelled-tasks'] });
           });
@@ -396,7 +397,7 @@ export function TagViewPage() {
         locale={locale}
         view="list"
         onComplete={(row) => {
-          void api.completeTask(row.id, {}, crypto.randomUUID()).then(() => {
+          void api.completeTask(row.id, completeBody(), crypto.randomUUID()).then(() => {
             void refreshTaskSurfaces(queryClient);
           });
         }}

@@ -88,7 +88,9 @@ describe('ticky contracts', () => {
 
   it('RF-2002: a daily plan must not rewrite a deadline', async () => {
     const first = cafe.items[0];
-    if (first === undefined) throw new Error('missing fixture');
+    if (first === undefined) {
+      throw new Error('expected proposal item');
+    }
     await expect(
       validateProposal({
         ...cafe,

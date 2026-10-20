@@ -1,3 +1,5 @@
+import { formatDurationMinutes } from '../product/duration';
+
 export type TaskGroupKey = 'priority' | 'due' | 'tag' | 'list' | 'none';
 export type TaskSortKey = 'due' | 'priority' | 'title';
 export type TaskSortDir = 'asc' | 'desc';
@@ -240,7 +242,7 @@ export function taskWhen(
   const duration =
     task.durationMinutes == null || task.durationMinutes <= 0
       ? null
-      : `${String(task.durationMinutes)} m`;
+      : formatDurationMinutes(task.durationMinutes);
   const time = [clock, duration].filter((part) => part !== null).join(' · ') || null;
   if (!overdue && isDueToday(task, now)) {
     return { date: null, time, overdue: false };

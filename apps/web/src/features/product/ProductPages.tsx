@@ -6,7 +6,9 @@ import { countdownNumber } from '../countdowns/presentation';
 import { calendarDay, shiftDayKey, zonedWallTime } from '../today/groups';
 import { refreshTaskSurfaces } from '../tasks/refresh';
 import { api } from '../../api';
+import { completeBody } from '../tasks/complete-body';
 import { formatDuration } from './duration';
+import { displayTitle } from '../tasks/displayTitle';
 import { Button, EmptyState } from '../../components/ui';
 import { InboundEmailCard } from '../settings/InboundEmailCard';
 import { GoogleCalendarsCard } from '../settings/GoogleCalendarsCard';
@@ -107,11 +109,17 @@ function widgetText(messages: ReturnType<typeof useMessages>, key: string, value
   }
   const row = value as Record<string, unknown>;
   if (key === 'completed_week') {
-    const trend =
-      typeof row.trend_label === 'string' && row.trend_label.length > 0
-        ? row.trend_label
-        : `${messages.widgetTrend} ${asText(row.trend)}`;
-    return `${asText(row.value)} · ${trend}`;
+    if (typeof row.trend_label === 'string' && row.trend_label.length > 0) {
+      return `${asText(row.value)} · ${row.trend_label}`;
+    }
+    const delta = typeof row.trend === 'number' ? row.trend : Number(row.trend);
+    const signed =
+      Number.isFinite(delta) && delta > 0
+        ? `+${String(delta)}`
+        : Number.isFinite(delta)
+          ? String(delta)
+          : asText(row.trend);
+    return `${asText(row.value)} · ${messages.widgetTrend} ${signed} ${messages.reportTrendVs}`;
   }
   if (key === 'flow') {
     return `${messages.widgetCreated} ${asText(row.created)} · ${messages.widgetCompleted} ${asText(row.completed)} · ${messages.widgetNet} ${asText(row.net)}`;
@@ -141,12 +149,15 @@ function widgetText(messages: ReturnType<typeof useMessages>, key: string, value
   if (key === 'calendar') {
     return typeof row.label === 'string' && row.label.length > 0
       ? row.label
-      : `${asText(row.upcoming)} próximos eventos`;
+      : `${asText(row.upcoming)} ${messages.widgetCalendarUnit}`;
   }
   if (key === 'integrations') {
-    return Object.entries(row)
-      .map(([name, on]) => `${name}: ${on === true ? messages.online : messages.offline}`)
-      .join(' · ');
+    const telegram = row.telegram === true;
+    const google = row.google === true || row.drive === true;
+    return [
+      `Telegram — ${telegram ? messages.online : messages.offline}`,
+      `Google (Calendar y Drive) — ${google ? messages.online : messages.offline}`,
+    ].join(' · ');
   }
   return '';
 }
@@ -182,12 +193,20 @@ export function DashboardPage() {
             </ul>
           </article>
         ) : null}
-        {Object.entries(widgets).map(([key, value]) => (
-          <article key={key} className="widget garden-card">
-            <h3>{widgetLabel(messages, key)}</h3>
-            <p className="garden-value">{widgetText(messages, key, value)}</p>
-          </article>
-        ))}
+        {Object.entries(widgets)
+          .filter(([key]) => {
+            // JAR-4: avoid a second "próximas cuentas atrás" block when the list above exists.
+            if (key === 'next_countdowns' && (countdowns.data?.items.length ?? 0) > 0) {
+              return false;
+            }
+            return true;
+          })
+          .map(([key, value]) => (
+            <article key={key} className="widget garden-card">
+              <h3>{widgetLabel(messages, key)}</h3>
+              <p className="garden-value">{widgetText(messages, key, value)}</p>
+            </article>
+          ))}
       </div>
       {score.isSuccess ? (
         <article className="widget garden-card">
@@ -196,7 +215,9 @@ export function DashboardPage() {
             {score.data.enabled === true
               ? `${messages.achievementsOn}${typeof score.data.level === 'string' ? ` · ${score.data.level}` : ''}`
               : messages.achievementsOff}
-            {typeof score.data.score === 'number' ? ` · ${String(score.data.score)}` : ''}
+            {typeof score.data.score === 'number'
+              ? ` · ${score.data.score.toLocaleString('es-ES')} ${messages.gardenPoints}`
+              : ''}
           </p>
           <p>
             <Link to="/statistics">{messages.reportSeeStats}</Link>
@@ -378,7 +399,9 @@ export function ReviewPage() {
           <li>
             <h2>{messages.reviewStepInbox}</h2>
             <p>
-              <Link to="/inbox">{messages.reviewOpenInbox}</Link>
+              <Link className="app-link" to="/inbox">
+                {messages.reviewOpenInbox}
+              </Link>
             </p>
           </li>
           <ReviewBucket
@@ -398,7 +421,7 @@ export function ReviewPage() {
               });
             }}
             onDone={(id) => {
-              void api.completeTask(id, {}, crypto.randomUUID()).then(() => {
+              void api.completeTask(id, completeBody(), crypto.randomUUID()).then(() => {
                 void queryClient.invalidateQueries({ queryKey: ['review-weekly'] });
               });
             }}
@@ -420,7 +443,7 @@ export function ReviewPage() {
               });
             }}
             onDone={(id) => {
-              void api.completeTask(id, {}, crypto.randomUUID()).then(() => {
+              void api.completeTask(id, completeBody(), crypto.randomUUID()).then(() => {
                 void queryClient.invalidateQueries({ queryKey: ['review-weekly'] });
               });
             }}
@@ -428,7 +451,9 @@ export function ReviewPage() {
           <li>
             <h2>{messages.reviewStepTomorrow}</h2>
             <p>
-              <Link to="/today">{messages.reviewOpenToday}</Link>
+              <Link className="app-link" to="/today">
+                {messages.reviewOpenToday}
+              </Link>
               {' · '}
               {messages.reviewProposed} {String(idCount(daily.data, 'task_ids'))}
             </p>
@@ -438,7 +463,9 @@ export function ReviewPage() {
             <ul>
               {namedRows(weekly.data, 'lists').map((row) => (
                 <li key={text(row.id)}>
-                  <Link to={`/list/${text(row.id)}`}>{text(row.name)}</Link>
+                  <Link className="app-link" to={`/list/${text(row.id)}`}>
+                    {text(row.name)}
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -448,7 +475,9 @@ export function ReviewPage() {
             <ul>
               {namedRows(weekly.data, 'habits').map((row) => (
                 <li key={text(row.id)}>
-                  <Link to={`/habits/${text(row.id)}`}>{text(row.name)}</Link>
+                  <Link className="app-link" to={`/habits/${text(row.id)}`}>
+                    {text(row.name)}
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -489,7 +518,9 @@ function ReviewBucket({
           const id = text(row.id);
           return (
             <li key={id}>
-              <Link to={`/list/${text(row.listId)}?task=${id}`}>{text(row.title)}</Link>
+              <Link className="app-link" to={`/list/${text(row.listId)}?task=${id}`}>
+                {displayTitle(text(row.title))}
+              </Link>
               <span>
                 <button
                   type="button"
@@ -607,10 +638,7 @@ export function FocusPage() {
     <section className="screen-page">
       <h1>{messages.focusTitle}</h1>
       <p>{messages.focusHint}</p>
-      <p className="ui-muted">
-        {messages.streakLabel} {String(streak)} · {messages.focusPomodoros} {String(pomodoros)} ·{' '}
-        {messages.focusMinutes} {String(minutes)} · {messages.focusLifetime}
-      </p>
+      <p className="ui-muted">{messages.focusLifetime}</p>
       {focused.data !== undefined ? (
         <p>
           <Link to={`/list/${focused.data.project_id}?task=${focused.data.id}`}>
@@ -630,11 +658,25 @@ export function FocusPage() {
                 });
               }}
             >
-              {String(minutes)}
+              {String(minutes)} min
             </Button>
           ))}
         </div>
       ) : null}
+      <ul className="widget-grid focus-stats">
+        <li className="widget garden-card">
+          <h3>{messages.streakLabel}</h3>
+          <p className="garden-value">{String(streak)}</p>
+        </li>
+        <li className="widget garden-card">
+          <h3>{messages.focusPomodoros}</h3>
+          <p className="garden-value">{String(pomodoros)}</p>
+        </li>
+        <li className="widget garden-card">
+          <h3>{messages.focusMinutes}</h3>
+          <p className="garden-value">{String(minutes)}</p>
+        </li>
+      </ul>
       <div className="page-toolbar">
         {typeof live?.id === 'string' ? (
           <>

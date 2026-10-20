@@ -27,6 +27,61 @@ const limit = { type: 'integer', minimum: 1, maximum: 100 };
 const cursor = { type: 'string', minLength: 1 };
 const name = { type: 'string', minLength: 1 };
 
+const weekdayEnum = {
+  type: 'string',
+  enum: ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'],
+} as const;
+
+/** RF-2007. Structured recurrence; the server builds an RRULE via buildRepeatRule. */
+const recurrenceSchema = {
+  type: 'object',
+  properties: {
+    freq: { type: 'string', enum: ['daily', 'weekly', 'monthly', 'yearly'] },
+    interval: { type: 'integer', minimum: 1, maximum: 999 },
+    weekdays: {
+      type: 'array',
+      items: weekdayEnum,
+      description: 'Only with freq=weekly.',
+    },
+    month_day: {
+      type: 'integer',
+      minimum: -31,
+      maximum: 31,
+      description:
+        'Only with freq=monthly/yearly. Positive day of month, or negative from month end (-1 = last day).',
+    },
+    month_week: {
+      type: 'object',
+      properties: {
+        setpos: {
+          type: 'integer',
+          enum: [1, 2, 3, 4, -1],
+          description: '-1 = last.',
+        },
+        weekday: weekdayEnum,
+      },
+      required: ['setpos', 'weekday'],
+      additionalProperties: false,
+      description: "Only with freq=monthly: last Friday of the month = {setpos:-1, weekday:'FR'}.",
+    },
+    until: {
+      type: 'string',
+      pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+      description: 'End of the series (civil date in the task time zone).',
+    },
+    count: { type: 'integer', minimum: 1, description: 'End after N occurrences.' },
+  },
+  required: ['freq'],
+  additionalProperties: false,
+} as const;
+
+const repeatFromSchema = {
+  type: 'string',
+  enum: ['due_date', 'completion_date'],
+  description:
+    "due_date (default): next from the rule grid. completion_date: from when you completed it (habits like 'water every 3 days').",
+} as const;
+
 /**
  * Single catalog of MCP tools. A tool is visible only when the caller holds
  * every scope it declares (RF-2001). Listings that return next_cursor accept
@@ -49,7 +104,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   {
     name: 'create_task',
     description:
-      'Create a task. project_id defaults to the inbox. start_date is when (the day you plan to do it). due_date is the deadline. A task with only due_date behaves as before. someday parks it out of Today. evening_only reserves it for this evening.',
+      "Create a task. project_id defaults to the inbox. start_date is when you plan to do it; due_date is the deadline. someday parks it out of Today; evening_only reserves it for this evening. To make it REPEAT, pass `recurrence` (structured) — the task needs a due_date, which anchors the series. Examples: 'cada día' = {freq:'daily'}; 'cada lunes y jueves' = {freq:'weekly', weekdays:['MO','TH']}; 'cada 19 de mes' = {freq:'monthly', month_day:19}; 'el último viernes del mes' = {freq:'monthly', month_week:{setpos:-1, weekday:'FR'}}; 'cada día laborable' = {freq:'weekly', weekdays:['MO','TU','WE','TH','FR']}. Default interval is 1; 'cada 3 días' = {freq:'daily', interval:3}. End with until (date) or count (N times). repeat_from:'completion_date' repeats from when it was completed ('regar cada 3 días desde que lo hice'). Advanced: pass a raw RRULE string as repeat_rule instead. One occurrence exists at a time; the next one appears after completing the current (see complete_task).",
     scopes: ['tasks:write'],
     inputSchema: objectSchema(
       {
@@ -62,20 +117,44 @@ export const MCP_TOOLS: readonly McpTool[] = [
         priority: { type: 'string', enum: ['none', 'low', 'medium', 'high'] },
         someday: { type: 'boolean' },
         evening_only: { type: 'boolean' },
+        recurrence: recurrenceSchema,
+        repeat_rule: {
+          type: 'string',
+          maxLength: 500,
+          description:
+            'Advanced raw RRULE (optionally with DTSTART/EXDATE lines). Mutually exclusive with recurrence.',
+        },
+        repeat_from: repeatFromSchema,
       },
       ['title'],
     ),
   },
   {
     name: 'complete_task',
-    description: 'Mark a task complete. Does not materialize the next occurrence.',
+    description:
+      "Mark a task complete. On a repeating task the next occurrence is created by a scheduler within ~60 s unless materialize_next=true. advance controls the next date: 'one_period' (default, one period after the current due date — an overdue task may repeat in the past) or 'next_future' (first future occurrence; skipped occurrences are gone for good). Use get_task_occurrences to preview.",
     scopes: ['tasks:write'],
-    inputSchema: objectSchema({ id }, ['id']),
+    inputSchema: objectSchema(
+      {
+        id,
+        advance: {
+          type: 'string',
+          enum: ['one_period', 'next_future'],
+          description: "How to pick the next due date for a repeating task. Default 'one_period'.",
+        },
+        materialize_next: {
+          type: 'boolean',
+          description:
+            'If true, create the next occurrence in this same call instead of waiting for the scheduler (~60 s).',
+        },
+      },
+      ['id'],
+    ),
   },
   {
     name: 'update_task',
     description:
-      'Update a task. start_date is when you plan to do it. due_date is the deadline and may be cleared without changing when. someday=true clears when and keeps the deadline.',
+      'Update a task. start_date is when you plan to do it; due_date is the deadline and may be cleared without changing when. someday=true clears when and keeps the deadline. To change repetition pass recurrence or repeat_rule (same rules as create_task). recurrence:null (or repeat_rule:null) removes the series; changing the rule does not regenerate past occurrences or the series_id unless you clear it.',
     scopes: ['tasks:write'],
     inputSchema: objectSchema(
       {
@@ -88,8 +167,49 @@ export const MCP_TOOLS: readonly McpTool[] = [
         priority: { type: 'string', enum: ['none', 'low', 'medium', 'high'] },
         someday: { type: 'boolean' },
         evening_only: { type: 'boolean' },
+        recurrence: {
+          type: ['object', 'null'],
+          properties: recurrenceSchema.properties,
+          required: ['freq'],
+          additionalProperties: false,
+          description: 'Structured recurrence, or null to remove the series.',
+        },
+        repeat_rule: {
+          type: ['string', 'null'],
+          maxLength: 500,
+          description: 'Raw RRULE, or null to clear. Mutually exclusive with recurrence.',
+        },
+        repeat_from: repeatFromSchema,
       },
       ['id'],
+    ),
+  },
+  {
+    name: 'get_task_occurrences',
+    description:
+      'List the theoretical occurrences of a repeating task in a range. Nothing is stored: only the current occurrence exists as a row.',
+    scopes: ['tasks:read'],
+    inputSchema: objectSchema(
+      {
+        id,
+        from: { type: 'string', format: 'date-time' },
+        to: { type: 'string', format: 'date-time' },
+      },
+      ['id', 'from', 'to'],
+    ),
+  },
+  {
+    name: 'detach_occurrence',
+    description:
+      'Edit or skip ONE occurrence without breaking the series: it is excluded with an EXDATE and becomes (or stops being) its own task.',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema(
+      {
+        id,
+        due_date: { type: 'string', format: 'date-time' },
+        title: { type: 'string', minLength: 1, maxLength: 500 },
+      },
+      ['id', 'due_date'],
     ),
   },
   {
