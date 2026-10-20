@@ -130,9 +130,10 @@ describe('recurrence', () => {
       ok: true,
       rule: 'RRULE:FREQ=MONTHLY;BYMONTHDAY=19',
     });
-    expect(
-      buildRepeatRule({ freq: 'monthly', monthWeek: { setpos: -1, weekday: 'FR' } }),
-    ).toEqual({ ok: true, rule: 'RRULE:FREQ=MONTHLY;BYDAY=-1FR' });
+    expect(buildRepeatRule({ freq: 'monthly', monthWeek: { setpos: -1, weekday: 'FR' } })).toEqual({
+      ok: true,
+      rule: 'RRULE:FREQ=MONTHLY;BYDAY=-1FR',
+    });
     expect(
       buildRepeatRule({
         freq: 'weekly',
@@ -183,7 +184,9 @@ describe('recurrence', () => {
     if (!jumped.ok || jumped.occurrence === null) {
       throw new Error('expected a future occurrence');
     }
-    expect(Date.parse(jumped.occurrence.dueDate)).toBeGreaterThan(Date.parse('2026-10-20T12:00:00.000Z'));
+    expect(Date.parse(jumped.occurrence.dueDate)).toBeGreaterThan(
+      Date.parse('2026-10-20T12:00:00.000Z'),
+    );
   });
 
   it('REC-3: negative BYMONTHDAY reads as last day of month', () => {

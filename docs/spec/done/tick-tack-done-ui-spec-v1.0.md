@@ -31,19 +31,19 @@ Convenciones:
 
 Estas decisiones no estaban en la spec v1.1. Se han elegido defaults sensatos y **están señalados**: Pablo puede cambiarlas editando esta sección.
 
-| # | Decisión | Default elegido | Justificación |
-|---|----------|-----------------|---------------|
-| UI-D1 | Idioma de la UI | **Español por defecto, i18n es/en desde el MVP** | El usuario es hispanohablante; el código ya tiene `i18n/es.ts` y `i18n/en.ts` **[EXISTE]**. La spec exige i18n es+en (sección 16). `navigator.language` decide el arranque, con selector en ajustes que lo sobrescribe. |
-| UI-D2 | Estilo visual | **Sistema visual del proyecto** (definido 2026-10-18): fondo `#ffffff`, sidebar `#f2f5fe`, rail `#4772fa`, acento `#4772fa`, tinta `#191919`. El nombre visible sigue siendo «tick-tack-done». | Valores del sistema de diseño. La identidad propia queda en el nombre. |
-| UI-D3 | Tipografía UI vs contenido | **Sans del sistema en toda la UI, títulos incluidos** (`system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`). La serif solo puede usarse en el cuerpo de las notas. | Es la pila del sistema. Un título serif rompe la densidad de las listas. |
-| UI-D4 | Tema claro/oscuro | **Auto por defecto** (sigue `prefers-color-scheme`), con selector Claro/Oscuro/Auto en ajustes | La spec lo prevé en `User.theme` (5.17) y RF-1903. |
-| UI-D5 | Modo oscuro | **Paleta oscura del proyecto** (`night-dark-theme`): fondo `#242424`, sidebar `#1c1c1c`, rail `#242424`, tarjetas `#222222`, texto `#ffffff`, hover `rgba(255,255,255,0.04)`, acento `#4772fa`. Las opacidades de tinta se invierten (blanco con alpha). | `--ink-3` sube a 0.65 para contraste AA sobre la sidebar. |
-| UI-D6 | Densidad | **Cómoda por defecto**, opción Compacta en ajustes | La opción compacta ayuda con listas de 100+ tareas. |
-| UI-D7 | Navegación móvil | **Barra inferior** con 4 destinos + FAB central de captura | Estándar PWA; el pulgar llega a todo. |
-| UI-D8 | Framework de CSS | **CSS plano con custom properties** (tokens en sección 3), sin Tailwind ni CSS-in-JS | Coherente con `styles.css` actual; un archivo de tokens + hojas por feature. Sin nueva dependencia. |
-| UI-D9 | Iconos | **lucide-react** (MIT, tree-shakeable) + emoji nativo para listas/etiquetas | Set consistente, ligero, sin diseñar iconos propios. |
-| UI-D10 | Primer arranque | **Sin wizard de onboarding**: la app abre en `/today` con estados vacíos que enseñan solos | La captura debe costar un segundo desde el minuto cero; un wizard lo retrasa. |
-| UI-D11 | Nombre visible de la app | **"tick-tack-done"** en minúsculas, tagline opcional "tu jardín de tareas" | Es el nombre del repo y del dominio futuro (`todo.reflexionia.com`). |
+| #      | Decisión                   | Default elegido                                                                                                                                                                                                                                          | Justificación                                                                                                                                                                                                           |
+| ------ | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| UI-D1  | Idioma de la UI            | **Español por defecto, i18n es/en desde el MVP**                                                                                                                                                                                                         | El usuario es hispanohablante; el código ya tiene `i18n/es.ts` y `i18n/en.ts` **[EXISTE]**. La spec exige i18n es+en (sección 16). `navigator.language` decide el arranque, con selector en ajustes que lo sobrescribe. |
+| UI-D2  | Estilo visual              | **Sistema visual del proyecto** (definido 2026-10-18): fondo `#ffffff`, sidebar `#f2f5fe`, rail `#4772fa`, acento `#4772fa`, tinta `#191919`. El nombre visible sigue siendo «tick-tack-done».                                                           | Valores del sistema de diseño. La identidad propia queda en el nombre.                                                                                                                                                  |
+| UI-D3  | Tipografía UI vs contenido | **Sans del sistema en toda la UI, títulos incluidos** (`system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`). La serif solo puede usarse en el cuerpo de las notas.                                          | Es la pila del sistema. Un título serif rompe la densidad de las listas.                                                                                                                                                |
+| UI-D4  | Tema claro/oscuro          | **Auto por defecto** (sigue `prefers-color-scheme`), con selector Claro/Oscuro/Auto en ajustes                                                                                                                                                           | La spec lo prevé en `User.theme` (5.17) y RF-1903.                                                                                                                                                                      |
+| UI-D5  | Modo oscuro                | **Paleta oscura del proyecto** (`night-dark-theme`): fondo `#242424`, sidebar `#1c1c1c`, rail `#242424`, tarjetas `#222222`, texto `#ffffff`, hover `rgba(255,255,255,0.04)`, acento `#4772fa`. Las opacidades de tinta se invierten (blanco con alpha). | `--ink-3` sube a 0.65 para contraste AA sobre la sidebar.                                                                                                                                                               |
+| UI-D6  | Densidad                   | **Cómoda por defecto**, opción Compacta en ajustes                                                                                                                                                                                                       | La opción compacta ayuda con listas de 100+ tareas.                                                                                                                                                                     |
+| UI-D7  | Navegación móvil           | **Barra inferior** con 4 destinos + FAB central de captura                                                                                                                                                                                               | Estándar PWA; el pulgar llega a todo.                                                                                                                                                                                   |
+| UI-D8  | Framework de CSS           | **CSS plano con custom properties** (tokens en sección 3), sin Tailwind ni CSS-in-JS                                                                                                                                                                     | Coherente con `styles.css` actual; un archivo de tokens + hojas por feature. Sin nueva dependencia.                                                                                                                     |
+| UI-D9  | Iconos                     | **lucide-react** (MIT, tree-shakeable) + emoji nativo para listas/etiquetas                                                                                                                                                                              | Set consistente, ligero, sin diseñar iconos propios.                                                                                                                                                                    |
+| UI-D10 | Primer arranque            | **Sin wizard de onboarding**: la app abre en `/today` con estados vacíos que enseñan solos                                                                                                                                                               | La captura debe costar un segundo desde el minuto cero; un wizard lo retrasa.                                                                                                                                           |
+| UI-D11 | Nombre visible de la app   | **"tick-tack-done"** en minúsculas, tagline opcional "tu jardín de tareas"                                                                                                                                                                               | Es el nombre del repo y del dominio futuro (`todo.reflexionia.com`).                                                                                                                                                    |
 
 ---
 
@@ -71,66 +71,76 @@ Tokens como CSS custom properties en `:root` y `[data-theme="dark"]`. El tema se
 ```css
 :root {
   /* Superficies (claro) */
-  --bg:            #f6f4ef;  /* fondo de app [EXISTE] */
-  --surface:       #ffffff;  /* tarjetas, hojas, paneles */
-  --surface-2:     #faf9f6;  /* hover de filas, zonas sutiles */
-  --surface-3:     #f0ede6;  /* fondos activos/selección suave */
-  --border:        #e7e5e4;  /* stone-200 */
-  --border-strong: #d6d3d1;  /* stone-300, inputs [EXISTE] */
+  --bg: #f6f4ef; /* fondo de app [EXISTE] */
+  --surface: #ffffff; /* tarjetas, hojas, paneles */
+  --surface-2: #faf9f6; /* hover de filas, zonas sutiles */
+  --surface-3: #f0ede6; /* fondos activos/selección suave */
+  --border: #e7e5e4; /* stone-200 */
+  --border-strong: #d6d3d1; /* stone-300, inputs [EXISTE] */
 
   /* Tinta */
-  --ink:        #1c1917;  /* texto principal [EXISTE] */
-  --ink-2:      #44403c;  /* stone-700, texto secundario */
-  --ink-3:      #78716c;  /* stone-500, metadatos, placeholders */
-  --ink-inverse:#fafaf9;
+  --ink: #1c1917; /* texto principal [EXISTE] */
+  --ink-2: #44403c; /* stone-700, texto secundario */
+  --ink-3: #78716c; /* stone-500, metadatos, placeholders */
+  --ink-inverse: #fafaf9;
 
   /* Acento e identidad */
-  --accent:        #4f46e5;  /* índigo [EXISTE] */
-  --accent-hover:  #4338ca;
-  --accent-soft:   #eef2ff;  /* fondos de selección acentuada */
-  --accent-ink:    #3730a3;  /* texto sobre accent-soft */
+  --accent: #4f46e5; /* índigo [EXISTE] */
+  --accent-hover: #4338ca;
+  --accent-soft: #eef2ff; /* fondos de selección acentuada */
+  --accent-ink: #3730a3; /* texto sobre accent-soft */
 
   /* Semánticos */
-  --danger:      #dc2626;  --danger-soft: #fef2f2;
-  --warning:     #d97706;  --warning-soft: #fffbeb;
-  --success:     #16a34a;  --success-soft: #f0fdf4;
-  --info:        #0284c7;  --info-soft:    #f0f9ff;
+  --danger: #dc2626;
+  --danger-soft: #fef2f2;
+  --warning: #d97706;
+  --warning-soft: #fffbeb;
+  --success: #16a34a;
+  --success-soft: #f0fdf4;
+  --info: #0284c7;
+  --info-soft: #f0f9ff;
 
   /* Prioridades (bandera de tarea, RF-502) */
-  --prio-high:   #dc2626;
+  --prio-high: #dc2626;
   --prio-medium: #d97706;
-  --prio-low:    #2563eb;
-  --prio-none:   #a8a29e;
+  --prio-low: #2563eb;
+  --prio-none: #a8a29e;
 
   /* Foco */
   --focus-ring: #4f46e5;
 }
 
-[data-theme="dark"] {
-  --bg:            #1c1917;
-  --surface:       #292524;
-  --surface-2:     #232120;
-  --surface-3:     #33302e;
-  --border:        #44403c;
+[data-theme='dark'] {
+  --bg: #1c1917;
+  --surface: #292524;
+  --surface-2: #232120;
+  --surface-3: #33302e;
+  --border: #44403c;
   --border-strong: #57534e;
 
-  --ink:        #f5f5f4;
-  --ink-2:      #d6d3d1;
-  --ink-3:      #a8a29e;
-  --ink-inverse:#1c1917;
+  --ink: #f5f5f4;
+  --ink-2: #d6d3d1;
+  --ink-3: #a8a29e;
+  --ink-inverse: #1c1917;
 
-  --accent:        #818cf8;
-  --accent-hover:  #a5b4fc;
-  --accent-soft:   #312e81;
-  --accent-ink:    #c7d2fe;
+  --accent: #818cf8;
+  --accent-hover: #a5b4fc;
+  --accent-soft: #312e81;
+  --accent-ink: #c7d2fe;
 
-  --danger:#f87171; --danger-soft:#450a0a;
-  --warning:#fbbf24; --warning-soft:#451a03;
-  --success:#4ade80; --success-soft:#052e16;
-  --info:#38bdf8; --info-soft:#082f49;
+  --danger: #f87171;
+  --danger-soft: #450a0a;
+  --warning: #fbbf24;
+  --warning-soft: #451a03;
+  --success: #4ade80;
+  --success-soft: #052e16;
+  --info: #38bdf8;
+  --info-soft: #082f49;
 
-  --prio-high:#f87171; --prio-medium:#fbbf24;
-  --prio-low:#60a5fa;  --prio-none:#57534e;
+  --prio-high: #f87171;
+  --prio-medium: #fbbf24;
+  --prio-low: #60a5fa;
+  --prio-none: #57534e;
 
   --focus-ring: #a5b4fc;
 }
@@ -142,20 +152,20 @@ Colores de listas/etiquetas: paleta fija de 20 colores (12 saturados + 8 pastel)
 
 ```css
 :root {
-  --font-serif: 'Iowan Old Style','Palatino Linotype',Palatino,Georgia,serif; /* [EXISTE] */
-  --font-sans:  system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',sans-serif;
-  --font-mono:  ui-monospace,'SF Mono',SFMono-Regular,Menlo,monospace;
+  --font-serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif; /* [EXISTE] */
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace;
 
-  --fs-xs:   0.75rem;   /* 12 metadatos */
-  --fs-sm:   0.8125rem; /* 13 secundario */
+  --fs-xs: 0.75rem; /* 12 metadatos */
+  --fs-sm: 0.8125rem; /* 13 secundario */
   --fs-base: 0.9375rem; /* 15 cuerpo UI (sans) */
-  --fs-md:   1rem;      /* 16 cuerpo lectura */
-  --fs-lg:   1.25rem;   /* 20 título de panel */
-  --fs-xl:   1.5rem;    /* 24 título de página móvil */
-  --fs-2xl:  1.75rem;   /* 28 título de página escritorio [EXISTE h1] */
+  --fs-md: 1rem; /* 16 cuerpo lectura */
+  --fs-lg: 1.25rem; /* 20 título de panel */
+  --fs-xl: 1.5rem; /* 24 título de página móvil */
+  --fs-2xl: 1.75rem; /* 28 título de página escritorio [EXISTE h1] */
 
   --lh-tight: 1.25;
-  --lh-base:  1.5; /* [EXISTE] */
+  --lh-base: 1.5; /* [EXISTE] */
 }
 ```
 
@@ -165,30 +175,45 @@ Reglas: títulos de página (`h1`) y contenido largo de notas/tareas en `--font-
 
 ```css
 :root {
-  --sp-1: 0.25rem; --sp-2: 0.5rem;  --sp-3: 0.75rem;
-  --sp-4: 1rem;    --sp-5: 1.25rem; --sp-6: 1.5rem;
-  --sp-8: 2rem;    --sp-10: 2.5rem; --sp-12: 3rem;
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.25rem;
+  --sp-6: 1.5rem;
+  --sp-8: 2rem;
+  --sp-10: 2.5rem;
+  --sp-12: 3rem;
 
-  --radius-sm: 0.375rem; --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;  /* inputs [EXISTE] */ --radius-xl: 1rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem; /* inputs [EXISTE] */
+  --radius-xl: 1rem;
   --radius-full: 9999px;
 
   --shadow-sm: 0 1px 2px rgb(28 25 23 / 0.06);
-  --shadow-md: 0 4px 12px rgb(28 25 23 / 0.10);  /* menús, popovers */
+  --shadow-md: 0 4px 12px rgb(28 25 23 / 0.1); /* menús, popovers */
   --shadow-lg: 0 12px 32px rgb(28 25 23 / 0.16); /* hojas, modales */
 
-  --dur-fast: 120ms; --dur-base: 180ms; --dur-slow: 300ms;
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+  --dur-slow: 300ms;
   --ease: cubic-bezier(0.2, 0, 0, 1);
 
-  --sidebar-w: 17rem;   /* 272 px */
-  --detail-w:  24rem;   /* 384 px */
+  --sidebar-w: 17rem; /* 272 px */
+  --detail-w: 24rem; /* 384 px */
   --content-max: 46rem; /* columna de lectura en vistas de lista */
   --bottombar-h: 3.5rem;
-  --tap: 2.75rem;       /* 44 px objetivo táctil mínimo */
+  --tap: 2.75rem; /* 44 px objetivo táctil mínimo */
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
 }
 ```
 
@@ -206,29 +231,29 @@ Sombras en tema oscuro con opacidad ×1.5. Los modales/hojas entran con `--dur-s
 
 Las rutas `[EXISTE]` ya están en `app.tsx`; el resto se añaden en su fase. Todo lo que aparece en la barra lateral tiene URL estable y compartible.
 
-| Ruta | Pantalla | Fase |
-|------|----------|------|
-| `/` | Redirect a `/today` | MVP **[EXISTE]** |
-| `/today` | Hoy + revisión diaria | MVP **[EXISTE base]** |
-| `/quick-add` | Captura rápida (ruta para share target y deep links) | MVP **[EXISTE]** |
-| `/inbox` | Bandeja de entrada | MVP |
-| `/list/{id}` | Lista (vistas lista/kanban/timeline según `view_mode`) | MVP (vista lista) / V1 (kanban, timeline) |
-| `/list/{id}/note/{taskId}` | Nota abierta dentro de lista de notas | V1 |
-| `/filter/{id}` | Filtro personalizado | MVP |
-| `/smart/{key}` | Smart list de sistema: `tomorrow`, `next7`, `all`, `no-date`, `recent`, `completed`, `trash`, `assigned` (V2) | MVP (salvo `assigned`) |
-| `/task/{id}` | Tarea abierta (abre su lista contenedora con el detalle) | MVP |
-| `/habits` | Hábitos | MVP |
-| `/habits/{id}` | Detalle y estadísticas de hábito | MVP |
-| `/calendar/{view}` | Calendario: `day`, `week`, `multi-day`, `multi-week`, `month`, `year`, `agenda` | V1 |
-| `/matrix` | Matriz de Eisenhower | V1 |
-| `/focus` | Pomodoro / Focus | V2 |
-| `/dashboard` | Jardín digital (KPIs) | V1 |
-| `/reports/weekly` | Histórico de reportes semanales | V1 |
-| `/reports/weekly/{semana}` | Reporte semanal concreto (`2026-W42`) | V1 |
-| `/review/weekly` | Revisión semanal guiada | V1 |
-| `/search` | Resultados de búsqueda (`?q=`) | MVP (la paleta abre aquí al confirmar) |
-| `/settings/...` | Ajustes (árbol completo en §20) | MVP→V2 por secciones |
-| `/login`, `/register`, `/forgot-password` | Cuenta (solo si multiusuario se activa; en instancia personal de Pablo puede haber sesión única precreada) | MVP |
+| Ruta                                      | Pantalla                                                                                                      | Fase                                      |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| `/`                                       | Redirect a `/today`                                                                                           | MVP **[EXISTE]**                          |
+| `/today`                                  | Hoy + revisión diaria                                                                                         | MVP **[EXISTE base]**                     |
+| `/quick-add`                              | Captura rápida (ruta para share target y deep links)                                                          | MVP **[EXISTE]**                          |
+| `/inbox`                                  | Bandeja de entrada                                                                                            | MVP                                       |
+| `/list/{id}`                              | Lista (vistas lista/kanban/timeline según `view_mode`)                                                        | MVP (vista lista) / V1 (kanban, timeline) |
+| `/list/{id}/note/{taskId}`                | Nota abierta dentro de lista de notas                                                                         | V1                                        |
+| `/filter/{id}`                            | Filtro personalizado                                                                                          | MVP                                       |
+| `/smart/{key}`                            | Smart list de sistema: `tomorrow`, `next7`, `all`, `no-date`, `recent`, `completed`, `trash`, `assigned` (V2) | MVP (salvo `assigned`)                    |
+| `/task/{id}`                              | Tarea abierta (abre su lista contenedora con el detalle)                                                      | MVP                                       |
+| `/habits`                                 | Hábitos                                                                                                       | MVP                                       |
+| `/habits/{id}`                            | Detalle y estadísticas de hábito                                                                              | MVP                                       |
+| `/calendar/{view}`                        | Calendario: `day`, `week`, `multi-day`, `multi-week`, `month`, `year`, `agenda`                               | V1                                        |
+| `/matrix`                                 | Matriz de Eisenhower                                                                                          | V1                                        |
+| `/focus`                                  | Pomodoro / Focus                                                                                              | V2                                        |
+| `/dashboard`                              | Jardín digital (KPIs)                                                                                         | V1                                        |
+| `/reports/weekly`                         | Histórico de reportes semanales                                                                               | V1                                        |
+| `/reports/weekly/{semana}`                | Reporte semanal concreto (`2026-W42`)                                                                         | V1                                        |
+| `/review/weekly`                          | Revisión semanal guiada                                                                                       | V1                                        |
+| `/search`                                 | Resultados de búsqueda (`?q=`)                                                                                | MVP (la paleta abre aquí al confirmar)    |
+| `/settings/...`                           | Ajustes (árbol completo en §20)                                                                               | MVP→V2 por secciones                      |
+| `/login`, `/register`, `/forgot-password` | Cuenta (solo si multiusuario se activa; en instancia personal de Pablo puede haber sesión única precreada)    | MVP                                       |
 
 Convenciones de query params compartidos: `?view=list|kanban|timeline` (sobrescribe el `view_mode` de la lista sin guardarlo), `?sort=`, `?group=`, `?q=` (búsqueda contextual de la vista), `?task={id}` (detalle abierto dentro de una vista). Cambiar vista/orden/grupo actualiza la URL (replace, no push) para que compartir el enlace reproduzca la vista.
 
@@ -373,17 +398,17 @@ La captura es la prioridad máxima del producto (spec 9.1). Lo construido en `fe
 
 ### 6.1 Puntos de entrada
 
-| Entrada | Mecanismo | Estado |
-|---|---|---|
-| Tecla `N` global (sin foco en input) | `CaptureHotkey` | **[EXISTE]** |
-| FAB `＋ Nueva tarea` | botón fijo | **[EXISTE]** (móvil: pasa al centro de la barra inferior, §4.4) |
-| Share target del SO (PWA) | POST al SW → redirect a `/quick-add?title&text&url` | **[EXISTE]** |
-| Dictado por voz | Web Speech API → mismo pipeline | **[EXISTE]** |
-| Email-to-task | `<token>@in.todo.reflexionia.com` | **[EXISTE backend]**; su ajuste se gestiona en §20.8 |
-| Ruta directa `/quick-add` | deep link compartible | **[EXISTE]** |
-| Añadir inline en una lista | fila "Añadir tarea en «lista»" al pie de cada grupo/sección | NUEVO (fila "Añadir tarea en «inbox»") |
-| Paleta de comandos | comando "Nueva tarea" | §17 |
-| V2: widget/atajo global de escritorio | fuera de PWA | spec RF-106 |
+| Entrada                               | Mecanismo                                                   | Estado                                                          |
+| ------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------- |
+| Tecla `N` global (sin foco en input)  | `CaptureHotkey`                                             | **[EXISTE]**                                                    |
+| FAB `＋ Nueva tarea`                  | botón fijo                                                  | **[EXISTE]** (móvil: pasa al centro de la barra inferior, §4.4) |
+| Share target del SO (PWA)             | POST al SW → redirect a `/quick-add?title&text&url`         | **[EXISTE]**                                                    |
+| Dictado por voz                       | Web Speech API → mismo pipeline                             | **[EXISTE]**                                                    |
+| Email-to-task                         | `<token>@in.todo.reflexionia.com`                           | **[EXISTE backend]**; su ajuste se gestiona en §20.8            |
+| Ruta directa `/quick-add`             | deep link compartible                                       | **[EXISTE]**                                                    |
+| Añadir inline en una lista            | fila "Añadir tarea en «lista»" al pie de cada grupo/sección | NUEVO (fila "Añadir tarea en «inbox»")                          |
+| Paleta de comandos                    | comando "Nueva tarea"                                       | §17                                                             |
+| V2: widget/atajo global de escritorio | fuera de PWA                                                | spec RF-106                                                     |
 
 ### 6.2 La hoja de captura
 
@@ -701,16 +726,16 @@ Parrilla de 12 columnas (6 en tablet, 4 en móvil) con widgets arrastrables y re
 
 ### 18.2 Catálogo inicial de widgets (RF-2102)
 
-| Widget | Contenido | Tamaños |
-|---|---|---|
-| Completadas | hoy/semana con tendencia (↑↓ vs periodo anterior) | 2×2, 4×2 |
-| Vencidas y próximas | contador vencidas + barras próximos 7 días | 4×2 |
-| Flujo | creadas vs completadas (línea) | 4×2, 6×4 |
-| Hábitos | anillos de hoy + racha agregada + mini heatmap | 4×2, 4×4 |
-| Carga por lista/etiqueta | top 8 barras horizontales | 4×4 |
-| Calendario | próximos 5 eventos (propios + externos) | 4×2 |
-| Integraciones | actividad por token/agente (MCP/Telegram/Drive): últimos usos | 4×2 |
-| Focus (V2) | tiempo de foco y pomodoros | 4×2 |
+| Widget                   | Contenido                                                     | Tamaños  |
+| ------------------------ | ------------------------------------------------------------- | -------- |
+| Completadas              | hoy/semana con tendencia (↑↓ vs periodo anterior)             | 2×2, 4×2 |
+| Vencidas y próximas      | contador vencidas + barras próximos 7 días                    | 4×2      |
+| Flujo                    | creadas vs completadas (línea)                                | 4×2, 6×4 |
+| Hábitos                  | anillos de hoy + racha agregada + mini heatmap                | 4×2, 4×4 |
+| Carga por lista/etiqueta | top 8 barras horizontales                                     | 4×4      |
+| Calendario               | próximos 5 eventos (propios + externos)                       | 4×2      |
+| Integraciones            | actividad por token/agente (MCP/Telegram/Drive): últimos usos | 4×2      |
+| Focus (V2)               | tiempo de foco y pomodoros                                    | 4×2      |
 
 Cada widget: título, KPI principal `--fs-2xl` serif, sparkline/barra, "ver más" que navega a la vista filtrada correspondiente. Estados propios: loading (skeleton del widget), error (reintento solo del widget), sin datos (copy breve, no widget vacío roto).
 
@@ -808,53 +833,53 @@ Mapa de atajos (17 oct 2025). Vistas sin equivalente (Group chats, Time Blocking
 
 ### 21.1 General
 
-| Acción | Atajo |
-|---|---|
-| Guardar (edición en curso) | `Ctrl/Cmd+S` |
-| Sincronizar ahora | `.` |
-| Cancelar / cerrar | `Esc` |
-| Deshacer | `Ctrl/Cmd+Z` |
-| Rehacer | `Ctrl/Cmd+Shift+Z` |
-| Imprimir | `Ctrl/Cmd+P` |
+| Acción                              | Atajo              |
+| ----------------------------------- | ------------------ |
+| Guardar (edición en curso)          | `Ctrl/Cmd+S`       |
+| Sincronizar ahora                   | `.`                |
+| Cancelar / cerrar                   | `Esc`              |
+| Deshacer                            | `Ctrl/Cmd+Z`       |
+| Rehacer                             | `Ctrl/Cmd+Shift+Z` |
+| Imprimir                            | `Ctrl/Cmd+P`       |
 | Modo foco (vista sin distracciones) | `Ctrl/Cmd+Shift+P` |
-| Paleta de comandos | `Ctrl/Cmd+K` |
-| Buscar | `/` |
-| Ayuda de atajos (overlay) | `?` |
+| Paleta de comandos                  | `Ctrl/Cmd+K`       |
+| Buscar                              | `/`                |
+| Ayuda de atajos (overlay)           | `?`                |
 
 ### 21.2 Tareas (en cualquier lista)
 
-| Acción | Atajo |
-|---|---|
-| Nueva tarea | `Tab+N` (o `N` con la lista enfocada) |
-| Nueva tarea debajo | `Enter` (con tarea seleccionada) |
-| Nueva subtarea | `Shift+Enter` |
-| Expandir/colapsar subtareas | `Tab+E` |
-| Completar | `Tab+M` |
-| Fijar | `Tab+P` |
-| Borrar | `Ctrl/Cmd+Delete` |
-| Asignar fecha | `Tab+D` |
-| Quitar fecha | `Tab+0` |
-| Hoy / Mañana / Semana próxima | `Tab+1` / `Tab+2` / `Tab+3` |
-| Prioridad 0-3 | `Alt+0…3` |
+| Acción                        | Atajo                                 |
+| ----------------------------- | ------------------------------------- |
+| Nueva tarea                   | `Tab+N` (o `N` con la lista enfocada) |
+| Nueva tarea debajo            | `Enter` (con tarea seleccionada)      |
+| Nueva subtarea                | `Shift+Enter`                         |
+| Expandir/colapsar subtareas   | `Tab+E`                               |
+| Completar                     | `Tab+M`                               |
+| Fijar                         | `Tab+P`                               |
+| Borrar                        | `Ctrl/Cmd+Delete`                     |
+| Asignar fecha                 | `Tab+D`                               |
+| Quitar fecha                  | `Tab+0`                               |
+| Hoy / Mañana / Semana próxima | `Tab+1` / `Tab+2` / `Tab+3`           |
+| Prioridad 0-3                 | `Alt+0…3`                             |
 
 ### 21.3 Vistas y navegación
 
-| Acción | Atajo |
-|---|---|
-| Lista / Kanban / Timeline | `V` luego `L` / `K` / `T` |
-| Ajustes | `G,S` |
-| Todas las tareas | `G,A` |
-| Hoy | `G,T` |
-| Próximos 7 días | `G,R` |
-| Notas | `G,N` |
-| Matriz Eisenhower | `G,M` |
-| Inbox | `G,I` |
-| Calendario | `G,C` |
-| Abandono | `G,W` |
-| Papelera | `G,B` |
-| Listas y etiquetas (área de listas) | `G,G` |
+| Acción                                | Atajo                         |
+| ------------------------------------- | ----------------------------- |
+| Lista / Kanban / Timeline             | `V` luego `L` / `K` / `T`     |
+| Ajustes                               | `G,S`                         |
+| Todas las tareas                      | `G,A`                         |
+| Hoy                                   | `G,T`                         |
+| Próximos 7 días                       | `G,R`                         |
+| Notas                                 | `G,N`                         |
+| Matriz Eisenhower                     | `G,M`                         |
+| Inbox                                 | `G,I`                         |
+| Calendario                            | `G,C`                         |
+| Abandono                              | `G,W`                         |
+| Papelera                              | `G,B`                         |
+| Listas y etiquetas (área de listas)   | `G,G`                         |
 | Calendario: día/semana/mes/año/agenda | `D` `W` `M` `Y` `A` (o `1…5`) |
-| Calendario: volver a hoy | `T` |
+| Calendario: volver a hoy              | `T`                           |
 
 ### 21.4 Quick-add inline
 
@@ -918,28 +943,28 @@ Offline: todo readable; acciones de escritura se encolan con indicador "pendient
 
 ## 24. Matriz de trazabilidad UI → RF
 
-| Criterio | RF cubiertos | Vista |
-|---|---|---|
-| UI-0101 | RF-101, RF-109, RF-113, RF-1802, RF-604 | Captura rápida |
-| UI-0201, UI-0202 | RF-601, RF-603, RF-604, RF-802, RF-803 | Hoy |
-| UI-0301 | RF-114 | Bandeja de entrada |
+| Criterio                           | RF cubiertos                                                                   | Vista                     |
+| ---------------------------------- | ------------------------------------------------------------------------------ | ------------------------- |
+| UI-0101                            | RF-101, RF-109, RF-113, RF-1802, RF-604                                        | Captura rápida            |
+| UI-0201, UI-0202                   | RF-601, RF-603, RF-604, RF-802, RF-803                                         | Hoy                       |
+| UI-0301                            | RF-114                                                                         | Bandeja de entrada        |
 | UI-0401, UI-0402, UI-0403, UI-0404 | RF-201, RF-203, RF-204, RF-206, RF-207, RF-401, RF-402, RF-405, RF-406, RF-504 | Lista / Kanban / Timeline |
-| UI-0501, UI-0502, UI-0503 | RF-103, RF-112, RF-205, RF-208, RF-701, RF-702, RF-703, RF-705, RF-706 | Detalle de tarea |
-| UI-0601, UI-0602 | RF-301, RF-302, RF-305, RF-1001 | Sidebar |
-| UI-0701, UI-0702 | RF-405, RF-406, RF-901, RF-902, RF-903, RF-904 | Smart lists / filtros |
-| UI-0801, UI-0802 | RF-302, RF-303, RF-304, RF-1701 | Papelera / Actividad |
-| UI-0901, UI-0902, UI-0903 | RF-1101, RF-1102, RF-1103, RF-1104, RF-1105 | Calendario |
-| UI-1001, UI-1002 | RF-1201, RF-1202 | Matriz Eisenhower |
-| UI-1101 | RF-1201 | Abandono |
-| UI-1201, UI-1202, UI-1203 | RF-501, RF-502, RF-503, RF-505, RF-806 | Hábitos |
-| UI-1301 | RF-601 (notas) | Notas |
-| UI-1401, UI-1402 | RF-1501, RF-1502 | Búsqueda / paleta |
-| UI-1501, UI-1502 | RF-2101, RF-2102, RF-2103, RF-2104, RF-2105 | Dashboard |
-| UI-1601, UI-1602 | RF-2201, RF-2202, RF-2204, RF-2301, RF-2302, RF-2303 | Reportes / revisión |
-| UI-1701, UI-1702 | RF-2001, RF-2002, RF-2005, RF-1703, RF-1704 | Ajustes (tokens, datos) |
-| UI-1801 | RF-1901 | Atajos |
-| UI-1901, UI-1902 | RF-1801, RF-1803 | Responsive / offline |
-| UI-2001, UI-2002 | RF-604, RF-605, RF-805 | Accesibilidad / i18n |
+| UI-0501, UI-0502, UI-0503          | RF-103, RF-112, RF-205, RF-208, RF-701, RF-702, RF-703, RF-705, RF-706         | Detalle de tarea          |
+| UI-0601, UI-0602                   | RF-301, RF-302, RF-305, RF-1001                                                | Sidebar                   |
+| UI-0701, UI-0702                   | RF-405, RF-406, RF-901, RF-902, RF-903, RF-904                                 | Smart lists / filtros     |
+| UI-0801, UI-0802                   | RF-302, RF-303, RF-304, RF-1701                                                | Papelera / Actividad      |
+| UI-0901, UI-0902, UI-0903          | RF-1101, RF-1102, RF-1103, RF-1104, RF-1105                                    | Calendario                |
+| UI-1001, UI-1002                   | RF-1201, RF-1202                                                               | Matriz Eisenhower         |
+| UI-1101                            | RF-1201                                                                        | Abandono                  |
+| UI-1201, UI-1202, UI-1203          | RF-501, RF-502, RF-503, RF-505, RF-806                                         | Hábitos                   |
+| UI-1301                            | RF-601 (notas)                                                                 | Notas                     |
+| UI-1401, UI-1402                   | RF-1501, RF-1502                                                               | Búsqueda / paleta         |
+| UI-1501, UI-1502                   | RF-2101, RF-2102, RF-2103, RF-2104, RF-2105                                    | Dashboard                 |
+| UI-1601, UI-1602                   | RF-2201, RF-2202, RF-2204, RF-2301, RF-2302, RF-2303                           | Reportes / revisión       |
+| UI-1701, UI-1702                   | RF-2001, RF-2002, RF-2005, RF-1703, RF-1704                                    | Ajustes (tokens, datos)   |
+| UI-1801                            | RF-1901                                                                        | Atajos                    |
+| UI-1901, UI-1902                   | RF-1801, RF-1803                                                               | Responsive / offline      |
+| UI-2001, UI-2002                   | RF-604, RF-605, RF-805                                                         | Accesibilidad / i18n      |
 
 ---
 
@@ -962,15 +987,15 @@ Hallazgos de la exploración de referencia (cuenta propia, solo lectura) que est
 
 ## 26. Anexo B — Resumen de alcance por fase
 
-| Vista | MVP | V1 | V2 |
-|---|---|---|---|
-| Captura rápida, Hoy, Bandeja, Lista, Papelera, Actividad, Detalle | ✔ | mejoras | |
-| Sidebar completa, Ajustes base, tokens PAT/MCP, notificaciones | ✔ | | |
-| Notas | ✔ básicas | | |
-| Kanban, Timeline, Calendario (incl. feeds/suscripciones), búsqueda/paleta, filtros/smart lists, Eisenhower, Abandono, atajos | | ✔ | |
-| Hábitos (fase 2.1, siguiente fase cerrada), Dashboard, reporte semanal, revisión guiada, automatizaciones/webhooks, integraciones | | ✔ | |
-| Foco (pomodoro), estadísticas avanzadas, plugins, compartir listas | | | ✔ |
+| Vista                                                                                                                             | MVP       | V1      | V2  |
+| --------------------------------------------------------------------------------------------------------------------------------- | --------- | ------- | --- |
+| Captura rápida, Hoy, Bandeja, Lista, Papelera, Actividad, Detalle                                                                 | ✔         | mejoras |     |
+| Sidebar completa, Ajustes base, tokens PAT/MCP, notificaciones                                                                    | ✔         |         |     |
+| Notas                                                                                                                             | ✔ básicas |         |     |
+| Kanban, Timeline, Calendario (incl. feeds/suscripciones), búsqueda/paleta, filtros/smart lists, Eisenhower, Abandono, atajos      |           | ✔       |     |
+| Hábitos (fase 2.1, siguiente fase cerrada), Dashboard, reporte semanal, revisión guiada, automatizaciones/webhooks, integraciones |           | ✔       |     |
+| Foco (pomodoro), estadísticas avanzadas, plugins, compartir listas                                                                |           |         | ✔   |
 
 ---
 
-*Fin del documento. Las decisiones marcadas como UI-Dx (§1.2) deben confirmarse con el product owner antes de implementar; el resto del documento es normativo para las fases indicadas.*
+_Fin del documento. Las decisiones marcadas como UI-Dx (§1.2) deben confirmarse con el product owner antes de implementar; el resto del documento es normativo para las fases indicadas._

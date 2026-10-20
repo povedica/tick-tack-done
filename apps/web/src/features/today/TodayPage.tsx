@@ -748,7 +748,9 @@ export function TodayPage() {
       </form>
       {planIds.length === 0 || accepted ? (
         <p className="plan-line">
-          <Link className="app-link" to="/plan/day">{messages.planMyDay}</Link>
+          <Link className="app-link" to="/plan/day">
+            {messages.planMyDay}
+          </Link>
         </p>
       ) : (
         <section className="plan">
@@ -795,7 +797,11 @@ export function TodayPage() {
               </Link>
             ) : null}
             {showClosing && showReplan ? ' · ' : null}
-            {showReplan ? <Link className="app-link" to="/replan">{messages.replanDay}</Link> : null}
+            {showReplan ? (
+              <Link className="app-link" to="/replan">
+                {messages.replanDay}
+              </Link>
+            ) : null}
           </p>
           <p>{messages.planHideHint}</p>
           <ul>

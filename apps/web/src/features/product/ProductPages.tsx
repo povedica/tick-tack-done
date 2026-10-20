@@ -387,7 +387,9 @@ export function ReviewPage() {
           <li>
             <h2>{messages.reviewStepInbox}</h2>
             <p>
-              <Link className="app-link" to="/inbox">{messages.reviewOpenInbox}</Link>
+              <Link className="app-link" to="/inbox">
+                {messages.reviewOpenInbox}
+              </Link>
             </p>
           </li>
           <ReviewBucket
@@ -437,7 +439,9 @@ export function ReviewPage() {
           <li>
             <h2>{messages.reviewStepTomorrow}</h2>
             <p>
-              <Link className="app-link" to="/today">{messages.reviewOpenToday}</Link>
+              <Link className="app-link" to="/today">
+                {messages.reviewOpenToday}
+              </Link>
               {' · '}
               {messages.reviewProposed} {String(idCount(daily.data, 'task_ids'))}
             </p>
@@ -447,7 +451,9 @@ export function ReviewPage() {
             <ul>
               {namedRows(weekly.data, 'lists').map((row) => (
                 <li key={text(row.id)}>
-                  <Link className="app-link" to={`/list/${text(row.id)}`}>{text(row.name)}</Link>
+                  <Link className="app-link" to={`/list/${text(row.id)}`}>
+                    {text(row.name)}
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -457,7 +463,9 @@ export function ReviewPage() {
             <ul>
               {namedRows(weekly.data, 'habits').map((row) => (
                 <li key={text(row.id)}>
-                  <Link className="app-link" to={`/habits/${text(row.id)}`}>{text(row.name)}</Link>
+                  <Link className="app-link" to={`/habits/${text(row.id)}`}>
+                    {text(row.name)}
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -498,7 +506,9 @@ function ReviewBucket({
           const id = text(row.id);
           return (
             <li key={id}>
-              <Link className="app-link" to={`/list/${text(row.listId)}?task=${id}`}>{displayTitle(text(row.title))}</Link>
+              <Link className="app-link" to={`/list/${text(row.listId)}?task=${id}`}>
+                {displayTitle(text(row.title))}
+              </Link>
               <span>
                 <button
                   type="button"

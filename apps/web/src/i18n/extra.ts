@@ -732,8 +732,7 @@ export const extraEs = {
   tickyHint: 'Pide ayuda con tu plan. Las propuestas se revisan antes de aplicarlas.',
   tickyPlaceholder: '¿En qué quieres que te ayude?',
   tickySend: 'Enviar',
-  tickyDisabled:
-    'Ticky todavía no está disponible en esta cuenta.',
+  tickyDisabled: 'Ticky todavía no está disponible en esta cuenta.',
   tickyOffline: 'Sin conexión',
   tickyOfflineApprove: 'Sin red no se envían aprobaciones. Se conserva el borrador.',
   tickyError: 'No se ha podido completar la petición',

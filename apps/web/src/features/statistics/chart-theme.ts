@@ -14,7 +14,12 @@ export interface ChartTheme {
   readonly surface: string;
   readonly surface2: string;
   readonly charts: readonly string[];
-  readonly prio: { readonly high: string; readonly medium: string; readonly low: string; readonly none: string };
+  readonly prio: {
+    readonly high: string;
+    readonly medium: string;
+    readonly low: string;
+    readonly none: string;
+  };
 }
 
 function readTheme(): ChartTheme {

@@ -215,13 +215,13 @@ export class McpService {
         const schedule = taskSchedule(args);
         const existing = await this.tasks.get(user, id);
         const dueForAnchor =
-          schedule.due_date !== undefined
-            ? schedule.due_date
-            : (existing.due_date ?? null);
+          schedule.due_date !== undefined ? schedule.due_date : (existing.due_date ?? null);
         const recurrence = recurrenceFields(args, dueForAnchor, existing.repeat_rule);
         return enrichTask(
           await this.tasks.update(user, id, {
-            ...(typeof args.title === 'string' ? { title: requiredString(args, 'title', 500) } : {}),
+            ...(typeof args.title === 'string'
+              ? { title: requiredString(args, 'title', 500) }
+              : {}),
             ...schedule,
             ...recurrence,
           }),
@@ -591,9 +591,7 @@ function toolError(
   message?: string,
 ): { content: { type: 'text'; text: string }[]; isError: true } {
   const text =
-    message !== undefined && message.length > 0 && message !== code
-      ? `${code}: ${message}`
-      : code;
+    message !== undefined && message.length > 0 && message !== code ? `${code}: ${message}` : code;
   return { content: [{ type: 'text', text }], isError: true };
 }
 
@@ -773,13 +771,7 @@ function draftFromRecurrence(raw: Record<string, unknown>): RepeatDraft {
           }
           const setpos = raw.month_week.setpos;
           const weekday = raw.month_week.weekday;
-          if (
-            setpos !== 1 &&
-            setpos !== 2 &&
-            setpos !== 3 &&
-            setpos !== 4 &&
-            setpos !== -1
-          ) {
+          if (setpos !== 1 && setpos !== 2 && setpos !== 3 && setpos !== 4 && setpos !== -1) {
             throw new DomainException(
               HttpStatus.BAD_REQUEST,
               'validation_failed',

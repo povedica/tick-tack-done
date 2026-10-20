@@ -47,7 +47,13 @@ export function YearHeatmap({
   if (week.length > 0) {
     weeks.push(week);
   }
-  const levels = [theme.surface2, opacity(fill, 0.25), opacity(fill, 0.5), opacity(fill, 0.75), fill];
+  const levels = [
+    theme.surface2,
+    opacity(fill, 0.25),
+    opacity(fill, 0.5),
+    opacity(fill, 0.75),
+    fill,
+  ];
 
   return (
     <div className="stats-heatmap-wrap">

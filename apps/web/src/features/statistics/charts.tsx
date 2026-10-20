@@ -18,7 +18,11 @@ import { formatHumanDay } from './range';
 export function TrendChart({
   data,
 }: {
-  readonly data: readonly { readonly date: string; readonly completed: number; readonly created: number }[];
+  readonly data: readonly {
+    readonly date: string;
+    readonly completed: number;
+    readonly created: number;
+  }[];
 }) {
   const theme = useChartTheme();
   const rows = data.map((row) => ({ ...row, label: formatHumanDay(row.date) }));
@@ -27,12 +31,29 @@ export function TrendChart({
       <ResponsiveContainer width="100%" height={260}>
         <ComposedChart data={rows}>
           <CartesianGrid vertical={false} stroke={theme.border} />
-          <XAxis dataKey="label" tick={{ fill: theme.inkFaint, fontSize: 11 }} axisLine={false} tickLine={false} />
-          <YAxis allowDecimals={false} tick={{ fill: theme.inkFaint, fontSize: 11 }} axisLine={false} tickLine={false} />
+          <XAxis
+            dataKey="label"
+            tick={{ fill: theme.inkFaint, fontSize: 11 }}
+            axisLine={false}
+            tickLine={false}
+          />
+          <YAxis
+            allowDecimals={false}
+            tick={{ fill: theme.inkFaint, fontSize: 11 }}
+            axisLine={false}
+            tickLine={false}
+          />
           <Tooltip contentStyle={tooltipStyle(theme)} />
           <Legend />
           <Bar dataKey="completed" name="Completadas" fill={theme.accent} radius={[3, 3, 0, 0]} />
-          <Line dataKey="created" name="Creadas" type="monotone" stroke={theme.ink2} strokeWidth={1.5} dot={false} />
+          <Line
+            dataKey="created"
+            name="Creadas"
+            type="monotone"
+            stroke={theme.ink2}
+            strokeWidth={1.5}
+            dot={false}
+          />
         </ComposedChart>
       </ResponsiveContainer>
       <DataTable
@@ -66,8 +87,18 @@ export function RateChart({
       <ResponsiveContainer width="100%" height={220}>
         <AreaChart data={rows}>
           <CartesianGrid vertical={false} stroke={theme.border} />
-          <XAxis dataKey="label" tick={{ fill: theme.inkFaint, fontSize: 11 }} axisLine={false} tickLine={false} />
-          <YAxis domain={[0, 100]} tick={{ fill: theme.inkFaint, fontSize: 11 }} axisLine={false} tickLine={false} />
+          <XAxis
+            dataKey="label"
+            tick={{ fill: theme.inkFaint, fontSize: 11 }}
+            axisLine={false}
+            tickLine={false}
+          />
+          <YAxis
+            domain={[0, 100]}
+            tick={{ fill: theme.inkFaint, fontSize: 11 }}
+            axisLine={false}
+            tickLine={false}
+          />
           <Tooltip contentStyle={tooltipStyle(theme)} />
           <Area
             type="monotone"
@@ -88,7 +119,11 @@ export function RateChart({
 export function FocusTrendChart({
   data,
 }: {
-  readonly data: readonly { readonly date: string; readonly minutes: number; readonly pomodoros: number }[];
+  readonly data: readonly {
+    readonly date: string;
+    readonly minutes: number;
+    readonly pomodoros: number;
+  }[];
 }) {
   const theme = useChartTheme();
   const rows = data.map((row) => ({ ...row, label: formatHumanDay(row.date) }));
@@ -97,12 +132,41 @@ export function FocusTrendChart({
       <ResponsiveContainer width="100%" height={240}>
         <ComposedChart data={rows}>
           <CartesianGrid vertical={false} stroke={theme.border} />
-          <XAxis dataKey="label" tick={{ fill: theme.inkFaint, fontSize: 11 }} axisLine={false} tickLine={false} />
-          <YAxis yAxisId="min" tick={{ fill: theme.inkFaint, fontSize: 11 }} axisLine={false} tickLine={false} />
-          <YAxis yAxisId="pom" orientation="right" allowDecimals={false} tick={{ fill: theme.inkFaint, fontSize: 11 }} axisLine={false} tickLine={false} />
+          <XAxis
+            dataKey="label"
+            tick={{ fill: theme.inkFaint, fontSize: 11 }}
+            axisLine={false}
+            tickLine={false}
+          />
+          <YAxis
+            yAxisId="min"
+            tick={{ fill: theme.inkFaint, fontSize: 11 }}
+            axisLine={false}
+            tickLine={false}
+          />
+          <YAxis
+            yAxisId="pom"
+            orientation="right"
+            allowDecimals={false}
+            tick={{ fill: theme.inkFaint, fontSize: 11 }}
+            axisLine={false}
+            tickLine={false}
+          />
           <Tooltip contentStyle={tooltipStyle(theme)} />
-          <Bar yAxisId="min" dataKey="minutes" name="Minutos" fill={theme.accent} radius={[3, 3, 0, 0]} />
-          <Line yAxisId="pom" dataKey="pomodoros" name="Pomodoros" stroke={theme.accentActive} strokeWidth={2} />
+          <Bar
+            yAxisId="min"
+            dataKey="minutes"
+            name="Minutos"
+            fill={theme.accent}
+            radius={[3, 3, 0, 0]}
+          />
+          <Line
+            yAxisId="pom"
+            dataKey="pomodoros"
+            name="Pomodoros"
+            stroke={theme.accentActive}
+            strokeWidth={2}
+          />
         </ComposedChart>
       </ResponsiveContainer>
     </div>
@@ -125,7 +189,12 @@ export function HourHistogram({
     <div className="stats-chart" role="img" aria-label="Hora más enfocada">
       <ResponsiveContainer width="100%" height={200}>
         <BarChart data={rows}>
-          <XAxis dataKey="hour" tick={{ fill: theme.inkFaint, fontSize: 10 }} axisLine={false} tickLine={false} />
+          <XAxis
+            dataKey="hour"
+            tick={{ fill: theme.inkFaint, fontSize: 10 }}
+            axisLine={false}
+            tickLine={false}
+          />
           <Tooltip contentStyle={tooltipStyle(theme)} />
           <Bar dataKey="minutes" name="Minutos" fill={theme.accent} radius={[2, 2, 0, 0]} />
         </BarChart>
@@ -151,10 +220,27 @@ export function HabitLineChart({
       <ResponsiveContainer width="100%" height={220}>
         <AreaChart data={rows}>
           <CartesianGrid vertical={false} stroke={theme.border} />
-          <XAxis dataKey="label" tick={{ fill: theme.inkFaint, fontSize: 11 }} axisLine={false} tickLine={false} />
-          <YAxis domain={[0, 100]} tick={{ fill: theme.inkFaint, fontSize: 11 }} axisLine={false} tickLine={false} />
+          <XAxis
+            dataKey="label"
+            tick={{ fill: theme.inkFaint, fontSize: 11 }}
+            axisLine={false}
+            tickLine={false}
+          />
+          <YAxis
+            domain={[0, 100]}
+            tick={{ fill: theme.inkFaint, fontSize: 11 }}
+            axisLine={false}
+            tickLine={false}
+          />
           <Tooltip contentStyle={tooltipStyle(theme)} />
-          <Area type="monotone" dataKey="percent" stroke={theme.success} fill={theme.success} fillOpacity={0.08} strokeWidth={2} />
+          <Area
+            type="monotone"
+            dataKey="percent"
+            stroke={theme.success}
+            fill={theme.success}
+            fillOpacity={0.08}
+            strokeWidth={2}
+          />
         </AreaChart>
       </ResponsiveContainer>
     </div>

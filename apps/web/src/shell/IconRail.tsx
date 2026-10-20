@@ -80,18 +80,10 @@ export function IconRail({
       <NavLink to="/today" end aria-label={messages.navToday} title={messages.navToday}>
         <ListTodo size={20} aria-hidden="true" />
       </NavLink>
-      <NavLink
-        to="/calendar/month"
-        aria-label={messages.navCalendar}
-        title={messages.navCalendar}
-      >
+      <NavLink to="/calendar/month" aria-label={messages.navCalendar} title={messages.navCalendar}>
         <CalendarDays size={20} aria-hidden="true" />
       </NavLink>
-      <NavLink
-        to="/dashboard"
-        aria-label={messages.navDashboard}
-        title={messages.navDashboard}
-      >
+      <NavLink to="/dashboard" aria-label={messages.navDashboard} title={messages.navDashboard}>
         <LayoutDashboard size={20} aria-hidden="true" />
       </NavLink>
       {flags.matrix ? (
@@ -142,7 +134,9 @@ export function IconRail({
         onClick={() => {
           void navigate('/today', { state: { scrollTo: 'overdue' } });
           window.setTimeout(() => {
-            document.getElementById('overdue')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            document
+              .getElementById('overdue')
+              ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }, 50);
         }}
       >
@@ -154,7 +148,13 @@ export function IconRail({
       <NavLink to="/settings/shortcuts" aria-label={messages.navHelp} title={messages.navHelp}>
         <HelpCircle size={20} aria-hidden="true" />
       </NavLink>
-      <button type="button" className="rail-add" aria-label={messages.fab} title={messages.fab} onClick={onCapture}>
+      <button
+        type="button"
+        className="rail-add"
+        aria-label={messages.fab}
+        title={messages.fab}
+        onClick={onCapture}
+      >
         <Plus size={20} aria-hidden="true" />
       </button>
       <button

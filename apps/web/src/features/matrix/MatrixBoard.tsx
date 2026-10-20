@@ -240,10 +240,7 @@ export function MatrixBoard({
                     >
                       <PriorityCheck
                         priority={task.priority}
-                        label={messages.completeLabel.replace(
-                          '{name}',
-                          displayTitle(task.title),
-                        )}
+                        label={messages.completeLabel.replace('{name}', displayTitle(task.title))}
                         checked={false}
                         onChange={() => undefined}
                       />

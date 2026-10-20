@@ -6,7 +6,10 @@ export async function countOverdueTasks(prisma: PrismaService, ownerId: string):
   return rows.length;
 }
 
-export async function listOverdueTaskIds(prisma: PrismaService, ownerId: string): Promise<string[]> {
+export async function listOverdueTaskIds(
+  prisma: PrismaService,
+  ownerId: string,
+): Promise<string[]> {
   const rows = await prisma.$queryRaw<{ id: string }[]>`
     SELECT id FROM tasks
     WHERE owner_id = CAST(${ownerId} AS uuid)

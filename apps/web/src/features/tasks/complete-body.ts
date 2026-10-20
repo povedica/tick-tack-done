@@ -4,9 +4,7 @@ export const SERIES_COMPLETE_BODY = {
   materialize_next: true as const,
 };
 
-export function completeBody(
-  extra: { readonly complete_children?: 'complete' | 'leave' } = {},
-): {
+export function completeBody(extra: { readonly complete_children?: 'complete' | 'leave' } = {}): {
   readonly advance: 'next_future';
   readonly materialize_next: true;
   readonly complete_children?: 'complete' | 'leave';

@@ -868,14 +868,9 @@ function Agenda({
           left.starts_at.localeCompare(right.starts_at),
         );
         const heading =
-          key === todayKey
-            ? `${messages.calToday} · ${weekday.format(day)}`
-            : weekday.format(day);
+          key === todayKey ? `${messages.calToday} · ${weekday.format(day)}` : weekday.format(day);
         return (
-          <section
-            key={key}
-            className={key === todayKey ? 'agenda-day is-today' : 'agenda-day'}
-          >
+          <section key={key} className={key === todayKey ? 'agenda-day is-today' : 'agenda-day'}>
             <header className="agenda-day-head">
               <span>{heading}</span>
             </header>

@@ -90,7 +90,10 @@ describe('McpService recurrence mapping', () => {
       }),
       undefined,
     );
-    const text = JSON.parse(firstToolText(result)) as { repeat_label: string; next_occurrence: string | null };
+    const text = JSON.parse(firstToolText(result)) as {
+      repeat_label: string;
+      next_occurrence: string | null;
+    };
     expect(text.repeat_label).toBe('El día 19 de cada mes');
   });
 
@@ -110,9 +113,7 @@ describe('McpService recurrence mapping', () => {
         content: [{ text: expect.stringContaining('missing_anchor') }],
       },
     });
-    expect(
-      firstToolText(result),
-    ).toContain('a repeating task needs a due_date');
+    expect(firstToolText(result)).toContain('a repeating task needs a due_date');
     expect(tasks.create).not.toHaveBeenCalled();
   });
 
@@ -131,9 +132,7 @@ describe('McpService recurrence mapping', () => {
         },
       },
     });
-    expect(
-      firstToolText(result),
-    ).toContain('use either recurrence or repeat_rule, not both');
+    expect(firstToolText(result)).toContain('use either recurrence or repeat_rule, not both');
   });
 
   it('RF-2007: update_task recurrence null clears the series', async () => {
@@ -237,7 +236,11 @@ describe('McpService recurrence mapping', () => {
 
   it('maps DomainException messages into tool errors', async () => {
     tasks.create.mockRejectedValue(
-      new DomainException(HttpStatus.BAD_REQUEST, 'invalid_zone', 'time_zone must be an IANA name like Europe/Madrid'),
+      new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'invalid_zone',
+        'time_zone must be an IANA name like Europe/Madrid',
+      ),
     );
 
     const result = await service.handle(user, {
@@ -249,9 +252,9 @@ describe('McpService recurrence mapping', () => {
         arguments: { title: 'Zona', due_date: '2026-10-19T08:00:00.000Z' },
       },
     });
-    expect(
-      firstToolText(result),
-    ).toBe('invalid_zone: time_zone must be an IANA name like Europe/Madrid');
+    expect(firstToolText(result)).toBe(
+      'invalid_zone: time_zone must be an IANA name like Europe/Madrid',
+    );
   });
 });
 
@@ -262,4 +265,3 @@ function firstToolText(result: unknown): string {
   }
   return content.text;
 }
-

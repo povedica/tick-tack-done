@@ -38,7 +38,11 @@ export function DayTimeline({
               key={block.id}
               type="button"
               className="stats-timeline-block"
-              style={{ left: `${String(left)}%`, width: `${String(width)}%`, background: theme.accent }}
+              style={{
+                left: `${String(left)}%`,
+                width: `${String(width)}%`,
+                background: theme.accent,
+              }}
               title={`${block.task_title ?? 'Sin tarea'} · ${String(block.minutes)} min`}
             />
           );

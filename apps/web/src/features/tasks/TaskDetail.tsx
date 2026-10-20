@@ -251,8 +251,7 @@ export function TaskDetail({
   }
 
   async function finish(mode: 'complete' | 'leave' | undefined): Promise<void> {
-    const body =
-      mode === undefined ? completeBody() : completeBody({ complete_children: mode });
+    const body = mode === undefined ? completeBody() : completeBody({ complete_children: mode });
     const outcome = await runOrQueue(newMutation('complete', task.id, body), (key) =>
       api.completeTask(task.id, body, key),
     );

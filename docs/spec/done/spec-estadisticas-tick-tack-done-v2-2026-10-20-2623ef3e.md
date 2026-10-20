@@ -69,14 +69,14 @@ En `/focus` y `/habits`:
 
 ## 3. Referencias analizadas
 
-| Referencia | Qué aporta |
-|---|---|
-| **TickTick – Achievements & Statistics** (help.ticktick.com/articles/7082302534169133056) | Valor de logro con 12 niveles; puntos por completar, penalización por vencer; solo acciones propias (listas compartidas excluidas); tendencia de tareas completadas por día/semana/mes; **tasa de completitud = completadas / planificadas para ese período**. Los puntos se actualizan a las 00:00, no en tiempo real. |
-| **TickTick – Focus Statistics** (help.ticktick.com/articles/7055781966800486400) | Tendencia de foco por semana/mes/año; **línea temporal del día** (bloques sobre regla de 24 h); hora más enfocada del mes; **Year Grids** (rejilla anual, intensidad de color = minutos de foco); distribución del tiempo por lista/etiqueta/tarea con selector Día/Semana/Mes/Personalizado; registros de foco filtrables por fecha, duración y vinculación. |
-| **TickTick – acceso** | La entrada a Estadísticas es **avatar → "Statistics"** en el menú de cuenta; dentro, pestañas (Tasks / Focus). Es el patrón a replicar (§5). |
-| **Todoist – Karma** | Gamificación simple: puntos por completar a tiempo, rachas, objetivos diarios/semanales configurables. Referencia para el valor de logro. |
-| **Habitify** | Métricas de hábitos claras: racha actual, mejor racha, % cumplimiento, calendario-heatmap por hábito. |
-| **GitHub – contribution graph** | Referencia de heatmap anual: celdas cuadradas con radio pequeño, 5 niveles de intensidad, tooltip por día, leyenda "Menos → Más". |
+| Referencia                                                                                | Qué aporta                                                                                                                                                                                                                                                                                                                                                    |
+| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **TickTick – Achievements & Statistics** (help.ticktick.com/articles/7082302534169133056) | Valor de logro con 12 niveles; puntos por completar, penalización por vencer; solo acciones propias (listas compartidas excluidas); tendencia de tareas completadas por día/semana/mes; **tasa de completitud = completadas / planificadas para ese período**. Los puntos se actualizan a las 00:00, no en tiempo real.                                       |
+| **TickTick – Focus Statistics** (help.ticktick.com/articles/7055781966800486400)          | Tendencia de foco por semana/mes/año; **línea temporal del día** (bloques sobre regla de 24 h); hora más enfocada del mes; **Year Grids** (rejilla anual, intensidad de color = minutos de foco); distribución del tiempo por lista/etiqueta/tarea con selector Día/Semana/Mes/Personalizado; registros de foco filtrables por fecha, duración y vinculación. |
+| **TickTick – acceso**                                                                     | La entrada a Estadísticas es **avatar → "Statistics"** en el menú de cuenta; dentro, pestañas (Tasks / Focus). Es el patrón a replicar (§5).                                                                                                                                                                                                                  |
+| **Todoist – Karma**                                                                       | Gamificación simple: puntos por completar a tiempo, rachas, objetivos diarios/semanales configurables. Referencia para el valor de logro.                                                                                                                                                                                                                     |
+| **Habitify**                                                                              | Métricas de hábitos claras: racha actual, mejor racha, % cumplimiento, calendario-heatmap por hábito.                                                                                                                                                                                                                                                         |
+| **GitHub – contribution graph**                                                           | Referencia de heatmap anual: celdas cuadradas con radio pequeño, 5 niveles de intensidad, tooltip por día, leyenda "Menos → Más".                                                                                                                                                                                                                             |
 
 Conclusión: para "igualar" a TickTick hacen falta (a) tendencia de completadas, (b) tasa de completitud, (c) valor de logro con niveles, (d) estadísticas de foco con heatmap anual y distribución, (e) equivalente para hábitos. Para "mejorar": filtros cruzados, explicabilidad, exportación y unión de las tres áreas.
 
@@ -93,7 +93,7 @@ Conclusión: para "igualar" a TickTick hacen falta (a) tendencia de completadas,
 - Rango y filtros también en la URL (`?range=week&from=…&to=…&list=…&tag=…&priority=…`) para compartir/enlazar y para que el botón atrás funcione.
 - Desde `/reports/weekly` añadir enlace "Ver estadísticas" y viceversa ("Ver reporte semanal narrativo").
 - En móvil la entrada temporal vive en el menú **"Más"** de la barra inferior.
-- *Decisión abierta D1:* si "Reportes" del sidebar pasa a llamarse "Estadísticas" y absorbe el reporte narrativo como una pestaña más. **Propuesta por defecto: no**; mantener dos entradas (Reportes = narrativa semanal; Estadísticas = cuadro de mando), porque responden a momentos distintos.
+- _Decisión abierta D1:_ si "Reportes" del sidebar pasa a llamarse "Estadísticas" y absorbe el reporte narrativo como una pestaña más. **Propuesta por defecto: no**; mantener dos entradas (Reportes = narrativa semanal; Estadísticas = cuadro de mando), porque responden a momentos distintos.
 
 ## 6. Estructura de la pantalla (funcional)
 
@@ -128,7 +128,7 @@ Gráficos:
 - **Puntualidad**: % completadas a tiempo vs tarde (respecto a `dueDate`); media y mediana de días de retraso.
 - **Edad de la tarea al completar**: media y mediana desde `createdAt` hasta `completedAt`.
 - **Vencidas arrastradas**: evolución del stock de vencidas sin completar (área apilada por antigüedad: <7 días, 7-30, >30).
-- **Estimaciones**: precisión pomodoro cuando `estimatedPomodoros` existe vs sesiones reales de foco asociadas (media de desviación). *Decisión abierta D6 (fase posterior).*
+- **Estimaciones**: precisión pomodoro cuando `estimatedPomodoros` existe vs sesiones reales de foco asociadas (media de desviación). _Decisión abierta D6 (fase posterior)._
 
 ### 6.4. Pestaña Foco
 
@@ -152,17 +152,17 @@ Todo lo de TickTick Focus Statistics, calculado desde `FocusSession`:
 
 ### 7.1. Origen de cada métrica (todo deriva de tablas existentes; no hace falta ingesta nueva)
 
-| Métrica | Tabla y campos | Notas de cálculo |
-|---|---|---|
-| Completadas | `Task.completedAt`, `status` | `deletedAt IS NULL`; en zona horaria del usuario (`User`/tarea `timeZone`, por defecto Europe/Madrid). |
-| Creadas | `Task.createdAt` | Igual. |
-| Tasa de completitud | `Task.dueDate` + `completedAt` | Denominador: tareas con `dueDate` en el rango (o creadas en el rango si no hay fecha — *decisión abierta D2*). Canceladas ("No haré", `status = cancelled`) excluidas de ambos lados. |
-| Puntualidad | `dueDate` vs `completedAt` | A tiempo = `completedAt <= dueDate` (+ tolerancia de día completo si `isAllDay`). |
-| Vencidas arrastradas | `dueDate < now`, `status = active` | Stock a fecha de corte de cada punto del gráfico. |
-| Recurrentes | `seriesId`, ocurrencias | Cada ocurrencia completada cuenta como una completada en su fecha. No duplicar la serie (usa la misma lógica de expansión que el resto de la app). |
-| Foco | `FocusSession` | `type = focus`, `actualSeconds`, `startedAt`, `completed`, `interruptedCount`; distribución vía `taskId → projectId, tags`. Sesiones sin tarea = grupo "Sin tarea". |
-| Hábitos | `Habit` (`goal`, `frequency`), `HabitLog` | Cumplimiento diario = `count >= goal` en días que la `frequency` marca como esperados. Reutilizar el cálculo de `habits.service.stats` para no divergir. |
-| Valor de logro | derivado de `ActivityLog` o de las métricas anteriores | Ver §8. Ya existe un módulo de puntuación en el Jardín ("Logros · 3080"): **unificar**, no crear una segunda puntuación paralela. |
+| Métrica              | Tabla y campos                                         | Notas de cálculo                                                                                                                                                                      |
+| -------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Completadas          | `Task.completedAt`, `status`                           | `deletedAt IS NULL`; en zona horaria del usuario (`User`/tarea `timeZone`, por defecto Europe/Madrid).                                                                                |
+| Creadas              | `Task.createdAt`                                       | Igual.                                                                                                                                                                                |
+| Tasa de completitud  | `Task.dueDate` + `completedAt`                         | Denominador: tareas con `dueDate` en el rango (o creadas en el rango si no hay fecha — _decisión abierta D2_). Canceladas ("No haré", `status = cancelled`) excluidas de ambos lados. |
+| Puntualidad          | `dueDate` vs `completedAt`                             | A tiempo = `completedAt <= dueDate` (+ tolerancia de día completo si `isAllDay`).                                                                                                     |
+| Vencidas arrastradas | `dueDate < now`, `status = active`                     | Stock a fecha de corte de cada punto del gráfico.                                                                                                                                     |
+| Recurrentes          | `seriesId`, ocurrencias                                | Cada ocurrencia completada cuenta como una completada en su fecha. No duplicar la serie (usa la misma lógica de expansión que el resto de la app).                                    |
+| Foco                 | `FocusSession`                                         | `type = focus`, `actualSeconds`, `startedAt`, `completed`, `interruptedCount`; distribución vía `taskId → projectId, tags`. Sesiones sin tarea = grupo "Sin tarea".                   |
+| Hábitos              | `Habit` (`goal`, `frequency`), `HabitLog`              | Cumplimiento diario = `count >= goal` en días que la `frequency` marca como esperados. Reutilizar el cálculo de `habits.service.stats` para no divergir.                              |
+| Valor de logro       | derivado de `ActivityLog` o de las métricas anteriores | Ver §8. Ya existe un módulo de puntuación en el Jardín ("Logros · 3080"): **unificar**, no crear una segunda puntuación paralela.                                                     |
 
 ### 7.2. Endpoints nuevos propuestos (módulo `stats`, RF-2301+)
 
@@ -175,11 +175,11 @@ GET /stats/achievement                             → valor de logro, nivel, hi
 GET /stats/export?from&to&format=csv|json          → exportación del rango filtrado
 ```
 
-- **Scope OAuth nuevo `stats:read`** (o composición de `tasks:read` + `focus:read` + `habits:read`; *decisión abierta D3*, propuesta por defecto: scope nuevo, más claro para tokens MCP/API).
+- **Scope OAuth nuevo `stats:read`** (o composición de `tasks:read` + `focus:read` + `habits:read`; _decisión abierta D3_, propuesta por defecto: scope nuevo, más claro para tokens MCP/API).
 - Respuestas **agregadas en servidor** (SQL con `date_trunc`/buckets en la zona horaria pedida): el cliente nunca descarga filas crudas para pintar. Parámetro `tz` obligatorio (la web manda `Europe/Madrid`).
 - Siempre filtrar `deletedAt IS NULL` y `ownerId = usuario autenticado`.
 - **Una sola fuente de cálculo por métrica**: los agregados de foco y hábitos deben salir del mismo SQL que alimenta Reportes y los widgets del Jardín (hoy divergen: 132 min vs 0; 397 min vs 2 h 12 min). Extraer el cálculo a un servicio compartido `metrics.service` usado por `reports`, `dashboard` y `stats`.
-- **Caché/precálculo**: *decisión abierta D4*. Propuesta por defecto: **cálculo bajo demanda en F1-F2** (volúmenes de un solo usuario lo permiten) y añadir tabla `stats_daily` materializada por día solo si los tiempos superan ~500 ms en la pestaña Resumen. Revisar índices: `(owner_id, completed_at)` en `tasks`, `(owner_id, started_at)` en `focus_sessions`, `(owner_id, habit_id, date)` en `habit_logs`.
+- **Caché/precálculo**: _decisión abierta D4_. Propuesta por defecto: **cálculo bajo demanda en F1-F2** (volúmenes de un solo usuario lo permiten) y añadir tabla `stats_daily` materializada por día solo si los tiempos superan ~500 ms en la pestaña Resumen. Revisar índices: `(owner_id, completed_at)` en `tasks`, `(owner_id, started_at)` en `focus_sessions`, `(owner_id, habit_id, date)` en `habit_logs`.
 
 ## 8. Valor de logro (gamificación)
 
@@ -190,7 +190,7 @@ Equivalente al Achievement Value de TickTick / Karma de Todoist, con mejora de *
 - **Reglas anti-fraude** (copiadas de TickTick): solo cuentan acciones propias; en listas compartidas, las tareas completadas por otros ni suman ni restan; las asignadas a otros que se retrasan no penalizan.
 - Actualización: TickTick lo hace a las 00:00; propuesta: **en tiempo real** (es barato al derivarse de agregados) con histórico diario para la curva de evolución.
 - **Unificar con el módulo "Logros" del Jardín**: ya existe una puntuación (3080). Esta spec la absorbe: misma puntuación, mismo historial; el widget del Jardín pasa a enlazar a `/statistics`. Corregir su botón contradictorio ("Puntuación activada" / "Puntuación desactivada") — §2.2 punto 11.
-- *Decisión abierta D5*: permitir desactivar la gamificación en Ajustes. **Propuesta por defecto: sí**, visible por defecto y ocultable.
+- _Decisión abierta D5_: permitir desactivar la gamificación en Ajustes. **Propuesta por defecto: sí**, visible por defecto y ocultable.
 
 ## 9. Privacidad y seguridad
 
@@ -209,22 +209,22 @@ Todo lo medido abajo viene de la app en producción (20-10-2026). Regla de oro: 
 
 **Color (claro / oscuro):**
 
-| Token | Claro | Oscuro | Uso en Estadísticas |
-|---|---|---|---|
-| `--accent` | `#4772fa` | `#4772fa` | serie principal, KPI activo, nivel de logro |
-| `--accent-hover` / `--accent-active` | `#6c8efb` / `#3e60cd` | iguales | estados hover/activo, 2º tono de la serie |
-| `--accent-soft` | `rgba(71,114,250,.12)` | `rgba(71,114,250,.34)` | áreas de relleno, fondo de chips, segmento seleccionado |
-| `--success` | `#1f9d55` | `#3dbe74` | variación positiva, "a tiempo", hábito cumplido |
-| `--warning` | `#faa80c` | `#faa80c` | avisos, antigüedad 7-30 días |
-| `--danger` | `#e03131` | `#e03131` | variación negativa, vencidas, ">30 días" |
-| `--prio-high` / `--prio-medium` / `--prio-low` / `--prio-none` | `#e13e39` / `#faa80c` / `#4772fa` / `#b3b3b3` | iguales | distribución por prioridad (mismos colores que el resto de la app) |
-| `--bg` | `#ffffff` | `#242424` | fondo de página |
-| `--surface` | `#ffffff` | `#222222` | tarjetas |
-| `--surface-2` / `--surface-3` | `rgba(25,25,25,.04)` / `.03` | `rgba(255,255,255,.04)` / `.03` | fondos sutiles, pista de barras de progreso, nivel 0 del heatmap |
-| `--ink` | `#191919` | `#ffffff` | texto principal, números KPI |
-| `--ink-2` / `--ink-faint` | `rgba(25,25,25,.6)` / `.55` | `rgba(255,255,255,.6)` / `.45` | etiquetas, ejes, texto secundario |
-| `--border` / `--border-strong` | `rgba(25,25,25,.05)` / `#d9dce3` | `rgba(255,255,255,.06)` / `.14` | bordes de tarjeta, gridlines |
-| `--info` = `--accent`, `--info-soft` = `--accent-soft` | | | alias disponibles |
+| Token                                                          | Claro                                         | Oscuro                          | Uso en Estadísticas                                                |
+| -------------------------------------------------------------- | --------------------------------------------- | ------------------------------- | ------------------------------------------------------------------ |
+| `--accent`                                                     | `#4772fa`                                     | `#4772fa`                       | serie principal, KPI activo, nivel de logro                        |
+| `--accent-hover` / `--accent-active`                           | `#6c8efb` / `#3e60cd`                         | iguales                         | estados hover/activo, 2º tono de la serie                          |
+| `--accent-soft`                                                | `rgba(71,114,250,.12)`                        | `rgba(71,114,250,.34)`          | áreas de relleno, fondo de chips, segmento seleccionado            |
+| `--success`                                                    | `#1f9d55`                                     | `#3dbe74`                       | variación positiva, "a tiempo", hábito cumplido                    |
+| `--warning`                                                    | `#faa80c`                                     | `#faa80c`                       | avisos, antigüedad 7-30 días                                       |
+| `--danger`                                                     | `#e03131`                                     | `#e03131`                       | variación negativa, vencidas, ">30 días"                           |
+| `--prio-high` / `--prio-medium` / `--prio-low` / `--prio-none` | `#e13e39` / `#faa80c` / `#4772fa` / `#b3b3b3` | iguales                         | distribución por prioridad (mismos colores que el resto de la app) |
+| `--bg`                                                         | `#ffffff`                                     | `#242424`                       | fondo de página                                                    |
+| `--surface`                                                    | `#ffffff`                                     | `#222222`                       | tarjetas                                                           |
+| `--surface-2` / `--surface-3`                                  | `rgba(25,25,25,.04)` / `.03`                  | `rgba(255,255,255,.04)` / `.03` | fondos sutiles, pista de barras de progreso, nivel 0 del heatmap   |
+| `--ink`                                                        | `#191919`                                     | `#ffffff`                       | texto principal, números KPI                                       |
+| `--ink-2` / `--ink-faint`                                      | `rgba(25,25,25,.6)` / `.55`                   | `rgba(255,255,255,.6)` / `.45`  | etiquetas, ejes, texto secundario                                  |
+| `--border` / `--border-strong`                                 | `rgba(25,25,25,.05)` / `#d9dce3`              | `rgba(255,255,255,.06)` / `.14` | bordes de tarjeta, gridlines                                       |
+| `--info` = `--accent`, `--info-soft` = `--accent-soft`         |                                               |                                 | alias disponibles                                                  |
 
 **Paleta categórica para distribuciones** (por lista/etiqueta/tarea). No existe hoy; propuesta de 8 tonos derivados de los tokens (nuevo token `--chart-1…8`): `#4772fa`, `#1f9d55`, `#faa80c`, `#e13e39`, `#6c8efb`, `#3e60cd`, `#3dbe74`, `#b3b3b3`. El último se reserva para "Sin tarea" / "Otros". En tema oscuro se mantienen los mismos hex salvo `--chart-6 → #8ea6ff` por contraste. Cuando la distribución es por prioridad, **no** usar la paleta categórica: usar los `--prio-*` (coherencia con checkboxes y chips de la app).
 
@@ -480,38 +480,43 @@ Antes de dar F4 por cerrada, revisión visual obligatoria (como esta auditoría)
 ## 11. Fases y criterios de aceptación
 
 **F0 – Saneamiento del reporte actual** (rápido, independiente)
+
 - Corregidos los 15 defectos de §2.2 (o movidos a la auditoría general los que no son de Estadísticas); narrativa y tarjetas usan la misma fuente de cálculo para foco y hábitos (`metrics.service` compartido).
 
 **F1 – Resumen + Tareas (igualar a TickTick)**
+
 - `/statistics` con cabecera (rango + filtros), pestaña Resumen con las 6 KPI y tendencia completadas/creadas, pestaña Tareas completa, con la maquetación de §10 (rejilla 12 cols / 2 cols, tarjetas sólidas, paleta de tokens).
 - Criterios: los números de la tasa de completitud coinciden con un conteo manual en una semana de prueba; los filtros cambian todos los gráficos; semanas empiezan en lunes; tiempos < 1 s con el volumen real de Pablo; capturas en 1280/390 verificadas (§10.15).
 
 **F2 – Foco**
+
 - Pestaña Foco completa (tendencia, timeline diario, heatmap anual, distribución, calidad).
 - Criterios: el heatmap anual muestra intensidad correcta verificada contra `focus_sessions` de 3 días concretos; la distribución por lista suma el 100 % del tiempo del rango; el heatmap es el mismo componente que usará Hábitos.
 
 **F3 – Hábitos + Valor de logro**
+
 - Pestaña Hábitos y módulo de valor de logro con niveles, fórmula pública y reglas anti-fraude, unificado con la puntuación del Jardín.
 - Criterios: racha y % de un hábito coinciden con `GET /habits/:id/stats`; la fórmula publicada reproduce exactamente la puntuación mostrada en un caso de prueba documentado; el widget "Logros" del Jardín enlaza a `/statistics` y ya no se contradice.
 
 **F4 – Exportación y pulido**
+
 - CSV/JSON, tablas accesibles, entrada desde menú de cuenta (si ya existe), chequeo visual §10.15 completo (claro/oscuro, con y sin datos).
 - Criterios: el CSV exportado abre en hoja de cálculo con columnas correctas y totales que cuadran con la pantalla.
 
 ## 12. Decisiones abiertas (propuesta por defecto incluida)
 
-| # | Decisión | Propuesta por defecto |
-|---|---|---|
-| D1 | ¿"Reportes" se renombra/fusiona con "Estadísticas"? | No: dos entradas (narrativa vs cuadro de mando) |
-| D2 | Denominador de la tasa de completitud cuando la tarea no tiene fecha | Contar solo tareas con fecha (definición TickTick); sin fecha se excluyen |
-| D3 | Scope OAuth | `stats:read` nuevo |
-| D4 | Precálculo en tabla `stats_daily` | No al principio; añadir solo si >500 ms |
-| D5 | Gamificación desactivable | Sí, visible por defecto, ocultable en Ajustes |
-| D6 | Métrica de precisión de estimaciones pomodoro | Fase posterior (F4+), no bloquea |
-| D7 | Librería de gráficos | Recharts 3.x + SVG propio para heatmap y regla 24 h |
-| D8 | Entrada mientras no exista el menú de cuenta | Ítem "Estadísticas" en el sidebar, se mueve después |
-| D9 | Paleta categórica para distribuciones | 8 tonos derivados de tokens (`--chart-1…8`, §10.1); por prioridad se usan los `--prio-*` |
-| D10 | ¿El valor de logro absorbe la puntuación "Logros" del Jardín? | Sí: una sola puntuación; el widget enlaza a `/statistics` |
+| #   | Decisión                                                             | Propuesta por defecto                                                                    |
+| --- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| D1  | ¿"Reportes" se renombra/fusiona con "Estadísticas"?                  | No: dos entradas (narrativa vs cuadro de mando)                                          |
+| D2  | Denominador de la tasa de completitud cuando la tarea no tiene fecha | Contar solo tareas con fecha (definición TickTick); sin fecha se excluyen                |
+| D3  | Scope OAuth                                                          | `stats:read` nuevo                                                                       |
+| D4  | Precálculo en tabla `stats_daily`                                    | No al principio; añadir solo si >500 ms                                                  |
+| D5  | Gamificación desactivable                                            | Sí, visible por defecto, ocultable en Ajustes                                            |
+| D6  | Métrica de precisión de estimaciones pomodoro                        | Fase posterior (F4+), no bloquea                                                         |
+| D7  | Librería de gráficos                                                 | Recharts 3.x + SVG propio para heatmap y regla 24 h                                      |
+| D8  | Entrada mientras no exista el menú de cuenta                         | Ítem "Estadísticas" en el sidebar, se mueve después                                      |
+| D9  | Paleta categórica para distribuciones                                | 8 tonos derivados de tokens (`--chart-1…8`, §10.1); por prioridad se usan los `--prio-*` |
+| D10 | ¿El valor de logro absorbe la puntuación "Logros" del Jardín?        | Sí: una sola puntuación; el widget enlaza a `/statistics`                                |
 
 ## 13. Referencias
 
