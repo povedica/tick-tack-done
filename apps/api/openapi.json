@@ -773,7 +773,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "",
             "content": {
               "application/json": {
@@ -795,59 +795,43 @@
         ]
       }
     },
+    "/api/v1/oauth/register": {
+      "post": {
+        "operationId": "OauthController_register",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterOauthClientDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisteredOauthClientDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Dynamic client registration for public PKCE clients (RFC 7591)",
+        "tags": [
+          "oauth"
+        ],
+        "security": []
+      }
+    },
     "/api/v1/oauth/authorize": {
       "get": {
         "operationId": "OauthController_describe",
-        "parameters": [
-          {
-            "name": "client_id",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "redirect_uri",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "scope",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "state",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "code_challenge",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "code_challenge_method",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
+        "parameters": [],
         "responses": {
           "200": {
             "description": "",
@@ -884,7 +868,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "",
             "content": {
               "application/json": {
@@ -932,7 +916,95 @@
             }
           }
         },
-        "summary": "Exchange an authorization code and PKCE verifier for a bearer token",
+        "summary": "Exchange an authorization code or refresh token for a bearer token",
+        "tags": [
+          "oauth"
+        ],
+        "security": []
+      }
+    },
+    "/api/v1/oauth/revoke": {
+      "post": {
+        "operationId": "OauthController_revoke",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OauthRevokeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Revoke an OAuth access or refresh token (RFC 7009)",
+        "tags": [
+          "oauth"
+        ],
+        "security": []
+      }
+    },
+    "/browser-oauth/authorize": {
+      "get": {
+        "operationId": "OauthBrowserController_authorize",
+        "parameters": [],
+        "responses": {
+          "302": {
+            "description": "Redirect to /login or /oauth/consent"
+          }
+        },
+        "summary": "Browser entry for Authorization Code + PKCE. Redirects to login or the consent screen.",
+        "tags": [
+          "oauth"
+        ],
+        "security": []
+      }
+    },
+    "/.well-known/oauth-protected-resource": {
+      "get": {
+        "operationId": "OauthDiscoveryController_protectedResource",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtectedResourceMetadataDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "OAuth protected resource metadata for the MCP server (RFC 9728)",
+        "tags": [
+          "oauth"
+        ],
+        "security": []
+      }
+    },
+    "/.well-known/oauth-authorization-server": {
+      "get": {
+        "operationId": "OauthDiscoveryController_authorizationServer",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorizationServerMetadataDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "OAuth authorization server metadata (RFC 8414)",
         "tags": [
           "oauth"
         ],
@@ -7814,6 +7886,11 @@
           "revoked_at": {
             "type": "string",
             "nullable": true
+          },
+          "client_name": {
+            "type": "string",
+            "nullable": true,
+            "description": "OAuth client name, when this token was issued by consent"
           }
         },
         "required": [
@@ -7823,7 +7900,8 @@
           "scopes",
           "created_at",
           "last_used_at",
-          "revoked_at"
+          "revoked_at",
+          "client_name"
         ]
       },
       "TokenPageDto": {
@@ -7921,6 +7999,11 @@
             "type": "string",
             "nullable": true
           },
+          "client_name": {
+            "type": "string",
+            "nullable": true,
+            "description": "OAuth client name, when this token was issued by consent"
+          },
           "token": {
             "type": "string",
             "description": "Shown once. Only the hash is stored."
@@ -7934,6 +8017,7 @@
           "created_at",
           "last_used_at",
           "revoked_at",
+          "client_name",
           "token"
         ]
       },
@@ -8139,6 +8223,98 @@
           "redirect_uris"
         ]
       },
+      "RegisterOauthClientDto": {
+        "type": "object",
+        "properties": {
+          "redirect_uris": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "client_name": {
+            "type": "string"
+          },
+          "token_endpoint_auth_method": {
+            "type": "string",
+            "enum": [
+              "none"
+            ]
+          },
+          "grant_types": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "authorization_code",
+                "refresh_token"
+              ]
+            }
+          },
+          "response_types": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "code"
+              ]
+            }
+          }
+        },
+        "required": [
+          "redirect_uris"
+        ]
+      },
+      "RegisteredOauthClientDto": {
+        "type": "object",
+        "properties": {
+          "client_id": {
+            "type": "string"
+          },
+          "client_name": {
+            "type": "string"
+          },
+          "redirect_uris": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "grant_types": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "authorization_code",
+                "refresh_token"
+              ]
+            }
+          },
+          "response_types": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "code"
+              ]
+            }
+          },
+          "token_endpoint_auth_method": {
+            "type": "string",
+            "enum": [
+              "none"
+            ]
+          }
+        },
+        "required": [
+          "client_id",
+          "client_name",
+          "redirect_uris",
+          "grant_types",
+          "response_types",
+          "token_endpoint_auth_method"
+        ]
+      },
       "OauthConsentViewDto": {
         "type": "object",
         "properties": {
@@ -8187,6 +8363,13 @@
           },
           "allow": {
             "type": "boolean"
+          },
+          "requested_scope": {
+            "type": "string",
+            "description": "Original scope from the authorization request. Empty means the MCP default set."
+          },
+          "resource": {
+            "type": "string"
           }
         },
         "required": [
@@ -8216,7 +8399,8 @@
           "grant_type": {
             "type": "string",
             "enum": [
-              "authorization_code"
+              "authorization_code",
+              "refresh_token"
             ]
           },
           "code": {
@@ -8230,14 +8414,22 @@
           },
           "code_verifier": {
             "type": "string"
+          },
+          "refresh_token": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "resource": {
+            "type": "string"
+          },
+          "client_secret": {
+            "type": "string"
           }
         },
         "required": [
-          "grant_type",
-          "code",
-          "redirect_uri",
-          "client_id",
-          "code_verifier"
+          "grant_type"
         ]
       },
       "OauthTokenResponseDto": {
@@ -8252,6 +8444,12 @@
               "Bearer"
             ]
           },
+          "expires_in": {
+            "type": "number"
+          },
+          "refresh_token": {
+            "type": "string"
+          },
           "scope": {
             "type": "string"
           }
@@ -8259,7 +8457,121 @@
         "required": [
           "access_token",
           "token_type",
+          "expires_in",
+          "refresh_token",
           "scope"
+        ]
+      },
+      "OauthRevokeDto": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "token_type_hint": {
+            "type": "string",
+            "enum": [
+              "access_token",
+              "refresh_token"
+            ]
+          }
+        },
+        "required": [
+          "token"
+        ]
+      },
+      "ProtectedResourceMetadataDto": {
+        "type": "object",
+        "properties": {
+          "resource": {
+            "type": "string"
+          },
+          "authorization_servers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "scopes_supported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "bearer_methods_supported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "resource",
+          "authorization_servers",
+          "scopes_supported",
+          "bearer_methods_supported"
+        ]
+      },
+      "AuthorizationServerMetadataDto": {
+        "type": "object",
+        "properties": {
+          "issuer": {
+            "type": "string"
+          },
+          "authorization_endpoint": {
+            "type": "string"
+          },
+          "token_endpoint": {
+            "type": "string"
+          },
+          "registration_endpoint": {
+            "type": "string"
+          },
+          "response_types_supported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "grant_types_supported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "code_challenge_methods_supported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "token_endpoint_auth_methods_supported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "scopes_supported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "authorization_response_iss_parameter_supported": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "issuer",
+          "authorization_endpoint",
+          "token_endpoint",
+          "registration_endpoint",
+          "response_types_supported",
+          "grant_types_supported",
+          "code_challenge_methods_supported",
+          "token_endpoint_auth_methods_supported",
+          "scopes_supported",
+          "authorization_response_iss_parameter_supported"
         ]
       },
       "TotpCodeDto": {

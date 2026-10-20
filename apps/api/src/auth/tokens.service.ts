@@ -14,9 +14,12 @@ import type {
   TokenDto,
   TokenPageDto,
 } from './tokens.dto.js';
+import type { Tx } from '../prisma/tx.js';
 import { isApiScope } from './scopes.js';
 import { requireBrowserSession } from './session-access.js';
+import { TokenAudit } from './token-audit.js';
 import { newPersonalAccessToken } from './token-secret.js';
+import { revokeRefreshChainsForAccess } from './oauth-refresh.js';
 
 interface TokenRow {
   id: string;
@@ -26,6 +29,7 @@ interface TokenRow {
   createdAt: Date;
   lastUsedAt: Date | null;
   revokedAt: Date | null;
+  oauthClient?: { name: string } | null;
 }
 
 @Injectable()
@@ -33,6 +37,7 @@ export class TokensService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
+    @Inject(TokenAudit) private readonly audit: TokenAudit,
   ) {}
 
   async list(
@@ -57,6 +62,7 @@ export class TokensService {
       },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: limit + 1,
+      include: { oauthClient: { select: { name: true } } },
     });
     return pageTokens(rows, limit);
   }
@@ -131,9 +137,11 @@ export class TokensService {
       if (current.revokedAt !== null) {
         return;
       }
+      const now = new Date();
+      const extra = await revokeRefreshChainsForAccess(tx, id, now);
       const row = await tx.personalAccessToken.update({
         where: { id },
-        data: { revokedAt: new Date() },
+        data: { revokedAt: now },
       });
       await this.events.record(tx, actorOf(user), {
         type: DomainEvent.tokenRevoked,
@@ -143,7 +151,70 @@ export class TokensService {
         data: { token: asJson(toToken(row)) },
         previous: { revoked_at: null },
       });
+      await this.audit.lifecycle(tx, { ownerId: user.id, tokenId: id, kind: 'revoked' });
+      for (const sibling of extra) {
+        await this.audit.lifecycle(tx, { ownerId: user.id, tokenId: sibling, kind: 'revoked' });
+      }
     });
+  }
+
+  /** OAuth access token. The caller owns the transaction. Does not require a browser session. */
+  async issueOauthAccess(
+    tx: Tx,
+    input: {
+      readonly user: AuthUser;
+      readonly name: string;
+      readonly scopes: readonly string[];
+      readonly clientId: string;
+      readonly expiresAt: Date;
+    },
+  ): Promise<{ readonly id: string; readonly token: string }> {
+    const unique = dedupe(input.scopes);
+    if (unique.length === 0 || unique.some((scope) => !isApiScope(scope))) {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'scopes must be a non-empty list of known scopes',
+      );
+    }
+    const base = input.name.trim().slice(0, 80);
+    const issued = newPersonalAccessToken();
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const name = attempt === 0 ? base : `${base.slice(0, 72)}-${attempt.toString(16)}`;
+      try {
+        const created = await tx.personalAccessToken.create({
+          data: {
+            ownerId: input.user.id,
+            name,
+            tokenHash: issued.hash,
+            tokenPrefix: issued.prefix,
+            scopes: unique,
+            expiresAt: input.expiresAt,
+            oauthClientId: input.clientId,
+          },
+        });
+        const body = toToken(created);
+        await this.events.record(tx, actorOf(input.user), {
+          type: DomainEvent.tokenCreated,
+          entityType: 'personal_access_token',
+          entityId: created.id,
+          action: 'created',
+          data: { token: asJson(body) },
+          previous: null,
+        });
+        return { id: created.id, token: issued.token };
+      } catch (error) {
+        if (isUniqueConflict(error)) {
+          continue;
+        }
+        throw error;
+      }
+    }
+    throw new DomainException(
+      HttpStatus.CONFLICT,
+      'token_name_taken',
+      'An active token with this name already exists',
+    );
   }
 
   async activity(
@@ -215,6 +286,7 @@ function toToken(row: TokenRow): TokenDto {
     created_at: row.createdAt.toISOString(),
     last_used_at: row.lastUsedAt === null ? null : row.lastUsedAt.toISOString(),
     revoked_at: row.revokedAt === null ? null : row.revokedAt.toISOString(),
+    client_name: row.oauthClient?.name ?? null,
   };
 }
 

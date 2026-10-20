@@ -315,6 +315,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/oauth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Dynamic client registration for public PKCE clients (RFC 7591) */
+        post: operations["OauthController_register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/oauth/authorize": {
         parameters: {
             query?: never;
@@ -342,8 +359,76 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Exchange an authorization code and PKCE verifier for a bearer token */
+        /** Exchange an authorization code or refresh token for a bearer token */
         post: operations["OauthController_token"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/oauth/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoke an OAuth access or refresh token (RFC 7009) */
+        post: operations["OauthController_revoke"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/browser-oauth/authorize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Browser entry for Authorization Code + PKCE. Redirects to login or the consent screen. */
+        get: operations["OauthBrowserController_authorize"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/.well-known/oauth-protected-resource": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** OAuth protected resource metadata for the MCP server (RFC 9728) */
+        get: operations["OauthDiscoveryController_protectedResource"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/.well-known/oauth-authorization-server": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** OAuth authorization server metadata (RFC 8414) */
+        get: operations["OauthDiscoveryController_authorizationServer"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2811,6 +2896,8 @@ export interface components {
             created_at: string;
             last_used_at: string | null;
             revoked_at: string | null;
+            /** @description OAuth client name, when this token was issued by consent */
+            client_name: string | null;
         };
         TokenPageDto: {
             items: components["schemas"]["TokenDto"][];
@@ -2829,6 +2916,8 @@ export interface components {
             created_at: string;
             last_used_at: string | null;
             revoked_at: string | null;
+            /** @description OAuth client name, when this token was issued by consent */
+            client_name: string | null;
             /** @description Shown once. Only the hash is stored. */
             token: string;
         };
@@ -2881,6 +2970,23 @@ export interface components {
             name: string;
             redirect_uris: string[];
         };
+        RegisterOauthClientDto: {
+            redirect_uris: string[];
+            client_name?: string;
+            /** @enum {string} */
+            token_endpoint_auth_method?: "none";
+            grant_types?: ("authorization_code" | "refresh_token")[];
+            response_types?: "code"[];
+        };
+        RegisteredOauthClientDto: {
+            client_id: string;
+            client_name: string;
+            redirect_uris: string[];
+            grant_types: ("authorization_code" | "refresh_token")[];
+            response_types: "code"[];
+            /** @enum {string} */
+            token_endpoint_auth_method: "none";
+        };
         OauthConsentViewDto: {
             client_name: string;
             scopes: string[];
@@ -2895,23 +3001,55 @@ export interface components {
             /** @enum {string} */
             code_challenge_method: "S256";
             allow: boolean;
+            /** @description Original scope from the authorization request. Empty means the MCP default set. */
+            requested_scope?: string;
+            resource?: string;
         };
         OauthRedirectDto: {
             redirect_to: string;
         };
         OauthTokenDto: {
             /** @enum {string} */
-            grant_type: "authorization_code";
-            code: string;
-            redirect_uri: string;
-            client_id: string;
-            code_verifier: string;
+            grant_type: "authorization_code" | "refresh_token";
+            code?: string;
+            redirect_uri?: string;
+            client_id?: string;
+            code_verifier?: string;
+            refresh_token?: string;
+            scope?: string;
+            resource?: string;
+            client_secret?: string;
         };
         OauthTokenResponseDto: {
             access_token: string;
             /** @enum {string} */
             token_type: "Bearer";
+            expires_in: number;
+            refresh_token: string;
             scope: string;
+        };
+        OauthRevokeDto: {
+            token: string;
+            /** @enum {string} */
+            token_type_hint?: "access_token" | "refresh_token";
+        };
+        ProtectedResourceMetadataDto: {
+            resource: string;
+            authorization_servers: string[];
+            scopes_supported: string[];
+            bearer_methods_supported: string[];
+        };
+        AuthorizationServerMetadataDto: {
+            issuer: string;
+            authorization_endpoint: string;
+            token_endpoint: string;
+            registration_endpoint: string;
+            response_types_supported: string[];
+            grant_types_supported: string[];
+            code_challenge_methods_supported: string[];
+            token_endpoint_auth_methods_supported: string[];
+            scopes_supported: string[];
+            authorization_response_iss_parameter_supported: boolean;
         };
         TotpCodeDto: {
             code: string;
@@ -4191,7 +4329,7 @@ export interface operations {
             };
         };
         responses: {
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4201,16 +4339,32 @@ export interface operations {
             };
         };
     };
+    OauthController_register: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterOauthClientDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegisteredOauthClientDto"];
+                };
+            };
+        };
+    };
     OauthController_describe: {
         parameters: {
-            query: {
-                client_id: string;
-                redirect_uri: string;
-                scope: string;
-                state: string;
-                code_challenge: string;
-                code_challenge_method: string;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
@@ -4240,7 +4394,7 @@ export interface operations {
             };
         };
         responses: {
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4269,6 +4423,83 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OauthTokenResponseDto"];
+                };
+            };
+        };
+    };
+    OauthController_revoke: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OauthRevokeDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OauthBrowserController_authorize: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirect to /login or /oauth/consent */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OauthDiscoveryController_protectedResource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProtectedResourceMetadataDto"];
+                };
+            };
+        };
+    };
+    OauthDiscoveryController_authorizationServer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthorizationServerMetadataDto"];
                 };
             };
         };

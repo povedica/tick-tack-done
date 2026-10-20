@@ -27,6 +27,20 @@ export function secretsMatch(left: string, right: string): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+export function readSessionCookie(header: string | undefined): string | null {
+  if (header === undefined) {
+    return null;
+  }
+  for (const part of header.split(';')) {
+    const [name, ...rest] = part.trim().split('=');
+    if (name === SESSION_COOKIE) {
+      const value = rest.join('=');
+      return value.length > 0 ? decodeURIComponent(value) : null;
+    }
+  }
+  return null;
+}
+
 export function sessionCookieOptions(): {
   httpOnly: true;
   sameSite: 'strict';

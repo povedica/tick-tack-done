@@ -351,7 +351,7 @@ export function TokensPage() {
               <article key={token.id} className={revoked ? 'token-row is-revoked' : 'token-row'}>
                 <div className="token-head">
                   <div>
-                    <h2>{token.name}</h2>
+                    <h2>{token.client_name ?? token.name}</h2>
                     <code className="token-prefix">{token.token_prefix}</code>
                   </div>
                   <span className={revoked ? 'token-pill is-revoked' : 'token-pill'}>
