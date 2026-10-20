@@ -463,6 +463,8 @@ function smartLabel(messages: Messages, key: string): string {
       return messages.smartNoDate;
     case 'recently_added':
       return messages.smartRecent;
+    case 'someday':
+      return messages.smartSomeday;
     default:
       return key;
   }

@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowUpDown, ChevronDown, Lightbulb, Menu, Sprout } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { api } from '../../api';
 import type { CreateTaskBody } from '@reflexionia/sdk';
 import { UndoToastStack } from '../../components/UndoToast';
@@ -18,6 +18,7 @@ import { flushOfflineQueue, newMutation, runOrQueue } from '../offline/client';
 import { isTypingTarget } from '../../shell/shortcuts';
 import { useShellActions } from '../../shell/shell-actions';
 import { collectTags } from '../tasks/collect';
+import { completeBody } from '../tasks/complete-body';
 import { QuickAddTools, type QuickPreview } from '../tasks/QuickAddTools';
 import { refreshTaskSurfaces } from '../tasks/refresh';
 import { closingRequest } from '../closing/api';
@@ -73,6 +74,7 @@ export function TodayPage() {
   const shell = useShellActions();
   const locale = useAppLocale();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const notice = useCaptureNotice((state) => state.notice);
   const setNotice = useCaptureNotice((state) => state.setNotice);
@@ -286,6 +288,25 @@ export function TodayPage() {
   const sections = groupTasks(pinFirst(merged.grouped, pins), group, sort, sortDir);
   const overdueBlock =
     merged.overdue.length > 0 ? groupTasks(merged.overdue, 'none', sort, sortDir) : [];
+
+  useEffect(() => {
+    const want =
+      location.hash === '#overdue' ||
+      (typeof location.state === 'object' &&
+        location.state !== null &&
+        'scrollTo' in location.state &&
+        (location.state as { scrollTo?: string }).scrollTo === 'overdue');
+    if (!want) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      document.getElementById('overdue')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [location.hash, location.state, overdueBlock.length]);
+
   const flatIds = [
     ...overdueBlock.flatMap((section) => section.tasks.map((task) => task.id)),
     ...sections.flatMap((section) => section.tasks.map((task) => task.id)),
@@ -421,8 +442,8 @@ export function TodayPage() {
       setLeaving((current) => dropId(current, task.id));
     }, delay);
     leaveTimers.current.set(task.id, timer);
-    void runOrQueue(newMutation('complete', task.id, {}), (key) =>
-      tasksApi.completeTask(task.id, {}, key),
+    void runOrQueue(newMutation('complete', task.id, completeBody()), (key) =>
+      tasksApi.completeTask(task.id, completeBody(), key),
     )
       .then(async ({ result }) => {
         if (result === null) {
@@ -727,7 +748,7 @@ export function TodayPage() {
       </form>
       {planIds.length === 0 || accepted ? (
         <p className="plan-line">
-          <Link to="/plan/day">{messages.planMyDay}</Link>
+          <Link className="app-link" to="/plan/day">{messages.planMyDay}</Link>
         </p>
       ) : (
         <section className="plan">
@@ -735,7 +756,7 @@ export function TodayPage() {
           {showLoad && load.data?.available_minutes != null ? (
             <p className="plan-line">
               {load.data.status === 'overload' && showReplan ? (
-                <Link to="/replan">
+                <Link className="app-link" to="/replan">
                   {messages.loadOver.replace(
                     '{minutes}',
                     String(load.data.task_minutes - load.data.available_minutes),
@@ -764,7 +785,7 @@ export function TodayPage() {
           ) : null}
           <p className="plan-line">
             {showClosing ? (
-              <Link to="/cierre">
+              <Link className="app-link" to="/cierre">
                 {messages.closeDay}
                 {eveningTasks.length +
                   parts.today.filter((task) => task.eveningOnly !== true).length >
@@ -774,7 +795,7 @@ export function TodayPage() {
               </Link>
             ) : null}
             {showClosing && showReplan ? ' · ' : null}
-            {showReplan ? <Link to="/replan">{messages.replanDay}</Link> : null}
+            {showReplan ? <Link className="app-link" to="/replan">{messages.replanDay}</Link> : null}
           </p>
           <p>{messages.planHideHint}</p>
           <ul>
@@ -839,9 +860,15 @@ export function TodayPage() {
               </button>
             </div>
           ) : null}
-          {overdueBlock.map((section) => (
-            <TaskGroup key="overdue" {...groupProps(section.id, section.tasks, true)} />
-          ))}
+          {overdueBlock.length > 0 ? (
+            <div id="overdue">
+              {overdueBlock.map((section) => (
+                <TaskGroup key="overdue" {...groupProps(section.id, section.tasks, true)} />
+              ))}
+            </div>
+          ) : (
+            <div id="overdue" hidden />
+          )}
           {sections.map((section) => (
             <TaskGroup key={section.id} {...groupProps(section.id, section.tasks)} />
           ))}

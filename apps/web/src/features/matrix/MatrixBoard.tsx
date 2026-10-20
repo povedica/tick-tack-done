@@ -10,6 +10,7 @@ import { Link, useSearchParams } from 'react-router';
 import type { Task } from '@reflexionia/sdk';
 import { api } from '../../api';
 import { PriorityCheck } from '../../components/PriorityCheck';
+import { displayTitle } from '../tasks/displayTitle';
 import { EmptyState } from '../../components/ui';
 import { useMessages, type Messages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
@@ -239,12 +240,15 @@ export function MatrixBoard({
                     >
                       <PriorityCheck
                         priority={task.priority}
-                        label={priorityLabel(messages, task.priority)}
+                        label={messages.completeLabel.replace(
+                          '{name}',
+                          displayTitle(task.title),
+                        )}
                         checked={false}
                         onChange={() => undefined}
                       />
                       <Link className="task-title" to={`/list/${task.project_id}?task=${task.id}`}>
-                        {task.title}
+                        {displayTitle(task.title)}
                       </Link>
                       <span className="task-meta">
                         {scope.kind === 'all' ? (

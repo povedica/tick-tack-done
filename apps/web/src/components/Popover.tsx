@@ -66,7 +66,13 @@ export function Popover({
     return null;
   }
   return (
-    <div ref={ref} className={className ?? 'popover'} role="dialog" aria-label={label}>
+    <div
+      ref={ref}
+      className={className ?? 'popover'}
+      role="dialog"
+      aria-modal="true"
+      aria-label={label}
+    >
       {children}
     </div>
   );

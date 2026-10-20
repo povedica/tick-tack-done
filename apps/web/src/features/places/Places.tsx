@@ -12,6 +12,7 @@ import {
 } from 'react-router';
 import { calendarDateKey } from '@reflexionia/domain';
 import { api } from '../../api';
+import { completeBody } from '../tasks/complete-body';
 import { useActionToast } from '../../components/action-toast';
 import { Button, EmptyState, ErrorState, SkeletonRows } from '../../components/ui';
 import { fill, useMessages, type Messages } from '../../i18n';
@@ -153,7 +154,7 @@ export function InboxPage() {
             }}
             onDone={() => {
               void runOrQueue(newMutation('complete', current.id, {}), (key) =>
-                api.completeTask(current.id, {}, key),
+                api.completeTask(current.id, completeBody(), key),
               ).then(() => {
                 step(messages.processDoneAction);
               });
@@ -188,7 +189,7 @@ export function InboxPage() {
             createProjectId={inbox?.id}
             onComplete={(row) => {
               void runOrQueue(newMutation('complete', row.id, {}), (key) =>
-                api.completeTask(row.id, {}, key),
+                api.completeTask(row.id, completeBody(), key),
               );
             }}
             onCreated={() => {
@@ -301,11 +302,19 @@ export function CalendarPage() {
   const navigate = useNavigate();
   const { view } = useParams();
   const [params, setParams] = useSearchParams();
-  const current = CAL_VIEWS.includes(view as (typeof CAL_VIEWS)[number]) ? view : 'month';
+  const knownView = CAL_VIEWS.includes(view as (typeof CAL_VIEWS)[number]);
+  const current = knownView ? view : 'month';
   const weekStart = usePreferences((state) => state.weekStart);
   const [cursor, setCursor] = useState(
     () => dayFromParam(params.get('date') ?? '') ?? localToday(new Date()),
   );
+
+  useEffect(() => {
+    // CAL-0: unknown calendar routes redirect instead of silently rendering month.
+    if (view !== undefined && !knownView) {
+      void navigate('/calendar/month', { replace: true });
+    }
+  }, [view, knownView, navigate]);
   const cells = viewDays(current ?? 'month', cursor, weekStart);
   const range = current === 'year' ? yearQueryRange(cursor) : monthQueryRange(cells);
   const tasks = useQuery({
@@ -375,7 +384,7 @@ export function CalendarPage() {
             {messages.calToday}
           </Button>
           <Button
-            aria-label={messages.calPrev}
+            aria-label={calendarShiftLabel(messages, current ?? 'month', -1)}
             onClick={() => {
               move(-1);
             }}
@@ -383,7 +392,7 @@ export function CalendarPage() {
             ‹
           </Button>
           <Button
-            aria-label={messages.calNext}
+            aria-label={calendarShiftLabel(messages, current ?? 'month', 1)}
             onClick={() => {
               move(1);
             }}
@@ -836,65 +845,82 @@ function Agenda({
     return <EmptyState title={messages.calendarTitle} body={messages.calEmpty} />;
   }
   const todayKey = localKey(new Date());
-  const weekday = new Intl.DateTimeFormat(locale, { weekday: 'short' });
+  const weekday = new Intl.DateTimeFormat(locale, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  });
+  // AG-1: agenda always starts at today and moves forward.
+  const forward = [...groups.entries()]
+    .filter(([key]) => key >= todayKey)
+    .sort(([left], [right]) => left.localeCompare(right));
+  if (forward.length === 0) {
+    return <EmptyState title={messages.calendarTitle} body={messages.calEmpty} />;
+  }
   return (
     <div className="agenda">
-      {[...groups.entries()]
-        .sort(([left], [right]) => left.localeCompare(right))
-        .map(([key, bucket]) => {
-          const day = dayFromParam(key) ?? new Date();
-          const sorted = [...bucket.tasks].sort((left, right) =>
-            (left.due_date ?? '').localeCompare(right.due_date ?? ''),
-          );
-          const timed = [...bucket.events].sort((left, right) =>
-            left.starts_at.localeCompare(right.starts_at),
-          );
-          return (
-            <section key={key} className={key === todayKey ? 'agenda-day is-today' : 'agenda-day'}>
-              <header>
-                <strong>{day.getDate()}</strong>
-                <span>{weekday.format(day)}</span>
-              </header>
-              <ul>
-                {timed.map((event) => (
-                  <li key={event.id}>
-                    <button
-                      type="button"
+      {forward.map(([key, bucket]) => {
+        const day = dayFromParam(key) ?? new Date();
+        const sorted = [...bucket.tasks].sort((left, right) =>
+          (left.due_date ?? '').localeCompare(right.due_date ?? ''),
+        );
+        const timed = [...bucket.events].sort((left, right) =>
+          left.starts_at.localeCompare(right.starts_at),
+        );
+        const heading =
+          key === todayKey
+            ? `${messages.calToday} · ${weekday.format(day)}`
+            : weekday.format(day);
+        return (
+          <section
+            key={key}
+            className={key === todayKey ? 'agenda-day is-today' : 'agenda-day'}
+          >
+            <header className="agenda-day-head">
+              <span>{heading}</span>
+            </header>
+            <ul>
+              {timed.map((event) => (
+                <li key={event.id}>
+                  <button
+                    type="button"
+                    className="agenda-card"
+                    title={event.title}
+                    style={chipStyle(event.color)}
+                    onClick={() => {
+                      onOpenEvent(event);
+                    }}
+                  >
+                    {event.is_all_day ? '' : `${clockLabel(event.starts_at, locale)} `}
+                    {event.title}
+                  </button>
+                </li>
+              ))}
+              {sorted.map((task) => {
+                const color = colors.get(task.project_id);
+                const title = calendarTaskLabel(
+                  task.title,
+                  task.due_date,
+                  task.time_zone,
+                  messages.untitled,
+                );
+                return (
+                  <li key={task.id}>
+                    <Link
                       className="agenda-card"
-                      style={chipStyle(event.color)}
-                      onClick={() => {
-                        onOpenEvent(event);
-                      }}
+                      to={`/list/${task.project_id}?task=${task.id}`}
+                      title={title}
+                      style={cardPaint(color)}
                     >
-                      {event.is_all_day ? '' : `${clockLabel(event.starts_at, locale)} `}
-                      {event.title}
-                    </button>
+                      {title}
+                    </Link>
                   </li>
-                ))}
-                {sorted.map((task) => {
-                  const color = colors.get(task.project_id);
-                  const title = calendarTaskLabel(
-                    task.title,
-                    task.due_date,
-                    task.time_zone,
-                    messages.untitled,
-                  );
-                  return (
-                    <li key={task.id}>
-                      <Link
-                        className="agenda-card"
-                        to={`/list/${task.project_id}?task=${task.id}`}
-                        style={cardPaint(color)}
-                      >
-                        {title}
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          );
-        })}
+                );
+              })}
+            </ul>
+          </section>
+        );
+      })}
     </div>
   );
 }
@@ -1111,6 +1137,26 @@ function labelView(messages: Messages, view: string): string {
   }
 }
 
+/** CAL-9: aria-label matches the unit the arrows actually move. */
+function calendarShiftLabel(messages: Messages, view: string, delta: number): string {
+  const next = delta > 0;
+  switch (view) {
+    case 'day':
+      return next ? messages.calNextDay : messages.calPrevDay;
+    case 'week':
+    case 'multi-day':
+    case 'multi-week':
+      return next ? messages.calNextWeek : messages.calPrevWeek;
+    case 'year':
+      return next ? messages.calNextYear : messages.calPrevYear;
+    case 'month':
+    case 'agenda':
+      return next ? messages.calNext : messages.calPrev;
+    default:
+      return next ? messages.calNextPeriod : messages.calPrevPeriod;
+  }
+}
+
 export function DashboardPage() {
   const messages = useMessages();
   const widgets = [
@@ -1224,9 +1270,19 @@ export function SearchPage() {
           setParams(next, { replace: true });
         }}
       >
-        <input name="q" defaultValue={q} aria-label={messages.searchTitle} />
+        <input
+          className="search-input"
+          name="q"
+          defaultValue={q}
+          placeholder={messages.searchPlaceholder}
+          aria-label={messages.searchTitle}
+        />
       </form>
-      {search.data?.groups.length === 0 ? <p>{messages.searchEmpty}</p> : null}
+      {search.data?.groups.length === 0 ? (
+        <p>
+          {messages.searchEmpty} {messages.searchRetryHint}
+        </p>
+      ) : null}
       {(search.data?.groups ?? []).map((group) => (
         <section key={group.type}>
           <h2>{groupLabel(messages, group.type)}</h2>
@@ -1244,7 +1300,7 @@ export function SearchPage() {
                 const call =
                   row.status === 'completed'
                     ? api.uncompleteTask(row.id, crypto.randomUUID())
-                    : api.completeTask(row.id, {}, crypto.randomUUID());
+                    : api.completeTask(row.id, completeBody(), crypto.randomUUID());
                 void call.then(() => refreshTaskSurfaces(queryClient));
               }}
             />

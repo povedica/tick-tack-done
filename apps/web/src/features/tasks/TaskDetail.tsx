@@ -26,6 +26,8 @@ import { FormatBar } from './FormatBar';
 import { DetailHeader } from './DetailHeader';
 import { DetailMenu } from './DetailMenu';
 import { refreshTaskSurfaces } from './refresh';
+import { collapseRepeatedContent } from './collapse-repeated';
+import { completeBody } from './complete-body';
 import { createComment, deleteAttachment, listComments, patchChecklistItem } from './task-http';
 
 const MAX_ATTACHMENT = 25 * 1024 * 1024;
@@ -249,7 +251,8 @@ export function TaskDetail({
   }
 
   async function finish(mode: 'complete' | 'leave' | undefined): Promise<void> {
-    const body = mode === undefined ? {} : { complete_children: mode };
+    const body =
+      mode === undefined ? completeBody() : completeBody({ complete_children: mode });
     const outcome = await runOrQueue(newMutation('complete', task.id, body), (key) =>
       api.completeTask(task.id, body, key),
     );
@@ -293,7 +296,9 @@ export function TaskDetail({
         onClose={onClose}
       />
       <p className="detail-ticky-help">
-        <Link to={`/ticky?task=${encodeURIComponent(task.id)}`}>{messages.tickyHelpTask}</Link>
+        <Link className="app-link" to={`/ticky?task=${encodeURIComponent(task.id)}`}>
+          {messages.tickyHelpTask}
+        </Link>
       </p>
       <div className="detail-pop-anchor">
         {dateOpen ? (
@@ -393,7 +398,6 @@ export function TaskDetail({
           >
             {messages.whenField}
           </button>
-          {' · '}
           <button
             type="button"
             className="text-button"
@@ -404,7 +408,6 @@ export function TaskDetail({
           >
             {messages.deadlineField}
           </button>
-          {' · '}
           <button
             type="button"
             className="text-button"
@@ -469,8 +472,9 @@ export function TaskDetail({
           }
         }}
         onContent={(value) => {
-          if (value !== task.content) {
-            save.mutate({ content: value });
+          const next = collapseRepeatedContent(value);
+          if (next !== task.content) {
+            save.mutate({ content: next });
           }
         }}
         onToggleItem={(id, done) => {
@@ -493,7 +497,7 @@ export function TaskDetail({
         onToggleSubtask={(id, done) => {
           const run = done
             ? api.uncompleteTask(id, crypto.randomUUID())
-            : api.completeTask(id, {}, crypto.randomUUID());
+            : api.completeTask(id, completeBody(), crypto.randomUUID());
           void run.then(refresh);
         }}
         onDeleteAttachment={(id) => {
@@ -642,8 +646,9 @@ export function TaskDetail({
             year: 'numeric',
           }).format(new Date())}
           onCommit={(value) => {
-            if (value !== task.content) {
-              save.mutate({ content: value });
+            const next = collapseRepeatedContent(value);
+            if (next !== task.content) {
+              save.mutate({ content: next });
             }
           }}
         />

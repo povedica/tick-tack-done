@@ -359,6 +359,20 @@ export function DetailBody({
           {attachments.length > 0 ? ` (${String(attachments.length)})` : ''}
         </h3>
         <p className="detail-drop">{attachmentDrop}</p>
+        <label className="detail-attach-btn">
+          <input
+            type="file"
+            multiple
+            onChange={(event) => {
+              if (event.target.files !== null && event.target.files.length > 0) {
+                onDropFiles(event.target.files);
+                event.target.value = '';
+              }
+            }}
+          />
+          <Paperclip size={14} aria-hidden="true" />
+          {attachmentLabel}
+        </label>
         <ul className="detail-files">
           {attachments.map((file) => (
             <li key={file.id}>
