@@ -35,12 +35,12 @@ Implementa RF-2321–2324 y protege RF-604, RF-1204, RF-1303 y RF-2201–2204. F
 
 ## Evidencias y límites
 
-- Unitarios: 388 pruebas (248 dominio, 9 SDK, 58 API y 73 web). Dominio: 89,72% líneas y 83,43% ramas; fórmula de logro: 100% líneas.
-- Integración: 90 pruebas con PostgreSQL/Redis reales, incluyendo scopes, otro owner, PAT restringido por listas, metas semanales, fechas futuras, exportación y ambos endpoints de logro.
+- Unitarios: 404 pruebas (251 dominio, 9 SDK, 66 API y 78 web), tras integrar las PR #51 y #53. Dominio: 89,70% líneas y 83,27% ramas; fórmula de logro: 100% líneas.
+- Integración: 91 pruebas con PostgreSQL/Redis reales, incluyendo scopes, otro owner, PAT restringido por listas, metas semanales, fechas futuras, exportación y ambos endpoints de logro.
 - Navegador: 35 pruebas; matriz de 32 capturas (1280×800 y 390×844, claro/oscuro, cuatro pestañas, con/sin datos), historial/filtros/teclado, descarga y todos los rangos por pestaña. Las capturas automatizadas usan fixtures; no representan datos privados del usuario.
 - Sesión real del usuario en localhost: resumen semanal/anual y Foco anual renderizados con datos reales; acceso de Estadísticas antes de Buscar confirmado. No se publican datos personales en la PR.
 - Build de producción: gráficas lazy aproximadamente 15,5 KB gzip (objetivo ~60 KB). El bundle principal conserva el aviso de tamaño global de Vite; no equivale al bundle de gráficas.
-- Latencia: caso de 1.000 tareas con timestamps distintos y Resumen anual con límite HTTP de 500 ms. Es una prueba de integración local, no un benchmark del servidor de producción.
+- Latencia: caso de 1.000 tareas con timestamps distintos y Resumen anual con límite HTTP de 500 ms. La suite final sin carga concurrente pasa; una ejecución simultánea con builds, lint, unitarios y navegador excedió el umbral (732 ms), lo que confirma la sensibilidad a saturación. Es una prueba de integración local, no un benchmark del servidor de producción.
 - SQL: series de tareas usan date_trunc/buckets tras autorización por owner/actor/listas; otras reglas puras reutilizan dominio. Las lecturas históricas necesarias para reconstrucción siguen siendo bajo demanda; no se añade stats_daily porque D4 no lo exige con la latencia medida.
 - No se afirma certificación con lector de pantalla ni auditoría instrumental completa de contraste AA, ni apertura manual del CSV en Excel. Sí se verifican tablas, semántica, interacción de teclado, reduced-motion y coherencia del contenido exportado.
 - No se inicia un timer ni se registra un check-in en la cuenta real. La regresión funcional de esos módulos se verifica con sus pruebas de dominio/API; la inspección visual no certifica un ciclo real de timer completo.
