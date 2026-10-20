@@ -52,3 +52,5 @@ Foco sin sesiones se representa como `null`; el registro real de 12 segundos con
 | Revisión cargando | [Captura](assets/weekly-2026-10-20/review-loading-1280.png)  | [Captura](assets/weekly-2026-10-20/review-loading-390.png)  |
 | Reportes error    | [Captura](assets/weekly-2026-10-20/reports-error-1280.png)   | [Captura](assets/weekly-2026-10-20/reports-error-390.png)   |
 | Revisión error    | [Captura](assets/weekly-2026-10-20/review-error-1280.png)    | [Captura](assets/weekly-2026-10-20/review-error-390.png)    |
+
+Gráfico y pie de Reportes: [escritorio](assets/weekly-2026-10-20/reports-detail-1280.png), [móvil](assets/weekly-2026-10-20/reports-detail-390.png).

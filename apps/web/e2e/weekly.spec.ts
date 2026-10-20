@@ -109,6 +109,8 @@ for (const width of [1280, 390]) {
     await expect(page.getByText('En curso', { exact: false })).toBeVisible();
     await expect(page.locator('.week-day').nth(2).locator('strong')).toHaveText('—');
     await page.screenshot({ path: info.outputPath(`reports-${width}.png`), fullPage: true });
+    await page.locator('.week-chart').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: info.outputPath(`reports-detail-${width}.png`), fullPage: true });
     await page.goto('/review/weekly');
     await page
       .getByRole('navigation', { name: 'Pasos de revisión' })
@@ -125,14 +127,14 @@ for (const width of [1280, 390]) {
     expect(button && button.y + button.height).toBeLessThan(width < 640 ? 790 : 850);
     expect(mutations).toEqual([]);
     page.once('dialog', (dialog) => {
-      expect(dialog.message()).toContain('1 tareas');
+      expect(dialog.message()).toContain('1 tarea');
       void dialog.dismiss();
     });
     await page.getByRole('button', { name: 'Listo', exact: true }).click();
     expect(mutations).toEqual([]);
     await page.locator('.weekly-actions').getByRole('button', { name: 'Hoy', exact: true }).click();
     await expect(
-      page.getByRole('status').filter({ hasText: '1 tareas movidas a Hoy' }),
+      page.getByRole('status').filter({ hasText: '1 tarea movida a Hoy' }),
     ).toBeVisible();
     expect(mutations).toEqual(['/api/v1/tasks/one']);
   });

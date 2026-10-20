@@ -37,7 +37,7 @@ export function ReportsPage() {
   const end = start ? shiftDayKey(start, 6) : '';
   const ongoing = start <= today && today <= end;
   const live = useQuery({
-    queryKey: ['dashboard-data'],
+    queryKey: ['dashboard'],
     queryFn: () => api.dashboardData(),
     enabled: ongoing,
   });

@@ -116,7 +116,7 @@ export function useWeeklyCopy() {
     balance: (done: number, made: number) =>
       english
         ? `${String(done)} tasks completed and ${String(made)} created.`
-        : `${String(done)} tareas completadas y ${String(made)} creadas.`,
+        : `${String(done)} ${done === 1 ? 'tarea completada' : 'tareas completadas'} y ${String(made)} creadas.`,
     createdInWeek: (n: number) =>
       english ? `${String(n)} created this week` : `${String(n)} creadas esta semana`,
     habitCount: (done: number, expected: number) =>
@@ -128,11 +128,11 @@ export function useWeeklyCopy() {
     confirm: (done: boolean, n: number) =>
       english
         ? `${done ? 'Complete' : 'Mark as won’t do'} ${String(n)} tasks?`
-        : `${done ? 'Completar' : 'Marcar como «No haré»'} ${String(n)} tareas?`,
+        : `${done ? 'Completar' : 'Marcar como «No haré»'} ${String(n)} ${n === 1 ? 'tarea' : 'tareas'}?`,
     result: (n: number, action: string) =>
       english
         ? `${String(n)} tasks ${action === 'done' ? 'completed' : action === 'cancel' ? 'marked as won’t do' : action === 'today' ? 'moved to Today' : 'moved to Tomorrow'}.`
-        : `${String(n)} tareas ${action === 'done' ? 'completadas' : action === 'cancel' ? 'marcadas como «No haré»' : action === 'today' ? 'movidas a Hoy' : 'movidas a Mañana'}.`,
+        : `${String(n)} ${n === 1 ? 'tarea' : 'tareas'} ${action === 'done' ? (n === 1 ? 'completada' : 'completadas') : action === 'cancel' ? (n === 1 ? 'marcada como «No haré»' : 'marcadas como «No haré»') : action === 'today' ? (n === 1 ? 'movida a Hoy' : 'movidas a Hoy') : n === 1 ? 'movida a Mañana' : 'movidas a Mañana'}.`,
     failed: (n: number) =>
       english
         ? `${String(n)} tasks updated. Could not finish; retry the remaining tasks.`
@@ -140,12 +140,13 @@ export function useWeeklyCopy() {
     count: (n: number, selected: number) =>
       english
         ? `${String(n)} total · ${String(selected)} selected`
-        : `${String(n)} en total · ${String(selected)} seleccionadas`,
+        : `${String(n)} en total · ${String(selected)} ${selected === 1 ? 'seleccionada' : 'seleccionadas'}`,
     selected: (n: number) =>
       english
         ? `${String(n)} selected`
         : `${String(n)} ${n === 1 ? 'seleccionada' : 'seleccionadas'}`,
     select: (title: string) => (english ? `Select ${title}` : `Seleccionar ${title}`),
-    daysAgo: (n: number) => (english ? `${String(n)} days ago` : `Hace ${String(n)} días`),
+    daysAgo: (n: number) =>
+      english ? `${String(n)} days ago` : `Hace ${String(n)} ${n === 1 ? 'día' : 'días'}`,
   };
 }

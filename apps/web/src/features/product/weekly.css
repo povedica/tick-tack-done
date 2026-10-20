@@ -130,7 +130,7 @@
 }
 .weekly-tasks li {
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) auto;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
   min-height: 48px;
