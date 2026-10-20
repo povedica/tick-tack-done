@@ -1,5 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router';
+import { displayTitle } from '../tasks/displayTitle';
+import { calendarDay, type TodayTask } from './groups';
 import { api } from '../../api';
 import { useMessages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
@@ -11,7 +14,7 @@ import {
 } from '../calendar/ExternalEvent';
 
 /** RF-2542. Hidden when today has no external events. */
-export function TodayAgenda() {
+export function TodayAgenda({ tasks = [] }: { readonly tasks?: readonly TodayTask[] }) {
   const messages = useMessages();
   const locale = useAppLocale();
   const range = useMemo(() => todayRange(new Date()), []);
@@ -23,13 +26,19 @@ export function TodayAgenda() {
   const external = Array.isArray(events.data?.external)
     ? events.data.external.filter(isExternalEvent)
     : [];
+  const todayTasks = tasks.filter(
+    (task) =>
+      task.dueDate !== null &&
+      calendarDay(task.dueDate, task.timeZone) ===
+        calendarDay(new Date().toISOString(), task.timeZone),
+  );
   const sorted = [...external].sort((left, right) => {
     if (left.is_all_day !== right.is_all_day) {
       return left.is_all_day ? -1 : 1;
     }
     return left.starts_at.localeCompare(right.starts_at);
   });
-  if (sorted.length === 0) {
+  if (sorted.length === 0 && todayTasks.length === 0) {
     return null;
   }
   const time = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' });
@@ -37,6 +46,23 @@ export function TodayAgenda() {
     <section className="today-agenda" aria-label={messages.todayAgenda}>
       <h2>{messages.todayAgenda}</h2>
       <ul>
+        {todayTasks.map((task) => (
+          <li key={task.id}>
+            <Link className="today-agenda-row" to={`?task=${task.id}`}>
+              <span className="cal-dot" aria-hidden="true" />
+              <span>
+                {task.allDay
+                  ? messages.allDay
+                  : new Intl.DateTimeFormat(locale, {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      timeZone: task.timeZone,
+                    }).format(new Date(task.dueDate ?? ''))}
+              </span>
+              <span>{displayTitle(task.title)}</span>
+            </Link>
+          </li>
+        ))}
         {sorted.map((event) => (
           <li key={event.id}>
             <button
@@ -71,6 +97,6 @@ export function TodayAgenda() {
 
 function todayRange(now: Date): { from: string; to: string } {
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1);
   return { from: start.toISOString(), to: end.toISOString() };
 }

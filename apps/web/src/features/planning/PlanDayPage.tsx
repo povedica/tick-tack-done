@@ -1,3 +1,4 @@
+import { displayTitle } from '../tasks/displayTitle';
 import { ApiError } from '@reflexionia/sdk';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
@@ -84,7 +85,7 @@ export function PlanDayPage() {
           if (!cancelled && load.available_minutes !== null) {
             const moved = 0;
             setLoadLine(
-              `${String(load.task_minutes - moved)} / ${String(load.available_minutes)} min · ${load.status}`,
+              `${String(load.task_minutes - moved)} de ${String(load.available_minutes)} min planificados · ${load.status === 'ok' ? 'el día tiene hueco' : load.status === 'tight' ? 'día completo' : 'sobrecarga'}`,
             );
           }
         });
@@ -200,12 +201,12 @@ export function PlanDayPage() {
               return (
                 <li key={card.task_id} className="plan-card">
                   <div>
-                    <p className="detail-title">{card.title}</p>
+                    <p className="detail-title">{displayTitle(card.title)}</p>
                     <p className="ui-muted">
                       {card.reason_text} · {card.project_name}
                     </p>
                   </div>
-                  <div className="plan-choices" role="group" aria-label={card.title}>
+                  <div className="plan-choices" role="group" aria-label={displayTitle(card.title)}>
                     {DECISIONS.map((kind) => (
                       <button
                         key={kind}
@@ -426,7 +427,7 @@ const spanish = {
   apply: 'Confirmar plan',
   applied: 'Plan aplicado',
   back: 'Volver a Hoy',
-  wontDo: 'No lo haré',
+  wontDo: 'No haré',
   wontDoLede: 'Estas tareas están canceladas. No cuentan como completadas.',
   wontDoEmpty: 'No hay tareas canceladas.',
   laterDate: 'Día del plan',
@@ -438,7 +439,7 @@ const spanish = {
     plan_day: 'La haré hoy',
     later: 'Después',
     someday: 'Algún día',
-    cancel: 'No lo haré',
+    cancel: 'No haré',
     trash: 'Papelera',
   },
   effects: {

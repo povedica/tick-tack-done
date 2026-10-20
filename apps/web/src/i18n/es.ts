@@ -147,7 +147,7 @@ export const es = {
   filtersLink: 'Filtros',
   tokensLink: 'Tokens',
   tokensTitle: 'Tokens de agente',
-  tokensHint: 'Un token por agente, con los permisos justos. El secreto se muestra una sola vez.',
+  tokensHint: 'Un token por agente, con los permisos justos.',
   tokenName: 'Agente',
   tokenScopes: 'Permisos',
   tokenCreate: 'Crear token',

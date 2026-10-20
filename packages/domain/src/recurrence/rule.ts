@@ -235,7 +235,12 @@ export function describeRepeatRule(rule: string): string | null {
       label = `El ${which} ${WEEKDAY_ES[nth.day]} de cada mes`;
     } else if (byMonthDay.length === 1 && (byMonthDay[0] ?? 0) < 0) {
       const day = byMonthDay[0] ?? -1;
-      label = day === -1 ? 'El último día de cada mes' : `${String(-day)} días antes de fin de mes`;
+      label =
+        day === -1
+          ? 'El último día de cada mes'
+          : day === -2
+            ? 'El penúltimo día de cada mes'
+            : `El ${String(-day)}º día desde el final de cada mes`;
     } else if (byMonthDay.length > 0) {
       label = `El ${joinEs(byMonthDay.map(monthDayLabel))} de cada mes`;
     } else {

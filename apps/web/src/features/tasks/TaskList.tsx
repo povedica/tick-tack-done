@@ -5,6 +5,7 @@ import { ApiError } from '@reflexionia/sdk';
 import { Link, useSearchParams } from 'react-router';
 import { api } from '../../api';
 import { PriorityCheck } from '../../components/PriorityCheck';
+import { Highlight } from '../../components/Highlight';
 import { Button, TagChip } from '../../components/ui';
 import { captureLanguage, fill, type Messages } from '../../i18n';
 import { noticesFrom, useCaptureNotice } from '../capture/notice';
@@ -12,6 +13,7 @@ import { quickAddRequest, type ViewDay } from '../capture/quick-add';
 import { refreshTaskSurfaces } from './refresh';
 import { newMutation, runOrQueue } from '../offline/client';
 import { displayTitle } from './displayTitle';
+import { completeBody } from './complete-body';
 import { QuickAddTools } from './QuickAddTools';
 import { isOverdue, isSameDay, type RowModel } from './model';
 
@@ -29,6 +31,7 @@ export function TaskList({
   hideCompleted = true,
   manualOrder = false,
   trash = false,
+  highlightQuery = '',
 }: {
   readonly messages: Messages;
   readonly rows: readonly RowModel[];
@@ -45,6 +48,7 @@ export function TaskList({
   readonly hideCompleted?: boolean | undefined;
   readonly manualOrder?: boolean | undefined;
   readonly trash?: boolean | undefined;
+  readonly highlightQuery?: string;
 }) {
   const queryClient = useQueryClient();
   const [params, setParams] = useSearchParams();
@@ -97,6 +101,7 @@ export function TaskList({
         className="task-list"
         data-details={showDetails ? 'on' : 'off'}
         data-order={manualOrder ? 'manual' : 'auto'}
+        data-search={highlightQuery.length > 0 ? 'true' : undefined}
       >
         {visible.map((row) => (
           <li key={row.id}>
@@ -107,6 +112,7 @@ export function TaskList({
               now={now}
               manualOrder={manualOrder}
               trash={trash}
+              highlightQuery={highlightQuery}
               selected={selected.has(row.id)}
               open={detailId === row.id}
               onOpen={() => {
@@ -223,8 +229,13 @@ export function TaskList({
           </span>
           <Button
             onClick={() => {
-              void api.batchTasks({ action: 'complete', ids: [...selected] }).then(() => {
+              void Promise.all(
+                [...selected].map((id) =>
+                  api.completeTask(id, completeBody(), crypto.randomUUID()),
+                ),
+              ).then(() => {
                 setSelected(new Set());
+                void refreshTaskSurfaces(queryClient);
                 onCreated?.();
               });
             }}
@@ -283,6 +294,7 @@ function TaskRow({
   now,
   manualOrder,
   trash = false,
+  highlightQuery = '',
   selected,
   open,
   onOpen,
@@ -295,6 +307,7 @@ function TaskRow({
   readonly now: Date;
   readonly manualOrder: boolean;
   readonly trash?: boolean | undefined;
+  readonly highlightQuery?: string;
   readonly selected: boolean;
   readonly open: boolean;
   readonly onOpen: () => void;
@@ -309,7 +322,11 @@ function TaskRow({
   const named = row.tags.filter((tag) => tag.name.length > 0 && tag.name !== tag.id);
   const shown = named.slice(0, 2);
   const extra = named.length - shown.length;
-  const when = done && row.completedAt !== null ? row.completedAt : row.dueDate;
+  const when = trash
+    ? (row.deletedAt ?? null)
+    : done && row.completedAt !== null
+      ? row.completedAt
+      : row.dueDate;
   return (
     <div
       className={`task-row${open ? ' is-selected' : ''}${selected ? ' is-batch' : ''}${done ? ' is-done' : ''}`}
@@ -371,7 +388,10 @@ function TaskRow({
       ) : (
         <PriorityCheck
           priority={row.priority}
-          label={fill(done ? messages.reopenLabel : messages.completeLabel, row.title)}
+          label={fill(
+            done ? messages.reopenLabel : messages.completeLabel,
+            displayTitle(row.title),
+          )}
           checked={done}
           onChange={(event) => {
             if (
@@ -387,13 +407,26 @@ function TaskRow({
       )}
       <button type="button" className="task-title" onClick={onOpen}>
         {row.kind === 'note' ? <span className="ui-badge">{messages.noteBadge}</span> : null}{' '}
-        {shownTitle(
-          row.title,
-          named.map((tag) => tag.name),
-          messages.untitled,
-        )}
+        <Highlight
+          query={highlightQuery}
+          text={shownTitle(
+            row.title,
+            named.map((tag) => tag.name),
+            messages.untitled,
+          )}
+        />
+        {highlightQuery.length > 0 && row.content.length > 0 ? (
+          <small className="search-snippet">
+            <Highlight text={searchSnippet(row.content, highlightQuery)} query={highlightQuery} />
+          </small>
+        ) : null}
       </button>
       <span className="task-meta">
+        {highlightQuery.length > 0 && row.repeat && row.dueDate !== null ? (
+          <span>
+            {messages.occurrenceLabel} {formatRowDate(row.dueDate, locale, now, true, messages)}
+          </span>
+        ) : null}
         {shown.map((tag) => (
           <Link
             key={tag.id}
@@ -446,6 +479,7 @@ function TaskRow({
                 : new Date(when).toLocaleString(locale)
             }
           >
+            {trash ? `${messages.deletedOn} ` : ''}
             {formatRowDate(when, locale, now, done, messages)}
           </time>
         ) : null}
@@ -554,7 +588,7 @@ function Kanban({
                   <div className="kanban-card-title">
                     <PriorityCheck
                       priority={row.priority}
-                      label={fill(messages.completeLabel, row.title)}
+                      label={fill(messages.completeLabel, displayTitle(row.title))}
                       onChange={() => {
                         onComplete(row);
                       }}
@@ -890,10 +924,16 @@ function formatRowDate(
     month: 'short',
     ...(date.getFullYear() === now.getFullYear() ? {} : { year: 'numeric' }),
   }).format(date);
-  return formatted;
+  return `${formatted}${time.length > 0 ? `,${time}` : ''}`;
 }
 
 function shownTitle(title: string, tagNames: readonly string[], untitled: string): string {
   const text = displayTitle(title, tagNames);
   return text.length === 0 ? untitled : text;
+}
+
+function searchSnippet(content: string, query: string): string {
+  const match = content.toLocaleLowerCase().indexOf(query.trim().toLocaleLowerCase());
+  const start = Math.max(0, match - 60);
+  return `${start > 0 ? '…' : ''}${content.slice(start, start + 240)}`;
 }

@@ -3312,6 +3312,7 @@ export interface components {
             recovery_code?: string;
         };
         FeatureFlagsDto: {
+            navigation_order?: ("calendar" | "matrix" | "countdowns" | "focus" | "habits" | "ticky" | "statistics" | "dashboard" | "reports" | "review" | "search")[];
             countdowns?: boolean;
             focus?: boolean;
             matrix?: boolean;

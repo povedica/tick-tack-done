@@ -1,3 +1,4 @@
+import { displayTitle } from './displayTitle';
 import { Flag, X } from 'lucide-react';
 import { PriorityCheck } from '../../components/PriorityCheck';
 import { fill, type Messages } from '../../i18n';
@@ -56,7 +57,7 @@ export function DetailHeader({
       </span>
       <PriorityCheck
         priority={priority}
-        label={fill(completeLabel, title)}
+        label={fill(completeLabel, displayTitle(title))}
         checked={completed}
         onChange={onComplete}
       />

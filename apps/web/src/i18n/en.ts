@@ -148,7 +148,7 @@ export const en = {
   filtersLink: 'Filters',
   tokensLink: 'Tokens',
   tokensTitle: 'Agent tokens',
-  tokensHint: 'One token per agent, with only the scopes it needs. The secret is shown once.',
+  tokensHint: 'One token per agent, with only the scopes it needs.',
   tokenName: 'Agent',
   tokenScopes: 'Scopes',
   tokenCreate: 'Create token',

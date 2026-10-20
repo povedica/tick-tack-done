@@ -7,7 +7,9 @@ const MIN_WIDTH = 320;
 const MAX_WIDTH = 640;
 
 export function readDetailWidth(storage: Storage): number {
-  const raw = Number(storage.getItem(KEY));
+  const saved = storage.getItem(KEY);
+  if (saved === null) return DEFAULT_WIDTH;
+  const raw = Number(saved);
   if (!Number.isFinite(raw)) {
     return DEFAULT_WIDTH;
   }

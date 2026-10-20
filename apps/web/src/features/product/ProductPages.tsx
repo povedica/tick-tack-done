@@ -79,7 +79,7 @@ const WIDGET_LABEL = {
   next_7_days: 'widgetNext7',
   flow: 'widgetCreated',
   habits: 'widgetHabit',
-  load: 'widgetTrend',
+  load: 'widgetListLoad',
   calendar: 'calendarTitle',
   integrations: 'settingsIntegrations',
   focus: 'navFocus',
@@ -146,6 +146,13 @@ function widgetText(messages: ReturnType<typeof useMessages>, key: string, value
       .filter((line) => line.trim().length > 0)
       .join(' · ');
   }
+  if (key === 'load') {
+    const lists = Array.isArray(row.by_list) ? row.by_list.filter(isRow) : [];
+    return (
+      lists.map((list) => `${asText(list.name)}: ${asText(list.active)}`).join(' · ') ||
+      messages.widgetEmpty
+    );
+  }
   if (key === 'calendar') {
     return typeof row.label === 'string' && row.label.length > 0
       ? row.label
@@ -196,7 +203,7 @@ export function DashboardPage() {
         {Object.entries(widgets)
           .filter(([key]) => {
             // JAR-4: avoid a second "próximas cuentas atrás" block when the list above exists.
-            if (key === 'next_countdowns' && (countdowns.data?.items.length ?? 0) > 0) {
+            if (key === 'next_countdowns') {
               return false;
             }
             return true;
@@ -421,9 +428,9 @@ export function ReviewPage() {
               });
             }}
             onDone={(id) => {
-              void api.completeTask(id, completeBody(), crypto.randomUUID()).then(() => {
-                void queryClient.invalidateQueries({ queryKey: ['review-weekly'] });
-              });
+              void api
+                .completeTask(id, completeBody(), crypto.randomUUID())
+                .then(() => refreshTaskSurfaces(queryClient));
             }}
           />
           <ReviewBucket
@@ -443,9 +450,9 @@ export function ReviewPage() {
               });
             }}
             onDone={(id) => {
-              void api.completeTask(id, completeBody(), crypto.randomUUID()).then(() => {
-                void queryClient.invalidateQueries({ queryKey: ['review-weekly'] });
-              });
+              void api
+                .completeTask(id, completeBody(), crypto.randomUUID())
+                .then(() => refreshTaskSurfaces(queryClient));
             }}
           />
           <li>
@@ -652,6 +659,7 @@ export function FocusPage() {
           {[15, 25, 50].map((minutes) => (
             <Button
               key={minutes}
+              aria-pressed={planned === minutes}
               onClick={() => {
                 void api.updateFocusSettings({ pomodoro_minutes: minutes }).then(() => {
                   void queryClient.invalidateQueries({ queryKey: ['focus-settings'] });

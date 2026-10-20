@@ -1,8 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { ACCOUNT_REMINDER_TRIGGERS } from '@reflexionia/domain';
+import { ACCOUNT_REMINDER_TRIGGERS, NAVIGATION_MODULES } from '@reflexionia/domain';
 import { Type } from 'class-transformer';
 import {
   IsBoolean,
+  IsArray,
+  ArrayUnique,
+  ArrayMaxSize,
   IsIn,
   IsInt,
   IsOptional,
@@ -17,6 +20,14 @@ import {
 const REMINDER_CHOICES = [...ACCOUNT_REMINDER_TRIGGERS];
 
 export class FeatureFlagsDto {
+  @ApiProperty({ required: false, type: [String], enum: [...NAVIGATION_MODULES], isArray: true })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @ArrayMaxSize(NAVIGATION_MODULES.length)
+  @IsIn([...NAVIGATION_MODULES], { each: true })
+  navigation_order?: string[];
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsBoolean()

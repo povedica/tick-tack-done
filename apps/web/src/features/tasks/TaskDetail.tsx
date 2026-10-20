@@ -28,6 +28,7 @@ import { DetailMenu } from './DetailMenu';
 import { refreshTaskSurfaces } from './refresh';
 import { collapseRepeatedContent } from './collapse-repeated';
 import { completeBody } from './complete-body';
+import { displayTitle } from './displayTitle';
 import { createComment, deleteAttachment, listComments, patchChecklistItem } from './task-http';
 
 const MAX_ATTACHMENT = 25 * 1024 * 1024;
@@ -430,6 +431,7 @@ export function TaskDetail({
         contentLabel={messages.contentLabel}
         contentHint={messages.contentHint}
         contentRef={contentRef}
+        editRequested={formatOpen}
         checklistLabel={messages.checklist}
         checklistAdd={messages.checklistAdd}
         checklistEdit={messages.checklistEdit}
@@ -460,7 +462,7 @@ export function TaskDetail({
         attachmentDelete={messages.attachmentDelete}
         attachmentDrop={messages.attachmentDrop}
         onTitle={(value) => {
-          if (value !== task.title) {
+          if (value !== displayTitle(task.title)) {
             save.mutate({ title: value });
           }
         }}

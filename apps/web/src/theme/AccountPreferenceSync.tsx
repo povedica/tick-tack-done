@@ -60,6 +60,7 @@ export function AccountPreferenceSync() {
       return;
     }
     started.current = true;
+    useFeatures.getState().setFlags(featureFlags(me.data.features));
     let synced = false;
     try {
       synced = localStorage.getItem(SYNCED) === '1';

@@ -1,18 +1,5 @@
-import {
-  Award,
-  CalendarCheck,
-  CalendarDays,
-  CircleDot,
-  Grid2x2,
-  Hourglass,
-  LayoutDashboard,
-  List,
-  MoreHorizontal,
-  Plus,
-  Search,
-  Settings,
-  Sun,
-} from 'lucide-react';
+import { MODULES, moduleEnabled } from './modules';
+import { CalendarDays, List, MoreHorizontal, Plus, Settings, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router';
 import { openTaskComposer } from '../features/capture/notice';
@@ -64,7 +51,7 @@ export function BottomBar({ onOpenLists }: { readonly onOpenLists: () => void })
         {messages.navToday}
       </NavLink>
       <NavLink
-        to="/calendar/month"
+        to="/calendar/agenda"
         className={({ isActive }) => (isActive ? 'is-active' : undefined)}
       >
         <CalendarDays size={20} aria-hidden="true" />
@@ -98,84 +85,22 @@ export function BottomBar({ onOpenLists }: { readonly onOpenLists: () => void })
       </button>
       {more ? (
         <div className="more-sheet">
-          <SheetLink
-            to="/search"
-            label={messages.navSearch}
-            icon={Search}
-            onDone={() => {
-              setMore(false);
-            }}
-          />
-          <SheetLink
-            to="/habits"
-            label={messages.navHabits}
-            icon={CalendarCheck}
-            onDone={() => {
-              setMore(false);
-            }}
-          />
-          {flags.matrix ? (
-            <SheetLink
-              to="/matrix"
-              label={messages.navMatrix}
-              icon={Grid2x2}
-              onDone={() => {
-                setMore(false);
-              }}
-            />
-          ) : null}
-          {flags.focus ? (
-            <SheetLink
-              to="/focus"
-              label={messages.navFocus}
-              icon={CircleDot}
-              onDone={() => {
-                setMore(false);
-              }}
-            />
-          ) : null}
-          {flags.countdowns ? (
-            <SheetLink
-              to="/countdowns"
-              label={messages.navCountdowns}
-              icon={Hourglass}
-              onDone={() => {
-                setMore(false);
-              }}
-            />
-          ) : null}
-          <SheetLink
-            to="/dashboard"
-            label={messages.navDashboard}
-            icon={LayoutDashboard}
-            onDone={() => {
-              setMore(false);
-            }}
-          />
-          <SheetLink
-            to="/statistics"
-            label={messages.navStatistics}
-            icon={Award}
-            onDone={() => {
-              setMore(false);
-            }}
-          />
-          <SheetLink
-            to="/reports/weekly"
-            label={messages.navReports}
-            icon={LayoutDashboard}
-            onDone={() => {
-              setMore(false);
-            }}
-          />
-          <SheetLink
-            to="/review/weekly"
-            label={messages.navReview}
-            icon={CalendarCheck}
-            onDone={() => {
-              setMore(false);
-            }}
-          />
+          {flags.navigation_order
+            .filter((key) => key !== 'calendar' && moduleEnabled(key, flags))
+            .map((key) => {
+              const module = MODULES[key];
+              return (
+                <SheetLink
+                  key={key}
+                  to={module.to}
+                  label={messages[module.label]}
+                  icon={module.icon}
+                  onDone={() => {
+                    setMore(false);
+                  }}
+                />
+              );
+            })}
           <SheetLink
             to="/filters"
             label={messages.filtersTitle}

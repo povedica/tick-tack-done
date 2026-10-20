@@ -493,6 +493,62 @@ describe('V1 and V2 product', () => {
     expect(denied.body.error.code).toBe('google_not_configured');
   });
 
+  it('DAT-1: badge, dashboard and review count the same overdue tasks including children', async () => {
+    const parent = await session()
+      .post('/api/v1/tasks')
+      .send({ project_id: projectId, title: 'Parent overdue', due_date: '2020-01-01T08:00:00Z' })
+      .expect(201);
+    await session()
+      .post('/api/v1/tasks')
+      .send({
+        project_id: projectId,
+        parent_id: parent.body.id as string,
+        title: 'Child overdue',
+        due_date: '2020-01-02T08:00:00Z',
+      })
+      .expect(201);
+    const badge = await session()
+      .get('/api/v1/tasks?status=active&overdue=true&flat=true&limit=100')
+      .expect(200);
+    const dashboard = await session().get('/api/v1/dashboard/data').expect(200);
+    const review = await session().get('/api/v1/review/weekly').expect(200);
+    expect(badge.body.items.length).toBeGreaterThanOrEqual(2);
+    expect(dashboard.body.widgets.overdue).toBe(badge.body.items.length);
+    expect(review.body.overdue_ids.length).toBe(badge.body.items.length);
+  });
+
+  it('account navigation order persists and a flag patch does not reset it', async () => {
+    const saved = await session()
+      .patch('/api/v1/me')
+      .send({ features: { navigation_order: ['statistics', 'dashboard', 'calendar'] } })
+      .expect(200);
+    expect(saved.body.features.navigation_order.slice(0, 3)).toEqual([
+      'statistics',
+      'dashboard',
+      'calendar',
+    ]);
+    await session()
+      .patch('/api/v1/me')
+      .send({ features: { focus: false } })
+      .expect(200);
+    const me = await session().get('/api/v1/me').expect(200);
+    expect(me.body.features.navigation_order).toEqual(saved.body.features.navigation_order);
+    expect(me.body.features.focus).toBe(false);
+  });
+
+  it('DET-5: saving the same description twice replaces the buffer without concatenating it', async () => {
+    const created = await session()
+      .post('/api/v1/tasks')
+      .send({ project_id: projectId, title: 'Autosave audit', content: 'Original note' })
+      .expect(201);
+    const path = `/api/v1/tasks/${created.body.id as string}`;
+    const content = '# Notas\n\nContenido editado una sola vez.';
+    await session().patch(path).send({ content }).expect(200);
+    await session().patch(path).send({ content }).expect(200);
+    const saved = await session().get(path).expect(200);
+    expect(saved.body.content).toBe(content);
+  });
+
   function session() {
     return {
       get: (url: string) =>

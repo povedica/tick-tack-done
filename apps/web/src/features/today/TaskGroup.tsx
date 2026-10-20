@@ -156,7 +156,7 @@ export function TaskGroup({
                 <PriorityCheck
                   priority={task.priority}
                   checked={task.status === 'completed'}
-                  label={completeLabel.replace('{name}', task.title)}
+                  label={completeLabel.replace('{name}', displayTitle(task.title))}
                   onChange={() => {
                     onComplete(task);
                   }}

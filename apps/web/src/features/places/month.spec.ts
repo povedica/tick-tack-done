@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { calendarTaskLabel, quarterMonths, shiftView, viewDays } from './month';
+import { calendarTaskLabel, isoWeek, quarterMonths, shiftView, viewDays } from './month';
 
 describe('calendar view windows', () => {
   const monday = new Date(2026, 9, 19);
+  it('CAL-1 and AG-1: ISO weeks cross the year correctly and agenda loads sixty forward days', () => {
+    expect(isoWeek(new Date(2027, 0, 1))).toBe(53);
+    expect(isoWeek(new Date(2027, 0, 4))).toBe(1);
+    const agenda = viewDays('agenda', monday, 'monday');
+    expect(agenda).toHaveLength(60);
+    expect(agenda[0]).toEqual(monday);
+  });
 
   it('week is seven days starting Monday', () => {
     const days = viewDays('week', monday, 'monday');

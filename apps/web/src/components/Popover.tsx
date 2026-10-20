@@ -30,6 +30,35 @@ export function Popover({
       return;
     }
     function onKey(event: KeyboardEvent): void {
+      const node = ref.current;
+      if (event.key === 'Tab' && node !== null) {
+        const items = [
+          ...node.querySelectorAll<HTMLElement>(
+            'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex="0"]',
+          ),
+        ].filter((item) => item.getClientRects().length > 0);
+        const first = items[0];
+        const last = items.at(-1);
+        if (first === undefined) {
+          event.preventDefault();
+          node.focus();
+          return;
+        }
+        if (
+          event.shiftKey &&
+          (document.activeElement === first || !node.contains(document.activeElement))
+        ) {
+          event.preventDefault();
+          last?.focus();
+        } else if (
+          !event.shiftKey &&
+          (document.activeElement === last || !node.contains(document.activeElement))
+        ) {
+          event.preventDefault();
+          first.focus();
+        }
+        return;
+      }
       if (event.key !== 'Escape') {
         return;
       }
@@ -52,6 +81,17 @@ export function Popover({
     };
   }, [onClose, open]);
   useEffect(() => {
+    if (!open || ref.current === null) return;
+    const previous = document.activeElement;
+    const first = ref.current.querySelector<HTMLElement>(
+      'button:not(:disabled), input:not(:disabled), [tabindex="0"]',
+    );
+    (first ?? ref.current).focus();
+    return () => {
+      if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
+    };
+  }, [open]);
+  useEffect(() => {
     const node = ref.current;
     if (!open || node === null) {
       return;
@@ -72,6 +112,7 @@ export function Popover({
       role="dialog"
       aria-modal="true"
       aria-label={label}
+      tabIndex={-1}
     >
       {children}
     </div>

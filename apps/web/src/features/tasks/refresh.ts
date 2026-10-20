@@ -4,6 +4,10 @@ import type { QueryClient } from '@tanstack/react-query';
 export async function refreshTaskSurfaces(queryClient: QueryClient): Promise<void> {
   const active = { refetchType: 'active' as const };
   await Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['overdue-count'] }),
+    queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
+    queryClient.invalidateQueries({ queryKey: ['review-weekly'] }),
+    queryClient.invalidateQueries({ queryKey: ['review-daily'] }),
     queryClient.invalidateQueries({ queryKey: ['stats'] }),
     queryClient.invalidateQueries({ queryKey: ['achievements'] }),
     queryClient.invalidateQueries({ queryKey: ['smart-lists'] }),

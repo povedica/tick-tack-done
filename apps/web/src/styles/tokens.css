@@ -201,7 +201,7 @@
   --rail-bg: #44403c;
 }
 
-[data-density='compact'] {
+:root[data-density='compact'] {
   --row-h: 2rem;
   --check: 1.0625rem;
 }

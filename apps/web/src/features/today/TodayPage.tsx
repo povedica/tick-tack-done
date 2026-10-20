@@ -1,3 +1,4 @@
+import { displayTitle, looksLikeUuid } from '../tasks/displayTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowUpDown, ChevronDown, Lightbulb, Menu, Sprout } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -434,7 +435,7 @@ export function TodayPage() {
     const job: CompleteJob = { phase: 'inflight' };
     jobs.current.set(task.id, job);
     setLeaving((current) => new Set(current).add(task.id));
-    setToasts((current) => pushUndo(current, { id: task.id, title: task.title }));
+    setToasts((current) => pushUndo(current, { id: task.id, title: displayTitle(task.title) }));
     setActionError(null);
     const delay = completeLeaveMs(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     const timer = window.setTimeout(() => {
@@ -703,7 +704,7 @@ export function TodayPage() {
           </ViewMenu>
         </div>
       </header>
-      <TodayAgenda />
+      <TodayAgenda tasks={parts.today} />
       <form
         className="quick-add"
         onSubmit={(event) => {
@@ -807,7 +808,11 @@ export function TodayPage() {
           <ul>
             {(planTasks.length > 0 ? planTasks : planIds.map((id) => ({ id, title: id }))).map(
               (item) => (
-                <li key={item.id}>{item.title}</li>
+                <li key={item.id}>
+                  {looksLikeUuid(item.title)
+                    ? messages.untitled
+                    : displayTitle(item.title) || messages.untitled}
+                </li>
               ),
             )}
           </ul>
@@ -1004,7 +1009,13 @@ export function TodayPage() {
           <button
             type="button"
             onClick={() => {
-              void api.batchTasks({ action: 'complete', ids: [...selected] }).then(() => {
+              void Promise.all(
+                [...selected].map((id) =>
+                  runOrQueue(newMutation('complete', id, completeBody()), (key) =>
+                    tasksApi.completeTask(id, completeBody(), key),
+                  ),
+                ),
+              ).then(() => {
                 setSelected(new Set());
                 return refreshTaskSurfaces(queryClient);
               });

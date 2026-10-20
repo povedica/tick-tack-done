@@ -1,18 +1,16 @@
+import { MODULES, moduleEnabled } from './modules';
+import { AccountMenu } from './AccountMenu';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { normalizeTagName } from '@reflexionia/domain';
 import { ApiError } from '@reflexionia/sdk';
 import {
-  BarChart3,
-  CalendarCheck,
   CalendarDays,
   CalendarRange,
   CheckCircle2,
-  CircleDot,
-  ClipboardList,
-  Grid2x2,
-  Hourglass,
+  Hash,
+  ChevronDown,
   Inbox,
-  LayoutDashboard,
+  Hourglass,
   ListTodo,
   Monitor,
   Moon,
@@ -23,7 +21,6 @@ import {
   Sparkles,
   CloudSun,
   Sun,
-  Trash2,
   UserRound,
   type LucideIcon,
 } from 'lucide-react';
@@ -31,7 +28,7 @@ import { useEffect, useRef, useState, type DragEvent, type ReactNode } from 'rea
 import { Link, NavLink, useLocation, useMatch } from 'react-router';
 import { api } from '../api';
 import { BrandMark } from '../components/BrandMark';
-import { Badge, Button } from '../components/ui';
+import { Badge } from '../components/ui';
 import { fill, useMessages, type Messages } from '../i18n';
 import { useFeatures } from '../features/settings/feature-flags';
 import { usePreferences } from '../theme/preferences';
@@ -99,10 +96,8 @@ export function Sidebar({
   const [tagMenuId, setTagMenuId] = useState<string | null>(null);
   const [tagQuery, setTagQuery] = useState('');
   const [showUnused, setShowUnused] = useState(false);
-  const [moreOpen, setMoreOpen] = useState(false);
   const folders = useQuery({ queryKey: ['folders'], queryFn: () => api.listFolders() });
   const location = useLocation();
-  const [confirmTrash, setConfirmTrash] = useState(false);
   const themeLabel = themeName(messages, preference);
   const showSomeday = useFeatures((state) => state.flags.when_deadline);
   const ordered = orderedSmartLists(smart.data?.items ?? []);
@@ -139,7 +134,10 @@ export function Sidebar({
   const folderItems = folders.data?.items ?? [];
   const archivedProjects = (projects.data?.items ?? []).filter((project) => project.closed);
   const projectItems = (projects.data?.items ?? []).filter(
-    (project) => !project.closed && (folderItems.length === 0 || folderId(project) === null),
+    (project) =>
+      !project.is_inbox &&
+      !project.closed &&
+      (folderItems.length === 0 || folderId(project) === null),
   );
   const showCountdowns = (countdowns.data?.items ?? []).some((item) => item.showInSidebar);
 
@@ -172,6 +170,7 @@ export function Sidebar({
         <BrandMark />
         <span className="brand-name">{messages.appName}</span>
       </NavLink>
+      <AccountMenu />
       {smart.isPending ? (
         <div className="ui-skeleton" aria-hidden="true">
           <span />
@@ -193,432 +192,399 @@ export function Sidebar({
         </p>
       ) : null}
       <nav>
-        <p className="nav-section">{messages.smartListsTitle}</p>
-        <ul className="nav-list">
-          {navLists.map((item) => (
-            <li
-              key={item.id}
-              onDragOver={allowTaskDrop}
-              onDrop={(event) => {
-                const id = taskDragId(event.dataTransfer);
-                if (id === null || (item.key !== 'today' && item.key !== 'tomorrow')) {
-                  return;
-                }
-                event.preventDefault();
-                const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-                const today = calendarDay(new Date().toISOString(), zone);
-                const due = zonedWallTime(
-                  shiftDayKey(today, item.key === 'today' ? 0 : 1),
-                  0,
-                  0,
-                  zone,
+        <NavGroup id="smart" title={messages.smartListsTitle}>
+          <ul className="nav-list">
+            {navLists.map((item) => (
+              <li
+                key={item.id}
+                onDragOver={allowTaskDrop}
+                onDrop={(event) => {
+                  const id = taskDragId(event.dataTransfer);
+                  if (id === null || (item.key !== 'today' && item.key !== 'tomorrow')) {
+                    return;
+                  }
+                  event.preventDefault();
+                  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                  const today = calendarDay(new Date().toISOString(), zone);
+                  const due = zonedWallTime(
+                    shiftDayKey(today, item.key === 'today' ? 0 : 1),
+                    0,
+                    0,
+                    zone,
+                  );
+                  if (due === null) {
+                    return;
+                  }
+                  void api
+                    .patchTask(id, { due_date: due, is_all_day: true, time_zone: zone })
+                    .then(() => {
+                      void refreshTaskSurfaces(queryClient);
+                    });
+                }}
+              >
+                <SideLink to={smartPath(item.key)} onNavigate={onNavigate}>
+                  <SmartIcon name={item.key} />
+                  <span className="nav-label">{smartLabel(messages, item.key)}</span>
+                  {showCounters && item.task_count > 0 ? <Badge value={item.task_count} /> : null}
+                </SideLink>
+              </li>
+            ))}
+          </ul>
+        </NavGroup>
+        <NavGroup id="modules" title={messages.navModules}>
+          <ul className="nav-list">
+            {flags.navigation_order
+              .filter((key) => moduleEnabled(key, flags))
+              .map((key) => {
+                const module = MODULES[key];
+                const Icon = module.icon;
+                return (
+                  <li key={key}>
+                    <SideLink to={module.to} onNavigate={onNavigate}>
+                      <Icon size={18} aria-hidden="true" />
+                      <span className="nav-label">{messages[module.label]}</span>
+                    </SideLink>
+                  </li>
                 );
-                if (due === null) {
-                  return;
-                }
-                void api
-                  .patchTask(id, { due_date: due, is_all_day: true, time_zone: zone })
-                  .then(() => {
-                    void refreshTaskSurfaces(queryClient);
-                  });
+              })}
+          </ul>
+        </NavGroup>
+        <NavGroup id="filters" title={messages.filtersTitle}>
+          <SectionHead title={messages.filtersTitle}>
+            <Link
+              className="nav-add"
+              to="/filters"
+              aria-label={messages.newFilter}
+              onClick={onNavigate}
+            >
+              <Plus size={16} aria-hidden="true" />
+            </Link>
+          </SectionHead>
+          {filters.isSuccess && filterItems.length === 0 ? (
+            <p className="nav-empty">{messages.filtersEmpty}</p>
+          ) : null}
+          <ul className="nav-list">
+            {filterItems.map((filter) => (
+              <li key={filter.id}>
+                <SideLink to={`/filter/${filter.id}`} section onNavigate={onNavigate}>
+                  <span
+                    className="color-dot"
+                    style={filter.color === null ? undefined : { background: filter.color }}
+                  />
+                  <span className="nav-label">{filter.name}</span>
+                  {showCounters && filter.task_count > 0 ? (
+                    <Badge value={filter.task_count} />
+                  ) : null}
+                </SideLink>
+              </li>
+            ))}
+          </ul>
+        </NavGroup>
+        <NavGroup id="lists" title={messages.listsTitle}>
+          <SectionHead title={messages.listsTitle}>
+            <button
+              type="button"
+              className="nav-add"
+              aria-label={messages.newList}
+              aria-expanded={addingList}
+              onClick={() => {
+                setAddingList((current) => !current);
+                setDraft('');
+                setListError(null);
               }}
             >
-              <SideLink to={smartPath(item.key)} onNavigate={onNavigate}>
-                <SmartIcon name={item.key} />
-                <span className="nav-label">{smartLabel(messages, item.key)}</span>
-                {showCounters && item.task_count > 0 ? <Badge value={item.task_count} /> : null}
-              </SideLink>
-            </li>
-          ))}
-        </ul>
-        <p className="nav-section">{messages.navModules}</p>
-        <ul className="nav-list">
-          <li>
-            <SideLink to="/calendar/month" onNavigate={onNavigate}>
-              <CalendarDays size={18} aria-hidden="true" />
-              <span className="nav-label">{messages.navCalendar}</span>
-            </SideLink>
-          </li>
-          <li>
-            <SideLink to="/dashboard" onNavigate={onNavigate}>
-              <LayoutDashboard size={18} aria-hidden="true" />
-              <span className="nav-label">{messages.navDashboard}</span>
-            </SideLink>
-          </li>
-          <li>
-            <SideLink to="/reports/weekly" onNavigate={onNavigate}>
-              <BarChart3 size={18} aria-hidden="true" />
-              <span className="nav-label">{messages.navReports}</span>
-            </SideLink>
-          </li>
-          <li>
-            <SideLink to="/review/weekly" onNavigate={onNavigate}>
-              <ClipboardList size={18} aria-hidden="true" />
-              <span className="nav-label">{messages.navReview}</span>
-            </SideLink>
-          </li>
-          {flags.countdowns ? (
-            <li>
-              <SideLink to="/countdowns" onNavigate={onNavigate}>
-                <Hourglass size={18} aria-hidden="true" />
-                <span className="nav-label">{messages.navCountdowns}</span>
-              </SideLink>
-            </li>
-          ) : null}
-          {flags.focus ? (
-            <li>
-              <SideLink to="/focus" onNavigate={onNavigate}>
-                <CircleDot size={18} aria-hidden="true" />
-                <span className="nav-label">{messages.navFocus}</span>
-              </SideLink>
-            </li>
-          ) : null}
-          <li>
-            <SideLink to="/habits" onNavigate={onNavigate}>
-              <CalendarCheck size={18} aria-hidden="true" />
-              <span className="nav-label">{messages.navHabits}</span>
-            </SideLink>
-          </li>
-          {flags.matrix ? (
-            <li>
-              <SideLink to="/matrix" onNavigate={onNavigate}>
-                <Grid2x2 size={18} aria-hidden="true" />
-                <span className="nav-label">{messages.navMatrix}</span>
-              </SideLink>
-            </li>
-          ) : null}
-        </ul>
-        <SectionHead title={messages.filtersTitle}>
-          <Link
-            className="nav-add"
-            to="/filters"
-            aria-label={messages.newFilter}
-            onClick={onNavigate}
-          >
-            <Plus size={16} aria-hidden="true" />
-          </Link>
-        </SectionHead>
-        {filters.isSuccess && filterItems.length === 0 ? (
-          <p className="nav-empty">{messages.filtersEmpty}</p>
-        ) : null}
-        <ul className="nav-list">
-          {filterItems.map((filter) => (
-            <li key={filter.id}>
-              <SideLink to={`/filter/${filter.id}`} section onNavigate={onNavigate}>
-                <span
-                  className="color-dot"
-                  style={filter.color === null ? undefined : { background: filter.color }}
-                />
-                <span className="nav-label">{filter.name}</span>
-                {showCounters ? <Badge value={filter.task_count} /> : null}
-              </SideLink>
-            </li>
-          ))}
-        </ul>
-        <SectionHead title={messages.listsTitle}>
-          <button
-            type="button"
-            className="nav-add"
-            aria-label={messages.newList}
-            aria-expanded={addingList}
-            onClick={() => {
-              setAddingList((current) => !current);
-              setDraft('');
-              setListError(null);
-            }}
-          >
-            <Plus size={16} aria-hidden="true" />
-          </button>
-        </SectionHead>
-        {addingList ? (
-          <form
-            className="nav-create"
-            onSubmit={(event) => {
-              event.preventDefault();
-              const name = draft.trim();
-              if (name.length === 0 || name.length > 200) {
-                setListError(name.length === 0 ? null : messages.nameInvalid);
-                return;
-              }
-              const taken = projectItems.some(
-                (project) =>
-                  project.name.localeCompare(name, undefined, { sensitivity: 'accent' }) === 0,
-              );
-              if (taken) {
-                setListError(messages.nameTaken);
-                return;
-              }
-              void api.createProject({ name, color: '#4772fa' }, crypto.randomUUID()).then(
-                () => {
-                  setDraft('');
-                  setListError(null);
-                  listField.current?.focus();
-                  void queryClient.invalidateQueries({ queryKey: ['projects'] });
-                },
-                (error: unknown) => {
-                  setListError(
-                    error instanceof ApiError && error.status === 409
-                      ? messages.nameTaken
-                      : messages.nameInvalid,
-                  );
-                },
-              );
-            }}
-          >
-            <input
-              ref={listField}
-              value={draft}
-              aria-label={messages.newList}
-              placeholder={messages.newList}
-              autoFocus
-              onChange={(event) => {
-                setDraft(event.target.value);
-              }}
-              onKeyDown={(event) => {
-                if (event.key === 'Escape') {
-                  event.preventDefault();
-                  setAddingList(false);
-                  setDraft('');
-                  setListError(null);
+              <Plus size={16} aria-hidden="true" />
+            </button>
+          </SectionHead>
+          {addingList ? (
+            <form
+              className="nav-create"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const name = draft.trim();
+                if (name.length === 0 || name.length > 200) {
+                  setListError(name.length === 0 ? null : messages.nameInvalid);
+                  return;
                 }
+                const taken = projectItems.some(
+                  (project) =>
+                    project.name.localeCompare(name, undefined, { sensitivity: 'accent' }) === 0,
+                );
+                if (taken) {
+                  setListError(messages.nameTaken);
+                  return;
+                }
+                void api.createProject({ name, color: '#4772fa' }, crypto.randomUUID()).then(
+                  () => {
+                    setDraft('');
+                    setListError(null);
+                    listField.current?.focus();
+                    void queryClient.invalidateQueries({ queryKey: ['projects'] });
+                  },
+                  (error: unknown) => {
+                    setListError(
+                      error instanceof ApiError && error.status === 409
+                        ? messages.nameTaken
+                        : messages.nameInvalid,
+                    );
+                  },
+                );
               }}
-            />
-            <button type="submit">{messages.createLabel}</button>
-            {listError !== null ? <p className="error">{listError}</p> : null}
-          </form>
-        ) : null}
-        {folderItems.map((folder) => {
-          const children = (projects.data?.items ?? []).filter(
-            (project) => !project.closed && folderId(project) === folder.id,
-          );
-          if (children.length === 0) {
-            return null;
-          }
-          return (
-            <details key={folder.id} className="nav-folder" open>
-              <summary>{folder.name}</summary>
+            >
+              <input
+                ref={listField}
+                value={draft}
+                aria-label={messages.newList}
+                placeholder={messages.newList}
+                autoFocus
+                onChange={(event) => {
+                  setDraft(event.target.value);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') {
+                    event.preventDefault();
+                    setAddingList(false);
+                    setDraft('');
+                    setListError(null);
+                  }
+                }}
+              />
+              <button type="submit">{messages.createLabel}</button>
+              {listError !== null ? <p className="error">{listError}</p> : null}
+            </form>
+          ) : null}
+          {folderItems.map((folder) => {
+            const children = (projects.data?.items ?? []).filter(
+              (project) => !project.is_inbox && !project.closed && folderId(project) === folder.id,
+            );
+            if (children.length === 0) {
+              return null;
+            }
+            return (
+              <details key={folder.id} className="nav-folder" open>
+                <summary>{folder.name}</summary>
+                <ul className="nav-list">
+                  {children.map((project) => (
+                    <li key={project.id}>
+                      <SideLink to={`/list/${project.id}`} section onNavigate={onNavigate}>
+                        <span
+                          className="color-dot"
+                          style={project.color === null ? undefined : { background: project.color }}
+                        />
+                        <span className="nav-label">{project.name}</span>
+                        {showCounters && project.active_task_count > 0 ? (
+                          <Badge value={project.active_task_count} />
+                        ) : null}
+                      </SideLink>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            );
+          })}
+          <ul className="nav-list">
+            {projectItems.map((project) => (
+              <li
+                key={project.id}
+                className="nav-row"
+                onDragOver={allowTaskDrop}
+                onDrop={(event) => {
+                  const id = taskDragId(event.dataTransfer);
+                  if (id === null) {
+                    return;
+                  }
+                  event.preventDefault();
+                  void api.moveTask(id, project.id).then(() => {
+                    void refreshTaskSurfaces(queryClient);
+                  });
+                }}
+              >
+                <SideLink to={`/list/${project.id}`} section onNavigate={onNavigate}>
+                  <span
+                    className="color-dot"
+                    style={project.color === null ? undefined : { background: project.color }}
+                  />
+                  <span className="nav-label">
+                    {project.is_inbox ? messages.smartInbox : project.name}
+                  </span>
+                  {showCounters && project.active_task_count > 0 ? (
+                    <Badge value={project.active_task_count} />
+                  ) : null}
+                </SideLink>
+                <button
+                  type="button"
+                  className="nav-more-btn"
+                  aria-label={messages.menuLabel}
+                  aria-expanded={menuId === project.id}
+                  onClick={() => {
+                    setMenuId((current) => (current === project.id ? null : project.id));
+                  }}
+                >
+                  <MoreHorizontal size={16} aria-hidden="true" />
+                </button>
+                {menuId === project.id ? (
+                  <ListMenu
+                    project={project}
+                    messages={messages}
+                    onClose={() => {
+                      setMenuId(null);
+                    }}
+                    onChanged={() => {
+                      void queryClient.invalidateQueries({ queryKey: ['projects'] });
+                    }}
+                  />
+                ) : null}
+              </li>
+            ))}
+          </ul>
+          {archivedProjects.length > 0 ? (
+            <details className="nav-folder">
+              <summary>{messages.archivedLists}</summary>
               <ul className="nav-list">
-                {children.map((project) => (
+                {archivedProjects.map((project) => (
                   <li key={project.id}>
                     <SideLink to={`/list/${project.id}`} section onNavigate={onNavigate}>
-                      <span
-                        className="color-dot"
-                        style={project.color === null ? undefined : { background: project.color }}
-                      />
                       <span className="nav-label">{project.name}</span>
-                      {showCounters ? <Badge value={project.active_task_count} /> : null}
                     </SideLink>
                   </li>
                 ))}
               </ul>
             </details>
-          );
-        })}
-        <ul className="nav-list">
-          {projectItems.map((project) => (
-            <li
-              key={project.id}
-              className="nav-row"
-              onDragOver={allowTaskDrop}
-              onDrop={(event) => {
-                const id = taskDragId(event.dataTransfer);
-                if (id === null) {
-                  return;
-                }
-                event.preventDefault();
-                void api.moveTask(id, project.id).then(() => {
-                  void refreshTaskSurfaces(queryClient);
-                });
+          ) : null}
+        </NavGroup>
+        <NavGroup id="tags" title={messages.tagsTitle}>
+          <SectionHead title={messages.tagsTitle}>
+            <button
+              type="button"
+              className="nav-add"
+              aria-label={messages.newTag}
+              aria-expanded={addingTag}
+              onClick={() => {
+                setAddingTag((current) => !current);
+                setTagDraft('');
+                setTagError(null);
               }}
             >
-              <SideLink to={`/list/${project.id}`} section onNavigate={onNavigate}>
-                <span
-                  className="color-dot"
-                  style={project.color === null ? undefined : { background: project.color }}
-                />
-                <span className="nav-label">
-                  {project.is_inbox ? messages.smartInbox : project.name}
-                </span>
-                {showCounters ? <Badge value={project.active_task_count} /> : null}
-              </SideLink>
-              <button
-                type="button"
-                className="nav-more-btn"
-                aria-label={messages.menuLabel}
-                aria-expanded={menuId === project.id}
-                onClick={() => {
-                  setMenuId((current) => (current === project.id ? null : project.id));
+              <Plus size={16} aria-hidden="true" />
+            </button>
+          </SectionHead>
+          {tags.isSuccess && tagItems.length === 0 && !addingTag ? (
+            <p className="nav-empty">{messages.tagsEmpty}</p>
+          ) : null}
+          {addingTag ? (
+            <form
+              className="nav-create"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const name = normalizeTagName(tagDraft);
+                if (name === null) {
+                  setTagError(tagDraft.trim().length === 0 ? null : messages.nameInvalid);
+                  return;
+                }
+                void api.createTag({ name, color: '#4772fa' }, crypto.randomUUID()).then(
+                  () => {
+                    setTagDraft('');
+                    setTagError(null);
+                    tagField.current?.focus();
+                    void queryClient.invalidateQueries({ queryKey: ['tags'] });
+                  },
+                  (error: unknown) => {
+                    setTagError(
+                      error instanceof ApiError &&
+                        (error.status === 409 || error.code === 'tag_name_taken')
+                        ? messages.nameTaken
+                        : messages.nameInvalid,
+                    );
+                  },
+                );
+              }}
+            >
+              <input
+                ref={tagField}
+                value={tagDraft}
+                aria-label={messages.newTag}
+                placeholder={messages.newTag}
+                autoFocus
+                onChange={(event) => {
+                  setTagDraft(event.target.value);
                 }}
-              >
-                <MoreHorizontal size={16} aria-hidden="true" />
-              </button>
-              {menuId === project.id ? (
-                <ListMenu
-                  project={project}
-                  messages={messages}
-                  onClose={() => {
-                    setMenuId(null);
-                  }}
-                  onChanged={() => {
-                    void queryClient.invalidateQueries({ queryKey: ['projects'] });
-                  }}
-                />
-              ) : null}
-            </li>
-          ))}
-        </ul>
-        {archivedProjects.length > 0 ? (
-          <details className="nav-folder">
-            <summary>{messages.archivedLists}</summary>
-            <ul className="nav-list">
-              {archivedProjects.map((project) => (
-                <li key={project.id}>
-                  <SideLink to={`/list/${project.id}`} section onNavigate={onNavigate}>
-                    <span className="nav-label">{project.name}</span>
-                  </SideLink>
-                </li>
-              ))}
-            </ul>
-          </details>
-        ) : null}
-        <SectionHead title={messages.tagsTitle}>
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') {
+                    event.preventDefault();
+                    setAddingTag(false);
+                    setTagDraft('');
+                    setTagError(null);
+                  }
+                }}
+              />
+              <button type="submit">{messages.createLabel}</button>
+              {tagError !== null ? <p className="error">{tagError}</p> : null}
+            </form>
+          ) : null}
+          <input
+            className="nav-create"
+            value={tagQuery}
+            aria-label={messages.tagSearch}
+            placeholder={messages.tagSearch}
+            onChange={(event) => {
+              setTagQuery(event.target.value);
+            }}
+          />
           <button
             type="button"
-            className="nav-add"
-            aria-label={messages.newTag}
-            aria-expanded={addingTag}
+            className="nav-unused"
+            aria-pressed={showUnused}
             onClick={() => {
-              setAddingTag((current) => !current);
-              setTagDraft('');
-              setTagError(null);
+              setShowUnused((current) => !current);
             }}
           >
-            <Plus size={16} aria-hidden="true" />
+            {showUnused ? messages.hideUnusedTags : messages.showUnusedTags}
           </button>
-        </SectionHead>
-        {tags.isSuccess && tagItems.length === 0 && !addingTag ? (
-          <p className="nav-empty">{messages.tagsEmpty}</p>
-        ) : null}
-        {addingTag ? (
-          <form
-            className="nav-create"
-            onSubmit={(event) => {
-              event.preventDefault();
-              const name = normalizeTagName(tagDraft);
-              if (name === null) {
-                setTagError(tagDraft.trim().length === 0 ? null : messages.nameInvalid);
-                return;
-              }
-              void api.createTag({ name, color: '#4772fa' }, crypto.randomUUID()).then(
-                () => {
-                  setTagDraft('');
-                  setTagError(null);
-                  tagField.current?.focus();
-                  void queryClient.invalidateQueries({ queryKey: ['tags'] });
-                },
-                (error: unknown) => {
-                  setTagError(
-                    error instanceof ApiError &&
-                      (error.status === 409 || error.code === 'tag_name_taken')
-                      ? messages.nameTaken
-                      : messages.nameInvalid,
-                  );
-                },
-              );
-            }}
-          >
-            <input
-              ref={tagField}
-              value={tagDraft}
-              aria-label={messages.newTag}
-              placeholder={messages.newTag}
-              autoFocus
-              onChange={(event) => {
-                setTagDraft(event.target.value);
-              }}
-              onKeyDown={(event) => {
-                if (event.key === 'Escape') {
-                  event.preventDefault();
-                  setAddingTag(false);
-                  setTagDraft('');
-                  setTagError(null);
-                }
-              }}
-            />
-            <button type="submit">{messages.createLabel}</button>
-            {tagError !== null ? <p className="error">{tagError}</p> : null}
-          </form>
-        ) : null}
-        <input
-          className="nav-create"
-          value={tagQuery}
-          aria-label={messages.tagSearch}
-          placeholder={messages.tagSearch}
-          onChange={(event) => {
-            setTagQuery(event.target.value);
-          }}
-        />
-        <button
-          type="button"
-          className="nav-unused"
-          aria-pressed={showUnused}
-          onClick={() => {
-            setShowUnused((current) => !current);
-          }}
-        >
-          {showUnused ? messages.hideUnusedTags : messages.showUnusedTags}
-        </button>
-        <ul className="nav-list">
-          {visibleTags.map((tag) => {
-            const href = `/tag/${tag.id}`;
-            const current = `${location.pathname}${location.search}` === href;
-            return (
-              <li key={tag.id} className="nav-row">
-                <Link
-                  aria-current={current ? 'page' : undefined}
-                  className={current ? 'nav-link is-active is-section' : 'nav-link is-section'}
-                  data-selected={current ? 'true' : undefined}
-                  to={href}
-                  onClick={onNavigate}
-                >
-                  <span className="nav-label">{tag.name}</span>
-                  {showCounters ? <Badge value={tag.active_task_count} /> : null}
-                </Link>
-                <button
-                  type="button"
-                  className="nav-more-btn"
-                  aria-label={messages.tagRename}
-                  aria-expanded={tagMenuId === tag.id}
-                  onClick={() => {
-                    setTagMenuId((current) => (current === tag.id ? null : tag.id));
-                  }}
-                >
-                  <MoreHorizontal size={16} aria-hidden="true" />
-                </button>
-                {tagMenuId === tag.id ? (
-                  <TagMenu
-                    tag={tag}
-                    tags={tagItems}
-                    messages={messages}
-                    onClose={() => {
-                      setTagMenuId(null);
+          <ul className="nav-list">
+            {visibleTags.map((tag) => {
+              const href = `/tag/${tag.id}`;
+              const current = `${location.pathname}${location.search}` === href;
+              return (
+                <li key={tag.id} className="nav-row">
+                  <Link
+                    aria-current={current ? 'page' : undefined}
+                    className={current ? 'nav-link is-active is-section' : 'nav-link is-section'}
+                    data-selected={current ? 'true' : undefined}
+                    to={href}
+                    onClick={onNavigate}
+                  >
+                    <Hash size={15} aria-hidden="true" />
+                    <span className="nav-label">{tag.name}</span>
+                    {showCounters && tag.active_task_count > 0 ? (
+                      <Badge value={tag.active_task_count} />
+                    ) : null}
+                  </Link>
+                  <button
+                    type="button"
+                    className="nav-more-btn"
+                    aria-label={messages.tagRename}
+                    aria-expanded={tagMenuId === tag.id}
+                    onClick={() => {
+                      setTagMenuId((current) => (current === tag.id ? null : tag.id));
                     }}
-                  />
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
-        <button
-          type="button"
-          className="nav-section nav-more-toggle"
-          aria-expanded={moreOpen}
-          onClick={() => {
-            setMoreOpen((current) => !current);
-          }}
-        >
-          {moreOpen ? messages.hideMore : messages.showMore}
-        </button>
+                  >
+                    <MoreHorizontal size={16} aria-hidden="true" />
+                  </button>
+                  {tagMenuId === tag.id ? (
+                    <TagMenu
+                      tag={tag}
+                      tags={tagItems}
+                      messages={messages}
+                      onClose={() => {
+                        setTagMenuId(null);
+                      }}
+                    />
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        </NavGroup>
         {flags.countdowns && showCountdowns ? (
           <ul className="nav-list countdown-side">
             {(countdowns.data?.items ?? [])
@@ -632,36 +598,6 @@ export function Sidebar({
                   </SideLink>
                 </li>
               ))}
-          </ul>
-        ) : null}
-        {moreOpen ? (
-          <ul className="nav-list">
-            <Item
-              to="/dashboard"
-              label={messages.navDashboard}
-              onNavigate={onNavigate}
-              icon={LayoutDashboard}
-            />
-            <Item
-              to="/reports/weekly"
-              label={messages.navReports}
-              onNavigate={onNavigate}
-              icon={BarChart3}
-            />
-            <Item
-              to="/review/weekly"
-              label={messages.navReview}
-              onNavigate={onNavigate}
-              icon={ClipboardList}
-            />
-            {flags.countdowns ? (
-              <Item
-                to="/countdowns"
-                label={messages.navCountdowns}
-                onNavigate={onNavigate}
-                icon={Hourglass}
-              />
-            ) : null}
           </ul>
         ) : null}
       </nav>
@@ -680,39 +616,6 @@ export function Sidebar({
             {showCounters && smart.isPending ? <span className="ui-badge">—</span> : null}
             {showCounters && smart.isSuccess ? <Badge value={trash?.task_count ?? 0} /> : null}
           </SideLink>
-        ) : null}
-        {confirmTrash && trashVisible ? (
-          <div className="nav-confirm">
-            <p>{messages.emptyTrashBody}</p>
-            <Button
-              type="button"
-              size="sm"
-              variant="danger"
-              onClick={() => {
-                void api.emptyTrash().then(() => {
-                  setConfirmTrash(false);
-                  void queryClient.invalidateQueries({ queryKey: ['smart-lists'] });
-                  void queryClient.invalidateQueries({ queryKey: ['smart-list-tasks'] });
-                });
-              }}
-            >
-              {messages.confirmEmpty}
-            </Button>
-          </div>
-        ) : null}
-        {trashVisible ? (
-          <button
-            type="button"
-            className="icon-btn"
-            aria-label={messages.emptyTrash}
-            title={messages.emptyTrash}
-            disabled={!smart.isSuccess || (trash?.task_count ?? 0) === 0}
-            onClick={() => {
-              setConfirmTrash(true);
-            }}
-          >
-            <Trash2 size={16} aria-hidden="true" />
-          </button>
         ) : null}
         <button
           type="button"
@@ -742,27 +645,6 @@ export function Sidebar({
         </button>
       </div>
     </aside>
-  );
-}
-
-function Item({
-  to,
-  label,
-  onNavigate,
-  icon: Icon,
-}: {
-  readonly to: string;
-  readonly label: string;
-  readonly onNavigate: () => void;
-  readonly icon?: LucideIcon | undefined;
-}) {
-  return (
-    <li>
-      <SideLink to={to} section onNavigate={onNavigate}>
-        {Icon !== undefined ? <Icon size={20} aria-hidden="true" /> : null}
-        <span className="nav-label">{label}</span>
-      </SideLink>
-    </li>
   );
 }
 
@@ -1060,4 +942,41 @@ function themeName(messages: Messages, preference: ThemePreference): string {
     case 'auto':
       return messages.themeAuto;
   }
+}
+
+function NavGroup({
+  id,
+  title,
+  children,
+}: {
+  readonly id: string;
+  readonly title: string;
+  readonly children: ReactNode;
+}) {
+  const storage = `tick-tack-done.sidebar-group.${id}`;
+  const [open, setOpen] = useState(() => {
+    const saved = localStorage.getItem(storage);
+    if (saved !== null) return saved !== 'closed';
+    return (
+      !window.matchMedia('(max-width: 1023px)').matches ||
+      !['lists', 'tags', 'filters'].includes(id)
+    );
+  });
+  return (
+    <section className="nav-group">
+      <button
+        type="button"
+        className="nav-group-toggle"
+        aria-expanded={open}
+        onClick={() => {
+          localStorage.setItem(storage, open ? 'closed' : 'open');
+          setOpen(!open);
+        }}
+      >
+        <ChevronDown size={14} aria-hidden="true" />
+        {title}
+      </button>
+      <div hidden={!open}>{children}</div>
+    </section>
+  );
 }

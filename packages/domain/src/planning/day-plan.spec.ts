@@ -77,7 +77,7 @@ describe('planQueue', () => {
       },
     );
     expect(queue.cards.map((card) => card.taskId)).toEqual(['high', 'low']);
-    expect(queue.cards[0]?.reasonText).toBe('Venció el 18/10/2026');
+    expect(queue.cards[0]?.reasonText).toBe('Venció el 18 oct 2026');
   });
 
   it('offers inbox and undated tasks only when those sources are on', () => {

@@ -1,6 +1,8 @@
 import { create } from 'zustand';
+import { navigationOrder, type NavigationModule } from '@reflexionia/domain';
 
 export interface FeatureFlags {
+  readonly navigation_order: NavigationModule[];
   readonly countdowns: boolean;
   readonly focus: boolean;
   readonly matrix: boolean;
@@ -11,6 +13,7 @@ export interface FeatureFlags {
 }
 
 export const DEFAULT_FEATURES: FeatureFlags = {
+  navigation_order: navigationOrder(undefined),
   countdowns: true,
   focus: true,
   matrix: true,
@@ -23,6 +26,7 @@ export const DEFAULT_FEATURES: FeatureFlags = {
 export function featureFlags(value: unknown): FeatureFlags {
   const row = typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
   return {
+    navigation_order: navigationOrder(row.navigation_order),
     countdowns: row.countdowns !== false,
     focus: row.focus !== false,
     matrix: row.matrix !== false,

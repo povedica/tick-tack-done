@@ -105,38 +105,13 @@ const GROUPS: readonly ScopeGroup[] = [
   },
 ];
 
-const SCOPE_LABEL: Record<string, keyof Messages> = {
-  'tasks:read': 'scopeTasksRead',
-  'tasks:write': 'scopeTasksWrite',
-  'lists:read': 'scopeListsRead',
-  'lists:write': 'scopeListsWrite',
-  'tags:read': 'scopeTagsRead',
-  'tags:write': 'scopeTagsWrite',
-  'filters:read': 'scopeFiltersRead',
-  'filters:write': 'scopeFiltersWrite',
-  'habits:read': 'scopeHabitsRead',
-  'habits:write': 'scopeHabitsWrite',
-  'focus:read': 'scopeFocusRead',
-  'focus:write': 'scopeFocusWrite',
-  'notes:read': 'scopeNotesRead',
-  'notes:write': 'scopeNotesWrite',
-  'calendar:read': 'scopeCalendarRead',
-  'calendar:write': 'scopeCalendarWrite',
-  'reminders:write': 'scopeRemindersWrite',
-  'webhooks:manage': 'scopeWebhooksManage',
-  'automations:manage': 'scopeAutomationsManage',
-  'profile:read': 'scopeProfileRead',
-  'profile:write': 'scopeProfileWrite',
-  'stats:read': 'scopeStatsRead',
-  'backup:read': 'scopeBackupRead',
-};
-
 export function TokensPage() {
   const messages = useMessages();
   const locale = useAppLocale();
   const inSettings = useLocation().pathname.startsWith('/settings');
   const queryClient = useQueryClient();
   const tokens = useQuery({ queryKey: ['tokens'], queryFn: () => tokensApi.listTokens() });
+  const [client, setClient] = useState('Cursor');
   const [composer, setComposer] = useState(false);
   const [name, setName] = useState('');
   const [scopes, setScopes] = useState<Scope[]>([]);
@@ -229,17 +204,34 @@ export function TokensPage() {
             {copied === 'url' ? messages.copied : messages.mcpCopyUrl}
           </Button>
         </div>
-        <p className="token-kicker">{messages.mcpCursor}</p>
-        <pre className="token-snippet">{snippet}</pre>
-        <Button
-          type="button"
-          size="sm"
-          onClick={() => {
-            void copyText('snippet', snippet);
-          }}
-        >
-          {copied === 'snippet' ? messages.copied : messages.mcpCopyConfig}
-        </Button>
+        <label className="token-kicker">
+          {messages.mcpClient}
+          <select
+            value={client}
+            onChange={(event) => {
+              setClient(event.target.value);
+            }}
+          >
+            {['Cursor', 'ChatGPT', 'Claude'].map((name) => (
+              <option key={name}>{name}</option>
+            ))}
+          </select>
+        </label>
+        {client !== 'Cursor' ? <p>{messages.mcpOAuthHelp}</p> : null}
+        {client === 'Cursor' ? (
+          <>
+            <pre className="token-snippet">{snippet}</pre>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                void copyText('snippet', snippet);
+              }}
+            >
+              {copied === 'snippet' ? messages.copied : messages.mcpCopyConfig}
+            </Button>
+          </>
+        ) : null}
       </section>
 
       {secret !== null ? (
@@ -262,7 +254,6 @@ export function TokensPage() {
         <div className="token-panel-head">
           <div>
             <h2 id="token-new-title">{messages.tokenNew}</h2>
-            <p>{messages.tokenNewHint}</p>
           </div>
           <Button
             type="button"
@@ -287,6 +278,7 @@ export function TokensPage() {
               create.mutate();
             }}
           >
+            <p>{messages.tokenNewHint}</p>
             <label className="token-label" htmlFor="token-name">
               {messages.tokenName}
             </label>
@@ -363,7 +355,7 @@ export function TokensPage() {
                     {revoked ? messages.tokenRevoked : messages.tokenActive}
                   </span>
                 </div>
-                <ul className="token-scope-table">
+                <ul className="token-scope-table" title={token.scopes.join(', ')}>
                   {groupedScopes(token.scopes, messages).map((row) => (
                     <li key={row.resource}>
                       <span>{row.resource}</span>
@@ -527,11 +519,6 @@ function whenRelative(iso: string, locale: string, messages: Messages): string {
   return when(iso, locale);
 }
 
-function scopeLabel(messages: Messages, scope: string): string {
-  const key = SCOPE_LABEL[scope];
-  return key === undefined ? scope : messages[key];
-}
-
 /** TOK-1: one line per resource instead of a chip wall. */
 function groupedScopes(
   scopes: readonly string[],
@@ -540,16 +527,18 @@ function groupedScopes(
   const unique = [...new Set(scopes)];
   const byResource = new Map<string, { read: boolean; write: boolean; other: string[] }>();
   for (const scope of unique) {
-    const [resource = scope, verb = ''] = scope.split(':');
+    const parts = scope.split(':');
+    const verb = parts.pop() ?? '';
+    const resource = parts.join(':');
     const row = byResource.get(resource) ?? { read: false, write: false, other: [] };
     if (verb === 'read') {
       row.read = true;
-    } else if (verb === 'write' || verb === 'manage' || verb === 'start') {
+    } else if (verb === 'write' || verb === 'manage') {
       row.write = true;
     } else if (verb.length > 0) {
-      row.other.push(scopeLabel(messages, scope));
+      row.other.push(scopeAction(messages, verb));
     } else {
-      row.other.push(scopeLabel(messages, scope));
+      row.other.push(scopeAction(messages, verb));
     }
     byResource.set(resource, row);
   }
@@ -572,6 +561,16 @@ function groupedScopes(
 
 function resourceLabel(messages: Messages, resource: string): string {
   switch (resource) {
+    case 'countdowns':
+      return messages.navCountdowns;
+    case 'stats':
+      return messages.navStatistics;
+    case 'notifications:self':
+      return messages.scopeNotifications;
+    case 'ticky:proposals':
+      return messages.scopeTickyProposals;
+    case 'ticky:routines':
+      return messages.scopeTickyRoutines;
     case 'tasks':
       return messages.tokenGroupTasks;
     case 'lists':
@@ -634,5 +633,24 @@ function entityLabel(messages: Messages, entity: string): string {
       return messages.entityToken;
     default:
       return entity;
+  }
+}
+
+function scopeAction(messages: Messages, verb: string): string {
+  switch (verb) {
+    case 'create':
+      return messages.scopeCreateAction;
+    case 'update':
+      return messages.scopeUpdateAction;
+    case 'complete':
+      return messages.scopeCompleteAction;
+    case 'trash':
+      return messages.scopeTrashAction;
+    case 'start':
+      return messages.scopeStartAction;
+    case 'stop':
+      return messages.scopeStopAction;
+    default:
+      return verb;
   }
 }

@@ -1,3 +1,4 @@
+import { humanDate } from '../dates/presentation';
 import type { Priority, TaskStatus } from '../types';
 
 /** A review cap never hides work that is already due today. */
@@ -212,7 +213,7 @@ function classify(
       task,
       section: 'overdue',
       reason: 'overdue',
-      reasonText: `Venció el ${dueDay.slice(8, 10)}/${dueDay.slice(5, 7)}/${dueDay.slice(0, 4)}`,
+      reasonText: `Venció el ${humanDate(dueDay)}`,
       dueDay,
     };
   }

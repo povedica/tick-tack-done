@@ -22,6 +22,7 @@ export interface UpdateMeBody {
   readonly deadline_soon_days?: number;
   readonly evening_start?: string;
   readonly features?: {
+    readonly navigation_order?: readonly string[];
     readonly countdowns?: boolean;
     readonly focus?: boolean;
     readonly matrix?: boolean;

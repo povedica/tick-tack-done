@@ -11775,6 +11775,25 @@
       "FeatureFlagsDto": {
         "type": "object",
         "properties": {
+          "navigation_order": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "calendar",
+                "matrix",
+                "countdowns",
+                "focus",
+                "habits",
+                "ticky",
+                "statistics",
+                "dashboard",
+                "reports",
+                "review",
+                "search"
+              ]
+            }
+          },
           "countdowns": {
             "type": "boolean"
           },

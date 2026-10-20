@@ -9,6 +9,10 @@ import {
 import { Link } from 'react-router';
 import { PriorityCheck } from '../../components/PriorityCheck';
 import { attachmentHref } from './task-http';
+import Markdown from 'react-markdown';
+import { displayTitle } from './displayTitle';
+import { useMessages } from '../../i18n';
+import { collapseRepeatedContent } from './collapse-repeated';
 
 export function DetailBody({
   taskId,
@@ -19,6 +23,7 @@ export function DetailBody({
   contentLabel,
   contentHint,
   contentRef,
+  editRequested = false,
   checklistLabel,
   checklistAdd,
   checklistEdit,
@@ -59,6 +64,7 @@ export function DetailBody({
   readonly contentLabel: string;
   readonly contentHint: string;
   readonly contentRef: RefObject<HTMLTextAreaElement | null>;
+  readonly editRequested?: boolean;
   readonly checklistLabel: string;
   readonly checklistAdd: string;
   readonly checklistEdit: string;
@@ -108,12 +114,21 @@ export function DetailBody({
   readonly onDropFiles: (files: FileList) => void;
 }) {
   const [editing, setEditing] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState(false);
+  const messages = useMessages();
+  const cleanContent = collapseRepeatedContent(content);
+  useLayoutEffect(() => {
+    setEditingContent(false);
+  }, [taskId]);
+  useLayoutEffect(() => {
+    if (editRequested) setEditingContent(true);
+  }, [editRequested]);
   useLayoutEffect(() => {
     const node = contentRef.current;
     if (node !== null) {
       fit(node);
     }
-  }, [content, contentRef, taskId]);
+  }, [content, contentRef, taskId, editingContent]);
   const done = items.filter((item) => item.done).length;
   const subtaskDone = subtasks.filter((item) => item.done).length;
   return (
@@ -143,9 +158,12 @@ export function DetailBody({
       <textarea
         className="detail-title"
         aria-label={titleLabel}
-        defaultValue={title}
+        defaultValue={displayTitle(title)}
         key={title}
         rows={1}
+        ref={(node) => {
+          if (node !== null) fit(node);
+        }}
         placeholder={untitled}
         onInput={(event) => {
           fit(event.currentTarget);
@@ -155,21 +173,57 @@ export function DetailBody({
           onTitle(event.target.value);
         }}
       />
-      <textarea
-        ref={contentRef}
-        className="detail-content"
-        aria-label={contentLabel}
-        placeholder={contentHint}
-        defaultValue={content}
-        key={taskId}
-        rows={3}
-        onInput={(event) => {
-          fit(event.currentTarget);
-        }}
-        onBlur={(event) => {
-          onContent(event.target.value);
-        }}
-      />
+      {!editingContent && cleanContent.length > 0 ? (
+        <section className="detail-markdown">
+          {cleanContent !== content ? (
+            <p role="status">
+              {messages.repeatedContentNotice}{' '}
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => {
+                  onContent(cleanContent);
+                }}
+              >
+                {messages.repairDescription}
+              </button>
+            </p>
+          ) : null}
+          <Markdown>{cleanContent}</Markdown>
+          <button
+            type="button"
+            className="text-button"
+            onClick={() => {
+              setEditingContent(true);
+            }}
+          >
+            {messages.editDescription}
+          </button>
+        </section>
+      ) : (
+        <textarea
+          ref={contentRef}
+          className="detail-content"
+          aria-label={contentLabel}
+          placeholder={contentHint}
+          defaultValue={cleanContent}
+          key={taskId}
+          rows={3}
+          onInput={(event) => {
+            fit(event.currentTarget);
+          }}
+          onBlur={(event) => {
+            if (
+              event.relatedTarget instanceof Element &&
+              event.relatedTarget.closest('.format-bar') !== null
+            )
+              return;
+            onContent(event.target.value);
+            if (!editRequested) setEditingContent(false);
+          }}
+          autoFocus={editingContent}
+        />
+      )}
       <section className="detail-block detail-checks">
         <div className="detail-block-head">
           <h3>
@@ -289,7 +343,7 @@ export function DetailBody({
               <li key={child.id}>
                 <PriorityCheck
                   priority="none"
-                  label={child.title}
+                  label={displayTitle(child.title)}
                   checked={child.done}
                   onChange={() => {
                     onToggleSubtask(child.id, child.done);
@@ -299,7 +353,7 @@ export function DetailBody({
                   className={child.done ? 'check-title is-done' : 'check-title'}
                   to={`?task=${child.id}`}
                 >
-                  {child.title}
+                  {displayTitle(child.title)}
                 </Link>
               </li>
             ))}

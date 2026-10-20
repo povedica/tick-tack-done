@@ -103,7 +103,10 @@ describe('recurrence', () => {
       'El último día de cada mes',
     );
     expect(describeRepeatRule('RRULE:FREQ=MONTHLY;BYMONTHDAY=-3')).toBe(
-      '3 días antes de fin de mes',
+      'El 3º día desde el final de cada mes',
+    );
+    expect(describeRepeatRule('RRULE:FREQ=MONTHLY;BYMONTHDAY=-2')).toBe(
+      'El penúltimo día de cada mes',
     );
     expect(describeRepeatRule('RRULE:FREQ=DAILY;INTERVAL=3;COUNT=10')).toBe(
       'Cada 3 días, 10 veces',

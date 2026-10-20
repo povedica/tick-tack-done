@@ -1,3 +1,4 @@
+import { listOverdueTaskIds } from '../../reading/overdue.js';
 import { randomUUID } from 'node:crypto';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { Prisma, type Task } from '@prisma/client';
@@ -2430,21 +2431,7 @@ export class TasksService {
   }
 
   private async overdueIds(ownerId: string): Promise<string[]> {
-    const rows = await this.prisma.$queryRaw<{ id: string }[]>`
-      SELECT id FROM tasks
-      WHERE owner_id = CAST(${ownerId} AS uuid)
-        AND deleted_at IS NULL
-        AND status = 'active'::"TaskStatus"
-        AND due_date IS NOT NULL
-        AND (
-          (is_all_day = false AND due_date < NOW())
-          OR (
-            is_all_day = true
-            AND (due_date AT TIME ZONE time_zone)::date < (NOW() AT TIME ZONE time_zone)::date
-          )
-        )
-    `;
-    return rows.map((row) => row.id);
+    return listOverdueTaskIds(this.prisma, ownerId);
   }
 
   private instant(value: string, field: string): Date {

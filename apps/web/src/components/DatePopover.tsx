@@ -128,6 +128,7 @@ export function DatePopover({
           size="sm"
           variant={tab === 'date' ? 'primary' : 'ghost'}
           aria-selected={tab === 'date'}
+          role="tab"
           onClick={() => {
             setTab('date');
           }}
@@ -139,6 +140,7 @@ export function DatePopover({
           size="sm"
           variant={tab === 'duration' ? 'primary' : 'ghost'}
           aria-selected={tab === 'duration'}
+          role="tab"
           onClick={() => {
             setTab('duration');
           }}
@@ -272,7 +274,12 @@ export function DatePopover({
                 <button
                   key={key}
                   type="button"
-                  className={['cal-day', selected ? 'is-selected' : '', today ? 'is-today' : '']
+                  className={[
+                    'cal-day',
+                    date.getMonth() !== cursor.getMonth() ? 'is-outside' : '',
+                    selected ? 'is-selected' : '',
+                    today ? 'is-today' : '',
+                  ]
                     .filter((item) => item.length > 0)
                     .join(' ')}
                   onClick={() => {

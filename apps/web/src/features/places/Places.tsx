@@ -1,6 +1,8 @@
+import { PriorityCheck } from '../../components/PriorityCheck';
+import { displayTitle } from '../tasks/displayTitle';
 import { ApiError, type Habit, type Project, type Task } from '@reflexionia/sdk';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   Link,
   NavLink,
@@ -10,7 +12,7 @@ import {
   useParams,
   useSearchParams,
 } from 'react-router';
-import { calendarDateKey } from '@reflexionia/domain';
+import { eventDayRange } from './event-span';
 import { api } from '../../api';
 import { completeBody } from '../tasks/complete-body';
 import { useActionToast } from '../../components/action-toast';
@@ -32,10 +34,11 @@ import { rowFromTask, smartApiKey, type RowModel } from '../tasks/model';
 import { refreshTaskSurfaces } from '../tasks/refresh';
 import { newMutation, runOrQueue } from '../offline/client';
 import { collectTasks } from '../today/board';
-import { formatDueTime } from '../today/groups';
+import { calendarDay, formatDueTime } from '../today/groups';
 import { TaskList } from '../tasks/TaskList';
 import { HourGrid } from './HourGrid';
 import {
+  isoWeek,
   calendarTaskLabel,
   dayFromParam,
   isCalendarOverdue,
@@ -315,7 +318,14 @@ export function CalendarPage() {
       void navigate('/calendar/month', { replace: true });
     }
   }, [view, knownView, navigate]);
-  const cells = viewDays(current ?? 'month', cursor, weekStart);
+  const [workweek, setWorkweek] = useState(
+    () => localStorage.getItem('tick-tack-done.calendar-workweek') === 'true',
+  );
+  const allCells = viewDays(current ?? 'month', cursor, weekStart);
+  const cells =
+    workweek && (current === 'week' || current === 'multi-day')
+      ? allCells.filter((day) => day.getDay() !== 0 && day.getDay() !== 6)
+      : allCells;
   const range = current === 'year' ? yearQueryRange(cursor) : monthQueryRange(cells);
   const tasks = useQuery({
     queryKey: ['calendar-tasks', range.dueAfter, range.dueBefore],
@@ -366,9 +376,30 @@ export function CalendarPage() {
     }
   };
   return (
-    <section className="screen-page is-wide">
+    <section className={`screen-page is-wide calendar-page calendar-${current ?? 'month'}`}>
       <header className="cal-toolbar">
-        <h1>{title}</h1>
+        <h1>
+          {title}
+          {current === 'week' || current === 'multi-day'
+            ? ` · S${String(isoWeek(cells[0] ?? cursor))}`
+            : ''}
+        </h1>
+        {current === 'week' || current === 'multi-day' ? (
+          <label className="cal-workweek">
+            <input
+              type="checkbox"
+              checked={workweek}
+              onChange={(event) => {
+                setWorkweek(event.target.checked);
+                localStorage.setItem(
+                  'tick-tack-done.calendar-workweek',
+                  String(event.target.checked),
+                );
+              }}
+            />
+            {messages.calWorkweek}
+          </label>
+        ) : null}
         <div className="cal-nav">
           <Button
             onClick={() => {
@@ -472,6 +503,7 @@ export function CalendarPage() {
           days={cells}
           tasks={dated}
           events={external}
+          colors={colors}
           messages={messages}
           onOpenEvent={setOpenEvent}
         />
@@ -483,6 +515,7 @@ export function CalendarPage() {
             columns={7}
             tasks={dated}
             events={external}
+            colors={colors}
             onOpenEvent={setOpenEvent}
             messages={messages}
             cursor={cursor}
@@ -539,7 +572,7 @@ function calendarTitle(locale: string, view: string, cursor: Date, cells: readon
   }
   const first = cells[0] ?? cursor;
   const last = cells.at(-1) ?? cursor;
-  if (view === 'week' || view === 'multi-day' || view === 'multi-week') {
+  if (view === 'week' || view === 'multi-day' || view === 'multi-week' || view === 'agenda') {
     const sameMonth = first.getMonth() === last.getMonth();
     const start = new Intl.DateTimeFormat(
       locale,
@@ -556,6 +589,7 @@ function DayGrid({
   columns,
   tasks,
   events = [],
+  colors = new Map<string, string>(),
   onOpenEvent,
   messages,
   cursor,
@@ -567,6 +601,7 @@ function DayGrid({
   readonly columns: number;
   readonly tasks: readonly Task[];
   readonly events?: readonly ExternalEventView[];
+  readonly colors?: ReadonlyMap<string, string>;
   readonly onOpenEvent?: (event: ExternalEventView) => void;
   readonly messages: Messages;
   readonly cursor: Date;
@@ -583,14 +618,21 @@ function DayGrid({
   return (
     <div
       className={dots ? 'cal-month is-dots' : 'cal-month'}
-      style={{ gridTemplateColumns: `repeat(${String(columns)}, minmax(0, 1fr))` }}
+      style={{
+        gridTemplateColumns: `${dots ? '' : '2rem '}repeat(${String(columns)}, minmax(0, 1fr))`,
+      }}
     >
+      {!dots ? (
+        <div className="cal-head" aria-label={messages.calWeekNumber}>
+          S
+        </div>
+      ) : null}
       {heads.map((label, index) => (
         <div key={`${label}-${String(index)}`} className="cal-head">
           {label}
         </div>
       ))}
-      {days.map((day) => {
+      {days.map((day, index) => {
         const items = tasksOnCell(tasks, day);
         const dayEvents = eventsOnDay(events, day);
         const chips = mixChips(items, dayEvents);
@@ -612,62 +654,81 @@ function DayGrid({
           .filter((item) => item.length > 0)
           .join(' ');
         return (
-          <div key={key} className={classes}>
-            <strong>
-              {onPick !== undefined ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onPick(key);
-                  }}
-                >
-                  {day.getDate()}
-                </button>
-              ) : (
-                <Link to={href}>{day.getDate()}</Link>
-              )}
-            </strong>
-            <span className="cal-dots" aria-hidden="true">
-              {chips.slice(0, 3).map((chip) => (
-                <i key={chip.kind === 'task' ? chip.task.id : chip.event.id} />
-              ))}
-            </span>
-            {dots
-              ? null
-              : chips.slice(0, 3).map((chip) =>
-                  chip.kind === 'task' ? (
-                    <Link
-                      key={chip.task.id}
-                      className={
-                        isCalendarOverdue(chip.task.due_date, chip.task.time_zone, new Date())
-                          ? 'cal-pill is-overdue'
-                          : 'cal-pill'
-                      }
-                      to={`/list/${chip.task.project_id}?task=${chip.task.id}`}
-                    >
-                      {chipLabel(chip.task, messages.untitled, locale)}
-                    </Link>
-                  ) : (
-                    <button
-                      key={chip.event.id}
-                      type="button"
-                      className="cal-pill"
-                      style={chipStyle(chip.event.color)}
-                      onClick={() => {
-                        onOpenEvent?.(chip.event);
-                      }}
-                    >
-                      {chip.event.is_all_day ? '' : `${clockLabel(chip.event.starts_at, locale)} `}
-                      {chip.event.title}
-                    </button>
-                  ),
-                )}
-            {!dots && hidden > 0 ? (
-              <Link to={href} aria-label={moreLabel}>
-                +{hidden}
-              </Link>
+          <Fragment key={key}>
+            {!dots && index % columns === 0 ? (
+              <span className="cal-week-number">{isoWeek(day)}</span>
             ) : null}
-          </div>
+            <div
+              className={classes}
+              title={
+                dots
+                  ? chips
+                      .map((chip) => (chip.kind === 'task' ? chip.task.title : chip.event.title))
+                      .join(' · ')
+                  : undefined
+              }
+            >
+              <strong>
+                {onPick !== undefined ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onPick(key);
+                    }}
+                  >
+                    {day.getDate()}
+                  </button>
+                ) : (
+                  <Link to={href}>{day.getDate()}</Link>
+                )}
+              </strong>
+              <span className="cal-dots" aria-hidden="true">
+                {chips.slice(0, 3).map((chip) => (
+                  <i key={chip.kind === 'task' ? chip.task.id : chip.event.id} />
+                ))}
+              </span>
+              {dots
+                ? null
+                : chips.slice(0, 3).map((chip) =>
+                    chip.kind === 'task' ? (
+                      <Link
+                        key={chip.task.id}
+                        title={chipLabel(chip.task, messages.untitled, locale)}
+                        style={chipStyle(colors.get(chip.task.project_id))}
+                        className={
+                          isCalendarOverdue(chip.task.due_date, chip.task.time_zone, new Date())
+                            ? 'cal-pill is-overdue'
+                            : 'cal-pill'
+                        }
+                        to={`/list/${chip.task.project_id}?task=${chip.task.id}`}
+                      >
+                        {chipLabel(chip.task, messages.untitled, locale)}
+                      </Link>
+                    ) : (
+                      <button
+                        key={chip.event.id}
+                        title={chip.event.title}
+                        type="button"
+                        className="cal-pill"
+                        style={chipStyle(chip.event.color)}
+                        onClick={() => {
+                          onOpenEvent?.(chip.event);
+                        }}
+                      >
+                        {chip.event.is_all_day
+                          ? ''
+                          : `${clockLabel(chip.event.starts_at, locale)} `}
+                        {chip.event.title}
+                      </button>
+                    ),
+                  )}
+              {!dots && hidden > 0 ? (
+                <Link to={href} aria-label={moreLabel}>
+                  +{hidden}
+                </Link>
+              ) : null}
+            </div>
+          </Fragment>
         );
       })}
     </div>
@@ -825,95 +886,137 @@ function Agenda({
   readonly colors: ReadonlyMap<string, string>;
   readonly onOpenEvent: (event: ExternalEventView) => void;
 }) {
-  const groups = new Map<string, { tasks: Task[]; events: ExternalEventView[] }>();
-  const ensure = (key: string): { tasks: Task[]; events: ExternalEventView[] } => {
-    const current = groups.get(key);
-    if (current !== undefined) {
-      return current;
-    }
-    const created = { tasks: [], events: [] };
-    groups.set(key, created);
-    return created;
-  };
+  const cache = useQueryClient();
+  const [pending, setPending] = useState<ReadonlySet<string>>(new Set());
+  const [error, setError] = useState<string | null>(null);
+  const todayKey = localKey(new Date());
+  type Item =
+    | { kind: 'task'; task: Task; time: string }
+    | { kind: 'event'; event: ExternalEventView; time: string };
+  const groups = new Map<string, Item[]>();
+  function add(key: string, item: Item): void {
+    if (key < todayKey) return;
+    const bucket = groups.get(key) ?? [];
+    bucket.push(item);
+    groups.set(key, bucket);
+  }
   for (const task of tasks) {
-    ensure(localKey(new Date(task.due_date ?? ''))).tasks.push(task);
+    if (task.due_date !== null)
+      add(calendarDay(task.due_date, task.time_zone), {
+        kind: 'task',
+        task,
+        time: task.is_all_day ? '' : task.due_date,
+      });
   }
   for (const event of events) {
-    ensure(localKey(new Date(event.starts_at))).events.push(event);
+    add(eventDayRange(event).start, {
+      kind: 'event',
+      event,
+      time: event.is_all_day ? '' : event.starts_at,
+    });
   }
-  if (groups.size === 0) {
-    return <EmptyState title={messages.calendarTitle} body={messages.calEmpty} />;
-  }
-  const todayKey = localKey(new Date());
+  const forward = [...groups.entries()].sort(([left], [right]) => left.localeCompare(right));
   const weekday = new Intl.DateTimeFormat(locale, {
     weekday: 'short',
     day: 'numeric',
     month: 'short',
   });
-  // AG-1: agenda always starts at today and moves forward.
-  const forward = [...groups.entries()]
-    .filter(([key]) => key >= todayKey)
-    .sort(([left], [right]) => left.localeCompare(right));
-  if (forward.length === 0) {
+  const monthName = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' });
+  if (forward.length === 0)
     return <EmptyState title={messages.calendarTitle} body={messages.calEmpty} />;
-  }
   return (
     <div className="agenda">
-      {forward.map(([key, bucket]) => {
+      {error !== null ? <p role="alert">{error}</p> : null}
+      {forward.map(([key, bucket], index) => {
         const day = dayFromParam(key) ?? new Date();
-        const sorted = [...bucket.tasks].sort((left, right) =>
-          (left.due_date ?? '').localeCompare(right.due_date ?? ''),
-        );
-        const timed = [...bucket.events].sort((left, right) =>
-          left.starts_at.localeCompare(right.starts_at),
-        );
+        const previous = forward[index - 1]?.[0];
         const heading =
           key === todayKey ? `${messages.calToday} · ${weekday.format(day)}` : weekday.format(day);
         return (
-          <section key={key} className={key === todayKey ? 'agenda-day is-today' : 'agenda-day'}>
-            <header className="agenda-day-head">
-              <span>{heading}</span>
-            </header>
-            <ul>
-              {timed.map((event) => (
-                <li key={event.id}>
-                  <button
-                    type="button"
-                    className="agenda-card"
-                    title={event.title}
-                    style={chipStyle(event.color)}
-                    onClick={() => {
-                      onOpenEvent(event);
-                    }}
-                  >
-                    {event.is_all_day ? '' : `${clockLabel(event.starts_at, locale)} `}
-                    {event.title}
-                  </button>
-                </li>
-              ))}
-              {sorted.map((task) => {
-                const color = colors.get(task.project_id);
-                const title = calendarTaskLabel(
-                  task.title,
-                  task.due_date,
-                  task.time_zone,
-                  messages.untitled,
-                );
-                return (
-                  <li key={task.id}>
-                    <Link
-                      className="agenda-card"
-                      to={`/list/${task.project_id}?task=${task.id}`}
-                      title={title}
-                      style={cardPaint(color)}
-                    >
-                      {title}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
+          <Fragment key={key}>
+            {previous?.slice(0, 7) !== key.slice(0, 7) ? (
+              <h2 className="agenda-month">{monthName.format(day)}</h2>
+            ) : null}
+            <section className="agenda-day">
+              <header className="agenda-day-head">{heading}</header>
+              <ul>
+                {[...bucket]
+                  .sort((left, right) => left.time.localeCompare(right.time))
+                  .map((item) => {
+                    if (item.kind === 'event') {
+                      const event = item.event;
+                      return (
+                        <li key={`event-${event.id}`} className="agenda-row">
+                          <span
+                            className="cal-dot"
+                            style={{ background: event.color ?? 'var(--accent)' }}
+                            aria-hidden="true"
+                          />
+                          <button
+                            type="button"
+                            className="agenda-card"
+                            title={event.title}
+                            onClick={() => {
+                              onOpenEvent(event);
+                            }}
+                          >
+                            <span>
+                              {event.is_all_day
+                                ? messages.calAllDay
+                                : clockLabel(event.starts_at, locale)}{' '}
+                              · {event.title}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    }
+                    const task = item.task;
+                    const title = displayTitle(task.title) || messages.untitled;
+                    return (
+                      <li key={`task-${task.id}`} className="agenda-row">
+                        <PriorityCheck
+                          priority={task.priority}
+                          label={fill(messages.completeLabel, title)}
+                          disabled={pending.has(task.id)}
+                          onChange={() => {
+                            setPending((ids) => new Set([...ids, task.id]));
+                            setError(null);
+                            void api
+                              .completeTask(task.id, completeBody(), crypto.randomUUID())
+                              .then(() => refreshTaskSurfaces(cache))
+                              .catch(() => {
+                                setError(messages.saveFailed);
+                              })
+                              .finally(() => {
+                                setPending(
+                                  (ids) => new Set([...ids].filter((id) => id !== task.id)),
+                                );
+                              });
+                          }}
+                        />
+                        <span
+                          className="cal-dot"
+                          style={{ background: colors.get(task.project_id) ?? 'var(--accent)' }}
+                          aria-hidden="true"
+                        />
+                        <Link
+                          className="agenda-card"
+                          title={title}
+                          to={`/list/${task.project_id}?task=${task.id}`}
+                        >
+                          <span>
+                            {task.is_all_day
+                              ? messages.calAllDay
+                              : clockLabel(task.due_date ?? '', locale)}{' '}
+                            · {title}
+                          </span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+              </ul>
+            </section>
+          </Fragment>
         );
       })}
     </div>
@@ -952,16 +1055,6 @@ function DaySheet({
   );
 }
 
-function cardPaint(color: string | undefined): CSSProperties | undefined {
-  if (color === undefined || !/^#[0-9a-fA-F]{3,8}$/.test(color)) {
-    return undefined;
-  }
-  return {
-    background: `color-mix(in srgb, ${color} 18%, var(--surface))`,
-    boxShadow: `inset 3px 0 0 ${color}`,
-  };
-}
-
 function chipLabel(task: Task, untitled: string, locale: string): string {
   const title = calendarTaskLabel(task.title, task.due_date, task.time_zone, untitled);
   if (task.due_date === null || task.is_all_day) {
@@ -974,9 +1067,7 @@ function chipLabel(task: Task, untitled: string, locale: string): string {
 function eventsOnDay(events: readonly ExternalEventView[], day: Date): ExternalEventView[] {
   const key = localKey(day);
   return events.filter((event) => {
-    const zone = event.time_zone ?? 'Europe/Madrid';
-    const start = calendarDateKey(event.starts_at, zone);
-    const end = calendarDateKey(event.ends_at ?? event.starts_at, zone);
+    const { start, end } = eventDayRange(event);
     return key >= start && key <= end;
   });
 }
@@ -1139,13 +1230,14 @@ function calendarShiftLabel(messages: Messages, view: string, delta: number): st
     case 'day':
       return next ? messages.calNextDay : messages.calPrevDay;
     case 'week':
+      return next ? messages.calNextWeek : messages.calPrevWeek;
     case 'multi-day':
     case 'multi-week':
-      return next ? messages.calNextWeek : messages.calPrevWeek;
+    case 'agenda':
+      return next ? messages.calNextPeriod : messages.calPrevPeriod;
     case 'year':
       return next ? messages.calNextYear : messages.calPrevYear;
     case 'month':
-    case 'agenda':
       return next ? messages.calNext : messages.calPrev;
     default:
       return next ? messages.calNextPeriod : messages.calPrevPeriod;
@@ -1280,7 +1372,17 @@ export function SearchPage() {
       ) : null}
       {(search.data?.groups ?? []).map((group) => (
         <section key={group.type}>
-          <h2>{groupLabel(messages, group.type)}</h2>
+          <h2>
+            {group.type === 'task'
+              ? group.items.length === 1
+                ? messages.searchTaskSingular
+                : messages.searchTaskCount.replace('{count}', String(group.items.length))
+              : group.type === 'note'
+                ? group.items.length === 1
+                  ? messages.searchNoteSingular
+                  : messages.searchNoteCount.replace('{count}', String(group.items.length))
+                : groupLabel(messages, group.type)}
+          </h2>
           {group.type === 'task' || group.type === 'note' ? (
             <TaskList
               messages={messages}
@@ -1291,6 +1393,7 @@ export function SearchPage() {
               locale={locale}
               view="list"
               hideCompleted={false}
+              highlightQuery={q}
               onComplete={(row) => {
                 const call =
                   row.status === 'completed'
@@ -1670,7 +1773,13 @@ export function AccountPage() {
   const displayName = name ?? profile?.display_name ?? '';
   const timeZone = zone ?? profile?.time_zone ?? '';
   const childPolicy = children ?? profile?.task_complete_children ?? 'ask';
+  const [zoneQuery, setZoneQuery] = useState('');
   const zones = timeZones(timeZone);
+  const matchingZones = [timeZone, ...zones.filter((item) => item !== timeZone)].filter(
+    (item) =>
+      item === timeZone ||
+      `${item} ${timeZoneLabel(item)}`.toLowerCase().includes(zoneQuery.toLowerCase()),
+  );
   return (
     <section className="token-settings">
       <header className="page-header">
@@ -1719,6 +1828,16 @@ export function AccountPage() {
               <label className="token-label" htmlFor="account-zone">
                 {messages.timeZone}
               </label>
+              <input
+                type="search"
+                className="token-name"
+                value={zoneQuery}
+                aria-label={messages.timeZoneSearch}
+                placeholder={messages.timeZoneSearch}
+                onChange={(event) => {
+                  setZoneQuery(event.target.value);
+                }}
+              />
               {zones.length > 0 ? (
                 <select
                   id="account-zone"
@@ -1728,9 +1847,9 @@ export function AccountPage() {
                     setZone(event.target.value);
                   }}
                 >
-                  {zones.map((item) => (
+                  {matchingZones.map((item) => (
                     <option key={item} value={item}>
-                      {item}
+                      {timeZoneLabel(item)}
                     </option>
                   ))}
                 </select>
@@ -2065,6 +2184,7 @@ export function NotificationSettings() {
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
   const saved = me.data?.daily_reminder_time ?? '';
   const savedDefault = reminderValue(me.data, 'default_reminder_trigger');
+  const [showAllLists, setShowAllLists] = useState(false);
   const [draft, setDraft] = useState<string | null>(null);
   const [defaultDraft, setDefaultDraft] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -2130,7 +2250,7 @@ export function NotificationSettings() {
             size="sm"
             disabled={me.data === undefined || value === saved}
           >
-            {messages.saveChanges}
+            {messages.reminderSaveDaily}
           </Button>
           {status !== null ? <p role="status">{status}</p> : null}
         </form>
@@ -2184,7 +2304,7 @@ export function NotificationSettings() {
             size="sm"
             disabled={me.data === undefined || defaultReminder === savedDefault}
           >
-            {messages.saveChanges}
+            {messages.reminderSaveDefault}
           </Button>
         </form>
       </section>
@@ -2195,38 +2315,52 @@ export function NotificationSettings() {
             <p>{messages.listRemindersHint}</p>
           </div>
         </div>
-        {(projects.data?.items ?? []).map((list) => {
-          const current = listOverrides[list.id] ?? listReminderValue(list);
-          return (
-            <label className="token-row" key={list.id}>
-              <span>{list.name}</span>
-              <select
-                className="token-name is-short"
-                aria-label={list.name}
-                value={current}
-                onChange={(event) => {
-                  const next = event.target.value;
-                  setListOverrides((previous) => ({ ...previous, [list.id]: next }));
-                  void api
-                    .updateProject(list.id, {
-                      default_reminder_trigger: next.length === 0 ? null : next,
-                    })
-                    .then(() => {
-                      void queryClient.invalidateQueries({ queryKey: ['projects'] });
-                    });
-                }}
-              >
-                <option value="">{messages.reminderInherit}</option>
-                <option value="off">{messages.reminderNone}</option>
-                {REMINDER_VALUES.map((item) => (
-                  <option key={item} value={item}>
-                    {reminderLabels[item]}
-                  </option>
-                ))}
-              </select>
-            </label>
-          );
-        })}
+        <Button
+          type="button"
+          aria-pressed={showAllLists}
+          onClick={() => {
+            setShowAllLists(!showAllLists);
+          }}
+        >
+          {showAllLists ? messages.reminderHideLists : messages.reminderShowLists}
+        </Button>
+        {(projects.data?.items ?? [])
+          .filter(
+            (list) =>
+              showAllLists || (listOverrides[list.id] ?? listReminderValue(list)).length > 0,
+          )
+          .map((list) => {
+            const current = listOverrides[list.id] ?? listReminderValue(list);
+            return (
+              <label className="token-row" key={list.id}>
+                <span>{list.name}</span>
+                <select
+                  className="token-name is-short"
+                  aria-label={list.name}
+                  value={current}
+                  onChange={(event) => {
+                    const next = event.target.value;
+                    setListOverrides((previous) => ({ ...previous, [list.id]: next }));
+                    void api
+                      .updateProject(list.id, {
+                        default_reminder_trigger: next.length === 0 ? null : next,
+                      })
+                      .then(() => {
+                        void queryClient.invalidateQueries({ queryKey: ['projects'] });
+                      });
+                  }}
+                >
+                  <option value="">{messages.reminderInherit}</option>
+                  <option value="off">{messages.reminderNone}</option>
+                  {REMINDER_VALUES.map((item) => (
+                    <option key={item} value={item}>
+                      {reminderLabels[item]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            );
+          })}
       </section>
       <section className="token-panel">
         <div className="token-panel-head">
@@ -2478,3 +2612,17 @@ export function BlockedSettings({
 }
 
 export { smartApiKey };
+
+function timeZoneLabel(zone: string): string {
+  try {
+    const parts = new Intl.DateTimeFormat('es-ES', {
+      timeZone: zone,
+      timeZoneName: 'longOffset',
+    }).formatToParts(new Date());
+    const offset = parts.find((part) => part.type === 'timeZoneName')?.value ?? '';
+    const city = zone.split('/').at(-1)?.replaceAll('_', ' ') ?? zone;
+    return `${city} (${offset.replace('GMT', 'UTC')})`;
+  } catch {
+    return zone;
+  }
+}
