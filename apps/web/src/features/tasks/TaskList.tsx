@@ -1,20 +1,18 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { GripVertical, MoreHorizontal } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ApiError } from '@reflexionia/sdk';
 import { Link, useSearchParams } from 'react-router';
 import { api } from '../../api';
 import { PriorityCheck } from '../../components/PriorityCheck';
 import { Highlight } from '../../components/Highlight';
 import { Button, TagChip } from '../../components/ui';
-import { captureLanguage, fill, type Messages } from '../../i18n';
-import { noticesFrom, useCaptureNotice } from '../capture/notice';
-import { quickAddRequest, type ViewDay } from '../capture/quick-add';
+import { fill, type Messages } from '../../i18n';
+import type { ViewDay } from '../capture/quick-add';
 import { refreshTaskSurfaces } from './refresh';
-import { newMutation, runOrQueue } from '../offline/client';
 import { displayTitle } from './displayTitle';
 import { completeBody } from './complete-body';
-import { QuickAddTools } from './QuickAddTools';
+import { TaskComposer } from './TaskComposer';
 import { isOverdue, isSameDay, type RowModel } from './model';
 
 export function TaskList({
@@ -52,12 +50,7 @@ export function TaskList({
 }) {
   const queryClient = useQueryClient();
   const [params, setParams] = useSearchParams();
-  const setNotice = useCaptureNotice((state) => state.setNotice);
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
-  const [draft, setDraft] = useState('');
-  const [pending, setPending] = useState<readonly RowModel[]>([]);
-  const [createError, setCreateError] = useState<string | null>(null);
-  const addRef = useRef<HTMLInputElement>(null);
   const now = useMemo(() => new Date(), []);
 
   function open(id: string): void {
@@ -78,10 +71,7 @@ export function TaskList({
     });
   }
 
-  const visible = [
-    ...pending,
-    ...(hideCompleted ? rows.filter((row) => row.status !== 'completed') : rows),
-  ];
+  const visible = [...(hideCompleted ? rows.filter((row) => row.status !== 'completed') : rows)];
   const detailId = params.get('task');
   const body =
     view === 'kanban' ? (
@@ -133,93 +123,11 @@ export function TaskList({
   return (
     <div>
       {createProjectId !== undefined ? (
-        <>
-          <form
-            className="inline-add"
-            onSubmit={(event) => {
-              event.preventDefault();
-              const title = draft.trim();
-              if (title.length === 0) {
-                return;
-              }
-              const request = quickAddRequest({
-                text: title,
-                language: captureLanguage(locale),
-                now: new Date().toISOString(),
-                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                viewDay: createViewDay,
-                defaultProjectId: createProjectId,
-              });
-              const tempId = `pending-${crypto.randomUUID()}`;
-              const row: RowModel = {
-                id: tempId,
-                title: request.parsed.title.length > 0 ? request.parsed.title : title,
-                priority: request.parsed.priority ?? 'none',
-                dueDate: request.dueDate ?? request.parsed.due?.date ?? null,
-                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                projectId: createProjectId,
-                projectName: '',
-                columnId: null,
-                tags: request.parsed.tagNames.map((name) => ({ id: name, name, color: null })),
-                checklist: { completed: 0, total: 0 },
-                kind: 'task',
-                status: 'active',
-                repeat: false,
-                source: 'manual',
-                content: '',
-                completedAt: null,
-              };
-              setDraft('');
-              setCreateError(null);
-              setPending((current) => [row, ...current]);
-              addRef.current?.focus();
-              void runOrQueue(newMutation('create', tempId, { ...request.body }), (key) =>
-                api.createTask(request.body, key),
-              )
-                .then((outcome) => {
-                  if (outcome.result !== null) {
-                    const warnings = noticesFrom(outcome.result.warnings);
-                    if (warnings.length > 0) {
-                      setNotice({ title: outcome.result.title, warnings });
-                    }
-                  }
-                  if (!outcome.queued) {
-                    setPending((current) => current.filter((item) => item.id !== tempId));
-                    void refreshTaskSurfaces(queryClient);
-                  }
-                  onCreated?.();
-                })
-                .catch(() => {
-                  setPending((current) => current.filter((item) => item.id !== tempId));
-                  setDraft(title);
-                  setCreateError(messages.createFailed);
-                  addRef.current?.focus();
-                });
-            }}
-          >
-            <input
-              ref={addRef}
-              name="title"
-              value={draft}
-              aria-label={messages.addTask}
-              placeholder={`+ ${messages.addTask}`}
-              onChange={(event) => {
-                setDraft(event.target.value);
-              }}
-            />
-            <QuickAddTools
-              draft={draft}
-              onDraft={(value) => {
-                setDraft(value);
-              }}
-            />
-          </form>
-          {createError !== null ? (
-            <p className="error" role="alert">
-              {createError}
-            </p>
-          ) : null}
-        </>
+        <TaskComposer
+          defaultProjectId={createProjectId}
+          viewDay={createViewDay}
+          onCreated={onCreated}
+        />
       ) : null}
       {body}
       {selected.size > 0 ? (

@@ -15388,6 +15388,19 @@
           "content": {
             "type": "string"
           },
+          "reminder_trigger": {
+            "type": "string",
+            "nullable": true,
+            "description": "Explicit relative reminder for quick add. Null disables parsed and default reminders. Stored atomically with the task.",
+            "enum": [
+              "TRIGGER:-PT0M",
+              "TRIGGER:-PT5M",
+              "TRIGGER:-PT15M",
+              "TRIGGER:-PT30M",
+              "TRIGGER:-PT1H",
+              "TRIGGER:-P1D"
+            ]
+          },
           "kind": {
             "type": "string",
             "enum": [

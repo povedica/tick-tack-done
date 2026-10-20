@@ -294,6 +294,17 @@ export class TasksService {
   }
 
   create(user: AuthUser, dto: CreateTaskDto, keyRaw: string | undefined): Promise<Saved> {
+    if (
+      dto.reminder_trigger !== undefined &&
+      dto.reminder_trigger !== null &&
+      !parseTrigger(dto.reminder_trigger).ok
+    ) {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'invalid_reminder',
+        'Reminder trigger is invalid',
+      );
+    }
     const key = normalizeIdempotencyKey(keyRaw);
     return this.idempotency.run({
       ownerId: user.id,
@@ -1564,15 +1575,18 @@ export class TasksService {
       },
     });
     await this.linkTags(tx, row.id, tagIds);
-    await this.ensureDefaultReminder(
-      tx,
-      user.id,
-      project.id,
-      row.id,
-      due,
-      row.kind,
-      captured?.reminderTrigger ?? null,
-    );
+    if (dto.reminder_trigger !== null) {
+      await this.ensureDefaultReminder(
+        tx,
+        user.id,
+        project.id,
+        row.id,
+        due,
+        row.kind,
+        dto.reminder_trigger ?? captured?.reminderTrigger ?? null,
+      );
+    }
+
     if (extracted !== null) {
       await this.materializeExtract(tx, user, row, extracted.items, dto.extract_as ?? 'checklist');
     }

@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type RefObject } from 'react';
 import { fill, useMessages } from '../i18n';
 import { useAppLocale } from '../i18n/locale';
 import { calendarDay, shiftDayKey, zonedWallTime } from '../features/today/groups';
@@ -35,7 +35,9 @@ export function DatePopover({
   onApply,
   onNotice,
   onEvening,
+  anchor,
 }: {
+  readonly anchor?: RefObject<HTMLElement | null> | undefined;
   readonly open: boolean;
   readonly value: DateDraft;
   readonly timeZone: string;
@@ -118,6 +120,7 @@ export function DatePopover({
   return (
     <Popover
       open={open}
+      anchor={anchor}
       label={messages.dateSet}
       onClose={onClose}
       className="popover date-popover"
@@ -261,8 +264,8 @@ export function DatePopover({
             </button>
           </div>
           <div className="cal-grid">
-            {heads.map((head) => (
-              <span key={head} className="cal-head">
+            {heads.map((head, index) => (
+              <span key={index} className="cal-head">
                 {head}
               </span>
             ))}
@@ -511,7 +514,7 @@ export function DatePopover({
         <Button
           type="button"
           size="sm"
-          variant="danger"
+          variant="ghost"
           onClick={() => {
             commit({
               ...draft,

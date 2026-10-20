@@ -2307,10 +2307,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Weekly report history (RF-2204) */
+        /**
+         * Weekly report history (RF-2204)
+         * @description Returns stored payloads unchanged. Legacy reports may use trailing-seven-day totals; clients should derive consistent totals from saved days and disclose legacy coverage. No live recalculation on GET.
+         */
         get: operations["ReportsController_list"];
         put?: never;
-        /** Build this week’s honest report (RF-2201, RF-2203) */
+        /**
+         * Build this week’s report (RF-2201, RF-2203)
+         * @description Explicitly rebuilds the current local Monday–Sunday week through calculated_at. metrics_version=2; completed and created are independent sums of local days. focus_minutes is null without focus records. habits_done/expected cover elapsed days. trend/trend_label are null without a comparable cutoff. Historical reports are unchanged.
+         */
         post: operations["ReportsController_build"];
         delete?: never;
         options?: never;
@@ -2482,7 +2488,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Guided weekly review (RF-2302, RF-2303) */
+        /**
+         * Guided weekly review (RF-2302, RF-2303)
+         * @description Read-only candidates with listName and dueDate context. recurring=true if repeatRule or seriesId is present; clients must disable bulk actions on these tasks. Selection alone never mutates tasks.
+         */
         get: operations["ReviewController_weekly"];
         put?: never;
         post?: never;
@@ -4113,6 +4122,11 @@ export interface components {
             /** @description Quick add text. The server parses it (RF-102). A missing ^list or #tag is created. Explicit fields in this body override the parse and do not create the parsed list or tags. */
             raw_text?: string;
             content?: string;
+            /**
+             * @description Explicit relative reminder for quick add. Null disables parsed and default reminders. Stored atomically with the task.
+             * @enum {string|null}
+             */
+            reminder_trigger?: "TRIGGER:-PT0M" | "TRIGGER:-PT5M" | "TRIGGER:-PT15M" | "TRIGGER:-PT30M" | "TRIGGER:-PT1H" | "TRIGGER:-P1D" | null;
             /** @enum {string} */
             kind?: "task" | "note";
             /** @enum {string} */

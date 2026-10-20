@@ -68,6 +68,31 @@ export class CreateTaskDto {
   @MaxLength(100_000)
   content?: string;
 
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    description:
+      'Explicit relative reminder for quick add. Null disables parsed and default reminders. Stored atomically with the task.',
+    enum: [
+      'TRIGGER:-PT0M',
+      'TRIGGER:-PT5M',
+      'TRIGGER:-PT15M',
+      'TRIGGER:-PT30M',
+      'TRIGGER:-PT1H',
+      'TRIGGER:-P1D',
+    ],
+  })
+  @IsOptional()
+  @IsIn([
+    'TRIGGER:-PT0M',
+    'TRIGGER:-PT5M',
+    'TRIGGER:-PT15M',
+    'TRIGGER:-PT30M',
+    'TRIGGER:-PT1H',
+    'TRIGGER:-P1D',
+  ])
+  reminder_trigger?: string | null;
+
   @ApiProperty({ required: false, enum: KINDS })
   @IsOptional()
   @IsIn(KINDS)

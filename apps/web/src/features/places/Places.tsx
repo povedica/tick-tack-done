@@ -36,6 +36,7 @@ import { newMutation, runOrQueue } from '../offline/client';
 import { collectTasks } from '../today/board';
 import { calendarDay, formatDueTime } from '../today/groups';
 import { TaskList } from '../tasks/TaskList';
+import { TaskComposer } from '../tasks/TaskComposer';
 import { HourGrid } from './HourGrid';
 import {
   isoWeek,
@@ -119,6 +120,7 @@ export function InboxPage() {
           {messages.process}
         </Button>
       </header>
+      {!process ? <TaskComposer defaultProjectId={inbox?.id} /> : null}
       {tasks.isPending ? <SkeletonRows /> : null}
       {tasks.isError ? (
         <ErrorState
@@ -189,7 +191,6 @@ export function InboxPage() {
             rows={rows}
             locale={locale}
             view="list"
-            createProjectId={inbox?.id}
             onComplete={(row) => {
               void runOrQueue(newMutation('complete', row.id, {}), (key) =>
                 api.completeTask(row.id, completeBody(), key),
