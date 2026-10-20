@@ -33,8 +33,9 @@ if [ -n "$site_dir" ]; then
   else
     echo "warning: could not update $site_file (need write access or passwordless sudo install)" >&2
   fi
+  # Edge Caddy often has `admin off`, so reload via the admin API fails; restart instead.
   if [ -n "${EDGE_CADDY_CONTAINER:-}" ]; then
-    sudo -n /usr/bin/docker exec "$EDGE_CADDY_CONTAINER" caddy reload --config /etc/caddy/Caddyfile \
-      || echo "warning: could not reload $EDGE_CADDY_CONTAINER" >&2
+    sudo -n /usr/bin/docker restart "$EDGE_CADDY_CONTAINER" \
+      || echo "warning: could not restart $EDGE_CADDY_CONTAINER" >&2
   fi
 fi
