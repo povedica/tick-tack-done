@@ -392,7 +392,7 @@ export class StatsService {
       select: { achievementsEnabled: true, timeZone: true },
     });
     const enabled = row?.achievementsEnabled ?? true;
-    const tz = row?.timeZone ?? user.timeZone ?? 'Europe/Madrid';
+    const tz = row?.timeZone ?? user.timeZone;
     if (!enabled) {
       return achievementScore({ enabled: false });
     }

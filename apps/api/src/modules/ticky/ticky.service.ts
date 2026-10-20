@@ -556,7 +556,7 @@ export class TickyService implements OnModuleInit {
         if (chunk.done) {
           break;
         }
-        res.write(decoder.decode(chunk.value, { stream: true }));
+        res.write(decoder.decode(chunk.value as Uint8Array, { stream: true }));
       }
       res.end();
     } catch {
