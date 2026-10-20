@@ -86,7 +86,7 @@ export function TodayHabits({
                     className={`habit-check${met ? ' is-done' : ''}`}
                     aria-label={fill(m.todayHabitCheck, habit.name)}
                     aria-pressed={met}
-                    disabled={pending.has(habit.id)}
+                    disabled={pending.has(habit.id) || (met && habit.goal.target_count === 1)}
                     onClick={() => {
                       setPending((current) => new Set(current).add(habit.id));
                       setError(false);
@@ -96,7 +96,10 @@ export function TodayHabits({
                           { date: habit.today.date, count: habit.today.count + 1 },
                           crypto.randomUUID(),
                         )
-                        .then(() => queryClient.invalidateQueries({ queryKey: ['habits'] }))
+                        .then(async () => {
+                          for (const key of ['habits', 'habit-stats', 'stats', 'dashboard'])
+                            await queryClient.invalidateQueries({ queryKey: [key] });
+                        })
                         .catch(() => {
                           setError(true);
                         })

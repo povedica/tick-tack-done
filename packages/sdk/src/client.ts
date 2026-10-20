@@ -106,6 +106,7 @@ export interface ApiClient extends ResourceClient {
   completeTask(id: string, body: CompleteTaskBody, idempotencyKey: string): Promise<Task>;
   uncompleteTask(id: string, idempotencyKey: string): Promise<Task>;
   listHabits(): Promise<HabitPage>;
+  getHabit(id: string): Promise<Habit>;
   createHabit(body: CreateHabitBody, idempotencyKey: string): Promise<Habit>;
   updateHabit(id: string, body: UpdateHabitBody): Promise<Habit>;
   deleteHabit(id: string): Promise<void>;
@@ -212,6 +213,9 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     },
     listHabits() {
       return request(call, options, 'GET', '/api/v1/habits', undefined, undefined, isHabitPage);
+    },
+    getHabit(id) {
+      return request(call, options, 'GET', `/api/v1/habits/${id}`, undefined, undefined, isHabit);
     },
     createHabit(body, idempotencyKey) {
       return request(call, options, 'POST', '/api/v1/habits', body, idempotencyKey, isHabit);

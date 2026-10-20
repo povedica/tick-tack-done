@@ -3703,6 +3703,7 @@ export interface components {
             met: boolean;
         };
         HabitResponseDto: {
+            challenge_days: number | null;
             id: string;
             name: string;
             icon: string | null;
@@ -3722,6 +3723,7 @@ export interface components {
             next_cursor: string | null;
         };
         CreateHabitDto: {
+            challenge_days?: number | null;
             name: string;
             icon?: string | null;
             color?: string | null;
@@ -3732,6 +3734,11 @@ export interface components {
             motivation_note?: string | null;
             before_id?: string | null;
             move_to_end?: boolean;
+        };
+        HabitLogDto: {
+            date: string;
+            count: number;
+            note: string | null;
         };
         HabitCompletionDto: {
             week: number;
@@ -3749,6 +3756,10 @@ export interface components {
             met: number;
         };
         HabitStatsDto: {
+            total_checkins: number;
+            month_checkins: number;
+            completed_days: number;
+            logs: components["schemas"]["HabitLogDto"][];
             streak_current: number;
             streak_best: number;
             completion_percent: components["schemas"]["HabitCompletionDto"];
@@ -3771,6 +3782,7 @@ export interface components {
             streak_broken: boolean;
         };
         UpdateHabitDto: {
+            challenge_days?: number | null;
             name?: string;
             icon?: string | null;
             color?: string | null;

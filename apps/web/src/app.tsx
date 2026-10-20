@@ -16,6 +16,7 @@ import { isPaletteShortcut } from './features/views/shortcuts';
 import { draftFromShare } from './features/capture/share-target';
 import { isCaptureShortcut } from './features/capture/draft';
 import { useCaptureNotice, openTaskComposer, useCaptureOpen } from './features/capture/notice';
+import { HabitDetailPage } from './features/habits/components/HabitDetailPage';
 import { DayPlanEntry } from './features/planning/DayPlanEntry';
 import { HabitsPage } from './features/habits/components/HabitsPage';
 import { CountdownsPage } from './features/countdowns/CountdownsPage';
@@ -25,7 +26,6 @@ import {
   CalendarPage,
   CaptureSettings,
   ForgotPage,
-  HabitDetailPage,
   InboxPage,
   MatrixPage,
   NoteRoute,

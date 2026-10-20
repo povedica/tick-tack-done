@@ -705,6 +705,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         continue;
       }
       const broken = streakBreakOn({
+        history: stored.history ?? [],
         goal: stored.goal,
         days: stored.days,
         logs: habit.logs.map((log) => ({
@@ -905,6 +906,19 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         continue;
       }
       const payload = asRecord(row.payload);
+      if (typeof payload.habit_id === 'string') {
+        const active = await this.prisma.habit.findFirst({
+          where: { id: payload.habit_id, ownerId: row.ownerId, deletedAt: null, archived: false },
+          select: { id: true },
+        });
+        if (active === null) {
+          await this.prisma.reminderDelivery.update({
+            where: { id: row.id },
+            data: { status: 'cancelled', firedAt: now, leaseUntil: null },
+          });
+          continue;
+        }
+      }
       if (row.kind === 'countdown') {
         const mark = catchUp && row.fireAt.getTime() < now.getTime() ? 'late' : 'fired';
         const reached = payload.reached === true;

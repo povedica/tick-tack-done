@@ -233,6 +233,48 @@ describe('habits API', () => {
     expect(cleared.body.streak_broken).toBe(true);
   });
 
+  it('RF-1301–1303: challenge and dated settings preserve counts and notes on past days', async () => {
+    const api = authed(owner.email);
+    const created = await api
+      .post('/api/v1/habits')
+      .send({
+        name: 'Reto sintético',
+        challenge_days: 100,
+        goal: { period: 'day', times_per_period: 1, target_count: 1 },
+        frequency: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
+      })
+      .expect(201);
+    const id = created.body.id as string;
+    const yesterday = shiftDate(String(created.body.today.date), -1);
+    await api
+      .post(`/api/v1/habits/${id}/checkins`)
+      .send({ date: yesterday, count: 1, note: 'Nota conservada' })
+      .expect(200);
+    await api
+      .patch(`/api/v1/habits/${id}`)
+      .send({
+        goal: { period: 'day', times_per_period: 8, target_count: 8 },
+        frequency: ['monday'],
+      })
+      .expect(200);
+    const stats = await api.get(`/api/v1/habits/${id}/stats`).expect(200);
+    expect(stats.body.logs).toContainEqual({ date: yesterday, count: 1, note: 'Nota conservada' });
+    expect(
+      stats.body.heatmap.find((cell: { date: string }) => cell.date === yesterday),
+    ).toMatchObject({ scheduled: true, met: true });
+    expect(stats.body.completed_days).toBe(1);
+    await api
+      .post(`/api/v1/habits/${id}/checkins`)
+      .send({ date: yesterday, count: 2, note: 'Corregida' })
+      .expect(200);
+    const current = await api.get(`/api/v1/habits/${id}`).expect(200);
+    expect(current.body.challenge_days).toBe(100);
+    await api.patch(`/api/v1/habits/${id}`).send({ archived: true }).expect(200);
+    await api.patch(`/api/v1/habits/${id}`).send({ archived: false }).expect(200);
+    const restored = await api.get(`/api/v1/habits/${id}/stats`).expect(200);
+    expect(restored.body.logs).toContainEqual({ date: yesterday, count: 2, note: 'Corregida' });
+  });
+
   it('RF-1301 RF-1305: the scheduler queues the daily reminder and records one broken streak', async () => {
     const api = authed(owner.email);
     const created = await api

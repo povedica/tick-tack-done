@@ -1,6 +1,6 @@
 import { PriorityCheck } from '../../components/PriorityCheck';
 import { displayTitle } from '../tasks/displayTitle';
-import { ApiError, type Habit, type Project, type Task } from '@reflexionia/sdk';
+import { ApiError, type Project, type Task } from '@reflexionia/sdk';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
@@ -1427,113 +1427,6 @@ export function SearchPage() {
         </section>
       ))}
     </section>
-  );
-}
-
-export function HabitDetailPage() {
-  const messages = useMessages();
-  const { id } = useParams();
-  const habits = useQuery({ queryKey: ['habits'], queryFn: () => api.listHabits() });
-  const habit = habits.data?.items.find((item) => item.id === id);
-  const stats = useQuery({
-    queryKey: ['habit-stats', id],
-    queryFn: () => api.habitStats(id ?? '', new Date().getFullYear()),
-    enabled: id !== undefined,
-  });
-  if (habits.isPending || stats.isPending) {
-    return <SkeletonRows />;
-  }
-  if (habit === undefined || stats.data === undefined) {
-    return (
-      <ErrorState
-        title={fill(messages.loadFailed, messages.habitTitle)}
-        retryLabel={messages.retry}
-        onRetry={() => {
-          void habits.refetch();
-        }}
-      />
-    );
-  }
-  return (
-    <section className="screen-page">
-      <p>
-        <Link to="/habits">{messages.habitsTitle}</Link>
-      </p>
-      <h1>{habit.name}</h1>
-      <div className="page-toolbar">
-        <Stat label={messages.streakCurrent} value={String(stats.data.streak_current)} />
-        <Stat label={messages.streakBest} value={String(stats.data.streak_best)} />
-        <Stat
-          label={messages.monthPercent}
-          value={`${String(stats.data.completion_percent.month)}%`}
-        />
-        <Stat
-          label={messages.totalCheckins}
-          value={String(stats.data.heatmap.reduce((sum, cell) => sum + cell.count, 0))}
-        />
-      </div>
-      <h2>{messages.heatYear}</h2>
-      <div className="habit-heat" aria-label={messages.heatYear}>
-        {stats.data.heatmap.map((cell) => (
-          <i
-            key={cell.date}
-            className={
-              cell.count > 2
-                ? 'is-3'
-                : cell.count > 1
-                  ? 'is-2'
-                  : cell.count > 0
-                    ? 'is-1'
-                    : undefined
-            }
-            title={cell.date}
-          />
-        ))}
-      </div>
-      <WeekDots habit={habit} />
-      <Button
-        variant="danger"
-        onClick={() => {
-          if (id !== undefined) {
-            void api.deleteHabit(id);
-          }
-        }}
-      >
-        {messages.deleteHabit}
-      </Button>
-    </section>
-  );
-}
-
-function Stat({ label, value }: { readonly label: string; readonly value: string }) {
-  return (
-    <p>
-      <span className="ui-muted">{label}</span>
-      <strong> {value}</strong>
-    </p>
-  );
-}
-
-function WeekDots({ habit }: { readonly habit: Habit }) {
-  return (
-    <div className="week-dots" aria-label="week">
-      {habit.frequency.map((day) => (
-        <button
-          key={day}
-          type="button"
-          className={habit.today.count > 0 ? 'is-done' : undefined}
-          onClick={() => {
-            void api.checkInHabit(
-              habit.id,
-              { date: habit.today.date, count: habit.today.count + 1 },
-              crypto.randomUUID(),
-            );
-          }}
-        >
-          {day.slice(0, 2)}
-        </button>
-      ))}
-    </div>
   );
 }
 

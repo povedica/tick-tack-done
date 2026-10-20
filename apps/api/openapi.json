@@ -13589,6 +13589,10 @@
       "HabitResponseDto": {
         "type": "object",
         "properties": {
+          "challenge_days": {
+            "type": "number",
+            "nullable": true
+          },
           "id": {
             "type": "string"
           },
@@ -13646,6 +13650,7 @@
           }
         },
         "required": [
+          "challenge_days",
           "id",
           "name",
           "icon",
@@ -13683,6 +13688,12 @@
       "CreateHabitDto": {
         "type": "object",
         "properties": {
+          "challenge_days": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 1,
+            "maximum": 10000
+          },
           "name": {
             "type": "string",
             "minLength": 1,
@@ -13735,6 +13746,26 @@
           "name",
           "goal",
           "frequency"
+        ]
+      },
+      "HabitLogDto": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "count": {
+            "type": "number"
+          },
+          "note": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "date",
+          "count",
+          "note"
         ]
       },
       "HabitCompletionDto": {
@@ -13797,6 +13828,21 @@
       "HabitStatsDto": {
         "type": "object",
         "properties": {
+          "total_checkins": {
+            "type": "number"
+          },
+          "month_checkins": {
+            "type": "number"
+          },
+          "completed_days": {
+            "type": "number"
+          },
+          "logs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HabitLogDto"
+            }
+          },
           "streak_current": {
             "type": "number"
           },
@@ -13820,6 +13866,10 @@
           }
         },
         "required": [
+          "total_checkins",
+          "month_checkins",
+          "completed_days",
+          "logs",
           "streak_current",
           "streak_best",
           "completion_percent",
@@ -13888,6 +13938,12 @@
       "UpdateHabitDto": {
         "type": "object",
         "properties": {
+          "challenge_days": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 1,
+            "maximum": 10000
+          },
           "name": {
             "type": "string",
             "minLength": 1,

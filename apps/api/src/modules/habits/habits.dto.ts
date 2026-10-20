@@ -40,6 +40,13 @@ export class HabitGoalDto {
 }
 
 export class CreateHabitDto {
+  @ApiProperty({ required: false, nullable: true, type: Number, minimum: 1, maximum: 10000 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(10000)
+  challenge_days?: number | null;
+
   @ApiProperty({ minLength: 1, maxLength: 200 })
   @IsString()
   @MinLength(1)
@@ -91,6 +98,13 @@ export class CreateHabitDto {
 }
 
 export class UpdateHabitDto {
+  @ApiProperty({ required: false, nullable: true, type: Number, minimum: 1, maximum: 10000 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(10000)
+  challenge_days?: number | null;
+
   @ApiProperty({ required: false, minLength: 1, maxLength: 200 })
   @IsOptional()
   @IsString()
@@ -182,6 +196,9 @@ export class HabitTodayDto {
 }
 
 export class HabitResponseDto {
+  @ApiProperty({ nullable: true, type: Number })
+  challenge_days!: number | null;
+
   @ApiProperty()
   id!: string;
 
@@ -286,7 +303,17 @@ export class HabitCompletionDto {
   month!: number;
 }
 
+export class HabitLogDto {
+  @ApiProperty() date!: string;
+  @ApiProperty() count!: number;
+  @ApiProperty({ nullable: true, type: String }) note!: string | null;
+}
 export class HabitStatsDto {
+  @ApiProperty() total_checkins!: number;
+  @ApiProperty() month_checkins!: number;
+  @ApiProperty() completed_days!: number;
+  @ApiProperty({ type: [HabitLogDto] }) logs!: HabitLogDto[];
+
   @ApiProperty()
   streak_current!: number;
 

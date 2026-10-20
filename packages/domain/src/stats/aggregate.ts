@@ -1,3 +1,4 @@
+import type { HabitHistory } from '../habits/habits';
 import { formatInTimeZone } from 'date-fns-tz';
 import { instantFromWall } from '../dates/zoned';
 import { controlScore } from '../achievements/score';
@@ -39,6 +40,7 @@ export interface StatsFocusRow {
 }
 
 export interface StatsHabitRow {
+  readonly history?: readonly HabitHistory[];
   readonly id: string;
   readonly name: string;
   readonly icon: string | null;
