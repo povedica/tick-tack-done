@@ -181,13 +181,12 @@ export class ReportsController {
     const range = parseDayBounds(monday, addCalendarDays(monday, 6) ?? monday, user.timeZone);
     const week = new Date(`${monday}T00:00:00Z`);
     const periodStart = new Date(range?.startIso ?? week.toISOString());
-    const weekEnd = new Date(range?.endIso ?? week.toISOString());
     const snapshot = await loadDashboardSnapshot(this.prisma, user.id, now);
-    const focusMinutes = await this.metrics.focusMinutes(user.id, periodStart, weekEnd);
+    const focusMinutes = await this.metrics.focusMinutes(user.id, periodStart, now);
     const habits = await this.metrics.activeHabitsExpectedDays(
       user.id,
       periodStart,
-      weekEnd,
+      now,
       user.timeZone,
     );
     const upcomingExternal = await this.prisma.externalEvent.count({
@@ -224,18 +223,24 @@ export class ReportsController {
         ownerId: user.id,
         deletedAt: null,
         OR: [
-          { createdAt: { gte: periodStart, lt: weekEnd } },
-          { completedAt: { gte: periodStart, lt: weekEnd } },
+          { createdAt: { gte: periodStart, lt: now } },
+          { completedAt: { gte: periodStart, lt: now } },
         ],
       },
       select: { createdAt: true, completedAt: true },
     });
+    const days = bucketWeek(week, touched, user.timeZone);
+    const completed = days.reduce((sum, day) => sum + day.completed, 0);
+    const created = days.reduce((sum, day) => sum + day.created, 0);
     const payload = {
-      summary: `${narrative.summary}\n${closingLine}`,
+      calculated_at: now.toISOString(),
+      time_zone: user.timeZone,
+      metrics_version: 2,
+      summary: `${String(completed)} tareas completadas y ${String(created)} creadas. ${closingLine}`,
       observations: narrative.observations,
       snapshot,
-      completed: snapshot.completed,
-      created: snapshot.created,
+      completed,
+      created,
       overdue: snapshot.overdue,
       focus_minutes: focusMinutes,
       habits_done: habits.done,
@@ -247,7 +252,7 @@ export class ReportsController {
           : snapshot.trend > 0
             ? `+${String(snapshot.trend)} vs semana anterior`
             : `${String(snapshot.trend)} vs semana anterior`,
-      days: bucketWeek(week, touched),
+      days,
       weak: narrative.weak,
       countdowns: {
         upcoming: upcomingCountdowns.map((countdown) => ({
@@ -290,38 +295,10 @@ export class ReportsController {
   private async normalizedPayload(user: AuthUser, week: string, payload: unknown) {
     const base =
       typeof payload === 'object' && payload !== null ? (payload as Record<string, unknown>) : {};
-    const bounds = parseDayBounds(week, addCalendarDays(week, 6) ?? week, user.timeZone);
-    if (bounds === null) return base;
-    const from = new Date(bounds.startIso);
-    const to = new Date(bounds.endIso);
-    const [focus, habits] = await Promise.all([
-      this.metrics.focusMinutes(user.id, from, to),
-      this.metrics.activeHabitsExpectedDays(user.id, from, to, user.timeZone),
-    ]);
-    const summary =
-      typeof base.summary === 'string'
-        ? base.summary
-            .replace(
-              /Tiempo de foco: [\d.,]+ minutos\./,
-              `Tiempo de foco: ${String(focus)} minutos.`,
-            )
-            .replace(
-              /Hábitos de hoy: [\d.,]+ %\./,
-              `Hábitos de la semana: ${String(habits.percent)} %.`,
-            )
-        : '';
-    const trend = typeof base.trend === 'number' ? base.trend : 0;
-    return {
-      ...base,
-      summary,
-      focus_minutes: focus,
-      habits_done: habits.done,
-      habits_expected: habits.expected,
-      trend_label:
-        trend === 0
-          ? 'igual que la semana anterior'
-          : `${trend > 0 ? '+' : ''}${String(trend)} vs semana anterior`,
-    };
+    // Saved reports are snapshots. Never rewrite history on GET.
+    void user;
+    void week;
+    return base;
   }
 
   private async closingLine(ownerId: string, week: Date): Promise<string> {

@@ -1,3 +1,5 @@
+import { dayKey } from '@reflexionia/domain';
+
 export interface WeekDayMetric {
   readonly date: string;
   readonly completed: number;
@@ -7,6 +9,7 @@ export interface WeekDayMetric {
 export function bucketWeek(
   start: Date,
   rows: readonly { readonly createdAt: Date; readonly completedAt: Date | null }[],
+  timeZone = 'UTC',
 ): WeekDayMetric[] {
   const days: { date: string; completed: number; created: number }[] = Array.from(
     { length: 7 },
@@ -17,7 +20,7 @@ export function bucketWeek(
   );
   const index = new Map(days.map((day, position) => [day.date, position]));
   for (const row of rows) {
-    const created = index.get(row.createdAt.toISOString().slice(0, 10));
+    const created = index.get(dayKey(row.createdAt.toISOString(), timeZone) ?? '');
     if (created !== undefined) {
       const day = days[created];
       if (day !== undefined) {
@@ -25,7 +28,7 @@ export function bucketWeek(
       }
     }
     if (row.completedAt !== null) {
-      const completed = index.get(row.completedAt.toISOString().slice(0, 10));
+      const completed = index.get(dayKey(row.completedAt.toISOString(), timeZone) ?? '');
       if (completed !== undefined) {
         const day = days[completed];
         if (day !== undefined) {
