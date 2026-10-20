@@ -280,6 +280,7 @@ model User {
   sessions              Session[]
   oauthClients          OauthClient[]
   oauthCodes            OauthAuthorizationCode[]
+  oauthRefreshTokens    OauthRefreshToken[]
   matrixRules           MatrixRule[]
   calendarFeeds         CalendarFeed[]
   webhookEndpoints      WebhookEndpoint[]
@@ -750,14 +751,19 @@ model PersonalAccessToken {
   scopes      String[]
   lastUsedAt  DateTime? @map("last_used_at") @db.Timestamptz(6)
   revokedAt   DateTime? @map("revoked_at") @db.Timestamptz(6)
+  expiresAt   DateTime? @map("expires_at") @db.Timestamptz(6)
+  oauthClientId String? @map("oauth_client_id") @db.Uuid
+  oauthClient OauthClient? @relation(fields: [oauthClientId], references: [id], onDelete: SetNull)
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
 
-  activity    ActivityLog[]
-  memberships ProjectMember[]
+  activity       ActivityLog[]
+  memberships    ProjectMember[]
+  refreshTokens  OauthRefreshToken[]
 
   @@index([ownerId, createdAt])
+  @@index([oauthClientId])
   @@map("personal_access_tokens")
 }
 
@@ -974,16 +980,20 @@ model Session {
 }
 
 // Public OAuth client for Authorization Code + PKCE (section 10.1). No client secret.
+// Dynamic registration leaves owner empty until a person consents.
 model OauthClient {
   id           String    @id @default(uuid()) @db.Uuid
-  ownerId      String    @map("owner_id") @db.Uuid
-  owner        User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId      String?   @map("owner_id") @db.Uuid
+  owner        User?     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   name         String
   redirectUris String[]  @map("redirect_uris")
+  dynamic      Boolean   @default(false)
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
   codes        OauthAuthorizationCode[]
+  accessTokens PersonalAccessToken[]
+  refreshTokens OauthRefreshToken[]
 
   @@index([ownerId])
   @@map("oauth_clients")
@@ -999,12 +1009,35 @@ model OauthAuthorizationCode {
   codeChallenge String    @map("code_challenge")
   scopes        String[]
   redirectUri   String    @map("redirect_uri")
+  resource      String?
   expiresAt     DateTime  @map("expires_at") @db.Timestamptz(6)
   consumedAt    DateTime? @map("consumed_at") @db.Timestamptz(6)
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@index([userId])
   @@map("oauth_authorization_codes")
+}
+
+// Opaque refresh token. Only the hash is stored. Rotation detects reuse of a spent token.
+model OauthRefreshToken {
+  id            String    @id @default(uuid()) @db.Uuid
+  familyId      String    @map("family_id") @db.Uuid
+  clientId      String    @map("client_id") @db.Uuid
+  client        OauthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId        String    @map("user_id") @db.Uuid
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessTokenId String    @map("access_token_id") @db.Uuid
+  accessToken   PersonalAccessToken @relation(fields: [accessTokenId], references: [id], onDelete: Cascade)
+  tokenHash     String    @unique @map("token_hash")
+  expiresAt     DateTime  @map("expires_at") @db.Timestamptz(6)
+  rotatedAt     DateTime? @map("rotated_at") @db.Timestamptz(6)
+  revokedAt     DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([familyId])
+  @@index([userId])
+  @@index([accessTokenId])
+  @@map("oauth_refresh_tokens")
 }
 
 /// RF-1004. Null rules mean the default urgent/important split.

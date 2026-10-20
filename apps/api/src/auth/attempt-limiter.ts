@@ -6,6 +6,7 @@ import { SlidingWindowRateLimit, type RateLimitDecision } from './token-rate-lim
 const WINDOW_MS = 15 * 60 * 1000;
 const IP_LIMIT = 10;
 const FAILURE_LIMIT = 5;
+const REGISTER_LIMIT = 5;
 
 /**
  * Login, registration, OAuth token and TOTP attempts (S-01).
@@ -15,6 +16,7 @@ const FAILURE_LIMIT = 5;
 export class AttemptLimiter implements OnModuleDestroy {
   private readonly ipWindow = new SlidingWindowRateLimit(IP_LIMIT, WINDOW_MS);
   private readonly failureWindow = new SlidingWindowRateLimit(FAILURE_LIMIT, WINDOW_MS);
+  private readonly registerWindow = new SlidingWindowRateLimit(REGISTER_LIMIT, WINDOW_MS);
   private redis: Redis | null = null;
 
   constructor() {
@@ -30,9 +32,22 @@ export class AttemptLimiter implements OnModuleDestroy {
     this.redis = null;
   }
 
+  async assertRegistration(ip: string): Promise<void> {
+    const decision = await this.peek(`register:${ip}`);
+    if (!decision.allowed) {
+      throw new DomainException(HttpStatus.TOO_MANY_REQUESTS, 'rate_limited', 'Too many requests', {
+        retry_after: decision.retryAfter,
+      });
+    }
+  }
+
+  async recordRegistration(ip: string): Promise<void> {
+    await this.hit(`register:${ip}`);
+  }
+
   async assertAllowed(ip: string, subject: string): Promise<void> {
-    const ipDecision = await this.peek(`ip:${ip}`, IP_LIMIT);
-    const failureDecision = await this.peek(`fail:${subject}`, FAILURE_LIMIT);
+    const ipDecision = await this.peek(`ip:${ip}`);
+    const failureDecision = await this.peek(`fail:${subject}`);
     const blocked = !ipDecision.allowed
       ? ipDecision
       : !failureDecision.allowed
@@ -46,12 +61,12 @@ export class AttemptLimiter implements OnModuleDestroy {
   }
 
   async recordFailure(ip: string, subject: string): Promise<void> {
-    await this.hit(`ip:${ip}`, IP_LIMIT);
-    await this.hit(`fail:${subject}`, FAILURE_LIMIT);
+    await this.hit(`ip:${ip}`);
+    await this.hit(`fail:${subject}`);
   }
 
   async recordAttempt(ip: string): Promise<void> {
-    await this.hit(`ip:${ip}`, IP_LIMIT);
+    await this.hit(`ip:${ip}`);
   }
 
   async clearSubject(subject: string): Promise<void> {
@@ -61,27 +76,40 @@ export class AttemptLimiter implements OnModuleDestroy {
     }
   }
 
-  private async peek(bucket: string, limit: number): Promise<RateLimitDecision> {
+  private windowFor(bucket: string): {
+    readonly window: SlidingWindowRateLimit;
+    readonly limit: number;
+  } {
+    if (bucket.startsWith('register:')) {
+      return { window: this.registerWindow, limit: REGISTER_LIMIT };
+    }
+    if (bucket.startsWith('fail:')) {
+      return { window: this.failureWindow, limit: FAILURE_LIMIT };
+    }
+    return { window: this.ipWindow, limit: IP_LIMIT };
+  }
+
+  private async peek(bucket: string): Promise<RateLimitDecision> {
+    const selected = this.windowFor(bucket);
     if (this.redis === null) {
-      const window = limit === IP_LIMIT ? this.ipWindow : this.failureWindow;
-      return window.peek(bucket);
+      return selected.window.peek(bucket);
     }
     const count = await this.redis.llen(this.key(bucket));
     const ttl = await this.redis.ttl(this.key(bucket));
     const retryAfter = ttl > 0 ? ttl : Math.ceil(WINDOW_MS / 1000);
     return {
-      allowed: count < limit,
-      limit,
-      remaining: Math.max(0, limit - count),
+      allowed: count < selected.limit,
+      limit: selected.limit,
+      remaining: Math.max(0, selected.limit - count),
       resetAt: Math.ceil(Date.now() / 1000) + retryAfter,
       retryAfter,
     };
   }
 
-  private async hit(bucket: string, limit: number): Promise<RateLimitDecision> {
+  private async hit(bucket: string): Promise<RateLimitDecision> {
+    const selected = this.windowFor(bucket);
     if (this.redis === null) {
-      const window = limit === IP_LIMIT ? this.ipWindow : this.failureWindow;
-      return window.consume(bucket);
+      return selected.window.consume(bucket);
     }
     const key = this.key(bucket);
     const count = await this.redis.rpush(key, String(Date.now()));
@@ -91,9 +119,9 @@ export class AttemptLimiter implements OnModuleDestroy {
     const ttl = await this.redis.pttl(key);
     const retryAfter = Math.max(1, Math.ceil((ttl > 0 ? ttl : WINDOW_MS) / 1000));
     return {
-      allowed: count <= limit,
-      limit,
-      remaining: Math.max(0, limit - count),
+      allowed: count <= selected.limit,
+      limit: selected.limit,
+      remaining: Math.max(0, selected.limit - count),
       resetAt: Math.ceil(Date.now() / 1000) + retryAfter,
       retryAfter,
     };

@@ -52,6 +52,13 @@ export class TokenDto {
 
   @ApiProperty({ nullable: true, type: String })
   revoked_at!: string | null;
+
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    description: 'OAuth client name, when this token was issued by consent',
+  })
+  client_name!: string | null;
 }
 
 export class TokenCreatedDto extends TokenDto {

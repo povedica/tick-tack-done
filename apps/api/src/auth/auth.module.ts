@@ -7,7 +7,9 @@ import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { MeController } from './me.controller.js';
 import { MeService } from './me.service.js';
+import { OauthBrowserController } from './oauth-browser.controller.js';
 import { OauthController } from './oauth.controller.js';
+import { OauthDiscoveryController } from './oauth-discovery.controller.js';
 import { OauthService } from './oauth.service.js';
 import { TokenAudit } from './token-audit.js';
 import { TokenRateLimiter } from './token-rate-limit.js';
@@ -16,7 +18,15 @@ import { TokensController } from './tokens.controller.js';
 import { TokensService } from './tokens.service.js';
 
 @Module({
-  controllers: [MeController, TokensController, AuthController, OauthController, TotpController],
+  controllers: [
+    MeController,
+    TokensController,
+    AuthController,
+    OauthController,
+    OauthBrowserController,
+    OauthDiscoveryController,
+    TotpController,
+  ],
   providers: [
     MeService,
     AccountService,

@@ -42,6 +42,34 @@ export function isApiScope(value: string): value is ApiScope {
   return PAT_SCOPES.has(value);
 }
 
+/**
+ * Used when an OAuth client omits `scope`. The prompt listed these and counted 21;
+ * the list itself is 20. Countdowns, `profile:write` and `backup:read` stay grantable
+ * when the client asks and the owner approves them. `account:admin` is never an API scope.
+ */
+export const OAUTH_DEFAULT_SCOPES = [
+  'tasks:read',
+  'tasks:write',
+  'lists:read',
+  'lists:write',
+  'tags:read',
+  'tags:write',
+  'filters:read',
+  'filters:write',
+  'habits:read',
+  'habits:write',
+  'focus:read',
+  'focus:write',
+  'notes:read',
+  'notes:write',
+  'calendar:read',
+  'calendar:write',
+  'reminders:write',
+  'profile:read',
+  'webhooks:manage',
+  'automations:manage',
+] as const satisfies readonly ApiScope[];
+
 /** Scopes the route requires and the caller was not granted (RF-2002). */
 export function missingScopes(granted: readonly string[], required: readonly string[]): string[] {
   return required.filter((scope) => !granted.includes(scope));
