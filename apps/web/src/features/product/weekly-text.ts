@@ -106,6 +106,11 @@ export function useWeeklyCopy() {
   return {
     ...copy,
     locale,
+    selectWeek: english ? 'Select week' : 'Seleccionar semana',
+    close: english ? 'Close' : 'Cerrar',
+    previousMonth: english ? 'Previous month' : 'Mes anterior',
+    nextMonth: english ? 'Next month' : 'Mes siguiente',
+    thisWeek: english ? 'This week' : 'Esta semana',
     inProgress: english ? 'In progress' : 'En curso',
     previousWeek: english ? 'Previous week' : 'Semana anterior',
     nextWeek: english ? 'Next week' : 'Semana siguiente',

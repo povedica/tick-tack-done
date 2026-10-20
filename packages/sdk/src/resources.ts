@@ -251,6 +251,7 @@ export interface ResourceClient {
   statsAchievement(): Promise<StatsAchievement>;
   statsExport(query: string): Promise<Blob>;
   weeklyReports(): Promise<JsonObject>;
+  weeklyReport(week: string): Promise<JsonObject>;
   buildWeeklyReport(): Promise<JsonObject>;
   reviewDaily(): Promise<JsonObject>;
   reviewWeekly(): Promise<JsonObject>;
@@ -484,6 +485,14 @@ export function resourceMethods(http: Http): ResourceClient {
     statsAchievement: () =>
       ask('GET', '/api/v1/stats/achievement', undefined, undefined, isStatsAchievement),
     weeklyReports: () => ask('GET', '/api/v1/reports/weekly', undefined, undefined, isJsonObject),
+    weeklyReport: (week) =>
+      ask(
+        'GET',
+        `/api/v1/reports/weekly/${encodeURIComponent(week)}`,
+        undefined,
+        undefined,
+        isJsonObject,
+      ),
     buildWeeklyReport: () =>
       ask('POST', '/api/v1/reports/weekly', undefined, undefined, isJsonObject),
     reviewDaily: () => ask('GET', '/api/v1/review/daily', undefined, undefined, isJsonObject),

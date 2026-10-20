@@ -1,9 +1,12 @@
 import { useState } from 'react';
+import { ApiError } from '@reflexionia/sdk';
 import { Check, Sun, CalendarDays, Ban } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
 import { Button } from '../../components/ui';
+import { PriorityCheck } from '../../components/PriorityCheck';
+import { WeekPicker } from './WeekPicker';
 import { calendarDay, shiftDayKey, zonedWallTime } from '../today/groups';
 import { completeBody } from '../tasks/complete-body';
 import { refreshTaskSurfaces } from '../tasks/refresh';
@@ -29,7 +32,15 @@ export function ReportsPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const rows = list(row(query.data).items);
-  const current = week === undefined ? rows[0] : rows.find((r) => r.week === week);
+  const listed = week === undefined ? rows[0] : rows.find((r) => r.week === week);
+  const missing = (error: unknown) => error instanceof ApiError && error.status === 404;
+  const detail = useQuery({
+    queryKey: ['weekly-report', week],
+    queryFn: () => api.weeklyReport(week ?? ''),
+    enabled: query.isSuccess && week !== undefined && listed === undefined,
+    retry: (count, error) => !missing(error) && count < 2,
+  });
+  const current = listed ?? (detail.isSuccess ? row(detail.data) : undefined);
   const payload = row(current?.payload);
   const days = list(payload.days);
   const start = str(current?.week);
@@ -68,14 +79,28 @@ export function ReportsPage() {
         </div>
         <Link to="/statistics">{copy.stats}</Link>
       </header>
-      {query.isLoading ? (
+      {query.isSuccess ? (
+        <WeekPicker
+          value={week ?? start}
+          available={rows.map((r) => str(r.week))}
+          today={today}
+          onSelect={(value) => {
+            void navigate(`/reports/weekly/${value}`);
+          }}
+        />
+      ) : null}
+      {query.isLoading || detail.isFetching ? (
         <p role="status">{copy.loading}</p>
-      ) : query.isError ? (
+      ) : query.isError || (detail.isError && !missing(detail.error)) ? (
         <p role="alert">
           {copy.loadError}{' '}
           <Button
             onClick={() => {
-              void query.refetch();
+              if (listed === undefined && week !== undefined) {
+                void detail.refetch();
+              } else {
+                void query.refetch();
+              }
             }}
           >
             {copy.retry}
@@ -83,41 +108,6 @@ export function ReportsPage() {
         </p>
       ) : current ? (
         <>
-          <div className="week-selector">
-            <Button
-              aria-label={copy.previousWeek}
-              disabled={rows.indexOf(current) === rows.length - 1}
-              onClick={() => {
-                void navigate(`/reports/weekly/${str(rows[rows.indexOf(current) + 1]?.week)}`);
-              }}
-            >
-              ←
-            </Button>
-            <label>
-              {copy.week}
-              <select
-                value={start}
-                onChange={(e) => {
-                  void navigate(`/reports/weekly/${e.target.value}`);
-                }}
-              >
-                {rows.map((r) => (
-                  <option key={str(r.week)} value={str(r.week)}>
-                    {dateLabel(str(r.week))} – {dateLabel(shiftDayKey(str(r.week), 6))}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <Button
-              aria-label={copy.nextWeek}
-              disabled={rows.indexOf(current) === 0}
-              onClick={() => {
-                void navigate(`/reports/weekly/${str(rows[rows.indexOf(current) - 1]?.week)}`);
-              }}
-            >
-              →
-            </Button>
-          </div>
           <p className="week-status">
             {ongoing
               ? typeof payload.calculated_at === 'string'
@@ -367,19 +357,17 @@ export function ReviewPage() {
                   : 0;
                 return (
                   <li key={id} className={selected.includes(id) ? 'is-selected' : ''}>
-                    <label className="week-select">
-                      <input
-                        type="checkbox"
-                        aria-label={copy.select(displayTitle(str(t.title)))}
-                        disabled={busy || recurring}
-                        checked={selected.includes(id)}
-                        onChange={(e) => {
-                          setSelected((old) =>
-                            e.target.checked ? [...old, id] : old.filter((value) => value !== id),
-                          );
-                        }}
-                      />
-                    </label>
+                    <PriorityCheck
+                      priority="none"
+                      label={copy.select(displayTitle(str(t.title)))}
+                      disabled={busy || recurring}
+                      checked={selected.includes(id)}
+                      onChange={(e) => {
+                        setSelected((old) =>
+                          e.target.checked ? [...old, id] : old.filter((value) => value !== id),
+                        );
+                      }}
+                    />
                     <Link
                       className="weekly-task-title"
                       to={`/list/${str(t.listId)}?task=${id}`}
@@ -402,7 +390,9 @@ export function ReviewPage() {
       <p role="status">{notice}</p>
       {eligible.length > 0 ? (
         <div className="weekly-actions" aria-label={copy.actions}>
-          <span>{copy.selected(eligible.length)}</span>
+          <span className="weekly-selection-count" aria-live="polite">
+            {copy.selected(eligible.length)}
+          </span>
           <Button
             disabled={busy}
             onClick={() => {

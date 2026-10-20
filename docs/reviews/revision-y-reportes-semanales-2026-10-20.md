@@ -54,3 +54,13 @@ Foco sin sesiones se representa como `null`; el registro real de 12 segundos con
 | Revisión error    | [Captura](assets/weekly-2026-10-20/review-error-1280.png)    | [Captura](assets/weekly-2026-10-20/review-error-390.png)    |
 
 Gráfico y pie de Reportes: [escritorio](assets/weekly-2026-10-20/reports-detail-1280.png), [móvil](assets/weekly-2026-10-20/reports-detail-390.png).
+
+## Pulido a partir de las capturas de Pablo
+
+RF-2302: barra de acciones con fondo azul tenue y borde azul; en móvil, cuatro columnas de icono y etiqueta sin botones enmarcados ni segunda fila visual de contador (el contador se mantiene accesible). Se reutiliza `PriorityCheck`: mismo SVG de 17 px, con selección azul y objetivo táctil de 44 px. Las casillas siguen seleccionando, sin completar tareas.
+
+RF-2204: navegación semanal en una única franja alineada. El rango abre un calendario modal compartido entre escritorio y móvil: mes anterior/siguiente, semana seleccionada sombreada, hoy marcado, fechas con informe indicado, «Esta semana», Escape y devolución de foco. Las flechas navegan semanas consecutivas; las semanas sin informe mantienen el selector. Para un informe fuera de las veinte entradas iniciales se consume el endpoint público existente `GET /reports/weekly/:week` mediante el SDK. No se recalcula ni escribe al navegar. El borde de las barras de creadas pasa a azul tenue.
+
+Validación de este ajuste: lint, typecheck y unitarias; nueve pruebas de navegador, incluyendo apertura/cierre y foco del calendario, navegación mensual, elección de fecha, semana vacía, informe fuera del historial inicial y barra móvil de una sola fila de hasta 64 px. API y cálculos sin cambios.
+
+Calendario: [escritorio](assets/weekly-2026-10-20/week-calendar-1280.png), [móvil](assets/weekly-2026-10-20/week-calendar-390.png).

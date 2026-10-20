@@ -31,6 +31,13 @@ async function fixture(page: Page, state = 'ready', mutations: string[] = []) {
       });
       return;
     }
+    if (/\/reports\/weekly\/\d{4}-\d{2}-\d{2}$/.test(path)) {
+      await route.fulfill({
+        status: 404,
+        json: { error: { code: 'report_not_found', message: 'Not found' } },
+      });
+      return;
+    }
     if (path.includes('/reports/weekly') || path.includes('/review/weekly')) {
       if (state === 'loading') {
         await new Promise((resolve) => setTimeout(resolve, 10000));
@@ -111,6 +118,34 @@ for (const width of [1280, 390]) {
     await page.screenshot({ path: info.outputPath(`reports-${width}.png`), fullPage: true });
     await page.locator('.week-chart').scrollIntoViewIfNeeded();
     await page.screenshot({ path: info.outputPath(`reports-detail-${width}.png`), fullPage: true });
+    await page.getByRole('button', { name: /^Seleccionar semana:/ }).click();
+    const calendar = page.getByRole('dialog', { name: 'Seleccionar semana' });
+    await expect(calendar).toBeVisible();
+    await expect(calendar.locator('button[aria-pressed=true]')).toHaveCount(7);
+    await calendar.getByRole('button', { name: 'Mes anterior' }).click();
+    await expect(calendar.getByText('septiembre de 2026', { exact: true })).toBeVisible();
+    await calendar.getByRole('button', { name: 'Mes siguiente' }).click();
+    await page.screenshot({ path: info.outputPath(`week-calendar-${width}.png`), fullPage: true });
+    await page.keyboard.press('Escape');
+    await expect(calendar).not.toBeVisible();
+    await expect(page.getByRole('button', { name: /^Seleccionar semana:/ })).toBeFocused();
+    await page.getByRole('button', { name: 'Semana anterior', exact: true }).click();
+    await expect(page).toHaveURL(/2026-10-12$/);
+    await expect(page.getByText(/No hay datos de esta semana/)).toBeVisible();
+    await page.getByRole('button', { name: /^Seleccionar semana:/ }).click();
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Esta semana', exact: true })
+      .click();
+    await expect(page).toHaveURL(/2026-10-19$/);
+    await page.getByRole('button', { name: /^Seleccionar semana:/ }).click();
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: 'lunes, 12 de octubre de 2026', exact: true })
+      .click();
+    await expect(page).toHaveURL(/2026-10-12$/);
+    await page.getByRole('button', { name: 'Semana siguiente', exact: true }).click();
+    await expect(page).toHaveURL(/2026-10-19$/);
     await page.goto('/review/weekly');
     await page
       .getByRole('navigation', { name: 'Pasos de revisión' })
@@ -118,6 +153,7 @@ for (const width of [1280, 390]) {
       .click();
     await expect(page.getByRole('checkbox', { name: /Revisar cada semana/ })).toBeDisabled();
     await page.getByRole('checkbox', { name: /Preparar la propuesta/ }).check();
+    await page.clock.runFor(250);
     await expect(page.getByRole('button', { name: 'Listo', exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
@@ -125,6 +161,13 @@ for (const width of [1280, 390]) {
     await page.screenshot({ path: info.outputPath(`review-${width}.png`), fullPage: true });
     const button = await page.getByRole('button', { name: 'Listo', exact: true }).boundingBox();
     expect(button && button.y + button.height).toBeLessThan(width < 640 ? 790 : 850);
+    await expect(page.getByRole('checkbox', { name: /Preparar la propuesta/ })).toHaveClass(
+      'task-check',
+    );
+    if (width < 640) {
+      const toolbar = await page.locator('.weekly-actions').boundingBox();
+      expect(toolbar?.height).toBeLessThanOrEqual(64);
+    }
     expect(mutations).toEqual([]);
     page.once('dialog', (dialog) => {
       expect(dialog.message()).toContain('1 tarea');
@@ -169,3 +212,32 @@ for (const width of [1280, 390]) {
     });
   }
 }
+
+test('RF-2204: calendar navigation reads a saved report outside the initial history page', async ({
+  page,
+}) => {
+  await fixture(page);
+  await page.route('**/api/v1/reports/weekly/2025-01-06', (route) =>
+    route.fulfill({
+      json: {
+        week: '2025-01-06',
+        payload: {
+          metrics_version: 2,
+          completed: 4,
+          created: 0,
+          days: Array.from({ length: 7 }, (_, i) => ({
+            date: `2025-01-${String(6 + i).padStart(2, '0')}`,
+            completed: i === 0 ? 4 : 0,
+            created: 0,
+          })),
+        },
+      },
+    }),
+  );
+  await page.goto('/reports/weekly/2025-01-06');
+  await expect(page.locator('.week-main strong')).toHaveText('4');
+  await expect(page.getByText('Semana cerrada', { exact: true })).toBeVisible();
+  await expect(page.locator('.week-current')).toHaveCount(0);
+  await page.getByRole('button', { name: /^Seleccionar semana:/ }).click();
+  await expect(page.getByRole('dialog').getByText('enero de 2025', { exact: true })).toBeVisible();
+});
