@@ -99,12 +99,49 @@ describe('recurrence', () => {
     ).toEqual({ ok: true, rule: 'RRULE:FREQ=MONTHLY;BYDAY=1MO' });
     expect(describeRepeatRule('RRULE:FREQ=MONTHLY;BYDAY=1MO')).toBe('El primer lunes de cada mes');
     expect(describeRepeatRule('RRULE:FREQ=MONTHLY;BYMONTHDAY=31')).toBe('El día 31 de cada mes');
+    expect(describeRepeatRule('RRULE:FREQ=MONTHLY;BYMONTHDAY=-1')).toBe(
+      'El último día de cada mes',
+    );
+    expect(describeRepeatRule('RRULE:FREQ=MONTHLY;BYMONTHDAY=-3')).toBe(
+      '3 días antes de fin de mes',
+    );
     expect(describeRepeatRule('RRULE:FREQ=DAILY;INTERVAL=3;COUNT=10')).toBe(
       'Cada 3 días, 10 veces',
     );
     expect(buildRepeatRule({ freq: 'daily', interval: 0 })).toEqual({
       ok: false,
       reason: 'invalid_rule',
+    });
+    expect(buildRepeatRule({ freq: 'monthly', monthDay: -1 })).toEqual({
+      ok: true,
+      rule: 'RRULE:FREQ=MONTHLY;BYMONTHDAY=-1',
+    });
+    expect(buildRepeatRule({ freq: 'monthly', monthDay: 0 })).toEqual({
+      ok: false,
+      reason: 'invalid_rule',
+    });
+    // RF-2007 / RF-2013 examples from MCP tool descriptions
+    expect(buildRepeatRule({ freq: 'daily' })).toEqual({ ok: true, rule: 'RRULE:FREQ=DAILY' });
+    expect(buildRepeatRule({ freq: 'weekly', weekdays: ['MO', 'TH'] })).toEqual({
+      ok: true,
+      rule: 'RRULE:FREQ=WEEKLY;BYDAY=MO,TH',
+    });
+    expect(buildRepeatRule({ freq: 'monthly', monthDay: 19 })).toEqual({
+      ok: true,
+      rule: 'RRULE:FREQ=MONTHLY;BYMONTHDAY=19',
+    });
+    expect(
+      buildRepeatRule({ freq: 'monthly', monthWeek: { setpos: -1, weekday: 'FR' } }),
+    ).toEqual({ ok: true, rule: 'RRULE:FREQ=MONTHLY;BYDAY=-1FR' });
+    expect(
+      buildRepeatRule({
+        freq: 'weekly',
+        weekdays: ['MO', 'TU', 'WE', 'TH', 'FR'],
+      }),
+    ).toEqual({ ok: true, rule: 'RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR' });
+    expect(buildRepeatRule({ freq: 'daily', interval: 3 })).toEqual({
+      ok: true,
+      rule: 'RRULE:FREQ=DAILY;INTERVAL=3',
     });
   });
 

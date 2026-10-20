@@ -54,4 +54,39 @@ describe('MCP tool catalog', () => {
     const tasks = visibleTools(['tasks:read']).map((tool) => tool.name);
     expect(tasks).not.toContain('list_external_calendars');
   });
+
+  it('RF-2007..RF-2011: recurrence tools and schemas stay scoped and closed', () => {
+    const read = visibleTools(['tasks:read']).map((tool) => tool.name);
+    expect(read).toContain('get_task_occurrences');
+    expect(read).not.toContain('detach_occurrence');
+    expect(read).not.toContain('create_task');
+
+    const write = visibleTools(['tasks:write']).map((tool) => tool.name);
+    expect(write).toEqual(
+      expect.arrayContaining(['create_task', 'update_task', 'complete_task', 'detach_occurrence']),
+    );
+    expect(write).not.toContain('get_task_occurrences');
+
+    for (const name of [
+      'create_task',
+      'update_task',
+      'complete_task',
+      'get_task_occurrences',
+      'detach_occurrence',
+    ]) {
+      const tool = MCP_TOOLS.find((item) => item.name === name);
+      expect(tool?.inputSchema.additionalProperties).toBe(false);
+    }
+
+    const create = MCP_TOOLS.find((item) => item.name === 'create_task');
+    expect(create?.inputSchema.properties).toHaveProperty('recurrence');
+    expect(create?.inputSchema.properties).toHaveProperty('repeat_rule');
+    expect(create?.inputSchema.properties).toHaveProperty('repeat_from');
+    expect(create?.description).toContain('recurrence');
+
+    const complete = MCP_TOOLS.find((item) => item.name === 'complete_task');
+    expect(complete?.inputSchema.properties).toHaveProperty('advance');
+    expect(complete?.inputSchema.properties).toHaveProperty('materialize_next');
+    expect(complete?.description).toContain('next_future');
+  });
 });

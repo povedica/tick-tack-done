@@ -522,6 +522,15 @@ Decisión de Pablo (sección 21): los agentes personales (ChatGPT, Cursor, Insti
 - RF-2004 (V1): **Google Calendar** (RF-1103): lectura en V1; escritura two-way en V2.
 - RF-2005 (V1): **Google Drive**: adjuntar archivos de Drive a tareas (enlace o copia al almacenamiento propio) y opción de volcar el backup diario (RF-1704) a Drive.
 - RF-2006: Todas las integraciones externas se implementan como consumidores de la API y los eventos existentes (secciones 10 y 11), nunca como código especial con acceso directo a la base de datos.
+- RF-2007 (MVP): Las tools MCP `create_task` y `update_task` aceptan un objeto estructurado `recurrence` (`freq`, `interval`, `weekdays`, `month_day`, `month_week`, `until`, `count`) y `repeat_from` (`due_date` | `completion_date`). El servidor lo convierte a RRULE con `buildRepeatRule` y lo persiste por el mismo `TasksService` (canonicalización con `DTSTART`). `recurrence` exige `due_date` (en la llamada o ya en la tarea al actualizar); `recurrence: null` cierra la serie. `month_day` admite `-31..-1` (último día del mes = `-1`).
+- RF-2008 (MVP): Escape hatch `repeat_rule` (RRULE cruda) en las mismas tools; mutuamente excluyente con `recurrence`. La forma persistida es multilínea `DTSTART;TZID=…` + `RRULE:…` (+ `EXDATE`).
+- RF-2009 (MVP): Las respuestas MCP de `create_task`, `update_task`, `get_task` y `list_tasks` enriquecen cada tarea con `repeat_label` (`describeRepeatRule`, español) y `next_occurrence` (`firstAfter` ≥ ahora, o `null` si la serie terminó). No se altera el DTO REST compartido.
+- RF-2010 (MVP): Tool `get_task_occurrences` (`tasks:read`) envuelve `GET /tasks/{id}/occurrences` (RF-704): ocurrencias teóricas en un rango, sin persistir.
+- RF-2011 (MVP): Tool `detach_occurrence` (`tasks:write`) envuelve `POST /tasks/{id}/occurrences/detach` (RF-705). Al desvincular se añade `EXDATE` al texto original; no se regenera el RRULE.
+- RF-2012 (MVP): `complete_task` acepta `advance` (`one_period` por defecto | `next_future`) y `materialize_next` (default `false`). Con `materialize_next=true` la siguiente ocurrencia se crea en la misma llamada; si no, `eta_seconds: 60`. La respuesta incluye `series: { materialized, next_due_date, eta_seconds }` cuando la tarea es recurrente. El scheduler permanece idempotente.
+- RF-2013 (MVP): Descripciones de `create_task`, `update_task` y `complete_task` orientadas a LLMs, con ejemplos en español entrecomillados (diaria, L+J, día 19, último viernes, laborables, intervalo 3).
+- RF-2014 (MVP): Errores MCP accionables: `missing_anchor`, `invalid_rule`, `validation_failed` (combinaciones inválidas / `recurrence`+`repeat_rule`), `invalid_zone`, con mensaje humano además del código.
+- RF-2015 (MVP): Sin scopes nuevos (`tasks:read` / `tasks:write`); `additionalProperties: false` en schemas nuevos; no construir RRULE concatenando texto fuera de `buildRepeatRule`/`parseRepeatRule`; mutaciones MCP siguen el `EventRecorder`.
 
 ### 9.21 Dashboard («jardín digital») — V1
 

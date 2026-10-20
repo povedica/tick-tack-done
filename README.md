@@ -29,7 +29,8 @@ pnpm db:seed                # datos de ejemplo
 ## Estructura
 
 ```
-apps/api          NestJS + Prisma + BullMQ (incluye el servidor MCP)
+apps/api          NestJS + Prisma + BullMQ (incluye el servidor MCP; recurrencias vía
+                  create_task/update_task con `recurrence`/`repeat_rule`, RF-2007..RF-2015)
 apps/web          React + Vite PWA (offline-first)
 packages/domain   reglas de negocio puras (recurrencias, filtros, NLP) — sin frameworks
 packages/sdk      cliente TS generado del OpenAPI

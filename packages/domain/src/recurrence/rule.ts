@@ -156,7 +156,12 @@ export function buildRepeatRule(
     fields.push(`BYDAY=${draft.weekdays.join(',')}`);
   }
   if (draft.monthDay !== undefined) {
-    if (draft.monthDay < 1 || draft.monthDay > 31) {
+    if (
+      !Number.isInteger(draft.monthDay) ||
+      draft.monthDay === 0 ||
+      draft.monthDay < -31 ||
+      draft.monthDay > 31
+    ) {
       return { ok: false, reason: 'invalid_rule' };
     }
     fields.push(`BYMONTHDAY=${String(draft.monthDay)}`);
@@ -228,6 +233,9 @@ export function describeRepeatRule(rule: string): string | null {
     if (nth?.nth !== null && nth !== undefined) {
       const which = SETPOS_ES[nth.nth] ?? `${String(nth.nth)}º`;
       label = `El ${which} ${WEEKDAY_ES[nth.day]} de cada mes`;
+    } else if (byMonthDay.length === 1 && (byMonthDay[0] ?? 0) < 0) {
+      const day = byMonthDay[0] ?? -1;
+      label = day === -1 ? 'El último día de cada mes' : `${String(-day)} días antes de fin de mes`;
     } else if (byMonthDay.length > 0) {
       label = `El día ${byMonthDay.join(' y ')} de cada mes`;
     } else {
