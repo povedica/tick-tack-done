@@ -74,7 +74,7 @@ permanecen deshabilitados.
 | APP-02  | implementado (apagado)  | Capabilities, authority, JWT RS256, reader PAT acotado; `TICKY_READ_ENABLED=false` |
 | APP-03  | implementado (apagado)  | BFF threads/messages/SSE/cancel; modelo off → guidance sin proveedor               |
 | APP-04  | implementado (apagado)  | Digest/ledger/CAS; `TICKY_EXECUTION_ENABLED=false`                                 |
-| APP-05  | implementado (parcial)  | ContextSnapshot + free/busy; jornada editable en permisos Ticky                     |
+| APP-05  | implementado (parcial)  | ContextSnapshot + free/busy; jornada editable en permisos Ticky                    |
 | APP-06  | implementado (apagado)  | Ruta `/ticky`, rail, i18n; UI flag off por defecto                                 |
 | APP-07b | implementado (parcial)  | Lease/fencing, clasificación 403/429/5xx/timeout→unknown                           |
 | APP-08  | implementado (parcial)  | Bridge outbox→authority POST, memories/routines shadow                             |
