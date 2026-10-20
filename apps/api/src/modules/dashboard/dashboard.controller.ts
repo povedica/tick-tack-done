@@ -16,6 +16,8 @@ import {
   googleConfigured,
   telegramConfigured,
 } from '../../integrations/config.js';
+import { MetricsService } from '../metrics/metrics.service.js';
+import { dayKey, parseDayBounds } from '@reflexionia/domain';
 
 export const WIDGET_KEYS = [
   'completed_today',
@@ -60,6 +62,7 @@ export class DashboardController {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
+    @Inject(MetricsService) private readonly metrics: MetricsService,
   ) {}
 
   @Get('dashboard/widgets')
@@ -90,20 +93,28 @@ export class DashboardController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    const snapshot = await loadDashboardSnapshot(this.prisma, user.id, new Date());
-    const focus = await this.prisma.focusSession.aggregate({
-      where: { ownerId: user.id, deletedAt: null, type: 'focus', completed: true },
-      _sum: { actualSeconds: true },
-    });
+    const now = new Date();
+    const snapshot = await loadDashboardSnapshot(this.prisma, user.id, now);
+    const tz = user.timeZone || 'Europe/Madrid';
+    const today = dayKey(now.toISOString(), tz) ?? now.toISOString().slice(0, 10);
+    const todayBounds = parseDayBounds(today, today, tz);
+    const focusSeconds =
+      todayBounds === null
+        ? 0
+        : (await this.metrics.focusMinutes(
+            user.id,
+            new Date(todayBounds.startIso),
+            new Date(todayBounds.endIso),
+          )) * 60;
     const upcoming = await this.prisma.externalEvent.count({
-      where: { ownerId: user.id, deletedAt: null, startsAt: { gte: new Date() } },
+      where: { ownerId: user.id, deletedAt: null, startsAt: { gte: now } },
     });
     const countdowns = await this.prisma.countdown.findMany({
       where: {
         ownerId: user.id,
         deletedAt: null,
         archivedAt: null,
-        targetDate: { gte: new Date() },
+        targetDate: { gte: now },
       },
       orderBy: { targetDate: 'asc' },
       take: 3,
@@ -111,19 +122,28 @@ export class DashboardController {
     });
     const values: Record<string, unknown> = {
       completed_today: snapshot.completed_today,
-      completed_week: { value: snapshot.completed_week, trend: snapshot.trend },
+      completed_week: {
+        value: snapshot.completed_week,
+        trend: snapshot.trend,
+        trend_label:
+          snapshot.trend === 0
+            ? 'igual que la semana anterior'
+            : snapshot.trend > 0
+              ? `+${String(snapshot.trend)} vs semana anterior`
+              : `${String(snapshot.trend)} vs semana anterior`,
+      },
       overdue: snapshot.overdue,
       next_7_days: snapshot.next_7_days,
       flow: { created: snapshot.created, completed: snapshot.completed, net: snapshot.net },
       habits: { percent: snapshot.habit_percent },
       load: { by_list: snapshot.by_list, by_tag: snapshot.by_tag },
-      calendar: { upcoming },
+      calendar: { upcoming, label: `${String(upcoming)} próximos eventos` },
       integrations: {
         telegram: telegramConfigured(),
         google: googleConfigured(),
         drive: driveConfigured(),
       },
-      focus: { seconds: focus._sum.actualSeconds ?? 0 },
+      focus: { seconds: focusSeconds },
       next_countdowns: {
         items: countdowns.map((countdown) => ({
           id: countdown.id,

@@ -237,6 +237,11 @@ export interface ResourceClient {
   listAttachments(id: string): Promise<AttachmentPage>;
   uploadAttachment(id: string, file: Blob, fileName: string): Promise<Attachment>;
   dashboardData(): Promise<JsonObject>;
+  statsOverview(query: string): Promise<JsonObject>;
+  statsTasks(query: string): Promise<JsonObject>;
+  statsFocus(query: string): Promise<JsonObject>;
+  statsHabits(query: string): Promise<JsonObject>;
+  statsAchievement(): Promise<JsonObject>;
   weeklyReports(): Promise<JsonObject>;
   buildWeeklyReport(): Promise<JsonObject>;
   reviewDaily(): Promise<JsonObject>;
@@ -456,6 +461,16 @@ export function resourceMethods(http: Http): ResourceClient {
       ask('GET', `/api/v1/tasks/${id}/attachments`, undefined, undefined, isAttachmentPage),
     uploadAttachment: (id, file, fileName) => upload(http, id, file, fileName),
     dashboardData: () => ask('GET', '/api/v1/dashboard/data', undefined, undefined, isJsonObject),
+    statsOverview: (query) =>
+      ask('GET', `/api/v1/stats/overview?${query}`, undefined, undefined, isJsonObject),
+    statsTasks: (query) =>
+      ask('GET', `/api/v1/stats/tasks?${query}`, undefined, undefined, isJsonObject),
+    statsFocus: (query) =>
+      ask('GET', `/api/v1/stats/focus?${query}`, undefined, undefined, isJsonObject),
+    statsHabits: (query) =>
+      ask('GET', `/api/v1/stats/habits?${query}`, undefined, undefined, isJsonObject),
+    statsAchievement: () =>
+      ask('GET', '/api/v1/stats/achievement', undefined, undefined, isJsonObject),
     weeklyReports: () => ask('GET', '/api/v1/reports/weekly', undefined, undefined, isJsonObject),
     buildWeeklyReport: () =>
       ask('POST', '/api/v1/reports/weekly', undefined, undefined, isJsonObject),

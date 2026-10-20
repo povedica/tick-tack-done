@@ -17,6 +17,7 @@ export interface AppRoute {
     | 'dashboardTitle'
     | 'reportsTitle'
     | 'reportTitle'
+    | 'statisticsTitle'
     | 'reviewTitle'
     | 'searchTitle'
     | 'appearanceTitle'
@@ -43,6 +44,8 @@ export const APP_ROUTES: readonly AppRoute[] = [
   { path: '/matrix', titleKey: 'matrixTitle' },
   { path: '/focus', titleKey: 'focusTitle' },
   { path: '/dashboard', titleKey: 'dashboardTitle' },
+  { path: '/statistics', titleKey: 'statisticsTitle' },
+  { path: '/statistics/:tab', titleKey: 'statisticsTitle' },
   { path: '/reports/weekly', titleKey: 'reportsTitle' },
   { path: '/reports/weekly/:week', titleKey: 'reportTitle' },
   { path: '/review/weekly', titleKey: 'reviewTitle' },

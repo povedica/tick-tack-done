@@ -42,6 +42,7 @@ import {
   ReportsPage,
   ReviewPage,
 } from './features/product/ProductPages';
+import { StatisticsPage } from './features/statistics/StatisticsPage';
 import {
   AutomationSettings,
   DataSettings,
@@ -161,6 +162,8 @@ function Shell() {
               }
             />
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/statistics" element={<StatisticsPage />} />
+            <Route path="/statistics/:tab" element={<StatisticsPage />} />
             <Route path="/reports/weekly" element={<ReportsPage />} />
             <Route path="/reports/weekly/:week" element={<ReportsPage />} />
             <Route path="/plan/day" element={<PlanDayPage />} />

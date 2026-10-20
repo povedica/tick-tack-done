@@ -2,7 +2,7 @@ import { Body, Controller, Get, Inject, Patch, Post, Req, Res } from '@nestjs/co
 import { ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsBoolean, IsNumber, Max, Min } from 'class-validator';
 import type { Request, Response } from 'express';
-import { achievementScore, insideGeofence, readGeofence } from '@reflexionia/domain';
+import { insideGeofence, readGeofence } from '@reflexionia/domain';
 import { actorOf, type AuthUser } from '../../auth/auth-user.js';
 import { CurrentUser } from '../../auth/current-user.decorator.js';
 import { Scopes } from '../../auth/scopes.decorator.js';
@@ -11,7 +11,7 @@ import { EventRecorder } from '../../events/event-recorder.js';
 import { asJson } from '../../http/json.js';
 import { respondJson } from '../../http/respond.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { loadDashboardSnapshot } from '../../reading/snapshot.js';
+import { StatsService } from '../stats/stats.service.js';
 
 class LocationDto {
   @ApiProperty()
@@ -111,17 +111,20 @@ export class AchievementsController {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
+    @Inject(StatsService) private readonly stats: StatsService,
   ) {}
 
   @Get()
   @Scopes('profile:read')
-  @ApiOperation({ summary: 'Achievement score from the dashboard KPIs (RF-1602). Off means null.' })
+  @ApiOperation({
+    summary: 'Achievement score shared with Estadísticas (RF-1602 / RF-2321). Off means null.',
+  })
   async read(
     @CurrentUser() user: AuthUser,
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    respondJson(req, res, 200, await this.score(user.id), false);
+    respondJson(req, res, 200, await this.stats.achievement(user), false);
   }
 
   @Patch()
@@ -144,29 +147,6 @@ export class AchievementsController {
         previous: null,
       });
     });
-    respondJson(req, res, 200, await this.score(user.id), false);
-  }
-
-  private async score(ownerId: string): Promise<unknown> {
-    const row = await this.prisma.user.findFirst({
-      where: { id: ownerId },
-      select: { achievementsEnabled: true },
-    });
-    if (row === null) {
-      return achievementScore({ enabled: false, completedWeek: 0, habitPercent: 0, focusDays: 0 });
-    }
-    const snapshot = await loadDashboardSnapshot(this.prisma, ownerId, new Date());
-    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const sessions = await this.prisma.focusSession.findMany({
-      where: { ownerId, completed: true, deletedAt: null, startedAt: { gte: since } },
-      select: { startedAt: true },
-    });
-    const days = new Set(sessions.map((session) => session.startedAt.toISOString().slice(0, 10)));
-    return achievementScore({
-      enabled: row.achievementsEnabled,
-      completedWeek: snapshot.completed_week,
-      habitPercent: snapshot.habit_percent,
-      focusDays: days.size,
-    });
+    respondJson(req, res, 200, await this.stats.achievement(user), false);
   }
 }

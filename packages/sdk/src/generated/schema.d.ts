@@ -2347,6 +2347,108 @@ export interface paths {
         patch: operations["ReportsController_saveSettings"];
         trace?: never;
     };
+    "/api/v1/stats/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Statistics overview KPIs and trend (RF-2321) */
+        get: operations["StatsController_overview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/stats/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Task statistics series and distributions (RF-2321) */
+        get: operations["StatsController_tasks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/stats/focus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Focus statistics, heatmap and distribution (RF-2322) */
+        get: operations["StatsController_focus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/stats/habits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Habit statistics for the range (RF-2323) */
+        get: operations["StatsController_habits"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/stats/achievement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Achievement value, level and public formula (RF-2321) */
+        get: operations["StatsController_achievement"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/stats/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export statistics for the filtered range as CSV or JSON (RF-2324) */
+        get: operations["StatsController_export"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/review/daily": {
         parameters: {
             query?: never;
@@ -3098,7 +3200,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Achievement score from the dashboard KPIs (RF-1602). Off means null. */
+        /** Achievement score shared with Estadísticas (RF-1602 / RF-2321). Off means null. */
         get: operations["AchievementsController_read"];
         put?: never;
         post?: never;
@@ -3339,7 +3441,7 @@ export interface components {
         CreateTokenDto: {
             /** @description Agent or script this token belongs to */
             name: string;
-            scopes: ("tasks:read" | "tasks:write" | "tasks:create" | "tasks:update" | "tasks:complete" | "tasks:trash" | "lists:read" | "lists:write" | "tags:read" | "tags:write" | "filters:read" | "filters:write" | "habits:read" | "habits:write" | "countdowns:read" | "countdowns:write" | "focus:read" | "focus:write" | "focus:start" | "focus:stop" | "notes:read" | "notes:write" | "calendar:read" | "calendar:write" | "reminders:write" | "notifications:self:write" | "ticky:proposals:read" | "ticky:proposals:write" | "ticky:routines:read" | "ticky:routines:write" | "webhooks:manage" | "automations:manage" | "profile:read" | "profile:write" | "backup:read")[];
+            scopes: ("tasks:read" | "tasks:write" | "tasks:create" | "tasks:update" | "tasks:complete" | "tasks:trash" | "lists:read" | "lists:write" | "tags:read" | "tags:write" | "filters:read" | "filters:write" | "habits:read" | "habits:write" | "countdowns:read" | "countdowns:write" | "focus:read" | "focus:write" | "focus:start" | "focus:stop" | "notes:read" | "notes:write" | "calendar:read" | "calendar:write" | "reminders:write" | "notifications:self:write" | "ticky:proposals:read" | "ticky:proposals:write" | "ticky:routines:read" | "ticky:routines:write" | "webhooks:manage" | "automations:manage" | "profile:read" | "profile:write" | "backup:read" | "stats:read")[];
         };
         TokenCreatedDto: {
             id: string;
@@ -8334,6 +8436,169 @@ export interface operations {
                 "application/json": components["schemas"]["ReportSettingsDto"];
             };
         };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    StatsController_overview: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                tz: string;
+                /** @description Comma-separated project ids */
+                list?: string;
+                /** @description Comma-separated tag ids */
+                tag?: string;
+                /** @description Comma-separated priorities */
+                priority?: string;
+                /** @description Focus session type filter */
+                type?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    StatsController_tasks: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                tz: string;
+                /** @description Comma-separated project ids */
+                list?: string;
+                /** @description Comma-separated tag ids */
+                tag?: string;
+                /** @description Comma-separated priorities */
+                priority?: string;
+                /** @description Focus session type filter */
+                type?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    StatsController_focus: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                tz: string;
+                /** @description Comma-separated project ids */
+                list?: string;
+                /** @description Comma-separated tag ids */
+                tag?: string;
+                /** @description Comma-separated priorities */
+                priority?: string;
+                /** @description Focus session type filter */
+                type?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    StatsController_habits: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                tz: string;
+                /** @description Comma-separated project ids */
+                list?: string;
+                /** @description Comma-separated tag ids */
+                tag?: string;
+                /** @description Comma-separated priorities */
+                priority?: string;
+                /** @description Focus session type filter */
+                type?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    StatsController_achievement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    StatsController_export: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                tz: string;
+                /** @description Comma-separated project ids */
+                list?: string;
+                /** @description Comma-separated tag ids */
+                tag?: string;
+                /** @description Comma-separated priorities */
+                priority?: string;
+                /** @description Focus session type filter */
+                type?: string;
+                format: "csv" | "json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             200: {
                 headers: {

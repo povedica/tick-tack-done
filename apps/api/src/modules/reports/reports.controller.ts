@@ -24,6 +24,7 @@ import { DomainException } from '../../http/domain.exception.js';
 import { respondJson } from '../../http/respond.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { loadDashboardSnapshot } from '../../reading/snapshot.js';
+import { MetricsService } from '../metrics/metrics.service.js';
 import { bucketWeek } from './week-metrics.js';
 
 class ReportSettingsDto {
@@ -54,6 +55,7 @@ export class ReportsController {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
+    @Inject(MetricsService) private readonly metrics: MetricsService,
   ) {}
 
   @Get('reports/weekly')
@@ -155,18 +157,11 @@ export class ReportsController {
         })
       )?.weeklyReportSettings,
     );
+    const week = weekStart(now);
+    const weekEnd = new Date(week.getTime() + 7 * 24 * 60 * 60 * 1000);
     const snapshot = await loadDashboardSnapshot(this.prisma, user.id, now);
-    const focus = await this.prisma.focusSession.aggregate({
-      where: {
-        ownerId: user.id,
-        type: 'focus',
-        completed: true,
-        startedAt: { gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) },
-      },
-      _sum: { actualSeconds: true },
-    });
-    const focusMinutes =
-      focus._sum.actualSeconds === null ? null : Math.round(focus._sum.actualSeconds / 60);
+    const focusMinutes = await this.metrics.focusMinutes(user.id, week, weekEnd);
+    const habits = await this.metrics.activeHabitsExpectedDays(user.id, week, weekEnd);
     const upcomingExternal = await this.prisma.externalEvent.count({
       where: {
         ownerId: user.id,
@@ -190,9 +185,7 @@ export class ReportsController {
         countdown.targetDate >= new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) &&
         countdown.targetDate < now,
     );
-    const week = weekStart(now);
     const closingLine = await this.closingLine(user.id, week);
-    const weekEnd = new Date(week.getTime() + 7 * 24 * 60 * 60 * 1000);
     const touched = await this.prisma.task.findMany({
       where: {
         ownerId: user.id,
@@ -204,14 +197,6 @@ export class ReportsController {
       },
       select: { createdAt: true, completedAt: true },
     });
-    const habitsDone = await this.prisma.habitLog.count({
-      where: {
-        ownerId: user.id,
-        deletedAt: null,
-        count: { gt: 0 },
-        date: { gte: week, lt: weekEnd },
-      },
-    });
     const payload = {
       summary: `${narrative.summary}\n${closingLine}`,
       observations: narrative.observations,
@@ -219,9 +204,16 @@ export class ReportsController {
       completed: snapshot.completed,
       created: snapshot.created,
       overdue: snapshot.overdue,
-      focus_minutes: focusMinutes ?? 0,
-      habits_done: habitsDone,
+      focus_minutes: focusMinutes,
+      habits_done: habits.done,
+      habits_expected: habits.expected,
       trend: snapshot.trend,
+      trend_label:
+        snapshot.trend === 0
+          ? 'igual que la semana anterior'
+          : snapshot.trend > 0
+            ? `+${String(snapshot.trend)} vs semana anterior`
+            : `${String(snapshot.trend)} vs semana anterior`,
       days: bucketWeek(week, touched),
       weak: narrative.weak,
       countdowns: {

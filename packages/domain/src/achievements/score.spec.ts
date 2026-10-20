@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { achievementScore } from './score';
+import { achievementScore, ACHIEVEMENT_LEVELS } from './score';
 import { parsePluginManifest, pluginMay } from '../plugins/manifest';
 import { allows, parseMentions } from '../collaboration/access';
 import { isRasterImage } from '../attachments/image';
 import { parseTelegramCommand } from '../integrations/telegram';
+import { completionRate, parseDayBounds } from '../stats/aggregate';
 
 describe('achievements', () => {
   it('RF-1602: a disabled score stays empty', () => {
@@ -26,6 +27,85 @@ describe('achievements', () => {
     expect(
       achievementScore({ enabled: true, completedWeek: 2, habitPercent: 0, focusDays: 0 }).level,
     ).toBe('arranque');
+  });
+
+  it('RF-2321: exposes twelve levels and a public formula breakdown', () => {
+    expect(ACHIEVEMENT_LEVELS).toHaveLength(12);
+    const score = achievementScore({
+      enabled: true,
+      completedOnTime: 2,
+      completedLate: 1,
+      priorityPoints: 15,
+      pomodoros: 1,
+      habitCheckIns: 2,
+      overdueCount: 1,
+    });
+    // 2*10 + 1*5 + 15 + 15 + 2*8 - 5 = 66
+    expect(score.score).toBe(66);
+    expect(score.formula?.weights.pomodoro).toBe(15);
+    expect(score.progress_to_next).not.toBeNull();
+  });
+});
+
+describe('stats aggregate', () => {
+  it('RF-2321: completion rate counts only due tasks in range', () => {
+    const bounds = parseDayBounds('2026-10-13', '2026-10-19', 'Europe/Madrid');
+    expect(bounds).not.toBeNull();
+    const rate = completionRate(
+      [
+        {
+          id: '1',
+          title: 'a',
+          status: 'completed',
+          priority: 'none',
+          isAllDay: true,
+          createdAt: '2026-10-10T10:00:00.000Z',
+          completedAt: '2026-10-14T10:00:00.000Z',
+          dueDate: '2026-10-14T22:00:00.000Z',
+          listId: 'l',
+          listName: 'Inbox',
+          listColor: null,
+          tagIds: [],
+          tagNames: [],
+        },
+        {
+          id: '2',
+          title: 'b',
+          status: 'active',
+          priority: 'none',
+          isAllDay: true,
+          createdAt: '2026-10-10T10:00:00.000Z',
+          completedAt: null,
+          dueDate: '2026-10-15T22:00:00.000Z',
+          listId: 'l',
+          listName: 'Inbox',
+          listColor: null,
+          tagIds: [],
+          tagNames: [],
+        },
+        {
+          id: '3',
+          title: 'no due',
+          status: 'completed',
+          priority: 'none',
+          isAllDay: false,
+          createdAt: '2026-10-14T10:00:00.000Z',
+          completedAt: '2026-10-14T12:00:00.000Z',
+          dueDate: null,
+          listId: 'l',
+          listName: 'Inbox',
+          listColor: null,
+          tagIds: [],
+          tagNames: [],
+        },
+      ],
+      '2026-10-13',
+      '2026-10-19',
+      'Europe/Madrid',
+    );
+    expect(rate.planned).toBe(2);
+    expect(rate.completed).toBe(1);
+    expect(rate.rate).toBe(50);
   });
 });
 
