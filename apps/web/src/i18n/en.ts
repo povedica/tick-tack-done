@@ -199,7 +199,7 @@ export const en = {
   paletteHint: 'Search with / or Ctrl/Cmd+K.',
   smartListsTitle: 'Smart lists',
   smartListsHint:
-    'Choose which lists appear in the sidebar and drag them to reorder. Changes save on their own.',
+    'Navigation lists are always visible. Drag to reorder and choose visibility for optional views. Changes save automatically.',
   smartEnabled: 'Visible',
   smartMoveUp: 'Move up',
   smartMoveDown: 'Move down',

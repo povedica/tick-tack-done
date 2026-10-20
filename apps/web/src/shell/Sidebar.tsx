@@ -2,7 +2,7 @@ import { MODULES, moduleEnabled } from './modules';
 import { ControlChip } from '../features/statistics/ControlSummary';
 import { AccountMenu } from './AccountMenu';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { normalizeTagName } from '@reflexionia/domain';
+import { normalizeTagName, FIXED_SMART_LIST_KEYS } from '@reflexionia/domain';
 import { ApiError } from '@reflexionia/sdk';
 import {
   CalendarDays,
@@ -99,17 +99,13 @@ export function Sidebar({
   const showSomeday = useFeatures((state) => state.flags.when_deadline);
   const ordered = orderedSmartLists(smart.data?.items ?? []);
   const lists = ordered.filter(
-    (item) => item.enabled && (SIDEBAR_SMART_ORDER as readonly string[]).includes(item.key),
+    (item) =>
+      (item.enabled || FIXED_SMART_LIST_KEYS.includes(item.key)) &&
+      (SIDEBAR_SMART_ORDER as readonly string[]).includes(item.key),
   );
   const someday = ordered.find((item) => item.key === 'someday');
-  const navLists = lists.filter(
-    (item) => item.enabled && item.key !== 'trash' && item.key !== 'completed',
-  );
-  if (
-    showSomeday &&
-    someday?.enabled === true &&
-    !navLists.some((item) => item.key === 'someday')
-  ) {
+  const navLists = lists.filter((item) => item.key !== 'trash' && item.key !== 'completed');
+  if (showSomeday && someday !== undefined && !navLists.some((item) => item.key === 'someday')) {
     const afterDates = navLists.findIndex((item) => item.key === 'next_7_days');
     navLists.splice(afterDates + 1, 0, someday);
   }
@@ -223,7 +219,7 @@ export function Sidebar({
           </NavGroup>
         ) : (
           <>
-            <NavGroup id="smart" title={messages.smartListsTitle}>
+            <section className="sidebar-smart-lists" aria-label={messages.smartListsTitle}>
               <ul className="nav-list">
                 {navLists.map((item) => (
                   <li
@@ -263,18 +259,23 @@ export function Sidebar({
                   </li>
                 ))}
               </ul>
-            </NavGroup>
-            <NavGroup id="filters" title={messages.filtersTitle}>
-              <SectionHead title={messages.filtersTitle}>
-                <Link
-                  className="nav-add"
-                  to="/filters"
-                  aria-label={messages.newFilter}
-                  onClick={onNavigate}
-                >
-                  <Plus size={16} aria-hidden="true" />
-                </Link>
-              </SectionHead>
+            </section>
+            <NavGroup
+              id="filters"
+              title={messages.filtersTitle}
+              actions={
+                <>
+                  <Link
+                    className="nav-add"
+                    to="/filters"
+                    aria-label={messages.newFilter}
+                    onClick={onNavigate}
+                  >
+                    <Plus size={16} aria-hidden="true" />
+                  </Link>
+                </>
+              }
+            >
               {filters.isSuccess && filterItems.length === 0 ? (
                 <p className="nav-empty">{messages.filtersEmpty}</p>
               ) : null}
@@ -295,22 +296,27 @@ export function Sidebar({
                 ))}
               </ul>
             </NavGroup>
-            <NavGroup id="lists" title={messages.listsTitle}>
-              <SectionHead title={messages.listsTitle}>
-                <button
-                  type="button"
-                  className="nav-add"
-                  aria-label={messages.newList}
-                  aria-expanded={addingList}
-                  onClick={() => {
-                    setAddingList((current) => !current);
-                    setDraft('');
-                    setListError(null);
-                  }}
-                >
-                  <Plus size={16} aria-hidden="true" />
-                </button>
-              </SectionHead>
+            <NavGroup
+              id="lists"
+              title={messages.listsTitle}
+              actions={
+                <>
+                  <button
+                    type="button"
+                    className="nav-add"
+                    aria-label={messages.newList}
+                    aria-expanded={addingList}
+                    onClick={() => {
+                      setAddingList((current) => !current);
+                      setDraft('');
+                      setListError(null);
+                    }}
+                  >
+                    <Plus size={16} aria-hidden="true" />
+                  </button>
+                </>
+              }
+            >
               {addingList ? (
                 <form
                   className="nav-create"
@@ -471,22 +477,27 @@ export function Sidebar({
                 </details>
               ) : null}
             </NavGroup>
-            <NavGroup id="tags" title={messages.tagsTitle}>
-              <SectionHead title={messages.tagsTitle}>
-                <button
-                  type="button"
-                  className="nav-add"
-                  aria-label={messages.newTag}
-                  aria-expanded={addingTag}
-                  onClick={() => {
-                    setAddingTag((current) => !current);
-                    setTagDraft('');
-                    setTagError(null);
-                  }}
-                >
-                  <Plus size={16} aria-hidden="true" />
-                </button>
-              </SectionHead>
+            <NavGroup
+              id="tags"
+              title={messages.tagsTitle}
+              actions={
+                <>
+                  <button
+                    type="button"
+                    className="nav-add"
+                    aria-label={messages.newTag}
+                    aria-expanded={addingTag}
+                    onClick={() => {
+                      setAddingTag((current) => !current);
+                      setTagDraft('');
+                      setTagError(null);
+                    }}
+                  >
+                    <Plus size={16} aria-hidden="true" />
+                  </button>
+                </>
+              }
+            >
               {tags.isSuccess && tagItems.length === 0 && !addingTag ? (
                 <p className="nav-empty">{messages.tagsEmpty}</p>
               ) : null}
@@ -626,34 +637,19 @@ export function Sidebar({
       </nav>
       {mobileSection !== 'more' ? (
         <div className="sidebar-footer">
-          <SideLink to="/tasks/cancelled" onNavigate={onNavigate}>
-            <SquareX
-              className="footer-mobile-icon"
-              size={16}
-              strokeWidth={1.5}
-              aria-hidden="true"
-            />
-            <span className="nav-label">{messages.navWont}</span>
-          </SideLink>
           {ordered.some((item) => item.key === 'completed' && item.enabled) ? (
             <SideLink to="/smart/completed" onNavigate={onNavigate}>
-              <SquareCheck
-                className="footer-mobile-icon"
-                size={16}
-                strokeWidth={1.5}
-                aria-hidden="true"
-              />
+              <SquareCheck className="footer-icon" size={16} strokeWidth={1.5} aria-hidden="true" />
               <span className="nav-label">{messages.smartCompleted}</span>
             </SideLink>
           ) : null}
+          <SideLink to="/tasks/cancelled" onNavigate={onNavigate}>
+            <SquareX className="footer-icon" size={16} strokeWidth={1.5} aria-hidden="true" />
+            <span className="nav-label">{messages.navWont}</span>
+          </SideLink>
           {trashVisible ? (
             <SideLink to="/smart/trash" onNavigate={onNavigate}>
-              <Trash2
-                className="footer-mobile-icon"
-                size={16}
-                strokeWidth={1.5}
-                aria-hidden="true"
-              />
+              <Trash2 className="footer-icon" size={16} strokeWidth={1.5} aria-hidden="true" />
               <span className="nav-label">{messages.smartTrash}</span>
               {showCounters && smart.isPending ? <span className="ui-badge">—</span> : null}
               {showCounters &&
@@ -703,21 +699,6 @@ function SideLink({
     >
       {children}
     </NavLink>
-  );
-}
-
-function SectionHead({
-  title,
-  children,
-}: {
-  readonly title: string;
-  readonly children: ReactNode;
-}) {
-  return (
-    <div className="nav-section-row">
-      <p className="nav-section">{title}</p>
-      {children}
-    </div>
   );
 }
 
@@ -947,10 +928,12 @@ function smartLabel(messages: Messages, key: string): string {
 function NavGroup({
   id,
   title,
+  actions,
   children,
 }: {
   readonly id: string;
   readonly title: string;
+  readonly actions?: ReactNode;
   readonly children: ReactNode;
 }) {
   const storage = `tick-tack-done.sidebar-group.${id}`;
@@ -964,18 +947,33 @@ function NavGroup({
   });
   return (
     <section className="nav-group">
-      <button
-        type="button"
-        className="nav-group-toggle"
-        aria-expanded={open}
-        onClick={() => {
-          localStorage.setItem(storage, open ? 'closed' : 'open');
-          setOpen(!open);
-        }}
-      >
-        <ChevronDown size={14} aria-hidden="true" />
-        {title}
-      </button>
+      <div className="nav-group-header">
+        <button
+          type="button"
+          className="nav-group-toggle"
+          aria-expanded={open}
+          onClick={() => {
+            localStorage.setItem(storage, open ? 'closed' : 'open');
+            setOpen(!open);
+          }}
+        >
+          <ChevronDown size={14} aria-hidden="true" />
+          {title}
+        </button>
+        {actions ? (
+          <div
+            className="nav-group-actions"
+            onClick={() => {
+              if (!open) {
+                setOpen(true);
+                localStorage.setItem(storage, 'open');
+              }
+            }}
+          >
+            {actions}
+          </div>
+        ) : null}
+      </div>
       <div hidden={!open}>{children}</div>
     </section>
   );

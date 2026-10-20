@@ -112,6 +112,7 @@ export {
   savedFilterClause,
   shiftLocalDays,
   SMART_LIST_KEYS,
+  FIXED_SMART_LIST_KEYS,
   smartListClause,
 } from './filters/index';
 export type {

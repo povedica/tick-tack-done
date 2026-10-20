@@ -870,7 +870,7 @@ test('mobile Lists footer matches the reference and More has no footer', async (
       .map((item) => item.text),
   );
   expect(positions).toEqual(['Completadas', 'No haré', 'Papelera']);
-  for (const icon of await footer.locator('svg.footer-mobile-icon').all()) {
+  for (const icon of await footer.locator('svg.footer-icon').all()) {
     await expect(icon).toBeVisible();
     await expect(icon).toHaveAttribute('width', '16');
   }
@@ -896,3 +896,77 @@ test('secondary sidebar has no theme or collapse controls on desktop', async ({ 
     page.locator('.icon-rail').getByRole('button', { name: 'Contraer la barra', exact: true }),
   ).toBeVisible();
 });
+
+for (const width of [1280, 390]) {
+  test(`sidebar fixed smart lists and sentence-case group headers (${width}px)`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await fixtures(page);
+    await page.addInitScript(() =>
+      localStorage.setItem('tick-tack-done.sidebar-group.smart', 'closed'),
+    );
+    const keys = [
+      'today',
+      'tomorrow',
+      'next_7_days',
+      'all',
+      'inbox',
+      'no_date',
+      'recently_added',
+      'completed',
+      'trash',
+      'assigned_to_me',
+      'someday',
+    ];
+    await page.route('**/api/v1/smart-lists', (route) =>
+      route.fulfill({
+        json: {
+          items: keys.map((key, i) => ({
+            id: key,
+            key,
+            sort_order: String(i),
+            enabled: key === 'completed' || key === 'trash',
+            task_count: 0,
+          })),
+        },
+      }),
+    );
+    await page.goto('/dashboard');
+    if (width === 390) {
+      await page
+        .locator('.bottom-bar')
+        .getByRole('button', { name: 'Listas', exact: true })
+        .click();
+      await expect(page.locator('.sidebar')).toHaveCSS('transform', 'none');
+    }
+    const sidebar = page.locator('.sidebar');
+    await expect(
+      sidebar.getByRole('button', { name: 'Listas inteligentes', exact: true }),
+    ).toHaveCount(0);
+    await expect(sidebar.locator('.sidebar-smart-lists .nav-link')).toHaveCount(8);
+    await expect(
+      sidebar.locator('.sidebar-smart-lists').getByRole('link', { name: 'Hoy', exact: true }),
+    ).toBeVisible();
+    const group = sidebar
+      .locator('.nav-group')
+      .filter({ has: page.getByRole('button', { name: 'Listas', exact: true }) });
+    await expect(group.locator('.nav-group-toggle')).toHaveCSS('text-transform', 'none');
+    await group.locator('.nav-group-header').hover();
+    await expect(group.getByRole('button', { name: 'Nueva lista', exact: true })).toBeVisible();
+    await expect(group.locator('.nav-group-actions')).toHaveCSS('opacity', '1');
+    await group.getByRole('button', { name: 'Nueva lista', exact: true }).click();
+    await expect(group.locator('.nav-create input')).toBeVisible();
+    for (const icon of await sidebar.locator('.sidebar-footer .footer-icon').all())
+      await expect(icon).toBeVisible();
+    await group.getByRole('button', { name: 'Nueva lista', exact: true }).click();
+    await page.screenshot({ path: `test-results/sidebar-groups-${width}.png` });
+    if (width === 390) await page.keyboard.press('Escape');
+    await page.goto('/settings/smart-lists');
+    const today = page
+      .locator('.smart-settings-row')
+      .filter({ has: page.getByRole('link', { name: 'Hoy 0', exact: true }) });
+    await expect(today).toContainText('Siempre visible');
+    await expect(today.locator('.smart-visibility-btn')).toHaveCount(0);
+  });
+}

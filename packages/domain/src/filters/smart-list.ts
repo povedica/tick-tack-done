@@ -23,6 +23,18 @@ export const SMART_LIST_KEYS = [
   'someday',
 ] as const satisfies readonly SmartListKey[];
 
+/** RF-901: core navigation stays visible; optional footer/assignment views retain visibility preferences. */
+export const FIXED_SMART_LIST_KEYS: readonly string[] = [
+  'today',
+  'tomorrow',
+  'next_7_days',
+  'all',
+  'inbox',
+  'no_date',
+  'recently_added',
+  'someday',
+];
+
 /** Tasks created on the local day this many days ago still count as recently added. */
 export const RECENT_WINDOW_DAYS = 30;
 

@@ -960,7 +960,10 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Enable and reorder system smart lists (RF-901) */
+        /**
+         * Enable and reorder system smart lists (RF-901)
+         * @description Core navigation lists always remain enabled: today, tomorrow, next_7_days, all, inbox, no_date, recently_added and someday. Their order remains customizable; visibility preferences apply to the other lists.
+         */
         patch: operations["SmartListsController_update"];
         trace?: never;
     };

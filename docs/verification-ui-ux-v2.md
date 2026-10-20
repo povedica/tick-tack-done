@@ -263,3 +263,9 @@ Validación de este ajuste: 33 E2E de auditoría/navegación/Jardín, 84 unitari
 ### Pie móvil y controles del sidebar secundario
 
 En móvil, el pie queda solo en Listas, con Completadas, No haré y Papelera en ese orden e iconos lucide de contorno de 16 px. Respeta las listas inteligentes activadas y oculta el contador de papelera cuando es cero. Más no renderiza el pie. Según la petición posterior, se eliminan los botones de tema y colapsar del sidebar secundario también en escritorio; el tema sigue en Ajustes y se conserva el control de colapsar del rail principal. Verificados cinco E2E afectados, lint y tipos; capturas de ambos paneles inspeccionadas.
+
+### Secciones del sidebar y navegación fija (RF-901)
+
+Las listas de navegación (Hoy, Mañana, Próximos 7 días, Todas, Bandeja, Sin fecha, Recientes y Algún día cuando su función está activa) no tienen encabezado plegable y permanecen visibles. Ajustes indica «Siempre visible» y no ofrece ocultarlas. La API existente normaliza su visibilidad al leer preferencias antiguas y al guardar, manteniendo el orden personalizable; las vistas opcionales mantienen su configuración. No hay migraciones ni endpoints nuevos.
+
+Filtros, Listas y Etiquetas conservan plegado persistente con títulos en escritura normal. Hover/foco resalta la fila del encabezado y revela su acción de añadir; las acciones también funcionan con el grupo plegado y en pantallas táctiles. Completadas, No haré y Papelera tienen iconos de contorno de 16 px en escritorio y móvil. Más sigue sin pie. Validación: seis E2E de navegación afectados, unitarios e integración en verde (101 integración en el workspace), lint/tipos y contrato OpenAPI/SDK regenerado. Los cambios paralelos de Jardín no forman parte de este ajuste.

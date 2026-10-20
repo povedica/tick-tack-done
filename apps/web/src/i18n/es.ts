@@ -198,7 +198,7 @@ export const es = {
   paletteHint: 'Busca con / o con Ctrl/Cmd+K.',
   smartListsTitle: 'Listas inteligentes',
   smartListsHint:
-    'Elige cuáles salen en la barra y arrástralas para ordenarlas. El cambio se guarda solo.',
+    'Las listas de navegación son siempre visibles. Arrastra para ordenar y elige la visibilidad de las vistas opcionales. El cambio se guarda solo.',
   smartEnabled: 'Visible',
   smartMoveUp: 'Subir',
   smartMoveDown: 'Bajar',
