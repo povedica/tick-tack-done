@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
   Req,
   Res,
@@ -17,13 +18,15 @@ import { ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import type { AuthUser } from '../../auth/auth-user.js';
 import { CurrentUser } from '../../auth/current-user.decorator.js';
-import { Scopes } from '../../auth/scopes.decorator.js';
+import { Authenticated, Scopes } from '../../auth/scopes.decorator.js';
 import { respondJson } from '../../http/respond.js';
 import {
   ApproveProposalDto,
+  CreateTickyRoutineDto,
   CreateMemoryDto,
   PostTickyMessageDto,
   StoreProposalDto,
+  UpdateTickyRoutineDto,
   UpdateTickyAuthorityDto,
 } from './ticky.dto.js';
 import { TickyService } from './ticky.service.js';
@@ -298,5 +301,42 @@ export class TickyController {
     @Res() res: Response,
   ): Promise<void> {
     respondJson(req, res, 200, await this.ticky.listRoutines(user), true);
+  }
+
+  @Post('routines')
+  @Authenticated()
+  @ApiOperation({ summary: 'Create a shadow routine without notifications (APP-08)' })
+  async createRoutine(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CreateTickyRoutineDto,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(req, res, 201, await this.ticky.createRoutine(user, dto), false);
+  }
+
+  @Put('routines/:id')
+  @Authenticated()
+  @ApiOperation({ summary: 'Update a shadow routine with optimistic concurrency (APP-08)' })
+  async updateRoutine(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateTickyRoutineDto,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(req, res, 200, await this.ticky.updateRoutine(user, id, dto), false);
+  }
+
+  @Post('routines/:id/pause')
+  @Authenticated()
+  @ApiOperation({ summary: 'Pause a shadow routine immediately (APP-08)' })
+  async pauseRoutine(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(req, res, 200, await this.ticky.pauseRoutine(user, id), false);
   }
 }

@@ -36,6 +36,29 @@ export interface TickyThread {
   readonly id: string;
 }
 
+export interface TickyRoutine {
+  readonly id: string;
+  readonly kind: 'daily_plan' | 'weekly_review';
+  readonly timezone: string;
+  readonly local_hour: string;
+  readonly weekday: number | null;
+  readonly enabled: boolean;
+  readonly window_minutes: number;
+  readonly shadow: boolean;
+  readonly version: number;
+  readonly next_at: string | null;
+  readonly schedule_issue: 'ambiguous_local_time' | 'nonexistent_local_time' | null;
+}
+
+export interface TickyRoutineDraft {
+  readonly kind: 'daily_plan' | 'weekly_review';
+  readonly timezone: string;
+  readonly local_hour: string;
+  readonly weekday?: number;
+  readonly enabled: boolean;
+  readonly window_minutes: number;
+}
+
 export interface TickyAuthority {
   readonly configured?: boolean;
   readonly version: number | null;
@@ -83,6 +106,19 @@ export const tickyApi = {
       body: JSON.stringify({ document: JSON.stringify(document) }),
     }),
   models: () => tickyFetch<{ items: { id: string; label: string }[] }>('/models'),
+  routines: () => tickyFetch<{ items: TickyRoutine[] }>('/routines'),
+  createRoutine: (draft: TickyRoutineDraft) =>
+    tickyFetch<TickyRoutine>('/routines', { method: 'POST', body: JSON.stringify(draft) }),
+  updateRoutine: (id: string, draft: TickyRoutineDraft & { expected_version: number }) =>
+    tickyFetch<TickyRoutine>(`/routines/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(draft),
+    }),
+  pauseRoutine: (id: string) =>
+    tickyFetch<TickyRoutine>(`/routines/${encodeURIComponent(id)}/pause`, {
+      method: 'POST',
+      body: '{}',
+    }),
   flags: () => tickyFetch<TickyFlags>('/flags'),
   listThreads: () => tickyFetch<{ items: TickyThread[] }>('/threads'),
   openThread: () => tickyFetch<TickyThread>('/threads', { method: 'POST', body: '{}' }),

@@ -826,12 +826,63 @@ export class TickyService implements OnModuleInit {
 
   async listRoutines(user: AuthUser): Promise<Record<string, unknown>> {
     requireBrowserSession(user);
-    this.requireReadEnabled();
+    this.requireRoutinesEnabled();
     const authority = await this.requireAuthority(user.id);
     return (
       await this.python(
         'GET',
         '/internal/v1/routines',
+        'ticky-runs',
+        user.id,
+        authority.version,
+        undefined,
+      )
+    ).body;
+  }
+
+  async createRoutine(user: AuthUser, draft: object): Promise<Record<string, unknown>> {
+    requireBrowserSession(user);
+    this.requireRoutinesEnabled();
+    const authority = await this.requireAuthority(user.id);
+    this.requireRoutineWrite(authority.scopes);
+    return (
+      await this.python(
+        'POST',
+        '/internal/v1/routines',
+        'ticky-runs',
+        user.id,
+        authority.version,
+        draft,
+      )
+    ).body;
+  }
+
+  async updateRoutine(user: AuthUser, id: string, draft: object): Promise<Record<string, unknown>> {
+    requireBrowserSession(user);
+    this.requireRoutinesEnabled();
+    const authority = await this.requireAuthority(user.id);
+    this.requireRoutineWrite(authority.scopes);
+    return (
+      await this.python(
+        'PUT',
+        `/internal/v1/routines/${id}`,
+        'ticky-runs',
+        user.id,
+        authority.version,
+        draft,
+      )
+    ).body;
+  }
+
+  async pauseRoutine(user: AuthUser, id: string): Promise<Record<string, unknown>> {
+    requireBrowserSession(user);
+    this.requireRoutinesEnabled();
+    const authority = await this.requireAuthority(user.id);
+    this.requireRoutineWrite(authority.scopes);
+    return (
+      await this.python(
+        'POST',
+        `/internal/v1/routines/${id}/pause`,
         'ticky-runs',
         user.id,
         authority.version,
@@ -1200,6 +1251,27 @@ export class TickyService implements OnModuleInit {
         HttpStatus.SERVICE_UNAVAILABLE,
         'ticky_not_ready',
         'La lectura de Ticky no está activada.',
+      );
+    }
+  }
+
+  private requireRoutinesEnabled(): void {
+    this.requireReadEnabled();
+    if (!tickyFlags().routines) {
+      throw new DomainException(
+        HttpStatus.SERVICE_UNAVAILABLE,
+        'ticky_routines_not_ready',
+        'La gestión de rutinas de Ticky no está activada.',
+      );
+    }
+  }
+
+  private requireRoutineWrite(scopes: readonly string[]): void {
+    if (!scopes.includes('ticky:routines:write')) {
+      throw new DomainException(
+        HttpStatus.FORBIDDEN,
+        'ticky_routine_permission_required',
+        'Concede el permiso de edición de rutinas antes de continuar.',
       );
     }
   }

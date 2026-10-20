@@ -36,6 +36,7 @@ describe.skipIf(cross === undefined)('APP-03 / TK-022/600 real HTTP compatibilit
     process.env.TICKY_MODEL_ENABLED = 'false';
     process.env.TICKY_UI_ENABLED = 'true';
     process.env.TICKY_EXECUTION_ENABLED = 'true';
+    process.env.TICKY_ROUTINES_ENABLED = 'true';
     if (!recovering) {
       await prisma.outboxEvent.deleteMany({ where: { ownerId: owner } });
       await prisma.activityLog.deleteMany({ where: { ownerId: owner } });
@@ -57,7 +58,7 @@ describe.skipIf(cross === undefined)('APP-03 / TK-022/600 real HTTP compatibilit
           autonomy: 2,
           readEnabled: true,
           inboxListId: list,
-          actionScopes: ['tasks:create'],
+          actionScopes: ['tasks:create', 'ticky:routines:write'],
           lists: { create: { listId: list } },
         },
       });
@@ -127,6 +128,11 @@ describe.skipIf(cross === undefined)('APP-03 / TK-022/600 real HTTP compatibilit
       expect(tasks.body.items).toEqual(
         expect.arrayContaining([expect.objectContaining({ id: taskId })]),
       );
+      await request(server)
+        .patch('/api/v1/ticky/authority')
+        .set('X-Dev-User-Email', 'demo@reflexionia.test')
+        .send({ action_scopes: ['tasks:create', 'ticky:routines:write'] })
+        .expect(200);
       const opened = await request(server)
         .post('/api/v1/ticky/threads')
         .set('X-Dev-User-Email', 'demo@reflexionia.test')
@@ -190,6 +196,49 @@ describe.skipIf(cross === undefined)('APP-03 / TK-022/600 real HTTP compatibilit
         .set('X-Dev-User-Email', 'demo@reflexionia.test')
         .expect(200);
       expect(routines.body.items).toEqual([]);
+      const createdRoutine = await request(server)
+        .post('/api/v1/ticky/routines')
+        .set('X-Dev-User-Email', 'demo@reflexionia.test')
+        .send({
+          kind: 'daily_plan',
+          timezone: 'Europe/Madrid',
+          local_hour: '09:00',
+          enabled: false,
+          window_minutes: 15,
+        })
+        .expect(201);
+      const routineId = createdRoutine.body.id as string;
+      expect(createdRoutine.body.shadow).toBe(true);
+      const updatedRoutine = await request(server)
+        .put(`/api/v1/ticky/routines/${routineId}`)
+        .set('X-Dev-User-Email', 'demo@reflexionia.test')
+        .send({
+          kind: 'daily_plan',
+          timezone: 'Europe/Madrid',
+          local_hour: '09:15',
+          enabled: true,
+          window_minutes: 15,
+          expected_version: 1,
+        })
+        .expect(200);
+      expect(updatedRoutine.body.schedule_revision).toBe(2);
+      await request(server)
+        .put(`/api/v1/ticky/routines/${routineId}`)
+        .set('X-Dev-User-Email', 'demo@reflexionia.test')
+        .send({
+          kind: 'daily_plan',
+          timezone: 'Europe/Madrid',
+          local_hour: '09:30',
+          enabled: true,
+          window_minutes: 15,
+          expected_version: 1,
+        })
+        .expect(409);
+      const pausedRoutine = await request(server)
+        .post(`/api/v1/ticky/routines/${routineId}/pause`)
+        .set('X-Dev-User-Email', 'demo@reflexionia.test')
+        .expect(200);
+      expect(pausedRoutine.body.enabled).toBe(false);
       const capture = await request(server)
         .post(`/api/v1/ticky/threads/${threadId}/messages`)
         .set('X-Dev-User-Email', 'demo@reflexionia.test')

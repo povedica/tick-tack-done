@@ -61,6 +61,7 @@ describe('APP-03 / TK-022/600: private service bridge', () => {
     vi.stubEnv('TICKY_JWT_KID', 'synthetic');
     vi.stubEnv('TICKY_MODEL_ENABLED', 'false');
     vi.stubEnv('TICKY_READ_ENABLED', 'true');
+    vi.stubEnv('TICKY_ROUTINES_ENABLED', 'true');
     vi.stubEnv('TICKY_KILL_SWITCH', 'false');
   });
   afterEach(() => {
@@ -152,6 +153,75 @@ describe('APP-03 / TK-022/600: private service bridge', () => {
     const fetcher = vi.fn();
     vi.stubGlobal('fetch', fetcher);
     await expect(service.postMessage(user, threadId, randomUUID(), 'Hoy')).rejects.toThrow();
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('requires the owner routine-write grant before forwarding a mutation', async () => {
+    const { service } = setup();
+    const fetcher = vi.fn();
+    vi.stubGlobal('fetch', fetcher);
+    await expect(
+      service.createRoutine(user, {
+        kind: 'daily_plan',
+        timezone: 'Europe/Madrid',
+        local_hour: '09:00',
+      }),
+    ).rejects.toThrow('Concede el permiso');
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('forwards routine create, versioned update, and pause through the private audience', async () => {
+    const { service, db } = setup();
+    db.tickyAuthority.findUnique.mockResolvedValue({
+      version: 7,
+      revoked: false,
+      paused: false,
+      actionScopes: ['ticky:routines:write'],
+      lists: [],
+      workdayStart: null,
+      workdayEnd: null,
+      sourceRevision: 1,
+    });
+    const fetcher = vi.fn<typeof fetch>(() =>
+      Promise.resolve(Response.json({ id: threadId, version: 2 })),
+    );
+    vi.stubGlobal('fetch', fetcher);
+    const draft = {
+      kind: 'daily_plan',
+      timezone: 'Europe/Madrid',
+      local_hour: '09:00',
+      enabled: false,
+      window_minutes: 15,
+    };
+    await service.createRoutine(user, draft);
+    await service.updateRoutine(user, threadId, { ...draft, expected_version: 1 });
+    await service.pauseRoutine(user, threadId);
+    expect(fetcher).toHaveBeenCalledTimes(3);
+    const pathOf = (input: unknown) => {
+      const value = input instanceof Request ? input.url : String(input);
+      return new URL(value).pathname;
+    };
+    expect(fetcher.mock.calls[0]?.[1]?.method).toBe('POST');
+    expect(pathOf(fetcher.mock.calls[0]?.[0] ?? '')).toBe('/internal/v1/routines');
+    expect(fetcher.mock.calls[1]?.[1]?.method).toBe('PUT');
+    expect(pathOf(fetcher.mock.calls[1]?.[0] ?? '')).toBe(`/internal/v1/routines/${threadId}`);
+    expect(fetcher.mock.calls[2]?.[1]?.method).toBe('POST');
+    expect(pathOf(fetcher.mock.calls[2]?.[0] ?? '')).toBe(
+      `/internal/v1/routines/${threadId}/pause`,
+    );
+    expect(JSON.parse(fetcher.mock.calls[1]?.[1]?.body as string)).toMatchObject({
+      expected_version: 1,
+      local_hour: '09:00',
+    });
+    expect(fetcher.mock.calls[2]?.[1]?.body).toBeUndefined();
+  });
+
+  it('fails closed when routine controls are not enabled', async () => {
+    const { service } = setup();
+    vi.stubEnv('TICKY_ROUTINES_ENABLED', 'false');
+    const fetcher = vi.fn();
+    vi.stubGlobal('fetch', fetcher);
+    await expect(service.listRoutines(user)).rejects.toThrow('no está activada');
     expect(fetcher).not.toHaveBeenCalled();
   });
 });

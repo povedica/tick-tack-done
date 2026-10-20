@@ -5474,6 +5474,127 @@
             "bearer": []
           }
         ]
+      },
+      "post": {
+        "operationId": "TickyController_createRoutine",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTickyRoutineDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Create a shadow routine without notifications (APP-08)",
+        "tags": [
+          "ticky"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ticky/routines/{id}": {
+      "put": {
+        "operationId": "TickyController_updateRoutine",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTickyRoutineDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Update a shadow routine with optimistic concurrency (APP-08)",
+        "tags": [
+          "ticky"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ticky/routines/{id}/pause": {
+      "post": {
+        "operationId": "TickyController_pauseRoutine",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Pause a shadow routine immediately (APP-08)",
+        "tags": [
+          "ticky"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/api/v1/sync": {
@@ -15898,6 +16019,93 @@
           "kind",
           "value",
           "source_message_id"
+        ]
+      },
+      "CreateTickyRoutineDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "daily_plan",
+              "weekly_review"
+            ]
+          },
+          "timezone": {
+            "type": "string",
+            "maxLength": 64,
+            "example": "Europe/Madrid"
+          },
+          "local_hour": {
+            "type": "string",
+            "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$"
+          },
+          "weekday": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 6
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": false
+          },
+          "window_minutes": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 1440,
+            "default": 15
+          }
+        },
+        "required": [
+          "kind",
+          "timezone",
+          "local_hour"
+        ]
+      },
+      "UpdateTickyRoutineDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "daily_plan",
+              "weekly_review"
+            ]
+          },
+          "timezone": {
+            "type": "string",
+            "maxLength": 64,
+            "example": "Europe/Madrid"
+          },
+          "local_hour": {
+            "type": "string",
+            "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$"
+          },
+          "weekday": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 6
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": false
+          },
+          "window_minutes": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 1440,
+            "default": 15
+          },
+          "expected_version": {
+            "type": "number",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "kind",
+          "timezone",
+          "local_hour",
+          "expected_version"
         ]
       },
       "RestoreBackupDto": {
