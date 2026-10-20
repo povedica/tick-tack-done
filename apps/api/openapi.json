@@ -4820,6 +4820,33 @@
       }
     },
     "/api/v1/ticky/authority": {
+      "get": {
+        "operationId": "TickyController_authority",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read own Ticky permissions and explicit planning preferences",
+        "tags": [
+          "ticky"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
       "patch": {
         "operationId": "TickyController_updateAuthority",
         "parameters": [

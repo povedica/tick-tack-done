@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayUnique,
+  ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsInt,
@@ -19,6 +20,7 @@ export class UpdateTickyAuthorityDto {
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(10)
   @IsUUID('4', { each: true })
   list_ids?: string[];
 
@@ -53,11 +55,13 @@ export class UpdateTickyAuthorityDto {
   @ApiPropertyOptional({ nullable: true, type: String })
   @IsOptional()
   @IsString()
+  @Matches(/^(?:[01]\d|2[0-3]):[0-5]\d$/)
   workday_start?: string | null;
 
   @ApiPropertyOptional({ nullable: true, type: String })
   @IsOptional()
   @IsString()
+  @Matches(/^(?:[01]\d|2[0-3]):[0-5]\d$/)
   workday_end?: string | null;
 
   @ApiPropertyOptional()

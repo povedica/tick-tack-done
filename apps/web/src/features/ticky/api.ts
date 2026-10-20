@@ -36,6 +36,21 @@ export interface TickyThread {
   readonly id: string;
 }
 
+export interface TickyAuthority {
+  readonly configured?: boolean;
+  readonly version: number | null;
+  readonly autonomy: number;
+  readonly paused: boolean;
+  readonly revoked: boolean;
+  readonly list_ids: string[];
+  readonly owned_list_ids?: string[];
+  readonly action_scopes: string[];
+  readonly fine_scopes: string[];
+  readonly workday_start: string | null;
+  readonly workday_end: string | null;
+  readonly inbox_list_id: string | null;
+}
+
 export interface GuidanceBody {
   readonly type: 'guidance';
   readonly status: string;
@@ -43,6 +58,9 @@ export interface GuidanceBody {
 }
 
 export const tickyApi = {
+  authority: () => tickyFetch<TickyAuthority>('/authority'),
+  updateAuthority: (body: Record<string, unknown>) =>
+    tickyFetch<TickyAuthority>('/authority', { method: 'PATCH', body: JSON.stringify(body) }),
   history: (threadId: string) =>
     tickyFetch<{
       messages: {

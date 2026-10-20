@@ -52,6 +52,17 @@ export class TickyController {
     respondJson(req, res, 200, await this.ticky.capabilities(user), false);
   }
 
+  @Get('authority')
+  @Scopes('profile:read')
+  @ApiOperation({ summary: 'Read own Ticky permissions and explicit planning preferences' })
+  async authority(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(req, res, 200, await this.ticky.authority(user), false);
+  }
+
   @Patch('authority')
   @Scopes('profile:write')
   @ApiOperation({ summary: 'Update Ticky authority (own lists only; APP-02)' })

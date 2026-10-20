@@ -247,6 +247,24 @@ describe.skipIf(cross === undefined)('APP-03 / TK-022/600 real HTTP compatibilit
           where: { ownerId: owner, actionId: selected.action_id },
         }),
       ).toBe(1);
+      const history = await request(server)
+        .get(`/api/v1/ticky/threads/${threadId}/messages`)
+        .set('X-Dev-User-Email', 'demo@reflexionia.test')
+        .expect(200);
+      expect(JSON.stringify(history.body)).toContain(taskId);
+      const deleted = await request(server)
+        .delete(`/api/v1/ticky/threads/${threadId}`)
+        .set('X-Dev-User-Email', 'demo@reflexionia.test')
+        .expect(200);
+      expect(deleted.body.state).toBe('deleted');
+      await request(server)
+        .get(`/api/v1/ticky/threads/${threadId}/messages`)
+        .set('X-Dev-User-Email', 'demo@reflexionia.test')
+        .expect(404);
+      const cached = await prisma.tickyClientMessage.findUniqueOrThrow({
+        where: { ownerId_clientMessageId: { ownerId: owner, clientMessageId: clientId } },
+      });
+      expect(cached.response).toEqual({});
       if (process.env.TICKY_CROSS_BROWSER_WS !== undefined) {
         await promisify(execFile)(
           'pnpm',
@@ -271,24 +289,6 @@ describe.skipIf(cross === undefined)('APP-03 / TK-022/600 real HTTP compatibilit
           throw error;
         });
       }
-      const history = await request(server)
-        .get(`/api/v1/ticky/threads/${threadId}/messages`)
-        .set('X-Dev-User-Email', 'demo@reflexionia.test')
-        .expect(200);
-      expect(JSON.stringify(history.body)).toContain(taskId);
-      const deleted = await request(server)
-        .delete(`/api/v1/ticky/threads/${threadId}`)
-        .set('X-Dev-User-Email', 'demo@reflexionia.test')
-        .expect(200);
-      expect(deleted.body.state).toBe('deleted');
-      await request(server)
-        .get(`/api/v1/ticky/threads/${threadId}/messages`)
-        .set('X-Dev-User-Email', 'demo@reflexionia.test')
-        .expect(404);
-      const cached = await prisma.tickyClientMessage.findUniqueOrThrow({
-        where: { ownerId_clientMessageId: { ownerId: owner, clientMessageId: clientId } },
-      });
-      expect(cached.response).toEqual({});
       await request(server)
         .patch('/api/v1/ticky/authority')
         .set('X-Dev-User-Email', 'demo@reflexionia.test')

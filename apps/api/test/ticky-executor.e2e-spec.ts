@@ -7,6 +7,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/configure-app.js';
+import { newPersonalAccessToken } from '../src/auth/token-secret.js';
 
 describe('APP-04: transactional Ticky authority and list grants', () => {
   const db = new PrismaClient();
@@ -22,6 +23,7 @@ describe('APP-04: transactional Ticky authority and list grants', () => {
       throw new Error('Isolated local database required');
     process.env.AUTH_MODE = 'dev';
     process.env.TICKY_EXECUTION_ENABLED = 'true';
+    process.env.TICKY_READ_ENABLED = 'true';
     process.env.TICKY_KILL_SWITCH = 'false';
     process.env.TICKY_SERVICE_URL = '';
     await db.user.create({ data: { id: owner, email, displayName: 'Synthetic executor' } });
@@ -52,6 +54,7 @@ describe('APP-04: transactional Ticky authority and list grants', () => {
     await app.close();
     await db.outboxEvent.deleteMany({ where: { ownerId: owner } });
     await db.activityLog.deleteMany({ where: { ownerId: owner } });
+    await db.personalAccessToken.deleteMany({ where: { ownerId: owner } });
     await db.task.deleteMany({ where: { ownerId: owner } });
     await db.project.deleteMany({ where: { ownerId: owner } });
     await db.user.delete({ where: { id: owner } });
@@ -115,6 +118,65 @@ describe('APP-04: transactional Ticky authority and list grants', () => {
     const body = await proposal(excluded);
     await approve(body).expect(403);
     await noEffect(body);
+  });
+
+  it('persists only explicit grants and keeps the dedicated reader aligned without write scopes', async () => {
+    const reader = newPersonalAccessToken();
+    await db.personalAccessToken.create({
+      data: {
+        ownerId: owner,
+        name: 'ticky-reader',
+        tokenHash: reader.hash,
+        tokenPrefix: reader.prefix,
+        scopes: ['tasks:read', 'lists:read'],
+        listRestricted: true,
+        listIds: [granted],
+      },
+    });
+    const settings = await request(server)
+      .get('/api/v1/ticky/authority')
+      .set('X-Dev-User-Email', email)
+      .expect(200);
+    expect(settings.body.list_ids).toEqual([granted]);
+    expect(settings.body.owned_list_ids).toEqual(expect.arrayContaining([granted, excluded]));
+    for (const patch of [
+      { list_ids: [randomUUID()] },
+      { inbox_list_id: excluded },
+      { workday_start: '17:00', workday_end: '09:00' },
+      { workday_start: '09:99', workday_end: '17:00' },
+    ]) {
+      await request(server)
+        .patch('/api/v1/ticky/authority')
+        .set('X-Dev-User-Email', email)
+        .send(patch)
+        .expect(400);
+    }
+    expect((await db.tickyAuthority.findUniqueOrThrow({ where: { ownerId: owner } })).version).toBe(
+      1,
+    );
+    const saved = await request(server)
+      .patch('/api/v1/ticky/authority')
+      .set('X-Dev-User-Email', email)
+      .send({
+        list_ids: [granted, excluded],
+        inbox_list_id: excluded,
+        workday_start: '09:00',
+        workday_end: '17:00',
+      })
+      .expect(200);
+    expect(saved.body.workday_start).toBe('09:00');
+    expect(saved.body.inbox_list_id).toBe(excluded);
+    const token = await db.personalAccessToken.findUniqueOrThrow({
+      where: { tokenHash: reader.hash },
+    });
+    expect(token.scopes).toEqual(['tasks:read', 'lists:read']);
+    expect(token.listRestricted).toBe(true);
+    expect(token.listIds.sort()).toEqual([granted, excluded].sort());
+    await request(server)
+      .patch('/api/v1/ticky/authority')
+      .set('X-Dev-User-Email', email)
+      .send({ list_ids: [granted], inbox_list_id: null, workday_start: null, workday_end: null })
+      .expect(200);
   });
 
   it('serializes concurrent approvals and commits exactly one effect, audit and outbox', async () => {

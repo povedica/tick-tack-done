@@ -98,6 +98,38 @@ export class TickyService implements OnModuleInit {
     return { ...body };
   }
 
+  async authority(user: AuthUser): Promise<Record<string, unknown>> {
+    requireBrowserSession(user);
+    const authority = await this.prisma.tickyAuthority.findUnique({
+      where: { ownerId: user.id },
+      include: { lists: true },
+    });
+    const owned = await this.ownedLists(user.id);
+    if (authority === null)
+      return {
+        configured: false,
+        version: null,
+        autonomy: 0,
+        paused: false,
+        revoked: false,
+        list_ids: [],
+        action_scopes: [],
+        owned_list_ids: owned,
+        workday_start: null,
+        workday_end: null,
+        inbox_list_id: null,
+        fine_scopes: [...TICKY_FINE_SCOPES],
+      };
+    return {
+      ...this.authorityView(
+        authority,
+        authority.lists.map((row) => row.listId),
+      ),
+      configured: true,
+      owned_list_ids: owned,
+    };
+  }
+
   async updateAuthority(
     user: AuthUser,
     patch: {
@@ -120,6 +152,16 @@ export class TickyService implements OnModuleInit {
         HttpStatus.CONFLICT,
         'autonomy_not_granted',
         'A3 y A4 no se conceden desde una preferencia.',
+      );
+    }
+    if (
+      (patch.list_ids !== undefined && patch.list_ids.length > 10) ||
+      (patch.autonomy !== undefined && (!Number.isInteger(patch.autonomy) || patch.autonomy < 0))
+    ) {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'authority_invalid',
+        'Revisa el nivel de ayuda y el máximo de diez listas.',
       );
     }
     const owned = await this.ownedLists(user.id);
@@ -183,7 +225,43 @@ export class TickyService implements OnModuleInit {
           });
         }
       }
+      if (
+        [authority.workdayStart, authority.workdayEnd].some(
+          (value) => value !== null && !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value),
+        ) ||
+        (authority.workdayStart === null) !== (authority.workdayEnd === null) ||
+        (authority.workdayStart !== null &&
+          authority.workdayEnd !== null &&
+          authority.workdayEnd <= authority.workdayStart)
+      ) {
+        throw new DomainException(
+          HttpStatus.BAD_REQUEST,
+          'workday_invalid',
+          'Indica inicio y fin de jornada, con el fin posterior al inicio, o deja ambos vacíos.',
+        );
+      }
       const lists = await tx.tickyListGrant.findMany({ where: { authorityId: authority.id } });
+      if (
+        authority.inboxListId !== null &&
+        !lists.some((list) => list.listId === authority.inboxListId)
+      ) {
+        throw new DomainException(
+          HttpStatus.BAD_REQUEST,
+          'inbox_not_granted',
+          'La bandeja de captura debe ser una lista propia concedida.',
+        );
+      }
+      if (listIds !== null) {
+        // Existing dedicated reader credentials follow only the owner's explicit grants.
+        await tx.personalAccessToken.updateMany({
+          where: { ownerId: user.id, name: 'ticky-reader', revokedAt: null },
+          data: {
+            scopes: [...TICKY_READ_SCOPES],
+            listRestricted: true,
+            listIds: lists.map((list) => list.listId),
+          },
+        });
+      }
       const eventId = randomUUID();
       await this.events.record(tx, actorOf(user), {
         type: DomainEvent.tickyAuthorityUpdated,
@@ -999,7 +1077,16 @@ export class TickyService implements OnModuleInit {
   }
 
   private authorityView(
-    authority: { version: number; autonomy: number; revoked: boolean; paused: boolean },
+    authority: {
+      version: number;
+      autonomy: number;
+      revoked: boolean;
+      paused: boolean;
+      actionScopes?: readonly string[];
+      workdayStart?: string | null;
+      workdayEnd?: string | null;
+      inboxListId?: string | null;
+    },
     listIds: readonly string[],
   ): Record<string, unknown> {
     return {
@@ -1007,6 +1094,10 @@ export class TickyService implements OnModuleInit {
       autonomy: authority.autonomy,
       revoked: authority.revoked,
       paused: authority.paused,
+      action_scopes: authority.actionScopes ?? [],
+      workday_start: authority.workdayStart ?? null,
+      workday_end: authority.workdayEnd ?? null,
+      inbox_list_id: authority.inboxListId ?? null,
       list_ids: listIds,
       fine_scopes: [...TICKY_FINE_SCOPES],
       flags: tickyFlags(),

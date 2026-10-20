@@ -27,7 +27,7 @@ historial → borrado remoto y purga de cache local. No proveedor ni Telegram re
 Harness reproducible en `scripts/crossrepo_smoke.sh` del repo Python. No acredita
 executor CAS/outbox, reinicio de checkpoints, UI completa ni producción.
 
-Contexto firmado compatible y enviado a Python con revisiones monotónicas; calendario requiere grant calendar:read y jornada explícita. Memoria tipada con mensaje de origen verificado y listado de rutinas usan Python como fuente canónica. Prueba cruzada: origen ajeno rechazado, memoria creada/listada/olvidada, propuesta de captura por lote generada en Python y aprobación de un subconjunto en dominio sin duplicación al repetir. UI de propuestas con selección vacía inicial, aprobación parcial y reconciliación del ledger; historial recuperable tras recarga y cancelación. Pruebas reales de CAS concurrente, revocación bajo lock, listas excluidas y unicidad de tarea/ledger/auditoría/outbox. Reinicio de ambos procesos con saver PostgreSQL confirma ledger, pausa y borrado persistentes. Quedan preferencias/rutinas editables en UI y activación operativa.
+Contexto firmado compatible y enviado a Python con revisiones monotónicas; calendario requiere grant calendar:read y jornada explícita. Memoria tipada con mensaje de origen verificado y listado de rutinas usan Python como fuente canónica. Prueba cruzada: origen ajeno rechazado, memoria creada/listada/olvidada, propuesta de captura por lote generada en Python y aprobación de un subconjunto en dominio sin duplicación al repetir. UI de propuestas con selección vacía inicial, aprobación parcial y reconciliación del ledger; historial recuperable tras recarga y cancelación. Pruebas reales de CAS concurrente, revocación bajo lock, listas excluidas y unicidad de tarea/ledger/auditoría/outbox. Reinicio de ambos procesos con saver PostgreSQL confirma ledger, pausa y borrado persistentes. UI ahora permite seleccionar listas propias, scopes finos, nivel A0–A2, bandeja y jornada, además de pausar/revocar; sin concesión de listas compartidas o permisos por defecto. CRUD de rutinas y activación operativa siguen pendientes.
 La aceptación generativa y las decisiones operativas siguen sin acreditarse.
 
 Despliegue autorizado por Pablo sobre infraestructura existente; nueva app privada
@@ -35,10 +35,13 @@ con dominio confirmado ia-ticky.reflexionia.com (Pablo, 20-10-2026). La definici
 los efectos/modelo apagados, exige retención e imágenes por digest y un artefacto
 de migraciones. Pablo registra la revisión de políticas/privacidad y ocho HIGH sin fix el 20-10-2026. Aprueba 30 días con borrado automático, OpenAI pequeño, preferencia UE si disponible y límites EUR 0,02/llamada, 0,50/día, 10/mes. Backup/restore y gates del artefacto final siguen pendientes antes del rollout.
 
-Evidencia local: lint/tipos correctos;233 dominio,9 SDK,68 API,75 web,
-81 integración correctos; crossrepo aparte correcto con aviso de working tree.
-OpenAPI/SDK regenerados y builds API/UI correctos. Aún falta el par final por SHA,
-CI remota y revisión humana. Playwright cruzado correcto con build de producción a 390 y 1280px, SSE y títulos reales sintéticos; no acredita todavía la UI completa.
+Evidencia previa en `9dbdd84`: lint/tipos, 9 SDK,81 API,82 web,96 integración,
+OpenAPI/SDK y builds API/UI correctos; CI remota verde. La revisión humana de
+políticas/privacidad e imagen quedó registrada por Pablo el 20-10-2026. El corte
+actual de ajustes está sujeto a gates locales/remotos nuevos. Harness crossrepo
+incluye Playwright con build de producción a 390 y 1280px, SSE y títulos
+sintéticos, más reinicio real y recuperación durable; no acredita despliegue ni
+Telegram real.
 
 Rollback: revertir el corte o apagar flags UI/read/model. No hay migraciones nuevas;
 conservar ledger/tombstones/supresiones y drenar escritores Python compatibles.
@@ -71,7 +74,7 @@ permanecen deshabilitados.
 | APP-02  | implementado (apagado)  | Capabilities, authority, JWT RS256, reader PAT acotado; `TICKY_READ_ENABLED=false` |
 | APP-03  | implementado (apagado)  | BFF threads/messages/SSE/cancel; modelo off → guidance sin proveedor               |
 | APP-04  | implementado (apagado)  | Digest/ledger/CAS; `TICKY_EXECUTION_ENABLED=false`                                 |
-| APP-05  | implementado (parcial)  | ContextSnapshot + free/busy; workday/silencios pendientes de decisión              |
+| APP-05  | implementado (parcial)  | ContextSnapshot + free/busy; jornada editable en permisos Ticky                     |
 | APP-06  | implementado (apagado)  | Ruta `/ticky`, rail, i18n; UI flag off por defecto                                 |
 | APP-07b | implementado (parcial)  | Lease/fencing, clasificación 403/429/5xx/timeout→unknown                           |
 | APP-08  | implementado (parcial)  | Bridge outbox→authority POST, memories/routines shadow                             |
@@ -79,7 +82,7 @@ permanecen deshabilitados.
 
 ## Decisiones bloqueadas (sección 7)
 
-Proveedor/modelos, jornada/silencios, retención/TTL, listas compartidas, `duration_minutes=0`,
+Jornada/silencios efectivos, listas compartidas, `duration_minutes=0`,
 título 500 vs 1000, side-effects complete/trash, política unknown Telegram, backend de trazas:
 efectos apagados hasta confirmación explícita.
 

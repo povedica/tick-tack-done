@@ -1526,7 +1526,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Read own Ticky permissions and explicit planning preferences */
+        get: operations["TickyController_authority"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7210,6 +7211,25 @@ export interface operations {
         };
     };
     TickyController_capabilities: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TickyController_authority: {
         parameters: {
             query?: never;
             header?: {

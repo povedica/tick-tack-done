@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useMessages } from '../../i18n';
 import { tickyApi, waitForTickyRun } from './api';
 import { ProposalReview } from './ProposalReview';
+import { TickySettings } from './TickySettings';
 import './ticky.css';
 
 type Phase =
@@ -152,6 +153,7 @@ export function TickyPage({ taskHint }: { readonly taskHint?: string }) {
     <section className="ticky-page" aria-labelledby="ticky-title">
       <h1 id="ticky-title">{messages.tickyTitle}</h1>
       <p className="ticky-hint">{messages.tickyHint}</p>
+      <TickySettings />
       <div className="ticky-actions">
         <label>
           Conversación{' '}

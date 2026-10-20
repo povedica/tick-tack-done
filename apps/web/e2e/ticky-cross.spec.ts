@@ -13,6 +13,23 @@ for (const viewport of [
   }) => {
     await page.setViewportSize(viewport);
     await page.goto('/ticky');
+    await page.getByText('Permisos y preferencias', { exact: true }).click();
+    await page.getByLabel('Inicio de jornada').fill('09:00');
+    await page.getByLabel('Fin de jornada').fill('17:00');
+    await Promise.all([
+      page.waitForResponse(
+        (response) =>
+          response.url().endsWith('/api/v1/ticky/authority') &&
+          response.request().method() === 'PATCH' &&
+          response.status() === 200,
+      ),
+      page.getByRole('button', { name: 'Guardar permisos' }).click(),
+    ]);
+    await page.reload();
+    await page.getByText('Permisos y preferencias', { exact: true }).click();
+    await expect(page.getByLabel('Inicio de jornada')).toHaveValue('09:00');
+    await expect(page.getByLabel('Fin de jornada')).toHaveValue('17:00');
+    await page.getByText('Permisos y preferencias', { exact: true }).click();
     const input = page.locator('#ticky-input');
     await expect(input).toBeVisible();
     await input.fill('Qué tengo hoy');
