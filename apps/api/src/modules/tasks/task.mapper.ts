@@ -24,6 +24,7 @@ export interface TaskRow {
   createdById: string;
   completedAt: Date | null;
   source: 'manual' | 'import' | 'api' | 'automation' | 'plugin';
+  version: number;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
@@ -66,6 +67,7 @@ export interface TaskSummaryJson {
   created_by: string;
   completed_at: string | null;
   source: string;
+  version: number;
   checklist_progress: { completed: number; total: number };
   created_at: string;
   updated_at: string;
@@ -113,6 +115,7 @@ export function toTaskSummary(
     created_by: row.createdById,
     completed_at: iso(row.completedAt),
     source: row.source,
+    version: row.version,
     checklist_progress: progress,
     created_at: iso(row.createdAt) ?? '',
     updated_at: iso(row.updatedAt) ?? '',

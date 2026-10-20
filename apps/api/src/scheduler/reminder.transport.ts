@@ -24,11 +24,20 @@ export interface ReminderMessage {
   readonly buttons?: readonly (readonly TelegramButton[])[];
 }
 
+export type ChannelOutcome =
+  | 'sent'
+  | 'skipped'
+  | 'failed'
+  | 'unknown'
+  | 'rate_limited'
+  | 'disconnected';
+
 export interface DeliveryResult {
-  readonly email: 'sent' | 'skipped' | 'failed';
-  readonly push: 'sent' | 'skipped' | 'failed';
-  readonly telegram: 'sent' | 'skipped' | 'failed';
+  readonly email: ChannelOutcome;
+  readonly push: ChannelOutcome;
+  readonly telegram: ChannelOutcome;
   readonly telegram_message_id: number | null;
+  readonly retry_after_seconds: number | null;
 }
 
 @Injectable()
@@ -42,10 +51,11 @@ export class ReminderTransport {
       push: wantsPush ? await this.push(message) : 'skipped',
       telegram: telegram.status,
       telegram_message_id: telegram.messageId,
+      retry_after_seconds: telegram.retryAfter,
     };
   }
 
-  private async email(message: ReminderMessage): Promise<DeliveryResult['email']> {
+  private async email(message: ReminderMessage): Promise<ChannelOutcome> {
     const host = process.env.SMTP_HOST ?? '';
     if (host.length === 0 || message.email === null) {
       return 'skipped';
@@ -75,7 +85,7 @@ export class ReminderTransport {
     }
   }
 
-  private async push(message: ReminderMessage): Promise<DeliveryResult['push']> {
+  private async push(message: ReminderMessage): Promise<ChannelOutcome> {
     const publicKey = process.env.VAPID_PUBLIC_KEY ?? '';
     const privateKey = process.env.VAPID_PRIVATE_KEY ?? '';
     if (publicKey.length === 0 || privateKey.length === 0 || message.subscriptions.length === 0) {
@@ -103,9 +113,11 @@ export class ReminderTransport {
     }
   }
 
-  private async telegram(
-    message: ReminderMessage,
-  ): Promise<{ status: DeliveryResult['telegram']; messageId: number | null }> {
+  private async telegram(message: ReminderMessage): Promise<{
+    status: ChannelOutcome;
+    messageId: number | null;
+    retryAfter: number | null;
+  }> {
     const token = process.env.TELEGRAM_BOT_TOKEN ?? '';
     const chatId = message.telegramChatId;
     if (
@@ -114,7 +126,7 @@ export class ReminderTransport {
       chatId === null ||
       chatId.length === 0
     ) {
-      return { status: 'skipped', messageId: null };
+      return { status: 'skipped', messageId: null, retryAfter: null };
     }
     try {
       const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
@@ -129,6 +141,20 @@ export class ReminderTransport {
         }),
         signal: AbortSignal.timeout(8_000),
       });
+      if (response.status === 403) {
+        return { status: 'disconnected', messageId: null, retryAfter: null };
+      }
+      if (response.status === 429) {
+        const retryAfter = Number(response.headers.get('retry-after') ?? '30');
+        return {
+          status: 'rate_limited',
+          messageId: null,
+          retryAfter: Number.isFinite(retryAfter) ? retryAfter : 30,
+        };
+      }
+      if (response.status >= 500) {
+        return { status: 'failed', messageId: null, retryAfter: 30 };
+      }
       const payload = (await response.json()) as {
         ok?: unknown;
         result?: { message_id?: unknown };
@@ -136,10 +162,14 @@ export class ReminderTransport {
       const messageId =
         typeof payload.result?.message_id === 'number' ? payload.result.message_id : null;
       return payload.ok === true
-        ? { status: 'sent', messageId }
-        : { status: 'failed', messageId: null };
-    } catch {
-      return { status: 'failed', messageId: null };
+        ? { status: 'sent', messageId, retryAfter: null }
+        : { status: 'failed', messageId: null, retryAfter: null };
+    } catch (error) {
+      // Timeout after a possible send must not be retried blindly (APP-07b).
+      if (error instanceof Error && error.name === 'TimeoutError') {
+        return { status: 'unknown', messageId: null, retryAfter: null };
+      }
+      return { status: 'failed', messageId: null, retryAfter: null };
     }
   }
 }

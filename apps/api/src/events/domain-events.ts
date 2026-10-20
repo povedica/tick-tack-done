@@ -91,6 +91,11 @@ export const DomainEvent = {
   automationExecuted: 'automation.executed@v1',
   webhookCreated: 'webhook.created@v1',
   dashboardUpdated: 'dashboard.updated@v1',
+  tickyProposalStored: 'ticky.proposal_stored@v1',
+  tickyAuthorityUpdated: 'ticky.authority_updated@v1',
+  tickyProposalApplied: 'ticky.proposal_applied@v1',
+  tickyPaused: 'ticky.paused@v1',
+  tickyMemoryForgotten: 'ticky.memory_forgotten@v1',
 } as const;
 
 export type DomainEventType = (typeof DomainEvent)[keyof typeof DomainEvent];

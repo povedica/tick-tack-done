@@ -291,6 +291,9 @@ export function TaskDetail({
         }}
         onClose={onClose}
       />
+      <p className="detail-ticky-help">
+        <Link to={`/ticky?task=${encodeURIComponent(task.id)}`}>{messages.tickyHelpTask}</Link>
+      </p>
       <div className="detail-pop-anchor">
         {dateOpen ? (
           <DatePopover

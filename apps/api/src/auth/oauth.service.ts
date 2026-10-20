@@ -126,6 +126,7 @@ export class OauthService {
       scopes: row.scopes,
       tokenId: null,
       sessionId: null,
+      listIds: null,
     };
     const issued = await this.tokens.create(
       user,

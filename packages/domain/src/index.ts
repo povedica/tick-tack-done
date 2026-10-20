@@ -316,3 +316,29 @@ export { formatCaptureReply } from './integrations/capture-reply';
 export type { CaptureReply } from './integrations/capture-reply';
 export { matchTaskByTitle, parseTelegramCommand } from './integrations/telegram';
 export type { TelegramCommand, TelegramTaskRef, TitleMatch } from './integrations/telegram';
+export { canonicalJson } from './ticky/canonical-json';
+export { buildContextSnapshot } from './ticky/context-snapshot';
+export type { ContextSnapshot } from './ticky/context-snapshot';
+export { occupiedIntervals, unionIntervals } from './ticky/free-busy';
+export type { BusyInterval, CalendarFact, SubscriptionFact } from './ticky/free-busy';
+export {
+  actionBlocked,
+  approvalMatches,
+  APP_TITLE_MAX,
+  normalizeProposal,
+  proposalDigest,
+  ProposalError,
+  titleNeedsEdit,
+  validateProposal,
+} from './ticky/proposal';
+export type { ProposalBody, ProposalItem, TaskChanges, TickyReason, TickyTool } from './ticky/proposal';
+export {
+  intersectOwnedLists,
+  legacyGrantsTickyScope,
+  listVisible,
+  projectConstraint,
+  readCapabilities,
+  TICKY_FINE_SCOPES,
+  TICKY_READ_SCOPES,
+} from './ticky/read-policy';
+export type { ReadCapabilities } from './ticky/read-policy';
