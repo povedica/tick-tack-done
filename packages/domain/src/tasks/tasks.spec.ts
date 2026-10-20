@@ -79,6 +79,13 @@ describe('tasks', () => {
         explicit: null,
       }),
     ).toEqual({ ok: false, reason: 'invalid_date' });
+    expect(
+      deriveDurationMinutes({
+        startDate: '2026-10-22T08:00:00.000Z',
+        dueDate: '2026-10-26T08:00:00.000Z',
+        explicit: 45,
+      }),
+    ).toEqual({ ok: true, durationMinutes: 45 });
   });
 
   it('RF-604: accepts IANA time zones and rejects unknown names', () => {

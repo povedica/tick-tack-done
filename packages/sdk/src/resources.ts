@@ -15,6 +15,13 @@ export interface UpdateMeBody {
   readonly density?: 'comfortable' | 'compact';
   readonly accent?: 'indigo' | 'violet' | 'teal' | 'amber' | 'rose' | 'slate';
   readonly default_reminder_trigger?: string | null;
+  readonly shutdown_reminder_time?: string | null;
+  readonly work_day_start?: string | null;
+  readonly work_day_end?: string | null;
+  readonly default_task_duration_minutes?: number;
+  readonly deadline_soon_days?: number;
+  readonly evening_start?: string;
+  readonly feature_flags?: Readonly<Record<string, boolean>>;
 }
 export type InboundEmailStatus = components['schemas']['InboundEmailStatusDto'];
 export type InboundEmailAddress = components['schemas']['InboundEmailAddressDto'];

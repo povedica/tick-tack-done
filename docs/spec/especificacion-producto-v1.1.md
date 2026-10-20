@@ -676,7 +676,7 @@ Capa de compatibilidad `GET /open/v1/...` compatible con la forma de la Open API
 Todos versionados (`task.created@v1`). Mínimo:
 
 ```
-task.created task.updated task.completed task.uncompleted task.cancelled task.deleted task.restored task.moved task.due_soon task.overdue plan.applied
+task.created task.updated task.completed task.uncompleted task.cancelled task.deleted task.restored task.moved task.due_soon task.overdue plan.applied plan.shutdown_started plan.shutdown_applied plan.replan_applied task.someday_set task.someday_unset
 checklist_item.created checklist_item.updated checklist_item.completed checklist_item.uncompleted checklist_item.deleted
 project.created project.updated project.archived project.unarchived project.deleted
 folder.created folder.updated folder.deleted
@@ -851,6 +851,10 @@ Objetivo: que cualquier funcionalidad nueva (integración con otra app, una vist
 - El OpenAPI se genera del código (no al revés) y se verifica en CI que no hay endpoints sin documentar.
 
 ---
+
+Cuándo, Algún día, Esta noche, la proyección de carga, el cierre del día y replanificar (versión ligera) están en `docs/spec/spec-cierre-carga-cuando-replan-v1.0-65f029aa.md` (RF-2601–RF-2692). La auto-planificación estilo Motion queda fuera, descrita en el §12 de ese documento.
+
+Al salir de Algún día sin elegir cuándo, la tarea vuelve al comportamiento de solo fecha límite: si el límite ya pasó, entra en vencidas y el aviso reaparece. No hay un estado intermedio distinguible de las tareas antiguas que solo tienen `dueDate`.
 
 ## 19. Plan por fases
 

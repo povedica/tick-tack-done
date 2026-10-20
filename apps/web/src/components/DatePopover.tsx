@@ -34,6 +34,7 @@ export function DatePopover({
   onClose,
   onApply,
   onNotice,
+  onEvening,
 }: {
   readonly open: boolean;
   readonly value: DateDraft;
@@ -41,6 +42,7 @@ export function DatePopover({
   readonly onClose: () => void;
   readonly onApply: (next: DateDraft) => void;
   readonly onNotice?: (text: string) => void;
+  readonly onEvening?: () => void;
 }) {
   const messages = useMessages();
   const locale = useAppLocale();
@@ -143,13 +145,42 @@ export function DatePopover({
         >
           {messages.durationTab}
         </Button>
+        {onEvening !== undefined ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              onEvening();
+              onClose();
+            }}
+          >
+            {messages.thisEveningOption}
+          </Button>
+        ) : null}
       </div>
       {tab === 'duration' ? (
         <label className="popover-field">
           {messages.durationMinutes}
+          <span className="date-shortcuts">
+            {[15, 30, 45, 60, 90].map((minutes) => (
+              <Button
+                key={minutes}
+                type="button"
+                size="sm"
+                variant={draft.durationMinutes === minutes ? 'primary' : 'ghost'}
+                onClick={() => {
+                  setDraft((current) => ({ ...current, durationMinutes: minutes }));
+                }}
+              >
+                {minutes} min
+              </Button>
+            ))}
+          </span>
           <input
             type="number"
-            min={0}
+            min={5}
+            max={480}
             value={draft.durationMinutes ?? 0}
             onChange={(event) => {
               const next = Number(event.target.value);

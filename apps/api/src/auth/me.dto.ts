@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { ACCOUNT_REMINDER_TRIGGERS } from '@reflexionia/domain';
-import { IsBoolean, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
 
 const REMINDER_CHOICES = [...ACCOUNT_REMINDER_TRIGGERS];
 
@@ -112,6 +112,48 @@ export class UpdateMeDto {
   @IsOptional()
   @IsBoolean()
   focus_notifications?: boolean;
+
+  @ApiProperty({ required: false, nullable: true, example: '21:30' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(5)
+  shutdown_reminder_time?: string | null;
+
+  @ApiProperty({ required: false, nullable: true, example: '09:00' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(5)
+  work_day_start?: string | null;
+
+  @ApiProperty({ required: false, nullable: true, example: '18:00' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(5)
+  work_day_end?: string | null;
+
+  @ApiProperty({ required: false, example: 30 })
+  @IsOptional()
+  @IsInt()
+  @Min(5)
+  @Max(240)
+  default_task_duration_minutes?: number;
+
+  @ApiProperty({ required: false, example: 2 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(14)
+  deadline_soon_days?: number;
+
+  @ApiProperty({ required: false, example: '18:00' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(5)
+  evening_start?: string;
+
+  @ApiProperty({ required: false, type: Object })
+  @IsOptional()
+  feature_flags?: Record<string, boolean>;
 }
 
 export class ChangePasswordDto {
@@ -243,4 +285,25 @@ export class MeResponseDto {
 
   @ApiProperty()
   focus_notifications!: boolean;
+
+  @ApiProperty({ nullable: true, type: String })
+  shutdown_reminder_time!: string | null;
+
+  @ApiProperty({ nullable: true, type: String })
+  work_day_start!: string | null;
+
+  @ApiProperty({ nullable: true, type: String })
+  work_day_end!: string | null;
+
+  @ApiProperty()
+  default_task_duration_minutes!: number;
+
+  @ApiProperty()
+  deadline_soon_days!: number;
+
+  @ApiProperty()
+  evening_start!: string;
+
+  @ApiProperty({ type: Object })
+  feature_flags!: Record<string, boolean>;
 }

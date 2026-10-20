@@ -19,6 +19,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Sparkles,
+  CloudSun,
   Sun,
   Trash2,
   UserRound,
@@ -53,6 +54,7 @@ const SMART_ICONS: Record<string, LucideIcon> = {
   completed: CheckCircle2,
   no_date: CalendarDays,
   recently_added: Sparkles,
+  someday: CloudSun,
 };
 
 export function Sidebar({
@@ -98,10 +100,22 @@ export function Sidebar({
   const location = useLocation();
   const [confirmTrash, setConfirmTrash] = useState(false);
   const themeLabel = themeName(messages, preference);
+  const me = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
+  const showSomeday =
+    (me.data as { feature_flags?: Record<string, boolean> } | undefined)?.feature_flags
+      ?.when_deadline !== false;
   const ordered = orderedSmartLists(smart.data?.items ?? []);
   const lists = ordered.filter(
     (item) => item.enabled && (SIDEBAR_SMART_ORDER as readonly string[]).includes(item.key),
   );
+  const someday = ordered.find((item) => item.key === 'someday');
+  const navLists = lists.filter(
+    (item) => item.enabled && item.key !== 'trash' && item.key !== 'completed',
+  );
+  if (showSomeday && someday?.enabled === true && !navLists.some((item) => item.key === 'someday')) {
+    const afterDates = navLists.findIndex((item) => item.key === 'next_7_days');
+    navLists.splice(afterDates + 1, 0, someday);
+  }
   const trash = ordered.find((item) => item.key === 'trash');
   const trashVisible = trash === undefined || trash.enabled;
   const filterItems = filters.data?.items ?? [];
@@ -176,9 +190,7 @@ export function Sidebar({
       <nav>
         <p className="nav-section">{messages.smartListsTitle}</p>
         <ul className="nav-list">
-          {lists
-            .filter((item) => item.enabled && item.key !== 'trash' && item.key !== 'completed')
-            .map((item) => (
+          {navLists.map((item) => (
               <li
                 key={item.id}
                 onDragOver={allowTaskDrop}
@@ -960,6 +972,8 @@ function smartLabel(messages: Messages, key: string): string {
       return messages.smartNoDate;
     case 'recently_added':
       return messages.smartRecent;
+    case 'someday':
+      return messages.smartSomeday;
     default:
       return key;
   }

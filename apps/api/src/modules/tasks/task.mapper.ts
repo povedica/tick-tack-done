@@ -16,6 +16,8 @@ export interface TaskRow {
   dueDate: Date | null;
   timeZone: string;
   durationMinutes: number | null;
+  isSomeday: boolean;
+  eveningOnly: boolean;
   repeatRule: string | null;
   repeatFrom: 'due_date' | 'completion_date';
   seriesId: string | null;
@@ -57,6 +59,8 @@ export interface TaskSummaryJson {
   due_date: string | null;
   time_zone: string;
   duration_minutes: number | null;
+  is_someday: boolean;
+  evening_only: boolean;
   repeat_rule: string | null;
   repeat_from: 'due_date' | 'completion_date';
   series_id: string | null;
@@ -104,6 +108,8 @@ export function toTaskSummary(
     due_date: iso(row.dueDate),
     time_zone: row.timeZone,
     duration_minutes: row.durationMinutes,
+    is_someday: row.isSomeday,
+    evening_only: row.eveningOnly,
     repeat_rule: row.repeatRule,
     repeat_from: row.repeatFrom,
     series_id: row.seriesId,

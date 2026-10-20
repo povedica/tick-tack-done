@@ -22,6 +22,7 @@ export interface FilterSubject {
   readonly assigneeId: string | null;
   readonly deleted: boolean;
   readonly createdAt: string;
+  readonly isSomeday?: boolean;
 }
 
 export type FilterClause =
@@ -39,7 +40,8 @@ export type FilterClause =
   | { readonly op: 'exclude_status'; readonly status: 'archived' }
   | { readonly op: 'created_since'; readonly since: string }
   | { readonly op: 'never' }
-  | { readonly op: 'always' };
+  | { readonly op: 'always' }
+  | { readonly op: 'someday'; readonly value: boolean };
 
 const PRIORITY_RANK: Readonly<Record<Priority, number>> = {
   none: 0,
@@ -137,6 +139,8 @@ export function matchesClause(
       return false;
     case 'always':
       return true;
+    case 'someday':
+      return (subject.isSomeday === true) === clause.value;
     default: {
       const unreachable: never = clause;
       return unreachable;

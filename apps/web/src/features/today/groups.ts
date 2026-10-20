@@ -19,6 +19,10 @@ export interface TodayTask {
   readonly status: 'active' | 'completed' | 'archived' | 'cancelled';
   readonly projectId: string;
   readonly tagIds: readonly string[];
+  readonly startDate?: string | null;
+  readonly durationMinutes?: number | null;
+  readonly isSomeday?: boolean;
+  readonly eveningOnly?: boolean;
 }
 
 export interface TodayGroup {
@@ -109,17 +113,29 @@ export function formatDueTime(dueDate: string, timeZone: string, locale: string)
 }
 
 export function isOverdue(task: TodayTask, now: Date): boolean {
-  if (task.dueDate === null || task.status !== 'active') {
-    return false;
-  }
-  return calendarDay(task.dueDate, task.timeZone) < calendarDay(now.toISOString(), task.timeZone);
+  return placement(task, now) === 'overdue';
 }
 
 export function isDueToday(task: TodayTask, now: Date): boolean {
-  if (task.dueDate === null || task.status !== 'active') {
-    return false;
+  return placement(task, now) === 'today';
+}
+
+function placement(task: TodayTask, now: Date): 'overdue' | 'today' | 'none' {
+  if (task.isSomeday === true || task.status !== 'active') {
+    return 'none';
   }
-  return calendarDay(task.dueDate, task.timeZone) === calendarDay(now.toISOString(), task.timeZone);
+  const today = calendarDay(now.toISOString(), task.timeZone);
+  const due = task.dueDate === null ? null : calendarDay(task.dueDate, task.timeZone);
+  const start = task.startDate == null ? null : calendarDay(task.startDate, task.timeZone);
+  const from = start ?? due;
+  if (from === null) {
+    return 'none';
+  }
+  if (due !== null && due < today) {
+    return 'overdue';
+  }
+  const until = due ?? from;
+  return from <= today && today <= until ? 'today' : 'none';
 }
 
 export function compareTasks(
@@ -214,17 +230,23 @@ export function taskWhen(
   locale: string,
   labels: { readonly today: string; readonly tomorrow: string },
 ): TaskWhen {
-  if (task.dueDate === null) {
+  const shown = task.startDate ?? task.dueDate;
+  if (shown === null) {
     return { date: null, time: null, overdue: false };
   }
   const overdue = isOverdue(task, now);
-  const timed = hasTime(task.dueDate, task.timeZone, task.allDay);
-  const time = timed ? formatDueTime(task.dueDate, task.timeZone, locale) : null;
+  const timed = hasTime(shown, task.timeZone, task.allDay);
+  const clock = timed ? formatDueTime(shown, task.timeZone, locale) : null;
+  const duration =
+    task.durationMinutes == null || task.durationMinutes <= 0
+      ? null
+      : `${String(task.durationMinutes)} m`;
+  const time = [clock, duration].filter((part) => part !== null).join(' · ') || null;
   if (!overdue && isDueToday(task, now)) {
     return { date: null, time, overdue: false };
   }
   return {
-    date: formatDueDate(task.dueDate, task.timeZone, locale, labels),
+    date: formatDueDate(shown, task.timeZone, locale, labels),
     time,
     overdue,
   };

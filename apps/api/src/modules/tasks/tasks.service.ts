@@ -115,6 +115,7 @@ export interface TaskListQuery {
   sort: TaskSort;
   deleted: boolean;
   overdue: boolean;
+  someday?: boolean;
 }
 
 /** A subtask in another list stays visible in its own list. Same-list children stay nested. */
@@ -179,6 +180,7 @@ export class TasksService {
                   : { gt: this.instant(query.dueAfter, 'due_after') }),
               },
             }),
+        isSomeday: query.someday === true,
         ...(limitedIds === null ? {} : { id: { in: limitedIds } }),
         ...(taskKeyset(query.sort, query.cursor) ?? {}),
       },
@@ -322,7 +324,10 @@ export class TasksService {
       const previous = await this.load(tx, user.id, id, false);
       const title = dto.title === undefined ? current.title : this.title(dto.title);
       const timeZone = dto.time_zone === undefined ? current.timeZone : this.zone(dto.time_zone);
-      const start = this.nextDate(current.startDate, dto.start_date, 'start_date');
+      const someday = dto.someday ?? current.isSomeday;
+      const start = someday
+        ? null
+        : this.nextDate(current.startDate, dto.start_date, 'start_date');
       const due = this.nextDate(current.dueDate, dto.due_date, 'due_date');
       const isAllDay = dto.is_all_day ?? current.isAllDay;
       this.assertTimed(due, isAllDay, timeZone);
@@ -369,6 +374,8 @@ export class TasksService {
           startDate: start,
           dueDate: due,
           durationMinutes: duration,
+          isSomeday: someday,
+          ...(dto.evening_only !== undefined ? { eveningOnly: dto.evening_only } : {}),
           ...(dto.kind !== undefined ? { kind: dto.kind } : {}),
           ...(dto.priority !== undefined ? { priority: dto.priority } : {}),
           ...(dto.is_all_day !== undefined ? { isAllDay } : {}),
@@ -1476,7 +1483,9 @@ export class TasksService {
     if (extracted !== null) {
       content = extracted.content;
     }
-    const start = this.nextDate(null, dto.start_date, 'start_date');
+    const capturedStart = dto.start_date !== undefined ? dto.start_date : captured?.startDate;
+    const someday = dto.someday ?? captured?.someday ?? false;
+    const start = this.nextDate(null, someday ? null : capturedStart, 'start_date');
     const due = this.nextDate(
       null,
       dto.due_date !== undefined ? dto.due_date : captured?.dueDate,
@@ -1514,7 +1523,13 @@ export class TasksService {
         startDate: start,
         dueDate: due,
         timeZone,
-        durationMinutes: this.duration(start, due, dto.duration_minutes ?? null),
+        durationMinutes: this.duration(
+          someday ? null : start,
+          due,
+          dto.duration_minutes ?? captured?.durationMinutes ?? null,
+        ),
+        isSomeday: someday,
+        eveningOnly: dto.evening_only ?? captured?.eveningOnly ?? false,
         repeatRule,
         repeatFrom: dto.repeat_from ?? 'due_date',
         seriesId: repeatRule === null ? null : id,
@@ -2240,9 +2255,9 @@ export class TasksService {
     });
     if (!derived.ok) {
       throw new DomainException(
-        HttpStatus.BAD_REQUEST,
-        'validation_failed',
-        'due_date is before start_date',
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        'deadline_before_when',
+        'deadline is before when',
       );
     }
     return derived.durationMinutes;

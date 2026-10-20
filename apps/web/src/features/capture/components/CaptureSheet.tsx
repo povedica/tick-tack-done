@@ -207,6 +207,8 @@ function kindLabel(messages: Messages, kind: QuickAddSpanKind): string {
       return messages.kindList;
     case 'reminder':
       return messages.kindReminder;
+    case 'duration':
+      return messages.durationTab;
   }
 }
 

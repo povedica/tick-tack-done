@@ -354,14 +354,14 @@ describe('parseQuickAdd golden capture (Q.9)', () => {
     {
       text: 'el lunes recoger paquete',
       title: 'recoger paquete',
-      due: '2026-10-25T23:00:00.000Z',
-      allDay: true,
+      due: null,
+      allDay: null,
     },
     {
       text: 'el martes recoger paquete a las 10:00',
       title: 'recoger paquete',
-      due: '2026-10-20T08:00:00.000Z',
-      allDay: false,
+      due: null,
+      allDay: null,
     },
     {
       text: 'revisión en 2 horas',
@@ -440,6 +440,37 @@ describe('parseQuickAdd golden capture (Q.9)', () => {
     const result = golden('Recoger mañana a Markus del cole a las 16:00 !high #cole');
     expect(result.priority).toBe('high');
     expect(result.tagNames).toEqual(['cole']);
+  });
+
+  it('RF-2613: el viernes is when, and a marked deadline stays the due date', () => {
+    const parsed = golden('el viernes, ~45m, enviar informe, fecha límite: lunes');
+    expect(parsed.durationMinutes).toBe(45);
+    expect(parsed.title).toBe('enviar informe');
+    expect(parsed.start?.isAllDay).toBe(true);
+    expect(parsed.due?.isAllDay).toBe(true);
+    expect(parsed.start?.date).not.toBe(parsed.due?.date);
+  });
+
+  it('RF-2633: esta noche sets when to today', () => {
+    const parsed = golden('sacar al perro esta noche');
+    expect(parsed.title).toBe('sacar al perro');
+    expect(parsed.eveningOnly).toBe(true);
+    expect(parsed.due).toBeNull();
+    expect(parsed.start?.isAllDay).toBe(true);
+  });
+
+  it('RF-2624: algún día clears the date', () => {
+    const parsed = golden('leer algún día');
+    expect(parsed.someday).toBe(true);
+    expect(parsed.due).toBeNull();
+    expect(parsed.start).toBeNull();
+    expect(parsed.title).toBe('leer');
+  });
+
+  it('RF-2613: el lunes is when, not a deadline', () => {
+    const parsed = golden('el lunes recoger paquete');
+    expect(parsed.due).toBeNull();
+    expect(parsed.start).toEqual({ date: '2026-10-25T23:00:00.000Z', isAllDay: true });
   });
 
   it('RF-102: a bare number or a time glued to other tokens stays in the title', () => {

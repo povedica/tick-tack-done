@@ -1,5 +1,5 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
-import { isIanaTimeZone } from '@reflexionia/domain';
+import { isIanaTimeZone, sanitizeFeatureFlags } from '@reflexionia/domain';
 import { hashInboundToken, inboundAddress, newInboundToken } from '../inbound/email-address.js';
 import { DomainException } from '../http/domain.exception.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -60,6 +60,23 @@ export class MeService {
         ...(dto.focus_notifications !== undefined
           ? { focusNotifications: dto.focus_notifications }
           : {}),
+        ...(dto.shutdown_reminder_time !== undefined
+          ? { shutdownReminderTime: this.clock(dto.shutdown_reminder_time) }
+          : {}),
+        ...(dto.work_day_start !== undefined
+          ? { workDayStart: this.clock(dto.work_day_start) }
+          : {}),
+        ...(dto.work_day_end !== undefined ? { workDayEnd: this.clock(dto.work_day_end) } : {}),
+        ...(dto.default_task_duration_minutes !== undefined
+          ? { defaultTaskDuration: dto.default_task_duration_minutes }
+          : {}),
+        ...(dto.deadline_soon_days !== undefined
+          ? { deadlineSoonDays: dto.deadline_soon_days }
+          : {}),
+        ...(dto.evening_start !== undefined
+          ? { eveningStart: this.clock(dto.evening_start) ?? '18:00' }
+          : {}),
+        ...(dto.feature_flags !== undefined ? { featureFlags: this.flags(dto.feature_flags) } : {}),
       },
     });
     return this.toJson(row);
@@ -83,6 +100,13 @@ export class MeService {
     quietHoursEnd: string | null;
     telegramEnabled: boolean;
     focusNotifications: boolean;
+    shutdownReminderTime: string | null;
+    workDayStart: string | null;
+    workDayEnd: string | null;
+    defaultTaskDuration: number;
+    deadlineSoonDays: number;
+    eveningStart: string;
+    featureFlags: unknown;
   }> {
     const row = await this.prisma.user.findFirst({
       where: { id, deletedAt: null },
@@ -104,6 +128,13 @@ export class MeService {
         quietHoursEnd: true,
         telegramEnabled: true,
         focusNotifications: true,
+        shutdownReminderTime: true,
+        workDayStart: true,
+        workDayEnd: true,
+        defaultTaskDuration: true,
+        deadlineSoonDays: true,
+        eveningStart: true,
+        featureFlags: true,
       },
     });
     if (row === null) {
@@ -130,6 +161,13 @@ export class MeService {
     quietHoursEnd: string | null;
     telegramEnabled: boolean;
     focusNotifications: boolean;
+    shutdownReminderTime: string | null;
+    workDayStart: string | null;
+    workDayEnd: string | null;
+    defaultTaskDuration: number;
+    deadlineSoonDays: number;
+    eveningStart: string;
+    featureFlags: unknown;
   }): MeResponseDto {
     return {
       id: row.id,
@@ -149,6 +187,13 @@ export class MeService {
       quiet_hours_end: row.quietHoursEnd,
       telegram_enabled: row.telegramEnabled,
       focus_notifications: row.focusNotifications,
+      shutdown_reminder_time: row.shutdownReminderTime,
+      work_day_start: row.workDayStart,
+      work_day_end: row.workDayEnd,
+      default_task_duration_minutes: row.defaultTaskDuration,
+      deadline_soon_days: row.deadlineSoonDays,
+      evening_start: row.eveningStart,
+      feature_flags: this.flagMap(row.featureFlags),
     };
   }
 
@@ -269,6 +314,23 @@ export class MeService {
         next_retry_at: row.nextRetryAt?.toISOString() ?? null,
       })),
     };
+  }
+
+  private flags(value: Record<string, boolean>): Record<string, boolean> {
+    const parsed = sanitizeFeatureFlags(value);
+    if (!parsed.ok) {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'feature_flags has an unknown key',
+      );
+    }
+    return parsed.flags;
+  }
+
+  private flagMap(value: unknown): Record<string, boolean> {
+    const parsed = sanitizeFeatureFlags(value);
+    return parsed.ok ? parsed.flags : {};
   }
 
   private clock(value: string | null): string | null {
