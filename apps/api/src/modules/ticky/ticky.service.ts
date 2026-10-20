@@ -70,7 +70,13 @@ export class TickyService implements OnModuleInit {
       where: { ownerId: user.id },
       include: { lists: true },
     });
-    if (authority === null || authority.revoked || user.listIds === null) {
+    if (
+      authority === null ||
+      authority.revoked ||
+      authority.paused ||
+      authority.autonomy === 0 ||
+      user.listIds === null
+    ) {
       throw new DomainException(
         HttpStatus.SERVICE_UNAVAILABLE,
         'ticky_not_ready',
@@ -136,7 +142,11 @@ export class TickyService implements OnModuleInit {
         create: { ownerId: user.id, version: 1 },
         update: {},
       });
-      const version = current.version + 1;
+      await tx.$queryRaw(
+        Prisma.sql`SELECT id FROM ticky_authorities WHERE owner_id = ${user.id}::uuid FOR UPDATE`,
+      );
+      const locked = await tx.tickyAuthority.findUniqueOrThrow({ where: { ownerId: user.id } });
+      const version = locked.version + 1;
       const authority = await tx.tickyAuthority.update({
         where: { id: current.id },
         data: {
@@ -871,6 +881,33 @@ export class TickyService implements OnModuleInit {
     }
     try {
       return await this.prisma.$transaction(async (tx) => {
+        await tx.$queryRaw(
+          Prisma.sql`SELECT id FROM ticky_authorities WHERE owner_id = ${user.id}::uuid FOR UPDATE`,
+        );
+        const current = await tx.tickyAuthority.findUnique({
+          where: { ownerId: user.id },
+          include: { lists: true },
+        });
+        if (
+          current === null ||
+          current.revoked ||
+          current.paused ||
+          current.autonomy < 2 ||
+          current.version !== body.authority_version
+        ) {
+          throw new DomainException(
+            HttpStatus.CONFLICT,
+            'authority_revoked',
+            'La autoridad cambió. No se aplica.',
+          );
+        }
+        if (!legacyGrantsTickyScope(current.actionScopes, required)) {
+          throw new DomainException(
+            HttpStatus.FORBIDDEN,
+            'scope_missing',
+            'Esa acción ya no está concedida.',
+          );
+        }
         const prior = await tx.tickyActionLedger.findUnique({
           where: { ownerId_actionId: { ownerId: user.id, actionId } },
         });
@@ -884,7 +921,7 @@ export class TickyService implements OnModuleInit {
           }
           return { action_id: actionId, replayed: true, result: prior.result };
         }
-        const scoped: AuthUser = { ...user, listIds: authority.listIds };
+        const scoped: AuthUser = { ...user, listIds: current.lists.map((row) => row.listId) };
         const result = await applyAuthorizedTaskChange(
           tx,
           this.events,
@@ -1011,14 +1048,15 @@ export class TickyService implements OnModuleInit {
       });
       const response = await fetch(new URL('/internal/v1/events', base), {
         method: 'POST',
+        signal: AbortSignal.timeout(10_000),
         headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
         body: JSON.stringify({
           event_id: eventId,
           event_type: 'authority.updated',
           scopes: [
             ...TICKY_READ_SCOPES,
-            ...authority.actionScopes.filter(
-              (scope) => scope === 'calendar:read' || scope.startsWith('ticky:routines:'),
+            ...authority.actionScopes.filter((scope) =>
+              ['calendar:read', 'ticky:routines:read', 'ticky:routines:write'].includes(scope),
             ),
           ],
           list_ids: authority.lists.map((row) => row.listId),

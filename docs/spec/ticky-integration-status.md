@@ -27,11 +27,11 @@ historial → borrado remoto y purga de cache local. No proveedor ni Telegram re
 Harness reproducible en `scripts/crossrepo_smoke.sh` del repo Python. No acredita
 executor CAS/outbox, reinicio de checkpoints, UI completa ni producción.
 
-Contexto firmado compatible y enviado a Python con revisiones monotónicas; calendario requiere grant calendar:read y jornada explícita. Memoria tipada con mensaje de origen verificado y listado de rutinas usan Python como fuente canónica. Prueba cruzada: origen ajeno rechazado, memoria creada/listada/olvidada, propuesta de captura por lote generada en Python y aprobación de un subconjunto en dominio sin duplicación al repetir. Pendiente: UI de propuestas/historial/preferencias, pruebas ampliadas de aislamiento/revocación/concurrencia y recuperación.
+Contexto firmado compatible y enviado a Python con revisiones monotónicas; calendario requiere grant calendar:read y jornada explícita. Memoria tipada con mensaje de origen verificado y listado de rutinas usan Python como fuente canónica. Prueba cruzada: origen ajeno rechazado, memoria creada/listada/olvidada, propuesta de captura por lote generada en Python y aprobación de un subconjunto en dominio sin duplicación al repetir. UI de propuestas con selección vacía inicial, aprobación parcial y reconciliación del ledger; historial recuperable tras recarga y cancelación. Pruebas reales de CAS concurrente, revocación bajo lock, listas excluidas y unicidad de tarea/ledger/auditoría/outbox. Reinicio de ambos procesos con saver PostgreSQL confirma ledger, pausa y borrado persistentes. Quedan preferencias/rutinas editables en UI y activación operativa.
 La aceptación generativa y las decisiones operativas siguen sin acreditarse.
 
 Despliegue autorizado por Pablo sobre infraestructura existente; nueva app privada
-con dominio público pendiente de confirmar. La definición preparada en el repo Python conserva
+con dominio confirmado ia-ticky.reflexionia.com (Pablo, 20-10-2026). La definición preparada en el repo Python conserva
 los efectos/modelo apagados, exige retención e imágenes por digest y un artefacto
 de migraciones. Pablo registra la revisión de políticas/privacidad y ocho HIGH sin fix el 20-10-2026. Aprueba 30 días con borrado automático, OpenAI pequeño, preferencia UE si disponible y límites EUR 0,02/llamada, 0,50/día, 10/mes. Backup/restore y gates del artefacto final siguen pendientes antes del rollout.
 
@@ -82,3 +82,9 @@ permanecen deshabilitados.
 Proveedor/modelos, jornada/silencios, retención/TTL, listas compartidas, `duration_minutes=0`,
 título 500 vs 1000, side-effects complete/trash, política unknown Telegram, backend de trazas:
 efectos apagados hasta confirmación explícita.
+
+## Evidencia del corte transaccional
+
+Gates completos correctos:236 dominio +9 SDK +81 API +79 web;86 integración con PostgreSQL, dos pruebas crossrepo omitidas deliberadamente en la suite normal y ejecutadas aparte. Harness real con saver PostgreSQL, reinicio de FastAPI y nuevo proceso NestJS: flujo, UI 390/1280px, ledger, pausa y borrado correctos. La admisión de un hilo borrado mantiene403 y el historial404 conforme al contrato existente; se comprueba también que una conversación nueva funciona tras reactivar la autoridad.
+
+El executor bloquea la fila de autoridad y revalida grant/listas/A2 en la misma transacción del efecto; actualización de autoridad serializada con el mismo lock. Creación y movimiento comprueban grant de destino además de ownership. Rollback: apagar execution y conservar ledger/outbox; no aplicar downgrades ni repetir acciones inciertas.
