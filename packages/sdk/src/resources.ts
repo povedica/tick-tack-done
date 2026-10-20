@@ -185,7 +185,10 @@ export interface ResourceClient {
   revokeInboundEmail(): Promise<void>;
   listTags(query?: PageQuery): Promise<TagPage>;
   createTag(body: NamedWrite, idempotencyKey: string): Promise<Tag>;
-  updateTag(id: string, body: Partial<NamedWrite>): Promise<Tag>;
+  updateTag(
+    id: string,
+    body: Partial<NamedWrite> & { before_id?: string | null; move_to_end?: boolean },
+  ): Promise<Tag>;
   deleteTag(id: string): Promise<void>;
   mergeTags(sourceId: string, targetId: string): Promise<Tag>;
   listFolders(): Promise<FolderPage>;

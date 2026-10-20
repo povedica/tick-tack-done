@@ -1,4 +1,4 @@
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { GripVertical, MoreHorizontal } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { ApiError } from '@reflexionia/sdk';
@@ -9,6 +9,7 @@ import { Highlight } from '../../components/Highlight';
 import { Button, TagChip } from '../../components/ui';
 import { fill, type Messages } from '../../i18n';
 import type { ViewDay } from '../capture/quick-add';
+import { collectTags } from './collect';
 import { refreshTaskSurfaces } from './refresh';
 import { displayTitle } from './displayTitle';
 import { completeBody } from './complete-body';
@@ -49,6 +50,8 @@ export function TaskList({
   readonly highlightQuery?: string;
 }) {
   const queryClient = useQueryClient();
+  const catalog = useQuery({ queryKey: ['tags'], queryFn: collectTags, staleTime: 5 * 60_000 });
+  const tagById = new Map((catalog.data?.items ?? []).map((tag) => [tag.id, tag]));
   const [params, setParams] = useSearchParams();
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
   const now = useMemo(() => new Date(), []);
@@ -71,7 +74,15 @@ export function TaskList({
     });
   }
 
-  const visible = [...(hideCompleted ? rows.filter((row) => row.status !== 'completed') : rows)];
+  const visible = (hideCompleted ? rows.filter((row) => row.status !== 'completed') : rows).map(
+    (row) => ({
+      ...row,
+      tags: row.tags.map((tag) => {
+        const current = tagById.get(tag.id);
+        return current ? { ...tag, name: current.name, color: current.color } : tag;
+      }),
+    }),
+  );
   const detailId = params.get('task');
   const body =
     view === 'kanban' ? (

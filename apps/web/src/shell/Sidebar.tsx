@@ -16,6 +16,8 @@ import {
   ListTodo,
   List,
   Settings,
+  Search,
+  X,
   LogOut,
   MoreHorizontal,
   Plus,
@@ -39,6 +41,7 @@ import { calendarDay, shiftDayKey, zonedWallTime } from '../features/today/group
 import { refreshTaskSurfaces } from '../features/tasks/refresh';
 import { smartPath } from '../features/tasks/model';
 import { orderedSmartLists, SIDEBAR_SMART_ORDER } from './smart-order';
+import { TagActions } from './TagActions';
 import { countdownsApi } from '../features/countdowns/api';
 
 const LIST_COLORS = ['#4772FA', '#E13E39', '#FAA80C', '#1F9D55', '#7C5CFF', '#F06595'] as const;
@@ -97,6 +100,9 @@ export function Sidebar({
   const [menuId, setMenuId] = useState<string | null>(null);
   const [tagMenuId, setTagMenuId] = useState<string | null>(null);
   const [tagQuery, setTagQuery] = useState('');
+  const [searchingTags, setSearchingTags] = useState(false);
+  const tagSearchTrigger = useRef<HTMLButtonElement>(null);
+  const tagMenuAnchor = useRef<HTMLButtonElement>(null);
   const [showUnused, setShowUnused] = useState(false);
   const folders = useQuery({ queryKey: ['folders'], queryFn: () => api.listFolders() });
   const location = useLocation();
@@ -118,16 +124,29 @@ export function Sidebar({
   const filterItems = filters.data?.items ?? [];
   const tagItems = tags.data?.items ?? [];
   const tagNeedle = tagQuery.trim().toLowerCase();
-  const visibleTags = [...tagItems]
-    .filter((tag) =>
-      tagNeedle.length > 0
-        ? tag.name.toLowerCase().includes(tagNeedle)
-        : showUnused || tag.active_task_count > 0,
-    )
-    .sort(
-      (left, right) =>
-        right.active_task_count - left.active_task_count || left.name.localeCompare(right.name),
-    );
+  const orderedTags: typeof tagItems = [];
+  const tagDepth = new Map<string, number>();
+  const appendTags = (parent: string | null, depth: number): void => {
+    for (const tag of [...tagItems].sort(
+      (a, b) => Number(a.sort_order) - Number(b.sort_order) || a.name.localeCompare(b.name),
+    )) {
+      if ((tag.parent_id ?? null) !== parent || tagDepth.has(tag.id)) continue;
+      tagDepth.set(tag.id, depth);
+      orderedTags.push(tag);
+      appendTags(tag.id, depth + 1);
+    }
+  };
+  appendTags(null, 0);
+  for (const tag of tagItems)
+    if (!tagDepth.has(tag.id)) {
+      tagDepth.set(tag.id, 0);
+      orderedTags.push(tag);
+    }
+  const visibleTags = orderedTags.filter((tag) =>
+    tagNeedle.length > 0
+      ? tag.name.toLowerCase().includes(tagNeedle)
+      : showUnused || tag.active_task_count > 0,
+  );
   const folderItems = folders.data?.items ?? [];
   const archivedProjects = (projects.data?.items ?? []).filter((project) => project.closed);
   const projectItems = (projects.data?.items ?? []).filter(
@@ -487,6 +506,19 @@ export function Sidebar({
                   <button
                     type="button"
                     className="nav-add"
+                    ref={tagSearchTrigger}
+                    aria-label={messages.tagSearch}
+                    aria-expanded={searchingTags}
+                    onClick={() => {
+                      setSearchingTags((value) => !value);
+                      setTagQuery('');
+                    }}
+                  >
+                    <Search size={15} aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    className="nav-add"
                     aria-label={messages.newTag}
                     aria-expanded={addingTag}
                     onClick={() => {
@@ -553,15 +585,39 @@ export function Sidebar({
                   {tagError !== null ? <p className="error">{tagError}</p> : null}
                 </form>
               ) : null}
-              <input
-                className="nav-create"
-                value={tagQuery}
-                aria-label={messages.tagSearch}
-                placeholder={messages.tagSearch}
-                onChange={(event) => {
-                  setTagQuery(event.target.value);
-                }}
-              />
+              {searchingTags ? (
+                <div className="tag-search-field">
+                  <Search size={15} aria-hidden="true" />
+                  <input
+                    autoFocus
+                    value={tagQuery}
+                    aria-label={messages.tagSearch}
+                    placeholder={messages.tagSearch}
+                    onChange={(event) => {
+                      setTagQuery(event.target.value);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Escape') {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        tagSearchTrigger.current?.focus();
+                        setSearchingTags(false);
+                        setTagQuery('');
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    aria-label={messages.close}
+                    onClick={() => {
+                      setSearchingTags(false);
+                      setTagQuery('');
+                    }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : null}
               <button
                 type="button"
                 className="nav-unused"
@@ -572,6 +628,9 @@ export function Sidebar({
               >
                 {showUnused ? messages.hideUnusedTags : messages.showUnusedTags}
               </button>
+              {tagNeedle && visibleTags.length === 0 ? (
+                <p className="tag-search-empty">{messages.tagNoMatches}</p>
+              ) : null}
               <ul className="nav-list">
                 {visibleTags.map((tag) => {
                   const href = `/tag/${tag.id}`;
@@ -587,7 +646,14 @@ export function Sidebar({
                         to={href}
                         onClick={onNavigate}
                       >
-                        <TagIcon color={tag.color} />
+                        <span
+                          style={{
+                            marginInlineStart: Math.min(tagDepth.get(tag.id) ?? 0, 4) * 10,
+                            display: 'flex',
+                          }}
+                        >
+                          <TagIcon color={tag.color} />
+                        </span>
                         <span className="nav-label">{tag.name}</span>
                         {showCounters && tag.active_task_count > 0 ? (
                           <Badge value={tag.active_task_count} />
@@ -596,16 +662,19 @@ export function Sidebar({
                       <button
                         type="button"
                         className="nav-more-btn"
-                        aria-label={messages.tagRename}
+                        aria-label={`${messages.tagActions}: ${tag.name}`}
+                        aria-haspopup="dialog"
                         aria-expanded={tagMenuId === tag.id}
-                        onClick={() => {
+                        onClick={(event) => {
+                          tagMenuAnchor.current = event.currentTarget;
                           setTagMenuId((current) => (current === tag.id ? null : tag.id));
                         }}
                       >
                         <MoreHorizontal size={16} aria-hidden="true" />
                       </button>
                       {tagMenuId === tag.id ? (
-                        <TagMenu
+                        <TagActions
+                          anchor={tagMenuAnchor}
                           tag={tag}
                           tags={tagItems}
                           messages={messages}
@@ -722,94 +791,6 @@ function SideLink({
     >
       {children}
     </NavLink>
-  );
-}
-
-function TagMenu({
-  tag,
-  tags,
-  messages,
-  onClose,
-}: {
-  readonly tag: { id: string; name: string; color: string | null };
-  readonly tags: readonly { id: string; name: string }[];
-  readonly messages: Messages;
-  readonly onClose: () => void;
-}) {
-  const queryClient = useQueryClient();
-  const [name, setName] = useState(tag.name);
-  const [confirm, setConfirm] = useState(false);
-  const refresh = (): void => {
-    void queryClient.invalidateQueries({ queryKey: ['tags'] });
-    onClose();
-  };
-  return (
-    <div className="list-menu" role="menu">
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          const next = normalizeTagName(name);
-          if (next === null) {
-            return;
-          }
-          void api.updateTag(tag.id, { name: next }).then(refresh);
-        }}
-      >
-        <input
-          value={name}
-          aria-label={messages.tagRename}
-          onChange={(event) => {
-            setName(event.target.value);
-          }}
-        />
-        <button type="submit" className="menu-item">
-          {messages.tagRename}
-        </button>
-      </form>
-      <input
-        type="color"
-        aria-label={messages.tagRename}
-        defaultValue={tag.color ?? '#4772fa'}
-        onChange={(event) => {
-          void api.updateTag(tag.id, { color: event.target.value }).then(() => {
-            void queryClient.invalidateQueries({ queryKey: ['tags'] });
-          });
-        }}
-      />
-      <label>
-        {messages.tagMerge}
-        <select
-          defaultValue=""
-          onChange={(event) => {
-            if (event.target.value.length > 0) {
-              void api.mergeTags(tag.id, event.target.value).then(refresh);
-            }
-          }}
-        >
-          <option value="">{messages.tagMerge}</option>
-          {tags
-            .filter((item) => item.id !== tag.id)
-            .map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-        </select>
-      </label>
-      <button
-        type="button"
-        className="menu-item is-danger"
-        onClick={() => {
-          if (!confirm) {
-            setConfirm(true);
-            return;
-          }
-          void api.deleteTag(tag.id).then(refresh);
-        }}
-      >
-        {confirm ? messages.tagDeleteBody : messages.batchDelete}
-      </button>
-    </div>
   );
 }
 

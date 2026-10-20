@@ -18,6 +18,7 @@ import type { CreateTaskBody } from '@reflexionia/sdk';
 import { api } from '../../api';
 import { DatePopover, type DateDraft } from '../../components/DatePopover';
 import { Popover } from '../../components/Popover';
+import { TagIcon } from '../../components/TagIcon';
 import { captureLanguage, fill, useMessages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
 import { quickAddRequest, type ViewDay } from '../capture/quick-add';
@@ -534,6 +535,7 @@ export function TaskComposer({
                     );
                   }}
                 />
+                <TagIcon color={tag.color} />
                 {tag.name}
               </label>
             ))}
