@@ -56,6 +56,9 @@ import { TaskGroup } from './TaskGroup';
 import { countdownsApi } from '../countdowns/api';
 import { countdownLabel } from '../countdowns/presentation';
 import { TodayAgenda } from './TodayAgenda';
+import { MatrixBoard, MatrixViewToggle } from '../matrix/MatrixBoard';
+import { readMatrixLayout, writeMatrixLayout } from '../matrix/layout';
+import { useFeatures } from '../settings/feature-flags';
 
 const GROUP_KEY = 'tick-tack-done.today.group';
 const SORT_KEY = 'tick-tack-done.today.sort';
@@ -65,6 +68,7 @@ const PLAN_KEY = 'tick-tack-done.plan.accepted';
 
 export function TodayPage() {
   const messages = useMessages();
+  const flags = useFeatures((state) => state.flags);
   const shell = useShellActions();
   const locale = useAppLocale();
   const navigate = useNavigate();
@@ -102,6 +106,7 @@ export function TodayPage() {
       readStored(PLAN_KEY) ===
       calendarDay(new Date().toISOString(), Intl.DateTimeFormat().resolvedOptions().timeZone),
   );
+  const [matrixLayout, setMatrixLayout] = useState(() => readMatrixLayout('today'));
   const jobs = useRef(new Map<string, CompleteJob>());
   const leaveTimers = useRef(new Map<string, number>());
   const tasks = useQuery({
@@ -559,6 +564,15 @@ export function TodayPage() {
           </div>
         </div>
         <div className="page-actions">
+          {flags.matrix ? (
+            <MatrixViewToggle
+              value={matrixLayout}
+              onChange={(next) => {
+                writeMatrixLayout('today', next);
+                setMatrixLayout(next);
+              }}
+            />
+          ) : null}
           <Link className="icon-button" to="/habits" aria-label={messages.suggestions}>
             <Lightbulb size={20} aria-hidden="true" />
           </Link>
@@ -725,34 +739,40 @@ export function TodayPage() {
           {actionError}
         </p>
       ) : null}
-      {tasks.isPending ? (
-        <div aria-hidden="true">
-          <div className="task-skeleton is-head" />
-          <div className="task-skeleton" />
-          <div className="task-skeleton" />
-          <div className="task-skeleton" />
-        </div>
-      ) : null}
-      {tasks.isError ? (
-        <div className="waiting">
-          <p className="error">{messages.todayFailed}</p>
-          <button
-            type="button"
-            className="text-button"
-            onClick={() => {
-              void tasks.refetch();
-            }}
-          >
-            {messages.retry}
-          </button>
-        </div>
-      ) : null}
-      {overdueBlock.map((section) => (
-        <TaskGroup key="overdue" {...groupProps(section.id, section.tasks, true)} />
-      ))}
-      {sections.map((section) => (
-        <TaskGroup key={section.id} {...groupProps(section.id, section.tasks)} />
-      ))}
+      {flags.matrix && matrixLayout === 'matrix' ? (
+        <MatrixBoard scope={{ kind: 'today' }} embedded />
+      ) : (
+        <>
+          {tasks.isPending ? (
+            <div aria-hidden="true">
+              <div className="task-skeleton is-head" />
+              <div className="task-skeleton" />
+              <div className="task-skeleton" />
+              <div className="task-skeleton" />
+            </div>
+          ) : null}
+          {tasks.isError ? (
+            <div className="waiting">
+              <p className="error">{messages.todayFailed}</p>
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => {
+                  void tasks.refetch();
+                }}
+              >
+                {messages.retry}
+              </button>
+            </div>
+          ) : null}
+          {overdueBlock.map((section) => (
+            <TaskGroup key="overdue" {...groupProps(section.id, section.tasks, true)} />
+          ))}
+          {sections.map((section) => (
+            <TaskGroup key={section.id} {...groupProps(section.id, section.tasks)} />
+          ))}
+        </>
+      )}
       {habits.isPending ? (
         <div aria-hidden="true">
           <div className="task-skeleton" />

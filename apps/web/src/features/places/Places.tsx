@@ -10,7 +10,7 @@ import {
   useParams,
   useSearchParams,
 } from 'react-router';
-import { applyQuadrantDrop, calendarDateKey, DEFAULT_QUADRANT_EFFECTS } from '@reflexionia/domain';
+import { calendarDateKey } from '@reflexionia/domain';
 import { api } from '../../api';
 import { useActionToast } from '../../components/action-toast';
 import { Button, EmptyState, ErrorState, SkeletonRows } from '../../components/ui';
@@ -27,7 +27,7 @@ import {
   type ExternalEventView,
 } from '../calendar/ExternalEvent';
 import { collectTags } from '../tasks/collect';
-import { quadrantOf, rowFromTask, smartApiKey, type RowModel } from '../tasks/model';
+import { rowFromTask, smartApiKey, type RowModel } from '../tasks/model';
 import { refreshTaskSurfaces } from '../tasks/refresh';
 import { newMutation, runOrQueue } from '../offline/client';
 import { collectTasks } from '../today/board';
@@ -49,6 +49,8 @@ import {
   viewDays,
   yearQueryRange,
 } from './month';
+
+export { MatrixPage } from '../matrix/MatrixBoard';
 
 const ACCENTS: readonly AccentId[] = ['indigo', 'violet', 'teal', 'amber', 'rose', 'slate'];
 const ACCENT_COLOR: Readonly<Record<AccentId, string>> = {
@@ -1107,83 +1109,6 @@ function labelView(messages: Messages, view: string): string {
     default:
       return messages.calMonth;
   }
-}
-
-export function MatrixPage() {
-  const messages = useMessages();
-  const tasks = useQuery({
-    queryKey: ['matrix-tasks'],
-    queryFn: () => api.listTasks({ status: 'active', limit: 100, flat: true }),
-  });
-  const now = useMemo(() => new Date(), []);
-  const groups = {
-    do: [] as Task[],
-    schedule: [] as Task[],
-    delegate: [] as Task[],
-    drop: [] as Task[],
-  };
-  for (const task of tasks.data?.items ?? []) {
-    if (task.kind !== 'task') {
-      continue;
-    }
-    groups[quadrantOf(task.priority, task.due_date, now)].push(task);
-  }
-  const quads = [
-    ['do', messages.quadrantDo, 'is-do'],
-    ['schedule', messages.quadrantSchedule, 'is-schedule'],
-    ['delegate', messages.quadrantDelegate, 'is-delegate'],
-    ['drop', messages.quadrantDrop, 'is-drop'],
-  ] as const;
-  return (
-    <section className="screen-page is-wide">
-      <h1>{messages.matrixTitle}</h1>
-      <p>{messages.matrixRules}</p>
-      <p className="ui-muted">{messages.dropSummary}</p>
-      {(tasks.data?.items.length ?? 0) === 0 && !tasks.isPending ? (
-        <EmptyState title={messages.matrixTitle} body={messages.matrixEmpty} />
-      ) : null}
-      <div className="quad-grid">
-        {quads.map(([key, label, tone]) => (
-          <section
-            key={key}
-            className={`quad ${tone}`}
-            onDragOver={(event) => {
-              event.preventDefault();
-            }}
-            onDrop={(event) => {
-              const id = event.dataTransfer.getData('text/plain');
-              const patch = applyQuadrantDrop(
-                DEFAULT_QUADRANT_EFFECTS[key],
-                new Date().toISOString(),
-              );
-              void api
-                .patchTask(id, { priority: patch.priority, due_date: patch.dueDate })
-                .then(() => {
-                  void tasks.refetch();
-                });
-            }}
-          >
-            <h2>
-              {label} <span className="ui-badge">{groups[key].length}</span>
-            </h2>
-            <ul>
-              {groups[key].map((task) => (
-                <li
-                  key={task.id}
-                  draggable
-                  onDragStart={(event) => {
-                    event.dataTransfer.setData('text/plain', task.id);
-                  }}
-                >
-                  <Link to={`/list/${task.project_id}?task=${task.id}`}>{task.title}</Link>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
-      </div>
-    </section>
-  );
 }
 
 export function DashboardPage() {

@@ -3474,7 +3474,7 @@
             }
           }
         },
-        "summary": "List tasks. Subtasks stay nested unless flat=true (RF-205).",
+        "summary": "List tasks. Subtasks stay nested unless flat=true (RF-205). list_id filters one list, same as project_id.",
         "tags": [
           "tasks"
         ],
