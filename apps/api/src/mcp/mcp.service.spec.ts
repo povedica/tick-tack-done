@@ -90,7 +90,7 @@ describe('McpService recurrence mapping', () => {
       }),
       undefined,
     );
-    const text = JSON.parse(firstToolText(result)) as {
+    const text = JSON.parse(toolText(result)) as {
       repeat_label: string;
       next_occurrence: string | null;
     };
@@ -113,7 +113,7 @@ describe('McpService recurrence mapping', () => {
         content: [{ text: expect.stringContaining('missing_anchor') }],
       },
     });
-    expect(firstToolText(result)).toContain('a repeating task needs a due_date');
+    expect(toolText(result)).toContain('a repeating task needs a due_date');
     expect(tasks.create).not.toHaveBeenCalled();
   });
 
@@ -132,7 +132,7 @@ describe('McpService recurrence mapping', () => {
         },
       },
     });
-    expect(firstToolText(result)).toContain('use either recurrence or repeat_rule, not both');
+    expect(toolText(result)).toContain('use either recurrence or repeat_rule, not both');
   });
 
   it('RF-2007: update_task recurrence null clears the series', async () => {
@@ -252,16 +252,32 @@ describe('McpService recurrence mapping', () => {
         arguments: { title: 'Zona', due_date: '2026-10-19T08:00:00.000Z' },
       },
     });
-    expect(firstToolText(result)).toBe(
+    expect(toolText(result)).toBe(
       'invalid_zone: time_zone must be an IANA name like Europe/Madrid',
     );
   });
 });
 
-function firstToolText(result: unknown): string {
-  const content = (result as { result: { content: { text: string }[] } }).result.content[0];
-  if (content === undefined) {
+function toolText(body: unknown): string {
+  if (typeof body !== 'object' || body === null || !('result' in body)) {
+    throw new Error('missing tool result');
+  }
+  const result = body.result;
+  if (typeof result !== 'object' || result === null || !('content' in result)) {
+    throw new Error('missing tool content');
+  }
+  const content = result.content;
+  if (!Array.isArray(content) || content.length === 0) {
+    throw new Error('missing tool content');
+  }
+  const first: unknown = content[0];
+  if (
+    typeof first !== 'object' ||
+    first === null ||
+    !('text' in first) ||
+    typeof first.text !== 'string'
+  ) {
     throw new Error('missing tool text');
   }
-  return content.text;
+  return first.text;
 }

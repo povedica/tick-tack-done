@@ -1,3 +1,5 @@
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { createHash, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import type { INestApplication } from '@nestjs/common';
@@ -38,7 +40,7 @@ describe.skipIf(cross === undefined)('APP-03 / TK-022/600 real HTTP compatibilit
     await prisma.project.deleteMany({ where: { ownerId: owner } });
     await prisma.user.deleteMany({ where: { id: owner } });
     await prisma.user.create({
-      data: { id: owner, email: 'cross@example.invalid', displayName: 'Synthetic' },
+      data: { id: owner, email: 'demo@reflexionia.test', displayName: 'Synthetic' },
     });
     await prisma.project.create({
       data: { id: list, ownerId: owner, name: 'Synthetic', isInbox: true },
@@ -103,47 +105,62 @@ describe.skipIf(cross === undefined)('APP-03 / TK-022/600 real HTTP compatibilit
     );
     const opened = await request(server)
       .post('/api/v1/ticky/threads')
-      .set('X-Dev-User-Email', 'cross@example.invalid')
+      .set('X-Dev-User-Email', 'demo@reflexionia.test')
       .send({})
       .expect(201);
     threadId = opened.body.id as string;
     const clientId = randomUUID();
     const admitted = await request(server)
       .post(`/api/v1/ticky/threads/${threadId}/messages`)
-      .set('X-Dev-User-Email', 'cross@example.invalid')
+      .set('X-Dev-User-Email', 'demo@reflexionia.test')
       .send({ client_message_id: clientId, text: 'Qué tengo hoy' })
       .expect(202);
     const replay = await request(server)
       .post(`/api/v1/ticky/threads/${threadId}/messages`)
-      .set('X-Dev-User-Email', 'cross@example.invalid')
+      .set('X-Dev-User-Email', 'demo@reflexionia.test')
       .send({ client_message_id: clientId, text: 'Qué tengo hoy' })
       .expect(202);
     expect(replay.body.run_id).toBe(admitted.body.run_id);
     const stream = await request(server)
       .get(`/api/v1/ticky/runs/${String(admitted.body.run_id)}/events`)
-      .set('X-Dev-User-Email', 'cross@example.invalid')
+      .set('X-Dev-User-Email', 'demo@reflexionia.test')
       .expect(200);
     expect(stream.text).toContain('run.completed');
     expect(stream.text).toContain(taskId);
     expect(stream.text).toContain('Synthetic HTTP task');
     expect(stream.text).toContain('"llm_calls":0');
+    if (process.env.TICKY_CROSS_BROWSER_WS !== undefined) {
+      await promisify(execFile)(
+        'pnpm',
+        [
+          '--filter',
+          'web',
+          'exec',
+          'playwright',
+          'test',
+          '--config',
+          'playwright.crossrepo.config.ts',
+        ],
+        { timeout: 120_000 },
+      );
+    }
     const history = await request(server)
       .get(`/api/v1/ticky/threads/${threadId}/messages`)
-      .set('X-Dev-User-Email', 'cross@example.invalid')
+      .set('X-Dev-User-Email', 'demo@reflexionia.test')
       .expect(200);
     expect(JSON.stringify(history.body)).toContain(taskId);
     const deleted = await request(server)
       .delete(`/api/v1/ticky/threads/${threadId}`)
-      .set('X-Dev-User-Email', 'cross@example.invalid')
+      .set('X-Dev-User-Email', 'demo@reflexionia.test')
       .expect(200);
     expect(deleted.body.state).toBe('deleted');
     await request(server)
       .get(`/api/v1/ticky/threads/${threadId}/messages`)
-      .set('X-Dev-User-Email', 'cross@example.invalid')
+      .set('X-Dev-User-Email', 'demo@reflexionia.test')
       .expect(404);
     const cached = await prisma.tickyClientMessage.findUniqueOrThrow({
       where: { ownerId_clientMessageId: { ownerId: owner, clientMessageId: clientId } },
     });
     expect(cached.response).toEqual({});
-  }, 75_000);
+  }, 150_000);
 });
