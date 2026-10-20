@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useMessages } from '../../i18n';
 import { tickyApi, waitForTickyRun } from './api';
 import { ProposalReview } from './ProposalReview';
+import { TickyRoutines } from './TickyRoutines';
 import { TickySettings } from './TickySettings';
 import './ticky.css';
 
@@ -154,6 +155,7 @@ export function TickyPage({ taskHint }: { readonly taskHint?: string }) {
       <h1 id="ticky-title">{messages.tickyTitle}</h1>
       <p className="ticky-hint">{messages.tickyHint}</p>
       <TickySettings />
+      {flags.data?.routines ? <TickyRoutines /> : null}
       <div className="ticky-actions">
         <label>
           Conversación{' '}

@@ -1771,7 +1771,42 @@ export interface paths {
         /** List shadow routines (paused by default; APP-08) */
         get: operations["TickyController_listRoutines"];
         put?: never;
+        /** Create a shadow routine without notifications (APP-08) */
+        post: operations["TickyController_createRoutine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ticky/routines/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update a shadow routine with optimistic concurrency (APP-08) */
+        put: operations["TickyController_updateRoutine"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ticky/routines/{id}/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pause a shadow routine immediately (APP-08) */
+        post: operations["TickyController_pauseRoutine"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4304,6 +4339,31 @@ export interface components {
             value: string;
             /** Format: uuid */
             source_message_id: string;
+        };
+        CreateTickyRoutineDto: {
+            /** @enum {string} */
+            kind: "daily_plan" | "weekly_review";
+            /** @example Europe/Madrid */
+            timezone: string;
+            local_hour: string;
+            weekday?: number;
+            /** @default false */
+            enabled: boolean;
+            /** @default 15 */
+            window_minutes: number;
+        };
+        UpdateTickyRoutineDto: {
+            /** @enum {string} */
+            kind: "daily_plan" | "weekly_review";
+            /** @example Europe/Madrid */
+            timezone: string;
+            local_hour: string;
+            weekday?: number;
+            /** @default false */
+            enabled: boolean;
+            /** @default 15 */
+            window_minutes: number;
+            expected_version: number;
         };
         RestoreBackupDto: {
             stamp: string;
@@ -7619,6 +7679,75 @@ export interface operations {
         requestBody?: never;
         responses: {
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TickyController_createRoutine: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTickyRoutineDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TickyController_updateRoutine: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTickyRoutineDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TickyController_pauseRoutine: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };

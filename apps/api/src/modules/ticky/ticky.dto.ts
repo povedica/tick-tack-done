@@ -127,3 +127,45 @@ export class CreateMemoryDto {
   @IsUUID()
   source_message_id!: string;
 }
+
+export class CreateTickyRoutineDto {
+  @ApiProperty({ enum: ['daily_plan', 'weekly_review'] })
+  @IsIn(['daily_plan', 'weekly_review'])
+  kind!: 'daily_plan' | 'weekly_review';
+
+  @ApiProperty({ maxLength: 64, example: 'Europe/Madrid' })
+  @IsString()
+  @MaxLength(64)
+  timezone!: string;
+
+  @ApiProperty({ pattern: '^(?:[01]\\d|2[0-3]):[0-5]\\d$' })
+  @IsString()
+  @Matches(/^(?:[01]\d|2[0-3]):[0-5]\d$/)
+  local_hour!: string;
+
+  @ApiPropertyOptional({ minimum: 0, maximum: 6 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(6)
+  weekday?: number;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  enabled?: boolean;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 1440, default: 15 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(1440)
+  window_minutes?: number;
+}
+
+export class UpdateTickyRoutineDto extends CreateTickyRoutineDto {
+  @ApiProperty({ minimum: 1 })
+  @IsInt()
+  @Min(1)
+  expected_version!: number;
+}

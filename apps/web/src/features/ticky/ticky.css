@@ -121,6 +121,58 @@
   padding-block: 0.5rem;
 }
 
+.ticky-routines,
+.ticky-routine-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ticky-routine-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ticky-routine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 1px solid var(--color-border, #ddd);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+}
+
+.ticky-routine p {
+  margin-block: 0.35rem;
+}
+
+.ticky-routine-form {
+  border: 1px solid var(--color-border, #ddd);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+}
+
+.ticky-routine-form label {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  min-height: 44px;
+}
+
+.ticky-routine-form input:not([type='checkbox']),
+.ticky-routine-form select {
+  min-height: 44px;
+  max-width: 100%;
+  font: inherit;
+}
+
 .ticky-actions button {
   min-height: 44px;
   min-width: 44px;
