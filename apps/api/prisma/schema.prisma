@@ -34,6 +34,12 @@ enum PlanSessionState {
   discarded
 }
 
+enum PlanSessionKind {
+  plan
+  shutdown
+  replan
+}
+
 enum PlanDecisionKind {
   done
   plan_day
@@ -41,6 +47,7 @@ enum PlanDecisionKind {
   cancel
   trash
   skip
+  someday
 }
 
 enum Priority {
@@ -108,6 +115,7 @@ enum ReminderDeliveryStatus {
 enum ReminderDeliveryKind {
   task
   daily_digest
+  shutdown_digest
   overdue
   due_soon
   countdown
@@ -201,6 +209,7 @@ enum SmartListKey {
   trash
   no_date
   recently_added
+  someday
 }
 
 enum CompleteChildrenPolicy {
@@ -232,6 +241,12 @@ model User {
   focusNotifications    Boolean                @default(true) @map("focus_notifications")
   featureFlags          Json                   @default("{}") @map("feature_flags")
   weeklyReportSettings  Json                   @default("{}") @map("weekly_report_settings")
+  shutdownReminderTime  String?                @map("shutdown_reminder_time")
+  workDayStart          String?                @default("09:00") @map("work_day_start")
+  workDayEnd            String?                @default("18:00") @map("work_day_end")
+  defaultTaskDuration   Int                    @default(30) @map("default_task_duration")
+  deadlineSoonDays      Int                    @default(2) @map("deadline_soon_days")
+  eveningStart          String                 @default("18:00") @map("evening_start")
   achievementScore      Int                    @default(0) @map("achievement_score")
   achievementsEnabled   Boolean                @default(true) @map("achievements_enabled")
   totpSecret            String?                @map("totp_secret")
@@ -421,6 +436,8 @@ model Task {
   dueDate         DateTime?                @map("due_date") @db.Timestamptz(6)
   timeZone        String                   @default("Europe/Madrid") @map("time_zone")
   durationMinutes Int?                     @map("duration_minutes")
+  isSomeday       Boolean                  @default(false) @map("is_someday")
+  eveningOnly     Boolean                  @default(false) @map("evening_only")
   repeatRule      String?                  @map("repeat_rule")
   repeatFrom      RepeatFrom               @default(due_date) @map("repeat_from")
   seriesId        String?                  @map("series_id") @db.Uuid
@@ -455,6 +472,7 @@ model Task {
   @@index([dueDate], map: "tasks_due_date_idx")
   @@index([seriesId, status], map: "tasks_series_status_idx")
   @@index([ownerId, status, deletedAt, dueDate], map: "tasks_owner_status_deleted_due_idx")
+  @@index([ownerId, status, deletedAt, isSomeday], map: "tasks_owner_someday_idx")
   @@index([ownerId, deletedAt, createdAt], map: "tasks_owner_deleted_created_idx")
   @@index([ownerId, parentId, deletedAt], map: "tasks_owner_parent_deleted_idx")
   @@index([searchVector], type: Gin, map: "tasks_fts_idx")
@@ -1252,6 +1270,7 @@ model PlanSession {
   ownerId    String           @map("owner_id") @db.Uuid
   owner      User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   state      PlanSessionState @default(draft)
+  kind       PlanSessionKind  @default(plan)
   revision   Int              @default(1)
   sources    Json
   snapshot   Json
@@ -1271,6 +1290,7 @@ model PlanDecision {
   taskId     String           @map("task_id") @db.Uuid
   decision   PlanDecisionKind
   targetDate String?          @map("target_date") @db.VarChar(10)
+  evening    Boolean          @default(false)
   createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt  DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
 

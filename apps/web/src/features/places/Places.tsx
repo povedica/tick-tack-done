@@ -1455,7 +1455,7 @@ function highlight(title: string, query: string): ReactNode {
 }
 
 const SETTINGS_GROUPS = [
-  ['groupGeneral', ['/settings/account', '/settings/appearance', '/settings/features']],
+  ['groupGeneral', ['/settings/account', '/settings/appearance', '/settings/workday', '/settings/features']],
   [
     'groupWork',
     ['/settings/capture', '/settings/notifications', '/settings/smart-lists', '/settings/calendar'],
@@ -1478,8 +1478,9 @@ const SETTINGS_GROUPS = [
 function settingsLabel(messages: Messages, path: string): string {
   const labels: Record<string, string> = {
     '/settings/account': messages.settingsAccount,
-    '/settings/appearance': messages.appearanceTitle,
+    '/settings/workday': messages.settingsWorkday,
     '/settings/features': messages.settingsFeatures,
+    '/settings/appearance': messages.appearanceTitle,
     '/settings/capture': messages.settingsCapture,
     '/settings/notifications': messages.settingsNotifications,
     '/settings/smart-lists': messages.settingsSmart,

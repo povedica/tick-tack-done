@@ -25,6 +25,7 @@ const KEYS = [
   'trash',
   'no_date',
   'recently_added',
+  'someday',
 ];
 
 interface Owner {
@@ -91,7 +92,7 @@ describe('filters, smart lists and search', () => {
   it('RF-901 RF-903 RF-1001: provisions smart lists and shows a grouped list view', async () => {
     const api = authed(owner.email);
     const listed = await api.get('/api/v1/smart-lists').expect(200);
-    expect(listed.body.items).toHaveLength(10);
+    expect(listed.body.items).toHaveLength(11);
     expect(listed.body.items.map((item: { key: string }) => item.key).sort()).toEqual(
       [...KEYS].sort(),
     );

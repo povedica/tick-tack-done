@@ -1572,6 +1572,212 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/planning/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Open a day-planning session. Nothing is changed yet. */
+        post: operations["PlanningController_start"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/planning/sessions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a planning session and its preview */
+        get: operations["PlanningController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/planning/sessions/{id}/decisions/{taskId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Record one planning decision without changing the task */
+        put: operations["PlanningController_decide"];
+        post?: never;
+        /** Remove one planning decision */
+        delete: operations["PlanningController_clear"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/planning/sessions/{id}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Apply the preview. “La haré hoy” does not change the due date. */
+        post: operations["PlanningController_apply"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tasks the user planned for a local date */
+        get: operations["PlansController_day"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/planning/load": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Day load projection (RF-2641) */
+        get: operations["DayClosingController_load"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/planning/shutdown/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start the shutdown ritual (RF-2651) */
+        post: operations["DayClosingController_startShutdown"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/planning/shutdown/sessions/{id}/decisions/{taskId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Record a shutdown decision (RF-2651) */
+        put: operations["DayClosingController_decideShutdown"];
+        post?: never;
+        /** Clear a shutdown decision (RF-2651) */
+        delete: operations["DayClosingController_clearShutdown"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/planning/shutdown/sessions/{id}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Apply the shutdown (RF-2651) */
+        post: operations["DayClosingController_applyShutdown"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/planning/replan/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Propose a light replan (RF-2670) */
+        post: operations["DayClosingController_startReplan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/planning/replan/sessions/{id}/decisions/{taskId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Override a replan suggestion (RF-2671) */
+        put: operations["DayClosingController_decideReplan"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/planning/replan/sessions/{id}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Apply a replan (RF-2671) */
+        post: operations["DayClosingController_applyReplan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/calendar/events": {
         parameters: {
             query?: never;
@@ -1893,92 +2099,6 @@ export interface paths {
         };
         /** Guided weekly review (RF-2302, RF-2303) */
         get: operations["ReviewController_weekly"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/planning/sessions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Open a day-planning session. Nothing is changed yet. */
-        post: operations["PlanningController_start"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/planning/sessions/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read a planning session and its preview */
-        get: operations["PlanningController_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/planning/sessions/{id}/decisions/{taskId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Record one planning decision without changing the task */
-        put: operations["PlanningController_decide"];
-        post?: never;
-        /** Remove one planning decision */
-        delete: operations["PlanningController_clear"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/planning/sessions/{id}/apply": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Apply the preview. “La haré hoy” does not change the due date. */
-        post: operations["PlanningController_apply"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/plans": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Tasks the user planned for a local date */
-        get: operations["PlansController_day"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2799,6 +2919,10 @@ export interface components {
             countdowns?: boolean;
             focus?: boolean;
             matrix?: boolean;
+            when_deadline?: boolean;
+            day_load?: boolean;
+            day_closing?: boolean;
+            day_replan?: boolean;
         };
         MeResponseDto: {
             id: string;
@@ -2825,6 +2949,12 @@ export interface components {
             quiet_hours_end: string | null;
             telegram_enabled: boolean;
             focus_notifications: boolean;
+            shutdown_reminder_time: string | null;
+            work_day_start: string | null;
+            work_day_end: string | null;
+            default_task_duration_minutes: number;
+            deadline_soon_days: number;
+            evening_start: string;
             features: components["schemas"]["FeatureFlagsDto"];
         };
         ChangePasswordDto: {
@@ -2859,6 +2989,18 @@ export interface components {
             quiet_hours_end?: Record<string, never> | null;
             telegram_enabled?: boolean;
             focus_notifications?: boolean;
+            /** @example 21:30 */
+            shutdown_reminder_time?: Record<string, never> | null;
+            /** @example 09:00 */
+            work_day_start?: Record<string, never> | null;
+            /** @example 18:00 */
+            work_day_end?: Record<string, never> | null;
+            /** @example 30 */
+            default_task_duration_minutes?: number;
+            /** @example 2 */
+            deadline_soon_days?: number;
+            /** @example 18:00 */
+            evening_start?: string;
             features?: components["schemas"]["FeatureFlagsDto"];
         };
         InboundEmailStatusDto: {
@@ -3446,7 +3588,7 @@ export interface components {
         };
         SmartListItemDto: {
             /** @enum {string} */
-            key: "today" | "tomorrow" | "next_7_days" | "all" | "inbox" | "assigned_to_me" | "completed" | "trash" | "no_date" | "recently_added";
+            key: "today" | "tomorrow" | "next_7_days" | "all" | "inbox" | "assigned_to_me" | "completed" | "trash" | "no_date" | "recently_added" | "someday";
             enabled: boolean;
         };
         UpdateSmartListsDto: {
@@ -3522,6 +3664,8 @@ export interface components {
             due_date: string | null;
             time_zone: string;
             duration_minutes: number | null;
+            is_someday: boolean;
+            evening_only: boolean;
             repeat_rule: string | null;
             /** @enum {string} */
             repeat_from: "due_date" | "completion_date";
@@ -3573,6 +3717,8 @@ export interface components {
             due_date?: Record<string, never> | null;
             time_zone?: string;
             duration_minutes?: Record<string, never> | null;
+            someday?: boolean;
+            evening_only?: boolean;
             repeat_rule?: Record<string, never> | null;
             /** @enum {string} */
             repeat_from?: "due_date" | "completion_date";
@@ -3607,6 +3753,8 @@ export interface components {
             due_date: string | null;
             time_zone: string;
             duration_minutes: number | null;
+            is_someday: boolean;
+            evening_only: boolean;
             repeat_rule: string | null;
             /** @enum {string} */
             repeat_from: "due_date" | "completion_date";
@@ -3662,6 +3810,8 @@ export interface components {
             due_date?: Record<string, never> | null;
             time_zone?: string;
             duration_minutes?: Record<string, never> | null;
+            someday?: boolean;
+            evening_only?: boolean;
             repeat_rule?: Record<string, never> | null;
             /** @enum {string} */
             repeat_from?: "due_date" | "completion_date";
@@ -3707,6 +3857,40 @@ export interface components {
             /** @example restore */
             confirmation: string;
         };
+        StartPlanDto: {
+            /** @example 2026-10-19 */
+            local_date: string;
+            /** @example Europe/Madrid */
+            time_zone: string;
+            today?: boolean;
+            overdue?: boolean;
+            inbox?: boolean;
+            undated?: boolean;
+            limit?: number | null;
+        };
+        DecisionDto: {
+            /** @enum {string} */
+            decision: "done" | "plan_day" | "later" | "cancel" | "trash" | "skip" | "someday";
+            target_date?: string | null;
+        };
+        ApplyPlanDto: {
+            expected_revision: number;
+        };
+        SessionDateDto: {
+            /** @example 2026-10-20 */
+            local_date: string;
+            /** @example Europe/Madrid */
+            time_zone: string;
+        };
+        ClosingDecisionDto: {
+            /** @enum {string} */
+            decision: "done" | "plan_day" | "later" | "someday" | "cancel" | "trash" | "skip";
+            target_date?: string | null;
+            evening?: boolean;
+        };
+        ApplyClosingDto: {
+            expected_revision: number;
+        };
         SubscribeDto: {
             url?: string;
             /** @enum {string} */
@@ -3739,25 +3923,6 @@ export interface components {
             /** @enum {string} */
             tone?: "honesto" | "neutro" | "motivador";
             channels?: string[];
-        };
-        StartPlanDto: {
-            /** @example 2026-10-19 */
-            local_date: string;
-            /** @example Europe/Madrid */
-            time_zone: string;
-            today?: boolean;
-            overdue?: boolean;
-            inbox?: boolean;
-            undated?: boolean;
-            limit?: number | null;
-        };
-        DecisionDto: {
-            /** @enum {string} */
-            decision: "done" | "plan_day" | "later" | "cancel" | "trash" | "skip";
-            target_date?: string | null;
-        };
-        ApplyPlanDto: {
-            expected_revision: number;
         };
         WebhookDto: {
             url: string;
@@ -6746,6 +6911,309 @@ export interface operations {
             };
         };
     };
+    PlanningController_start: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartPlanDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PlanningController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PlanningController_decide: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PlanningController_clear: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PlanningController_apply: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplyPlanDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PlansController_day: {
+        parameters: {
+            query: {
+                time_zone: unknown;
+                date: unknown;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DayClosingController_load: {
+        parameters: {
+            query: {
+                date: string;
+                time_zone: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DayClosingController_startShutdown: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionDateDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DayClosingController_decideShutdown: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClosingDecisionDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DayClosingController_clearShutdown: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DayClosingController_applyShutdown: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplyClosingDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DayClosingController_startReplan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionDateDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DayClosingController_decideReplan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClosingDecisionDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DayClosingController_applyReplan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplyClosingDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     CalendarController_events: {
         parameters: {
             query: {
@@ -7197,133 +7665,6 @@ export interface operations {
     ReviewController_weekly: {
         parameters: {
             query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    PlanningController_start: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StartPlanDto"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    PlanningController_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    PlanningController_decide: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-                taskId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DecisionDto"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    PlanningController_clear: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-                taskId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    PlanningController_apply: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ApplyPlanDto"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    PlansController_day: {
-        parameters: {
-            query: {
-                time_zone: unknown;
-                date: unknown;
-            };
             header?: never;
             path?: never;
             cookie?: never;

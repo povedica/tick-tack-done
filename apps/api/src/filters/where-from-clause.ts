@@ -64,6 +64,8 @@ export function whereFromClause(clause: FilterClause, clock?: FilterClock): Pris
       return matchNone();
     case 'always':
       return {};
+    case 'someday':
+      return { isSomeday: clause.value };
     default: {
       const unreachable: never = clause;
       return unreachable;

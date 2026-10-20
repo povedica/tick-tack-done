@@ -2,10 +2,11 @@ import { ApiError } from '@reflexionia/sdk';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { api } from '../../api';
+import { closingRequest } from '../closing/api';
 import { useAppLocale } from '../../i18n/locale';
 import './planning.css';
 
-type Decision = 'done' | 'plan_day' | 'later' | 'cancel' | 'trash' | 'skip';
+type Decision = 'done' | 'plan_day' | 'later' | 'someday' | 'cancel' | 'trash' | 'skip';
 
 interface PlanCard {
   readonly task_id: string;
@@ -47,7 +48,7 @@ interface AppliedPlan {
   }[];
 }
 
-const DECISIONS = ['done', 'plan_day', 'later', 'cancel', 'trash'] as const;
+const DECISIONS = ['done', 'plan_day', 'later', 'someday', 'cancel', 'trash'] as const;
 
 export function PlanDayPage() {
   const locale = useAppLocale();
@@ -57,6 +58,7 @@ export function PlanDayPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [dates, setDates] = useState<Record<string, string>>({});
+  const [loadLine, setLoadLine] = useState<string | null>(null);
 
   useEffect(() => {
     const zone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Madrid';
@@ -71,6 +73,21 @@ export function PlanDayPage() {
           month: '2-digit',
           day: '2-digit',
         }).format(new Date());
+        void closingRequest<{
+          task_minutes: number;
+          available_minutes: number | null;
+          status: string;
+        }>(
+          `/api/v1/planning/load?date=${localDate}&time_zone=${encodeURIComponent(timeZone)}`,
+          'GET',
+        ).then((load) => {
+          if (!cancelled && load.available_minutes !== null) {
+            const moved = 0;
+            setLoadLine(
+              `${String(load.task_minutes - moved)} / ${String(load.available_minutes)} min · ${load.status}`,
+            );
+          }
+        });
         return api.startPlan({
           local_date: localDate,
           time_zone: timeZone,
@@ -170,6 +187,7 @@ export function PlanDayPage() {
         <p className="ui-muted">{text.loading}</p>
       ) : (
         <>
+          {loadLine !== null ? <p className="ui-muted">{loadLine}</p> : null}
           {session.hidden_overdue > 0 ? (
             <p className="ui-muted">
               {text.hidden.replace('{count}', String(session.hidden_overdue))}
@@ -371,6 +389,7 @@ function isDecision(value: unknown): value is Decision {
     value === 'done' ||
     value === 'plan_day' ||
     value === 'later' ||
+    value === 'someday' ||
     value === 'cancel' ||
     value === 'trash' ||
     value === 'skip'
@@ -418,6 +437,7 @@ const spanish = {
     done: 'Hecho',
     plan_day: 'La haré hoy',
     later: 'Después',
+    someday: 'Algún día',
     cancel: 'No lo haré',
     trash: 'Papelera',
   },
@@ -454,6 +474,7 @@ const english: Copy = {
     done: 'Done',
     plan_day: 'I’ll do it today',
     later: 'Later',
+    someday: 'Someday',
     cancel: 'I won’t do it',
     trash: 'Trash',
   },

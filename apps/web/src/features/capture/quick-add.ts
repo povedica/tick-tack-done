@@ -28,7 +28,7 @@ export function quickAddRequest(input: QuickAddInput): QuickAddRequest {
     timeZone: input.timeZone,
   });
   const dueDate =
-    input.viewDay !== null && parsed.due === null
+    input.viewDay !== null && parsed.due === null && parsed.start === null && !parsed.someday
       ? dueForView(input.viewDay, input.now, input.timeZone)
       : undefined;
   const projectId =

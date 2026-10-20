@@ -20,6 +20,7 @@ export const SMART_LIST_KEYS = [
   'trash',
   'no_date',
   'recently_added',
+  'someday',
 ] as const satisfies readonly SmartListKey[];
 
 /** Tasks created on the local day this many days ago still count as recently added. */
@@ -43,7 +44,14 @@ export function smartListClause(key: SmartListKey, input: SmartListInput): Filte
         },
         { op: 'deleted', deleted: false },
         notArchived(),
+        { op: 'someday', value: false },
       ],
+    };
+  }
+  if (key === 'someday') {
+    return {
+      op: 'and',
+      items: [{ op: 'someday', value: true }, { op: 'status', status: 'active' }, { op: 'deleted', deleted: false }, notArchived()],
     };
   }
   const items: FilterClause[] = [compileRules(rulesFor(key, input), input.clock)];
@@ -51,6 +59,9 @@ export function smartListClause(key: SmartListKey, input: SmartListInput): Filte
     items.push({ op: 'deleted', deleted: true });
   } else {
     items.push({ op: 'deleted', deleted: false }, notArchived());
+  }
+  if (key === 'tomorrow' || key === 'next_7_days' || key === 'no_date') {
+    items.push({ op: 'someday', value: false });
   }
   if (key === 'recently_added') {
     const since = shiftLocalDays(input.clock.now, input.clock.timeZone, -RECENT_WINDOW_DAYS);
@@ -93,6 +104,8 @@ function rulesFor(key: SmartListKey, input: SmartListInput): FilterRules {
       return and(active());
     case 'no_date':
       return and(date('no_date'), active());
+    case 'someday':
+      return and(active());
     default: {
       const unreachable: never = key;
       return unreachable;

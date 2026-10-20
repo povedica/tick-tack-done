@@ -29,6 +29,7 @@ import { EventRecorder } from '../events/event-recorder.js';
 import { asJson } from '../http/json.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CalendarService } from '../modules/calendar/calendar.service.js';
+import { DayClosingService } from '../modules/planning/day-closing.service.js';
 import { GoogleSyncService } from '../modules/calendar/google-sync.service.js';
 import type { Tx } from '../prisma/tx.js';
 import { ReminderTransport } from './reminder.transport.js';
@@ -57,6 +58,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     @Inject(ReminderTransport) private readonly transport: ReminderTransport,
     @Inject(GoogleSyncService) private readonly googleSync: GoogleSyncService,
     @Inject(CalendarService) private readonly calendars: CalendarService,
+    @Inject(DayClosingService) private readonly closing: DayClosingService,
   ) {}
 
   onModuleInit(): void {
@@ -84,6 +86,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     const materialized = (await this.advanceCompleted()) + (await this.advanceDetached());
     await this.enqueueReminders(now, catchUp);
     await this.enqueueDigests(now, catchUp);
+    await this.enqueueShutdownDigests(now, catchUp);
     await this.enqueueHabitReminders(now, catchUp);
     await this.enqueueCountdownReminders(now, catchUp);
     await this.recordHabitStreakBreaks(now);
@@ -239,6 +242,8 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         dueDate: next.due,
         timeZone: source.timeZone,
         durationMinutes: duration.ok ? duration.durationMinutes : source.durationMinutes,
+        eveningOnly: false,
+        isSomeday: source.isSomeday,
         repeatRule: next.repeatRule,
         repeatFrom: source.repeatFrom,
         seriesId: next.seriesId,
@@ -374,7 +379,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         take: 20,
         select: { title: true, dueDate: true, isAllDay: true, timeZone: true, status: true },
       });
-      const body = formatDailyDigest({
+      const digest = formatDailyDigest({
         now: next.fireAt,
         fireAt: next.fireAt,
         tasks: tasks.flatMap((task) =>
@@ -390,6 +395,8 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
               ],
         ),
       });
+      const loadLine = await this.closing.digestLine(user.id, next.fireAt, user.timeZone);
+      const body = loadLine === null ? digest : `${digest}\n\n${loadLine}`;
       await this.queue({
         ownerId: user.id,
         reminderId: null,
@@ -404,6 +411,47 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
           title: 'Planifica tu día',
           body,
           email: user.email,
+        },
+      });
+    }
+  }
+
+  private async enqueueShutdownDigests(now: Date, catchUp: boolean): Promise<void> {
+    const users = await this.prisma.user.findMany({
+      where: { deletedAt: null, shutdownReminderTime: { not: null } },
+      select: { id: true, email: true, timeZone: true, shutdownReminderTime: true },
+    });
+    for (const user of users) {
+      if (user.shutdownReminderTime === null) {
+        continue;
+      }
+      const next = nextDailyReminder({
+        time: user.shutdownReminderTime,
+        timeZone: user.timeZone,
+        now: now.toISOString(),
+      });
+      if (!next.ok) {
+        continue;
+      }
+      const reminder = await this.closing.shutdownReminder(user.id, user.timeZone, next.fireAt);
+      if (reminder === null) {
+        continue;
+      }
+      await this.queue({
+        ownerId: user.id,
+        reminderId: null,
+        taskId: null,
+        dedupeKey: `shutdown:${user.id}:${next.fireAt}`,
+        fireAt: next.fireAt,
+        channel: 'both',
+        kind: 'shutdown_digest',
+        now,
+        catchUp,
+        payload: {
+          title: 'Cierra tu día',
+          body: reminder.body,
+          email: user.email,
+          url: '/cierre',
         },
       });
     }
@@ -740,7 +788,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     dedupeKey: string;
     fireAt: string;
     channel: ReminderChannel;
-    kind: 'task' | 'daily_digest' | 'overdue' | 'due_soon' | 'countdown';
+    kind: 'task' | 'daily_digest' | 'shutdown_digest' | 'overdue' | 'due_soon' | 'countdown';
     now: Date;
     catchUp: boolean;
     payload: Prisma.InputJsonObject;

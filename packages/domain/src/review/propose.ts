@@ -18,6 +18,7 @@ export interface ReviewCandidate {
   readonly createdAt: string;
   readonly isAllDay: boolean;
   readonly timeZone: string;
+  readonly isSomeday?: boolean;
 }
 
 export interface DailyProposal {
@@ -35,7 +36,7 @@ export function proposeDaily(
 ): DailyProposal {
   const now = Date.parse(nowIso);
   const ranked = tasks
-    .filter((task) => task.status === 'active')
+    .filter((task) => task.status === 'active' && task.isSomeday !== true)
     .filter((task) => rules === null || matchesFilter(rules, toSubject(task), clock))
     .map((task) => ({ id: task.id, score: scoreTask(task, now) }))
     .filter((task) => task.score > 0)
@@ -55,6 +56,7 @@ export interface WeeklyReview {
   readonly rule: string;
   readonly overdue_ids: readonly string[];
   readonly undated_ids: readonly string[];
+  readonly someday_ids: readonly string[];
   readonly stale_list_ids: readonly string[];
   readonly habits_at_risk: readonly string[];
 }
@@ -75,8 +77,13 @@ export function proposeWeekly(
   const now = Date.parse(nowIso);
   const staleBefore = now - Math.max(staleDays, 1) * DAY_MS;
   const overdue = tasks.filter(
-    (task) => task.status === 'active' && task.dueDate !== null && Date.parse(task.dueDate) < now,
+    (task) =>
+      task.status === 'active' &&
+      task.isSomeday !== true &&
+      task.dueDate !== null &&
+      Date.parse(task.dueDate) < now,
   );
+  const someday = tasks.filter((task) => task.status === 'active' && task.isSomeday === true);
   const undated = tasks.filter((task) => task.status === 'active' && task.dueDate === null);
   const quiet = new Map<string, number>();
   for (const task of tasks) {
@@ -96,6 +103,7 @@ export function proposeWeekly(
     rule: `Vencidas, sin fecha, listas sin movimiento en ${String(staleDays)} días y hábitos con 3 o más días perdidos.`,
     overdue_ids: overdue.map((task) => task.id),
     undated_ids: undated.map((task) => task.id),
+    someday_ids: someday.map((task) => task.id),
     stale_list_ids: stale,
     habits_at_risk: habits.filter((habit) => habit.missedDays >= 3).map((habit) => habit.id),
   };

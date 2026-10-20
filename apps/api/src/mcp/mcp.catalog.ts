@@ -35,9 +35,10 @@ const name = { type: 'string', minLength: 1 };
 export const MCP_TOOLS: readonly McpTool[] = [
   {
     name: 'list_tasks',
-    description: 'List active tasks.',
+    description:
+      'List active tasks. start_date is when you plan to do the task. due_date is the deadline. Tasks with only due_date still appear on that day. someday=true lists Someday; the default excludes them.',
     scopes: ['tasks:read'],
-    inputSchema: objectSchema({ limit, cursor, project_id: id }),
+    inputSchema: objectSchema({ limit, cursor, project_id: id, someday: { type: 'boolean' } }),
   },
   {
     name: 'get_task',
@@ -47,10 +48,21 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: 'create_task',
-    description: 'Create a task. project_id defaults to the inbox.',
+    description:
+      'Create a task. project_id defaults to the inbox. start_date is when (the day you plan to do it). due_date is the deadline. A task with only due_date behaves as before. someday parks it out of Today. evening_only reserves it for this evening.',
     scopes: ['tasks:write'],
     inputSchema: objectSchema(
-      { title: { type: 'string', minLength: 1, maxLength: 500 }, project_id: id },
+      {
+        title: { type: 'string', minLength: 1, maxLength: 500 },
+        project_id: id,
+        due_date: { type: 'string' },
+        start_date: { type: 'string' },
+        is_all_day: { type: 'boolean' },
+        duration_minutes: { type: 'integer', minimum: 0, maximum: 1440 },
+        priority: { type: 'string', enum: ['none', 'low', 'medium', 'high'] },
+        someday: { type: 'boolean' },
+        evening_only: { type: 'boolean' },
+      },
       ['title'],
     ),
   },
@@ -59,6 +71,87 @@ export const MCP_TOOLS: readonly McpTool[] = [
     description: 'Mark a task complete. Does not materialize the next occurrence.',
     scopes: ['tasks:write'],
     inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'update_task',
+    description:
+      'Update a task. start_date is when you plan to do it. due_date is the deadline and may be cleared without changing when. someday=true clears when and keeps the deadline.',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema(
+      {
+        id,
+        title: { type: 'string', minLength: 1, maxLength: 500 },
+        due_date: { type: ['string', 'null'] },
+        start_date: { type: ['string', 'null'] },
+        is_all_day: { type: 'boolean' },
+        duration_minutes: { type: ['integer', 'null'], minimum: 0, maximum: 1440 },
+        priority: { type: 'string', enum: ['none', 'low', 'medium', 'high'] },
+        someday: { type: 'boolean' },
+        evening_only: { type: 'boolean' },
+      },
+      ['id'],
+    ),
+  },
+  {
+    name: 'get_day_load',
+    description:
+      'Day load for a morning briefing. Counts active tasks (duration or the default estimate) plus external events overlapping the workday. Evening and Someday tasks do not count. All-day events count as zero. available_minutes is null when the workday is off.',
+    scopes: ['tasks:read'],
+    inputSchema: objectSchema({
+      date: { type: 'string' },
+      time_zone: { type: 'string' },
+    }),
+  },
+  {
+    name: 'start_day_shutdown',
+    description:
+      'Open a shutdown session for today or yesterday. Returns what was finished and the pending queue. Nothing changes until apply_day_shutdown.',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema({
+      local_date: { type: 'string' },
+      time_zone: { type: 'string' },
+    }),
+  },
+  {
+    name: 'record_shutdown_decision',
+    description:
+      'Record one shutdown decision: done, plan_day, later, someday, cancel, trash, or skip. plan_day and later take target_date.',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema(
+      {
+        session_id: id,
+        task_id: id,
+        decision: {
+          type: 'string',
+          enum: ['done', 'plan_day', 'later', 'someday', 'cancel', 'trash', 'skip'],
+        },
+        target_date: { type: 'string' },
+        evening: { type: 'boolean' },
+      },
+      ['session_id', 'task_id', 'decision'],
+    ),
+  },
+  {
+    name: 'apply_day_shutdown',
+    description:
+      'Apply a shutdown session. Same idempotency key returns the same result. A stale expected_revision returns revision_conflict.',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema(
+      { session_id: id, expected_revision: { type: 'integer', minimum: 1 }, idempotency_key: { type: 'string' } },
+      ['session_id', 'expected_revision', 'idempotency_key'],
+    ),
+  },
+  {
+    name: 'replan_day',
+    description:
+      'Propose where leftover tasks should go. auto_apply defaults to false so a person can confirm before anything moves. Does not place calendar blocks.',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema({
+      date: { type: 'string' },
+      auto_apply: { type: 'boolean' },
+      idempotency_key: { type: 'string' },
+      decisions: { type: 'array' },
+    }),
   },
   {
     name: 'list_projects',

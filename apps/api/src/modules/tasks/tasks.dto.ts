@@ -106,6 +106,16 @@ export class CreateTaskDto {
   @Max(24 * 60)
   duration_minutes?: number | null;
 
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  someday?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  evening_only?: boolean;
+
   @ApiProperty({ required: false, nullable: true })
   @IsOptional()
   @IsString()
@@ -205,6 +215,16 @@ export class UpdateTaskDto {
   @Min(0)
   @Max(24 * 60)
   duration_minutes?: number | null;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  someday?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  evening_only?: boolean;
 
   @ApiProperty({ required: false, nullable: true })
   @IsOptional()
@@ -525,6 +545,12 @@ export class TaskResponseDto {
 
   @ApiProperty({ nullable: true, type: Number })
   duration_minutes!: number | null;
+
+  @ApiProperty()
+  is_someday!: boolean;
+
+  @ApiProperty()
+  evening_only!: boolean;
 
   @ApiProperty({ nullable: true, type: String })
   repeat_rule!: string | null;

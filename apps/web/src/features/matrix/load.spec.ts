@@ -18,6 +18,8 @@ function row(partial: Pick<Task, 'id' | 'title' | 'due_date'> & Partial<Task>): 
     start_date: null,
     time_zone: 'Europe/Madrid',
     duration_minutes: null,
+    is_someday: false,
+    evening_only: false,
     repeat_rule: null,
     repeat_from: 'due_date',
     series_id: null,

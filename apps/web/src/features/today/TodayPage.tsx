@@ -20,6 +20,7 @@ import { useShellActions } from '../../shell/shell-actions';
 import { collectTags } from '../tasks/collect';
 import { QuickAddTools, type QuickPreview } from '../tasks/QuickAddTools';
 import { refreshTaskSurfaces } from '../tasks/refresh';
+import { closingRequest } from '../closing/api';
 import { tasksApi } from './api';
 import { loadTodayTasks } from './board';
 import {
@@ -113,6 +114,27 @@ export function TodayPage() {
     queryKey: ['today-tasks'],
     queryFn: () => loadTodayTasks(tasksApi, new Date()),
     refetchOnWindowFocus: false,
+  });
+  const me = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
+  const profile = me.data as
+    | {
+        deadline_soon_days?: number;
+        evening_start?: string | null;
+      }
+    | undefined;
+  const showWhen = flags.when_deadline;
+  const showLoad = flags.day_load;
+  const showClosing = flags.day_closing;
+  const showReplan = flags.day_replan;
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const load = useQuery({
+    queryKey: ['day-load', zone],
+    enabled: showLoad,
+    queryFn: () =>
+      closingRequest<DayLoadBody>(
+        `/api/v1/planning/load?date=${calendarDay(new Date().toISOString(), zone)}&time_zone=${encodeURIComponent(zone)}`,
+        'GET',
+      ),
   });
   const projects = useQuery({
     queryKey: ['projects'],
@@ -253,7 +275,14 @@ export function TodayPage() {
     hideCompleted ? task.status !== 'completed' : true,
   );
   const parts = partitionToday(shown, new Date());
-  const merged = mergeForGroup(parts, group);
+  const eveningTasks = parts.today.filter((task) => task.eveningOnly === true);
+  const merged = mergeForGroup(
+    {
+      overdue: parts.overdue,
+      today: parts.today.filter((task) => task.eveningOnly !== true),
+    },
+    group,
+  );
   const sections = groupTasks(pinFirst(merged.grouped, pins), group, sort, sortDir);
   const overdueBlock =
     merged.overdue.length > 0 ? groupTasks(merged.overdue, 'none', sort, sortDir) : [];
@@ -521,6 +550,7 @@ export function TodayPage() {
       tagColors,
       details,
       openTaskId: params.get('task'),
+      deadlineSoonDays: profile?.deadline_soon_days ?? 2,
       onToggle: (id: string, open: boolean) => {
         setCollapsed((current) => {
           const next = new Set(current);
@@ -702,6 +732,44 @@ export function TodayPage() {
       ) : (
         <section className="plan">
           <h2>{messages.planTitle}</h2>
+          {showLoad && load.data?.available_minutes != null ? (
+            <p className="plan-line">
+              {load.data.status === 'overload' && showReplan ? (
+                <Link to="/replan">
+                  {messages.loadOver.replace(
+                    '{minutes}',
+                    String(load.data.task_minutes - load.data.available_minutes),
+                  )}
+                </Link>
+              ) : (
+                messages.loadChip
+                  .replace('{used}', hoursLabel(load.data.task_minutes))
+                  .replace('{available}', hoursLabel(load.data.available_minutes))
+                  .replace(
+                    '{status}',
+                    load.data.status === 'tight' ? messages.loadTight : messages.loadOk,
+                  )
+              )}
+              {load.data.unestimated_count > 0 ? (
+                <span title={messages.loadUnestimated.replace('{count}', String(load.data.unestimated_count)).replace('{minutes}', '30')}>
+                  {' '}
+                  · {load.data.unestimated_count}
+                </span>
+              ) : null}
+            </p>
+          ) : null}
+          <p className="plan-line">
+            {showClosing ? (
+              <Link to="/cierre">
+                {messages.closeDay}
+                {eveningTasks.length + parts.today.filter((task) => task.eveningOnly !== true).length > 0
+                  ? ` (${String(parts.today.filter((task) => task.eveningOnly !== true).length)})`
+                  : ''}
+              </Link>
+            ) : null}
+            {showClosing && showReplan ? ' · ' : null}
+            {showReplan ? <Link to="/replan">{messages.replanDay}</Link> : null}
+          </p>
           <p>{messages.planHideHint}</p>
           <ul>
             {(planTasks.length > 0 ? planTasks : planIds.map((id) => ({ id, title: id }))).map(
@@ -771,6 +839,15 @@ export function TodayPage() {
           {sections.map((section) => (
             <TaskGroup key={section.id} {...groupProps(section.id, section.tasks)} />
           ))}
+          {showWhen && eveningTasks.length > 0 ? (
+            <section className="plan">
+              <h2>{messages.eveningTitle}</h2>
+              <p>
+                {messages.eveningHint.replace('18:00', profile?.evening_start ?? '18:00')}
+              </p>
+              <TaskGroup {...groupProps('evening', eveningTasks)} />
+            </section>
+          ) : null}
         </>
       )}
       {habits.isPending ? (
@@ -973,6 +1050,24 @@ export function TodayPage() {
           onConvert={() => {
             patchTask(menuTask.id, { kind: 'note' });
           }}
+          {...(showWhen
+            ? {
+                onSomeday: () => {
+                  patchTask(menuTask.id, {
+                    someday: !menuTask.isSomeday,
+                    ...(menuTask.isSomeday ? {} : { start_date: null }),
+                  } as Parameters<typeof api.patchTask>[1]);
+                },
+                onEvening: () => {
+                  const today = calendarDay(new Date().toISOString(), timeZone);
+                  const start = zonedWallTime(today, 0, 0, timeZone);
+                  patchTask(menuTask.id, {
+                    evening_only: menuTask.eveningOnly !== true,
+                    ...(start === null ? {} : { start_date: start, is_all_day: true }),
+                  } as Parameters<typeof api.patchTask>[1]);
+                },
+              }
+            : {})}
           onWontDo={() => {
             void api.cancelTask(menuTask.id).then(() => refreshTaskSurfaces(queryClient));
           }}
@@ -1164,6 +1259,25 @@ function readStored(key: string): string | null {
   } catch {
     return null;
   }
+}
+
+interface DayLoadBody {
+  readonly task_minutes: number;
+  readonly available_minutes: number | null;
+  readonly unestimated_count: number;
+  readonly status: 'ok' | 'tight' | 'overload';
+}
+
+function hoursLabel(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours === 0) {
+    return `${String(rest)} min`;
+  }
+  if (rest === 0) {
+    return `${String(hours)} h`;
+  }
+  return `${String(hours)} h ${String(rest)} min`;
 }
 
 function readList(key: string): string[] {

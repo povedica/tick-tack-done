@@ -177,6 +177,7 @@ export class TasksController {
     @Query('flat') flat: string | undefined,
     @Query('sort') sort: string | undefined,
     @Query('overdue') overdue: string | undefined,
+    @Query('someday') someday: string | undefined,
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
@@ -199,6 +200,7 @@ export class TasksController {
         flat: flat === 'true',
         sort: parseTaskSort(sort),
         overdue: overdue === 'true',
+        ...(someday === 'true' ? { someday: true } : someday === 'false' ? { someday: false } : {}),
       }),
     );
     respondJson(req, res, 200, page, true);

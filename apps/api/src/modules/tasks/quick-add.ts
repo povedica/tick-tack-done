@@ -31,6 +31,10 @@ export interface ResolvedCapture {
   readonly priority: Priority;
   readonly isAllDay: boolean;
   readonly dueDate: string | null;
+  readonly startDate: string | null;
+  readonly durationMinutes: number | null;
+  readonly someday: boolean;
+  readonly eveningOnly: boolean;
   readonly repeatRule: string | null;
   readonly tagIds: readonly string[];
   readonly reminderTrigger: string | null;
@@ -59,7 +63,8 @@ export async function resolveQuickAdd(
   const tagIds = dto.tag_ids ?? (await resolveTags(tx, user, parsed.tagNames, warnings));
   const dueDate = dto.due_date !== undefined ? dto.due_date : (parsed.due?.date ?? null);
   const isAllDay =
-    dto.is_all_day ?? (dto.due_date !== undefined ? false : (parsed.due?.isAllDay ?? false));
+    dto.is_all_day ??
+    (dto.due_date !== undefined ? false : (parsed.due?.isAllDay ?? parsed.start?.isAllDay ?? false));
   const repeatRule = dto.repeat_rule !== undefined ? dto.repeat_rule : parsed.repeatRule;
   let reminderTrigger = parsed.reminderTrigger;
   if (reminderTrigger !== null && dueDate === null) {
@@ -73,6 +78,11 @@ export async function resolveQuickAdd(
     priority: dto.priority ?? parsed.priority ?? 'none',
     isAllDay,
     dueDate,
+    startDate: dto.start_date !== undefined ? dto.start_date : (parsed.start?.date ?? null),
+    durationMinutes:
+      dto.duration_minutes !== undefined ? dto.duration_minutes : parsed.durationMinutes,
+    someday: dto.someday ?? parsed.someday,
+    eveningOnly: dto.evening_only ?? parsed.eveningOnly,
     repeatRule,
     tagIds,
     reminderTrigger,

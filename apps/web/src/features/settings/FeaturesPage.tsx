@@ -3,7 +3,15 @@ import { api } from '../../api';
 import { useMessages } from '../../i18n';
 import { featureFlags, useFeatures, type FeatureFlags } from './feature-flags';
 
-const KEYS = ['countdowns', 'focus', 'matrix'] as const;
+const KEYS = [
+  'countdowns',
+  'focus',
+  'matrix',
+  'when_deadline',
+  'day_load',
+  'day_closing',
+  'day_replan',
+] as const;
 
 export function FeaturesPage() {
   const messages = useMessages();
@@ -15,11 +23,19 @@ export function FeaturesPage() {
     countdowns: messages.featureCountdowns,
     focus: messages.featureFocus,
     matrix: messages.featureMatrix,
+    when_deadline: messages.flagWhen,
+    day_load: messages.flagLoad,
+    day_closing: messages.flagClosing,
+    day_replan: messages.flagReplan,
   };
   const hints: Record<(typeof KEYS)[number], string> = {
     countdowns: messages.featureCountdownsHint,
     focus: messages.featureFocusHint,
     matrix: messages.featureMatrixHint,
+    when_deadline: messages.flagWhenHelp,
+    day_load: messages.flagLoadHelp,
+    day_closing: messages.flagClosingHelp,
+    day_replan: messages.flagReplanHelp,
   };
 
   function toggle(key: (typeof KEYS)[number]): void {

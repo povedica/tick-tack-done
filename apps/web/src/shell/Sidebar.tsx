@@ -18,6 +18,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Sparkles,
+  CloudSun,
   Sun,
   Trash2,
   UserRound,
@@ -29,6 +30,7 @@ import { api } from '../api';
 import { BrandMark } from '../components/BrandMark';
 import { Badge, Button } from '../components/ui';
 import { fill, useMessages, type Messages } from '../i18n';
+import { useFeatures } from '../features/settings/feature-flags';
 import { usePreferences } from '../theme/preferences';
 import { nextTheme, type ThemePreference } from '../theme/preference';
 import { useThemePreference } from '../theme/store';
@@ -39,7 +41,6 @@ import { refreshTaskSurfaces } from '../features/tasks/refresh';
 import { smartPath } from '../features/tasks/model';
 import { orderedSmartLists, SIDEBAR_SMART_ORDER } from './smart-order';
 import { countdownsApi } from '../features/countdowns/api';
-import { useFeatures } from '../features/settings/feature-flags';
 
 const LIST_COLORS = ['#4772FA', '#E13E39', '#FAA80C', '#1F9D55', '#7C5CFF', '#F06595'] as const;
 
@@ -53,6 +54,7 @@ const SMART_ICONS: Record<string, LucideIcon> = {
   completed: CheckCircle2,
   no_date: CalendarDays,
   recently_added: Sparkles,
+  someday: CloudSun,
 };
 
 export function Sidebar({
@@ -99,10 +101,19 @@ export function Sidebar({
   const location = useLocation();
   const [confirmTrash, setConfirmTrash] = useState(false);
   const themeLabel = themeName(messages, preference);
+  const showSomeday = useFeatures((state) => state.flags.when_deadline);
   const ordered = orderedSmartLists(smart.data?.items ?? []);
   const lists = ordered.filter(
     (item) => item.enabled && (SIDEBAR_SMART_ORDER as readonly string[]).includes(item.key),
   );
+  const someday = ordered.find((item) => item.key === 'someday');
+  const navLists = lists.filter(
+    (item) => item.enabled && item.key !== 'trash' && item.key !== 'completed',
+  );
+  if (showSomeday && someday?.enabled === true && !navLists.some((item) => item.key === 'someday')) {
+    const afterDates = navLists.findIndex((item) => item.key === 'next_7_days');
+    navLists.splice(afterDates + 1, 0, someday);
+  }
   const trash = ordered.find((item) => item.key === 'trash');
   const trashVisible = trash === undefined || trash.enabled;
   const filterItems = filters.data?.items ?? [];
@@ -177,9 +188,7 @@ export function Sidebar({
       <nav>
         <p className="nav-section">{messages.smartListsTitle}</p>
         <ul className="nav-list">
-          {lists
-            .filter((item) => item.enabled && item.key !== 'trash' && item.key !== 'completed')
-            .map((item) => (
+          {navLists.map((item) => (
               <li
                 key={item.id}
                 onDragOver={allowTaskDrop}
@@ -971,6 +980,8 @@ function smartLabel(messages: Messages, key: string): string {
       return messages.smartNoDate;
     case 'recently_added':
       return messages.smartRecent;
+    case 'someday':
+      return messages.smartSomeday;
     default:
       return key;
   }
