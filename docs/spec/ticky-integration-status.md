@@ -4,7 +4,7 @@ La app en producción ejecuta `8b1ad1f`; la inspección SSH confirma flags Ticky
 TICKY_SERVICE_URL sin configurar, sin contenedores Python ni LiteLLM. La integración
 incluida en main no equivale a conexión operativa. No se ha modificado producción.
 
-Rama actual `codex/ticky-end-to-end`, base `7774826`. Se conserva el checkout del
+Rama actual `codex/ticky-end-to-end`, base revalidada `ef89694`. Se conserva el checkout del
 usuario y sus movimientos locales de documentos. Cambios del corte APP-03:
 
 - Hilos e historial canónicos en Python; la app mantiene una proyección owner/id.
@@ -27,20 +27,18 @@ historial → borrado remoto y purga de cache local. No proveedor ni Telegram re
 Harness reproducible en `scripts/crossrepo_smoke.sh` del repo Python. No acredita
 executor CAS/outbox, reinicio de checkpoints, UI completa ni producción.
 
-Pendiente: ContextSnapshot compatible y enviado, memoria/rutinas canónicas,
-propuestas/aprobación, pruebas de aislamiento/revocación/concurrencia y UI real.
+Contexto firmado compatible y enviado a Python con revisiones monotónicas; calendario requiere grant calendar:read y jornada explícita. Memoria tipada con mensaje de origen verificado y listado de rutinas usan Python como fuente canónica. Prueba cruzada: origen ajeno rechazado, memoria creada/listada/olvidada, propuesta de captura por lote generada en Python y aprobación de un subconjunto en dominio sin duplicación al repetir. Pendiente: UI de propuestas/historial/preferencias, pruebas ampliadas de aislamiento/revocación/concurrencia y recuperación.
 La aceptación generativa y las decisiones operativas siguen sin acreditarse.
 
 Despliegue autorizado por Pablo sobre infraestructura existente; nueva app privada
-para `ia-ticky.reflexionia.com`. La definición preparada en el repo Python conserva
+con dominio público pendiente de confirmar. La definición preparada en el repo Python conserva
 los efectos/modelo apagados, exige retención e imágenes por digest y un artefacto
-de migraciones. Requiere revisión humana explícita de políticas/privacidad/riesgos
-de imagen y backup/restore antes del rollout. No autoaprobar esos gates.
+de migraciones. Pablo registra la revisión de políticas/privacidad y ocho HIGH sin fix el 20-10-2026. Aprueba 30 días con borrado automático, OpenAI pequeño, preferencia UE si disponible y límites EUR 0,02/llamada, 0,50/día, 10/mes. Backup/restore y gates del artefacto final siguen pendientes antes del rollout.
 
 Evidencia local: lint/tipos correctos;233 dominio,9 SDK,68 API,75 web,
 81 integración correctos; crossrepo aparte correcto con aviso de working tree.
 OpenAPI/SDK regenerados y builds API/UI correctos. Aún falta el par final por SHA,
-CI remota y revisión humana. No se ha ejecutado Playwright de UI real.
+CI remota y revisión humana. Playwright cruzado correcto con build de producción a 390 y 1280px, SSE y títulos reales sintéticos; no acredita todavía la UI completa.
 
 Rollback: revertir el corte o apagar flags UI/read/model. No hay migraciones nuevas;
 conservar ledger/tombstones/supresiones y drenar escritores Python compatibles.

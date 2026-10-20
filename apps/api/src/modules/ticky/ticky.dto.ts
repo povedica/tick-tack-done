@@ -4,6 +4,7 @@ import {
   IsArray,
   IsBoolean,
   IsInt,
+  IsIn,
   IsOptional,
   IsString,
   IsUUID,
@@ -106,14 +107,19 @@ export class ApproveProposalDto {
 }
 
 export class CreateMemoryDto {
+  @ApiProperty({
+    enum: ['help_style', 'coaching_enabled', 'timezone', 'work_hours', 'estimate_learning_enabled'],
+  })
+  @IsIn(['help_style', 'coaching_enabled', 'timezone', 'work_hours', 'estimate_learning_enabled'])
+  kind!: string;
+
   @ApiProperty()
   @IsString()
   @MinLength(1)
-  @MaxLength(4000)
-  body!: string;
+  @MaxLength(1000)
+  value!: string;
 
-  @ApiPropertyOptional({ nullable: true, type: String })
-  @IsOptional()
-  @IsString()
-  source_message_id?: string | null;
+  @ApiProperty({ format: 'uuid' })
+  @IsUUID()
+  source_message_id!: string;
 }

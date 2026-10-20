@@ -1753,7 +1753,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Forget a memory (soft) */
+        /** Forget a canonical explicit preference */
         delete: operations["TickyController_forgetMemory"];
         options?: never;
         head?: never;
@@ -4298,8 +4298,11 @@ export interface components {
             selected_actions: string[];
         };
         CreateMemoryDto: {
-            body: string;
-            source_message_id?: string | null;
+            /** @enum {string} */
+            kind: "help_style" | "coaching_enabled" | "timezone" | "work_hours" | "estimate_learning_enabled";
+            value: string;
+            /** Format: uuid */
+            source_message_id: string;
         };
         RestoreBackupDto: {
             stamp: string;

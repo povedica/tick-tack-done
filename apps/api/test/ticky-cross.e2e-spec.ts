@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaClient } from '@prisma/client';
+import type { ProposalBody } from '@reflexionia/domain';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../src/app.module.js';
@@ -32,6 +33,7 @@ describe.skipIf(cross === undefined)('APP-03 / TK-022/600 real HTTP compatibilit
     process.env.TICKY_READ_ENABLED = 'true';
     process.env.TICKY_MODEL_ENABLED = 'false';
     process.env.TICKY_UI_ENABLED = 'true';
+    process.env.TICKY_EXECUTION_ENABLED = 'true';
     await prisma.outboxEvent.deleteMany({ where: { ownerId: owner } });
     await prisma.activityLog.deleteMany({ where: { ownerId: owner } });
     await prisma.tickyClientMessage.deleteMany({ where: { ownerId: owner } });
@@ -51,6 +53,8 @@ describe.skipIf(cross === undefined)('APP-03 / TK-022/600 real HTTP compatibilit
         version: 1,
         autonomy: 2,
         readEnabled: true,
+        inboxListId: list,
+        actionScopes: ['tasks:create'],
         lists: { create: { listId: list } },
       },
     });
@@ -90,6 +94,20 @@ describe.skipIf(cross === undefined)('APP-03 / TK-022/600 real HTTP compatibilit
       throw new Error('App not started');
     }
     const server = app.getHttpServer() as Parameters<typeof request>[0];
+    const context = await request(server)
+      .get('/api/v1/ticky/context')
+      .set('X-Dev-User-Email', 'demo@reflexionia.test')
+      .expect(200);
+    expect(context.body.timezone).toBe('Europe/Madrid');
+    expect(context.body.calendar).toBeNull();
+    const newerContext = await request(server)
+      .get('/api/v1/ticky/context')
+      .set('X-Dev-User-Email', 'demo@reflexionia.test')
+      .expect(200);
+    const previousRevision: unknown = context.body.source_revision;
+    expect(typeof previousRevision).toBe('number');
+    if (typeof previousRevision !== 'number') throw new Error('Missing context revision');
+    expect(newerContext.body.source_revision).toBeGreaterThan(previousRevision);
     const capabilities = await request(server)
       .get('/api/v1/ticky/capabilities')
       .set('Authorization', `Bearer ${token}`)
@@ -129,6 +147,98 @@ describe.skipIf(cross === undefined)('APP-03 / TK-022/600 real HTTP compatibilit
     expect(stream.text).toContain(taskId);
     expect(stream.text).toContain('Synthetic HTTP task');
     expect(stream.text).toContain('"llm_calls":0');
+    await request(server)
+      .post('/api/v1/ticky/memories')
+      .set('X-Dev-User-Email', 'demo@reflexionia.test')
+      .send({ kind: 'help_style', value: 'breve', source_message_id: randomUUID() })
+      .expect(403);
+    const remembered = await request(server)
+      .post('/api/v1/ticky/memories')
+      .set('X-Dev-User-Email', 'demo@reflexionia.test')
+      .send({ kind: 'help_style', value: 'breve', source_message_id: clientId })
+      .expect(201);
+    const memories = await request(server)
+      .get('/api/v1/ticky/memories')
+      .set('X-Dev-User-Email', 'demo@reflexionia.test')
+      .expect(200);
+    expect(memories.body.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          memory_id: remembered.body.id,
+          kind: 'help_style',
+          value: 'breve',
+        }),
+      ]),
+    );
+    await request(server)
+      .delete(`/api/v1/ticky/memories/${String(remembered.body.id)}`)
+      .set('X-Dev-User-Email', 'demo@reflexionia.test')
+      .expect(204);
+    const forgotten = await request(server)
+      .get('/api/v1/ticky/memories')
+      .set('X-Dev-User-Email', 'demo@reflexionia.test')
+      .expect(200);
+    expect(forgotten.body.items).toEqual([]);
+    const routines = await request(server)
+      .get('/api/v1/ticky/routines')
+      .set('X-Dev-User-Email', 'demo@reflexionia.test')
+      .expect(200);
+    expect(routines.body.items).toEqual([]);
+    const capture = await request(server)
+      .post(`/api/v1/ticky/threads/${threadId}/messages`)
+      .set('X-Dev-User-Email', 'demo@reflexionia.test')
+      .send({
+        client_message_id: randomUUID(),
+        text: 'Captura:\n- Synthetic approved capture\n- Synthetic unselected capture',
+      })
+      .expect(202);
+    const captured = await request(server)
+      .get(`/api/v1/ticky/runs/${String(capture.body.run_id)}/events`)
+      .set('X-Dev-User-Email', 'demo@reflexionia.test')
+      .expect(200);
+    const completed = captured.text
+      .split('\n')
+      .filter((line) => line.startsWith('data:'))
+      .map(
+        (line) =>
+          JSON.parse(line.slice(5)) as { type: string; payload: { proposal?: ProposalBody } },
+      )
+      .find((event) => event.type === 'run.completed');
+    const proposal = completed?.payload.proposal;
+    if (proposal === undefined) throw new Error('Python did not prepare a capture proposal');
+    expect(proposal.items).toHaveLength(2);
+    expect(
+      await prisma.task.count({
+        where: { ownerId: owner, title: { startsWith: 'Synthetic approved' } },
+      }),
+    ).toBe(0);
+    for (let replay = 0; replay < 2; replay += 1) {
+      await request(server)
+        .post('/api/v1/ticky/proposals')
+        .set('X-Dev-User-Email', 'demo@reflexionia.test')
+        .send({ document: JSON.stringify(proposal) })
+        .expect(201);
+    }
+    const selected = proposal.items[0];
+    if (selected === undefined) throw new Error('Missing capture item');
+    for (let replay = 0; replay < 2; replay += 1) {
+      await request(server)
+        .post(`/api/v1/ticky/proposals/${proposal.proposal_id}/approve`)
+        .set('X-Dev-User-Email', 'demo@reflexionia.test')
+        .send({ digest: proposal.approval_digest, selected_actions: [selected.action_id] })
+        .expect(200);
+    }
+    expect(
+      await prisma.task.count({ where: { ownerId: owner, title: 'Synthetic approved capture' } }),
+    ).toBe(1);
+    expect(
+      await prisma.task.count({ where: { ownerId: owner, title: 'Synthetic unselected capture' } }),
+    ).toBe(0);
+    expect(
+      await prisma.tickyActionLedger.count({
+        where: { ownerId: owner, actionId: selected.action_id },
+      }),
+    ).toBe(1);
     if (process.env.TICKY_CROSS_BROWSER_WS !== undefined) {
       await promisify(execFile)(
         'pnpm',
@@ -149,7 +259,7 @@ describe.skipIf(cross === undefined)('APP-03 / TK-022/600 real HTTP compatibilit
           'stdout' in error &&
           typeof error.stdout === 'string'
         )
-          console.log(error.stdout);
+          throw new Error(error.stdout, { cause: error });
         throw error;
       });
     }

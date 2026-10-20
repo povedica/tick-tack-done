@@ -5409,7 +5409,7 @@
             "description": ""
           }
         },
-        "summary": "Forget a memory (soft)",
+        "summary": "Forget a canonical explicit preference",
         "tags": [
           "ticky"
         ],
@@ -15849,16 +15849,28 @@
       "CreateMemoryDto": {
         "type": "object",
         "properties": {
-          "body": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "help_style",
+              "coaching_enabled",
+              "timezone",
+              "work_hours",
+              "estimate_learning_enabled"
+            ]
+          },
+          "value": {
             "type": "string"
           },
           "source_message_id": {
             "type": "string",
-            "nullable": true
+            "format": "uuid"
           }
         },
         "required": [
-          "body"
+          "kind",
+          "value",
+          "source_message_id"
         ]
       },
       "RestoreBackupDto": {

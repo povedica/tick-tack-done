@@ -261,14 +261,14 @@ export class TickyController {
       req,
       res,
       201,
-      await this.ticky.remember(user, dto.body, dto.source_message_id ?? null),
+      await this.ticky.remember(user, dto.kind, dto.value, dto.source_message_id),
       false,
     );
   }
 
   @Delete('memories/:id')
   @Scopes('ticky:proposals:write')
-  @ApiOperation({ summary: 'Forget a memory (soft)' })
+  @ApiOperation({ summary: 'Forget a canonical explicit preference' })
   async forgetMemory(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
