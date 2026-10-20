@@ -1,3 +1,4 @@
+import { YearHeatmap } from '../../statistics/YearHeatmap';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Habit, CreateHabitBody } from '@reflexionia/sdk';
@@ -185,6 +186,18 @@ export function HabitsPage() {
           />
         ))}
       </ul>
+      {aggregate.data ? (
+        <details className="habit-existing-heatmap">
+          <summary>{m.aggregateHeat}</summary>
+          <YearHeatmap
+            cells={aggregate.data.aggregate_heatmap.map((cell) => ({
+              date: cell.date,
+              count: cell.met,
+              level: cell.scheduled === 0 ? 0 : Math.round((cell.met / cell.scheduled) * 4),
+            }))}
+          />
+        </details>
+      ) : null}
       {archived.length ? (
         <details className="habit-archived">
           <summary>

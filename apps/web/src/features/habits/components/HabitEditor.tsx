@@ -23,7 +23,7 @@ export function HabitEditor({
   const [days, setDays] = useState<readonly HabitWeekday[]>(habit?.frequency ?? HABIT_WEEKDAYS);
   const [target, setTarget] = useState(habit?.goal.target_count ?? 1);
   const [times, setTimes] = useState(habit?.goal.times_per_period ?? 1);
-  const [period] = useState(habit?.goal.period ?? 'day');
+  const [period, setPeriod] = useState(habit?.goal.period ?? 'day');
   const [reminder, setReminder] = useState(habit?.reminder_time ?? '');
   const [motivation, setMotivation] = useState(habit?.motivation_note ?? '');
   const [challenge, setChallenge] = useState<string>(
@@ -100,6 +100,18 @@ export function HabitEditor({
           ))}
         </div>
       </fieldset>
+      <label>
+        {m.habitPeriod}
+        <select
+          value={period}
+          onChange={(event) => {
+            setPeriod(event.target.value === 'week' ? 'week' : 'day');
+          }}
+        >
+          <option value="day">{m.periodDay}</option>
+          <option value="week">{m.periodWeek}</option>
+        </select>
+      </label>
       <label>
         {m.habitTimes}
         <input
