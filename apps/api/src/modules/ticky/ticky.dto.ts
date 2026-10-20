@@ -1,14 +1,17 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayUnique,
+  ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsInt,
+  IsIn,
   IsOptional,
   IsString,
   IsUUID,
   Max,
   MaxLength,
+  Matches,
   Min,
   MinLength,
 } from 'class-validator';
@@ -17,6 +20,7 @@ export class UpdateTickyAuthorityDto {
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(10)
   @IsUUID('4', { each: true })
   list_ids?: string[];
 
@@ -51,11 +55,13 @@ export class UpdateTickyAuthorityDto {
   @ApiPropertyOptional({ nullable: true, type: String })
   @IsOptional()
   @IsString()
+  @Matches(/^(?:[01]\d|2[0-3]):[0-5]\d$/)
   workday_start?: string | null;
 
   @ApiPropertyOptional({ nullable: true, type: String })
   @IsOptional()
   @IsString()
+  @Matches(/^(?:[01]\d|2[0-3]):[0-5]\d$/)
   workday_end?: string | null;
 
   @ApiPropertyOptional()
@@ -65,6 +71,12 @@ export class UpdateTickyAuthorityDto {
 }
 
 export class PostTickyMessageDto {
+  @ApiPropertyOptional({ pattern: '^[a-z][a-z0-9-]{0,63}$' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[a-z][a-z0-9-]{0,63}$/)
+  model_id?: string;
+
   @ApiProperty()
   @IsString()
   @MinLength(1)
@@ -99,14 +111,19 @@ export class ApproveProposalDto {
 }
 
 export class CreateMemoryDto {
+  @ApiProperty({
+    enum: ['help_style', 'coaching_enabled', 'timezone', 'work_hours', 'estimate_learning_enabled'],
+  })
+  @IsIn(['help_style', 'coaching_enabled', 'timezone', 'work_hours', 'estimate_learning_enabled'])
+  kind!: string;
+
   @ApiProperty()
   @IsString()
   @MinLength(1)
-  @MaxLength(4000)
-  body!: string;
+  @MaxLength(1000)
+  value!: string;
 
-  @ApiPropertyOptional({ nullable: true, type: String })
-  @IsOptional()
-  @IsString()
-  source_message_id?: string | null;
+  @ApiProperty({ format: 'uuid' })
+  @IsUUID()
+  source_message_id!: string;
 }

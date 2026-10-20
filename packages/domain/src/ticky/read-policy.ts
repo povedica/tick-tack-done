@@ -2,6 +2,7 @@
 export const TICKY_READ_SCOPES = ['tasks:read', 'lists:read'] as const;
 
 export const TICKY_FINE_SCOPES = [
+  'calendar:read',
   'tasks:create',
   'tasks:update',
   'tasks:complete',

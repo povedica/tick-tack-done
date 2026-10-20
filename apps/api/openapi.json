@@ -4820,6 +4820,33 @@
       }
     },
     "/api/v1/ticky/authority": {
+      "get": {
+        "operationId": "TickyController_authority",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read own Ticky permissions and explicit planning preferences",
+        "tags": [
+          "ticky"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
       "patch": {
         "operationId": "TickyController_updateAuthority",
         "parameters": [
@@ -4916,6 +4943,35 @@
         ]
       }
     },
+    "/api/v1/ticky/models": {
+      "get": {
+        "operationId": "TickyController_models",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "List models granted server-side; empty while generation is disabled",
+        "tags": [
+          "ticky"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/ticky/threads": {
       "post": {
         "operationId": "TickyController_openThread",
@@ -4972,9 +5028,9 @@
         ]
       }
     },
-    "/api/v1/ticky/threads/{id}": {
-      "delete": {
-        "operationId": "TickyController_deleteThread",
+    "/api/v1/ticky/threads/{id}/messages": {
+      "get": {
+        "operationId": "TickyController_threadMessages",
         "parameters": [
           {
             "name": "X-Dev-User-Email",
@@ -4998,7 +5054,7 @@
             "description": ""
           }
         },
-        "summary": "Soft-delete a thread (does not delete tasks/memories)",
+        "summary": "Read canonical Python conversation history for the authenticated owner",
         "tags": [
           "ticky"
         ],
@@ -5007,9 +5063,7 @@
             "bearer": []
           }
         ]
-      }
-    },
-    "/api/v1/ticky/threads/{id}/messages": {
+      },
       "post": {
         "operationId": "TickyController_postMessage",
         "parameters": [
@@ -5046,6 +5100,43 @@
           }
         },
         "summary": "Post a chat message (idempotent client_message_id)",
+        "tags": [
+          "ticky"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ticky/threads/{id}": {
+      "delete": {
+        "operationId": "TickyController_deleteThread",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Delete canonical conversation history; return pending until checkpoints are erased",
         "tags": [
           "ticky"
         ],
@@ -5345,7 +5436,7 @@
             "description": ""
           }
         },
-        "summary": "Forget a memory (soft)",
+        "summary": "Forget a canonical explicit preference",
         "tags": [
           "ticky"
         ],
@@ -15736,6 +15827,10 @@
       "PostTickyMessageDto": {
         "type": "object",
         "properties": {
+          "model_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{0,63}$"
+          },
           "client_message_id": {
             "type": "string"
           },
@@ -15781,16 +15876,28 @@
       "CreateMemoryDto": {
         "type": "object",
         "properties": {
-          "body": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "help_style",
+              "coaching_enabled",
+              "timezone",
+              "work_hours",
+              "estimate_learning_enabled"
+            ]
+          },
+          "value": {
             "type": "string"
           },
           "source_message_id": {
             "type": "string",
-            "nullable": true
+            "format": "uuid"
           }
         },
         "required": [
-          "body"
+          "kind",
+          "value",
+          "source_message_id"
         ]
       },
       "RestoreBackupDto": {

@@ -1526,7 +1526,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Read own Ticky permissions and explicit planning preferences */
+        get: operations["TickyController_authority"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1570,6 +1571,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ticky/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List models granted server-side; empty while generation is disabled */
+        get: operations["TickyController_models"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ticky/threads": {
         parameters: {
             query?: never;
@@ -1588,6 +1606,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ticky/threads/{id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read canonical Python conversation history for the authenticated owner */
+        get: operations["TickyController_threadMessages"];
+        put?: never;
+        /** Post a chat message (idempotent client_message_id) */
+        post: operations["TickyController_postMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ticky/threads/{id}": {
         parameters: {
             query?: never;
@@ -1598,25 +1634,8 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Soft-delete a thread (does not delete tasks/memories) */
+        /** Delete canonical conversation history; return pending until checkpoints are erased */
         delete: operations["TickyController_deleteThread"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/ticky/threads/{id}/messages": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Post a chat message (idempotent client_message_id) */
-        post: operations["TickyController_postMessage"];
-        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1735,7 +1754,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Forget a memory (soft) */
+        /** Forget a canonical explicit preference */
         delete: operations["TickyController_forgetMemory"];
         options?: never;
         head?: never;
@@ -4267,6 +4286,7 @@ export interface components {
             estimate_learning_enabled?: boolean;
         };
         PostTickyMessageDto: {
+            model_id?: string;
             client_message_id: string;
             text: string;
         };
@@ -4279,8 +4299,11 @@ export interface components {
             selected_actions: string[];
         };
         CreateMemoryDto: {
-            body: string;
-            source_message_id?: string | null;
+            /** @enum {string} */
+            kind: "help_style" | "coaching_enabled" | "timezone" | "work_hours" | "estimate_learning_enabled";
+            value: string;
+            /** Format: uuid */
+            source_message_id: string;
         };
         RestoreBackupDto: {
             stamp: string;
@@ -7206,6 +7229,25 @@ export interface operations {
             };
         };
     };
+    TickyController_authority: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     TickyController_updateAuthority: {
         parameters: {
             query?: never;
@@ -7267,6 +7309,25 @@ export interface operations {
             };
         };
     };
+    TickyController_models: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     TickyController_listThreads: {
         parameters: {
             query?: never;
@@ -7305,7 +7366,7 @@ export interface operations {
             };
         };
     };
-    TickyController_deleteThread: {
+    TickyController_threadMessages: {
         parameters: {
             query?: never;
             header?: {
@@ -7344,6 +7405,27 @@ export interface operations {
         };
         responses: {
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TickyController_deleteThread: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

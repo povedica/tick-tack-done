@@ -52,6 +52,17 @@ export class TickyController {
     respondJson(req, res, 200, await this.ticky.capabilities(user), false);
   }
 
+  @Get('authority')
+  @Scopes('profile:read')
+  @ApiOperation({ summary: 'Read own Ticky permissions and explicit planning preferences' })
+  async authority(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(req, res, 200, await this.ticky.authority(user), false);
+  }
+
   @Patch('authority')
   @Scopes('profile:write')
   @ApiOperation({ summary: 'Update Ticky authority (own lists only; APP-02)' })
@@ -86,6 +97,17 @@ export class TickyController {
     respondJson(req, res, 200, await this.ticky.context(user), false);
   }
 
+  @Get('models')
+  @Scopes('ticky:proposals:read')
+  @ApiOperation({ summary: 'List models granted server-side; empty while generation is disabled' })
+  async models(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(req, res, 200, await this.ticky.models(user), false);
+  }
+
   @Post('threads')
   @Scopes('ticky:proposals:write')
   @ApiOperation({ summary: 'Open a Ticky chat thread (APP-03)' })
@@ -108,16 +130,32 @@ export class TickyController {
     respondJson(req, res, 200, await this.ticky.listThreads(user), true);
   }
 
+  @Get('threads/:id/messages')
+  @Scopes('ticky:proposals:read')
+  @ApiOperation({
+    summary: 'Read canonical Python conversation history for the authenticated owner',
+  })
+  async threadMessages(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(req, res, 200, await this.ticky.threadMessages(user, id), false);
+  }
+
   @Delete('threads/:id')
   @Scopes('ticky:proposals:write')
-  @ApiOperation({ summary: 'Soft-delete a thread (does not delete tasks/memories)' })
+  @ApiOperation({
+    summary: 'Delete canonical conversation history; return pending until checkpoints are erased',
+  })
   async deleteThread(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
     @Res() res: Response,
   ): Promise<void> {
-    await this.ticky.deleteThread(user, id);
-    res.status(204).end();
+    const result = await this.ticky.deleteThread(user, id);
+    res.status(result.state === 'pending' ? 202 : 200).json(result);
   }
 
   @Post('threads/:id/messages')
@@ -130,7 +168,13 @@ export class TickyController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    const result = await this.ticky.postMessage(user, id, dto.client_message_id, dto.text);
+    const result = await this.ticky.postMessage(
+      user,
+      id,
+      dto.client_message_id,
+      dto.text,
+      dto.model_id,
+    );
     respondJson(req, res, result.status, result.body, false);
   }
 
@@ -228,14 +272,14 @@ export class TickyController {
       req,
       res,
       201,
-      await this.ticky.remember(user, dto.body, dto.source_message_id ?? null),
+      await this.ticky.remember(user, dto.kind, dto.value, dto.source_message_id),
       false,
     );
   }
 
   @Delete('memories/:id')
   @Scopes('ticky:proposals:write')
-  @ApiOperation({ summary: 'Forget a memory (soft)' })
+  @ApiOperation({ summary: 'Forget a canonical explicit preference' })
   async forgetMemory(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
