@@ -240,3 +240,7 @@ Por petición del usuario, se retira el grupo «Módulos» del sidebar secundari
 - Etiqueta lucide de contorno de 16 px compartida en selector, chips, detalle, captura y sidebar; gris por defecto, color de etiqueta cuando existe.
 
 Verificación autenticada en localhost (20/10/2026): Control **36/100 · Atrasado**, Tareas **25/50**, Hábitos excluido, Foco **2/20**, Uso **1,43/10**, racha **1 día**. El motivo principal son **58 vencidas de más de 30 días** (−25 en Tareas). Confirmado visualmente el sidebar secundario sin «Módulos» y Jardín después de Estadísticas en el primario. Estos valores son de la base local; no se presentan como resultados de producción.
+
+### Ajuste visual KISS del indicador global
+
+Sin cambios de fórmula, datos, ubicación ni apertura: indicador transparente, sin borde/sombra, llama lucide de contorno, texto del tamaño del menú y cifras en seminegrita. Solo la puntuación tiene color semántico; el estado permanece neutro. Se elimina `/100` del indicador y se conserva «sobre 100» en el desglose. El estilo compacto mantiene 14 px. Se acotan las reglas del popover para evitar que el CSS genérico lo desplace fuera de pantalla. Pruebas de escritorio/móvil con 125 días, puntuaciones 100/60/36, ausencia de datos y sidebar plegado; apertura/cierre y límites del panel verificados.

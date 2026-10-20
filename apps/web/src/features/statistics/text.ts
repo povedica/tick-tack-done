@@ -136,6 +136,7 @@ const messages = {
   ],
   enable: ['Mostrar valor de logro', 'Show achievement value'],
   usage: ['Uso diario', 'Daily use'],
+  controlOutOf: ['sobre 100', 'out of 100'],
   controlChange: ['puntos respecto a hace 7 días', 'points compared with 7 days ago'],
   controlGood: ['Al día', 'On track'],
   controlFair: ['Justo', 'Tight'],

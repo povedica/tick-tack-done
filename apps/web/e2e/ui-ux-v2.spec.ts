@@ -633,3 +633,70 @@ test('global Control chip stays available on mobile and collapsed desktop', asyn
   ).toContainText('Uso diario');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
+
+for (const width of [1280, 390]) {
+  for (const score of [100, 60, 36, null]) {
+    test(`Control presentation: ${width}px score ${String(score)}, long streak and bounded breakdown`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 844 });
+      await fixtures(page);
+      await page.route('**/api/v1/stats/overview?*', (route) =>
+        route.fulfill({
+          json: {
+            summary: {
+              streak_current: 125,
+              achievement: {
+                enabled: true,
+                score,
+                components: {
+                  tasks: { earned: 25, max: 50, configured: true },
+                  usage: { earned: 10, max: 10, configured: true },
+                },
+              },
+            },
+          },
+        }),
+      );
+      await page.goto('/today');
+      const chip = page.locator(
+        width === 390 ? '.mobile-control-bar .control-chip' : '.sidebar .control-chip',
+      );
+      const state =
+        score === null ? 'Sin datos' : score >= 75 ? 'Al día' : score >= 50 ? 'Justo' : 'Atrasado';
+      await expect(chip).toHaveText(`125 días · ${score === null ? '—' : String(score)}${state}`);
+      await expect(chip).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+      await expect(chip).toHaveCSS('border-top-width', '0px');
+      await expect(chip).toHaveCSS('box-shadow', 'none');
+      await expect(chip).toHaveCSS('font-size', '14px');
+      await expect(chip.locator('strong')).toHaveCSS('font-weight', '600');
+      await expect(chip.locator('svg')).toHaveAttribute('fill', 'none');
+      expect(await chip.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
+      await chip.click();
+      const panel = page.getByRole('dialog', { name: 'Puntuación de control', exact: true });
+      await expect(panel).toContainText(`${score === null ? '—' : String(score)} sobre 100`);
+      expect(
+        await panel.evaluate((node) => {
+          const r = node.getBoundingClientRect();
+          return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight;
+        }),
+      ).toBe(true);
+      await page.keyboard.press('Escape');
+      await expect(panel).toHaveCount(0);
+      if (width === 1280) {
+        await page.keyboard.press('[');
+        const compact = page.locator('.icon-rail .control-chip');
+        await expect(compact).toHaveText(score === null ? '—' : String(score));
+        await expect(compact).toHaveCSS('font-size', '14px');
+        expect(await compact.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
+        await compact.click();
+        expect(
+          await panel.evaluate((node) => {
+            const r = node.getBoundingClientRect();
+            return r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight;
+          }),
+        ).toBe(true);
+      }
+    });
+  }
+}

@@ -28,7 +28,13 @@ export function useControlSummary() {
   const summary = row(query.data?.summary);
   return { ...query, achievement: row(summary.achievement), streak: num(summary.streak_current) };
 }
-export function ControlSummary({ value }: { readonly value: unknown }) {
+export function ControlSummary({
+  value,
+  outOf = false,
+}: {
+  readonly value: unknown;
+  readonly outOf?: boolean;
+}) {
   const data = row(value);
   const { t, number, locale } = useStatisticsText();
   const score = typeof data.score === 'number' ? data.score : null;
@@ -41,7 +47,8 @@ export function ControlSummary({ value }: { readonly value: unknown }) {
   return (
     <div className="control-summary">
       <p className="control-value">
-        <strong>{score === null ? '—' : number(score)}</strong> / 100{' '}
+        <strong>{score === null ? '—' : number(score)}</strong>{' '}
+        {outOf ? t('controlOutOf') : '/ 100'}{' '}
         <span>
           {score === null
             ? t('noControl')
@@ -111,8 +118,13 @@ export function ControlChip({ compact = false }: { readonly compact?: boolean })
         }}
       >
         <Flame size={16} aria-hidden="true" />
-        {compact ? null : <span>{countDays(query.streak)} · </span>}
-        <strong>{score === null ? '—' : `${number(score)}/100`}</strong>
+        {compact ? null : (
+          <span>
+            <b>{number(query.streak)}</b>
+            {countDays(query.streak).slice(number(query.streak).length)} ·{' '}
+          </span>
+        )}
+        <strong>{score === null ? '—' : number(score)}</strong>
         {compact ? null : <span>{label}</span>}
       </button>
       {open
@@ -122,6 +134,10 @@ export function ControlChip({ compact = false }: { readonly compact?: boolean })
               style={{
                 top: Math.min(rect?.bottom ?? 60, window.innerHeight - 260) + 8,
                 left: Math.max(12, Math.min(rect?.left ?? 12, window.innerWidth - 372)),
+                maxHeight:
+                  window.innerHeight -
+                  (Math.min(rect?.bottom ?? 60, window.innerHeight - 260) + 8) -
+                  12,
               }}
             >
               <Popover
@@ -153,7 +169,7 @@ export function ControlChip({ compact = false }: { readonly compact?: boolean })
                 ) : query.achievement.enabled === false ? (
                   <p>{t('disabled')}</p>
                 ) : (
-                  <ControlSummary value={query.achievement} />
+                  <ControlSummary value={query.achievement} outOf />
                 )}
                 <Link
                   to="/statistics"
