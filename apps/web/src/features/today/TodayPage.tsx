@@ -1,14 +1,6 @@
 import { displayTitle } from '../tasks/displayTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  ArrowUpDown,
-  ChevronDown,
-  Lightbulb,
-  Menu,
-  Sprout,
-  CalendarCheck,
-  ChevronRight,
-} from 'lucide-react';
+import { ArrowUpDown, Lightbulb, Menu, Sprout } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { api } from '../../api';
@@ -20,7 +12,9 @@ import { useMessages, type Messages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
 import { warningText } from '../capture/components/CaptureSheet';
 import { openTaskComposer, useCaptureNotice } from '../capture/notice';
-import { HabitsEmpty } from '../habits/components/HabitsEmpty';
+import { TodayPlanStrip, type DayLoadBody } from './TodayPlanStrip';
+import { TodayHabits } from './TodayHabits';
+import './today-support.css';
 import { HABITS_DISMISS_KEY, habitsDismissed } from '../habits/dismiss';
 import { flushOfflineQueue, newMutation, runOrQueue } from '../offline/client';
 import { isTypingTarget } from '../../shell/shortcuts';
@@ -106,6 +100,18 @@ export function TodayPage() {
   const [habitsHidden, setHabitsHidden] = useState(() =>
     habitsDismissed(readStored(HABITS_DISMISS_KEY), Date.now()),
   );
+  useEffect(() => {
+    if (!habitsHidden) return;
+    const check = () => {
+      setHabitsHidden(habitsDismissed(readStored(HABITS_DISMISS_KEY), Date.now()));
+    };
+    const timer = window.setInterval(check, 60_000);
+    window.addEventListener('focus', check);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', check);
+    };
+  }, [habitsHidden]);
   const [matrixLayout, setMatrixLayout] = useState(() => readMatrixLayout('today'));
   const jobs = useRef(new Map<string, CompleteJob>());
   const leaveTimers = useRef(new Map<string, number>());
@@ -123,7 +129,6 @@ export function TodayPage() {
     | undefined;
   const showWhen = flags.when_deadline;
   const showLoad = flags.day_load;
-  const showClosing = flags.day_closing;
   const showReplan = flags.day_replan;
   const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const timeZone = zone;
@@ -465,7 +470,6 @@ export function TodayPage() {
     day: 'numeric',
     month: 'long',
   }).format(new Date());
-  const activeHabits = (habits.data?.items ?? []).filter((habit) => !habit.archived);
   const empty =
     !tasks.isPending && !tasks.isError && parts.overdue.length + parts.today.length === 0;
   const menuTask = (tasks.data ?? []).find((task) => task.id === menu?.id);
@@ -627,27 +631,12 @@ export function TodayPage() {
         </div>
       </header>
       <TaskComposer inputRef={addRef} viewDay="today" defaultProjectId={inbox?.id} />
-      <div className="today-plan-card">
-        <Link className="today-plan-entry" to="/plan/day">
-          <CalendarCheck size={20} aria-hidden="true" />
-          <span>
-            <strong>{messages.planMyDay}</strong>
-            <small>{messages.planDayHint}</small>
-          </span>
-          <ChevronRight size={18} aria-hidden="true" />
-        </Link>
-        {(showLoad && load.data?.available_minutes != null) || showClosing || showReplan ? (
-          <div className="today-plan-links">
-            {showLoad && load.data?.available_minutes != null ? (
-              <span>
-                {hoursLabel(load.data.task_minutes)} / {hoursLabel(load.data.available_minutes)}
-              </span>
-            ) : null}
-            {showClosing ? <Link to="/cierre">{messages.closeDay}</Link> : null}
-            {showReplan ? <Link to="/replan">{messages.replanDay}</Link> : null}
-          </div>
-        ) : null}
-      </div>
+      <TodayPlanStrip
+        load={load.isSuccess ? load.data : undefined}
+        loading={load.isPending && showLoad}
+        showLoad={showLoad}
+        showReplan={showReplan}
+      />
       {countdowns.data?.items
         .filter((item) => item.kind === 'today' && item.showInSmartList)
         .map((item) => (
@@ -717,76 +706,38 @@ export function TodayPage() {
           <div className="task-skeleton" />
         </div>
       ) : null}
-      {!habits.isPending && activeHabits.length > 0 ? (
-        <details className="task-group" open>
-          <summary>
-            <ChevronDown className="task-chevron" size={16} aria-hidden="true" />
-            <span>{messages.habitGroup}</span>
-            <span className="task-count">{activeHabits.length}</span>
-          </summary>
-          <ul className="task-list">
-            {activeHabits.map((habit) => {
-              const done = habit.today.count >= habit.goal.target_count;
-              const width =
-                habit.goal.target_count === 0
-                  ? 0
-                  : Math.min(100, Math.round((habit.today.count / habit.goal.target_count) * 100));
-              return (
-                <li key={habit.id}>
-                  <div className="task-row">
-                    <button
-                      type="button"
-                      className={done ? 'habit-check is-done' : 'habit-check'}
-                      aria-label={messages.checkIn}
-                      onClick={() => {
-                        void api
-                          .checkInHabit(
-                            habit.id,
-                            { date: habit.today.date, count: habit.today.count + 1 },
-                            crypto.randomUUID(),
-                          )
-                          .then(() => queryClient.invalidateQueries({ queryKey: ['habits'] }));
-                      }}
-                    />
-                    <Link className="task-title" to={`/habits/${habit.id}`}>
-                      {habit.name}
-                    </Link>
-                    <span className="task-meta">
-                      <span className="habit-progress" aria-hidden="true">
-                        <i style={{ width: `${String(width)}%` }} />
-                      </span>
-                      {habit.today.count}/{habit.goal.target_count}
-                      {habit.reminder_time !== null ? (
-                        <time className="task-time">{habit.reminder_time}</time>
-                      ) : null}
-                    </span>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </details>
-      ) : null}
-      {!habits.isPending && activeHabits.length === 0 && !habitsHidden ? (
-        <HabitsEmpty
-          onCreate={(body) => {
-            void api.createHabit(body, crypto.randomUUID()).then((created) => {
-              showToast(messages.habitCreated, () => {
-                void api.deleteHabit(created.id).then(() => {
-                  void queryClient.invalidateQueries({ queryKey: ['habits'] });
-                });
-              });
-              void queryClient.invalidateQueries({ queryKey: ['habits'] });
+      {habits.isSuccess ? (
+        <TodayHabits
+          habits={habits.data.items}
+          hidden={habitsHidden}
+          collapsed={collapsed.has('habits')}
+          onToggle={(open) => {
+            setCollapsed((current) => {
+              const next = new Set(current);
+              if (open) next.delete('habits');
+              else next.add('habits');
+              localStorage.setItem(COLLAPSE_KEY, JSON.stringify([...next]));
+              return next;
             });
-          }}
-          onOpen={() => {
-            void navigate('/habits');
           }}
           onDismiss={() => {
             localStorage.setItem(HABITS_DISMISS_KEY, String(Date.now()));
             setHabitsHidden(true);
           }}
         />
+      ) : habits.isError ? (
+        <p className="today-habit-error" role="alert">
+          {messages.todayHabitLoadError}
+          <button
+            type="button"
+            className="text-button"
+            onClick={() => {
+              void habits.refetch();
+            }}
+          >
+            {messages.retry}
+          </button>
+        </p>
       ) : null}
       {(countdowns.data?.items.length ?? 0) > 0 ? (
         <section className="countdown-upcoming">
@@ -1077,25 +1028,6 @@ function readStored(key: string): string | null {
   } catch {
     return null;
   }
-}
-
-interface DayLoadBody {
-  readonly task_minutes: number;
-  readonly available_minutes: number | null;
-  readonly unestimated_count: number;
-  readonly status: 'ok' | 'tight' | 'overload';
-}
-
-function hoursLabel(minutes: number): string {
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  if (hours === 0) {
-    return `${String(rest)} min`;
-  }
-  if (rest === 0) {
-    return `${String(hours)} h`;
-  }
-  return `${String(hours)} h ${String(rest)} min`;
 }
 
 function readList(key: string): string[] {
