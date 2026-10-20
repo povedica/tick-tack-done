@@ -8,9 +8,12 @@ export default defineConfig({
   testMatch: 'ticky-cross.spec.ts',
   workers: 1,
   timeout: 45_000,
-  use: { baseURL: 'http://localhost:4173', connectOptions: { wsEndpoint: endpoint, exposeNetwork: '<loopback>' } },
+  use: {
+    baseURL: 'http://localhost:4173',
+    connectOptions: { wsEndpoint: endpoint, exposeNetwork: '<loopback>' },
+  },
   webServer: {
-    command: 'pnpm exec vite --host 0.0.0.0 --port 4173',
+    command: 'pnpm build && pnpm exec vite preview --host 0.0.0.0 --port 4173',
     url: 'http://127.0.0.1:4173/ticky',
     reuseExistingServer: false,
     timeout: 60_000,

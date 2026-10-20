@@ -142,7 +142,16 @@ describe.skipIf(cross === undefined)('APP-03 / TK-022/600 real HTTP compatibilit
           'playwright.crossrepo.config.ts',
         ],
         { timeout: 120_000 },
-      );
+      ).catch((error: unknown) => {
+        if (
+          error !== null &&
+          typeof error === 'object' &&
+          'stdout' in error &&
+          typeof error.stdout === 'string'
+        )
+          console.log(error.stdout);
+        throw error;
+      });
     }
     const history = await request(server)
       .get(`/api/v1/ticky/threads/${threadId}/messages`)

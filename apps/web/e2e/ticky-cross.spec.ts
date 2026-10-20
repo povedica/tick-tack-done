@@ -18,7 +18,9 @@ for (const viewport of [
     await input.fill('Qué tengo hoy');
     await input.press('Tab');
     await page.locator('.ticky-composer button[type=submit]').click();
-    await expect(page.locator('.ticky-log')).toContainText('Synthetic HTTP task');
+    await expect(page.locator('.ticky-log')).toContainText('Synthetic HTTP task', {
+      timeout: 20_000,
+    });
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true);
