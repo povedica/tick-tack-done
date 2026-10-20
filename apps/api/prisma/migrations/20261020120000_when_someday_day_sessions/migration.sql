@@ -23,8 +23,7 @@ ALTER TABLE "users"
   ADD COLUMN "work_day_end" TEXT DEFAULT '18:00',
   ADD COLUMN "default_task_duration" INTEGER NOT NULL DEFAULT 30,
   ADD COLUMN "deadline_soon_days" INTEGER NOT NULL DEFAULT 2,
-  ADD COLUMN "evening_start" TEXT NOT NULL DEFAULT '18:00',
-  ADD COLUMN "feature_flags" JSONB NOT NULL DEFAULT '{}';
+  ADD COLUMN "evening_start" TEXT NOT NULL DEFAULT '18:00';
 
 UPDATE "users"
 SET "work_day_start" = '09:00'
