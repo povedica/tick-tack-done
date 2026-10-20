@@ -679,8 +679,8 @@ for (const width of [1280, 390]) {
       const state =
         score === null ? 'Sin datos' : score >= 75 ? 'Al día' : score >= 50 ? 'Justo' : 'Atrasado';
       await expect(chip).toHaveText(`125 días · ${score === null ? '—' : String(score)}${state}`);
-      await expect(chip).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-      await expect(chip).toHaveCSS('border-top-width', '0px');
+      await expect(chip).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+      await expect(chip).toHaveCSS('border-top-width', '1px');
       await expect(chip).toHaveCSS('box-shadow', 'none');
       await expect(chip).toHaveCSS('font-size', '14px');
       await expect(chip.locator('strong')).toHaveCSS('font-weight', '600');

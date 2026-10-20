@@ -5,11 +5,11 @@
   justify-content: flex-start;
   flex-wrap: wrap;
   gap: 4px;
-  padding: 7px 0;
-  border: 0;
-  border-radius: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
   box-shadow: none;
-  background: transparent;
+  background: var(--surface);
   color: var(--ink);
   font: inherit;
   font-size: var(--fs-base);
@@ -56,17 +56,17 @@
   width: 44px;
   height: auto;
   min-height: 48px;
-  padding: 4px 0;
+  padding: 3px 0;
   gap: 2px;
-  background: transparent;
-  border: 0;
-  border-radius: 0;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
   box-shadow: none;
-  color: var(--ink-inverse);
+  color: var(--ink);
   font-size: var(--fs-base);
 }
 .icon-rail .control-chip strong {
-  color: color-mix(in srgb, var(--control-score-color) 8%, black);
+  color: var(--control-score-color);
 }
 .control-popover-position {
   position: fixed;
