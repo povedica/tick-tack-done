@@ -1,0 +1,133 @@
+.matrix-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+
+.matrix-scope {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.matrix-scope select {
+  min-height: 36px;
+}
+
+.matrix-info {
+  margin: 0 0 var(--sp-3);
+}
+
+.matrix-toggle {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+}
+
+.matrix-toggle button {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.matrix-toggle button[aria-pressed='true'] {
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.matrix-tabs {
+  display: none;
+}
+
+.matrix-card {
+  position: relative;
+  height: auto;
+  min-height: var(--row-h);
+  padding-right: 8px;
+}
+
+.matrix-card .task-title {
+  min-width: 0;
+  text-align: left;
+}
+
+.matrix-card .task-more {
+  position: static;
+  opacity: 1;
+  transform: none;
+}
+
+.matrix-move {
+  position: absolute;
+  z-index: 5;
+  top: 100%;
+  right: 0;
+  display: grid;
+  min-width: 12rem;
+  padding: var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+
+.matrix-move button {
+  min-height: 36px;
+  padding: 0 var(--sp-2);
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+@media (max-width: 800px) {
+  .matrix-board .quad-grid {
+    display: block;
+  }
+
+  .matrix-board .quad {
+    display: none;
+  }
+
+  .matrix-board .quad.is-active {
+    display: block;
+  }
+
+  .matrix-tabs {
+    display: flex;
+    gap: var(--sp-2);
+    margin-bottom: var(--sp-3);
+    overflow-x: auto;
+  }
+
+  .matrix-tabs button {
+    flex: 0 0 auto;
+    min-height: 40px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-full);
+    background: var(--surface);
+    color: var(--ink-2);
+  }
+
+  .matrix-tabs button[aria-selected='true'] {
+    border-color: transparent;
+    background: var(--accent-soft);
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  .matrix-board .quad.is-active {
+    display: block;
+  }
+}

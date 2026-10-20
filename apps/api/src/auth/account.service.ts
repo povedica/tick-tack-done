@@ -123,6 +123,7 @@ export class AccountService {
       await tx.activityLog.deleteMany({ where: { OR: [{ ownerId }, { actorId: ownerId }] } });
       await tx.outboxEvent.deleteMany({ where: { ownerId } });
       await tx.idempotencyRecord.deleteMany({ where: { ownerId } });
+      await tx.oauthRefreshToken.deleteMany({ where: { userId: ownerId } });
       await tx.personalAccessToken.deleteMany({ where: { ownerId } });
       await tx.reminderDelivery.deleteMany({ where: { ownerId } });
       await tx.seriesAdvance.deleteMany({ where: { ownerId } });

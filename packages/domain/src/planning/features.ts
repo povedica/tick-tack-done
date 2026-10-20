@@ -1,4 +1,7 @@
 export const FEATURE_FLAG_KEYS = [
+  'countdowns',
+  'focus',
+  'matrix',
   'when_deadline',
   'day_load',
   'day_closing',

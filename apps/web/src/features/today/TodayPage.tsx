@@ -57,6 +57,9 @@ import { TaskGroup } from './TaskGroup';
 import { countdownsApi } from '../countdowns/api';
 import { countdownLabel } from '../countdowns/presentation';
 import { TodayAgenda } from './TodayAgenda';
+import { MatrixBoard, MatrixViewToggle } from '../matrix/MatrixBoard';
+import { readMatrixLayout, writeMatrixLayout } from '../matrix/layout';
+import { useFeatures } from '../settings/feature-flags';
 
 const GROUP_KEY = 'tick-tack-done.today.group';
 const SORT_KEY = 'tick-tack-done.today.sort';
@@ -66,6 +69,7 @@ const PLAN_KEY = 'tick-tack-done.plan.accepted';
 
 export function TodayPage() {
   const messages = useMessages();
+  const flags = useFeatures((state) => state.flags);
   const shell = useShellActions();
   const locale = useAppLocale();
   const navigate = useNavigate();
@@ -103,6 +107,7 @@ export function TodayPage() {
       readStored(PLAN_KEY) ===
       calendarDay(new Date().toISOString(), Intl.DateTimeFormat().resolvedOptions().timeZone),
   );
+  const [matrixLayout, setMatrixLayout] = useState(() => readMatrixLayout('today'));
   const jobs = useRef(new Map<string, CompleteJob>());
   const leaveTimers = useRef(new Map<string, number>());
   const tasks = useQuery({
@@ -113,15 +118,14 @@ export function TodayPage() {
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
   const profile = me.data as
     | {
-        feature_flags?: Record<string, boolean>;
         deadline_soon_days?: number;
         evening_start?: string | null;
       }
     | undefined;
-  const showWhen = profile?.feature_flags?.when_deadline !== false;
-  const showLoad = profile?.feature_flags?.day_load !== false;
-  const showClosing = profile?.feature_flags?.day_closing !== false;
-  const showReplan = profile?.feature_flags?.day_replan !== false;
+  const showWhen = flags.when_deadline;
+  const showLoad = flags.day_load;
+  const showClosing = flags.day_closing;
+  const showReplan = flags.day_replan;
   const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const load = useQuery({
     queryKey: ['day-load', zone],
@@ -163,6 +167,16 @@ export function TodayPage() {
     () => buildPreview(draft, locale, timeZone, messages),
     [draft, locale, messages, timeZone],
   );
+
+  useEffect(() => {
+    if (params.get('disabled') !== '1') {
+      return;
+    }
+    showToast(messages.featureOffNotice);
+    const next = new URLSearchParams(params);
+    next.delete('disabled');
+    setParams(next, { replace: true });
+  }, [messages.featureOffNotice, params, setParams, showToast]);
 
   useEffect(() => {
     if (notice === null) {
@@ -580,6 +594,15 @@ export function TodayPage() {
           </div>
         </div>
         <div className="page-actions">
+          {flags.matrix ? (
+            <MatrixViewToggle
+              value={matrixLayout}
+              onChange={(next) => {
+                writeMatrixLayout('today', next);
+                setMatrixLayout(next);
+              }}
+            />
+          ) : null}
           <Link className="icon-button" to="/habits" aria-label={messages.suggestions}>
             <Lightbulb size={20} aria-hidden="true" />
           </Link>
@@ -784,43 +807,49 @@ export function TodayPage() {
           {actionError}
         </p>
       ) : null}
-      {tasks.isPending ? (
-        <div aria-hidden="true">
-          <div className="task-skeleton is-head" />
-          <div className="task-skeleton" />
-          <div className="task-skeleton" />
-          <div className="task-skeleton" />
-        </div>
-      ) : null}
-      {tasks.isError ? (
-        <div className="waiting">
-          <p className="error">{messages.todayFailed}</p>
-          <button
-            type="button"
-            className="text-button"
-            onClick={() => {
-              void tasks.refetch();
-            }}
-          >
-            {messages.retry}
-          </button>
-        </div>
-      ) : null}
-      {overdueBlock.map((section) => (
-        <TaskGroup key="overdue" {...groupProps(section.id, section.tasks, true)} />
-      ))}
-      {sections.map((section) => (
-        <TaskGroup key={section.id} {...groupProps(section.id, section.tasks)} />
-      ))}
-      {showWhen && eveningTasks.length > 0 ? (
-        <section className="plan">
-          <h2>{messages.eveningTitle}</h2>
-          <p>
-            {messages.eveningHint.replace('18:00', profile?.evening_start ?? '18:00')}
-          </p>
-          <TaskGroup {...groupProps('evening', eveningTasks)} />
-        </section>
-      ) : null}
+      {flags.matrix && matrixLayout === 'matrix' ? (
+        <MatrixBoard scope={{ kind: 'today' }} embedded />
+      ) : (
+        <>
+          {tasks.isPending ? (
+            <div aria-hidden="true">
+              <div className="task-skeleton is-head" />
+              <div className="task-skeleton" />
+              <div className="task-skeleton" />
+              <div className="task-skeleton" />
+            </div>
+          ) : null}
+          {tasks.isError ? (
+            <div className="waiting">
+              <p className="error">{messages.todayFailed}</p>
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => {
+                  void tasks.refetch();
+                }}
+              >
+                {messages.retry}
+              </button>
+            </div>
+          ) : null}
+          {overdueBlock.map((section) => (
+            <TaskGroup key="overdue" {...groupProps(section.id, section.tasks, true)} />
+          ))}
+          {sections.map((section) => (
+            <TaskGroup key={section.id} {...groupProps(section.id, section.tasks)} />
+          ))}
+          {showWhen && eveningTasks.length > 0 ? (
+            <section className="plan">
+              <h2>{messages.eveningTitle}</h2>
+              <p>
+                {messages.eveningHint.replace('18:00', profile?.evening_start ?? '18:00')}
+              </p>
+              <TaskGroup {...groupProps('evening', eveningTasks)} />
+            </section>
+          ) : null}
+        </>
+      )}
       {habits.isPending ? (
         <div aria-hidden="true">
           <div className="task-skeleton" />

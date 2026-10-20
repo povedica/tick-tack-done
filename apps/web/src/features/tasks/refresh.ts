@@ -15,5 +15,6 @@ export async function refreshTaskSurfaces(queryClient: QueryClient): Promise<voi
     queryClient.invalidateQueries({ queryKey: ['search'], ...active }),
     queryClient.invalidateQueries({ queryKey: ['search-page'], ...active }),
     queryClient.invalidateQueries({ queryKey: ['task'], ...active }),
+    queryClient.invalidateQueries({ queryKey: ['matrix-tasks'], ...active }),
   ]);
 }

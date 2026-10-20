@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { api } from '../api';
 import { useLocale, type LocaleChoice } from '../i18n/locale';
 import { isThemePreference, type ThemePreference } from './preference';
+import { featureFlags, useFeatures } from '../features/settings/feature-flags';
 import { usePreferences, type AccentId, type Density, type WeekStart } from './preferences';
 import { notifyAccountSaveFailed } from './push-account';
 import { useThemePreference } from './store';
@@ -48,6 +49,7 @@ function applyServer(me: Me): void {
   usePreferences.getState().setWeekStart(week, 'account');
   usePreferences.getState().setParser(choice(text(row.nlp_language)), 'account');
   useLocale.getState().setChoice(choice(text(row.locale)), 'account');
+  useFeatures.getState().setFlags(featureFlags(row.features));
 }
 
 export function AccountPreferenceSync() {

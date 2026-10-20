@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaClient } from '@prisma/client';
@@ -6,6 +6,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/configure-app.js';
+import { hashPersonalAccessToken } from '../src/auth/token-secret.js';
 import { loadRootEnv } from '../src/load-env.js';
 
 type SuperTestApp = Parameters<typeof request>[0];
@@ -30,7 +31,26 @@ async function removeOwner(id: string): Promise<void> {
   await prisma.idempotencyRecord.deleteMany({ where: { ownerId: id } });
   await prisma.outboxEvent.deleteMany({ where: { ownerId: id } });
   await prisma.activityLog.deleteMany({ where: { ownerId: id } });
+  const codes = await prisma.oauthAuthorizationCode.findMany({
+    where: { userId: id },
+    select: { clientId: true },
+  });
+  const issued = await prisma.personalAccessToken.findMany({
+    where: { ownerId: id, oauthClientId: { not: null } },
+    select: { oauthClientId: true },
+  });
+  const clientIds = [
+    ...new Set([
+      ...codes.map((code) => code.clientId),
+      ...issued.flatMap((token) => (token.oauthClientId === null ? [] : [token.oauthClientId])),
+    ]),
+  ];
+  await prisma.oauthRefreshToken.deleteMany({ where: { userId: id } });
+  await prisma.oauthAuthorizationCode.deleteMany({ where: { userId: id } });
   await prisma.personalAccessToken.deleteMany({ where: { ownerId: id } });
+  await prisma.oauthClient.deleteMany({
+    where: { OR: [{ ownerId: id }, { id: { in: clientIds } }] },
+  });
   await prisma.filter.deleteMany({ where: { ownerId: id } });
   await prisma.habitLog.deleteMany({ where: { ownerId: id } });
   await prisma.habit.deleteMany({ where: { ownerId: id } });
@@ -221,6 +241,215 @@ describe('MCP server', () => {
     const next = JSON.parse(toolText(second.body as unknown)) as { items: { id: string }[] };
     expect(next.items.some((item) => item.id === firstId)).toBe(false);
     expect(next.items.length).toBeGreaterThan(0);
+  });
+
+  it('connects ChatGPT with OAuth discovery, refresh and revocation', async () => {
+    const previous = process.env.PUBLIC_URL;
+    process.env.PUBLIC_URL = 'https://todo.reflexionia.com';
+    try {
+      const origin = 'https://todo.reflexionia.com';
+      const resource = `${origin}/api/v1/mcp`;
+      const anon = await request(server).post('/api/v1/mcp').send({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/list',
+      });
+      expect(anon.status).toBe(401);
+      expect(anon.headers['www-authenticate']).toBe(
+        `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`,
+      );
+
+      const protectedMeta = await request(server)
+        .get('/.well-known/oauth-protected-resource')
+        .expect(200);
+      expect(protectedMeta.body.resource).toBe(resource);
+      expect(protectedMeta.body.authorization_servers).toEqual([origin]);
+      expect(protectedMeta.body.scopes_supported).toContain('tasks:read');
+      expect(protectedMeta.body.scopes_supported).not.toContain('account:admin');
+
+      const serverMeta = await request(server)
+        .get('/.well-known/oauth-authorization-server')
+        .expect(200);
+      expect(serverMeta.body).toMatchObject({
+        issuer: origin,
+        authorization_endpoint: `${origin}/oauth/authorize`,
+        token_endpoint: `${origin}/api/v1/oauth/token`,
+        registration_endpoint: `${origin}/api/v1/oauth/register`,
+        response_types_supported: ['code'],
+        grant_types_supported: ['authorization_code', 'refresh_token'],
+        code_challenge_methods_supported: ['S256'],
+        token_endpoint_auth_methods_supported: ['none'],
+        authorization_response_iss_parameter_supported: true,
+      });
+
+      const cors = await request(server)
+        .options('/.well-known/oauth-protected-resource')
+        .set('Origin', 'https://chatgpt.com')
+        .set('Access-Control-Request-Method', 'GET');
+      expect(cors.status).toBe(204);
+      expect(cors.headers['access-control-allow-origin']).toBe('https://chatgpt.com');
+      const closed = await request(server)
+        .get('/api/v1/health')
+        .set('Origin', 'https://chatgpt.com');
+      expect(closed.headers['access-control-allow-origin']).toBeUndefined();
+
+      await request(server)
+        .post('/api/v1/oauth/register')
+        .send({ redirect_uris: ['https://evil.example/cb'], client_name: 'Nope' })
+        .expect(400);
+
+      const registered = await request(server)
+        .post('/api/v1/oauth/register')
+        .send({
+          redirect_uris: ['http://127.0.0.1:8080/cb'],
+          client_name: 'ChatGPT',
+          token_endpoint_auth_method: 'none',
+          grant_types: ['authorization_code', 'refresh_token'],
+          response_types: ['code'],
+          software_id: 'ignored',
+        })
+        .expect(201);
+      const clientId = registered.body.client_id as string;
+      expect(registered.body.token_endpoint_auth_method).toBe('none');
+
+      const verifier = 'a'.repeat(43);
+      const challenge = createHash('sha256').update(verifier).digest('base64url');
+      const redirectUri = 'http://127.0.0.1:8080/cb';
+      const browser = await request(server).get('/oauth/authorize').query({
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        state: 'state-oauth-1',
+        code_challenge: challenge,
+        code_challenge_method: 'S256',
+        resource,
+      });
+      expect(browser.status).toBe(302);
+      expect(browser.headers.location).toContain('/login?next=');
+
+      const plain = await request(server).get('/oauth/authorize').query({
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        state: 'state-oauth-1',
+        code_challenge: challenge,
+        code_challenge_method: 'plain',
+        resource,
+      });
+      expect(plain.status).toBe(400);
+
+      const consent = await request(server)
+        .post('/api/v1/oauth/authorize')
+        .set('X-Dev-User-Email', owner.email)
+        .send({
+          client_id: clientId,
+          redirect_uri: redirectUri,
+          scope: 'tasks:read tasks:write',
+          requested_scope: '',
+          state: 'state-oauth-1',
+          code_challenge: challenge,
+          code_challenge_method: 'S256',
+          allow: true,
+          resource,
+        })
+        .expect(201);
+      const redirected = new URL(consent.body.redirect_to as string);
+      expect(redirected.searchParams.get('iss')).toBe(origin);
+      const code = redirected.searchParams.get('code');
+      expect(code).toBeTruthy();
+
+      const token = await request(server).post('/api/v1/oauth/token').type('form').send({
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: redirectUri,
+        client_id: clientId,
+        code_verifier: verifier,
+        resource,
+      });
+      expect(token.status).toBe(200);
+      expect(token.body.expires_in).toBe(3600);
+      expect(token.body.token_type).toBe('Bearer');
+      expect(token.body.scope).toBe('tasks:read tasks:write');
+      const access = token.body.access_token as string;
+      const refresh = token.body.refresh_token as string;
+
+      const listed = await rpc(server, { Authorization: `Bearer ${access}` }, 'tools/list', {});
+      const names = (listed.body.result.tools as { name: string }[]).map((tool) => tool.name);
+      expect(names).toContain('list_tasks');
+      expect(names).toContain('create_task');
+      expect(names).not.toContain('list_habits');
+
+      const tokens = await request(server)
+        .get('/api/v1/me/tokens')
+        .set('X-Dev-User-Email', owner.email)
+        .expect(200);
+      expect(tokens.body.items).toEqual(
+        expect.arrayContaining([expect.objectContaining({ client_name: 'ChatGPT' })]),
+      );
+
+      const refreshed = await request(server).post('/oauth/token').send({
+        grant_type: 'refresh_token',
+        refresh_token: refresh,
+        client_id: clientId,
+      });
+      expect(refreshed.status).toBe(200);
+      const nextAccess = refreshed.body.access_token as string;
+      const nextRefresh = refreshed.body.refresh_token as string;
+      expect(nextAccess).not.toBe(access);
+
+      await request(server).post('/api/v1/oauth/revoke').send({ token: nextAccess }).expect(200);
+      const afterRevoke = await request(server)
+        .post('/api/v1/mcp')
+        .set('Authorization', `Bearer ${nextAccess}`)
+        .send({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
+      expect(afterRevoke.status).toBe(401);
+
+      const again = await request(server)
+        .post('/api/v1/oauth/authorize')
+        .set('X-Dev-User-Email', owner.email)
+        .send({
+          client_id: clientId,
+          redirect_uri: redirectUri,
+          scope: 'tasks:read',
+          state: 'state-oauth-2',
+          code_challenge: challenge,
+          code_challenge_method: 'S256',
+          allow: true,
+          resource,
+        })
+        .expect(201);
+      const secondCode = new URL(again.body.redirect_to as string).searchParams.get('code');
+      const second = await request(server).post('/api/v1/oauth/token').send({
+        grant_type: 'authorization_code',
+        code: secondCode,
+        redirect_uri: redirectUri,
+        client_id: clientId,
+        code_verifier: verifier,
+        resource,
+      });
+      expect(second.status).toBe(200);
+      const rotated = await request(server).post('/api/v1/oauth/token').send({
+        grant_type: 'refresh_token',
+        refresh_token: second.body.refresh_token,
+        client_id: clientId,
+      });
+      expect(rotated.status).toBe(200);
+      const reuse = await request(server).post('/api/v1/oauth/token').send({
+        grant_type: 'refresh_token',
+        refresh_token: second.body.refresh_token,
+        client_id: clientId,
+      });
+      expect(reuse.status).toBe(400);
+      const spent = await prisma.oauthRefreshToken.findFirst({
+        where: { tokenHash: hashPersonalAccessToken(rotated.body.refresh_token as string) },
+      });
+      expect(spent?.revokedAt).not.toBeNull();
+      expect(nextRefresh.length).toBeGreaterThan(20);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.PUBLIC_URL;
+      } else {
+        process.env.PUBLIC_URL = previous;
+      }
+    }
   });
 });
 

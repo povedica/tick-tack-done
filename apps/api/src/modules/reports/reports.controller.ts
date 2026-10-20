@@ -24,6 +24,7 @@ import { DomainException } from '../../http/domain.exception.js';
 import { respondJson } from '../../http/respond.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { loadDashboardSnapshot } from '../../reading/snapshot.js';
+import { bucketWeek } from './week-metrics.js';
 
 class ReportSettingsDto {
   @ApiProperty({ required: false, example: 'sunday' })
@@ -191,10 +192,37 @@ export class ReportsController {
     );
     const week = weekStart(now);
     const closingLine = await this.closingLine(user.id, week);
+    const weekEnd = new Date(week.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const touched = await this.prisma.task.findMany({
+      where: {
+        ownerId: user.id,
+        deletedAt: null,
+        OR: [
+          { createdAt: { gte: week, lt: weekEnd } },
+          { completedAt: { gte: week, lt: weekEnd } },
+        ],
+      },
+      select: { createdAt: true, completedAt: true },
+    });
+    const habitsDone = await this.prisma.habitLog.count({
+      where: {
+        ownerId: user.id,
+        deletedAt: null,
+        count: { gt: 0 },
+        date: { gte: week, lt: weekEnd },
+      },
+    });
     const payload = {
       summary: `${narrative.summary}\n${closingLine}`,
       observations: narrative.observations,
       snapshot,
+      completed: snapshot.completed,
+      created: snapshot.created,
+      overdue: snapshot.overdue,
+      focus_minutes: focusMinutes ?? 0,
+      habits_done: habitsDone,
+      trend: snapshot.trend,
+      days: bucketWeek(week, touched),
       weak: narrative.weak,
       countdowns: {
         upcoming: upcomingCountdowns.map((countdown) => ({

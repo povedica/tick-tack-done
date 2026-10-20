@@ -14,8 +14,8 @@ import { missingScopes, SESSION_SCOPES } from './scopes.js';
 import { PUBLIC_KEY, SCOPES_KEY } from './scopes.decorator.js';
 import {
   hashSecret,
+  readSessionCookie,
   secretsMatch,
-  SESSION_COOKIE,
   SESSION_IDLE_MS,
   SESSION_MAX_AGE_MS,
 } from './session-cookie.js';
@@ -74,7 +74,7 @@ export class ApiAuthGuard implements CanActivate {
       request.user = await this.devUser(devEmail);
       return true;
     }
-    const cookie = readCookie(request);
+    const cookie = readSessionCookie(request.header('cookie'));
     if (cookie !== null) {
       request.user = await this.sessionUser(request, cookie);
       return true;
@@ -136,7 +136,12 @@ export class ApiAuthGuard implements CanActivate {
 
   private async findToken(secret: string): Promise<TokenRow | null> {
     const row = await this.prisma.personalAccessToken.findFirst({
-      where: { tokenHash: hashPersonalAccessToken(secret), revokedAt: null, deletedAt: null },
+      where: {
+        tokenHash: hashPersonalAccessToken(secret),
+        revokedAt: null,
+        deletedAt: null,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      },
       select: { id: true, ownerId: true, scopes: true, lastUsedAt: true },
     });
     return row;
@@ -238,21 +243,6 @@ function assertCsrf(request: Request, csrf: string): void {
   if (!secretsMatch(header, csrf)) {
     throw new DomainException(HttpStatus.FORBIDDEN, 'csrf_invalid', 'CSRF token is invalid');
   }
-}
-
-function readCookie(request: Request): string | null {
-  const header = request.header('cookie');
-  if (header === undefined) {
-    return null;
-  }
-  for (const part of header.split(';')) {
-    const [name, ...rest] = part.trim().split('=');
-    if (name === SESSION_COOKIE) {
-      const value = rest.join('=');
-      return value.length > 0 ? decodeURIComponent(value) : null;
-    }
-  }
-  return null;
 }
 
 function requestPath(request: Request): string {

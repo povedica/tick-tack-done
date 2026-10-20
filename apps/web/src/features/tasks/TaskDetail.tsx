@@ -313,7 +313,7 @@ export function TaskDetail({
               applyDate(next);
             }}
             onNotice={setNotice}
-            {...((me.data as { feature_flags?: Record<string, boolean> } | undefined)?.feature_flags
+            {...((me.data as { features?: { when_deadline?: boolean } } | undefined)?.features
               ?.when_deadline === false
               ? {}
               : {
@@ -376,7 +376,7 @@ export function TaskDetail({
           {notice}
         </p>
       ) : null}
-      {(me.data as { feature_flags?: Record<string, boolean> } | undefined)?.feature_flags
+      {(me.data as { features?: { when_deadline?: boolean } } | undefined)?.features
         ?.when_deadline !== false &&
       (task.start_date !== null || task.due_date !== null) ? (
         <p className="plan-line">

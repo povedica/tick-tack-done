@@ -1,5 +1,11 @@
 import { Bell, GripVertical, Paperclip, Plus, Repeat, X } from 'lucide-react';
-import { useState, type CSSProperties, type KeyboardEvent, type RefObject } from 'react';
+import {
+  useLayoutEffect,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type RefObject,
+} from 'react';
 import { Link } from 'react-router';
 import { PriorityCheck } from '../../components/PriorityCheck';
 import { attachmentHref } from './task-http';
@@ -102,6 +108,12 @@ export function DetailBody({
   readonly onDropFiles: (files: FileList) => void;
 }) {
   const [editing, setEditing] = useState<string | null>(null);
+  useLayoutEffect(() => {
+    const node = contentRef.current;
+    if (node !== null) {
+      fit(node);
+    }
+  }, [content, contentRef, taskId]);
   const done = items.filter((item) => item.done).length;
   const subtaskDone = subtasks.filter((item) => item.done).length;
   return (

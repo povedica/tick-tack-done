@@ -5,6 +5,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
 import type { NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
+import { oauthEdgeMiddleware } from './auth/oauth-edge.js';
 import { ApiExceptionFilter } from './http/api-exception.filter.js';
 import { isPublicOperation } from './security/public-operations.js';
 import { trustProxyHops } from './security/runtime-config.js';
@@ -18,8 +19,12 @@ export function configureApp(app: INestApplication): void {
     exclude: [
       { path: 'feeds/(.*)', method: RequestMethod.GET },
       { path: 'open/(.*)', method: RequestMethod.ALL },
+      { path: '.well-known/oauth-protected-resource', method: RequestMethod.GET },
+      { path: '.well-known/oauth-authorization-server', method: RequestMethod.GET },
+      { path: 'browser-oauth/authorize', method: RequestMethod.GET },
     ],
   });
+  app.use(oauthEdgeMiddleware);
   app.use(
     helmet({
       contentSecurityPolicy: {

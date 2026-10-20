@@ -1,8 +1,57 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { ACCOUNT_REMINDER_TRIGGERS } from '@reflexionia/domain';
-import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+  MinLength,
+  ValidateNested,
+} from 'class-validator';
 
 const REMINDER_CHOICES = [...ACCOUNT_REMINDER_TRIGGERS];
+
+export class FeatureFlagsDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  countdowns?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  focus?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  matrix?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  when_deadline?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  day_load?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  day_closing?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  day_replan?: boolean;
+}
 
 export class DeleteMeDto {
   @ApiProperty({ description: 'Must equal the account email' })
@@ -151,9 +200,11 @@ export class UpdateMeDto {
   @MaxLength(5)
   evening_start?: string;
 
-  @ApiProperty({ required: false, type: Object })
+  @ApiProperty({ required: false, type: () => FeatureFlagsDto })
   @IsOptional()
-  feature_flags?: Record<string, boolean>;
+  @ValidateNested()
+  @Type(() => FeatureFlagsDto)
+  features?: FeatureFlagsDto;
 }
 
 export class ChangePasswordDto {
@@ -304,6 +355,6 @@ export class MeResponseDto {
   @ApiProperty()
   evening_start!: string;
 
-  @ApiProperty({ type: Object })
-  feature_flags!: Record<string, boolean>;
+  @ApiProperty({ type: FeatureFlagsDto })
+  features!: FeatureFlagsDto;
 }

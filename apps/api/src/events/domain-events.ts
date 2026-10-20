@@ -60,6 +60,7 @@ export const DomainEvent = {
   accountDeleted: 'account.deleted@v1',
   accountPasswordChanged: 'account.password_changed@v1',
   oauthTokenIssued: 'oauth.token_issued@v1',
+  oauthTokenRefreshed: 'oauth.token_refreshed@v1',
   noteCreated: 'note.created@v1',
   noteUpdated: 'note.updated@v1',
   matrixUpdated: 'matrix.updated@v1',

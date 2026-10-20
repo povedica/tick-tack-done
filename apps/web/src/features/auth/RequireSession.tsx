@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Navigate, Outlet } from 'react-router';
+import { Navigate, Outlet, useLocation } from 'react-router';
 import { useSyncExternalStore } from 'react';
 import { api, sessionMode } from '../../api';
 import { useMessages } from '../../i18n';
@@ -31,11 +31,16 @@ export function SessionBootstrap() {
 
 export function RequireSession() {
   const messages = useMessages();
+  const location = useLocation();
   const status = useSyncExternalStore(subscribeSession, sessionStatus, sessionStatus);
   if (status === 'unknown') {
     return <p className="ui-muted">{messages.sessionChecking}</p>;
   }
   if (status === 'anonymous') {
+    if (location.pathname === '/oauth/consent') {
+      const next = encodeURIComponent(`${location.pathname}${location.search}`);
+      return <Navigate to={`/login?next=${next}`} replace />;
+    }
     return <Navigate to="/login" replace />;
   }
   return <Outlet />;

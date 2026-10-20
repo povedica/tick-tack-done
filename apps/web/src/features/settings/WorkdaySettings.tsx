@@ -10,15 +10,7 @@ interface WorkdayMe {
   readonly deadline_soon_days: number;
   readonly evening_start: string;
   readonly shutdown_reminder_time: string | null;
-  readonly feature_flags?: Record<string, boolean>;
 }
-
-const FLAGS = [
-  ['when_deadline', 'flagWhen', 'flagWhenHelp'],
-  ['day_load', 'flagLoad', 'flagLoadHelp'],
-  ['day_closing', 'flagClosing', 'flagClosingHelp'],
-  ['day_replan', 'flagReplan', 'flagReplanHelp'],
-] as const;
 
 export function WorkdaySettings() {
   const messages = useMessages();
@@ -102,40 +94,6 @@ export function WorkdaySettings() {
         </form>
       )}
       {error !== null ? <p role="alert">{error}</p> : null}
-    </section>
-  );
-}
-
-export function FeatureSettings() {
-  const messages = useMessages();
-  const queryClient = useQueryClient();
-  const me = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
-  const flags = (me.data as WorkdayMe | undefined)?.feature_flags ?? {};
-  return (
-    <section>
-      <h1>{messages.featuresTitle}</h1>
-      <p>{messages.featuresHelp}</p>
-      <ul>
-        {FLAGS.map(([key, label, help]) => (
-          <li key={key}>
-            <label>
-              <input
-                type="checkbox"
-                checked={flags[key] !== false}
-                onChange={(event) => {
-                  void api
-                    .updateMe({
-                      feature_flags: { ...flags, [key]: event.target.checked },
-                    } as Parameters<typeof api.updateMe>[0])
-                    .then(() => queryClient.invalidateQueries({ queryKey: ['me'] }));
-                }}
-              />
-              {messages[label]}
-            </label>
-            <p>{messages[help]}</p>
-          </li>
-        ))}
-      </ul>
     </section>
   );
 }

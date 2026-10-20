@@ -21,7 +21,15 @@ export interface UpdateMeBody {
   readonly default_task_duration_minutes?: number;
   readonly deadline_soon_days?: number;
   readonly evening_start?: string;
-  readonly feature_flags?: Readonly<Record<string, boolean>>;
+  readonly features?: {
+    readonly countdowns?: boolean;
+    readonly focus?: boolean;
+    readonly matrix?: boolean;
+    readonly when_deadline?: boolean;
+    readonly day_load?: boolean;
+    readonly day_closing?: boolean;
+    readonly day_replan?: boolean;
+  };
 }
 export type InboundEmailStatus = components['schemas']['InboundEmailStatusDto'];
 export type InboundEmailAddress = components['schemas']['InboundEmailAddressDto'];

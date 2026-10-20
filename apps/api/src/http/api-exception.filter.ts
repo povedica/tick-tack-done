@@ -6,8 +6,9 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { MulterError } from 'multer';
+import { oauthChallenge } from '../auth/oauth-discovery.controller.js';
 
 interface ApiErrorBody {
   error: {
@@ -98,6 +99,13 @@ function isParseError(error: unknown): boolean {
   return type === 'entity.parse.failed' || error instanceof SyntaxError;
 }
 
+function isMcpRequest(host: ArgumentsHost): boolean {
+  const request = host.switchToHttp().getRequest<Request>();
+  const raw = request.originalUrl.length > 0 ? request.originalUrl : request.url;
+  const path = raw.split('?')[0] ?? raw;
+  return path === '/api/v1/mcp' || path.startsWith('/api/v1/mcp/');
+}
+
 function retryAfter(exception: HttpException): number | null {
   const body = exception.getResponse();
   if (!isRecord(body)) {
@@ -150,6 +158,9 @@ export class ApiExceptionFilter implements ExceptionFilter {
         if (retry !== null) {
           response.setHeader('Retry-After', String(retry));
         }
+      }
+      if (exception.getStatus() === 401 && isMcpRequest(host)) {
+        response.setHeader('WWW-Authenticate', oauthChallenge());
       }
       response.status(exception.getStatus()).json(errorBody(exception));
       return;

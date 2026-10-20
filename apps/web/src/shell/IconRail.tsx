@@ -6,6 +6,7 @@ import {
   CircleDot,
   Grid2x2,
   HelpCircle,
+  Hourglass,
   ListTodo,
   PanelLeft,
   Plus,
@@ -14,6 +15,7 @@ import {
 import { NavLink } from 'react-router';
 import { api } from '../api';
 import { BrandMark } from '../components/BrandMark';
+import { useFeatures } from '../features/settings/feature-flags';
 import { useMessages } from '../i18n';
 import { formatClock, useActiveFocus } from './useActiveFocus';
 
@@ -27,6 +29,7 @@ export function IconRail({
   readonly onCapture: () => void;
 }) {
   const messages = useMessages();
+  const flags = useFeatures((state) => state.flags);
   const focus = useActiveFocus();
   const task = useQuery({
     queryKey: ['task', focus?.taskId],
@@ -55,23 +58,32 @@ export function IconRail({
       <NavLink to="/calendar/month" aria-label={messages.navCalendar}>
         <CalendarDays size={20} aria-hidden="true" />
       </NavLink>
-      <NavLink to="/matrix" aria-label={messages.navMatrix}>
-        <Grid2x2 size={20} aria-hidden="true" />
-      </NavLink>
-      <NavLink to="/focus" aria-label={focusLabel} title={focusLabel} className="rail-focus">
-        {focus !== null ? (
-          <svg className="focus-ring" viewBox="0 0 36 36" aria-hidden="true">
-            <circle cx="18" cy="18" r="15" />
-            <circle
-              cx="18"
-              cy="18"
-              r="15"
-              style={{ strokeDashoffset: String(94 - 94 * focus.progress) }}
-            />
-          </svg>
-        ) : null}
-        <CircleDot size={20} aria-hidden="true" />
-      </NavLink>
+      {flags.matrix ? (
+        <NavLink to="/matrix" aria-label={messages.navMatrix}>
+          <Grid2x2 size={20} aria-hidden="true" />
+        </NavLink>
+      ) : null}
+      {flags.countdowns ? (
+        <NavLink to="/countdowns" aria-label={messages.navCountdowns}>
+          <Hourglass size={20} aria-hidden="true" />
+        </NavLink>
+      ) : null}
+      {flags.focus ? (
+        <NavLink to="/focus" aria-label={focusLabel} title={focusLabel} className="rail-focus">
+          {focus !== null ? (
+            <svg className="focus-ring" viewBox="0 0 36 36" aria-hidden="true">
+              <circle cx="18" cy="18" r="15" />
+              <circle
+                cx="18"
+                cy="18"
+                r="15"
+                style={{ strokeDashoffset: String(94 - 94 * focus.progress) }}
+              />
+            </svg>
+          ) : null}
+          <CircleDot size={20} aria-hidden="true" />
+        </NavLink>
+      ) : null}
       <NavLink to="/habits" end aria-label={messages.navHabits}>
         <CalendarCheck size={20} aria-hidden="true" />
       </NavLink>
@@ -80,9 +92,9 @@ export function IconRail({
       </NavLink>
       <span className="rail-spacer" />
       <NavLink
-        to="/today"
-        aria-label={messages.navBell}
-        title={messages.navBell}
+        to="/today#overdue"
+        aria-label={messages.overdueTitle}
+        title={messages.overdueTitle}
         className="rail-bell"
       >
         <Bell size={20} aria-hidden="true" />

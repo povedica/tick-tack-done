@@ -54,17 +54,37 @@ export class ReviewController {
         logs: { where: { deletedAt: null }, select: { date: true, count: true } },
       },
     });
-    const review = proposeWeekly(
-      tasks,
-      habits.map((habit) => ({
-        id: habit.id,
-        name: habit.name,
-        missedDays: missed(habit.logs, now),
-      })),
-      now.toISOString(),
-      7,
+    const habitRows = habits.map((habit) => ({
+      id: habit.id,
+      name: habit.name,
+      missedDays: missed(habit.logs, now),
+    }));
+    const review = proposeWeekly(tasks, habitRows, now.toISOString(), 7);
+    const wanted = new Set([...review.overdue_ids, ...review.undated_ids]);
+    const names = new Map(tasks.map((task) => [task.listId, task.listName]));
+    respondJson(
+      req,
+      res,
+      200,
+      {
+        ...review,
+        tasks: tasks
+          .filter((task) => wanted.has(task.id))
+          .map((task) => ({
+            id: task.id,
+            title: task.title,
+            dueDate: task.dueDate,
+            listId: task.listId,
+            listName: task.listName,
+            status: task.status,
+          })),
+        lists: review.stale_list_ids.map((id) => ({ id, name: names.get(id) ?? id })),
+        habits: habitRows
+          .filter((habit) => review.habits_at_risk.includes(habit.id))
+          .map((habit) => ({ id: habit.id, name: habit.name })),
+      },
+      false,
     );
-    respondJson(req, res, 200, review, false);
   }
 
   private async candidates(ownerId: string): Promise<ReviewCandidate[]> {

@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { countdownsApi } from '../countdowns/api';
 import { countdownNumber } from '../countdowns/presentation';
+import { calendarDay, shiftDayKey, zonedWallTime } from '../today/groups';
+import { refreshTaskSurfaces } from '../tasks/refresh';
 import { api } from '../../api';
+import { formatDuration } from './duration';
 import { Button, EmptyState } from '../../components/ui';
 import { InboundEmailCard } from '../settings/InboundEmailCard';
 import { GoogleCalendarsCard } from '../settings/GoogleCalendarsCard';
@@ -58,6 +61,7 @@ const WIDGET_LABEL = {
   calendar: 'calendarTitle',
   integrations: 'settingsIntegrations',
   focus: 'navFocus',
+  next_countdowns: 'widgetNextCountdowns',
 } as const;
 
 function widgetLabel(messages: ReturnType<typeof useMessages>, key: string): string {
@@ -93,7 +97,22 @@ function widgetText(messages: ReturnType<typeof useMessages>, key: string, value
   }
   if (key === 'focus') {
     const seconds = typeof row.seconds === 'number' ? row.seconds : 0;
-    return clock(seconds);
+    return formatDuration(seconds);
+  }
+  if (key === 'next_countdowns') {
+    const items = Array.isArray(row.items) ? row.items : [];
+    return items
+      .slice(0, 3)
+      .map((item) => {
+        if (typeof item !== 'object' || item === null) {
+          return '';
+        }
+        const card = item as { emoji?: unknown; title?: unknown };
+        const emoji = typeof card.emoji === 'string' && card.emoji.length > 0 ? card.emoji : '⏳';
+        return `${emoji} ${typeof card.title === 'string' ? card.title : ''}`;
+      })
+      .filter((line) => line.trim().length > 0)
+      .join(' · ');
   }
   if (key === 'calendar') {
     return asText(row.upcoming);
@@ -123,10 +142,10 @@ export function DashboardPage() {
     <section className="screen-page is-wide">
       <h1>{messages.dashboardTitle}</h1>
       <p>{messages.gardenImportHint}</p>
-      <div className="widget-grid">
+      <div className="widget-grid garden-grid">
         {(countdowns.data?.items.length ?? 0) > 0 ? (
-          <article className="widget">
-            <h3>Cuenta atrás</h3>
+          <article className="widget garden-card">
+            <h3>{messages.widgetNextCountdowns}</h3>
             <ul className="countdown-widget">
               {countdowns.data?.items.slice(0, 3).map((item) => (
                 <li key={item.id}>
@@ -138,63 +157,129 @@ export function DashboardPage() {
           </article>
         ) : null}
         {Object.entries(widgets).map(([key, value]) => (
-          <article key={key} className="widget">
+          <article key={key} className="widget garden-card">
             <h3>{widgetLabel(messages, key)}</h3>
-            <p>{widgetText(messages, key, value)}</p>
+            <p className="garden-value">{widgetText(messages, key, value)}</p>
           </article>
         ))}
       </div>
-      {score.data !== undefined ? (
-        <p>
-          {score.data.enabled === true ? messages.achievementsOn : messages.achievementsOff}
-          {typeof score.data.score === 'number' ? ` · ${String(score.data.score)}` : ''}
-        </p>
+      {score.isSuccess ? (
+        <article className="widget garden-card">
+          <h3>{messages.gardenAchievements}</h3>
+          <p className="garden-value">
+            {score.data.enabled === true ? messages.achievementsOn : messages.achievementsOff}
+            {typeof score.data.score === 'number' ? ` · ${String(score.data.score)}` : ''}
+          </p>
+          <Button
+            onClick={() => {
+              void api.setAchievements(score.data.enabled !== true).then(() => {
+                void score.refetch();
+              });
+            }}
+          >
+            {score.data.enabled === true ? messages.achievementsOff : messages.achievementsOn}
+          </Button>
+        </article>
       ) : null}
-      <Button
-        onClick={() => {
-          void api.setAchievements(score.data?.enabled !== true).then(() => {
-            void score.refetch();
-          });
-        }}
-      >
-        {score.data?.enabled === true ? messages.achievementsOff : messages.achievementsOn}
-      </Button>
     </section>
   );
 }
 
 export function ReportsPage() {
   const messages = useMessages();
+  const navigate = useNavigate();
   const { week } = useParams();
   const queryClient = useQueryClient();
   const reports = useQuery({ queryKey: ['weekly-reports'], queryFn: () => api.weeklyReports() });
   const rows = itemsOf(reports.data);
   const current = week === undefined ? rows[0] : rows.find((row) => text(row.week) === week);
+  const payload = isRow(current?.payload) ? current.payload : {};
+  const snapshot = isRow(payload.snapshot) ? payload.snapshot : {};
+  const completed = numberOf(payload.completed ?? snapshot.completed);
+  const created = numberOf(payload.created ?? snapshot.created);
+  const overdue = numberOf(payload.overdue ?? snapshot.overdue);
+  const focusMinutes = numberOf(payload.focus_minutes);
+  const habitsDone = numberOf(payload.habits_done ?? snapshot.habit_percent);
+  const trend = numberOf(payload.trend ?? snapshot.trend);
+  const days = Array.isArray(payload.days) ? payload.days.filter(isRow) : [];
+  const peak = Math.max(1, ...days.map((day) => numberOf(day.completed) + numberOf(day.created)));
   return (
-    <section className="screen-page">
-      <h1>{messages.reportsTitle}</h1>
-      <Button
-        variant="primary"
-        onClick={() => {
-          void api.buildWeeklyReport().then(() => {
-            void queryClient.invalidateQueries({ queryKey: ['weekly-reports'] });
-          });
-        }}
-      >
-        {messages.reportBuild}
-      </Button>
+    <section className="screen-page is-wide">
+      <header className="page-header">
+        <div>
+          <h1>{messages.reportsTitle}</h1>
+          <p className="lede">{text(payload.summary)}</p>
+        </div>
+        <Button
+          variant="primary"
+          onClick={() => {
+            void api.buildWeeklyReport().then(() => {
+              void queryClient.invalidateQueries({ queryKey: ['weekly-reports'] });
+            });
+          }}
+        >
+          {messages.reportBuild}
+        </Button>
+      </header>
       {rows.length === 0 ? (
         <EmptyState title={messages.reportsTitle} body={messages.reportEmpty} />
-      ) : null}
-      <ul>
-        {rows.map((row) => (
-          <li key={text(row.week)}>
-            <Link to={`/reports/weekly/${text(row.week)}`}>{text(row.week)}</Link>
-          </li>
-        ))}
-      </ul>
+      ) : (
+        <label className="token-label">
+          {messages.reportWeek}
+          <select
+            className="token-name is-short"
+            value={text(current?.week)}
+            onChange={(event) => {
+              void navigate(`/reports/weekly/${event.target.value}`);
+            }}
+          >
+            {rows.map((row) => (
+              <option key={text(row.week)} value={text(row.week)}>
+                {text(row.week)}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       {current !== undefined ? (
-        <p>{text((current.payload as { summary?: unknown } | undefined)?.summary)}</p>
+        <>
+          <ul className="widget-grid">
+            <CountCard label={messages.reportCompleted} value={completed} />
+            <CountCard label={messages.reportCreated} value={created} />
+            <CountCard label={messages.reportOverdue} value={overdue} />
+            <CountCard label={messages.reportFocus} value={focusMinutes} />
+            <CountCard label={messages.reportHabits} value={habitsDone} />
+            <CountCard label={messages.reportTrend} value={trend} />
+          </ul>
+          {days.length > 0 ? (
+            <section>
+              <h2>{messages.reportDays}</h2>
+              <table className="shortcut-table report-days">
+                <tbody>
+                  {days.map((day) => {
+                    const done = numberOf(day.completed);
+                    const made = numberOf(day.created);
+                    return (
+                      <tr key={text(day.date)}>
+                        <th scope="row">{text(day.date)}</th>
+                        <td>
+                          <span
+                            className="report-bar"
+                            style={{
+                              width: `${String(Math.round(((done + made) / peak) * 100))}%`,
+                            }}
+                          />
+                          {messages.reportCompleted} {String(done)} · {messages.reportCreated}{' '}
+                          {String(made)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </section>
+          ) : null}
+        </>
       ) : null}
     </section>
   );
@@ -202,21 +287,205 @@ export function ReportsPage() {
 
 export function ReviewPage() {
   const messages = useMessages();
+  const queryClient = useQueryClient();
   const daily = useQuery({ queryKey: ['review-daily'], queryFn: () => api.reviewDaily() });
   const weekly = useQuery({ queryKey: ['review-weekly'], queryFn: () => api.reviewWeekly() });
+  const ready = daily.isSuccess && weekly.isSuccess;
+  const tasks = namedRows(weekly.data, 'tasks');
+  const overdueIds = new Set(stringsOf(weekly.data, 'overdue_ids'));
+  const undatedIds = new Set(stringsOf(weekly.data, 'undated_ids'));
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  function schedule(id: string, offset: number): void {
+    const today = calendarDay(new Date().toISOString(), zone);
+    const due = zonedWallTime(shiftDayKey(today, offset), 0, 0, zone);
+    if (due === null) {
+      return;
+    }
+    void api
+      .patchTask(id, { due_date: due, is_all_day: true, time_zone: zone })
+      .then(() => refreshTaskSurfaces(queryClient))
+      .then(() => {
+        void queryClient.invalidateQueries({ queryKey: ['review-weekly'] });
+        void queryClient.invalidateQueries({ queryKey: ['review-daily'] });
+      });
+  }
   return (
-    <section className="screen-page">
+    <section className="screen-page is-wide">
       <h1>{messages.reviewTitle}</h1>
       <p>{messages.reviewLead}</p>
-      <ul className="widget-grid">
-        <CountCard label={messages.reviewProposed} value={idCount(daily.data, 'task_ids')} />
-        <CountCard label={messages.reviewOverdue} value={idCount(weekly.data, 'overdue_ids')} />
-        <CountCard label={messages.reviewUndated} value={idCount(weekly.data, 'undated_ids')} />
-        <CountCard label={messages.reviewStale} value={idCount(weekly.data, 'stale_list_ids')} />
-        <CountCard label={messages.reviewHabits} value={idCount(weekly.data, 'habits_at_risk')} />
-      </ul>
+      {ready ? (
+        <ol className="review-flow">
+          <li>
+            <h2>{messages.reviewStepInbox}</h2>
+            <p>
+              <Link to="/inbox">{messages.reviewOpenInbox}</Link>
+            </p>
+          </li>
+          <ReviewBucket
+            title={messages.reviewStepOverdue}
+            count={idCount(weekly.data, 'overdue_ids')}
+            rows={tasks.filter((row) => overdueIds.has(text(row.id)))}
+            messages={messages}
+            onToday={(id) => {
+              schedule(id, 0);
+            }}
+            onTomorrow={(id) => {
+              schedule(id, 1);
+            }}
+            onWont={(id) => {
+              void api.cancelTask(id).then(() => {
+                void queryClient.invalidateQueries({ queryKey: ['review-weekly'] });
+              });
+            }}
+            onDone={(id) => {
+              void api.completeTask(id, {}, crypto.randomUUID()).then(() => {
+                void queryClient.invalidateQueries({ queryKey: ['review-weekly'] });
+              });
+            }}
+          />
+          <ReviewBucket
+            title={messages.reviewStepUndated}
+            count={idCount(weekly.data, 'undated_ids')}
+            rows={tasks.filter((row) => undatedIds.has(text(row.id)))}
+            messages={messages}
+            onToday={(id) => {
+              schedule(id, 0);
+            }}
+            onTomorrow={(id) => {
+              schedule(id, 1);
+            }}
+            onWont={(id) => {
+              void api.cancelTask(id).then(() => {
+                void queryClient.invalidateQueries({ queryKey: ['review-weekly'] });
+              });
+            }}
+            onDone={(id) => {
+              void api.completeTask(id, {}, crypto.randomUUID()).then(() => {
+                void queryClient.invalidateQueries({ queryKey: ['review-weekly'] });
+              });
+            }}
+          />
+          <li>
+            <h2>{messages.reviewStepTomorrow}</h2>
+            <p>
+              <Link to="/today">{messages.reviewOpenToday}</Link>
+              {' · '}
+              {messages.reviewProposed} {String(idCount(daily.data, 'task_ids'))}
+            </p>
+          </li>
+          <li>
+            <h2>{messages.reviewStale}</h2>
+            <ul>
+              {namedRows(weekly.data, 'lists').map((row) => (
+                <li key={text(row.id)}>
+                  <Link to={`/list/${text(row.id)}`}>{text(row.name)}</Link>
+                </li>
+              ))}
+            </ul>
+          </li>
+          <li>
+            <h2>{messages.reviewHabits}</h2>
+            <ul>
+              {namedRows(weekly.data, 'habits').map((row) => (
+                <li key={text(row.id)}>
+                  <Link to={`/habits/${text(row.id)}`}>{text(row.name)}</Link>
+                </li>
+              ))}
+            </ul>
+          </li>
+        </ol>
+      ) : null}
     </section>
   );
+}
+
+function ReviewBucket({
+  title,
+  count,
+  rows,
+  messages,
+  onToday,
+  onTomorrow,
+  onWont,
+  onDone,
+}: {
+  readonly title: string;
+  readonly count: number;
+  readonly rows: readonly Record<string, unknown>[];
+  readonly messages: ReturnType<typeof useMessages>;
+  readonly onToday: (id: string) => void;
+  readonly onTomorrow: (id: string) => void;
+  readonly onWont: (id: string) => void;
+  readonly onDone: (id: string) => void;
+}) {
+  return (
+    <li>
+      <h2>
+        {title} · {String(count)}
+      </h2>
+      {rows.length === 0 ? <p>{messages.reviewEmptyList}</p> : null}
+      <ul className="review-tasks">
+        {rows.map((row) => {
+          const id = text(row.id);
+          return (
+            <li key={id}>
+              <Link to={`/list/${text(row.listId)}?task=${id}`}>{text(row.title)}</Link>
+              <span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onToday(id);
+                  }}
+                >
+                  {messages.reviewToday}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onTomorrow(id);
+                  }}
+                >
+                  {messages.reviewTomorrow}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onWont(id);
+                  }}
+                >
+                  {messages.reviewWont}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onDone(id);
+                  }}
+                >
+                  {messages.reviewDone}
+                </button>
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </li>
+  );
+}
+
+function namedRows(value: unknown, key: string): readonly Record<string, unknown>[] {
+  if (typeof value !== 'object' || value === null) {
+    return [];
+  }
+  const rows = (value as Record<string, unknown>)[key];
+  return Array.isArray(rows) ? rows.filter(isRow) : [];
+}
+
+function stringsOf(value: unknown, key: string): string[] {
+  if (typeof value !== 'object' || value === null) {
+    return [];
+  }
+  const ids = (value as Record<string, unknown>)[key];
+  return Array.isArray(ids) ? ids.filter((item): item is string => typeof item === 'string') : [];
 }
 
 export function FocusPage() {

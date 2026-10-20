@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
 import { createApiClient } from '@reflexionia/sdk';
 import { sessionMode } from '../../api';
 import { BrandMark } from '../../components/BrandMark';
@@ -12,6 +12,8 @@ const sessionApi = createApiClient({ baseUrl: '', credentials: 'include' });
 export function LoginPage() {
   const messages = messagesFor(navigator.language);
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const next = safeOauthNext(params.get('next'));
   const status = useSyncExternalStore(subscribeSession, sessionStatus, sessionStatus);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,14 +25,20 @@ export function LoginPage() {
     try {
       const session = await sessionApi.login({ email, password });
       markSession('authenticated', session.csrf_token);
-      void navigate('/today');
+      followOauthNext(next, () => {
+        void navigate('/today');
+      });
     } catch {
       setError(messages.loginFailed);
     }
   }
 
   if (sessionMode && status === 'authenticated') {
-    return <Navigate to="/today" replace />;
+    if (next?.startsWith('/oauth/authorize') === true) {
+      window.location.assign(next);
+      return <p className="ui-muted">{messages.sessionChecking}</p>;
+    }
+    return <Navigate to={next ?? '/today'} replace />;
   }
 
   return (
@@ -197,4 +205,32 @@ function AuthCard({ title, children }: { readonly title: string; readonly childr
       </section>
     </main>
   );
+}
+
+function safeOauthNext(value: string | null): string | null {
+  if (
+    value === null ||
+    !value.startsWith('/oauth/') ||
+    value.includes('\\') ||
+    value.includes('://')
+  ) {
+    return null;
+  }
+  const path = value.split('?')[0];
+  if (path !== '/oauth/authorize' && path !== '/oauth/consent') {
+    return null;
+  }
+  return value;
+}
+
+function followOauthNext(next: string | null, otherwise: () => void): void {
+  if (next === null) {
+    otherwise();
+    return;
+  }
+  if (next.startsWith('/oauth/authorize')) {
+    window.location.assign(next);
+    return;
+  }
+  window.location.assign(next);
 }

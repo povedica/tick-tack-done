@@ -1,9 +1,10 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
-import { isIanaTimeZone, sanitizeFeatureFlags } from '@reflexionia/domain';
+import { isIanaTimeZone } from '@reflexionia/domain';
 import { hashInboundToken, inboundAddress, newInboundToken } from '../inbound/email-address.js';
 import { DomainException } from '../http/domain.exception.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { AuthUser } from './auth-user.js';
+import { featureFlags } from './feature-flags.js';
 import type {
   InboundEmailAddressDto,
   InboundEmailStatusDto,
@@ -76,10 +77,45 @@ export class MeService {
         ...(dto.evening_start !== undefined
           ? { eveningStart: this.clock(dto.evening_start) ?? '18:00' }
           : {}),
-        ...(dto.feature_flags !== undefined ? { featureFlags: this.flags(dto.feature_flags) } : {}),
+        ...(dto.features !== undefined
+          ? {
+              featureFlags: await this.mergeFeatures(user.id, dto.features),
+            }
+          : {}),
       },
     });
     return this.toJson(row);
+  }
+
+  private async mergeFeatures(
+    id: string,
+    patch: Partial<{
+      countdowns: boolean;
+      focus: boolean;
+      matrix: boolean;
+      when_deadline: boolean;
+      day_load: boolean;
+      day_closing: boolean;
+      day_replan: boolean;
+    }>,
+  ) {
+    const current = featureFlags(
+      (
+        await this.prisma.user.findFirst({
+          where: { id },
+          select: { featureFlags: true },
+        })
+      )?.featureFlags,
+    );
+    return {
+      countdowns: patch.countdowns ?? current.countdowns,
+      focus: patch.focus ?? current.focus,
+      matrix: patch.matrix ?? current.matrix,
+      when_deadline: patch.when_deadline ?? current.when_deadline,
+      day_load: patch.day_load ?? current.day_load,
+      day_closing: patch.day_closing ?? current.day_closing,
+      day_replan: patch.day_replan ?? current.day_replan,
+    };
   }
 
   private async require(id: string): Promise<{
@@ -193,7 +229,7 @@ export class MeService {
       default_task_duration_minutes: row.defaultTaskDuration,
       deadline_soon_days: row.deadlineSoonDays,
       evening_start: row.eveningStart,
-      feature_flags: this.flagMap(row.featureFlags),
+      features: featureFlags(row.featureFlags),
     };
   }
 
@@ -314,23 +350,6 @@ export class MeService {
         next_retry_at: row.nextRetryAt?.toISOString() ?? null,
       })),
     };
-  }
-
-  private flags(value: Record<string, boolean>): Record<string, boolean> {
-    const parsed = sanitizeFeatureFlags(value);
-    if (!parsed.ok) {
-      throw new DomainException(
-        HttpStatus.BAD_REQUEST,
-        'validation_failed',
-        'feature_flags has an unknown key',
-      );
-    }
-    return parsed.flags;
-  }
-
-  private flagMap(value: unknown): Record<string, boolean> {
-    const parsed = sanitizeFeatureFlags(value);
-    return parsed.ok ? parsed.flags : {};
   }
 
   private clock(value: string | null): string | null {

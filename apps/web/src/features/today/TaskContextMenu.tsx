@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import type { Messages } from '../../i18n';
 import type { TodayTask } from './groups';
 
@@ -42,6 +43,25 @@ export function TaskContextMenu({
   readonly onSomeday?: () => void;
   readonly onEvening?: () => void;
 }) {
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+    const onDown = (event: MouseEvent): void => {
+      const target = event.target;
+      if (!(target instanceof Element) || target.closest('.task-context') === null) {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('mousedown', onDown);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('mousedown', onDown);
+    };
+  }, [onClose]);
   return (
     <div
       className="popover popover-menu task-context"
