@@ -1,6 +1,5 @@
 import { MODULES, moduleEnabled } from './modules';
 import { ControlChip } from '../features/statistics/ControlSummary';
-import { AccountMenu } from './AccountMenu';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { normalizeTagName, FIXED_SMART_LIST_KEYS } from '@reflexionia/domain';
 import { ApiError } from '@reflexionia/sdk';
@@ -17,6 +16,7 @@ import {
   ListTodo,
   List,
   Settings,
+  LogOut,
   MoreHorizontal,
   Plus,
   Sparkles,
@@ -26,7 +26,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react';
-import { Link, NavLink, useLocation, useMatch } from 'react-router';
+import { Link, NavLink, useLocation, useMatch, useNavigate } from 'react-router';
 import { api } from '../api';
 import { Badge } from '../components/ui';
 import { TagIcon } from '../components/TagIcon';
@@ -68,6 +68,11 @@ export function Sidebar({
   readonly onNavigate: () => void;
 }) {
   const messages = useMessages();
+  const navigate = useNavigate();
+  const me = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
+  const accountName = me.data?.display_name.trim().length
+    ? me.data.display_name
+    : (me.data?.email ?? messages.settingsAccount);
   const flags = useFeatures((state) => state.flags);
   const showCounters = usePreferences((state) => state.showCounters);
   const queryClient = useQueryClient();
@@ -158,8 +163,16 @@ export function Sidebar({
       data-collapsed={collapsed ? 'true' : 'false'}
       inert={concealed ? true : undefined}
     >
-      {mobileSection === 'more' ? <AccountMenu /> : null}
-      {concealed ? null : <ControlChip />}
+      {mobileSection === 'more' ? (
+        <div className="sidebar-account-identity">
+          <span className="account-avatar" aria-hidden="true">
+            {accountName.slice(0, 1).toUpperCase()}
+          </span>
+          <span>{accountName}</span>
+        </div>
+      ) : concealed ? null : (
+        <ControlChip />
+      )}
       {mobileSection !== 'more' && smart.isPending ? (
         <div className="ui-skeleton" aria-hidden="true">
           <span />
@@ -202,12 +215,6 @@ export function Sidebar({
                 <SideLink to="/filters" onNavigate={onNavigate}>
                   <List size={20} aria-hidden="true" />
                   <span className="nav-label">{messages.filtersTitle}</span>
-                </SideLink>
-              </li>
-              <li>
-                <SideLink to="/settings/appearance" onNavigate={onNavigate}>
-                  <Settings size={20} aria-hidden="true" />
-                  <span className="nav-label">{messages.navSettings}</span>
                 </SideLink>
               </li>
             </ul>
@@ -630,7 +637,28 @@ export function Sidebar({
           </>
         )}
       </nav>
-      {mobileSection !== 'more' ? (
+      {mobileSection === 'more' ? (
+        <div className="sidebar-footer sidebar-more-footer">
+          <SideLink to="/settings/appearance" onNavigate={onNavigate}>
+            <Settings size={20} aria-hidden="true" />
+            <span className="nav-label">{messages.navSettings}</span>
+          </SideLink>
+          <button
+            type="button"
+            className="nav-link"
+            onClick={() => {
+              void api.logout().then(() => {
+                queryClient.clear();
+                onNavigate();
+                void navigate('/login', { replace: true });
+              });
+            }}
+          >
+            <LogOut size={20} aria-hidden="true" />
+            <span className="nav-label">{messages.signOut}</span>
+          </button>
+        </div>
+      ) : (
         <div className="sidebar-footer">
           {ordered.some((item) => item.key === 'completed' && item.enabled) ? (
             <SideLink to="/smart/completed" onNavigate={onNavigate}>
@@ -655,7 +683,7 @@ export function Sidebar({
             </SideLink>
           ) : null}
         </div>
-      ) : null}
+      )}
     </aside>
   );
 }

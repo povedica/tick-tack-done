@@ -880,7 +880,7 @@ test('mobile Lists footer matches the reference and More has no footer', async (
   await page.keyboard.press('Escape');
   await page.locator('.bottom-bar').getByRole('button', { name: 'Más', exact: true }).click();
   await expect(page.locator('.sidebar')).toHaveCSS('transform', 'none');
-  await expect(page.locator('.sidebar-footer')).toHaveCount(0);
+  await expect(page.locator('.sidebar-footer .footer-icon')).toHaveCount(0);
   await expect(
     page.locator('.sidebar').getByRole('link', { name: 'Jardín', exact: true }),
   ).toBeVisible();
@@ -971,7 +971,7 @@ for (const width of [1280, 390]) {
   });
 }
 
-for (const width of [1280, 390]) {
+for (const width of [1280]) {
   test(`account avatar menu replaces sidebar identity (${width}px)`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await fixtures(page);
@@ -1002,5 +1002,36 @@ for (const width of [1280, 390]) {
     await panel.getByRole('link', { name: 'Estadísticas', exact: true }).click();
     await expect(page).toHaveURL(/\/statistics$/);
     await expect(account.locator('.menu-card')).toBeHidden();
+  });
+}
+
+for (const width of [360, 390]) {
+  test(`mobile More shows identity and pinned account actions (${width}px)`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await fixtures(page);
+    await page.goto('/today');
+    await page.locator('.bottom-bar').getByRole('button', { name: 'Más', exact: true }).click();
+    const sidebar = page.locator('.sidebar');
+    await expect(sidebar).toHaveCSS('transform', 'none');
+    await expect(sidebar.locator('.sidebar-account-identity')).toContainText('Auditoría');
+    await expect(sidebar.locator('.control-chip, .account-menu')).toHaveCount(0);
+    const footer = sidebar.locator('.sidebar-more-footer');
+    await expect(footer.getByRole('link', { name: 'Ajustes', exact: true })).toBeVisible();
+    const logout = footer.getByRole('button', { name: 'Cerrar sesión', exact: true });
+    await expect(logout).toBeVisible();
+    const settingsBox = await footer.locator('a').boundingBox();
+    const logoutBox = await logout.boundingBox();
+    const sidebarBox = await sidebar.boundingBox();
+    expect(logoutBox!.y).toBeGreaterThan(settingsBox!.y);
+    expect(sidebarBox!.y + sidebarBox!.height - logoutBox!.y - logoutBox!.height).toBeLessThan(40);
+    await page.screenshot({ path: test.info().outputPath(`mobile-more-account-${width}.png`) });
+    let loggedOut = false;
+    await page.route('**/auth/logout', async (route) => {
+      loggedOut = true;
+      await route.fulfill({ status: 204 });
+    });
+    await logout.click();
+    await expect(page).toHaveURL(/\/login$/);
+    expect(loggedOut).toBe(true);
   });
 }
