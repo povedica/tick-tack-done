@@ -538,14 +538,17 @@ describe('MCP server', () => {
     };
     expect(completed.status).toBe('completed');
     expect(completed.series?.materialized).toBe(true);
-    expect(completed.series?.next_due_date).toBeTruthy();
-    expect(new Date(completed.series!.next_due_date!).getTime()).toBeGreaterThan(Date.now() - 60_000);
+    const nextDue = completed.series?.next_due_date;
+    expect(nextDue).toBeTruthy();
+    expect(new Date(nextDue ?? 0).getTime()).toBeGreaterThan(Date.now() - 60_000);
 
     const active = await prisma.task.findMany({
       where: { seriesId: plant.series_id, status: 'active', deletedAt: null },
     });
     expect(active).toHaveLength(1);
-    expect(active[0]!.dueDate!.getTime()).toBeGreaterThan(Date.now() - 60_000);
+    const activeDue = active[0]?.dueDate;
+    expect(activeDue).toBeTruthy();
+    expect((activeDue ?? new Date(0)).getTime()).toBeGreaterThan(Date.now() - 60_000);
 
     // Scheduler must stay idempotent: a second materialize pass must not duplicate.
     const before = await prisma.task.count({
