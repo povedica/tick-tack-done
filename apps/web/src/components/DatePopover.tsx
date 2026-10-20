@@ -35,6 +35,7 @@ export function DatePopover({
   onApply,
   onNotice,
   onEvening,
+  onSomeday,
   anchor,
 }: {
   readonly anchor?: RefObject<HTMLElement | null> | undefined;
@@ -45,6 +46,7 @@ export function DatePopover({
   readonly onApply: (next: DateDraft) => void;
   readonly onNotice?: (text: string) => void;
   readonly onEvening?: () => void;
+  readonly onSomeday?: () => void;
 }) {
   const messages = useMessages();
   const locale = useAppLocale();
@@ -509,6 +511,18 @@ export function DatePopover({
             </>
           ) : null}
         </>
+      )}
+      {onSomeday === undefined ? null : (
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => {
+            onSomeday();
+            onClose();
+          }}
+        >
+          {messages.somedayAction}
+        </Button>
       )}
       <div className="popover-actions">
         <Button

@@ -2869,3 +2869,116 @@ a.link:hover {
   flex: none;
   margin-top: 12px;
 }
+
+/* Detalle: RF-201/202/203/207, composición compacta y texto íntegro. */
+.detail-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+.detail-title-row .task-check-hit {
+  flex-shrink: 0;
+  margin-top: 5px;
+}
+.detail-title-row .detail-title {
+  min-width: 0;
+  width: 100%;
+}
+.detail-metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 20px;
+}
+.detail-meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  max-width: 100%;
+  padding: 3px 7px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.detail-meta-chip[data-empty='true'] {
+  color: var(--ink-2);
+}
+.detail-meta-chip.is-overdue {
+  color: var(--danger);
+}
+.detail-assistant {
+  color: var(--accent);
+}
+.detail-description-preview {
+  position: relative;
+  cursor: text;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.description-pencil {
+  color: var(--ink-2);
+  opacity: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+.detail-description-preview:hover .description-pencil,
+.detail-description-preview:focus-visible .description-pencil {
+  opacity: 1;
+}
+.detail-panel .detail-check li {
+  min-height: 34px;
+  padding-block: 3px;
+}
+.detail-panel .detail-check .check-title {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}
+.detail-block h3,
+.detail-section-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-2);
+}
+.detail-panel .detail-drop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+@media (max-width: 699px) {
+  .description-pencil {
+    opacity: 1;
+  }
+}
+
+.detail-description-preview {
+  white-space: normal;
+}
+.detail-description-preview p {
+  white-space: pre-wrap;
+  margin-block: 0 10px;
+}
+.detail-description-preview ul,
+.detail-description-preview ol {
+  margin-block: 8px;
+}
+.detail-panel .detail-check .check-title {
+  height: auto;
+  min-height: 28px;
+}
+
+.detail-description-preview li {
+  white-space: pre-wrap;
+}

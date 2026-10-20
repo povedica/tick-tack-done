@@ -560,7 +560,7 @@ test('DET-3/4, MOV-4 and POP-1: mobile detail renders Markdown, readable subtask
   const subtask = page.locator('.detail-check .check-title');
   await expect(subtask).toContainText('Subtarea con título legible');
   expect(await subtask.evaluate((node) => node.getBoundingClientRect().width)).toBeGreaterThan(150);
-  await page.locator('.detail-head .due-chip').click();
+  await page.locator('.detail-meta-chip').first().click();
   const dialog = page.getByRole('dialog', { name: 'Fecha', exact: true });
   await expect(dialog).toBeVisible();
   await page.keyboard.press('Shift+Tab');
@@ -952,4 +952,41 @@ for (const width of [360, 390]) {
     await expect(page).toHaveURL(/\/login$/);
     expect(loggedOut).toBe(true);
   });
+}
+
+for (const width of [1440, 390]) {
+  for (const theme of ['light', 'dark']) {
+    test(`DET compact metadata and faithful description draft (${width}, ${theme})`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await fixtures(page);
+      await page.goto('/today?task=audit-task');
+      await page.evaluate(
+        (theme) => document.documentElement.setAttribute('data-theme', theme),
+        theme,
+      );
+      await expect(page.getByRole('link', { name: 'Ayúdame con esta tarea' })).toBeVisible();
+      await expect(page.locator('.detail-title-row .task-check')).toHaveCount(1);
+      await expect(page.locator('.detail-meta-chip')).toHaveCount(4);
+      await page.locator('.detail-description-preview').click();
+      const field = page.locator('.detail-content');
+      const text = 'Primera línea\nSegunda línea\n- lista\nLiteral: \\n';
+      await field.fill(text);
+      await page.reload();
+      await page.locator('.detail-description-preview').click();
+      await expect(field).toHaveValue(text);
+      await field.blur();
+      await page.evaluate(
+        (theme) => document.documentElement.setAttribute('data-theme', theme),
+        theme,
+      );
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
+      );
+      await page.screenshot({
+        path: `../../docs/reviews/assets/task-detail-2026-10-21/${width}-${theme}.png`,
+      });
+    });
+  }
 }

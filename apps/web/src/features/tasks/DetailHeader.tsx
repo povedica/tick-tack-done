@@ -1,28 +1,24 @@
-import { displayTitle } from './displayTitle';
-import { Flag, X } from 'lucide-react';
-import { PriorityCheck } from '../../components/PriorityCheck';
+import { Flag, Sparkles, X } from 'lucide-react';
+import { Link } from 'react-router';
 import { fill, type Messages } from '../../i18n';
 
 export function DetailHeader({
-  title,
   priority,
-  completed,
-  dueText,
-  dueTone,
+  taskId,
+
   saving,
   saved,
   savedLabel,
   savingLabel,
-  completeLabel,
-  dateLabel,
+
   priorityLabel,
   closeLabel,
   messages,
-  onComplete,
-  onOpenDate,
+
   onOpenPriority,
   onClose,
 }: {
+  readonly taskId: string;
   readonly title: string;
   readonly priority: 'none' | 'low' | 'medium' | 'high';
   readonly completed: boolean;
@@ -55,21 +51,15 @@ export function DetailHeader({
       <span className="detail-save" role="status">
         {saving ? savingLabel : saved ? savedLabel : ''}
       </span>
-      <PriorityCheck
-        priority={priority}
-        label={fill(completeLabel, displayTitle(title))}
-        checked={completed}
-        onChange={onComplete}
-      />
-      <button
-        type="button"
-        className={`due-chip is-${dueTone}`}
-        aria-label={dateLabel}
-        onClick={onOpenDate}
-      >
-        {dueText}
-      </button>
       <span className="detail-head-spacer" />
+      <Link
+        className="icon-button detail-assistant"
+        to={`/ticky?task=${encodeURIComponent(taskId)}`}
+        aria-label={messages.tickyHelpTask}
+        title={messages.tickyHelpTask}
+      >
+        <Sparkles size={18} aria-hidden="true" />
+      </Link>
       <button
         type="button"
         className="icon-button"
@@ -77,7 +67,12 @@ export function DetailHeader({
         title={fill(messages.priorityNamed, priorityName)}
         onClick={onOpenPriority}
       >
-        <Flag size={18} color={`var(--prio-${priority})`} aria-hidden="true" />
+        <Flag
+          size={18}
+          color={`var(--prio-${priority})`}
+          fill={priority === 'none' ? 'none' : `var(--prio-${priority})`}
+          aria-hidden="true"
+        />
       </button>
       <span className="sr-only">{priorityLabel}</span>
       <button

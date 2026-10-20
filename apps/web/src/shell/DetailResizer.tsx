@@ -4,7 +4,16 @@ import { useMessages } from '../i18n';
 const KEY = 'tick-tack-done.detail-width';
 const DEFAULT_WIDTH = 384;
 const MIN_WIDTH = 320;
-const MAX_WIDTH = 640;
+const MAX_WIDTH = 960;
+const viewportMax = (): number =>
+  Math.max(
+    MIN_WIDTH,
+    Math.min(
+      MAX_WIDTH,
+      Math.floor(window.innerWidth * 0.6),
+      window.innerWidth < 1100 ? MAX_WIDTH : window.innerWidth - 600,
+    ),
+  );
 
 export function readDetailWidth(storage: Storage): number {
   const saved = storage.getItem(KEY);
@@ -45,7 +54,7 @@ export function DetailResizer({
       aria-orientation="vertical"
       aria-label={messages.detailResize}
       aria-valuemin={MIN_WIDTH}
-      aria-valuemax={MAX_WIDTH}
+      aria-valuemax={viewportMax()}
       aria-valuenow={width}
       tabIndex={0}
       onPointerDown={(event) => {
@@ -55,7 +64,7 @@ export function DetailResizer({
         const startX = event.clientX;
         const start = width;
         function move(next: PointerEvent): void {
-          onWidth(clamp(start - (next.clientX - startX)));
+          onWidth(Math.min(viewportMax(), clamp(start - (next.clientX - startX))));
         }
         function up(next: PointerEvent): void {
           handle.releasePointerCapture(next.pointerId);
@@ -71,7 +80,7 @@ export function DetailResizer({
       onKeyDown={(event) => {
         if (event.key === 'ArrowLeft') {
           event.preventDefault();
-          onWidth(clamp(width + 16));
+          onWidth(Math.min(viewportMax(), clamp(width + 16)));
         }
         if (event.key === 'ArrowRight') {
           event.preventDefault();

@@ -1,8 +1,9 @@
-import { Bell, GripVertical, Paperclip, Plus, Repeat, X } from 'lucide-react';
+import { Bell, GripVertical, Paperclip, Pencil, Plus, Repeat, X } from 'lucide-react';
 import {
   useLayoutEffect,
   useState,
   type CSSProperties,
+  type ReactNode,
   type KeyboardEvent,
   type RefObject,
 } from 'react';
@@ -17,6 +18,8 @@ import { collapseRepeatedContent } from './collapse-repeated';
 
 export function DetailBody({
   taskId,
+  titleLeading,
+  metadata,
   title,
   content,
   titleLabel,
@@ -58,6 +61,8 @@ export function DetailBody({
   onDropFiles,
 }: {
   readonly taskId: string;
+  readonly titleLeading?: ReactNode;
+  readonly metadata?: ReactNode;
   readonly title: string;
   readonly content: string;
   readonly titleLabel: string;
@@ -118,6 +123,11 @@ export function DetailBody({
   const [editingContent, setEditingContent] = useState(false);
   const messages = useMessages();
   const cleanContent = collapseRepeatedContent(content);
+  const draftKey = `tick-tack-done.description-draft.${taskId}`;
+  const draftContent = localStorage.getItem(draftKey) ?? content;
+  useLayoutEffect(() => {
+    if (localStorage.getItem(draftKey) === content) localStorage.removeItem(draftKey);
+  }, [content, draftKey]);
   useLayoutEffect(() => {
     setEditingContent(false);
   }, [taskId]);
@@ -156,25 +166,29 @@ export function DetailBody({
         onDropFiles(files);
       }}
     >
-      <textarea
-        className="detail-title"
-        aria-label={titleLabel}
-        defaultValue={displayTitle(title)}
-        key={title}
-        rows={1}
-        ref={(node) => {
-          if (node !== null) fit(node);
-        }}
-        placeholder={untitled}
-        onInput={(event) => {
-          fit(event.currentTarget);
-        }}
-        onKeyDown={onTitleKey}
-        onBlur={(event) => {
-          onTitle(event.target.value);
-        }}
-      />
-      {!editingContent && cleanContent.length > 0 ? (
+      <div className="detail-title-row">
+        {titleLeading}
+        <textarea
+          className="detail-title"
+          aria-label={titleLabel}
+          defaultValue={displayTitle(title)}
+          key={title}
+          rows={1}
+          ref={(node) => {
+            if (node !== null) fit(node);
+          }}
+          placeholder={untitled}
+          onInput={(event) => {
+            fit(event.currentTarget);
+          }}
+          onKeyDown={onTitleKey}
+          onBlur={(event) => {
+            onTitle(event.target.value);
+          }}
+        />
+      </div>
+      {metadata}
+      {!editingContent && draftContent.length > 0 ? (
         <section className="detail-markdown">
           {cleanContent !== content ? (
             <p role="status">
@@ -190,16 +204,24 @@ export function DetailBody({
               </button>
             </p>
           ) : null}
-          <Markdown>{cleanContent}</Markdown>
-          <button
-            type="button"
-            className="text-button"
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label={messages.editDescription}
+            className="detail-description-preview"
             onClick={() => {
               setEditingContent(true);
             }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                setEditingContent(true);
+              }
+            }}
           >
-            {messages.editDescription}
-          </button>
+            <Markdown>{draftContent}</Markdown>
+            <Pencil className="description-pencil" size={14} aria-hidden="true" />
+          </div>
         </section>
       ) : (
         <textarea
@@ -207,10 +229,11 @@ export function DetailBody({
           className="detail-content"
           aria-label={contentLabel}
           placeholder={contentHint}
-          defaultValue={cleanContent}
+          defaultValue={draftContent}
           key={taskId}
           rows={3}
           onInput={(event) => {
+            localStorage.setItem(draftKey, event.currentTarget.value);
             fit(event.currentTarget);
           }}
           onBlur={(event) => {
@@ -361,6 +384,7 @@ export function DetailBody({
           </ul>
         </section>
       ) : null}
+      <h3 className="detail-section-label">{messages.tags}</h3>
       <div className="detail-tags">
         {tags.map((tag) => (
           <button
@@ -396,7 +420,7 @@ export function DetailBody({
           </button>
         </p>
       ) : null}
-      {repeat !== null ? (
+      {metadata === undefined && repeat !== null ? (
         <p className="detail-row">
           <Repeat size={14} aria-hidden="true" />
           <span>{repeat}</span>
@@ -410,8 +434,8 @@ export function DetailBody({
           {attachmentLabel}
           {attachments.length > 0 ? ` (${String(attachments.length)})` : ''}
         </h3>
-        <p className="detail-drop">{attachmentDrop}</p>
-        <label className="detail-attach-btn">
+        <label className="detail-attach-btn detail-drop">
+          {attachmentDrop}
           <input
             type="file"
             multiple
@@ -423,7 +447,7 @@ export function DetailBody({
             }}
           />
           <Paperclip size={14} aria-hidden="true" />
-          {attachmentLabel}
+          {messages.upload}
         </label>
         <ul className="detail-files">
           {attachments.map((file) => (
