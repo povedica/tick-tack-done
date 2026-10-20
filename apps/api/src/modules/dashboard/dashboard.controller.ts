@@ -19,7 +19,14 @@ import {
   telegramConfigured,
 } from '../../integrations/config.js';
 import { MetricsService } from '../metrics/metrics.service.js';
-import { dayKey, parseDayBounds, overdueAgeGroups } from '@reflexionia/domain';
+import {
+  dayKey,
+  parseDayBounds,
+  overdueAgeGroups,
+  gardenHabits,
+  uniqueGardenEvents,
+  gardenTagActivity,
+} from '@reflexionia/domain';
 
 export const WIDGET_KEYS = [
   'completed_today',
@@ -30,6 +37,7 @@ export const WIDGET_KEYS = [
   'flow',
   'habits',
   'load',
+  'tags',
   'calendar',
   'integrations',
   'focus',
@@ -92,7 +100,7 @@ export class DashboardController {
   @ApiOperation({
     summary: 'KPI for one widget (RF-2102, RF-2104)',
     description:
-      'Without widget, returns widgets, generated_at and period (from, to, time_zone). Activity covers the trailing seven days; completed_today uses the account time zone. Habits include total active habits. Calendar includes up to three events within the next seven days. Integration booleans reflect the authenticated account connection, not only server configuration. Includes overdue_by_list with disjoint calendar-age buckets under_7, days_7_30 and over_30, based on the same canonical overdue set as the count. Habits, calendar and next_countdowns expose configured independently of current activity. Projects exclude the inbox and include open/closed lists plus all accessible soft deletions, seven-day task activity and review signals (no pending tasks or no task changes for 30 days), excluding note lists and closed projects from suggestions.',
+      'Without widget, returns widgets, generated_at and period (from, to, time_zone). Activity covers the trailing seven days; completed_today uses the account time zone. Habits include total active habits. Calendar counts today and the next seven days, deduplicated by shared UID and occurrence start; previews include up to three events. Habits expose daily scheduled done/expected today, pending_today names and complete (all active habits have a recognized model), plus this calendar week to date. Weekly habits are not daily obligations. Load includes total_active, including subtasks. Focus exposes today/week seconds, active session and null goal_seconds (no goal in schema). Tags count unique active tasks per tag and current linked task creation/completion over 90 days; recent_activity is true or null (history unavailable), and assignment history is unavailable. Integration booleans reflect the authenticated account connection, not only server configuration. Includes overdue_by_list with disjoint calendar-age buckets under_7, days_7_30 and over_30, based on the same canonical overdue set as the count. Habits, calendar and next_countdowns expose configured independently of current activity. Projects exclude the inbox and include open/closed lists plus all accessible soft deletions, seven-day task activity and review signals (no pending tasks or no task changes for 30 days), excluding note lists and closed projects from suggestions.',
   })
   async data(
     @CurrentUser() user: AuthUser,
@@ -121,15 +129,13 @@ export class DashboardController {
       deletedAt: null,
       status: { not: 'cancelled' },
       subscription: { visible: true, deletedAt: null },
-      startsAt: { gte: now, lte: until },
+      startsAt: { gte: new Date(todayBounds?.startIso ?? now), lte: until },
     };
-    const [upcoming, upcomingEvents, habitTotal, account, telegramLink] = await Promise.all([
-      this.prisma.externalEvent.count({ where: eventWhere }),
+    const [rawEvents, habitTotal, account, telegramLink] = await Promise.all([
       this.prisma.externalEvent.findMany({
         where: eventWhere,
         orderBy: { startsAt: 'asc' },
-        take: 3,
-        select: { id: true, title: true, startsAt: true },
+        select: { id: true, externalUid: true, raw: true, title: true, startsAt: true },
       }),
       this.prisma.habit.count({ where: { ownerId: user.id, deletedAt: null, archived: false } }),
       this.prisma.user.findUniqueOrThrow({
@@ -141,6 +147,34 @@ export class DashboardController {
         select: { id: true },
       }),
     ]);
+    const upcomingEvents = uniqueGardenEvents(rawEvents);
+    const weekStart = new Date(`${today}T00:00:00Z`);
+    weekStart.setUTCDate(weekStart.getUTCDate() - ((weekStart.getUTCDay() + 6) % 7));
+    const from = weekStart.toISOString().slice(0, 10);
+    const weekBounds = parseDayBounds(from, today, tz);
+    const [habitRows, focusWeek, activeFocus, tags] = await Promise.all([
+      this.metrics.habitRows(user.id, tz),
+      this.metrics.focusMinutes(user.id, new Date(weekBounds?.startIso ?? now), now),
+      this.prisma.focusSession.findFirst({
+        where: { ownerId: user.id, deletedAt: null, type: 'focus', endedAt: null },
+        select: { id: true },
+      }),
+      this.prisma.tag.findMany({
+        where: { ownerId: user.id, deletedAt: null },
+        select: {
+          id: true,
+          name: true,
+          tasks: {
+            where: { task: { ownerId: user.id, deletedAt: null } },
+            select: {
+              taskId: true,
+              task: { select: { status: true, createdAt: true, completedAt: true } },
+            },
+          },
+        },
+      }),
+    ]);
+    const habitActivity = gardenHabits(habitRows, today, from);
     const countdowns = await this.prisma.countdown.findMany({
       where: {
         ownerId: user.id,
@@ -176,15 +210,36 @@ export class DashboardController {
       flow: { created: snapshot.created, completed: snapshot.completed, net: snapshot.net },
       habits: {
         percent: snapshot.habit_percent,
+        today: habitActivity.today,
+        pending_today: habitActivity.pending_today,
+        complete: habitRows.length === habitTotal,
+        week: habitActivity.week,
         total: habitTotal,
         configured: configuredHabits > 0,
       },
-      load: { by_list: snapshot.by_list, by_tag: snapshot.by_tag },
+      load: {
+        total_active: snapshot.by_list.reduce((sum, list) => sum + list.active, 0),
+        by_list: snapshot.by_list,
+        by_tag: snapshot.by_tag,
+      },
+      tags: {
+        inactivity_days: 90,
+        assignment_history: false,
+        items: tags
+          .map((tag) => ({
+            id: tag.id,
+            name: tag.name,
+            ...gardenTagActivity(tag.tasks, now),
+          }))
+          .sort((a, b) => b.active - a.active || a.name.localeCompare(b.name)),
+      },
       calendar: {
         configured: configuredCalendars > 0 || account.googleRefreshToken !== null,
-        upcoming,
-        label: `${String(upcoming)} eventos en los próximos 7 días`,
-        items: upcomingEvents.map((event) => ({
+        today: upcomingEvents.filter((event) => dayKey(event.startsAt.toISOString(), tz) === today)
+          .length,
+        upcoming: upcomingEvents.length,
+        label: `${String(upcomingEvents.length)} eventos en los próximos 7 días`,
+        items: upcomingEvents.slice(0, 3).map((event) => ({
           id: event.id,
           title: event.title,
           starts_at: event.startsAt.toISOString(),
@@ -196,7 +251,12 @@ export class DashboardController {
         google: googleConfigured() && account.googleRefreshToken !== null,
         drive: driveConfigured() && account.googleRefreshToken !== null,
       },
-      focus: { seconds: focusSeconds },
+      focus: {
+        seconds: focusSeconds,
+        week_seconds: focusWeek * 60,
+        active: activeFocus !== null,
+        goal_seconds: null,
+      },
       next_countdowns: {
         configured: configuredCountdowns > 0,
         items: countdowns.map((countdown) => ({

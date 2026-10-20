@@ -407,3 +407,5 @@ export {
 export { humanDate } from './dates/presentation';
 export { gardenProjectContext, type GardenProjectInput } from './dashboard/projects';
 export { overdueAgeGroups } from './dashboard/kpis';
+
+export { gardenHabits, uniqueGardenEvents, gardenTagActivity } from './dashboard/executive';

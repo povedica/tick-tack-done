@@ -66,6 +66,7 @@ async function fixtures(
     'projects',
     'flow',
     'load',
+    'tags',
     'habits',
     'focus',
     'calendar',
@@ -251,9 +252,25 @@ async function fixtures(
           },
           next_7_days: 12,
           flow: { created: 30, completed: 24, net: -6 },
-          load: { by_list: [{ list_id: 'audit-list', name: 'Lista de prueba', active: 7 }] },
-          habits: { total: 0, percent: 0, configured: options.configured ?? true },
-          focus: { seconds: options.focusSeconds ?? 1500 },
+          load: {
+            total_active: 12,
+            by_list: [{ list_id: 'audit-list', name: 'Lista de prueba', active: 7 }],
+          },
+          habits: {
+            total: 0,
+            percent: 0,
+            configured: options.configured ?? true,
+            complete: true,
+            today: { done: 0, expected: 0 },
+            pending_today: [],
+          },
+          tags: { items: [{ id: 'work', name: 'Trabajo', active: 4, recent_activity: true }] },
+          focus: {
+            seconds: options.focusSeconds ?? 1500,
+            week_seconds: 7200,
+            active: false,
+            goal_seconds: null,
+          },
           calendar: { upcoming: 0, items: [], configured: options.configured ?? true },
           integrations: { telegram: true, google: false, drive: false },
         },
@@ -299,193 +316,163 @@ async function fixtures(
 
 test.use({ locale: 'es-ES', timezoneId: 'Europe/Madrid' });
 
-test('garden scoring: disabled and failed reads never display invented zero points', async ({
-  page,
-}) => {
-  await fixtures(page);
-  let fail = false;
-  const handler = async (route: import('@playwright/test').Route) =>
-    route.fulfill(
-      fail
-        ? { status: 500, json: { error: { code: 'failed', message: 'failed' } } }
-        : { json: { summary: { achievement: { enabled: false, score: null } } } },
-    );
-  await page.route('**/api/v1/stats/overview?*', handler);
-  await page.goto('/dashboard');
-  const score = page.getByRole('region', { name: 'Puntuación de control', exact: true });
-  await expect(score).toContainText('La puntuación está desactivada');
-  await expect(score.locator('.control-value')).toHaveCount(0);
-  fail = true;
-  await page.reload();
-  await expect(score.getByRole('alert')).toContainText('No se ha podido cargar la puntuación');
-  await page.unroute('**/api/v1/stats/overview?*', handler);
-  await score.getByRole('button', { name: 'Reintentar puntuación', exact: true }).click();
-  await expect(score).toContainText('79');
-});
-
-test('garden KISS: compact control reuses the existing breakdown and duplicate blocks are absent', async ({
-  page,
-}) => {
+test('garden v3: fixed KPI order and visible secondary numbers', async ({ page }) => {
   await fixtures(page);
   await page.goto('/dashboard');
-  const score = page.getByRole('region', { name: 'Puntuación de control', exact: true });
-  await expect(score).toContainText('79 Al día');
-  await expect(score).not.toContainText('/ 100');
-  await expect(score.locator('dl, details, progress')).toHaveCount(0);
-  await expect(score.getByRole('link', { name: 'Configurar puntuación' })).toHaveCount(0);
-  await expect(
-    page.locator('.garden-today, [data-garden-widget="flow"], [data-garden-widget="integrations"]'),
-  ).toHaveCount(0);
-  await score.getByRole('button', { name: 'Ver desglose', exact: true }).click();
-  await expect(
-    page.getByRole('dialog', { name: 'Puntuación de control', exact: true }),
-  ).toContainText('79 sobre 100');
-  await expect(page.locator('.sidebar .control-chip')).toHaveAttribute('aria-expanded', 'true');
-  await page.keyboard.press('Escape');
-  const overdue = page.locator('[data-garden-widget="overdue"]');
-  await overdue.locator('summary').press('Enter');
-  await expect(overdue).toContainText('Menos de 7 días: 2');
-  await expect(overdue).toContainText('7–30 días: 2');
-  await expect(overdue).toContainText('Más de 30 días: 3');
-  await expect(page.locator('[data-garden-widget="completed_week"]')).not.toContainText('+5');
-});
-
-test('garden KISS: unconfigured modules fold together and a configured empty calendar remains visible', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await fixtures(page, { configured: false });
-  await page.goto('/dashboard');
-  await expect(page.getByText('Pendiente de configurar (3)', { exact: true })).toBeVisible();
-  await expect(
-    page.locator(
-      '[data-garden-widget="habits"], [data-garden-widget="calendar"], [data-garden-widget="next_countdowns"]',
-    ),
-  ).toHaveCount(0);
-  await page.getByText('Pendiente de configurar (3)', { exact: true }).click();
-  await expect(
-    page
-      .locator('.garden-configuration')
-      .getByRole('link', { name: 'En tu calendario', exact: true }),
-  ).toHaveAttribute('href', '/settings/calendar');
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-});
-
-test('garden KISS: an error is not treated as unconfigured', async ({ page }) => {
-  await fixtures(page, { configured: false });
-  await page.route('**/api/v1/countdowns?**', (route) =>
-    route.fulfill({ status: 500, json: { error: { code: 'failed', message: 'failed' } } }),
+  await expect(page.locator('[data-garden-group="kpi"] h2')).toHaveText([
+    'Puntuación',
+    'Racha',
+    'Completadas hoy',
+    'Necesitan atención',
+    'Próximos 7 días',
+  ]);
+  await expect(page.locator('[data-garden-widget="score"]')).toContainText('79');
+  await expect(page.locator('[data-garden-widget="completed_today"]')).toContainText(
+    '24 en 7 días',
   );
-  await page.goto('/dashboard');
-  await expect(page.locator('.garden-today')).toHaveCount(0);
-  await expect(page.locator('[data-garden-widget="next_countdowns"]')).toContainText(
-    'No se han podido cargar las fechas',
-  );
-  await expect(page.getByText('Pendiente de configurar (2)', { exact: true })).toBeVisible();
+  await expect(page.locator('[data-garden-widget="overdue"]')).toContainText('12 activas');
+  await expect(page.locator('.digital-garden')).not.toContainText('Ver desglose');
+  await expect(page.locator('.digital-garden summary')).toHaveCount(1);
 });
 
-for (const accent of ['indigo', 'violet']) {
-  test(`garden respects the account accent and the shared sans typography (${accent})`, async ({
-    page,
-  }) => {
-    await fixtures(page, { accent });
+for (const width of [1440, 390]) {
+  test(`garden v3: graphic map and accessible modal (${width})`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await fixtures(page, { reviewCount: 5 });
     await page.goto('/dashboard');
-    await expect(page.locator('.garden-load .garden-track > span').first()).toBeVisible();
-    await expect(page.locator('html')).toHaveAttribute('data-accent', accent);
-    const style = await page.evaluate(() => ({
-      bar: getComputedStyle(document.querySelector('.garden-load .garden-track > span')!)
-        .backgroundColor,
-      button: getComputedStyle(document.querySelector('.digital-garden .ui-button.is-primary')!)
-        .backgroundColor,
-      title: getComputedStyle(document.querySelector('#garden-title')!).fontFamily,
-      body: getComputedStyle(document.body).fontFamily,
-    }));
-    expect(style.bar).toBe(style.button);
-    expect(style.title).toBe(style.body);
-    await expect(page.locator('.garden-welcome')).toHaveCount(0);
+    const lists = page.locator('[data-garden-widget="load"]');
+    await expect(lists.locator('.garden-bars > li')).toHaveCount(5);
+    await expect(lists).toContainText('Proyectos por revisar');
+    await expect(page.locator('[data-garden-widget="projects"]')).toHaveCount(0);
+    await lists.locator('.garden-bars button').first().click();
+    const modal = page.getByRole('dialog', { name: 'Listas', exact: true });
+    await expect(modal).toBeVisible();
+    await expect(modal.locator('[data-selected="true"]')).toContainText('Lista de prueba');
+    await expect(modal.locator('table')).toContainText('7–30 días');
+    await expect(page).toHaveURL(/\/dashboard$/);
+    await expect(modal.getByRole('button', { name: 'Cerrar', exact: true })).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    expect(
+      await page.evaluate(() => document.querySelector('dialog')?.contains(document.activeElement)),
+    ).toBe(true);
+    await page.keyboard.press('Escape');
+    await expect(modal).toHaveCount(0);
+    await expect(lists.locator('.garden-bars button').first()).toBeFocused();
+    await lists.getByRole('button', { name: 'Ver todas', exact: true }).click();
+    await expect(modal.locator('.garden-bars > li')).toHaveCount(7);
+    await modal.getByRole('button', { name: 'Cerrar', exact: true }).click();
+    const tags = page.locator('[data-garden-widget="tags"]');
+    await tags.locator('.garden-tag-cloud button').first().click();
+    const tagModal = page.getByRole('dialog', { name: 'Etiquetas', exact: true });
+    await expect(tagModal.locator('[data-selected="true"]')).toContainText('Trabajo');
+    await page.keyboard.press('Escape');
+    await tags.getByRole('button', { name: 'Ver todas', exact: true }).click();
+    await expect(tagModal).toBeVisible();
+    await page.mouse.click(2, 2);
+    await expect(tagModal).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    const kpis = page.locator('[data-garden-group="kpi"]');
+    expect(
+      await kpis.evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(' ').length),
+    ).toBe(width === 390 ? 2 : 5);
+    await page.screenshot({ path: `/tmp/garden-v3/verified-${width}.png`, fullPage: true });
   });
 }
 
-test('garden shows only three review candidates without filters, internal scrolling or healthy filler', async ({
-  page,
-}) => {
-  await fixtures(page, { reviewCount: 5 });
+test('garden v3: unconfigured is distinct from zero, errors and missing data', async ({ page }) => {
+  await fixtures(page, { configured: false, focusSeconds: 0 });
   await page.goto('/dashboard');
-  const projects = page.locator('[data-garden-widget="projects"]');
-  await expect(projects.locator('.garden-project-list > li')).toHaveCount(3);
-  await expect(projects).toContainText('Sin tareas pendientes');
-  await expect(projects).toContainText('Sin actividad en más de 30 días');
-  await expect(projects.getByRole('link', { name: 'Proyecto nuevo', exact: true })).toHaveCount(0);
-  await expect(projects.locator('input, .segmented')).toHaveCount(0);
-  await expect(
-    projects.getByRole('link', { name: 'Abrir revisión semanal', exact: true }),
-  ).toHaveAttribute('href', '/review/weekly');
-  expect(
-    await projects
-      .locator('.garden-project-list')
-      .evaluate((node) => node.scrollHeight <= node.clientHeight),
-  ).toBe(true);
-});
-
-test('RF-2101/3: garden has actionable data and persists hidden, reordered, resized widgets', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 1440, height: 1000 });
-  await fixtures(page);
-  await page.goto('/dashboard');
-  await expect(page.getByRole('heading', { name: 'Jardín digital', exact: true })).toBeVisible();
+  await expect(page.locator('[data-garden-widget="habits"]')).toContainText('No activado');
   await expect(page.locator('[data-garden-widget="calendar"]')).toContainText(
-    'Sin eventos externos próximos',
+    'Conectar calendario',
   );
-  await expect(
-    page.getByRole('link', { name: 'Revisar mis pendientes', exact: true }),
-  ).toHaveAttribute('href', '/review/weekly');
-  await expect(page.locator('[data-garden-widget="habits"]')).toContainText('Sin hábitos activos');
-  await expect(page.locator('[data-garden-widget="flow"]')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Personalizar', exact: true }).click();
-  await page
-    .locator('[data-garden-editor="load"]')
-    .dragTo(page.locator('[data-garden-editor="completed_today"]'));
-  await page
-    .getByRole('combobox', { name: 'Tamaño: Dónde están tus pendientes', exact: true })
-    .selectOption('l');
-  await page.getByRole('checkbox', { name: 'Hábitos de hoy', exact: true }).uncheck();
-  await page.getByRole('button', { name: 'Guardar mi jardín', exact: true }).click();
-  await expect(page.locator('[data-garden-widget="habits"]')).toHaveCount(0);
+  await expect(page.locator('[data-garden-widget="focus"]')).toContainText('0 min');
+  await expect(page.locator('[data-garden-widget="habits"]')).not.toContainText('¡Hábitos');
+  await page.route('**/api/v1/dashboard/data', (route) =>
+    route.fulfill({ json: { widgets: { focus: {}, calendar: { available: false } } } }),
+  );
   await page.reload();
-  await expect(page.locator('[data-garden-widget]').first()).toHaveAttribute(
-    'data-garden-widget',
-    'load',
+  await expect(page.locator('[data-garden-widget="focus"]')).toContainText('Dato no disponible');
+  await expect(page.locator('[data-garden-widget="calendar"]')).toContainText('No activado');
+  await page.route('**/api/v1/dashboard/data', (route) =>
+    route.fulfill({ status: 500, json: { error: { code: 'failed', message: 'failed' } } }),
   );
-  await expect(page.locator('[data-garden-widget="load"]')).toHaveClass(/garden-size-l/);
-  await expect(page.locator('[data-garden-widget="habits"]')).toHaveCount(0);
+  await page.reload();
+  await expect(page.locator('[data-garden-widget="focus"]')).toContainText(
+    'No se ha podido cargar',
+  );
 });
 
-test('RF-2101: garden fits mobile, supports an empty layout, and keeps a failed save editable', async ({
+test('garden v3: verified habit motivation, focus goal and full active countdown count', async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+  await fixtures(page);
+  await page.route('**/api/v1/dashboard/data', (route) =>
+    route.fulfill({
+      json: {
+        widgets: {
+          habits: {
+            configured: true,
+            total: 2,
+            complete: true,
+            today: { done: 2, expected: 2 },
+            pending_today: [],
+          },
+          focus: { seconds: 3600, goal_seconds: 3600 },
+        },
+      },
+    }),
+  );
+  await page.route('**/api/v1/countdowns?**', (route) =>
+    route.fulfill({
+      json: {
+        items: Array.from({ length: 8 }, (_, i) => ({
+          id: String(i),
+          title: `Hito ${i}`,
+          kind: 'until',
+          days: i + 1,
+          reminders: [],
+        })),
+      },
+    }),
+  );
+  await page.goto('/dashboard');
+  await expect(page.locator('[data-garden-widget="habits"]')).toContainText(
+    '¡Hábitos de hoy completados!',
+  );
+  await expect(page.locator('[data-garden-widget="focus"]')).toContainText(
+    '¡Objetivo de foco alcanzado!',
+  );
+  await expect(page.locator('[data-garden-widget="next_countdowns"]')).toContainText('8activas');
+  await expect(page.locator('[data-garden-widget="next_countdowns"]')).toContainText('Hito 0');
+  await page.route('**/api/v1/dashboard/data', (route) =>
+    route.fulfill({
+      json: {
+        widgets: {
+          habits: { configured: true, total: 1, complete: false, today: { done: 1, expected: 1 } },
+        },
+      },
+    }),
+  );
+  await page.reload();
+  await expect(page.locator('[data-garden-widget="habits"]')).toContainText('Dato no disponible');
+  await expect(page.locator('[data-garden-widget="habits"]')).not.toContainText('¡Hábitos');
+});
+
+test('garden v3: customization persists hidden cards including score and tags', async ({
+  page,
+}) => {
   await fixtures(page);
   await page.goto('/dashboard');
-  await expect(page.locator('[data-garden-widget="load"]')).toBeVisible();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByRole('button', { name: 'Personalizar', exact: true }).click();
-  const checked = page
-    .getByRole('region', { name: 'Personalizar widgets' })
-    .getByRole('checkbox', { checked: true });
-  while ((await checked.count()) > 0) await checked.first().uncheck();
-  await page.route('**/api/v1/me/dashboard', async (route) => {
-    if (route.request().method() === 'PATCH')
-      await route.fulfill({ status: 500, json: { error: { code: 'failed', message: 'failed' } } });
-    else await route.fallback();
-  });
-  await page.getByRole('button', { name: 'Guardar mi jardín', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('Tu selección sigue aquí');
-  await page.unroute('**/api/v1/me/dashboard');
-  await page.getByRole('button', { name: 'Guardar mi jardín', exact: true }).click();
-  await expect(page.getByText('No hay widgets visibles.')).toBeVisible();
+  await page.getByRole('checkbox', { name: 'Puntuación', exact: true }).uncheck();
+  await page.getByRole('checkbox', { name: 'Etiquetas', exact: true }).uncheck();
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
   await page.reload();
-  await expect(page.locator('[data-garden-widget]')).toHaveCount(0);
+  await expect(page.locator('[data-garden-widget="score"]')).toHaveCount(0);
+  await expect(page.locator('[data-garden-widget="tags"]')).toHaveCount(0);
 });
 
 test('module order: drag, persist across reload, and avoid duplicate secondary navigation', async ({
@@ -715,83 +702,6 @@ for (const width of [1280, 390]) {
   }
 }
 
-for (const width of [1280, 390]) {
-  for (const empty of [false, true]) {
-    test(`garden simplified: ${width}px ${empty ? 'empty' : 'data'} remains readable with existing useful links`, async ({
-      page,
-    }) => {
-      await page.setViewportSize({ width, height: 844 });
-      await fixtures(page, {
-        empty,
-        reviewCount: empty ? 0 : 4,
-        focusSeconds: empty ? 0 : 1500,
-        configured: !empty,
-      });
-      await page.goto('/dashboard');
-      await expect(
-        page.locator('[data-garden-widget="completed_today"] .garden-metric'),
-      ).toHaveText(empty ? '0' : '3');
-      await expect(page.locator('[data-garden-widget="completed_week"] .garden-metric')).toHaveText(
-        empty ? '0' : '24',
-      );
-      await page.clock.runFor(100);
-      await expect(page.locator('[data-garden-widget="completed_week"]')).toBeVisible();
-      await expect(page.locator('[data-garden-widget="overdue"]')).toBeVisible();
-      await expect(page.locator('[data-garden-widget="next_7_days"]')).toBeVisible();
-      await expect(
-        page.getByRole('link', { name: 'Ver todas mis tareas', exact: true }),
-      ).toHaveAttribute('href', '/smart/all');
-      await expect(
-        page.getByRole('link', { name: 'Revisar mis pendientes', exact: true }),
-      ).toHaveAttribute('href', '/review/weekly');
-      await expect(
-        page.getByRole('link', { name: 'Ver mi reporte semanal', exact: true }),
-      ).toHaveAttribute('href', '/reports/weekly');
-      await expect(page.locator('[data-garden-widget="focus"]')).toHaveCount(empty ? 0 : 1);
-      if (empty) await expect(page.locator('.garden-score')).toContainText('Sin datos');
-      if (empty)
-        await expect(page.locator('[data-garden-widget="projects"]')).toContainText(
-          'Ningún proyecto necesita revisión.',
-        );
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
-        true,
-      );
-      expect(
-        await page
-          .locator('.garden-widget-action')
-          .evaluateAll((nodes) =>
-            nodes.every((node) => parseFloat(getComputedStyle(node).fontSize) >= 14),
-          ),
-      ).toBe(true);
-      expect(
-        await page.locator('.garden-score').evaluate((node) => node.getBoundingClientRect().height),
-      ).toBeLessThan(width === 390 ? 180 : 140);
-      await expect(page.locator('.garden-footer details')).not.toHaveAttribute('open');
-      await page.screenshot({
-        path: `test-results/garden-simplified-${width}-${empty ? 'empty' : 'data'}.png`,
-        fullPage: true,
-      });
-      await page.locator('.garden-footer').scrollIntoViewIfNeeded();
-      await page.clock.runFor(100);
-      await page.screenshot({
-        path: `test-results/garden-simplified-${width}-${empty ? 'empty' : 'data'}-bottom.png`,
-      });
-      await page
-        .locator('.garden-score')
-        .getByRole('button', { name: 'Ver desglose', exact: true })
-        .click();
-      await expect(
-        page.getByRole('dialog', { name: 'Puntuación de control', exact: true }),
-      ).toBeVisible();
-      await page.keyboard.press('Escape');
-      await page.getByRole('button', { name: 'Personalizar', exact: true }).click();
-      await expect(
-        page.locator('[data-garden-editor="flow"], [data-garden-editor="integrations"]'),
-      ).toHaveCount(0);
-    });
-  }
-}
-
 for (const width of [360, 390]) {
   test(`mobile More uses the same drawer as Lists (${width}px)`, async ({ page }) => {
     await page.setViewportSize({ width, height: 844 });
@@ -981,14 +891,22 @@ for (const width of [1280]) {
       await expect(page.locator('.sidebar')).toHaveCSS('transform', 'none');
     }
     await expect(page.locator('.sidebar .brand')).toHaveCount(0);
-    const account = page.locator(width < 1024 ? '.sidebar .account-menu' : '.icon-rail .account-menu');
+    const account = page.locator(
+      width < 1024 ? '.sidebar .account-menu' : '.icon-rail .account-menu',
+    );
     const trigger = account.locator('summary');
     await expect(trigger).toHaveText('A');
     await trigger.click();
     const panel = account.locator('.menu-card');
     await expect(panel).toBeVisible();
-    await expect(panel.getByRole('link', { name: 'Ajustes', exact: true })).toHaveAttribute('href', '/settings/account');
-    await expect(panel.getByRole('link', { name: 'Estadísticas', exact: true })).toHaveAttribute('href', '/statistics');
+    await expect(panel.getByRole('link', { name: 'Ajustes', exact: true })).toHaveAttribute(
+      'href',
+      '/settings/account',
+    );
+    await expect(panel.getByRole('link', { name: 'Estadísticas', exact: true })).toHaveAttribute(
+      'href',
+      '/statistics',
+    );
     const bounds = await panel.boundingBox();
     expect(bounds!.x).toBeGreaterThanOrEqual(0);
     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);

@@ -204,6 +204,17 @@ describe('V1 and V2 product', () => {
     expect(data.body.period.time_zone).toBe('Europe/Madrid');
     expect(Date.parse(data.body.generated_at as string)).not.toBeNaN();
     expect(data.body.widgets.habits.configured).toBe(false);
+    expect(data.body.widgets.habits.today).toEqual({ done: 0, expected: 0 });
+    expect(data.body.widgets.focus.goal_seconds).toBeNull();
+    expect(data.body.widgets.focus.week_seconds).toEqual(expect.any(Number));
+    expect(data.body.widgets.tags.assignment_history).toBe(false);
+    expect(data.body.widgets.habits.complete).toBe(true);
+    expect(data.body.widgets.habits.pending_today).toEqual([]);
+    expect(data.body.widgets.load.total_active).toBe(
+      await prisma.task.count({
+        where: { ownerId: userId, deletedAt: null, status: 'active' },
+      }),
+    );
   });
 
   it('garden KISS: canonical overdue count equals the disjoint age groups and excludes completed/trash', async () => {
@@ -343,6 +354,16 @@ describe('V1 and V2 product', () => {
         subscriptionId: hidden.id,
         externalUid: 'garden-hidden',
         title: 'Oculto',
+        startsAt: new Date(now + 86_400_000),
+      },
+    });
+    const duplicate = await prisma.calendarSubscription.create({ data: { ownerId: userId } });
+    await prisma.externalEvent.create({
+      data: {
+        ownerId: userId,
+        subscriptionId: duplicate.id,
+        externalUid: 'garden-1',
+        title: 'Mismo evento en otro calendario',
         startsAt: new Date(now + 86_400_000),
       },
     });

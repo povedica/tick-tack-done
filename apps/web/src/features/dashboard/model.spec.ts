@@ -1,10 +1,38 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_WIDGETS, parseLayout } from './model';
+import { DEFAULT_WIDGETS, parseLayout, gardenLists } from './model';
 
 describe('garden layout from the public API', () => {
   it('uses defaults only before a saved layout exists, allowing an intentionally empty garden', () => {
     expect(parseLayout(undefined)).toEqual(DEFAULT_WIDGETS);
     expect(parseLayout([])).toEqual([]);
+  });
+  it('merges legacy project and completion cards and adds the new KPI visibility settings once', () => {
+    const layout = parseLayout([
+      { widget_key: 'projects' },
+      { widget_key: 'load' },
+      { widget_key: 'completed_week' },
+    ]);
+    expect(layout.map((item) => item.widget_key)).toEqual([
+      'load',
+      'completed_today',
+      'score',
+      'streak',
+      'tags',
+    ]);
+    expect(parseLayout(layout)).toEqual(layout);
+  });
+  it('sorts list bars by pending count, preserves zero, and does not fabricate missing overdue counts', () => {
+    const lists = gardenLists({
+      load: {
+        by_list: [
+          { list_id: 'b', name: 'B', active: 0 },
+          { list_id: 'a', name: 'A', active: 8 },
+        ],
+      },
+    });
+    expect(lists.map((item) => item.id)).toEqual(['a', 'b']);
+    expect(lists[1]?.active).toBe(0);
+    expect(lists[0]?.overdue).toBeNull();
   });
   it('preserves saved ordering and size while excluding duplicate or unsupported widgets', () => {
     expect(
