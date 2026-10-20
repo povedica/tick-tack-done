@@ -10,12 +10,14 @@ describe('garden layout from the public API', () => {
     expect(
       parseLayout([
         { widget_key: 'habits', position: 3, size: 'l' },
-        { widget_key: 'flow', position: 1, size: 's' },
-        { widget_key: 'flow', position: 2, size: 'm' },
+        { widget_key: 'load', position: 1, size: 's' },
+        { widget_key: 'load', position: 2, size: 'm' },
         { widget_key: 'unknown', position: 0 },
+        { widget_key: 'flow', position: 4 },
+        { widget_key: 'integrations', position: 5 },
       ]),
     ).toEqual([
-      { widget_key: 'flow', size: 's' },
+      { widget_key: 'load', size: 's' },
       { widget_key: 'habits', size: 'l' },
     ]);
   });

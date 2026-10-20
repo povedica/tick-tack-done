@@ -244,3 +244,12 @@ Verificación autenticada en localhost (20/10/2026): Control **36/100 · Atrasad
 ### Ajuste visual KISS del indicador global
 
 Sin cambios de fórmula, datos, ubicación ni apertura: indicador transparente, sin borde/sombra, llama lucide de contorno, texto del tamaño del menú y cifras en seminegrita. Solo la puntuación tiene color semántico; el estado permanece neutro. Se elimina `/100` del indicador y se conserva «sobre 100» en el desglose. El estilo compacto mantiene 14 px. Se acotan las reglas del popover para evitar que el CSS genérico lo desplace fuera de pantalla. Pruebas de escritorio/móvil con 125 días, puntuaciones 100/60/36, ausencia de datos y sidebar plegado; apertura/cierre y límites del panel verificados.
+
+### Simplificación final de Jardín (sustituye las ampliaciones anteriores de resumen)
+
+- Se retiran Hoy, Tu ritmo esta semana y Tus conexiones del Jardín. Sus pantallas y datos no cambian. Los widgets retirados se descartan al interpretar layouts antiguos y ya no aparecen en Personalizar; guardar conserva el orden, tamaño y visibilidad de los restantes.
+- Foco solo se muestra con segundos de actividad hoy. Personalizar explica esta condición y conserva la preferencia de visibilidad. Las conexiones siguen gestionándose en sus ajustes existentes.
+- Control pasa a franja neutra con cifra real, estado y motivo principal. No repite componentes, fórmula ni configuración. «Ver desglose» activa el indicador global visible para reutilizar exactamente su popover; no se modifica su implementación ni su caché.
+- Permanecen las cuatro cifras, reparto de pendientes, acciones de revisión/reporte y Personalizar. Proyectos muestra hasta tres `needs_review` reales, con nombre, pendientes y motivo; sin buscador, filtros, proyectos sanos de relleno ni scroll interno. Si no hay candidatos, muestra una frase breve. El acceso existente sigue siendo `/review/weekly`: no hay una vista completa de proyectos con filtros y no se añade otra ruta.
+- Ayudas y módulos pendientes de configurar quedan plegados al final. Se reducen márgenes y padding, con descripciones, enlaces y etiquetas de 14 px, colores y tipografía de la app. No cambian algoritmo, datos, endpoints ni almacenamiento.
+- Validación: 31 E2E relevantes, 84 unitarios del cliente, lint, tipos y build en verde. Capturas de escritorio/móvil con datos y sin datos inspeccionadas. En la cuenta local, a 1530 px de ancho, la altura inicial era 2557 px y pasó a 1096 px sin reducir texto. El chip global y su popover quedan intactos.

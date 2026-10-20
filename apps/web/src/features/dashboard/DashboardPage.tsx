@@ -5,7 +5,6 @@ import {
   ArrowDown,
   ArrowRight,
   ArrowUp,
-  Check,
   CheckCheck,
   CircleAlert,
   Clock3,
@@ -31,11 +30,8 @@ import {
   type WidgetKey,
 } from './model';
 import './dashboard.css';
-import { ControlSummary, useControlSummary } from '../statistics/ControlSummary';
+import { useControlSummary } from '../statistics/ControlSummary';
 import { ProjectContext } from './ProjectContext';
-import { loadTodayTasks } from '../today/board';
-import { partitionToday, hasTime, formatDueTime } from '../today/groups';
-import { displayTitle } from '../tasks/displayTitle';
 
 const number = (value: number) => value.toLocaleString('es-ES');
 
@@ -47,11 +43,6 @@ export function DashboardPage() {
     refetchInterval: 60_000,
   });
   const layout = useQuery({ queryKey: ['dashboard-layout'], queryFn: () => api.dashboardLayout() });
-  const todayTasks = useQuery({
-    queryKey: ['today-tasks'],
-    queryFn: () => loadTodayTasks(api, new Date()),
-  });
-  const today = partitionToday(todayTasks.data ?? [], new Date()).today;
   const score = useControlSummary();
   const countdowns = useQuery({
     queryKey: ['countdowns', 'dashboard'],
@@ -65,12 +56,10 @@ export function DashboardPage() {
   const saved = parseLayout(layout.data?.widgets);
   const visible = draft ?? saved;
   const overdue = typeof widgets.overdue === 'number' ? widgets.overdue : null;
-  const flow = row(widgets.flow);
   const load = rows(row(widgets.load).by_list);
   const week = row(widgets.completed_week);
   const habits = row(widgets.habits);
   const calendar = row(widgets.calendar);
-  const connections = row(widgets.integrations);
   const period = row(data.data?.period);
   const updated = label(data.data?.generated_at);
   const unconfigured = visible.filter(
@@ -81,7 +70,25 @@ export function DashboardPage() {
         countdowns.isSuccess &&
         row(widgets.next_countdowns).configured === false),
   );
-  const configured = visible.filter((item) => !unconfigured.includes(item));
+  const configured = visible.filter(
+    (item) =>
+      !unconfigured.includes(item) &&
+      !(
+        item.widget_key === 'focus' &&
+        data.isSuccess &&
+        Object.hasOwn(widgets, 'focus') &&
+        count(row(widgets.focus).seconds) === 0
+      ),
+  );
+  const controlScore = typeof score.achievement.score === 'number' ? score.achievement.score : null;
+  const controlState =
+    controlScore === null
+      ? 'Sin datos'
+      : controlScore >= 75
+        ? 'Al día'
+        : controlScore >= 50
+          ? 'Justo'
+          : 'Atrasado';
 
   function move(source: WidgetKey, target: WidgetKey) {
     if (draft === null || source === target) return;
@@ -127,8 +134,7 @@ export function DashboardPage() {
         return (
           <>
             <strong className="garden-metric">{number(count(week.value))}</strong>
-            <p>Completadas en los últimos 7 días.</p>
-            <p>Las completadas pueden incluir cierres en lote.</p>
+            <p>Últimos 7 días. Puede incluir cierres en lote.</p>
           </>
         );
       case 'overdue':
@@ -166,22 +172,6 @@ export function DashboardPage() {
           <>
             <strong className="garden-metric">{number(count(widgets.next_7_days))}</strong>
             <p>Tareas con fecha por delante.</p>
-          </>
-        );
-      case 'flow':
-        return (
-          <>
-            <dl className="garden-period-counts">
-              <div>
-                <dt>Creadas en los últimos 7 días</dt>
-                <dd>{number(count(flow.created))}</dd>
-              </div>
-              <div>
-                <dt>Completadas en los últimos 7 días</dt>
-                <dd>{number(count(flow.completed))}</dd>
-              </div>
-            </dl>
-            <p>Las completadas pueden incluir cierres en lote.</p>
           </>
         );
       case 'load': {
@@ -275,29 +265,6 @@ export function DashboardPage() {
             </ul>
           </>
         );
-      case 'integrations':
-        return (
-          <>
-            <p className="garden-context">Conexiones de tu cuenta</p>
-            <ul className="garden-connections">
-              {(
-                [
-                  ['Telegram', connections.telegram],
-                  ['Google Calendar', connections.google],
-                  ['Google Drive', connections.drive],
-                ] as const
-              ).map(([name, connected]) => (
-                <li key={name}>
-                  <span>{name}</span>
-                  <span className={connected === true ? 'is-connected' : ''}>
-                    {connected === true ? <Check size={14} aria-hidden="true" /> : null}
-                    {connected === true ? 'Conectado' : 'Sin conectar'}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </>
-        );
       case 'next_countdowns':
         return countdowns.isError ? (
           <p role="alert">No se han podido cargar las fechas.</p>
@@ -344,81 +311,67 @@ export function DashboardPage() {
         </Button>
       </header>
       <nav className="page-toolbar" aria-label="Acciones de Jardín">
-        <Link
-          className="ui-button is-primary is-md"
-          to={overdue !== null && overdue > 0 ? '/review/weekly' : '/today'}
-        >
-          {overdue !== null && overdue > 0 ? 'Revisar mis pendientes' : 'Ir a mi día'}
+        <Link className="ui-button is-primary is-md" to="/review/weekly">
+          Revisar mis pendientes
           <ArrowRight size={16} aria-hidden="true" />
         </Link>
         <Link className="ui-button is-secondary is-md" to="/reports/weekly">
           Ver mi reporte semanal
         </Link>
       </nav>
-      <section className="garden-today" aria-labelledby="garden-today-title">
-        <header>
-          <h2 id="garden-today-title">Hoy</h2>
-          {today.length > 3 ? <Link to="/today">Ver todas ({number(today.length)})</Link> : null}
-        </header>
-        {todayTasks.isPending ? (
-          <SkeletonRows />
-        ) : todayTasks.isError ? (
+      <section className="garden-score" aria-labelledby="garden-score-title">
+        <div className="garden-score-heading">
+          <h2 id="garden-score-title">Puntuación de control</h2>
+          {score.isSuccess && score.achievement.enabled !== false ? (
+            <p
+              className="garden-control-value"
+              data-state={
+                controlScore === null
+                  ? 'empty'
+                  : controlScore >= 75
+                    ? 'good'
+                    : controlScore >= 50
+                      ? 'fair'
+                      : 'behind'
+              }
+            >
+              <strong>{controlScore === null ? '—' : number(controlScore)}</strong> {controlState}
+            </p>
+          ) : null}
+        </div>
+        {score.isPending ? (
+          <p role="status">Cargando puntuación…</p>
+        ) : score.isError ? (
           <div role="alert">
-            No se han podido cargar las tareas de hoy.{' '}
+            <p>No se ha podido cargar la puntuación.</p>
             <Button
               onClick={() => {
-                void todayTasks.refetch();
+                void score.refetch();
               }}
             >
-              Reintentar
+              Reintentar puntuación
             </Button>
           </div>
-        ) : today.length === 0 ? (
-          <p>No tienes tareas para hoy</p>
+        ) : score.achievement.enabled === false ? (
+          <p>La puntuación está desactivada.</p>
         ) : (
-          <ul>
-            {today.slice(0, 3).map((task) => (
-              <li key={task.id}>
-                <Link to={`/list/${task.projectId}?task=${task.id}`}>
-                  <span>{displayTitle(task.title)}</span>
-                  <small>
-                    {label(load.find((item) => item.list_id === task.projectId)?.name)}
-                    {task.dueDate !== null && hasTime(task.dueDate, task.timeZone, task.allDay)
-                      ? ` · ${formatDueTime(task.dueDate, task.timeZone, 'es-ES')}`
-                      : ''}
-                  </small>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <>
+            {typeof score.achievement.topDeduction === 'string' ? (
+              <p className="garden-control-reason">{score.achievement.topDeduction}</p>
+            ) : null}
+            <button
+              type="button"
+              className="garden-control-action"
+              onClick={() => {
+                Array.from(document.querySelectorAll<HTMLButtonElement>('.control-chip'))
+                  .find((button) => button.getClientRects().length > 0)
+                  ?.click();
+              }}
+            >
+              Ver desglose
+            </button>
+          </>
         )}
-      </section>
-      <section className="garden-score" aria-labelledby="garden-score-title">
-        <div>
-          <h2 id="garden-score-title">Puntuación de control</h2>
-          {score.isPending ? (
-            <p role="status">Cargando puntuación…</p>
-          ) : score.isError ? (
-            <div role="alert">
-              <p>No se ha podido cargar la puntuación.</p>
-              <Button
-                onClick={() => {
-                  void score.refetch();
-                }}
-              >
-                Reintentar puntuación
-              </Button>
-            </div>
-          ) : score.achievement.enabled === false ? (
-            <p>La puntuación está desactivada.</p>
-          ) : (
-            <ControlSummary value={score.achievement} />
-          )}
-        </div>
-        <div className="garden-score-next">
-          <Link to="/statistics">Ver puntuación y fórmula</Link>
-          <Link to="/settings/features">Configurar puntuación</Link>
-        </div>
       </section>
       <div className="garden-section-heading">
         <h2>Tu jardín de un vistazo</h2>
@@ -442,7 +395,7 @@ export function DashboardPage() {
             <h3>Personalizar widgets</h3>
             <p>
               Arrastra para ordenar, usa las flechas o cambia el tamaño. Desmarca lo que no quieras
-              ver.
+              ver. Foco solo aparece cuando hay actividad hoy.
             </p>
           </div>
           <div className="garden-editor-list">
@@ -609,7 +562,6 @@ export function DashboardPage() {
                     {
                       habits: 'Ir a mis hábitos',
                       focus: 'Iniciar una sesión',
-                      integrations: 'Gestionar conexiones',
                       calendar: 'Abrir Agenda',
                       next_countdowns: 'Ver mis fechas',
                       load: 'Ver todas mis tareas',
@@ -617,7 +569,6 @@ export function DashboardPage() {
                       next_7_days: 'Ver próximas tareas',
                       completed_today: 'Ver completadas',
                       completed_week: 'Explorar estadísticas',
-                      flow: 'Ver mi actividad',
                       projects: 'Abrir revisión semanal',
                     } satisfies Record<WidgetKey, string>
                   )[item.widget_key]
@@ -663,6 +614,11 @@ export function DashboardPage() {
             Hoy sigue la zona horaria de tu cuenta. Las vencidas y el reparto por lista incluyen
             subtareas. El calendario muestra eventos externos; las tareas con fecha se consultan en
             Agenda.
+          </p>
+          <p>
+            Los proyectos por revisar siguen el criterio existente: abiertos sin tareas pendientes o
+            sin cambios en tareas durante más de 30 días. Las listas de notas y los proyectos
+            cerrados quedan excluidos.
           </p>
           <p>
             Si una tarea importada no traía fecha de completado, cuenta el día de importación. Por

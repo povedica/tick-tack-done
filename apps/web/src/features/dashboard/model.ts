@@ -3,14 +3,12 @@ export const WIDGETS = {
   completed_week: { title: 'Completadas · 7 días', to: '/statistics/tasks', size: 's' },
   overdue: { title: 'Necesitan atención', to: '/review/weekly', size: 's' },
   next_7_days: { title: 'Próximos 7 días', to: '/smart/next7', size: 's' },
-  projects: { title: 'Estado de tus proyectos', to: '/review/weekly', size: 'l' },
-  flow: { title: 'Tu ritmo esta semana', to: '/statistics/tasks', size: 'm' },
+  projects: { title: 'Proyectos por revisar', to: '/review/weekly', size: 'l' },
   load: { title: 'Dónde están tus pendientes', to: '/smart/all', size: 'm' },
   habits: { title: 'Hábitos de hoy', to: '/habits', size: 'm' },
   focus: { title: 'Un espacio para concentrarte', to: '/focus', size: 'm' },
   calendar: { title: 'En tu calendario', to: '/calendar/agenda', size: 'm' },
   next_countdowns: { title: 'Fechas que importan', to: '/countdowns', size: 'm' },
-  integrations: { title: 'Tus conexiones', to: '/settings/integrations', size: 'm' },
 } as const;
 export type WidgetKey = keyof typeof WIDGETS;
 export interface GardenWidget {
