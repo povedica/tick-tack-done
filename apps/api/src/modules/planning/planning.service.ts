@@ -18,7 +18,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { TasksService } from '../tasks/tasks.service.js';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
-const DECISIONS = ['done', 'plan_day', 'later', 'cancel', 'trash', 'skip'] as const;
+const DECISIONS = ['done', 'plan_day', 'later', 'cancel', 'trash', 'skip', 'someday'] as const;
 
 interface SnapshotFile {
   readonly cards: readonly PlanCard[];
@@ -80,6 +80,7 @@ export class PlanningService {
         inbox: row.project.isInbox,
         updatedAt: row.updatedAt.toISOString(),
         createdAt: row.createdAt.toISOString(),
+        isSomeday: row.isSomeday,
       })),
       input,
     );
@@ -302,6 +303,14 @@ export class PlanningService {
         'plan_day',
       );
       return 'planned_today';
+    }
+    if (decision.decision === 'someday') {
+      await this.prisma.task.update({
+        where: { id: decision.taskId },
+        data: { isSomeday: true, startDate: null },
+      });
+      await this.clearMemberships(user.id, decision.taskId);
+      return 'someday';
     }
     if (decision.decision === 'later') {
       const target = decision.targetDate ?? nextCivil(session.plan.localDate);

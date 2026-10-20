@@ -4,9 +4,12 @@ import { Type } from 'class-transformer';
 import {
   IsBoolean,
   IsIn,
+  IsInt,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
+  Min,
   MinLength,
   ValidateNested,
 } from 'class-validator';
@@ -28,6 +31,26 @@ export class FeatureFlagsDto {
   @IsOptional()
   @IsBoolean()
   matrix?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  when_deadline?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  day_load?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  day_closing?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  day_replan?: boolean;
 }
 
 export class DeleteMeDto {
@@ -138,6 +161,44 @@ export class UpdateMeDto {
   @IsOptional()
   @IsBoolean()
   focus_notifications?: boolean;
+
+  @ApiProperty({ required: false, nullable: true, example: '21:30' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(5)
+  shutdown_reminder_time?: string | null;
+
+  @ApiProperty({ required: false, nullable: true, example: '09:00' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(5)
+  work_day_start?: string | null;
+
+  @ApiProperty({ required: false, nullable: true, example: '18:00' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(5)
+  work_day_end?: string | null;
+
+  @ApiProperty({ required: false, example: 30 })
+  @IsOptional()
+  @IsInt()
+  @Min(5)
+  @Max(240)
+  default_task_duration_minutes?: number;
+
+  @ApiProperty({ required: false, example: 2 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(14)
+  deadline_soon_days?: number;
+
+  @ApiProperty({ required: false, example: '18:00' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(5)
+  evening_start?: string;
 
   @ApiProperty({ required: false, type: () => FeatureFlagsDto })
   @IsOptional()
@@ -275,6 +336,24 @@ export class MeResponseDto {
 
   @ApiProperty()
   focus_notifications!: boolean;
+
+  @ApiProperty({ nullable: true, type: String })
+  shutdown_reminder_time!: string | null;
+
+  @ApiProperty({ nullable: true, type: String })
+  work_day_start!: string | null;
+
+  @ApiProperty({ nullable: true, type: String })
+  work_day_end!: string | null;
+
+  @ApiProperty()
+  default_task_duration_minutes!: number;
+
+  @ApiProperty()
+  deadline_soon_days!: number;
+
+  @ApiProperty()
+  evening_start!: string;
 
   @ApiProperty({ type: FeatureFlagsDto })
   features!: FeatureFlagsDto;

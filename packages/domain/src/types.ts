@@ -34,7 +34,8 @@ export type SmartListKey =
   | 'completed'
   | 'trash'
   | 'no_date'
-  | 'recently_added';
+  | 'recently_added'
+  | 'someday';
 
 export interface HabitGoal {
   readonly timesPerPeriod: number;
@@ -68,7 +69,7 @@ export interface FilterRules {
   readonly groups: readonly FilterGroup[];
 }
 
-export type QuickAddSpanKind = 'date' | 'priority' | 'tag' | 'list' | 'reminder';
+export type QuickAddSpanKind = 'date' | 'priority' | 'tag' | 'list' | 'reminder' | 'duration';
 
 export interface QuickAddSpan {
   readonly start: number;
@@ -103,6 +104,11 @@ export interface QuickAddParse {
   readonly tagNames: readonly string[];
   readonly listName: string | null;
   readonly due: QuickAddDue | null;
+  /** When, as opposed to the deadline in `due`. Null keeps the legacy due-only capture. */
+  readonly start: QuickAddDue | null;
+  readonly durationMinutes: number | null;
+  readonly someday: boolean;
+  readonly eveningOnly: boolean;
   readonly repeatRule: string | null;
   readonly reminderTrigger: string | null;
 }

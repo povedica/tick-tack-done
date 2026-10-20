@@ -25,6 +25,7 @@ export interface ListTasksQuery {
   readonly overdue?: boolean;
   readonly dueBefore?: string;
   readonly dueAfter?: string;
+  readonly listId?: string;
   readonly sort?: string;
 }
 export type Habit = components['schemas']['HabitResponseDto'];
@@ -132,6 +133,7 @@ export interface ApiClient extends ResourceClient {
   logout(): Promise<void>;
   sync(since?: string): Promise<SyncPage>;
   oauthConsent(body: OauthConsentBody): Promise<{ redirect_to: string }>;
+  oauthConsentDetails(query: OauthConsentQuery): Promise<OauthConsentView>;
 }
 
 export interface OauthConsentBody {
@@ -142,6 +144,24 @@ export interface OauthConsentBody {
   readonly code_challenge: string;
   readonly code_challenge_method: string;
   readonly allow: boolean;
+  readonly requested_scope?: string;
+  readonly resource?: string;
+}
+
+export interface OauthConsentQuery {
+  readonly client_id: string;
+  readonly redirect_uri: string;
+  readonly scope: string;
+  readonly state: string;
+  readonly code_challenge: string;
+  readonly code_challenge_method: string;
+  readonly resource?: string;
+}
+
+export interface OauthConsentView {
+  readonly client_name: string;
+  readonly scopes: readonly string[];
+  readonly redirect_uri: string;
 }
 
 /** Thin client over the generated OpenAPI types. The web app does not call fetch itself. */
@@ -398,6 +418,28 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     oauthConsent(body) {
       return request(call, options, 'POST', '/api/v1/oauth/authorize', body, undefined, isRedirect);
     },
+    oauthConsentDetails(query) {
+      const params = new URLSearchParams({
+        client_id: query.client_id,
+        redirect_uri: query.redirect_uri,
+        scope: query.scope,
+        state: query.state,
+        code_challenge: query.code_challenge,
+        code_challenge_method: query.code_challenge_method,
+      });
+      if (query.resource !== undefined && query.resource.length > 0) {
+        params.set('resource', query.resource);
+      }
+      return request(
+        call,
+        options,
+        'GET',
+        `/api/v1/oauth/authorize?${params.toString()}`,
+        undefined,
+        undefined,
+        isConsentView,
+      );
+    },
     ...resourceMethods({
       request: (method, path, body, idempotencyKey, parse) =>
         request(call, options, method, path, body, idempotencyKey, parse),
@@ -503,6 +545,9 @@ function taskQuery(query: ListTasksQuery | undefined): string {
   if (query.dueAfter !== undefined) {
     params.set('due_after', query.dueAfter);
   }
+  if (query.listId !== undefined) {
+    params.set('list_id', query.listId);
+  }
   if (query.sort !== undefined) {
     params.set('sort', query.sort);
   }
@@ -603,6 +648,19 @@ function isRedirect(value: unknown): value is { redirect_to: string } {
     typeof value === 'object' &&
     value !== null &&
     typeof (value as { redirect_to?: unknown }).redirect_to === 'string'
+  );
+}
+
+function isConsentView(value: unknown): value is OauthConsentView {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const view = value as OauthConsentView;
+  return (
+    typeof view.client_name === 'string' &&
+    typeof view.redirect_uri === 'string' &&
+    Array.isArray(view.scopes) &&
+    view.scopes.every((scope) => typeof scope === 'string')
   );
 }
 

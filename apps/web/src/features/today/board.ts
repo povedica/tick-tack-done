@@ -22,6 +22,10 @@ export function toTodayTask(task: Task): TodayTask {
     title: task.title,
     priority: task.priority,
     dueDate: task.due_date,
+    startDate: task.start_date,
+    durationMinutes: task.duration_minutes,
+    isSomeday: 'is_someday' in task && task.is_someday === true,
+    eveningOnly: 'evening_only' in task && task.evening_only === true,
     timeZone: task.time_zone,
     allDay: task.is_all_day,
     // The list payload has no reminder collection; the row still renders the bell when set.

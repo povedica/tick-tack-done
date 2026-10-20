@@ -6,6 +6,7 @@ import { ListsModule } from '../modules/lists/lists.module.js';
 import { SearchModule } from '../modules/search/search.module.js';
 import { CalendarModule } from '../modules/calendar/calendar.module.js';
 import { TagsModule } from '../modules/tags/tags.module.js';
+import { PlanningModule } from '../modules/planning/planning.module.js';
 import { TasksModule } from '../modules/tasks/tasks.module.js';
 import { McpController } from './mcp.controller.js';
 import { McpService } from './mcp.service.js';
@@ -13,6 +14,7 @@ import { McpService } from './mcp.service.js';
 @Module({
   imports: [
     TasksModule,
+    PlanningModule,
     ListsModule,
     TagsModule,
     FiltersModule,

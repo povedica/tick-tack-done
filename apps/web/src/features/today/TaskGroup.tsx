@@ -15,7 +15,7 @@ import { Link } from 'react-router';
 import { PriorityCheck } from '../../components/PriorityCheck';
 import { displayTitle } from '../tasks/displayTitle';
 import { dragHasTask, setTaskDrag, taskDragId } from './drag';
-import { taskWhen, type TaskGroupKey, type TodayTask } from './groups';
+import { calendarDay, taskWhen, type TaskGroupKey, type TodayTask } from './groups';
 
 export function TaskGroup({
   id,
@@ -38,6 +38,7 @@ export function TaskGroup({
   tagColors,
   details,
   openTaskId,
+  deadlineSoonDays = 2,
   onToggle,
   onComplete,
   onOpen,
@@ -66,6 +67,7 @@ export function TaskGroup({
   readonly tagColors: ReadonlyMap<string, string | null>;
   readonly details: boolean;
   readonly openTaskId: string | null;
+  readonly deadlineSoonDays?: number;
   readonly onToggle: (id: string, open: boolean) => void;
   readonly onComplete: (task: TodayTask) => void;
   readonly onOpen: (id: string) => void;
@@ -223,6 +225,17 @@ export function TaskGroup({
                       {when.date}
                     </time>
                   ) : null}
+                  {deadlineText(task, deadlineSoonDays) !== null ? (
+                    <span
+                      className={
+                        deadlineText(task, deadlineSoonDays)?.tone === 'late'
+                          ? 'task-date is-overdue'
+                          : 'task-date'
+                      }
+                    >
+                      {deadlineText(task, deadlineSoonDays)?.label}
+                    </span>
+                  ) : null}
                   {when.time !== null ? (
                     <time className="task-time" dateTime={task.dueDate ?? undefined}>
                       {when.time}
@@ -248,6 +261,33 @@ export function TaskGroup({
       </ul>
     </details>
   );
+}
+
+function deadlineText(
+  task: TodayTask,
+  soonDays: number,
+): { readonly label: string; readonly tone: 'soon' | 'late' } | null {
+  if (task.isSomeday === true || task.dueDate == null || task.status !== 'active') {
+    return null;
+  }
+  const today = calendarDay(new Date().toISOString(), task.timeZone);
+  const due = calendarDay(task.dueDate, task.timeZone);
+  const diff = Math.round(
+    (Date.parse(`${due}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000,
+  );
+  if (diff < 0) {
+    return null;
+  }
+  if (diff === 0) {
+    return { label: '¡Vence hoy!', tone: 'late' };
+  }
+  if (diff === 1) {
+    return { label: 'Vence mañana', tone: 'soon' };
+  }
+  if (diff <= soonDays) {
+    return { label: `Vence en ${String(diff)} días`, tone: 'soon' };
+  }
+  return null;
 }
 
 function isPriority(id: string): id is TodayTask['priority'] {

@@ -20,6 +20,8 @@ export function TaskContextMenu({
   onConvert,
   onWontDo,
   onDelete,
+  onSomeday,
+  onEvening,
 }: {
   readonly x: number;
   readonly y: number;
@@ -38,6 +40,8 @@ export function TaskContextMenu({
   readonly onConvert: () => void;
   readonly onWontDo: () => void;
   readonly onDelete: () => void;
+  readonly onSomeday?: () => void;
+  readonly onEvening?: () => void;
 }) {
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
@@ -65,6 +69,30 @@ export function TaskContextMenu({
       style={{ left: x, top: y }}
       aria-label={messages.moreActions}
     >
+      {onEvening !== undefined ? (
+        <button
+          type="button"
+          className="popover-row"
+          onClick={() => {
+            onEvening();
+            onClose();
+          }}
+        >
+          {messages.eveningAction}
+        </button>
+      ) : null}
+      {onSomeday !== undefined ? (
+        <button
+          type="button"
+          className="popover-row"
+          onClick={() => {
+            onSomeday();
+            onClose();
+          }}
+        >
+          {messages.somedayAction}
+        </button>
+      ) : null}
       <p className="popover-label">{messages.dateSet}</p>
       <button
         type="button"

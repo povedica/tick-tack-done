@@ -5,7 +5,8 @@ export type PlanSection = 'today_timed' | 'today' | 'overdue' | 'inbox' | 'undat
 
 export type PlanReason = 'due_today_at' | 'due_today' | 'overdue' | 'inbox' | 'undated';
 
-export type PlanDecisionKind = 'done' | 'plan_day' | 'later' | 'cancel' | 'trash' | 'skip';
+export type PlanDecisionKind =
+  'done' | 'plan_day' | 'later' | 'cancel' | 'trash' | 'skip' | 'someday';
 
 export interface PlanSources {
   readonly today: boolean;
@@ -29,6 +30,7 @@ export interface PlanTaskInput {
   readonly inbox: boolean;
   readonly updatedAt: string;
   readonly createdAt: string;
+  readonly isSomeday?: boolean;
 }
 
 export interface PlanCard {
@@ -79,6 +81,7 @@ export interface PlanPreview {
   readonly cancel: number;
   readonly trash: number;
   readonly skip: number;
+  readonly someday: number;
   readonly untouched: number;
   readonly effects: readonly PlanEffect[];
 }
@@ -118,6 +121,9 @@ export function planQueue(
   const classified: Classified[] = [];
   for (const task of tasks) {
     if (task.status !== 'active' || task.kind !== 'task' || task.parentId !== null) {
+      continue;
+    }
+    if (task.isSomeday === true) {
       continue;
     }
     const placed = classify(task, input.localDate, input.timeZone, input.sources);
@@ -161,6 +167,7 @@ export function previewPlan(
     cancel: effects.filter((effect) => effect.decision === 'cancel').length,
     trash: effects.filter((effect) => effect.decision === 'trash').length,
     skip: effects.filter((effect) => effect.decision === 'skip').length,
+    someday: effects.filter((effect) => effect.decision === 'someday').length,
     untouched: effects.filter((effect) => effect.decision === 'untouched').length,
     effects,
   };
@@ -319,6 +326,8 @@ function summaryOf(decision: PlanDecisionInput): string {
       return 'Irá a la papelera.';
     case 'skip':
       return 'Se deja como está.';
+    case 'someday':
+      return 'Pasará a Algún día. El cuándo se quita y la fecha límite se conserva.';
     default: {
       const unreachable: never = decision.decision;
       return unreachable;

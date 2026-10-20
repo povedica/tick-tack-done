@@ -127,6 +127,7 @@ export class ReviewController {
       createdAt: row.createdAt.toISOString(),
       isAllDay: row.isAllDay,
       timeZone: row.timeZone,
+      isSomeday: row.isSomeday,
     }));
   }
 }

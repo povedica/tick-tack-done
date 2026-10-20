@@ -61,6 +61,22 @@ export class MeService {
         ...(dto.focus_notifications !== undefined
           ? { focusNotifications: dto.focus_notifications }
           : {}),
+        ...(dto.shutdown_reminder_time !== undefined
+          ? { shutdownReminderTime: this.clock(dto.shutdown_reminder_time) }
+          : {}),
+        ...(dto.work_day_start !== undefined
+          ? { workDayStart: this.clock(dto.work_day_start) }
+          : {}),
+        ...(dto.work_day_end !== undefined ? { workDayEnd: this.clock(dto.work_day_end) } : {}),
+        ...(dto.default_task_duration_minutes !== undefined
+          ? { defaultTaskDuration: dto.default_task_duration_minutes }
+          : {}),
+        ...(dto.deadline_soon_days !== undefined
+          ? { deadlineSoonDays: dto.deadline_soon_days }
+          : {}),
+        ...(dto.evening_start !== undefined
+          ? { eveningStart: this.clock(dto.evening_start) ?? '18:00' }
+          : {}),
         ...(dto.features !== undefined
           ? {
               featureFlags: await this.mergeFeatures(user.id, dto.features),
@@ -73,8 +89,16 @@ export class MeService {
 
   private async mergeFeatures(
     id: string,
-    patch: { countdowns?: boolean; focus?: boolean; matrix?: boolean },
-  ): Promise<{ countdowns: boolean; focus: boolean; matrix: boolean }> {
+    patch: Partial<{
+      countdowns: boolean;
+      focus: boolean;
+      matrix: boolean;
+      when_deadline: boolean;
+      day_load: boolean;
+      day_closing: boolean;
+      day_replan: boolean;
+    }>,
+  ) {
     const current = featureFlags(
       (
         await this.prisma.user.findFirst({
@@ -87,6 +111,10 @@ export class MeService {
       countdowns: patch.countdowns ?? current.countdowns,
       focus: patch.focus ?? current.focus,
       matrix: patch.matrix ?? current.matrix,
+      when_deadline: patch.when_deadline ?? current.when_deadline,
+      day_load: patch.day_load ?? current.day_load,
+      day_closing: patch.day_closing ?? current.day_closing,
+      day_replan: patch.day_replan ?? current.day_replan,
     };
   }
 
@@ -108,6 +136,12 @@ export class MeService {
     quietHoursEnd: string | null;
     telegramEnabled: boolean;
     focusNotifications: boolean;
+    shutdownReminderTime: string | null;
+    workDayStart: string | null;
+    workDayEnd: string | null;
+    defaultTaskDuration: number;
+    deadlineSoonDays: number;
+    eveningStart: string;
     featureFlags: unknown;
   }> {
     const row = await this.prisma.user.findFirst({
@@ -130,6 +164,12 @@ export class MeService {
         quietHoursEnd: true,
         telegramEnabled: true,
         focusNotifications: true,
+        shutdownReminderTime: true,
+        workDayStart: true,
+        workDayEnd: true,
+        defaultTaskDuration: true,
+        deadlineSoonDays: true,
+        eveningStart: true,
         featureFlags: true,
       },
     });
@@ -157,6 +197,12 @@ export class MeService {
     quietHoursEnd: string | null;
     telegramEnabled: boolean;
     focusNotifications: boolean;
+    shutdownReminderTime: string | null;
+    workDayStart: string | null;
+    workDayEnd: string | null;
+    defaultTaskDuration: number;
+    deadlineSoonDays: number;
+    eveningStart: string;
     featureFlags: unknown;
   }): MeResponseDto {
     return {
@@ -177,6 +223,12 @@ export class MeService {
       quiet_hours_end: row.quietHoursEnd,
       telegram_enabled: row.telegramEnabled,
       focus_notifications: row.focusNotifications,
+      shutdown_reminder_time: row.shutdownReminderTime,
+      work_day_start: row.workDayStart,
+      work_day_end: row.workDayEnd,
+      default_task_duration_minutes: row.defaultTaskDuration,
+      deadline_soon_days: row.deadlineSoonDays,
+      evening_start: row.eveningStart,
       features: featureFlags(row.featureFlags),
     };
   }

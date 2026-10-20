@@ -251,6 +251,26 @@ export type {
   ReportTone,
   WeeklyNarrative,
 } from './dashboard/kpis';
+export {
+  dayLoad,
+  formatDayLoadLine,
+  formatMinutes,
+  civilDateKey,
+  shiftCivilDate,
+  isBusinessDay,
+  loadStatus,
+} from './planning/day-load';
+export type {
+  DayLoadEvent,
+  DayLoadResult,
+  DayLoadSettings,
+  DayLoadStatus,
+  DayLoadTask,
+} from './planning/day-load';
+export { FEATURE_FLAG_KEYS, featureEnabled, sanitizeFeatureFlags } from './planning/features';
+export type { FeatureFlagKey } from './planning/features';
+export { proposeReplan } from './planning/replan';
+export type { DayOccupancy, ReplanCandidate, ReplanSuggestion } from './planning/replan';
 export { planQueue, previewPlan, staleTaskIds } from './planning/day-plan';
 export type {
   PlanCard,

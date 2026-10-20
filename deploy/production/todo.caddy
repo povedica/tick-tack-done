@@ -23,6 +23,30 @@
 		reverse_proxy todo-api:3000
 	}
 
+	handle /.well-known/oauth-protected-resource {
+		reverse_proxy todo-api:3000
+	}
+
+	handle /.well-known/oauth-authorization-server {
+		reverse_proxy todo-api:3000
+	}
+
+	handle /oauth/authorize {
+		reverse_proxy todo-api:3000
+	}
+
+	handle /oauth/token {
+		reverse_proxy todo-api:3000
+	}
+
+	handle /oauth/register {
+		reverse_proxy todo-api:3000
+	}
+
+	handle /oauth/revoke {
+		reverse_proxy todo-api:3000
+	}
+
 	handle /manifest.json {
 		redir /manifest.webmanifest 308
 	}

@@ -70,7 +70,7 @@ export function SmartListsPage() {
       viewsApi.updateSmartLists({
         items: payload.keys.flatMap((key) =>
           isSmartListKey(key) ? [{ key, enabled: payload.flags[key] ?? true }] : [],
-        ),
+        ) as Parameters<typeof viewsApi.updateSmartLists>[0]['items'],
       }),
     onSuccess: (page, payload) => {
       if (payload.generation !== generation.current) {

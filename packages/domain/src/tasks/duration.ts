@@ -19,5 +19,10 @@ export function deriveDurationMinutes(input: {
   if (due < start) {
     return { ok: false, reason: 'due_before_start' };
   }
-  return { ok: true, durationMinutes: Math.round((due - start) / 60_000) };
+  const span = Math.round((due - start) / 60_000);
+  // When and deadline can be days apart. Only a same-day block still implies duration.
+  if (span > 24 * 60) {
+    return { ok: true, durationMinutes: input.explicit };
+  }
+  return { ok: true, durationMinutes: span };
 }

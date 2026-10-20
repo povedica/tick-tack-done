@@ -156,13 +156,17 @@ export class TasksController {
 
   @Get()
   @Scopes('tasks:read')
-  @ApiOperation({ summary: 'List tasks. Subtasks stay nested unless flat=true (RF-205).' })
+  @ApiOperation({
+    summary:
+      'List tasks. Subtasks stay nested unless flat=true (RF-205). list_id filters one list, same as project_id.',
+  })
   @ApiOkResponse({ type: TaskPageDto })
   async list(
     @CurrentUser() user: AuthUser,
     @Query('limit') limit: string | undefined,
     @Query('cursor') cursor: string | undefined,
     @Query('project_id') projectId: string | undefined,
+    @Query('list_id') listId: string | undefined,
     @Query('status') status: string | undefined,
     @Query('priority') priority: string | undefined,
     @Query('tag') tag: string | undefined,
@@ -173,10 +177,14 @@ export class TasksController {
     @Query('flat') flat: string | undefined,
     @Query('sort') sort: string | undefined,
     @Query('overdue') overdue: string | undefined,
+    @Query('someday') someday: string | undefined,
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    const project = optionalUuid(projectId, 'project_id');
+    const project = optionalUuid(
+      projectId ?? listId,
+      projectId === undefined ? 'list_id' : 'project_id',
+    );
     const tagId = optionalUuid(tag, 'tag');
     const page = await this.tasks.list(
       user,
@@ -192,6 +200,7 @@ export class TasksController {
         flat: flat === 'true',
         sort: parseTaskSort(sort),
         overdue: overdue === 'true',
+        ...(someday === 'true' ? { someday: true } : someday === 'false' ? { someday: false } : {}),
       }),
     );
     respondJson(req, res, 200, page, true);

@@ -5,6 +5,7 @@ import {
   IsArray,
   IsBoolean,
   IsIn,
+  IsOptional,
   IsString,
   IsUrl,
   MaxLength,
@@ -93,6 +94,21 @@ export class OauthConsentDto {
   @ApiProperty()
   @IsBoolean()
   allow!: boolean;
+
+  @ApiProperty({
+    required: false,
+    description: 'Original scope from the authorization request. Empty means the MCP default set.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  requested_scope?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  resource?: string;
 }
 
 export class OauthConsentViewDto {
@@ -112,27 +128,56 @@ export class OauthRedirectDto {
 }
 
 export class OauthTokenDto {
-  @ApiProperty({ enum: ['authorization_code'] })
-  @IsIn(['authorization_code'])
-  grant_type!: 'authorization_code';
+  @ApiProperty({ enum: ['authorization_code', 'refresh_token'] })
+  @IsIn(['authorization_code', 'refresh_token'])
+  grant_type!: 'authorization_code' | 'refresh_token';
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsString()
-  code!: string;
+  code?: string;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsString()
-  redirect_uri!: string;
+  redirect_uri?: string;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsString()
-  client_id!: string;
+  client_id?: string;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsString()
   @MinLength(43)
   @MaxLength(128)
-  code_verifier!: string;
+  code_verifier?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MinLength(20)
+  @MaxLength(500)
+  refresh_token?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  scope?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  resource?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  client_secret?: string;
 }
 
 export class OauthTokenResponseDto {
@@ -143,5 +188,78 @@ export class OauthTokenResponseDto {
   token_type!: 'Bearer';
 
   @ApiProperty()
+  expires_in!: number;
+
+  @ApiProperty()
+  refresh_token!: string;
+
+  @ApiProperty()
   scope!: string;
+}
+
+type PublicGrant = 'authorization_code' | 'refresh_token';
+
+export class RegisterOauthClientDto {
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(5)
+  @IsString({ each: true })
+  redirect_uris!: string[];
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  client_name?: string;
+
+  @ApiProperty({ required: false, enum: ['none'] })
+  @IsOptional()
+  @IsIn(['none'])
+  token_endpoint_auth_method?: 'none';
+
+  @ApiProperty({ required: false, isArray: true, enum: ['authorization_code', 'refresh_token'] })
+  @IsOptional()
+  @IsArray()
+  @IsIn(['authorization_code', 'refresh_token'], { each: true })
+  grant_types?: PublicGrant[];
+
+  @ApiProperty({ required: false, isArray: true, enum: ['code'] })
+  @IsOptional()
+  @IsArray()
+  @IsIn(['code'], { each: true })
+  response_types?: 'code'[];
+}
+
+export class RegisteredOauthClientDto {
+  @ApiProperty()
+  client_id!: string;
+
+  @ApiProperty()
+  client_name!: string;
+
+  @ApiProperty({ type: [String] })
+  redirect_uris!: string[];
+
+  @ApiProperty({ isArray: true, enum: ['authorization_code', 'refresh_token'] })
+  grant_types!: PublicGrant[];
+
+  @ApiProperty({ isArray: true, enum: ['code'] })
+  response_types!: 'code'[];
+
+  @ApiProperty({ enum: ['none'] })
+  token_endpoint_auth_method!: 'none';
+}
+
+export class OauthRevokeDto {
+  @ApiProperty()
+  @IsString()
+  @MinLength(20)
+  @MaxLength(500)
+  token!: string;
+
+  @ApiProperty({ required: false, enum: ['access_token', 'refresh_token'] })
+  @IsOptional()
+  @IsIn(['access_token', 'refresh_token'])
+  token_type_hint?: 'access_token' | 'refresh_token';
 }

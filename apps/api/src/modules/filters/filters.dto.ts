@@ -324,6 +324,7 @@ export class SmartListItemDto {
       'trash',
       'no_date',
       'recently_added',
+      'someday',
     ],
   })
   @IsIn([
@@ -337,6 +338,7 @@ export class SmartListItemDto {
     'trash',
     'no_date',
     'recently_added',
+    'someday',
   ])
   key!: string;
 

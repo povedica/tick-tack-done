@@ -51,6 +51,7 @@ export function TaskDetail({
   const [series, setSeries] = useState<string | null>(null);
   const [children, setChildren] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
+  const [dateSlot, setDateSlot] = useState<'due' | 'when'>('due');
   const [priorityOpen, setPriorityOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -298,13 +299,35 @@ export function TaskDetail({
         {dateOpen ? (
           <DatePopover
             open
-            value={draft}
+            value={
+              dateSlot === 'when'
+                ? { ...draft, dueDate: task.start_date, allDay: task.is_all_day }
+                : draft
+            }
             timeZone={task.time_zone}
             onClose={() => {
               setDateOpen(false);
             }}
-            onApply={applyDate}
+            onApply={(next) => {
+              if (dateSlot === 'when') {
+                save.mutate({ start_date: next.dueDate, is_all_day: next.allDay });
+                return;
+              }
+              applyDate(next);
+            }}
             onNotice={setNotice}
+            {...((me.data as { features?: { when_deadline?: boolean } } | undefined)?.features
+              ?.when_deadline === false
+              ? {}
+              : {
+                  onEvening: () => {
+                    save.mutate({
+                      evening_only: true,
+                      start_date: task.start_date ?? task.due_date,
+                      is_all_day: true,
+                    } as Parameters<typeof api.patchTask>[1]);
+                  },
+                })}
           />
         ) : null}
         <PriorityMenu
@@ -354,6 +377,47 @@ export function TaskDetail({
       {notice !== null ? (
         <p className="detail-alert" role="status">
           {notice}
+        </p>
+      ) : null}
+      {(me.data as { features?: { when_deadline?: boolean } } | undefined)?.features
+        ?.when_deadline !== false &&
+      (task.start_date !== null || task.due_date !== null) ? (
+        <p className="plan-line">
+          <button
+            type="button"
+            className="text-button"
+            onClick={() => {
+              setDateSlot('when');
+              setDateOpen(true);
+            }}
+          >
+            {messages.whenField}
+          </button>
+          {' · '}
+          <button
+            type="button"
+            className="text-button"
+            onClick={() => {
+              setDateSlot('due');
+              setDateOpen(true);
+            }}
+          >
+            {messages.deadlineField}
+          </button>
+          {' · '}
+          <button
+            type="button"
+            className="text-button"
+            onClick={() => {
+              const someday = (task as Detail & { is_someday?: boolean }).is_someday === true;
+              save.mutate({
+                someday: !someday,
+                ...(someday ? {} : { start_date: null }),
+              } as Parameters<typeof api.patchTask>[1]);
+            }}
+          >
+            {messages.somedayAction}
+          </button>
         </p>
       ) : null}
       <DetailBody

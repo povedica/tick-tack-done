@@ -256,6 +256,7 @@ async function wipe(id: string | undefined): Promise<void> {
   await prisma.activityLog.deleteMany({ where: { OR: [{ ownerId: id }, { actorId: id }] } });
   await prisma.outboxEvent.deleteMany({ where: { ownerId: id } });
   await prisma.idempotencyRecord.deleteMany({ where: { ownerId: id } });
+  await prisma.oauthRefreshToken.deleteMany({ where: { userId: id } });
   await prisma.personalAccessToken.deleteMany({ where: { ownerId: id } });
   await prisma.oauthAuthorizationCode.deleteMany({ where: { userId: id } });
   await prisma.oauthClient.deleteMany({ where: { ownerId: id } });

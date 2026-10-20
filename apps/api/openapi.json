@@ -773,7 +773,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "",
             "content": {
               "application/json": {
@@ -795,59 +795,43 @@
         ]
       }
     },
+    "/api/v1/oauth/register": {
+      "post": {
+        "operationId": "OauthController_register",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterOauthClientDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisteredOauthClientDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Dynamic client registration for public PKCE clients (RFC 7591)",
+        "tags": [
+          "oauth"
+        ],
+        "security": []
+      }
+    },
     "/api/v1/oauth/authorize": {
       "get": {
         "operationId": "OauthController_describe",
-        "parameters": [
-          {
-            "name": "client_id",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "redirect_uri",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "scope",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "state",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "code_challenge",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "code_challenge_method",
-            "required": true,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
+        "parameters": [],
         "responses": {
           "200": {
             "description": "",
@@ -884,7 +868,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "",
             "content": {
               "application/json": {
@@ -932,7 +916,95 @@
             }
           }
         },
-        "summary": "Exchange an authorization code and PKCE verifier for a bearer token",
+        "summary": "Exchange an authorization code or refresh token for a bearer token",
+        "tags": [
+          "oauth"
+        ],
+        "security": []
+      }
+    },
+    "/api/v1/oauth/revoke": {
+      "post": {
+        "operationId": "OauthController_revoke",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OauthRevokeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Revoke an OAuth access or refresh token (RFC 7009)",
+        "tags": [
+          "oauth"
+        ],
+        "security": []
+      }
+    },
+    "/browser-oauth/authorize": {
+      "get": {
+        "operationId": "OauthBrowserController_authorize",
+        "parameters": [],
+        "responses": {
+          "302": {
+            "description": "Redirect to /login or /oauth/consent"
+          }
+        },
+        "summary": "Browser entry for Authorization Code + PKCE. Redirects to login or the consent screen.",
+        "tags": [
+          "oauth"
+        ],
+        "security": []
+      }
+    },
+    "/.well-known/oauth-protected-resource": {
+      "get": {
+        "operationId": "OauthDiscoveryController_protectedResource",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtectedResourceMetadataDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "OAuth protected resource metadata for the MCP server (RFC 9728)",
+        "tags": [
+          "oauth"
+        ],
+        "security": []
+      }
+    },
+    "/.well-known/oauth-authorization-server": {
+      "get": {
+        "operationId": "OauthDiscoveryController_authorizationServer",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorizationServerMetadataDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "OAuth authorization server metadata (RFC 8414)",
         "tags": [
           "oauth"
         ],
@@ -3474,7 +3546,7 @@
             }
           }
         },
-        "summary": "List tasks. Subtasks stay nested unless flat=true (RF-205).",
+        "summary": "List tasks. Subtasks stay nested unless flat=true (RF-205). list_id filters one list, same as project_id.",
         "tags": [
           "tasks"
         ],
@@ -5543,6 +5615,523 @@
         ]
       }
     },
+    "/api/v1/planning/sessions": {
+      "post": {
+        "operationId": "PlanningController_start",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartPlanDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Open a day-planning session. Nothing is changed yet.",
+        "tags": [
+          "planning"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/planning/sessions/{id}": {
+      "get": {
+        "operationId": "PlanningController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read a planning session and its preview",
+        "tags": [
+          "planning"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/planning/sessions/{id}/decisions/{taskId}": {
+      "put": {
+        "operationId": "PlanningController_decide",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Record one planning decision without changing the task",
+        "tags": [
+          "planning"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "PlanningController_clear",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Remove one planning decision",
+        "tags": [
+          "planning"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/planning/sessions/{id}/apply": {
+      "post": {
+        "operationId": "PlanningController_apply",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyPlanDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Apply the preview. “La haré hoy” does not change the due date.",
+        "tags": [
+          "planning"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/plans": {
+      "get": {
+        "operationId": "PlansController_day",
+        "parameters": [
+          {
+            "name": "time_zone",
+            "required": true,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "date",
+            "required": true,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Tasks the user planned for a local date",
+        "tags": [
+          "plans"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/planning/load": {
+      "get": {
+        "operationId": "DayClosingController_load",
+        "parameters": [
+          {
+            "name": "date",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "time_zone",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Day load projection (RF-2641)",
+        "tags": [
+          "planning"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/planning/shutdown/sessions": {
+      "post": {
+        "operationId": "DayClosingController_startShutdown",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionDateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Start the shutdown ritual (RF-2651)",
+        "tags": [
+          "planning"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/planning/shutdown/sessions/{id}/decisions/{taskId}": {
+      "put": {
+        "operationId": "DayClosingController_decideShutdown",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClosingDecisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Record a shutdown decision (RF-2651)",
+        "tags": [
+          "planning"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "DayClosingController_clearShutdown",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Clear a shutdown decision (RF-2651)",
+        "tags": [
+          "planning"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/planning/shutdown/sessions/{id}/apply": {
+      "post": {
+        "operationId": "DayClosingController_applyShutdown",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyClosingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Apply the shutdown (RF-2651)",
+        "tags": [
+          "planning"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/planning/replan/sessions": {
+      "post": {
+        "operationId": "DayClosingController_startReplan",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionDateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Propose a light replan (RF-2670)",
+        "tags": [
+          "planning"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/planning/replan/sessions/{id}/decisions/{taskId}": {
+      "put": {
+        "operationId": "DayClosingController_decideReplan",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClosingDecisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Override a replan suggestion (RF-2671)",
+        "tags": [
+          "planning"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/planning/replan/sessions/{id}/apply": {
+      "post": {
+        "operationId": "DayClosingController_applyReplan",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyClosingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Apply a replan (RF-2671)",
+        "tags": [
+          "planning"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/calendar/events": {
       "get": {
         "operationId": "CalendarController_events",
@@ -6158,219 +6747,6 @@
         "summary": "Guided weekly review (RF-2302, RF-2303)",
         "tags": [
           "review"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ]
-      }
-    },
-    "/api/v1/planning/sessions": {
-      "post": {
-        "operationId": "PlanningController_start",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/StartPlanDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "summary": "Open a day-planning session. Nothing is changed yet.",
-        "tags": [
-          "planning"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ]
-      }
-    },
-    "/api/v1/planning/sessions/{id}": {
-      "get": {
-        "operationId": "PlanningController_get",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Read a planning session and its preview",
-        "tags": [
-          "planning"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ]
-      }
-    },
-    "/api/v1/planning/sessions/{id}/decisions/{taskId}": {
-      "put": {
-        "operationId": "PlanningController_decide",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "taskId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DecisionDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Record one planning decision without changing the task",
-        "tags": [
-          "planning"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ]
-      },
-      "delete": {
-        "operationId": "PlanningController_clear",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "taskId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Remove one planning decision",
-        "tags": [
-          "planning"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ]
-      }
-    },
-    "/api/v1/planning/sessions/{id}/apply": {
-      "post": {
-        "operationId": "PlanningController_apply",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ApplyPlanDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "summary": "Apply the preview. “La haré hoy” does not change the due date.",
-        "tags": [
-          "planning"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ]
-      }
-    },
-    "/api/v1/plans": {
-      "get": {
-        "operationId": "PlansController_day",
-        "parameters": [
-          {
-            "name": "time_zone",
-            "required": true,
-            "in": "query",
-            "schema": {}
-          },
-          {
-            "name": "date",
-            "required": true,
-            "in": "query",
-            "schema": {}
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Tasks the user planned for a local date",
-        "tags": [
-          "plans"
         ],
         "security": [
           {
@@ -8079,6 +8455,18 @@
           },
           "matrix": {
             "type": "boolean"
+          },
+          "when_deadline": {
+            "type": "boolean"
+          },
+          "day_load": {
+            "type": "boolean"
+          },
+          "day_closing": {
+            "type": "boolean"
+          },
+          "day_replan": {
+            "type": "boolean"
           }
         }
       },
@@ -8176,6 +8564,27 @@
           "focus_notifications": {
             "type": "boolean"
           },
+          "shutdown_reminder_time": {
+            "type": "string",
+            "nullable": true
+          },
+          "work_day_start": {
+            "type": "string",
+            "nullable": true
+          },
+          "work_day_end": {
+            "type": "string",
+            "nullable": true
+          },
+          "default_task_duration_minutes": {
+            "type": "number"
+          },
+          "deadline_soon_days": {
+            "type": "number"
+          },
+          "evening_start": {
+            "type": "string"
+          },
           "features": {
             "$ref": "#/components/schemas/FeatureFlagsDto"
           }
@@ -8198,6 +8607,12 @@
           "quiet_hours_end",
           "telegram_enabled",
           "focus_notifications",
+          "shutdown_reminder_time",
+          "work_day_start",
+          "work_day_end",
+          "default_task_duration_minutes",
+          "deadline_soon_days",
+          "evening_start",
           "features"
         ]
       },
@@ -8318,6 +8733,33 @@
           },
           "focus_notifications": {
             "type": "boolean"
+          },
+          "shutdown_reminder_time": {
+            "type": "object",
+            "nullable": true,
+            "example": "21:30"
+          },
+          "work_day_start": {
+            "type": "object",
+            "nullable": true,
+            "example": "09:00"
+          },
+          "work_day_end": {
+            "type": "object",
+            "nullable": true,
+            "example": "18:00"
+          },
+          "default_task_duration_minutes": {
+            "type": "number",
+            "example": 30
+          },
+          "deadline_soon_days": {
+            "type": "number",
+            "example": 2
+          },
+          "evening_start": {
+            "type": "string",
+            "example": "18:00"
           },
           "features": {
             "$ref": "#/components/schemas/FeatureFlagsDto"
@@ -8458,6 +8900,11 @@
           "revoked_at": {
             "type": "string",
             "nullable": true
+          },
+          "client_name": {
+            "type": "string",
+            "nullable": true,
+            "description": "OAuth client name, when this token was issued by consent"
           }
         },
         "required": [
@@ -8467,7 +8914,8 @@
           "scopes",
           "created_at",
           "last_used_at",
-          "revoked_at"
+          "revoked_at",
+          "client_name"
         ]
       },
       "TokenPageDto": {
@@ -8576,6 +9024,11 @@
             "type": "string",
             "nullable": true
           },
+          "client_name": {
+            "type": "string",
+            "nullable": true,
+            "description": "OAuth client name, when this token was issued by consent"
+          },
           "token": {
             "type": "string",
             "description": "Shown once. Only the hash is stored."
@@ -8589,6 +9042,7 @@
           "created_at",
           "last_used_at",
           "revoked_at",
+          "client_name",
           "token"
         ]
       },
@@ -8794,6 +9248,98 @@
           "redirect_uris"
         ]
       },
+      "RegisterOauthClientDto": {
+        "type": "object",
+        "properties": {
+          "redirect_uris": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "client_name": {
+            "type": "string"
+          },
+          "token_endpoint_auth_method": {
+            "type": "string",
+            "enum": [
+              "none"
+            ]
+          },
+          "grant_types": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "authorization_code",
+                "refresh_token"
+              ]
+            }
+          },
+          "response_types": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "code"
+              ]
+            }
+          }
+        },
+        "required": [
+          "redirect_uris"
+        ]
+      },
+      "RegisteredOauthClientDto": {
+        "type": "object",
+        "properties": {
+          "client_id": {
+            "type": "string"
+          },
+          "client_name": {
+            "type": "string"
+          },
+          "redirect_uris": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "grant_types": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "authorization_code",
+                "refresh_token"
+              ]
+            }
+          },
+          "response_types": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "code"
+              ]
+            }
+          },
+          "token_endpoint_auth_method": {
+            "type": "string",
+            "enum": [
+              "none"
+            ]
+          }
+        },
+        "required": [
+          "client_id",
+          "client_name",
+          "redirect_uris",
+          "grant_types",
+          "response_types",
+          "token_endpoint_auth_method"
+        ]
+      },
       "OauthConsentViewDto": {
         "type": "object",
         "properties": {
@@ -8842,6 +9388,13 @@
           },
           "allow": {
             "type": "boolean"
+          },
+          "requested_scope": {
+            "type": "string",
+            "description": "Original scope from the authorization request. Empty means the MCP default set."
+          },
+          "resource": {
+            "type": "string"
           }
         },
         "required": [
@@ -8871,7 +9424,8 @@
           "grant_type": {
             "type": "string",
             "enum": [
-              "authorization_code"
+              "authorization_code",
+              "refresh_token"
             ]
           },
           "code": {
@@ -8885,14 +9439,22 @@
           },
           "code_verifier": {
             "type": "string"
+          },
+          "refresh_token": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "resource": {
+            "type": "string"
+          },
+          "client_secret": {
+            "type": "string"
           }
         },
         "required": [
-          "grant_type",
-          "code",
-          "redirect_uri",
-          "client_id",
-          "code_verifier"
+          "grant_type"
         ]
       },
       "OauthTokenResponseDto": {
@@ -8907,6 +9469,12 @@
               "Bearer"
             ]
           },
+          "expires_in": {
+            "type": "number"
+          },
+          "refresh_token": {
+            "type": "string"
+          },
           "scope": {
             "type": "string"
           }
@@ -8914,7 +9482,121 @@
         "required": [
           "access_token",
           "token_type",
+          "expires_in",
+          "refresh_token",
           "scope"
+        ]
+      },
+      "OauthRevokeDto": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "token_type_hint": {
+            "type": "string",
+            "enum": [
+              "access_token",
+              "refresh_token"
+            ]
+          }
+        },
+        "required": [
+          "token"
+        ]
+      },
+      "ProtectedResourceMetadataDto": {
+        "type": "object",
+        "properties": {
+          "resource": {
+            "type": "string"
+          },
+          "authorization_servers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "scopes_supported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "bearer_methods_supported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "resource",
+          "authorization_servers",
+          "scopes_supported",
+          "bearer_methods_supported"
+        ]
+      },
+      "AuthorizationServerMetadataDto": {
+        "type": "object",
+        "properties": {
+          "issuer": {
+            "type": "string"
+          },
+          "authorization_endpoint": {
+            "type": "string"
+          },
+          "token_endpoint": {
+            "type": "string"
+          },
+          "registration_endpoint": {
+            "type": "string"
+          },
+          "response_types_supported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "grant_types_supported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "code_challenge_methods_supported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "token_endpoint_auth_methods_supported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "scopes_supported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "authorization_response_iss_parameter_supported": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "issuer",
+          "authorization_endpoint",
+          "token_endpoint",
+          "registration_endpoint",
+          "response_types_supported",
+          "grant_types_supported",
+          "code_challenge_methods_supported",
+          "token_endpoint_auth_methods_supported",
+          "scopes_supported",
+          "authorization_response_iss_parameter_supported"
         ]
       },
       "TotpCodeDto": {
@@ -10601,7 +11283,8 @@
               "completed",
               "trash",
               "no_date",
-              "recently_added"
+              "recently_added",
+              "someday"
             ]
           },
           "enabled": {
@@ -10912,6 +11595,12 @@
             "description": "Monotonic CAS version (>=1). Additive for Ticky expected_version (APP-02a).",
             "minimum": 1
           },
+          "is_someday": {
+            "type": "boolean"
+          },
+          "evening_only": {
+            "type": "boolean"
+          },
           "repeat_rule": {
             "type": "string",
             "nullable": true
@@ -10980,6 +11669,8 @@
           "time_zone",
           "duration_minutes",
           "version",
+          "is_someday",
+          "evening_only",
           "repeat_rule",
           "repeat_from",
           "series_id",
@@ -11135,6 +11826,12 @@
             "type": "object",
             "nullable": true
           },
+          "someday": {
+            "type": "boolean"
+          },
+          "evening_only": {
+            "type": "boolean"
+          },
           "repeat_rule": {
             "type": "object",
             "nullable": true
@@ -11266,6 +11963,12 @@
             "description": "Monotonic CAS version (>=1). Additive for Ticky expected_version (APP-02a).",
             "minimum": 1
           },
+          "is_someday": {
+            "type": "boolean"
+          },
+          "evening_only": {
+            "type": "boolean"
+          },
           "repeat_rule": {
             "type": "string",
             "nullable": true
@@ -11340,6 +12043,8 @@
           "time_zone",
           "duration_minutes",
           "version",
+          "is_someday",
+          "evening_only",
           "repeat_rule",
           "repeat_from",
           "series_id",
@@ -11502,6 +12207,12 @@
           "duration_minutes": {
             "type": "object",
             "nullable": true
+          },
+          "someday": {
+            "type": "boolean"
+          },
+          "evening_only": {
+            "type": "boolean"
           },
           "repeat_rule": {
             "type": "object",
@@ -11759,6 +12470,129 @@
           "confirmation"
         ]
       },
+      "StartPlanDto": {
+        "type": "object",
+        "properties": {
+          "local_date": {
+            "type": "string",
+            "example": "2026-10-19"
+          },
+          "time_zone": {
+            "type": "string",
+            "example": "Europe/Madrid"
+          },
+          "today": {
+            "type": "boolean"
+          },
+          "overdue": {
+            "type": "boolean"
+          },
+          "inbox": {
+            "type": "boolean"
+          },
+          "undated": {
+            "type": "boolean"
+          },
+          "limit": {
+            "type": "number",
+            "nullable": true
+          }
+        },
+        "required": [
+          "local_date",
+          "time_zone"
+        ]
+      },
+      "DecisionDto": {
+        "type": "object",
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "done",
+              "plan_day",
+              "later",
+              "cancel",
+              "trash",
+              "skip",
+              "someday"
+            ]
+          },
+          "target_date": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "decision"
+        ]
+      },
+      "ApplyPlanDto": {
+        "type": "object",
+        "properties": {
+          "expected_revision": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "expected_revision"
+        ]
+      },
+      "SessionDateDto": {
+        "type": "object",
+        "properties": {
+          "local_date": {
+            "type": "string",
+            "example": "2026-10-20"
+          },
+          "time_zone": {
+            "type": "string",
+            "example": "Europe/Madrid"
+          }
+        },
+        "required": [
+          "local_date",
+          "time_zone"
+        ]
+      },
+      "ClosingDecisionDto": {
+        "type": "object",
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "done",
+              "plan_day",
+              "later",
+              "someday",
+              "cancel",
+              "trash",
+              "skip"
+            ]
+          },
+          "target_date": {
+            "type": "string",
+            "nullable": true
+          },
+          "evening": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "decision"
+        ]
+      },
+      "ApplyClosingDto": {
+        "type": "object",
+        "properties": {
+          "expected_revision": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "expected_revision"
+        ]
+      },
       "SubscribeDto": {
         "type": "object",
         "properties": {
@@ -11858,73 +12692,6 @@
             }
           }
         }
-      },
-      "StartPlanDto": {
-        "type": "object",
-        "properties": {
-          "local_date": {
-            "type": "string",
-            "example": "2026-10-19"
-          },
-          "time_zone": {
-            "type": "string",
-            "example": "Europe/Madrid"
-          },
-          "today": {
-            "type": "boolean"
-          },
-          "overdue": {
-            "type": "boolean"
-          },
-          "inbox": {
-            "type": "boolean"
-          },
-          "undated": {
-            "type": "boolean"
-          },
-          "limit": {
-            "type": "number",
-            "nullable": true
-          }
-        },
-        "required": [
-          "local_date",
-          "time_zone"
-        ]
-      },
-      "DecisionDto": {
-        "type": "object",
-        "properties": {
-          "decision": {
-            "type": "string",
-            "enum": [
-              "done",
-              "plan_day",
-              "later",
-              "cancel",
-              "trash",
-              "skip"
-            ]
-          },
-          "target_date": {
-            "type": "string",
-            "nullable": true
-          }
-        },
-        "required": [
-          "decision"
-        ]
-      },
-      "ApplyPlanDto": {
-        "type": "object",
-        "properties": {
-          "expected_revision": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "expected_revision"
-        ]
       },
       "WebhookDto": {
         "type": "object",

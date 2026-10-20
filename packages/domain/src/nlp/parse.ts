@@ -140,6 +140,10 @@ interface Draft {
   tagNames: string[];
   listName: string | null;
   due: QuickAddDue | null;
+  start: QuickAddDue | null;
+  durationMinutes: number | null;
+  someday: boolean;
+  eveningOnly: boolean;
   repeatRule: string | null;
   reminderTrigger: string | null;
   spans: QuickAddSpan[];
@@ -155,6 +159,7 @@ interface DateAnchor {
   readonly repeatRule: string | null;
   readonly weekday: Weekday | null;
   readonly resolved: QuickAddDue | null;
+  readonly slot: 'due' | 'when';
 }
 
 interface ClockAnchor {
@@ -189,6 +194,10 @@ export function parseQuickAdd(
     tagNames: [],
     listName: null,
     due: null,
+    start: null,
+    durationMinutes: null,
+    someday: false,
+    eveningOnly: false,
     repeatRule: null,
     reminderTrigger: null,
     spans: [],
@@ -220,12 +229,20 @@ export function parseQuickAdd(
     tagNames: draft.tagNames,
     listName: draft.listName,
     due: draft.due,
+    start: draft.start,
+    durationMinutes: draft.durationMinutes,
+    someday: draft.someday,
+    eveningOnly: draft.eveningOnly,
     repeatRule: draft.repeatRule,
     reminderTrigger: draft.reminderTrigger,
   };
 }
 
 const builtinMatchers: readonly Matcher[] = [
+  matchDeadline,
+  matchDuration,
+  matchSomeday,
+  matchEvening,
   matchRelative,
   matchEvery,
   matchNumericDate,
@@ -314,6 +331,99 @@ const WEEKDAY_WORD =
 const OFFSET =
   /(?<![\p{L}\p{N}])(?:en|dentro\s+de)\s+(un|una|\d+)\s+(minutos?|horas?|d[ií]as?|semanas?)(?![\p{L}\p{N}])/giu;
 
+const DEADLINE =
+  /(?<![\p{L}\p{N}])(?:para\s+el|a\s+m[aá]s\s+tardar(?:\s+el)?|fecha\s+l[ií]mite:\s*|deadline\s+)\s*(lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo|monday|tuesday|wednesday|thursday|friday|saturday|sunday)(?![\p{L}\p{N}])/giu;
+const DURATION =
+  /(?<![\p{L}\p{N}])~(?:(\d+)\s*h(?:\s*(\d+))?|(\d+)\s*m(?:in(?:utos)?)?)(?![\p{L}\p{N}])/giu;
+const SOMEDAY = /(?<![\p{L}\p{N}])(?:alg[uú]n\s+d[ií]a|someday)(?![\p{L}\p{N}])/giu;
+const EVENING =
+  /(?<![\p{L}\p{N}])(?:esta\s+noche|this\s+evening)(?:\s+(?:a\s+las|at)\s+(\d{1,2})(?::(\d{2}))?)?(?![\p{L}\p{N}])/giu;
+
+function matchDeadline(
+  text: string,
+  from: number,
+  _language: QuickAddLanguage,
+  clock: ClockContext | null,
+): Found | null {
+  if (clock === null) {
+    return null;
+  }
+  return scan(text, from, DEADLINE, (match) => {
+    const weekday = WEEKDAY[fold(match[1] ?? '')];
+    if (weekday === undefined) {
+      return null;
+    }
+    return dateFound(
+      match.index,
+      { end: match.index + match[0].length, clock: null },
+      clock.now,
+      null,
+      clock.timeZone,
+      weekday,
+      'due',
+    );
+  });
+}
+
+function matchDuration(text: string, from: number): Found | null {
+  return scan(text, from, DURATION, (match) => {
+    const hours = match[1] === undefined ? 0 : Number(match[1]);
+    const extra = match[2] === undefined ? 0 : Number(match[2]);
+    const minutes = match[3] === undefined ? hours * 60 + extra : Number(match[3]);
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 24 * 60) {
+      return null;
+    }
+    return {
+      start: match.index,
+      end: match.index + match[0].length,
+      kind: 'duration',
+      apply: (draft) => {
+        draft.durationMinutes = minutes;
+      },
+    };
+  });
+}
+
+function matchSomeday(text: string, from: number): Found | null {
+  return scan(text, from, SOMEDAY, (match) => ({
+    start: match.index,
+    end: match.index + match[0].length,
+    kind: 'date',
+    apply: (draft) => {
+      draft.someday = true;
+    },
+  }));
+}
+
+function matchEvening(
+  text: string,
+  from: number,
+  _language: QuickAddLanguage,
+  clock: ClockContext | null,
+): Found | null {
+  if (clock === null) {
+    return null;
+  }
+  return scan(text, from, EVENING, (match) => {
+    const hour = match[1] === undefined ? null : Number(match[1]);
+    const minute = match[2] === undefined ? 0 : Number(match[2]);
+    const wall =
+      hour === null
+        ? { ...clock.now, hour: 0, minute: 0, second: 0 }
+        : { ...clock.now, hour, minute, second: 0 };
+    const date = instantFromWall(wall, clock.timeZone);
+    return {
+      start: match.index,
+      end: match.index + match[0].length,
+      kind: 'date' as const,
+      apply: (draft: Draft) => {
+        draft.eveningOnly = true;
+        draft.start = date === null ? null : { date, isAllDay: hour === null };
+      },
+    };
+  });
+}
+
 function matchWeekday(
   text: string,
   from: number,
@@ -332,7 +442,8 @@ function matchWeekday(
     return null;
   }
   const timed = extendWithTime(text, match.index + match[0].length);
-  return dateFound(match.index, timed, clock.now, null, clock.timeZone, weekday);
+  const slot = /^(?:el|on)\s+/iu.test(match[0]) ? 'when' : 'due';
+  return dateFound(match.index, timed, clock.now, null, clock.timeZone, weekday, slot);
 }
 
 function matchOffset(
@@ -370,6 +481,7 @@ function matchOffset(
           repeatRule: null,
           weekday: null,
           resolved: due,
+          slot: 'due',
         });
       },
     };
@@ -808,6 +920,7 @@ function dateFound(
   repeatRule: string | null,
   _timeZone: string,
   weekday: Weekday | null = null,
+  slot: 'due' | 'when' = 'due',
 ): Found | null {
   return {
     start,
@@ -822,6 +935,7 @@ function dateFound(
         repeatRule,
         weekday,
         resolved: null,
+        slot,
       });
     },
   };
@@ -978,7 +1092,9 @@ function settleSchedule(draft: Draft, clock: ClockContext | null): QuickAddSpan[
     return [];
   }
   if (draft.dates.length === 0) {
-    return settleBareClock(draft, clock);
+    const dropped = settleBareClock(draft, clock);
+    finishCapture(draft);
+    return dropped;
   }
   const winning = draft.dates[draft.dates.length - 1];
   if (winning === undefined) {
@@ -987,6 +1103,7 @@ function settleSchedule(draft: Draft, clock: ClockContext | null): QuickAddSpan[
   if (winning.resolved !== null) {
     draft.due = winning.resolved;
     draft.repeatRule = winning.repeatRule;
+    assignSlots(draft, clock);
     return draft.clocks.map((item) => ({
       start: item.start,
       end: item.end,
@@ -996,6 +1113,7 @@ function settleSchedule(draft: Draft, clock: ClockContext | null): QuickAddSpan[
   if (winning.clock !== null) {
     draft.due = dueForAnchor(winning, winning.clock, clock);
     draft.repeatRule = winning.repeatRule;
+    assignSlots(draft, clock);
     return draft.clocks.map((item) => ({
       start: item.start,
       end: item.end,
@@ -1005,14 +1123,49 @@ function settleSchedule(draft: Draft, clock: ClockContext | null): QuickAddSpan[
   if (draft.clocks.length === 0) {
     draft.due = dueForAnchor(winning, null, clock);
     draft.repeatRule = winning.repeatRule;
+    assignSlots(draft, clock);
     return [];
   }
   const chosen = closestClock(winning, draft.clocks);
   draft.due = dueForAnchor(winning, chosen.clock, clock);
   draft.repeatRule = winning.repeatRule;
+  assignSlots(draft, clock);
   return draft.clocks
     .filter((item) => item !== chosen)
     .map((item) => ({ start: item.start, end: item.end, kind: 'date' as const }));
+}
+
+function assignSlots(draft: Draft, clock: ClockContext): void {
+  let sawDue = false;
+  let sawWhen = false;
+  for (const anchor of draft.dates) {
+    const time =
+      anchor.clock ?? (draft.clocks.length === 0 ? null : closestClock(anchor, draft.clocks).clock);
+    const resolved = anchor.resolved ?? dueForAnchor(anchor, time, clock);
+    if (anchor.slot === 'when') {
+      draft.start = resolved;
+      sawWhen = true;
+    } else {
+      draft.due = resolved;
+      sawDue = true;
+    }
+    if (anchor.repeatRule !== null) {
+      draft.repeatRule = anchor.repeatRule;
+    }
+  }
+  if (sawWhen && !sawDue) {
+    draft.due = null;
+  }
+  finishCapture(draft);
+}
+
+function finishCapture(draft: Draft): void {
+  if (!draft.someday) {
+    return;
+  }
+  draft.due = null;
+  draft.start = null;
+  draft.eveningOnly = false;
 }
 
 function settleBareClock(draft: Draft, clock: ClockContext): QuickAddSpan[] {
@@ -1027,6 +1180,7 @@ function settleBareClock(draft: Draft, clock: ClockContext): QuickAddSpan[] {
   );
   draft.due = date === null ? null : { date, isAllDay: false };
   draft.repeatRule = null;
+  finishCapture(draft);
   return draft.clocks
     .filter((item) => item !== chosen)
     .map((item) => ({ start: item.start, end: item.end, kind: 'date' as const }));
@@ -1154,8 +1308,18 @@ function titleWithout(text: string, spans: readonly QuickAddSpan[]): string {
   let cursor = 0;
   let out = '';
   for (const span of spans) {
-    out += text.slice(cursor, span.start);
+    let start = span.start;
+    while (start > cursor && /\s/u.test(text[start - 1] ?? '')) {
+      start -= 1;
+    }
+    if (start > cursor && (text[start - 1] === ',' || text[start - 1] === ';')) {
+      start -= 1;
+    }
+    out += text.slice(cursor, start);
     cursor = span.end;
+    while (cursor < text.length && (text[cursor] === ',' || text[cursor] === ';')) {
+      cursor += 1;
+    }
   }
   out += text.slice(cursor);
   return out.replace(/\s+/gu, ' ').trim();

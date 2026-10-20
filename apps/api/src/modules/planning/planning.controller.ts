@@ -26,7 +26,7 @@ import { DomainException } from '../../http/domain.exception.js';
 import { respondJson } from '../../http/respond.js';
 import { PlanningService } from './planning.service.js';
 
-const DECISIONS = ['done', 'plan_day', 'later', 'cancel', 'trash', 'skip'] as const;
+const DECISIONS = ['done', 'plan_day', 'later', 'cancel', 'trash', 'skip', 'someday'] as const;
 
 class StartPlanDto {
   @ApiProperty({ example: '2026-10-19' })

@@ -15,10 +15,20 @@ export interface UpdateMeBody {
   readonly density?: 'comfortable' | 'compact';
   readonly accent?: 'indigo' | 'violet' | 'teal' | 'amber' | 'rose' | 'slate';
   readonly default_reminder_trigger?: string | null;
+  readonly shutdown_reminder_time?: string | null;
+  readonly work_day_start?: string | null;
+  readonly work_day_end?: string | null;
+  readonly default_task_duration_minutes?: number;
+  readonly deadline_soon_days?: number;
+  readonly evening_start?: string;
   readonly features?: {
     readonly countdowns?: boolean;
     readonly focus?: boolean;
     readonly matrix?: boolean;
+    readonly when_deadline?: boolean;
+    readonly day_load?: boolean;
+    readonly day_closing?: boolean;
+    readonly day_replan?: boolean;
   };
 }
 export type InboundEmailStatus = components['schemas']['InboundEmailStatusDto'];

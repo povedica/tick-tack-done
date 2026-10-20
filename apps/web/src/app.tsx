@@ -57,7 +57,9 @@ import { ConsentPage } from './features/auth/ConsentPage';
 import { LoginPage, RegisterPage } from './features/auth/AuthPages';
 import { RequireSession, SessionBootstrap } from './features/auth/RequireSession';
 import { RepeatPage } from './features/repeat/RepeatPage';
+import { ShutdownPage } from './features/closing/ShutdownPage';
 import { PlanDayPage, WontDoPage } from './features/planning/PlanDayPage';
+import { WorkdaySettings } from './features/settings/WorkdaySettings';
 import { TodayPage } from './features/today/TodayPage';
 import { ShortcutHelp } from './shell/ShortcutHelp';
 import { GlobalKeys } from './shell/GlobalKeys';
@@ -162,6 +164,8 @@ function Shell() {
             <Route path="/reports/weekly" element={<ReportsPage />} />
             <Route path="/reports/weekly/:week" element={<ReportsPage />} />
             <Route path="/plan/day" element={<PlanDayPage />} />
+            <Route path="/cierre" element={<ShutdownPage kind="shutdown" />} />
+            <Route path="/replan" element={<ShutdownPage kind="replan" />} />
             <Route path="/wont-do" element={<WontDoPage />} />
             <Route path="/review" element={<ReviewPage />} />
             <Route path="/review/daily" element={<ReviewPage />} />
@@ -176,6 +180,7 @@ function Shell() {
               <Route path="appearance" element={<AppearancePage />} />
               <Route path="features" element={<FeaturesPage />} />
               <Route path="account" element={<AccountPage />} />
+              <Route path="workday" element={<WorkdaySettings />} />
               <Route path="capture" element={<CaptureSettings />} />
               <Route path="notifications" element={<NotificationSettings />} />
               <Route path="smart-lists" element={<SmartListsPage />} />

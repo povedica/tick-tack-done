@@ -34,6 +34,12 @@ enum PlanSessionState {
   discarded
 }
 
+enum PlanSessionKind {
+  plan
+  shutdown
+  replan
+}
+
 enum PlanDecisionKind {
   done
   plan_day
@@ -41,6 +47,7 @@ enum PlanDecisionKind {
   cancel
   trash
   skip
+  someday
 }
 
 enum Priority {
@@ -108,6 +115,7 @@ enum ReminderDeliveryStatus {
 enum ReminderDeliveryKind {
   task
   daily_digest
+  shutdown_digest
   overdue
   due_soon
   countdown
@@ -201,6 +209,7 @@ enum SmartListKey {
   trash
   no_date
   recently_added
+  someday
 }
 
 enum CompleteChildrenPolicy {
@@ -232,6 +241,12 @@ model User {
   focusNotifications    Boolean                @default(true) @map("focus_notifications")
   featureFlags          Json                   @default("{}") @map("feature_flags")
   weeklyReportSettings  Json                   @default("{}") @map("weekly_report_settings")
+  shutdownReminderTime  String?                @map("shutdown_reminder_time")
+  workDayStart          String?                @default("09:00") @map("work_day_start")
+  workDayEnd            String?                @default("18:00") @map("work_day_end")
+  defaultTaskDuration   Int                    @default(30) @map("default_task_duration")
+  deadlineSoonDays      Int                    @default(2) @map("deadline_soon_days")
+  eveningStart          String                 @default("18:00") @map("evening_start")
   achievementScore      Int                    @default(0) @map("achievement_score")
   achievementsEnabled   Boolean                @default(true) @map("achievements_enabled")
   totpSecret            String?                @map("totp_secret")
@@ -280,6 +295,7 @@ model User {
   sessions              Session[]
   oauthClients          OauthClient[]
   oauthCodes            OauthAuthorizationCode[]
+  oauthRefreshTokens    OauthRefreshToken[]
   matrixRules           MatrixRule[]
   calendarFeeds         CalendarFeed[]
   webhookEndpoints      WebhookEndpoint[]
@@ -429,6 +445,8 @@ model Task {
   dueDate         DateTime?                @map("due_date") @db.Timestamptz(6)
   timeZone        String                   @default("Europe/Madrid") @map("time_zone")
   durationMinutes Int?                     @map("duration_minutes")
+  isSomeday       Boolean                  @default(false) @map("is_someday")
+  eveningOnly     Boolean                  @default(false) @map("evening_only")
   repeatRule      String?                  @map("repeat_rule")
   repeatFrom      RepeatFrom               @default(due_date) @map("repeat_from")
   seriesId        String?                  @map("series_id") @db.Uuid
@@ -464,6 +482,7 @@ model Task {
   @@index([dueDate], map: "tasks_due_date_idx")
   @@index([seriesId, status], map: "tasks_series_status_idx")
   @@index([ownerId, status, deletedAt, dueDate], map: "tasks_owner_status_deleted_due_idx")
+  @@index([ownerId, status, deletedAt, isSomeday], map: "tasks_owner_someday_idx")
   @@index([ownerId, deletedAt, createdAt], map: "tasks_owner_deleted_created_idx")
   @@index([ownerId, parentId, deletedAt], map: "tasks_owner_parent_deleted_idx")
   @@index([searchVector], type: Gin, map: "tasks_fts_idx")
@@ -762,14 +781,19 @@ model PersonalAccessToken {
   listIds     String[]  @default([]) @map("list_ids")
   lastUsedAt  DateTime? @map("last_used_at") @db.Timestamptz(6)
   revokedAt   DateTime? @map("revoked_at") @db.Timestamptz(6)
+  expiresAt   DateTime? @map("expires_at") @db.Timestamptz(6)
+  oauthClientId String? @map("oauth_client_id") @db.Uuid
+  oauthClient OauthClient? @relation(fields: [oauthClientId], references: [id], onDelete: SetNull)
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
 
-  activity    ActivityLog[]
-  memberships ProjectMember[]
+  activity       ActivityLog[]
+  memberships    ProjectMember[]
+  refreshTokens  OauthRefreshToken[]
 
   @@index([ownerId, createdAt])
+  @@index([oauthClientId])
   @@map("personal_access_tokens")
 }
 
@@ -992,16 +1016,20 @@ model Session {
 }
 
 // Public OAuth client for Authorization Code + PKCE (section 10.1). No client secret.
+// Dynamic registration leaves owner empty until a person consents.
 model OauthClient {
   id           String    @id @default(uuid()) @db.Uuid
-  ownerId      String    @map("owner_id") @db.Uuid
-  owner        User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId      String?   @map("owner_id") @db.Uuid
+  owner        User?     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   name         String
   redirectUris String[]  @map("redirect_uris")
+  dynamic      Boolean   @default(false)
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
   codes        OauthAuthorizationCode[]
+  accessTokens PersonalAccessToken[]
+  refreshTokens OauthRefreshToken[]
 
   @@index([ownerId])
   @@map("oauth_clients")
@@ -1017,12 +1045,35 @@ model OauthAuthorizationCode {
   codeChallenge String    @map("code_challenge")
   scopes        String[]
   redirectUri   String    @map("redirect_uri")
+  resource      String?
   expiresAt     DateTime  @map("expires_at") @db.Timestamptz(6)
   consumedAt    DateTime? @map("consumed_at") @db.Timestamptz(6)
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@index([userId])
   @@map("oauth_authorization_codes")
+}
+
+// Opaque refresh token. Only the hash is stored. Rotation detects reuse of a spent token.
+model OauthRefreshToken {
+  id            String    @id @default(uuid()) @db.Uuid
+  familyId      String    @map("family_id") @db.Uuid
+  clientId      String    @map("client_id") @db.Uuid
+  client        OauthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId        String    @map("user_id") @db.Uuid
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessTokenId String    @map("access_token_id") @db.Uuid
+  accessToken   PersonalAccessToken @relation(fields: [accessTokenId], references: [id], onDelete: Cascade)
+  tokenHash     String    @unique @map("token_hash")
+  expiresAt     DateTime  @map("expires_at") @db.Timestamptz(6)
+  rotatedAt     DateTime? @map("rotated_at") @db.Timestamptz(6)
+  revokedAt     DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([familyId])
+  @@index([userId])
+  @@index([accessTokenId])
+  @@map("oauth_refresh_tokens")
 }
 
 /// RF-1004. Null rules mean the default urgent/important split.
@@ -1237,6 +1288,7 @@ model PlanSession {
   ownerId    String           @map("owner_id") @db.Uuid
   owner      User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   state      PlanSessionState @default(draft)
+  kind       PlanSessionKind  @default(plan)
   revision   Int              @default(1)
   sources    Json
   snapshot   Json
@@ -1256,6 +1308,7 @@ model PlanDecision {
   taskId     String           @map("task_id") @db.Uuid
   decision   PlanDecisionKind
   targetDate String?          @map("target_date") @db.VarChar(10)
+  evening    Boolean          @default(false)
   createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt  DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
 

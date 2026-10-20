@@ -191,6 +191,7 @@ export class ReportsController {
         countdown.targetDate < now,
     );
     const week = weekStart(now);
+    const closingLine = await this.closingLine(user.id, week);
     const weekEnd = new Date(week.getTime() + 7 * 24 * 60 * 60 * 1000);
     const touched = await this.prisma.task.findMany({
       where: {
@@ -212,7 +213,7 @@ export class ReportsController {
       },
     });
     const payload = {
-      summary: narrative.summary,
+      summary: `${narrative.summary}\n${closingLine}`,
       observations: narrative.observations,
       snapshot,
       completed: snapshot.completed,
@@ -259,6 +260,30 @@ export class ReportsController {
       return saved;
     });
     return { id: row.id, week: week.toISOString().slice(0, 10), ...payload, tone: settings.tone };
+  }
+
+  private async closingLine(ownerId: string, week: Date): Promise<string> {
+    const sessions = await this.prisma.planSession.findMany({
+      where: {
+        ownerId,
+        kind: 'shutdown',
+        state: 'applied',
+        updatedAt: { gte: week, lt: new Date(week.getTime() + 7 * 24 * 60 * 60 * 1000) },
+      },
+      select: { decisions: { select: { decision: true } } },
+    });
+    const moved = sessions.reduce(
+      (sum, session) =>
+        sum +
+        session.decisions.filter(
+          (decision) =>
+            decision.decision === 'plan_day' ||
+            decision.decision === 'later' ||
+            decision.decision === 'someday',
+        ).length,
+      0,
+    );
+    return `Cerraste el día ${String(sessions.length)} de 7 días; moviste ${String(moved)} tareas en los cierres.`;
   }
 }
 

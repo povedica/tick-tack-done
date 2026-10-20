@@ -1,5 +1,10 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
-import { HABIT_WEEKDAYS, proposeDaily } from '@reflexionia/domain';
+import {
+  civilDateKey,
+  HABIT_WEEKDAYS,
+  proposeDaily,
+  type PlanDecisionKind,
+} from '@reflexionia/domain';
 import { actorOf, type AuthUser } from '../auth/auth-user.js';
 import { missingScopes } from '../auth/scopes.js';
 import { DomainEvent } from '../events/domain-events.js';
@@ -15,6 +20,7 @@ import { HabitsService } from '../modules/habits/habits.service.js';
 import { ListsService } from '../modules/lists/lists.service.js';
 import { SearchService } from '../modules/search/search.service.js';
 import { TagsService } from '../modules/tags/tags.service.js';
+import { DayClosingService } from '../modules/planning/day-closing.service.js';
 import { TasksService } from '../modules/tasks/tasks.service.js';
 import { CalendarService } from '../modules/calendar/calendar.service.js';
 import { findTool, visibleTools } from './mcp.catalog.js';
@@ -41,6 +47,7 @@ export type RpcResponse = RpcSuccess | RpcFailure;
 export class McpService {
   constructor(
     @Inject(TasksService) private readonly tasks: TasksService,
+    @Inject(DayClosingService) private readonly closing: DayClosingService,
     @Inject(ListsService) private readonly lists: ListsService,
     @Inject(TagsService) private readonly tags: TagsService,
     @Inject(FiltersService) private readonly filters: FiltersService,
@@ -151,6 +158,7 @@ export class McpService {
           sort: 'manual',
           deleted: false,
           overdue: false,
+          someday: args.someday === true,
         });
       }
       case 'get_task':
@@ -162,12 +170,54 @@ export class McpService {
             {
               title: requiredString(args, 'title', 500),
               project_id: await this.projectId(user, args),
+              ...taskSchedule(args),
             },
             undefined,
           )
         ).body;
       case 'complete_task':
         return (await this.tasks.complete(user, requiredUuid(args, 'id'), {}, undefined)).body;
+      case 'update_task':
+        return this.tasks.update(user, requiredUuid(args, 'id'), {
+          ...(typeof args.title === 'string' ? { title: requiredString(args, 'title', 500) } : {}),
+          ...taskSchedule(args),
+        });
+      case 'get_day_load':
+        return this.closing.load(
+          user,
+          typeof args.date === 'string' ? args.date : (civilToday(user.timeZone) ?? ''),
+          typeof args.time_zone === 'string' ? args.time_zone : user.timeZone,
+        );
+      case 'start_day_shutdown':
+        return this.closing.startShutdown(
+          user,
+          typeof args.local_date === 'string' ? args.local_date : (civilToday(user.timeZone) ?? ''),
+          typeof args.time_zone === 'string' ? args.time_zone : user.timeZone,
+        );
+      case 'record_shutdown_decision':
+        return this.closing.decide(
+          user,
+          requiredUuid(args, 'session_id'),
+          requiredUuid(args, 'task_id'),
+          decisionOf(args),
+          typeof args.target_date === 'string' ? args.target_date : null,
+          args.evening === true,
+        );
+      case 'apply_day_shutdown':
+        return this.closing.apply(
+          user,
+          requiredUuid(args, 'session_id'),
+          revisionOf(args),
+          requiredString(args, 'idempotency_key', 200),
+        );
+      case 'replan_day':
+        return this.closing.replanTool(
+          user,
+          typeof args.date === 'string' ? args.date : undefined,
+          args.auto_apply === true,
+          decisionList(args),
+          typeof args.idempotency_key === 'string' ? args.idempotency_key : undefined,
+        );
       case 'list_projects':
         return this.lists.listProjects(user, limit, cursorOf(args), false);
       case 'create_project':
@@ -495,6 +545,89 @@ function requiredString(args: Record<string, unknown>, key: string, max: number)
     throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', `${key} is required`);
   }
   return value.trim();
+}
+
+const DECISIONS = ['done', 'plan_day', 'later', 'someday', 'cancel', 'trash', 'skip'] as const;
+
+function taskSchedule(args: Record<string, unknown>): {
+  due_date?: string | null;
+  start_date?: string | null;
+  is_all_day?: boolean;
+  duration_minutes?: number | null;
+  priority?: 'none' | 'low' | 'medium' | 'high';
+  someday?: boolean;
+  evening_only?: boolean;
+} {
+  return {
+    ...(args.due_date === null || typeof args.due_date === 'string'
+      ? { due_date: args.due_date }
+      : {}),
+    ...(args.start_date === null || typeof args.start_date === 'string'
+      ? { start_date: args.start_date }
+      : {}),
+    ...(typeof args.is_all_day === 'boolean' ? { is_all_day: args.is_all_day } : {}),
+    ...(args.duration_minutes === null || typeof args.duration_minutes === 'number'
+      ? { duration_minutes: args.duration_minutes }
+      : {}),
+    ...(args.priority === 'none' ||
+    args.priority === 'low' ||
+    args.priority === 'medium' ||
+    args.priority === 'high'
+      ? { priority: args.priority }
+      : {}),
+    ...(typeof args.someday === 'boolean' ? { someday: args.someday } : {}),
+    ...(typeof args.evening_only === 'boolean' ? { evening_only: args.evening_only } : {}),
+  };
+}
+
+function decisionOf(args: Record<string, unknown>): PlanDecisionKind {
+  const found = DECISIONS.find((item) => item === args.decision);
+  if (found === undefined) {
+    throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'decision is invalid');
+  }
+  return found;
+}
+
+function revisionOf(args: Record<string, unknown>): number {
+  if (typeof args.expected_revision !== 'number' || !Number.isInteger(args.expected_revision)) {
+    throw new DomainException(
+      HttpStatus.BAD_REQUEST,
+      'validation_failed',
+      'expected_revision is invalid',
+    );
+  }
+  return args.expected_revision;
+}
+
+function decisionList(args: Record<string, unknown>): {
+  task_id: string;
+  decision: PlanDecisionKind;
+  target_date?: string | null;
+}[] {
+  if (args.decisions === undefined) {
+    return [];
+  }
+  if (!Array.isArray(args.decisions)) {
+    throw new DomainException(
+      HttpStatus.BAD_REQUEST,
+      'validation_failed',
+      'decisions must be a list',
+    );
+  }
+  return args.decisions.map((item) => {
+    if (!isRecord(item)) {
+      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'decision is invalid');
+    }
+    return {
+      task_id: requiredUuid(item, 'task_id'),
+      decision: decisionOf(item),
+      ...(typeof item.target_date === 'string' ? { target_date: item.target_date } : {}),
+    };
+  });
+}
+
+function civilToday(timeZone: string): string | null {
+  return civilDateKey(new Date().toISOString(), timeZone);
 }
 
 function requiredUuid(args: Record<string, unknown>, key: string): string {
