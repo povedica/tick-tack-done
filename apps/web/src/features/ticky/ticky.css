@@ -52,7 +52,38 @@
 
 .ticky-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+.ticky-page select {
+  max-width: 100%;
+  min-height: 44px;
+  font: inherit;
+}
+.ticky-proposal {
+  border: 1px solid var(--color-border, #ddd);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+}
+.ticky-proposal h2 {
+  font-size: 1.1rem;
+}
+.ticky-proposal-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-block: 0.75rem;
+  overflow-wrap: anywhere;
+}
+.ticky-proposal-item input {
+  min-width: 24px;
+  min-height: 24px;
+}
+.ticky-proposal button {
+  min-height: 44px;
+  padding: 0.5rem;
+  font: inherit;
 }
 
 .ticky-actions button {

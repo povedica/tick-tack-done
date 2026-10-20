@@ -21,6 +21,20 @@ for (const viewport of [
     await expect(page.locator('.ticky-log')).toContainText('Synthetic HTTP task', {
       timeout: 20_000,
     });
+    await page.reload();
+    await expect(page.locator('.ticky-log')).toContainText('Synthetic HTTP task');
+    await page
+      .locator('#ticky-input')
+      .fill(
+        `Captura:\n- UI chosen ${String(viewport.width)}\n- UI omitted ${String(viewport.width)}`,
+      );
+    await page.locator('.ticky-composer button[type=submit]').click();
+    const proposal = page.getByRole('region', { name: 'Revisión de propuesta' }).last();
+    await expect(proposal).toContainText(`UI chosen ${String(viewport.width)}`);
+    await expect(proposal.getByRole('checkbox').first()).not.toBeChecked();
+    await proposal.getByRole('checkbox').first().check();
+    await proposal.getByRole('button', { name: 'Aprobar seleccionados' }).click();
+    await expect(proposal).toContainText('Cambios confirmados: 1 de 1');
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true);

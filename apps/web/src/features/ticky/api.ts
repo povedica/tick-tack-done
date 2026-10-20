@@ -43,6 +43,27 @@ export interface GuidanceBody {
 }
 
 export const tickyApi = {
+  history: (threadId: string) =>
+    tickyFetch<{
+      messages: {
+        run_id: string;
+        request: { text?: string } | null;
+        result: Record<string, unknown> | null;
+        state: string;
+      }[];
+    }>(`/threads/${encodeURIComponent(threadId)}/messages`),
+  deleteThread: (threadId: string) =>
+    tickyFetch<{ state: string }>(`/threads/${encodeURIComponent(threadId)}`, { method: 'DELETE' }),
+  cancel: (runId: string) =>
+    tickyFetch<Record<string, unknown>>(`/runs/${encodeURIComponent(runId)}/cancel`, {
+      method: 'POST',
+      body: '{}',
+    }),
+  storeProposal: (document: unknown) =>
+    tickyFetch<Record<string, unknown>>('/proposals', {
+      method: 'POST',
+      body: JSON.stringify({ document: JSON.stringify(document) }),
+    }),
   models: () => tickyFetch<{ items: { id: string; label: string }[] }>('/models'),
   flags: () => tickyFetch<TickyFlags>('/flags'),
   listThreads: () => tickyFetch<{ items: TickyThread[] }>('/threads'),
