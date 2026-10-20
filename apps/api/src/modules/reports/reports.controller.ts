@@ -79,18 +79,12 @@ export class ReportsController {
       take: 20,
     });
     respond(req, res, {
-      items: await Promise.all(
-        rows.map(async (row) => ({
-          week: row.weekStart.toISOString().slice(0, 10),
-          tone: row.tone,
-          sent_at: row.sentAt?.toISOString() ?? null,
-          payload: await this.normalizedPayload(
-            user,
-            row.weekStart.toISOString().slice(0, 10),
-            row.payload,
-          ),
-        })),
-      ),
+      items: rows.map((row) => ({
+        week: row.weekStart.toISOString().slice(0, 10),
+        tone: row.tone,
+        sent_at: row.sentAt?.toISOString() ?? null,
+        payload: row.payload,
+      })),
     });
   }
 
@@ -112,7 +106,7 @@ export class ReportsController {
     respond(req, res, {
       week,
       tone: row.tone,
-      payload: await this.normalizedPayload(user, week, row.payload),
+      payload: row.payload,
       sent_at: row.sentAt,
     });
   }
@@ -290,15 +284,6 @@ export class ReportsController {
       return saved;
     });
     return { id: row.id, week: week.toISOString().slice(0, 10), ...payload, tone: settings.tone };
-  }
-
-  private async normalizedPayload(user: AuthUser, week: string, payload: unknown) {
-    const base =
-      typeof payload === 'object' && payload !== null ? (payload as Record<string, unknown>) : {};
-    // Saved reports are snapshots. Never rewrite history on GET.
-    void user;
-    void week;
-    return base;
   }
 
   private async closingLine(ownerId: string, week: Date): Promise<string> {
