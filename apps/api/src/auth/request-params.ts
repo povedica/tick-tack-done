@@ -10,6 +10,6 @@ export function queryString(value: unknown, fallback = ''): string {
   return fallback;
 }
 
-export function requestIp(req: { readonly ip?: string }): string {
+export function requestIp(req: { readonly ip?: string | undefined }): string {
   return typeof req.ip === 'string' && req.ip.length > 0 ? req.ip : 'unknown';
 }
