@@ -129,7 +129,6 @@ export function TodayPage() {
     | undefined;
   const showWhen = flags.when_deadline;
   const showLoad = flags.day_load;
-  const showReplan = flags.day_replan;
   const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const timeZone = zone;
   const load = useQuery({
@@ -635,7 +634,6 @@ export function TodayPage() {
         load={load.isSuccess ? load.data : undefined}
         loading={load.isPending && showLoad}
         showLoad={showLoad}
-        showReplan={showReplan}
       />
       {countdowns.data?.items
         .filter((item) => item.kind === 'today' && item.showInSmartList)

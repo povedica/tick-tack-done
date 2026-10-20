@@ -22,7 +22,7 @@ export function readDetailWidth(storage: Storage): number {
   if (!Number.isFinite(raw)) {
     return DEFAULT_WIDTH;
   }
-  return clamp(raw);
+  return typeof window === 'undefined' ? clamp(raw) : Math.min(clamp(raw), viewportMax());
 }
 
 export function DetailResizer({
@@ -39,11 +39,16 @@ export function DetailResizer({
     const sync = (): void => {
       setWide(media.matches);
     };
+    const resize = (): void => {
+      if (media.matches && width > viewportMax()) onWidth(viewportMax());
+    };
+    window.addEventListener('resize', resize);
     media.addEventListener('change', sync);
     return () => {
       media.removeEventListener('change', sync);
+      window.removeEventListener('resize', resize);
     };
-  }, []);
+  }, [width, onWidth]);
   if (!wide) {
     return null;
   }

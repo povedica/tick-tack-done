@@ -26,6 +26,5 @@ export function eventSpan(
 }
 
 export function isSpanningEvent(event: ExternalEventView): boolean {
-  const range = eventDayRange(event);
-  return event.is_all_day || range.start !== range.end;
+  return event.is_all_day;
 }

@@ -493,7 +493,8 @@ test('module order: drag, persist across reload, and avoid duplicate secondary n
     'data-module',
     'dashboard',
   );
-  await expect(page.locator('.icon-rail a').nth(2)).toHaveAttribute('href', '/dashboard');
+  await page.goto('/today');
+  await expect(page.locator('.icon-rail > a').nth(1)).toHaveAttribute('href', '/dashboard');
   await expect(
     page.locator('.sidebar').getByRole('button', { name: 'Módulos', exact: true }),
   ).toHaveCount(0);
@@ -518,10 +519,11 @@ test('SEM-1/3, CAL-1/2: one clipped span, no overflow and a persistent workweek'
   await page.goto('/calendar/week');
   await expect(page.locator('.hour-span')).toHaveCount(1);
   await expect(page.locator('.hour-span')).toHaveCSS('grid-column-end', 'span 3');
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('S43');
+  await expect(page.locator('.calendar-week-number')).toContainText('S43');
   expect(
     await page.locator('.hour-board').evaluate((node) => node.scrollWidth <= node.clientWidth),
   ).toBe(true);
+  await page.locator('.calendar-options>summary').click();
   await page.getByRole('checkbox', { name: 'Solo semana laboral (L–V)' }).check();
   await expect(page.locator('.hour-col')).toHaveCount(5);
   await page.reload();
@@ -990,3 +992,27 @@ for (const width of [1440, 390]) {
     });
   }
 }
+
+test('DET keyboard and pointer resizing persist within the available desktop space', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await fixtures(page);
+  await page.goto('/today?task=audit-task');
+  const separator = page.getByRole('separator');
+  const before = Number(await separator.getAttribute('aria-valuenow'));
+  await separator.focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect(separator).toHaveAttribute('aria-valuenow', String(before + 16));
+  const box = await separator.boundingBox();
+  if (!box) throw new Error('missing resize handle');
+  await page.mouse.move(box.x + 3, box.y + 100);
+  await page.mouse.down();
+  await page.mouse.move(box.x - 97, box.y + 100);
+  await page.mouse.up();
+  const width = Number(await separator.getAttribute('aria-valuenow'));
+  expect(width).toBeGreaterThan(before + 16);
+  expect(width).toBeLessThanOrEqual(1440 * 0.6);
+  await page.reload();
+  await expect(page.getByRole('separator')).toHaveAttribute('aria-valuenow', String(width));
+});

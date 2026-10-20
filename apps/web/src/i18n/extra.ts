@@ -1,4 +1,6 @@
 export const extraEs = {
+  calendarMoreViews: 'Más',
+  calendarOptions: 'Opciones del calendario',
   planAdjustHint:
     'Ajusta lo pendiente. Nada cambia hasta aplicar; las tareas sin decisión se conservan.',
   planKeep: 'Conservar',
@@ -764,8 +766,9 @@ export const extraEs = {
   flagLoadHelp: 'Chip de si el día cabe en la jornada.',
   flagClosing: 'Cierre del día',
   flagClosingHelp: 'Ritual de cierre y su recordatorio.',
-  flagReplan: 'Replanificar',
-  flagReplanHelp: 'Botón para recolocar lo que queda de hoy.',
+  flagReplan: 'Ajustes del Plan del día',
+  flagReplanHelp:
+    'Permite ajustar un plan guardado. La planificación inicial sigue disponible al desactivarlo.',
   settingsWorkday: 'Jornada',
   settingsFeatures: 'Funciones',
   smartSomeday: 'Algún día',
@@ -829,6 +832,8 @@ export const extraEs = {
 } as const;
 
 export const extraEn = {
+  calendarMoreViews: 'More',
+  calendarOptions: 'Calendar options',
   planAdjustHint:
     'Adjust pending tasks. Nothing changes until applied; untouched tasks are preserved.',
   planKeep: 'Keep',
@@ -1589,8 +1594,8 @@ export const extraEn = {
   flagLoadHelp: 'Chip showing whether the day fits the workday.',
   flagClosing: 'Day closing',
   flagClosingHelp: 'Shutdown ritual and its reminder.',
-  flagReplan: 'Replan',
-  flagReplanHelp: 'Button to move what is left today.',
+  flagReplan: 'Day plan adjustments',
+  flagReplanHelp: 'Adjust a saved day plan. Initial planning remains available when disabled.',
   settingsWorkday: 'Workday',
   settingsFeatures: 'Features',
   smartSomeday: 'Someday',

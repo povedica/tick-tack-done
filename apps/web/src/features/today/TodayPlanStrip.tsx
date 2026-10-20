@@ -18,7 +18,6 @@ export function TodayPlanStrip({
   readonly load: DayLoadBody | undefined;
   readonly loading: boolean;
   readonly showLoad: boolean;
-  readonly showReplan: boolean;
 }) {
   const m = useMessages();
   const status = useDayPlanStatus();

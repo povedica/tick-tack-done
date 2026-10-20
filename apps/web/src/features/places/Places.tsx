@@ -1,8 +1,12 @@
+import { CalendarDays, ChevronDown, Plus } from 'lucide-react';
+import { CalendarTaskMark } from '../calendar/CalendarTaskMark';
+import { openTaskComposer } from '../capture/notice';
+import '../calendar/calendar.css';
 import { PriorityCheck } from '../../components/PriorityCheck';
 import { displayTitle } from '../tasks/displayTitle';
 import { ApiError, type Project, type Task } from '@reflexionia/sdk';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Link,
   NavLink,
@@ -12,7 +16,7 @@ import {
   useParams,
   useSearchParams,
 } from 'react-router';
-import { eventDayRange } from './event-span';
+import { eventDayRange, eventSpan } from './event-span';
 import { api } from '../../api';
 import { completeBody } from '../tasks/complete-body';
 import { useActionToast } from '../../components/action-toast';
@@ -319,6 +323,10 @@ export function CalendarPage() {
       void navigate('/calendar/month', { replace: true });
     }
   }, [view, knownView, navigate]);
+  useEffect(() => {
+    const date = dayFromParam(params.get('date') ?? '');
+    if (date) setCursor(date);
+  }, [params]);
   const [workweek, setWorkweek] = useState(
     () => localStorage.getItem('tick-tack-done.calendar-workweek') === 'true',
   );
@@ -370,7 +378,7 @@ export function CalendarPage() {
   const move = (delta: number): void => {
     const next = shiftView(cursor, current ?? 'month', delta, weekStart);
     setCursor(next);
-    if (current === 'day') {
+    {
       const query = new URLSearchParams(params);
       query.set('date', localDateParam(next));
       setParams(query, { replace: true });
@@ -378,43 +386,8 @@ export function CalendarPage() {
   };
   return (
     <section className={`screen-page is-wide calendar-page calendar-${current ?? 'month'}`}>
-      <header className="cal-toolbar">
-        <h1>
-          {title}
-          {current === 'week' || current === 'multi-day'
-            ? ` · S${String(isoWeek(cells[0] ?? cursor))}`
-            : ''}
-        </h1>
-        {current === 'week' || current === 'multi-day' ? (
-          <label className="cal-workweek">
-            <input
-              type="checkbox"
-              checked={workweek}
-              onChange={(event) => {
-                setWorkweek(event.target.checked);
-                localStorage.setItem(
-                  'tick-tack-done.calendar-workweek',
-                  String(event.target.checked),
-                );
-              }}
-            />
-            {messages.calWorkweek}
-          </label>
-        ) : null}
-        <div className="cal-nav">
-          <Button
-            onClick={() => {
-              const today = localToday(new Date());
-              setCursor(today);
-              if (current === 'day') {
-                const query = new URLSearchParams(params);
-                query.set('date', localDateParam(today));
-                setParams(query, { replace: true });
-              }
-            }}
-          >
-            {messages.calToday}
-          </Button>
+      <header className="calendar-toolbar">
+        <div className="calendar-nav">
           <Button
             aria-label={calendarShiftLabel(messages, current ?? 'month', -1)}
             onClick={() => {
@@ -422,6 +395,17 @@ export function CalendarPage() {
             }}
           >
             ‹
+          </Button>
+          <Button
+            onClick={() => {
+              const today = localToday(new Date());
+              setCursor(today);
+              const query = new URLSearchParams(params);
+              query.set('date', localDateParam(today));
+              setParams(query, { replace: true });
+            }}
+          >
+            {messages.calToday}
           </Button>
           <Button
             aria-label={calendarShiftLabel(messages, current ?? 'month', 1)}
@@ -432,23 +416,102 @@ export function CalendarPage() {
             ›
           </Button>
         </div>
-        <CalendarVisibility
-          messages={messages}
-          showTasks={showTasks}
-          onTasks={setShowTasks}
-          subscriptions={subscriptionItems(subscriptions.data)}
-        />
-        <div className="cal-views">
-          {CAL_VIEWS.map((item) => (
+        <details className="calendar-period">
+          <summary>
+            <h1>{title}</h1>
+            <ChevronDown size={14} aria-hidden="true" />
+          </summary>
+          <label>
+            {messages.dateSet}
+            <input
+              type="date"
+              value={localKey(cursor)}
+              onChange={(event) => {
+                const date = dayFromParam(event.target.value);
+                if (date) {
+                  setCursor(date);
+                  const query = new URLSearchParams(params);
+                  query.set('date', localKey(date));
+                  setParams(query, { replace: true });
+                }
+              }}
+            />
+          </label>
+        </details>
+        {current === 'week' || current === 'multi-day' ? (
+          <span className="calendar-week-number">S{isoWeek(cells[0] ?? cursor)}</span>
+        ) : null}
+        <nav className="calendar-segments" aria-label={messages.calendarTitle}>
+          {['day', 'week', 'month', 'agenda'].map((item) => (
             <Link
               key={item}
-              to={`/calendar/${item}`}
+              to={`/calendar/${item}?date=${localKey(cursor)}`}
               aria-current={current === item ? 'page' : undefined}
             >
               {labelView(messages, item)}
             </Link>
           ))}
-        </div>
+          <details>
+            <summary>{messages.calendarMoreViews}</summary>
+            <div>
+              {['year', 'quarter', 'multi-week', 'multi-day'].map((item) => (
+                <Link key={item} to={`/calendar/${item}?date=${localKey(cursor)}`}>
+                  {labelView(messages, item)}
+                </Link>
+              ))}
+            </div>
+          </details>
+        </nav>
+        <select
+          className="calendar-mobile-view"
+          aria-label={messages.calendarTitle}
+          value={current}
+          onChange={(event) => {
+            void navigate(`/calendar/${event.target.value}?date=${localKey(cursor)}`);
+          }}
+        >
+          {CAL_VIEWS.map((item) => (
+            <option key={item} value={item}>
+              {labelView(messages, item)}
+            </option>
+          ))}
+        </select>
+        <Button
+          variant="primary"
+          aria-label={messages.captureTitle}
+          onClick={() => {
+            openTaskComposer();
+          }}
+        >
+          <Plus size={17} aria-hidden="true" />
+        </Button>
+        <details className="calendar-options">
+          <summary aria-label={messages.calendarOptions}>⋯</summary>
+          <div>
+            {current === 'week' || current === 'multi-day' ? (
+              <label>
+                <input
+                  type="checkbox"
+                  checked={workweek}
+                  onChange={(event) => {
+                    setWorkweek(event.target.checked);
+                    localStorage.setItem(
+                      'tick-tack-done.calendar-workweek',
+                      String(event.target.checked),
+                    );
+                  }}
+                />
+                {messages.calWorkweek}
+              </label>
+            ) : null}
+            <CalendarVisibility
+              messages={messages}
+              showTasks={showTasks}
+              onTasks={setShowTasks}
+              subscriptions={subscriptionItems(subscriptions.data)}
+            />
+          </div>
+        </details>
       </header>
       {subscriptionItems(subscriptions.data).length === 0 && external.length === 0 ? (
         <p className="ui-muted">
@@ -466,20 +529,25 @@ export function CalendarPage() {
         />
       ) : null}
       {current === 'quarter' ? (
-        <QuarterBoard
-          months={quarterMonths(cursor)}
+        <YearBoard
+          year={cursor.getFullYear()}
+          months={quarterMonths(cursor).map((month) => month.getMonth())}
           tasks={dated}
-          weekStart={weekStart}
-          messages={messages}
+          events={external}
+          weekStart="monday"
+          colors={colors}
           onOpen={(month) => {
-            setCursor(month);
-            void navigate('/calendar/month');
+            setCursor(new Date(cursor.getFullYear(), month, 1));
+            void navigate(
+              `/calendar/month?date=${localKey(new Date(cursor.getFullYear(), month, 1))}`,
+            );
           }}
         />
       ) : null}
       {current === 'year' ? (
         <YearBoard
           year={cursor.getFullYear()}
+          events={external}
           tasks={dated}
           weekStart={weekStart}
           colors={colors}
@@ -531,6 +599,9 @@ export function CalendarPage() {
               messages={messages}
               colors={colors}
               onOpenEvent={setOpenEvent}
+              onClose={() => {
+                setPicked(null);
+              }}
             />
           ) : null}
         </>
@@ -616,6 +687,19 @@ function DayGrid({
   const heads = Array.from({ length: columns }, (_, index) =>
     weekday.format(days[index] ?? cursor),
   );
+  const weeks = Array.from({ length: Math.ceil(days.length / columns) }, (_, index) =>
+    days.slice(index * columns, (index + 1) * columns),
+  );
+  const bars = weeks.flatMap((week, weekIndex) =>
+    events
+      .filter(
+        (event) => event.is_all_day && eventDayRange(event).start !== eventDayRange(event).end,
+      )
+      .flatMap((event) => {
+        const position = eventSpan(event, week);
+        return position ? [{ event, position, weekIndex }] : [];
+      }),
+  );
   return (
     <div
       className={dots ? 'cal-month is-dots' : 'cal-month'}
@@ -641,11 +725,6 @@ function DayGrid({
         const weekend = day.getDay() === 0 || day.getDay() === 6;
         const outside = outsideMonth && day.getMonth() !== cursor.getMonth();
         const href = overflowHref(day);
-        const hidden = chips.length - 3;
-        const when = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' }).format(day);
-        const moreLabel = (hidden === 1 ? messages.moreTask : messages.moreTasks)
-          .replace('{count}', String(hidden))
-          .replace('{date}', when);
         const classes = [
           'cal-cell',
           weekend ? 'is-weekend' : '',
@@ -657,10 +736,19 @@ function DayGrid({
         return (
           <Fragment key={key}>
             {!dots && index % columns === 0 ? (
-              <span className="cal-week-number">{isoWeek(day)}</span>
+              <span
+                className="cal-week-number"
+                style={{ gridColumn: 1, gridRow: Math.floor(index / columns) + 2 }}
+              >
+                {isoWeek(day)}
+              </span>
             ) : null}
             <div
               className={classes}
+              style={{
+                gridColumn: (index % columns) + (dots ? 1 : 2),
+                gridRow: Math.floor(index / columns) + 2,
+              }}
               title={
                 dots
                   ? chips
@@ -684,108 +772,125 @@ function DayGrid({
                 )}
               </strong>
               <span className="cal-dots" aria-hidden="true">
-                {chips.slice(0, 3).map((chip) => (
-                  <i key={chip.kind === 'task' ? chip.task.id : chip.event.id} />
+                {chips.map((chip) => (
+                  <i
+                    key={chip.kind === 'task' ? chip.task.id : chip.event.id}
+                    style={{
+                      background:
+                        chip.kind === 'task'
+                          ? (colors.get(chip.task.project_id) ?? 'var(--accent)')
+                          : (chip.event.color ?? 'var(--accent)'),
+                    }}
+                  />
                 ))}
               </span>
-              {dots
-                ? null
-                : chips.slice(0, 3).map((chip) =>
-                    chip.kind === 'task' ? (
-                      <Link
-                        key={chip.task.id}
-                        title={chipLabel(chip.task, messages.untitled, locale)}
-                        style={chipStyle(colors.get(chip.task.project_id))}
-                        className={
-                          isCalendarOverdue(chip.task.due_date, chip.task.time_zone, new Date())
-                            ? 'cal-pill is-overdue'
-                            : 'cal-pill'
-                        }
-                        to={`/list/${chip.task.project_id}?task=${chip.task.id}`}
-                      >
-                        {chipLabel(chip.task, messages.untitled, locale)}
-                      </Link>
-                    ) : (
-                      <button
-                        key={chip.event.id}
-                        title={chip.event.title}
-                        type="button"
-                        className="cal-pill"
-                        style={chipStyle(chip.event.color)}
-                        onClick={() => {
-                          onOpenEvent?.(chip.event);
-                        }}
-                      >
-                        {chip.event.is_all_day
-                          ? ''
-                          : `${clockLabel(chip.event.starts_at, locale)} `}
-                        {chip.event.title}
-                      </button>
-                    ),
-                  )}
-              {!dots && hidden > 0 ? (
-                <Link to={href} aria-label={moreLabel}>
-                  +{hidden}
-                </Link>
-              ) : null}
+              <div
+                className="calendar-cell-items"
+                style={{
+                  marginTop: dots
+                    ? 0
+                    : bars.filter((bar) => bar.weekIndex === Math.floor(index / columns)).length *
+                      28,
+                }}
+              >
+                {dots
+                  ? null
+                  : chips
+                      .filter(
+                        (chip) =>
+                          chip.kind === 'task' ||
+                          !chip.event.is_all_day ||
+                          eventDayRange(chip.event).start === eventDayRange(chip.event).end,
+                      )
+                      .map((chip) =>
+                        chip.kind === 'task' ? (
+                          <div key={chip.task.id} className="calendar-cell-task">
+                            <CalendarTaskMark task={chip.task} />
+                            <Link
+                              title={chipLabel(chip.task, messages.untitled, locale)}
+                              style={chipStyle(colors.get(chip.task.project_id))}
+                              className={
+                                isCalendarOverdue(
+                                  chip.task.due_date,
+                                  chip.task.time_zone,
+                                  new Date(),
+                                )
+                                  ? 'cal-pill is-overdue'
+                                  : 'cal-pill'
+                              }
+                              to={`/list/${chip.task.project_id}?task=${chip.task.id}`}
+                            >
+                              {chipLabel(chip.task, messages.untitled, locale)}
+                            </Link>
+                          </div>
+                        ) : (
+                          <button
+                            key={chip.event.id}
+                            title={chip.event.title}
+                            type="button"
+                            className="cal-pill"
+                            style={chipStyle(chip.event.color)}
+                            onClick={() => {
+                              onOpenEvent?.(chip.event);
+                            }}
+                          >
+                            <CalendarDays
+                              size={13}
+                              aria-hidden="true"
+                              className="calendar-event-mark"
+                            />
+                            {chip.event.is_all_day
+                              ? ''
+                              : `${localKey(day) > eventDayRange(chip.event).start ? '00:00' : clockLabel(chip.event.starts_at, locale)} `}
+                            {chip.event.title}
+                          </button>
+                        ),
+                      )}
+              </div>
             </div>
           </Fragment>
         );
       })}
-    </div>
-  );
-}
-
-function QuarterBoard({
-  months,
-  tasks,
-  weekStart,
-  messages,
-  onOpen,
-}: {
-  readonly months: readonly Date[];
-  readonly tasks: readonly Task[];
-  readonly weekStart: 'monday' | 'sunday';
-  readonly messages: Messages;
-  readonly onOpen: (month: Date) => void;
-}) {
-  const locale = useAppLocale();
-  const monthName = new Intl.DateTimeFormat(locale, { month: 'long' });
-  return (
-    <div className="quarter-board">
-      {months.map((month) => (
-        <section key={localKey(month)} className="quarter-month">
-          <button
-            type="button"
-            onClick={() => {
-              onOpen(month);
-            }}
-          >
-            {monthName.format(month)}
-          </button>
-          <DayGrid
-            days={monthCells(month, weekStart)}
-            columns={7}
-            tasks={tasks}
-            messages={messages}
-            cursor={month}
-            outsideMonth
-            dots
-          />
-        </section>
-      ))}
+      {!dots
+        ? bars.map((bar) => {
+            const slot = bars.filter((item) => item.weekIndex === bar.weekIndex).indexOf(bar);
+            return (
+              <button
+                key={`${bar.event.id}-${String(bar.weekIndex)}`}
+                type="button"
+                className="cal-pill calendar-month-span"
+                style={{
+                  ...chipStyle(bar.event.color),
+                  gridColumn: `${String(bar.position.column)} / span ${String(bar.position.span)}`,
+                  gridRow: bar.weekIndex + 2,
+                  marginTop: 30 + slot * 28,
+                }}
+                onClick={() => {
+                  onOpenEvent?.(bar.event);
+                }}
+              >
+                <CalendarDays size={13} aria-hidden="true" />
+                {bar.event.title}
+              </button>
+            );
+          })
+        : null}
     </div>
   );
 }
 
 function YearBoard({
   year,
+  months = Array.from({ length: 12 }, (_, index) => index),
+  events = [],
   tasks,
   weekStart,
   colors,
   onOpen,
 }: {
   readonly year: number;
+  readonly months?: readonly number[];
+  readonly events?: readonly ExternalEventView[];
   readonly tasks: readonly Task[];
   readonly weekStart: 'monday' | 'sunday';
   readonly colors: ReadonlyMap<string, string>;
@@ -798,8 +903,8 @@ function YearBoard({
   const sample = monthCells(new Date(year, 0, 1), weekStart);
   const heads = sample.slice(0, 7).map((day) => weekday.format(day));
   return (
-    <div className="year-board">
-      {Array.from({ length: 12 }, (_, month) => {
+    <div className={months.length === 3 ? 'year-board is-quarter' : 'year-board'}>
+      {months.map((month) => {
         const cells = monthCells(new Date(year, month, 1), weekStart);
         return (
           <section key={month} className="year-card">
@@ -812,40 +917,57 @@ function YearBoard({
             >
               {monthName.format(new Date(year, month, 1))}
             </button>
-            <div className="year-mini">
+            <div
+              className="year-mini"
+              style={
+                months.length === 3
+                  ? { gridTemplateColumns: '1.5rem repeat(7,minmax(0,1fr))' }
+                  : undefined
+              }
+            >
+              {months.length === 3 ? <span className="year-dow">S</span> : null}
               {heads.map((label, index) => (
                 <span key={`${label}-${String(index)}`} className="year-dow">
                   {label}
                 </span>
               ))}
-              {cells.map((day) => {
+              {cells.map((day, index) => {
                 const key = localKey(day);
                 const inside = day.getMonth() === month;
-                const marks = inside ? dayMarks(tasks, day, colors) : [];
+                const marks = inside
+                  ? [
+                      ...dayMarks(tasks, day, colors),
+                      ...eventsOnDay(events, day).map((event) => event.color ?? 'var(--accent)'),
+                    ]
+                  : [];
                 const when = new Intl.DateTimeFormat(locale, {
                   day: 'numeric',
                   month: 'long',
                 }).format(day);
                 return (
-                  <Link
-                    key={key}
-                    className={[
-                      'year-day',
-                      inside ? '' : 'is-outside',
-                      key === todayKey ? 'is-today' : '',
-                    ]
-                      .filter((item) => item.length > 0)
-                      .join(' ')}
-                    to={`/calendar/day?date=${key}`}
-                    aria-label={marks.length > 0 ? `${when}, ${String(marks.length)}` : when}
-                  >
-                    <span className="year-num">{day.getDate()}</span>
-                    <span className="year-marks" aria-hidden="true">
-                      {marks.map((color) => (
-                        <i key={color} style={{ background: color }} />
-                      ))}
-                    </span>
-                  </Link>
+                  <Fragment key={key}>
+                    {months.length === 3 && index % 7 === 0 ? (
+                      <span className="year-week-number">{isoWeek(day)}</span>
+                    ) : null}
+                    <Link
+                      className={[
+                        'year-day',
+                        inside ? '' : 'is-outside',
+                        key === todayKey ? 'is-today' : '',
+                      ]
+                        .filter((item) => item.length > 0)
+                        .join(' ')}
+                      to={`/calendar/day?date=${key}`}
+                      aria-label={marks.length > 0 ? `${when}, ${String(marks.length)}` : when}
+                    >
+                      <span className="year-num">{day.getDate()}</span>
+                      <span className="year-marks" aria-hidden="true">
+                        {marks.map((color, index) => (
+                          <i key={`${color}-${String(index)}`} style={{ background: color }} />
+                        ))}
+                      </span>
+                    </Link>
+                  </Fragment>
                 );
               })}
             </div>
@@ -896,7 +1018,6 @@ function Agenda({
     | { kind: 'event'; event: ExternalEventView; time: string };
   const groups = new Map<string, Item[]>();
   function add(key: string, item: Item): void {
-    if (key < todayKey) return;
     const bucket = groups.get(key) ?? [];
     bucket.push(item);
     groups.set(key, bucket);
@@ -939,7 +1060,10 @@ function Agenda({
               <h2 className="agenda-month">{monthName.format(day)}</h2>
             ) : null}
             <section className="agenda-day">
-              <header className="agenda-day-head">{heading}</header>
+              <header className={key === todayKey ? 'agenda-day-head is-today' : 'agenda-day-head'}>
+                <strong className="agenda-day-number">{day.getDate()}</strong>
+                <span>{heading}</span>
+              </header>
               <ul>
                 {[...bucket]
                   .sort((left, right) => left.time.localeCompare(right.time))
@@ -948,9 +1072,17 @@ function Agenda({
                       const event = item.event;
                       return (
                         <li key={`event-${event.id}`} className="agenda-row">
-                          <span
-                            className="cal-dot"
-                            style={{ background: event.color ?? 'var(--accent)' }}
+                          <time
+                            className={event.is_all_day ? 'agenda-time is-all-day' : 'agenda-time'}
+                          >
+                            {event.is_all_day
+                              ? messages.calAllDay
+                              : `${clockLabel(event.starts_at, locale)}${event.ends_at ? ` – ${clockLabel(event.ends_at, locale)}` : ''}`}
+                          </time>
+                          <CalendarDays
+                            className="calendar-event-mark"
+                            size={17}
+                            style={{ color: event.color ?? 'var(--accent)' }}
                             aria-hidden="true"
                           />
                           <button
@@ -961,12 +1093,7 @@ function Agenda({
                               onOpenEvent(event);
                             }}
                           >
-                            <span>
-                              {event.is_all_day
-                                ? messages.calAllDay
-                                : clockLabel(event.starts_at, locale)}{' '}
-                              · {event.title}
-                            </span>
+                            <span>{event.title}</span>
                           </button>
                         </li>
                       );
@@ -975,6 +1102,13 @@ function Agenda({
                     const title = displayTitle(task.title) || messages.untitled;
                     return (
                       <li key={`task-${task.id}`} className="agenda-row">
+                        <time
+                          className={task.is_all_day ? 'agenda-time is-all-day' : 'agenda-time'}
+                        >
+                          {task.is_all_day
+                            ? messages.calAllDay
+                            : clockLabel(task.due_date ?? '', locale)}
+                        </time>
                         <PriorityCheck
                           priority={task.priority}
                           label={fill(messages.completeLabel, title)}
@@ -1005,12 +1139,7 @@ function Agenda({
                           title={title}
                           to={`/list/${task.project_id}?task=${task.id}`}
                         >
-                          <span>
-                            {task.is_all_day
-                              ? messages.calAllDay
-                              : clockLabel(task.due_date ?? '', locale)}{' '}
-                            · {title}
-                          </span>
+                          <span>{title}</span>
                         </Link>
                       </li>
                     );
@@ -1026,6 +1155,7 @@ function Agenda({
 
 function DaySheet({
   dayKey,
+  onClose,
   tasks,
   events,
   messages,
@@ -1033,6 +1163,7 @@ function DaySheet({
   onOpenEvent,
 }: {
   readonly dayKey: string;
+  readonly onClose: () => void;
   readonly tasks: readonly Task[];
   readonly events: readonly ExternalEventView[];
   readonly messages: Messages;
@@ -1041,18 +1172,43 @@ function DaySheet({
 }) {
   const locale = useAppLocale();
   const day = dayFromParam(dayKey);
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const node = dialog.current;
+    if (node && !node.open) node.showModal();
+    return () => {
+      node?.close();
+    };
+  }, []);
   if (day === null) {
     return null;
   }
   return (
-    <Agenda
-      tasks={tasksOnCell(tasks, day)}
-      events={eventsOnDay(events, day)}
-      locale={locale}
-      messages={messages}
-      colors={colors}
-      onOpenEvent={onOpenEvent}
-    />
+    <dialog
+      ref={dialog}
+      className="calendar-day-sheet"
+      aria-label={dayKey}
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <Button onClick={onClose}>{messages.close}</Button>
+      <Agenda
+        tasks={tasksOnCell(tasks, day)}
+        events={eventsOnDay(events, day)}
+        locale={locale}
+        messages={messages}
+        colors={colors}
+        onOpenEvent={(event) => {
+          onClose();
+          onOpenEvent(event);
+        }}
+      />
+    </dialog>
   );
 }
 

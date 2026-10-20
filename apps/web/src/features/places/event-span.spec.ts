@@ -30,3 +30,14 @@ describe('SEM-3 external calendar spans', () => {
     ).toEqual({ start: '2026-10-23', end: '2026-10-23' });
   });
 });
+
+it('RF-1103: a timed multi-day event never becomes all-day', () => {
+  expect(
+    isSpanningEvent({
+      ...event,
+      is_all_day: false,
+      starts_at: '2026-10-23T23:00:00Z',
+      ends_at: '2026-10-24T02:00:00Z',
+    }),
+  ).toBe(false);
+});
