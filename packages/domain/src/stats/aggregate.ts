@@ -1,5 +1,8 @@
 import { formatInTimeZone } from 'date-fns-tz';
 import { instantFromWall } from '../dates/zoned';
+import { achievementScore, priorityBonus } from '../achievements/score';
+import { habitRangeSummary } from '../habits/habits';
+import type { HabitGoal, HabitWeekday } from '../types';
 import { isIanaTimeZone } from '../tasks/time-zone';
 
 export interface StatsTaskRow {
@@ -31,6 +34,8 @@ export interface StatsFocusRow {
   readonly listId: string | null;
   readonly listName: string | null;
   readonly tagNames: readonly string[];
+  readonly tagIds?: readonly string[];
+  readonly priority?: string;
 }
 
 export interface StatsHabitRow {
@@ -38,8 +43,8 @@ export interface StatsHabitRow {
   readonly name: string;
   readonly icon: string | null;
   readonly color: string | null;
-  readonly goal: number;
-  readonly days: readonly number[];
+  readonly goal: HabitGoal;
+  readonly days: readonly HabitWeekday[];
   readonly logs: readonly { readonly date: string; readonly count: number }[];
 }
 
@@ -48,6 +53,8 @@ export interface DayBucket {
   readonly completed: number;
   readonly created: number;
   readonly planned: number;
+  readonly completion_completed: number;
+  readonly focus_seconds: number;
   readonly focus_minutes: number;
   readonly pomodoros: number;
   readonly habit_percent: number | null;
@@ -58,10 +65,17 @@ export function parseDayBounds(
   to: string,
   timeZone: string,
 ): { startIso: string; endIso: string; days: string[] } | null {
-  if (!isIanaTimeZone(timeZone) || !/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+  if (
+    !isIanaTimeZone(timeZone) ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(from) ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(to)
+  ) {
     return null;
   }
-  if (from > to) {
+  if (
+    from > to ||
+    Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`) > 731 * 86400000
+  ) {
     return null;
   }
   const [fy, fm, fd] = from.split('-').map(Number);
@@ -80,8 +94,12 @@ export function parseDayBounds(
     { year: fy, month: fm, day: fd, hour: 0, minute: 0, second: 0 },
     timeZone,
   );
+  const last = instantFromWall(
+    { year: ty, month: tm, day: td, hour: 0, minute: 0, second: 0 },
+    timeZone,
+  );
   const endExclusive = addCalendarDays(to, 1);
-  if (startIso === null || endExclusive === null) {
+  if (startIso === null || last === null || endExclusive === null) {
     return null;
   }
   const [ey, em, ed] = endExclusive.split('-').map(Number);
@@ -108,42 +126,43 @@ export function parseDayBounds(
   return { startIso, endIso, days };
 }
 
+// Pure memoization of calendar projections avoids reformatting the same task in every metric.
+// No owner data is cached; keys include the zone and cache size is bounded.
+const calendarCache = new Map<string, string | null>();
+function calendarPart(iso: string, tz: string, pattern: string): string | null {
+  const key = `${tz}|${pattern}|${iso}`;
+  if (calendarCache.has(key)) return calendarCache.get(key) ?? null;
+  let value: string | null = null;
+  if (isIanaTimeZone(tz)) {
+    try {
+      value = formatInTimeZone(new Date(iso), tz, pattern);
+    } catch {
+      /* Invalid instant. */
+    }
+  }
+  if (calendarCache.size >= 16384) calendarCache.clear();
+  calendarCache.set(key, value);
+  return value;
+}
 export function dayKey(iso: string, timeZone: string): string | null {
-  if (!isIanaTimeZone(timeZone)) {
-    return null;
-  }
-  try {
-    return formatInTimeZone(new Date(iso), timeZone, 'yyyy-MM-dd');
-  } catch {
-    return null;
-  }
+  return calendarPart(iso, timeZone, 'yyyy-MM-dd');
 }
-
 export function hourInTz(iso: string, timeZone: string): number | null {
-  if (!isIanaTimeZone(timeZone)) {
-    return null;
-  }
-  try {
-    return Number(formatInTimeZone(new Date(iso), timeZone, 'H'));
-  } catch {
-    return null;
-  }
+  const value = calendarPart(iso, timeZone, 'H');
+  return value === null ? null : Number(value);
 }
-
 export function weekdayInTz(iso: string, timeZone: string): number | null {
-  if (!isIanaTimeZone(timeZone)) {
-    return null;
-  }
-  try {
-    // 1=Monday … 7=Sunday (ISO)
-    return Number(formatInTimeZone(new Date(iso), timeZone, 'i'));
-  } catch {
-    return null;
-  }
+  const value = calendarPart(iso, timeZone, 'i');
+  return value === null ? null : Number(value);
 }
 
 /** RF-2321: completion rate = completed in range / due in range (TickTick). Cancelled excluded. */
-export function completionRate(tasks: readonly StatsTaskRow[], from: string, to: string, tz: string) {
+export function completionRate(
+  tasks: readonly StatsTaskRow[],
+  from: string,
+  to: string,
+  tz: string,
+) {
   let planned = 0;
   let completed = 0;
   for (const task of tasks) {
@@ -205,48 +224,44 @@ export function buildDayBuckets(
   habits: readonly StatsHabitRow[],
   tz: string,
 ): DayBucket[] {
-  return days.map((date) => {
-    let completed = 0;
-    let created = 0;
-    let planned = 0;
-    for (const task of tasks) {
-      if (task.status === 'cancelled') {
-        continue;
-      }
-      if (dayKey(task.createdAt, tz) === date) {
-        created += 1;
-      }
-      if (task.completedAt !== null && dayKey(task.completedAt, tz) === date) {
-        completed += 1;
-      }
-      if (task.dueDate !== null && dayKey(task.dueDate, tz) === date) {
-        planned += 1;
-      }
-    }
-    let focusSeconds = 0;
-    let pomodoros = 0;
-    for (const session of focus) {
-      if (session.type !== 'focus') {
-        continue;
-      }
-      if (dayKey(session.startedAt, tz) !== date) {
-        continue;
-      }
-      focusSeconds += session.actualSeconds;
-      if (session.completed) {
-        pomodoros += 1;
-      }
-    }
-    return {
+  const buckets = new Map(
+    days.map((date) => [
       date,
-      completed,
-      created,
-      planned,
-      focus_minutes: Math.round(focusSeconds / 60),
-      pomodoros,
-      habit_percent: habitDayPercent(habits, date),
-    };
-  });
+      {
+        date,
+        completed: 0,
+        created: 0,
+        planned: 0,
+        completion_completed: 0,
+        focus_seconds: 0,
+        focus_minutes: 0,
+        pomodoros: 0,
+        habit_percent: habitDayPercent(habits, date),
+      },
+    ]),
+  );
+  for (const task of tasks) {
+    if (task.status === 'cancelled') continue;
+    const created = buckets.get(dayKey(task.createdAt, tz) ?? '');
+    const doneDay = task.completedAt === null ? null : dayKey(task.completedAt, tz);
+    const done = buckets.get(doneDay ?? '');
+    const dueDay = task.dueDate === null ? null : dayKey(task.dueDate, tz);
+    const due = buckets.get(dueDay ?? '');
+    if (created) created.created += 1;
+    if (done) done.completed += 1;
+    if (due) {
+      due.planned += 1;
+      if (doneDay === dueDay) due.completion_completed += 1;
+    }
+  }
+  for (const session of focus) {
+    const bucket = buckets.get(dayKey(session.startedAt, tz) ?? '');
+    if (!bucket) continue;
+    bucket.focus_seconds += session.actualSeconds;
+    bucket.focus_minutes = bucket.focus_seconds / 60;
+    if (session.type === 'focus' && session.completed) bucket.pomodoros += 1;
+  }
+  return [...buckets.values()];
 }
 
 export function punctualityStats(
@@ -256,6 +271,7 @@ export function punctualityStats(
   tz: string,
 ) {
   const delays: number[] = [];
+  let capped = 0;
   let onTime = 0;
   let late = 0;
   for (const task of tasks) {
@@ -271,17 +287,24 @@ export function punctualityStats(
     if (Number.isNaN(dueMs) || Number.isNaN(doneMs)) {
       continue;
     }
-    const dueEnd = task.isAllDay ? dueMs + 24 * 60 * 60 * 1000 - 1 : dueMs;
+    const dueDay = dayKey(task.dueDate, tz);
+    const dueBounds = dueDay === null ? null : parseDayBounds(dueDay, dueDay, tz);
+    const dueEnd = task.isAllDay && dueBounds !== null ? Date.parse(dueBounds.endIso) - 1 : dueMs;
     if (doneMs <= dueEnd) {
       onTime += 1;
       delays.push(0);
     } else {
       late += 1;
-      delays.push((doneMs - dueEnd) / (24 * 60 * 60 * 1000));
+      const delay = (doneMs - dueEnd) / (24 * 60 * 60 * 1000);
+      if (delay > 30) capped += 1;
+      delays.push(Math.min(30, delay));
     }
   }
   const total = onTime + late;
   return {
+    sample: onTime + late,
+    delay_cap_days: 30,
+    capped_samples: capped,
     on_time: onTime,
     late,
     on_time_percent: total === 0 ? null : Math.round((onTime / total) * 1000) / 10,
@@ -320,7 +343,12 @@ export function ageOnComplete(
 }
 
 export function distributionBy(
-  items: readonly { readonly key: string; readonly label: string; readonly color: string | null; readonly value: number }[],
+  items: readonly {
+    readonly key: string;
+    readonly label: string;
+    readonly color: string | null;
+    readonly value: number;
+  }[],
   limit = 8,
 ) {
   const sorted = [...items].filter((item) => item.value > 0).sort((a, b) => b.value - a.value);
@@ -343,22 +371,30 @@ export function overdueStockSeries(
   days: readonly string[],
   tz: string,
 ) {
+  const prepared = tasks.map((task) => ({
+    task,
+    dueDay: task.dueDate === null ? null : dayKey(task.dueDate, tz),
+    doneDay: task.completedAt === null ? null : dayKey(task.completedAt, tz),
+  }));
   return days.map((date) => {
     let under7 = 0;
     let mid = 0;
     let over30 = 0;
-    const cut = `${date}T23:59:59.999Z`;
-    const cutMs = Date.parse(cut);
-    for (const task of tasks) {
-      if (task.status !== 'active' || task.dueDate === null) {
+    const bounds = parseDayBounds(date, date, tz);
+    const cutMs = Date.parse(bounds?.endIso ?? '') - 1;
+    for (const { task, dueDay, doneDay } of prepared) {
+      if (
+        task.status === 'cancelled' ||
+        task.dueDate === null ||
+        Date.parse(task.createdAt) > cutMs
+      ) {
         continue;
       }
-      const dueDay = dayKey(task.dueDate, tz);
-      if (dueDay === null || dueDay >= date) {
+      if (dueDay === null || (task.isAllDay ? dueDay >= date : Date.parse(task.dueDate) > cutMs)) {
         continue;
       }
       if (task.completedAt !== null) {
-        const done = dayKey(task.completedAt, tz);
+        const done = doneDay;
         if (done !== null && done <= date) {
           continue;
         }
@@ -392,7 +428,7 @@ export function productiveStreak(
     }
   }
   let current = 0;
-  let cursor = today;
+  let cursor = completedDays.has(today) ? today : (addCalendarDays(today, -1) ?? today);
   while (completedDays.has(cursor)) {
     current += 1;
     const prev = addCalendarDays(cursor, -1);
@@ -425,7 +461,7 @@ export function focusMinutesTotal(sessions: readonly StatsFocusRow[]): number {
       seconds += session.actualSeconds;
     }
   }
-  return Math.round(seconds / 60);
+  return seconds / 60;
 }
 
 export function focusPomodoros(sessions: readonly StatsFocusRow[]): number {
@@ -436,26 +472,33 @@ export function focusHeatmap(
   sessions: readonly StatsFocusRow[],
   year: number,
   tz: string,
-): readonly { readonly date: string; readonly minutes: number; readonly pomodoros: number; readonly level: number }[] {
+): readonly {
+  readonly date: string;
+  readonly minutes: number;
+  readonly pomodoros: number;
+  readonly level: number;
+}[] {
   const byDay = new Map<string, { minutes: number; pomodoros: number }>();
   for (const session of sessions) {
-    if (session.type !== 'focus') {
-      continue;
-    }
     const day = dayKey(session.startedAt, tz);
-    if (day === null || !day.startsWith(String(year))) {
+    if (!day?.startsWith(String(year))) {
       continue;
     }
     const row = byDay.get(day) ?? { minutes: 0, pomodoros: 0 };
-    row.minutes += Math.round(session.actualSeconds / 60);
-    if (session.completed) {
+    row.minutes += session.actualSeconds / 60;
+    if (session.type === 'focus' && session.completed) {
       row.pomodoros += 1;
     }
     byDay.set(day, row);
   }
-  const values = [...byDay.values()].map((row) => row.minutes).filter((value) => value > 0).sort((a, b) => a - b);
+  const values = [...byDay.values()]
+    .map((row) => row.minutes)
+    .filter((value) => value > 0)
+    .sort((a, b) => a - b);
   const q = (p: number) =>
-    values.length === 0 ? 0 : values[Math.min(values.length - 1, Math.floor(values.length * p))] ?? 0;
+    values.length === 0
+      ? 0
+      : (values[Math.min(values.length - 1, Math.floor(values.length * p))] ?? 0);
   const t1 = q(0.25);
   const t2 = q(0.5);
   const t3 = q(0.75);
@@ -487,65 +530,14 @@ export function focusHeatmap(
   return cells;
 }
 
-export function habitRangePercent(
-  habit: StatsHabitRow,
-  from: string,
-  to: string,
-): { percent: number; done: number; expected: number } {
-  let expected = 0;
-  let done = 0;
-  let cursor = from;
-  const logMap = new Map(habit.logs.map((log) => [log.date.slice(0, 10), log.count]));
-  while (cursor <= to) {
-    const weekday = weekdayNumber(cursor); // 0=Sun … 6=Sat matching JS, convert to habit days
-    if (habit.days.length === 0 || habit.days.includes(weekday)) {
-      expected += 1;
-      if ((logMap.get(cursor) ?? 0) >= habit.goal) {
-        done += 1;
-      }
-    }
-    const next = addCalendarDays(cursor, 1);
-    if (next === null) {
-      break;
-    }
-    cursor = next;
-  }
-  return {
-    done,
-    expected,
-    percent: expected === 0 ? 0 : Math.round((done / expected) * 1000) / 10,
-  };
+export function habitRangePercent(habit: StatsHabitRow, from: string, to: string, today = to) {
+  return habitRangeSummary({ ...habit, from, to, today });
 }
 
 function habitDayPercent(habits: readonly StatsHabitRow[], date: string): number | null {
-  if (habits.length === 0) {
-    return null;
-  }
-  let expected = 0;
-  let done = 0;
-  const weekday = weekdayNumber(date);
-  for (const habit of habits) {
-    if (habit.days.length > 0 && !habit.days.includes(weekday)) {
-      continue;
-    }
-    expected += 1;
-    const count = habit.logs.find((log) => log.date.slice(0, 10) === date)?.count ?? 0;
-    if (count >= habit.goal) {
-      done += 1;
-    }
-  }
-  if (expected === 0) {
-    return null;
-  }
-  return Math.round((done / expected) * 1000) / 10;
-}
-
-function weekdayNumber(day: string): number {
-  const [y, m, d] = day.split('-').map(Number);
-  if (y === undefined || m === undefined || d === undefined) {
-    return 0;
-  }
-  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  const rows = habits.map((habit) => habitRangePercent(habit, date, date));
+  const scheduled = rows.filter((row) => row.expected > 0);
+  return scheduled.length === 0 ? null : round1(mean(scheduled.map((row) => row.percent)));
 }
 
 export function addCalendarDays(day: string, delta: number): string | null {
@@ -576,4 +568,197 @@ function median(values: readonly number[]): number {
 
 function round1(value: number): number {
   return Math.round(value * 10) / 10;
+}
+
+/** RF-2321: prepare calendar boundaries once, then reconstruct scores without IO. */
+function prepareAchievement(tasks: readonly StatsTaskRow[], tz: string) {
+  return tasks
+    .filter((task) => task.status !== 'cancelled')
+    .map((task) => {
+      const dueDay = task.dueDate === null ? null : dayKey(task.dueDate, tz);
+      const bounds = task.isAllDay && dueDay !== null ? parseDayBounds(dueDay, dueDay, tz) : null;
+      return {
+        created: Date.parse(task.createdAt),
+        done: task.completedAt === null ? Infinity : Date.parse(task.completedAt),
+        due:
+          task.dueDate === null
+            ? Infinity
+            : bounds === null
+              ? Date.parse(task.dueDate)
+              : Date.parse(bounds.endIso) - 1,
+        bonus: priorityBonus(task.priority),
+      };
+    });
+}
+function scoreAt(
+  tasks: ReturnType<typeof prepareAchievement>,
+  focus: readonly StatsFocusRow[],
+  logs: readonly { readonly date: string; readonly count: number }[],
+  now: string,
+  tz: string,
+) {
+  const cutoff = Date.parse(now);
+  const today = dayKey(now, tz) ?? '';
+  let onTime = 0;
+  let late = 0;
+  let bonus = 0;
+  let overdue = 0;
+  for (const task of tasks) {
+    if (task.created > cutoff) continue;
+    if (task.done <= cutoff) {
+      if (task.done <= task.due) {
+        onTime += 1;
+        bonus += task.bonus;
+      } else late += 1;
+    } else if (task.due < cutoff) overdue += 1;
+  }
+  return achievementScore({
+    enabled: true,
+    completedOnTime: onTime,
+    completedLate: late,
+    priorityPoints: bonus,
+    overdueCount: overdue,
+    pomodoros: focus.filter(
+      (row) =>
+        row.type === 'focus' && row.completed && Date.parse(row.endedAt ?? row.startedAt) <= cutoff,
+    ).length,
+    habitCheckIns: logs.filter((row) => row.count > 0 && row.date <= today).length,
+  });
+}
+export function achievementAt(
+  tasks: readonly StatsTaskRow[],
+  focus: readonly StatsFocusRow[],
+  logs: readonly { readonly date: string; readonly count: number }[],
+  now: string,
+  tz: string,
+) {
+  return scoreAt(prepareAchievement(tasks, tz), focus, logs, now, tz);
+}
+export function achievementHistory(
+  tasks: readonly StatsTaskRow[],
+  focus: readonly StatsFocusRow[],
+  logs: readonly { readonly date: string; readonly count: number }[],
+  days: readonly string[],
+  now: string,
+  tz: string,
+) {
+  const prepared = prepareAchievement(tasks, tz);
+  const today = dayKey(now, tz);
+  return days.map((date) => ({
+    date,
+    score: scoreAt(
+      prepared,
+      focus,
+      logs,
+      date === today
+        ? now
+        : new Date(Date.parse(parseDayBounds(date, date, tz)?.endIso ?? '') - 1).toISOString(),
+      tz,
+    ).score,
+  }));
+}
+
+/** RF-2321: grouping preserves the planned cohort instead of dividing unrelated completions. */
+export function taskSeries(
+  tasks: readonly StatsTaskRow[],
+  days: readonly string[],
+  tz: string,
+  group: string,
+) {
+  const keys = new Map(days.map((day) => [day, seriesDay(day, group)]));
+  const groups = new Map(
+    [...keys.values()].map((date) => [
+      date,
+      { date, completed: 0, created: 0, completion_completed: 0, planned: 0 },
+    ]),
+  );
+  for (const task of tasks) {
+    if (task.status === 'cancelled') continue;
+    const created = groups.get(keys.get(dayKey(task.createdAt, tz) ?? '') ?? '');
+    const doneKey =
+      task.completedAt === null ? undefined : keys.get(dayKey(task.completedAt, tz) ?? '');
+    const done = groups.get(doneKey ?? '');
+    const dueKey = task.dueDate === null ? undefined : keys.get(dayKey(task.dueDate, tz) ?? '');
+    const due = groups.get(dueKey ?? '');
+    if (created) created.created += 1;
+    if (done) done.completed += 1;
+    if (due) {
+      due.planned += 1;
+      if (dueKey === doneKey) due.completion_completed += 1;
+    }
+  }
+  return [...groups.values()].map((row) => ({
+    ...row,
+    rate: row.planned === 0 ? null : round1((row.completion_completed / row.planned) * 100),
+  }));
+}
+
+export function averageHabitPercent(
+  habits: readonly StatsHabitRow[],
+  from: string,
+  to: string,
+  today = to,
+) {
+  if (habits.length === 0) {
+    return { percent: 0, done: 0, expected: 0 };
+  }
+  let done = 0;
+  let expected = 0;
+  for (const habit of habits) {
+    const range = habitRangePercent(habit, from, to, today);
+    done += range.done;
+    expected += range.expected;
+  }
+  return {
+    done,
+    expected,
+    percent:
+      Math.round(
+        (habits.reduce((sum, habit) => sum + habitRangePercent(habit, from, to, today).percent, 0) /
+          habits.length) *
+          10,
+      ) / 10,
+  };
+}
+
+export function weakestHabitWeekday(habit: StatsHabitRow, from: string, to: string, today: string) {
+  const days = parseDayBounds(from, to, 'UTC')?.days ?? [];
+  const values = Array.from({ length: 7 }, () => ({ done: 0, expected: 0 }));
+  for (const date of days) {
+    if (date > today) continue;
+    const range = habitRangePercent(habit, date, date, today);
+    const index = weekdayInTz(`${date}T12:00:00Z`, 'UTC');
+    const row = index === null ? undefined : values[index - 1];
+    if (row) {
+      row.done += range.done;
+      row.expected += range.expected;
+    }
+  }
+  const ranked = values
+    .map((row, index) => ({ ...row, index: index + 1 }))
+    .filter((row) => row.expected > 0)
+    .sort((a, b) => a.done / a.expected - b.done / b.expected);
+  return ranked[0]?.index ?? null;
+}
+
+function seriesDay(day: string, group: string) {
+  const index = weekdayInTz(`${day}T12:00:00Z`, 'UTC') ?? 1;
+  return group === 'week'
+    ? (addCalendarDays(day, -(index - 1)) ?? day)
+    : group === 'month'
+      ? `${day.slice(0, 7)}-01`
+      : day;
+}
+
+/** RF-2322: focus grouping sums exact seconds before converting to minutes. */
+export function focusSeries(buckets: readonly DayBucket[], group: string) {
+  const groups = new Map<string, { date: string; minutes: number; pomodoros: number }>();
+  for (const bucket of buckets) {
+    const date = seriesDay(bucket.date, group);
+    const row = groups.get(date) ?? { date, minutes: 0, pomodoros: 0 };
+    row.minutes += bucket.focus_seconds / 60;
+    row.pomodoros += bucket.pomodoros;
+    groups.set(date, row);
+  }
+  return [...groups.values()];
 }

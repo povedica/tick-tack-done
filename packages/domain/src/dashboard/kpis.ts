@@ -160,7 +160,7 @@ export function weeklyNarrative(
     upcomingExternal === null
       ? ''
       : ` Eventos externos en los próximos 7 días: ${String(upcomingExternal)}.`;
-  const facts = `Completadas ${String(snapshot.completed)} de ${String(snapshot.created)} creadas. Vencidas arrastradas: ${String(snapshot.overdue)}. Hábitos de hoy: ${String(snapshot.habit_percent)} %. Tendencia frente a la semana anterior: ${String(snapshot.trend)}.${focus}${external}`;
+  const facts = `Completadas ${String(snapshot.completed)} de ${String(snapshot.created)} creadas. Vencidas arrastradas: ${String(snapshot.overdue)}. Hábitos de la semana: ${String(snapshot.habit_percent)} %. Tendencia frente a la semana anterior: ${String(snapshot.trend)}.${focus}${external}`;
   const observations = observationsFor(snapshot, weak);
   if (tone === 'motivador') {
     return {

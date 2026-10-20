@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
+import { useStatisticsText } from '../statistics/text';
 import { useMessages } from '../../i18n';
 import { featureFlags, useFeatures, type FeatureFlags } from './feature-flags';
 
@@ -15,6 +16,8 @@ const KEYS = [
 
 export function FeaturesPage() {
   const messages = useMessages();
+  const { t } = useStatisticsText();
+  const achievements = useQuery({ queryKey: ['achievements'], queryFn: () => api.achievements() });
   const queryClient = useQueryClient();
   const flags = useFeatures((state) => state.flags);
   const setFlags = useFeatures((state) => state.setFlags);
@@ -75,6 +78,24 @@ export function FeaturesPage() {
             </label>
           </li>
         ))}
+        <li>
+          <label>
+            <span>
+              <strong>{t('enable')}</strong>
+            </span>
+            <input
+              type="checkbox"
+              role="switch"
+              checked={achievements.data?.enabled === true}
+              onChange={(event) => {
+                void api.setAchievements(event.target.checked).then(() => {
+                  void queryClient.invalidateQueries({ queryKey: ['achievements'] });
+                  void queryClient.invalidateQueries({ queryKey: ['stats'] });
+                });
+              }}
+            />
+          </label>
+        </li>
       </ul>
     </section>
   );

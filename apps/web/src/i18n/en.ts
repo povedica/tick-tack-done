@@ -2,6 +2,7 @@ import { extraEn } from './extra';
 import type { es } from './es';
 
 export const en = {
+  focusLifetime: 'All time',
   appName: 'tick-tack-done',
   todayTitle: 'Today',
   todayHint: 'Capture a task with N or the button. The rest of the schedule comes later.',

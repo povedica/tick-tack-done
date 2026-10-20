@@ -1,5 +1,7 @@
 # Auditoría de Estadísticas v2 — 20 de octubre de 2026
 
+> La auditoría inicial que sigue describe `main` antes de las correcciones. Su veredicto queda sustituido por el [cierre y las evidencias de la PR #54](cierre-estadisticas-v2-2026-10-20.md). Se conserva para trazabilidad.
+
 ## 1. Veredicto y evidencia
 
 **Con bloqueantes; F0–F4 no pueden darse por cerradas.** Existe la estructura de la funcionalidad, pero fallan privacidad por scopes, métricas, filtros, navegación histórica y varios requisitos visuales obligatorios.
@@ -21,157 +23,157 @@ Fuente: `docs/spec/done/spec-estadisticas-tick-tack-done-v2-2026-10-20-2623ef3e.
 
 ## 2. Tabla de cumplimiento F0–F4
 
-| Fase | Estado | Resultado |
-|---|---|---|
-| F0 | ⚠️ Parcial | Foco de narrativa/tarjeta comparte valor y dashboard usa hoy; hábitos divergen, semana de Reportes es UTC, tarjetas no profundizan y reportes antiguos conservan payload anterior. |
-| F1 | ⚠️ Parcial | Rutas, seis KPI, gráficos y rejilla existen; rango histórico, filtros, completitud diaria, mejor momento y vencidas están incompletos o incorrectos. |
-| F2 | ⚠️ Parcial | Tendencia, histograma, timeline y heatmap existen; rejilla anual solo recibe sesiones del rango, no hay selección de día y las distribuciones omiten tiempo. |
-| F3 | ⚠️ Parcial | Puntuación única y 12 niveles; hábitos no reutiliza su motor, faltan antifraude, histórico y ajuste de ocultación. |
-| F4 | ⚠️ Parcial | CSV/JSON y tabla de tendencia; exportación puede descuadrar, faltan otras tablas y QA visual obligatorio. |
-| §10 | ⚠️ Parcial | Base de tokens/rejilla/Recharts correcta; estados, interacción, accesibilidad, formato y visualizaciones pendientes. |
+| Fase | Estado     | Resultado                                                                                                                                                                          |
+| ---- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F0   | ⚠️ Parcial | Foco de narrativa/tarjeta comparte valor y dashboard usa hoy; hábitos divergen, semana de Reportes es UTC, tarjetas no profundizan y reportes antiguos conservan payload anterior. |
+| F1   | ⚠️ Parcial | Rutas, seis KPI, gráficos y rejilla existen; rango histórico, filtros, completitud diaria, mejor momento y vencidas están incompletos o incorrectos.                               |
+| F2   | ⚠️ Parcial | Tendencia, histograma, timeline y heatmap existen; rejilla anual solo recibe sesiones del rango, no hay selección de día y las distribuciones omiten tiempo.                       |
+| F3   | ⚠️ Parcial | Puntuación única y 12 niveles; hábitos no reutiliza su motor, faltan antifraude, histórico y ajuste de ocultación.                                                                 |
+| F4   | ⚠️ Parcial | CSV/JSON y tabla de tendencia; exportación puede descuadrar, faltan otras tablas y QA visual obligatorio.                                                                          |
+| §10  | ⚠️ Parcial | Base de tokens/rejilla/Recharts correcta; estados, interacción, accesibilidad, formato y visualizaciones pendientes.                                                               |
 
 ### Matriz funcional, requisito por requisito
 
-| Referencia / requisito | Estado | Evidencia o falta |
-|---|---|---|
-| §2.2.1 foco narrativa/tarjeta | ✅ | `reports.controller.ts:163,173,207`: mismo `focusMinutes`. Solo reportes regenerados; los guardados no se migran. |
-| §2.2.2 tendencia explicada | ⚠️ | `trend_label` en nuevos payloads; histórico anterior cae al número sin comparación. |
-| §2.2.3 hábitos con contexto | ⚠️ | Tarjeta done/expected, pero frecuencia se interpreta mal; narrativa sigue usando hábitos de hoy del snapshot. |
-| §2.2.4 carga de Reportes | ✅ | `ProductPages.tsx:240,260`: carga separada del vacío. |
-| §2.2.5 tarjetas con profundización | ❌ | `ProductPages.tsx:285`: CountCard y artículos sin enlaces; enlace general no cumple el drill-down. |
-| §2.2.6–10 visuales generales | N/A | Referenciados a auditoría general: pila/borde, botón, tendencia vacía, calendario, duplicación de creadas. Algunos rótulos mejoran, no se exige rediseño aquí. |
-| §2.2.11 contradicción de Logros | ✅ | `ProductPages.tsx:185–205`: estado y acción Activar/Desactivar diferenciados; enlace a Estadísticas. |
-| §2.2.12 tendencia Jardín | N/A | Auditoría general; esta PR además añade etiqueta comparativa. |
-| §2.2.13 consistencia de foco | ⚠️ | Jardín calcula hoy con MetricsService; `/focus/stats` sigue acumulando todo el histórico sin etiqueta temporal explícita en la línea de Foco. Su rediseño visual queda fuera. |
-| §2.2.14–15 visuales Hábitos/móvil general | N/A | No exigir aquí rediseño de check-in, Reportes o Jardín. Componente compartido del heatmap sí se evalúa donde §10 lo exige. |
-| §5 entrada temporal sidebar | ✅ | Sidebar/navigation incluye Estadísticas separada de Reportes. |
-| §5 entrada móvil Más | ✅ | `shell/BottomBar.tsx` incluye la ruta. |
-| §5 cuatro rutas y pestaña URL | ✅ | `app.tsx:165–166`; `/statistics/:tab`. |
-| §5 rango/filtros en URL y atrás | ⚠️ | Parámetros presentes, pero rangos predefinidos ignoran from/to y cambios usan replace; atrás no deshace rango/filtro. |
-| §5 enlaces bidireccionales Reportes | ✅ | Enlaces presentes en ambas pantallas. |
-| §6.1 cinco rangos, lunes, máximo dos años | ⚠️ | Opciones y lunes correctos; histórico roto; custom sin validación UX, API limita después de generar todos los días. |
-| §6.1 persistencia URL/localStorage | ⚠️ | Solo se guarda la clave del rango; no fechas custom, filtros ni pestaña. URL inicial no se normaliza. |
-| §6.1 filtros multiselección y chips | ⚠️ | Entradas de IDs de lista/etiqueta, select único de prioridad; chips genéricos y eliminación por grupo. No selector de entidades ni multiselección completa. |
-| §6.1 exportar y Reporte semanal | ⚠️ | Enlace y descarga presentes; errores/totales de exportación pendientes. |
-| §6.1 frase honesta | ✅ | API publica frase del rango y la web la muestra. Puede diferir del KPI Completadas porque distingue las planificadas, como requiere D2. |
-| §6.2 KPI Completadas + variación | ✅ | Conteo y delta frente a rango equivalente; excepción TZ de foco anterior no afecta al conteo de tareas. |
-| §6.2 KPI completitud D2 | ✅ | Solo dueDate en rango, completadas en rango; canceladas excluidas. |
-| §6.2 KPI foco/pomodoros | ⚠️ | Presente; filtros y redondeo divergen entre representaciones. |
-| §6.2 KPI hábitos | ❌ | Frecuencia semanal se descarta; porcentaje ponderado por días, no media simple por hábito. |
-| §6.2 racha productiva actual/mejor año | ⚠️ | Usa query.to como hoy: semana/mes/año incluyen futuro y pueden dar actual=0 aunque hoy lleve racha. |
-| §6.2 KPI logro y detalle | ⚠️ | Nivel/progreso/desglose presentes; faltan umbral visible y fórmula completa. |
-| §6.2 KPI clicables conservan contexto | ⚠️ | Cinco KPI navegan; logro usa botón de detalle a Tareas, donde no existe detalle de logro. |
-| §6.2 tendencia día/semana según rango | ⚠️ | Siempre buckets diarios, incluso año; no agrupación semanal. |
-| §6.2 mejor momento | ❌ | API devuelve `best_moment` al nivel raíz; componente lo busca dentro de summary, muestra bandas a cero y ningún día. |
-| §6.3 tendencia Tareas | ⚠️ | Presente; agrupación anual pendiente. |
-| §6.3 serie tasa por semana/mes | ❌ | Serie diaria con numerador incorrecto; no agrupación semanal/mensual requerida. |
-| §6.3 distribuciones lista/etiqueta/prioridad | ⚠️ | Presentes; canceladas con completedAt aún cuentan, etiquetas duplican contribuciones y prioridades salen en inglés. |
-| §6.3 puntualidad media/mediana | ⚠️ | Funciones presentes; all-day usa 24 h absolutos y vacío se presenta como 100 % tarde. |
-| §6.3 edad media/mediana | ✅ | Función pura y tarjeta con ambas métricas. |
-| §6.3 evolución vencidas | ❌ | Omite tareas ya completadas del histórico, cuenta antes de creación y UI solo muestra último bucket en lista. |
-| §6.3 precisión estimaciones | N/A | D6 aplaza a F4+. |
-| §6.4 tendencia foco/pomodoros | ⚠️ | Presente, con redondeos no reconciliados y sin agrupación por semana/mes. |
-| §6.4 timeline día seleccionado | ❌ | Día fijado a query.to; sin selector/deep-link/popover; implementación HTML, no SVG. |
-| §6.4 mejor hora | ⚠️ | Histograma existe; usa rango activo, no mes explícito; gráfico no muestra tabla alternativa. |
-| §6.4 heatmap anual/detalle | ❌ | Consulta solo rango activo antes de construir año; sin onSelect conectado. |
-| §6.4 distribución lista/etiqueta/tarea | ⚠️ | Sin tarea solo aparece en by_task; by_list no suma todo el tiempo; etiquetas pueden contabilizar varias veces una sesión. |
-| §6.4 calidad | ✅ | Completadas/(completadas+abandonadas) e interrupciones por sesión presentes. |
-| §6.4 filtros cabecera/tipo sesión | ❌ | Etiqueta ID contra nombre, prioridad ignorada; no control de tipo en web; helpers descartan descansos incluso si API los selecciona. |
-| §6.5 tarjetas hábito/nombre/icono/color | ✅ | Presentes, incluyendo heatmap compartido entre pestañas de Estadísticas. |
-| §6.5 rachas/% equivalentes a hábitos | ❌ | Motor duplicado sin frecuencia semanal ni anclaje de racha actual al presente. |
-| §6.5 línea global | ⚠️ | Gráfico existe, cálculo afectado por frecuencia. |
-| §6.5 ranking y día más flojo | ❌ | API calcula campos que UI no renderiza; día flojo ignora días sin logs y no limita al rango. |
-| §6.5 filtros ignorados e indicación | ✅ | Hábitos no aplica filtros; muestra aviso cuando están activos. Cabecera sigue mostrando los controles. |
-| §7.1 owner/deleted/recurrentes | ⚠️ | Filtros de propietario y borrado en tablas principales; cuenta ocurrencias existentes, sin expandir series. No filtra actor ni assignee; relaciones de foco no excluyen tareas borradas. |
-| §7.1 zona horaria/fechas | ⚠️ | Fechas de tareas usan tz; foco anterior y Reportes usan límites UTC; all-day suma 24 h. |
-| §7.1 hábitos: reutilizar motor | ❌ | No usa `habitStats` ni `readStoredHabit`; también introduce lógica distinta en MetricsService. |
-| §7.2 seis endpoints | ✅ | overview/tasks/focus/habits/achievement/export presentes, registrados y en OpenAPI. |
-| §7.2 MetricsService compartido | ⚠️ | Lo usan Reportes, dashboard y stats para foco; hábitos Estadísticas siguen otra implementación; snapshot/narrativa no usan el mismo cálculo semanal. |
-| §7.2 agregación servidor SQL | ⚠️ | Agregación en servidor, pero lee todas las tareas/logs y agrega en JS; no SQL date_trunc/buckets. |
-| §7.2 caché bajo demanda/índices | ⚠️ | Sin tabla precalculada, como D4; índice foco presente, no índice task owner/completedAt propuesto. Rendimiento no medido. |
-| §7.2 OpenAPI/SDK | ⚠️ | Regeneración sin diff y rutas en schema; sin DTOs de respuesta (`content?: never`), cliente devuelve JsonObject; export no tiene método en resources.ts. |
-| §8 fórmula pública | ⚠️ | Pesos y desglose API, caso 66 puntos testeado; UI muestra subtotales sin todos los pesos/contadores ni regla clamp a cero. |
-| §8 doce niveles/umbral/progreso | ⚠️ | Doce niveles en dominio y progreso; umbral siguiente no visible en UI. |
-| §8 antifraude acciones propias | ❌ | loadTasks solo owner; no actor de completado ni exclusión de asignadas a otros para penalización. |
-| §8 tiempo real/histórico diario | ⚠️ | Recalcula por consulta, web cachea 5 minutos sin invalidaciones de mutaciones; no histórico diario/curva. |
-| §8 puntuación única Jardín | ✅ | `/me/achievements` delega a `StatsService.achievement`, igual que `/stats/achievement`. |
-| §8 desactivar en Ajustes | ⚠️ | Flag por defecto true y PATCH existentes; control solo en Jardín, no Ajustes; KPI sigue visible como Desactivado. |
-| §9 cálculo local sin terceros | ✅ | Cálculo servidor y Recharts en bundle; sin telemetría nueva/CDN en este módulo. |
-| §9 multiusuario y actividad propia | ⚠️ | ownerId presente; propiedad no prueba autoría de actividad en listas compartidas. |
-| §9 exportación local | ⚠️ | Descarga directa sin registro adicional explícito; payload se genera en servidor, no localmente en navegador como pide la spec. |
-| §9 stats:read en endpoints/tokens/consent | ✅ | Decorador en seis endpoints; API_SCOPES, tokens y consentimiento lo incluyen. |
-| §9 títulos requieren tasks:read | ❌ | Foco y export JSON incluyen task_title/by_task.label con solo stats:read. |
+| Referencia / requisito                       | Estado | Evidencia o falta                                                                                                                                                                        |
+| -------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| §2.2.1 foco narrativa/tarjeta                | ✅     | `reports.controller.ts:163,173,207`: mismo `focusMinutes`. Solo reportes regenerados; los guardados no se migran.                                                                        |
+| §2.2.2 tendencia explicada                   | ⚠️     | `trend_label` en nuevos payloads; histórico anterior cae al número sin comparación.                                                                                                      |
+| §2.2.3 hábitos con contexto                  | ⚠️     | Tarjeta done/expected, pero frecuencia se interpreta mal; narrativa sigue usando hábitos de hoy del snapshot.                                                                            |
+| §2.2.4 carga de Reportes                     | ✅     | `ProductPages.tsx:240,260`: carga separada del vacío.                                                                                                                                    |
+| §2.2.5 tarjetas con profundización           | ❌     | `ProductPages.tsx:285`: CountCard y artículos sin enlaces; enlace general no cumple el drill-down.                                                                                       |
+| §2.2.6–10 visuales generales                 | N/A    | Referenciados a auditoría general: pila/borde, botón, tendencia vacía, calendario, duplicación de creadas. Algunos rótulos mejoran, no se exige rediseño aquí.                           |
+| §2.2.11 contradicción de Logros              | ✅     | `ProductPages.tsx:185–205`: estado y acción Activar/Desactivar diferenciados; enlace a Estadísticas.                                                                                     |
+| §2.2.12 tendencia Jardín                     | N/A    | Auditoría general; esta PR además añade etiqueta comparativa.                                                                                                                            |
+| §2.2.13 consistencia de foco                 | ⚠️     | Jardín calcula hoy con MetricsService; `/focus/stats` sigue acumulando todo el histórico sin etiqueta temporal explícita en la línea de Foco. Su rediseño visual queda fuera.            |
+| §2.2.14–15 visuales Hábitos/móvil general    | N/A    | No exigir aquí rediseño de check-in, Reportes o Jardín. Componente compartido del heatmap sí se evalúa donde §10 lo exige.                                                               |
+| §5 entrada temporal sidebar                  | ✅     | Sidebar/navigation incluye Estadísticas separada de Reportes.                                                                                                                            |
+| §5 entrada móvil Más                         | ✅     | `shell/BottomBar.tsx` incluye la ruta.                                                                                                                                                   |
+| §5 cuatro rutas y pestaña URL                | ✅     | `app.tsx:165–166`; `/statistics/:tab`.                                                                                                                                                   |
+| §5 rango/filtros en URL y atrás              | ⚠️     | Parámetros presentes, pero rangos predefinidos ignoran from/to y cambios usan replace; atrás no deshace rango/filtro.                                                                    |
+| §5 enlaces bidireccionales Reportes          | ✅     | Enlaces presentes en ambas pantallas.                                                                                                                                                    |
+| §6.1 cinco rangos, lunes, máximo dos años    | ⚠️     | Opciones y lunes correctos; histórico roto; custom sin validación UX, API limita después de generar todos los días.                                                                      |
+| §6.1 persistencia URL/localStorage           | ⚠️     | Solo se guarda la clave del rango; no fechas custom, filtros ni pestaña. URL inicial no se normaliza.                                                                                    |
+| §6.1 filtros multiselección y chips          | ⚠️     | Entradas de IDs de lista/etiqueta, select único de prioridad; chips genéricos y eliminación por grupo. No selector de entidades ni multiselección completa.                              |
+| §6.1 exportar y Reporte semanal              | ⚠️     | Enlace y descarga presentes; errores/totales de exportación pendientes.                                                                                                                  |
+| §6.1 frase honesta                           | ✅     | API publica frase del rango y la web la muestra. Puede diferir del KPI Completadas porque distingue las planificadas, como requiere D2.                                                  |
+| §6.2 KPI Completadas + variación             | ✅     | Conteo y delta frente a rango equivalente; excepción TZ de foco anterior no afecta al conteo de tareas.                                                                                  |
+| §6.2 KPI completitud D2                      | ✅     | Solo dueDate en rango, completadas en rango; canceladas excluidas.                                                                                                                       |
+| §6.2 KPI foco/pomodoros                      | ⚠️     | Presente; filtros y redondeo divergen entre representaciones.                                                                                                                            |
+| §6.2 KPI hábitos                             | ❌     | Frecuencia semanal se descarta; porcentaje ponderado por días, no media simple por hábito.                                                                                               |
+| §6.2 racha productiva actual/mejor año       | ⚠️     | Usa query.to como hoy: semana/mes/año incluyen futuro y pueden dar actual=0 aunque hoy lleve racha.                                                                                      |
+| §6.2 KPI logro y detalle                     | ⚠️     | Nivel/progreso/desglose presentes; faltan umbral visible y fórmula completa.                                                                                                             |
+| §6.2 KPI clicables conservan contexto        | ⚠️     | Cinco KPI navegan; logro usa botón de detalle a Tareas, donde no existe detalle de logro.                                                                                                |
+| §6.2 tendencia día/semana según rango        | ⚠️     | Siempre buckets diarios, incluso año; no agrupación semanal.                                                                                                                             |
+| §6.2 mejor momento                           | ❌     | API devuelve `best_moment` al nivel raíz; componente lo busca dentro de summary, muestra bandas a cero y ningún día.                                                                     |
+| §6.3 tendencia Tareas                        | ⚠️     | Presente; agrupación anual pendiente.                                                                                                                                                    |
+| §6.3 serie tasa por semana/mes               | ❌     | Serie diaria con numerador incorrecto; no agrupación semanal/mensual requerida.                                                                                                          |
+| §6.3 distribuciones lista/etiqueta/prioridad | ⚠️     | Presentes; canceladas con completedAt aún cuentan, etiquetas duplican contribuciones y prioridades salen en inglés.                                                                      |
+| §6.3 puntualidad media/mediana               | ⚠️     | Funciones presentes; all-day usa 24 h absolutos y vacío se presenta como 100 % tarde.                                                                                                    |
+| §6.3 edad media/mediana                      | ✅     | Función pura y tarjeta con ambas métricas.                                                                                                                                               |
+| §6.3 evolución vencidas                      | ❌     | Omite tareas ya completadas del histórico, cuenta antes de creación y UI solo muestra último bucket en lista.                                                                            |
+| §6.3 precisión estimaciones                  | N/A    | D6 aplaza a F4+.                                                                                                                                                                         |
+| §6.4 tendencia foco/pomodoros                | ⚠️     | Presente, con redondeos no reconciliados y sin agrupación por semana/mes.                                                                                                                |
+| §6.4 timeline día seleccionado               | ❌     | Día fijado a query.to; sin selector/deep-link/popover; implementación HTML, no SVG.                                                                                                      |
+| §6.4 mejor hora                              | ⚠️     | Histograma existe; usa rango activo, no mes explícito; gráfico no muestra tabla alternativa.                                                                                             |
+| §6.4 heatmap anual/detalle                   | ❌     | Consulta solo rango activo antes de construir año; sin onSelect conectado.                                                                                                               |
+| §6.4 distribución lista/etiqueta/tarea       | ⚠️     | Sin tarea solo aparece en by_task; by_list no suma todo el tiempo; etiquetas pueden contabilizar varias veces una sesión.                                                                |
+| §6.4 calidad                                 | ✅     | Completadas/(completadas+abandonadas) e interrupciones por sesión presentes.                                                                                                             |
+| §6.4 filtros cabecera/tipo sesión            | ❌     | Etiqueta ID contra nombre, prioridad ignorada; no control de tipo en web; helpers descartan descansos incluso si API los selecciona.                                                     |
+| §6.5 tarjetas hábito/nombre/icono/color      | ✅     | Presentes, incluyendo heatmap compartido entre pestañas de Estadísticas.                                                                                                                 |
+| §6.5 rachas/% equivalentes a hábitos         | ❌     | Motor duplicado sin frecuencia semanal ni anclaje de racha actual al presente.                                                                                                           |
+| §6.5 línea global                            | ⚠️     | Gráfico existe, cálculo afectado por frecuencia.                                                                                                                                         |
+| §6.5 ranking y día más flojo                 | ❌     | API calcula campos que UI no renderiza; día flojo ignora días sin logs y no limita al rango.                                                                                             |
+| §6.5 filtros ignorados e indicación          | ✅     | Hábitos no aplica filtros; muestra aviso cuando están activos. Cabecera sigue mostrando los controles.                                                                                   |
+| §7.1 owner/deleted/recurrentes               | ⚠️     | Filtros de propietario y borrado en tablas principales; cuenta ocurrencias existentes, sin expandir series. No filtra actor ni assignee; relaciones de foco no excluyen tareas borradas. |
+| §7.1 zona horaria/fechas                     | ⚠️     | Fechas de tareas usan tz; foco anterior y Reportes usan límites UTC; all-day suma 24 h.                                                                                                  |
+| §7.1 hábitos: reutilizar motor               | ❌     | No usa `habitStats` ni `readStoredHabit`; también introduce lógica distinta en MetricsService.                                                                                           |
+| §7.2 seis endpoints                          | ✅     | overview/tasks/focus/habits/achievement/export presentes, registrados y en OpenAPI.                                                                                                      |
+| §7.2 MetricsService compartido               | ⚠️     | Lo usan Reportes, dashboard y stats para foco; hábitos Estadísticas siguen otra implementación; snapshot/narrativa no usan el mismo cálculo semanal.                                     |
+| §7.2 agregación servidor SQL                 | ⚠️     | Agregación en servidor, pero lee todas las tareas/logs y agrega en JS; no SQL date_trunc/buckets.                                                                                        |
+| §7.2 caché bajo demanda/índices              | ⚠️     | Sin tabla precalculada, como D4; índice foco presente, no índice task owner/completedAt propuesto. Rendimiento no medido.                                                                |
+| §7.2 OpenAPI/SDK                             | ⚠️     | Regeneración sin diff y rutas en schema; sin DTOs de respuesta (`content?: never`), cliente devuelve JsonObject; export no tiene método en resources.ts.                                 |
+| §8 fórmula pública                           | ⚠️     | Pesos y desglose API, caso 66 puntos testeado; UI muestra subtotales sin todos los pesos/contadores ni regla clamp a cero.                                                               |
+| §8 doce niveles/umbral/progreso              | ⚠️     | Doce niveles en dominio y progreso; umbral siguiente no visible en UI.                                                                                                                   |
+| §8 antifraude acciones propias               | ❌     | loadTasks solo owner; no actor de completado ni exclusión de asignadas a otros para penalización.                                                                                        |
+| §8 tiempo real/histórico diario              | ⚠️     | Recalcula por consulta, web cachea 5 minutos sin invalidaciones de mutaciones; no histórico diario/curva.                                                                                |
+| §8 puntuación única Jardín                   | ✅     | `/me/achievements` delega a `StatsService.achievement`, igual que `/stats/achievement`.                                                                                                  |
+| §8 desactivar en Ajustes                     | ⚠️     | Flag por defecto true y PATCH existentes; control solo en Jardín, no Ajustes; KPI sigue visible como Desactivado.                                                                        |
+| §9 cálculo local sin terceros                | ✅     | Cálculo servidor y Recharts en bundle; sin telemetría nueva/CDN en este módulo.                                                                                                          |
+| §9 multiusuario y actividad propia           | ⚠️     | ownerId presente; propiedad no prueba autoría de actividad en listas compartidas.                                                                                                        |
+| §9 exportación local                         | ⚠️     | Descarga directa sin registro adicional explícito; payload se genera en servidor, no localmente en navegador como pide la spec.                                                          |
+| §9 stats:read en endpoints/tokens/consent    | ✅     | Decorador en seis endpoints; API_SCOPES, tokens y consentimiento lo incluyen.                                                                                                            |
+| §9 títulos requieren tasks:read              | ❌     | Foco y export JSON incluyen task_title/by_task.label con solo stats:read.                                                                                                                |
 
 ### Matriz visual §10
 
-| Sección / requisito | Estado | Evidencia o falta |
-|---|---|---|
-| 10.1 tokens de color/cambio tema y acento | ✅ | chart-theme usa getComputedStyle y MutationObserver de data-theme/data-accent. Tokens --chart-1…8 en claro/oscuro. |
-| 10.1 tipografía/espaciado sin valores nuevos | ⚠️ | Base usa tokens; gráficos usan fontSize 10/11/12, radios y medidas literales sin tokenizar todos los valores. |
-| 10.2 ancho/12 columnas/KPI 3×2 y 2×3 | ✅ | CSS 1080px, 12 columnas, breakpoint 1024 y KPI responsive. Verificado en código, sin captura. |
-| 10.2 sticky escritorio/móvil | ⚠️ | Cabecera sticky escritorio y estática móvil; tabs móvil tampoco son sticky. |
-| 10.3 cabecera desktop/móvil | ⚠️ | Flex-wrap general, sin organización móvil explícita por filas; segmented no tiene regla que garantice ajuste a 390px. Riesgo de desbordamiento, no medido. |
-| 10.3 filtros/selector/acciones | ⚠️ | Botón y menú export existen; formulario IDs reemplaza multiselección; chips no muestran nombres; sin spinner. |
-| 10.4 tabs URL/teclado/respaldo | ⚠️ | role/tab aria-selected y navegación por click; sin patrón de flechas/roving focus ni respaldo localStorage. |
-| 10.5 tarjetas sólidas/KPI | ✅ | Fondo/borde sólido/radio/padding y jerarquía de tokens. |
-| 10.5 variación/unidad/referencia | ⚠️ | Flechas y color, pero variaciones en puntos se rotulan %, sin texto de período anterior; sparkline opcional ausente (no es gap). |
-| 10.5 logro/fórmula/medalla | ⚠️ | Award y details; no popover, umbral ni detalle funcional. |
-| 10.6 comunes: ejes, fondo, fechas, tooltip | ⚠️ | Base de tokens y ejes sin caja; tooltip genérico no incluye siempre numerador/denominador; ISO en timeline/heatmap. |
-| 10.6 leyenda interactiva | ❌ | Trend tiene Legend sin handler de ocultación; foco multiserie no tiene leyenda. |
-| 10.6 animación <=300ms/reduced motion | ❌ | CSS desactiva skeleton y barra propia; Recharts no recibe isAnimationActive condicionado ni duración requerida. |
-| 10.6 huecos sin interpolar ceros | ⚠️ | Tasa tiene connectNulls=false; varios vacíos se materializan como ceros y no hay estados específicos por gráfico. |
-| 10.6.1 tendencia protagonista/alto/adaptación | ⚠️ | Barras+línea y 260px; no buckets semanales para año ni 200px móvil. |
-| 10.6.2 tasa área/objetivo 80%/tooltip | ⚠️ | Área success y eje 0–100; falta referencia 80 %, tooltip con fracción y métrica correcta. |
-| 10.6.3–4 barras distribuciones/prioridad | ⚠️ | Horizontales, top8+Otros, colores; etiquetas prioridad inglesas, sin unidad minutos, Otros no reservado siempre a chart-8. |
-| 10.6.5 puntualidad | ⚠️ | Barra 100% y media/mediana; sin datos muestra falsamente Tarde 100%. |
-| 10.6.6 área apilada de vencidas | ❌ | OverdueList muestra tres números del último punto; no área ni evolución. |
-| 10.6.7 foco min/pomodoros | ✅ | Barras y línea con dos ejes en código; limitaciones generales de leyenda/a11y ya anotadas. |
-| 10.6.8 timeline SVG/hoy/detalle | ❌ | HTML con posiciones absolutas; sin detalle ni regla hoy, corte de medianoche incorrecto. |
-| 10.6.9 histograma/hora destacada | ⚠️ | Etiqueta mejor hora y 24 valores; no aceptación visual medida. |
-| 10.6.10 heatmap anual | ⚠️ | SVG lunes-domingo, 10/gap3/rx2, 5 niveles y leyenda; faltan meses, tooltip humano/unidades/pomodoros/cuartiles, detalle y scroll inicial reciente. Año incompleto por consulta. |
-| 10.6.11 tarjetas hábitos | ⚠️ | Tarjeta, métricas y color; rachas incorrectas; hábito sin logs muestra Sin datos de heatmap en vez del año vacío. |
-| 10.6.12 línea global hábitos | ✅ | Línea/área success 0–100 presente; exactitud del dato evaluada en F3. |
-| 10.6.13 edad texto/estimaciones | ✅ / N/A | Edad media/mediana en tarjeta; precisión pomodoro aplazada por D6. |
-| 10.7 wireframes | ⚠️ | Estructura parcial; faltan visualizaciones y controles descritos. Capturas no ejecutadas. |
-| 10.8 es-ES/números/duraciones/plurales | ⚠️ | Duraciones humanas; usa String para decimales/miles, prioridades inglesas, ISO y plurales concatenados. Solo navegación/scope nuevo pasan por i18n. |
-| 10.9 carga con silueta | ⚠️ | Skeleton genérico para todas las pestañas; no silueta de cada bloque. |
-| 10.9 vacío inicial/filtrado con acción | ❌ | No distinción sistemática ni enlaces accionables por bloque; puntualidad inventa 100% tarde. |
-| 10.9 error/reintento por bloque | ⚠️ | Reintento por query de pestaña; un error elimina todos los bloques de esa pestaña. |
-| 10.9 generación export | ⚠️ | Texto Generando, sin spinner ni tratamiento de error visible. |
-| 10.10 rangos/paseo histórico/atrás | ❌ | Rangos predefinidos ignoran fechas URL, replace elimina historial de cambios. |
-| 10.10 filtros persistentes/ignorar hábitos | ⚠️ | URL y aviso presentes; localStorage no persiste filtros. |
-| 10.10 KPI a detalle | ⚠️ | Mayoría navegan; logro dirige a Tareas sin detalle propio. |
-| 10.10 hover/tap/targets/scroll-snap | ⚠️ | Tooltip de Recharts; controles rango 32px/tabs 36–40px bajo 44px; scroll-snap declarado sin puntos por semana; sin detalle táctil heatmap. |
-| 10.10 día seleccionado/URL/popover/Esc | ❌ | No existe estado seleccionado ni popover de sesión/día. |
-| 10.10 teclado/focus | ⚠️ | Botones tabulables; faltan flechas tabs/segmented, heatmap enfocables y popovers. |
-| 10.11 tablas alternativas todos los gráficos | ❌ | DataTable solo en TrendChart; falta tasa, foco, histograma, hábitos, heatmap y timeline. |
-| 10.11 role img/resumen/tooltip no único dato | ⚠️ | Role/label genéricos, sin resumen estadístico; heatmap/timeline dependen de title. |
-| 10.11 contraste AA y no solo color | ⚠️ | Borde de nivel0, flechas y formas presentes; contraste no medido, sin QA claro/oscuro. |
-| 10.11 reduced motion | ❌ | Animaciones SVG de Recharts no se desactivan desde CSS reducido existente. |
-| 10.12 servidor <500ms y datos reales | ⚠️ | No medido; múltiples lecturas históricas y bucles O(días×tareas/logs). |
-| 10.12 TanStack staleTime/placeholder | ⚠️ | 5 min y keepPreviousData; sin atenuación de datos anteriores durante fetch. |
-| 10.12 prefetch pestañas | ✅ | Prefetch de tasks/focus/habits por rango/filtros. También hay consultas adicionales fuera de Resumen. |
-| 10.12 heatmap sin virtualización | ✅ | SVG de un año, sin virtualización. |
-| 10.12 lazy/bundle ~60KB | ⚠️ | Charts cargan lazy; presupuesto gzip no medido. |
-| 10.13 Recharts3 + SVG propio | ⚠️ | Recharts3 y heatmap SVG; timeline HTML. |
-| 10.13 reutilizar componente hábitos existente | ⚠️ | YearHeatmap compartido entre pestañas; `/habits` existente sigue usando su heatmap anterior. Su rediseño general está fuera, la unificación explícita no está completada. |
-| 10.14 oscuro/acento/densidad | ⚠️ | Reacción a tema/acento presente; sin reglas de densidad de tarjetas/filas de Estadísticas ni contraste medido. |
-| 10.15 QA visual obligatorio | ⚠️ | No verificable en esta revisión sin ejecutar la matriz visual; no certificada. |
+| Sección / requisito                           | Estado   | Evidencia o falta                                                                                                                                                               |
+| --------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 10.1 tokens de color/cambio tema y acento     | ✅       | chart-theme usa getComputedStyle y MutationObserver de data-theme/data-accent. Tokens --chart-1…8 en claro/oscuro.                                                              |
+| 10.1 tipografía/espaciado sin valores nuevos  | ⚠️       | Base usa tokens; gráficos usan fontSize 10/11/12, radios y medidas literales sin tokenizar todos los valores.                                                                   |
+| 10.2 ancho/12 columnas/KPI 3×2 y 2×3          | ✅       | CSS 1080px, 12 columnas, breakpoint 1024 y KPI responsive. Verificado en código, sin captura.                                                                                   |
+| 10.2 sticky escritorio/móvil                  | ⚠️       | Cabecera sticky escritorio y estática móvil; tabs móvil tampoco son sticky.                                                                                                     |
+| 10.3 cabecera desktop/móvil                   | ⚠️       | Flex-wrap general, sin organización móvil explícita por filas; segmented no tiene regla que garantice ajuste a 390px. Riesgo de desbordamiento, no medido.                      |
+| 10.3 filtros/selector/acciones                | ⚠️       | Botón y menú export existen; formulario IDs reemplaza multiselección; chips no muestran nombres; sin spinner.                                                                   |
+| 10.4 tabs URL/teclado/respaldo                | ⚠️       | role/tab aria-selected y navegación por click; sin patrón de flechas/roving focus ni respaldo localStorage.                                                                     |
+| 10.5 tarjetas sólidas/KPI                     | ✅       | Fondo/borde sólido/radio/padding y jerarquía de tokens.                                                                                                                         |
+| 10.5 variación/unidad/referencia              | ⚠️       | Flechas y color, pero variaciones en puntos se rotulan %, sin texto de período anterior; sparkline opcional ausente (no es gap).                                                |
+| 10.5 logro/fórmula/medalla                    | ⚠️       | Award y details; no popover, umbral ni detalle funcional.                                                                                                                       |
+| 10.6 comunes: ejes, fondo, fechas, tooltip    | ⚠️       | Base de tokens y ejes sin caja; tooltip genérico no incluye siempre numerador/denominador; ISO en timeline/heatmap.                                                             |
+| 10.6 leyenda interactiva                      | ❌       | Trend tiene Legend sin handler de ocultación; foco multiserie no tiene leyenda.                                                                                                 |
+| 10.6 animación <=300ms/reduced motion         | ❌       | CSS desactiva skeleton y barra propia; Recharts no recibe isAnimationActive condicionado ni duración requerida.                                                                 |
+| 10.6 huecos sin interpolar ceros              | ⚠️       | Tasa tiene connectNulls=false; varios vacíos se materializan como ceros y no hay estados específicos por gráfico.                                                               |
+| 10.6.1 tendencia protagonista/alto/adaptación | ⚠️       | Barras+línea y 260px; no buckets semanales para año ni 200px móvil.                                                                                                             |
+| 10.6.2 tasa área/objetivo 80%/tooltip         | ⚠️       | Área success y eje 0–100; falta referencia 80 %, tooltip con fracción y métrica correcta.                                                                                       |
+| 10.6.3–4 barras distribuciones/prioridad      | ⚠️       | Horizontales, top8+Otros, colores; etiquetas prioridad inglesas, sin unidad minutos, Otros no reservado siempre a chart-8.                                                      |
+| 10.6.5 puntualidad                            | ⚠️       | Barra 100% y media/mediana; sin datos muestra falsamente Tarde 100%.                                                                                                            |
+| 10.6.6 área apilada de vencidas               | ❌       | OverdueList muestra tres números del último punto; no área ni evolución.                                                                                                        |
+| 10.6.7 foco min/pomodoros                     | ✅       | Barras y línea con dos ejes en código; limitaciones generales de leyenda/a11y ya anotadas.                                                                                      |
+| 10.6.8 timeline SVG/hoy/detalle               | ❌       | HTML con posiciones absolutas; sin detalle ni regla hoy, corte de medianoche incorrecto.                                                                                        |
+| 10.6.9 histograma/hora destacada              | ⚠️       | Etiqueta mejor hora y 24 valores; no aceptación visual medida.                                                                                                                  |
+| 10.6.10 heatmap anual                         | ⚠️       | SVG lunes-domingo, 10/gap3/rx2, 5 niveles y leyenda; faltan meses, tooltip humano/unidades/pomodoros/cuartiles, detalle y scroll inicial reciente. Año incompleto por consulta. |
+| 10.6.11 tarjetas hábitos                      | ⚠️       | Tarjeta, métricas y color; rachas incorrectas; hábito sin logs muestra Sin datos de heatmap en vez del año vacío.                                                               |
+| 10.6.12 línea global hábitos                  | ✅       | Línea/área success 0–100 presente; exactitud del dato evaluada en F3.                                                                                                           |
+| 10.6.13 edad texto/estimaciones               | ✅ / N/A | Edad media/mediana en tarjeta; precisión pomodoro aplazada por D6.                                                                                                              |
+| 10.7 wireframes                               | ⚠️       | Estructura parcial; faltan visualizaciones y controles descritos. Capturas no ejecutadas.                                                                                       |
+| 10.8 es-ES/números/duraciones/plurales        | ⚠️       | Duraciones humanas; usa String para decimales/miles, prioridades inglesas, ISO y plurales concatenados. Solo navegación/scope nuevo pasan por i18n.                             |
+| 10.9 carga con silueta                        | ⚠️       | Skeleton genérico para todas las pestañas; no silueta de cada bloque.                                                                                                           |
+| 10.9 vacío inicial/filtrado con acción        | ❌       | No distinción sistemática ni enlaces accionables por bloque; puntualidad inventa 100% tarde.                                                                                    |
+| 10.9 error/reintento por bloque               | ⚠️       | Reintento por query de pestaña; un error elimina todos los bloques de esa pestaña.                                                                                              |
+| 10.9 generación export                        | ⚠️       | Texto Generando, sin spinner ni tratamiento de error visible.                                                                                                                   |
+| 10.10 rangos/paseo histórico/atrás            | ❌       | Rangos predefinidos ignoran fechas URL, replace elimina historial de cambios.                                                                                                   |
+| 10.10 filtros persistentes/ignorar hábitos    | ⚠️       | URL y aviso presentes; localStorage no persiste filtros.                                                                                                                        |
+| 10.10 KPI a detalle                           | ⚠️       | Mayoría navegan; logro dirige a Tareas sin detalle propio.                                                                                                                      |
+| 10.10 hover/tap/targets/scroll-snap           | ⚠️       | Tooltip de Recharts; controles rango 32px/tabs 36–40px bajo 44px; scroll-snap declarado sin puntos por semana; sin detalle táctil heatmap.                                      |
+| 10.10 día seleccionado/URL/popover/Esc        | ❌       | No existe estado seleccionado ni popover de sesión/día.                                                                                                                         |
+| 10.10 teclado/focus                           | ⚠️       | Botones tabulables; faltan flechas tabs/segmented, heatmap enfocables y popovers.                                                                                               |
+| 10.11 tablas alternativas todos los gráficos  | ❌       | DataTable solo en TrendChart; falta tasa, foco, histograma, hábitos, heatmap y timeline.                                                                                        |
+| 10.11 role img/resumen/tooltip no único dato  | ⚠️       | Role/label genéricos, sin resumen estadístico; heatmap/timeline dependen de title.                                                                                              |
+| 10.11 contraste AA y no solo color            | ⚠️       | Borde de nivel0, flechas y formas presentes; contraste no medido, sin QA claro/oscuro.                                                                                          |
+| 10.11 reduced motion                          | ❌       | Animaciones SVG de Recharts no se desactivan desde CSS reducido existente.                                                                                                      |
+| 10.12 servidor <500ms y datos reales          | ⚠️       | No medido; múltiples lecturas históricas y bucles O(días×tareas/logs).                                                                                                          |
+| 10.12 TanStack staleTime/placeholder          | ⚠️       | 5 min y keepPreviousData; sin atenuación de datos anteriores durante fetch.                                                                                                     |
+| 10.12 prefetch pestañas                       | ✅       | Prefetch de tasks/focus/habits por rango/filtros. También hay consultas adicionales fuera de Resumen.                                                                           |
+| 10.12 heatmap sin virtualización              | ✅       | SVG de un año, sin virtualización.                                                                                                                                              |
+| 10.12 lazy/bundle ~60KB                       | ⚠️       | Charts cargan lazy; presupuesto gzip no medido.                                                                                                                                 |
+| 10.13 Recharts3 + SVG propio                  | ⚠️       | Recharts3 y heatmap SVG; timeline HTML.                                                                                                                                         |
+| 10.13 reutilizar componente hábitos existente | ⚠️       | YearHeatmap compartido entre pestañas; `/habits` existente sigue usando su heatmap anterior. Su rediseño general está fuera, la unificación explícita no está completada.       |
+| 10.14 oscuro/acento/densidad                  | ⚠️       | Reacción a tema/acento presente; sin reglas de densidad de tarjetas/filas de Estadísticas ni contraste medido.                                                                  |
+| 10.15 QA visual obligatorio                   | ⚠️       | No verificable en esta revisión sin ejecutar la matriz visual; no certificada.                                                                                                  |
 
 ### Decisiones D1–D10
 
-| Decisión | Estado | Resultado |
-|---|---|---|
-| D1 entradas separadas | ✅ | Reportes y Estadísticas separados. |
-| D2 solo tareas con fecha | ⚠️ | KPI cumple; serie diaria incumple. |
-| D3 stats:read | ✅ | Registrado/aplicado; privacidad de títulos incumple §9. |
-| D4 sin stats_daily inicial | ✅ | Bajo demanda, sin tabla nueva. No hay datos de latencia para activar la condición de precálculo. |
-| D5 visible y ocultable en Ajustes | ⚠️ | Default true, desactivable en Jardín; no ocultación desde Ajustes. |
-| D6 estimaciones después | N/A | No bloquea F0–F4. |
-| D7 Recharts3/SVG | ⚠️ | Heatmap sí; timeline no SVG. |
-| D8 sidebar temporal | ✅ | Implementado, menú de cuenta no exigible mientras no exista. |
-| D9 ocho tonos/prioridades | ⚠️ | Tokens y prioridad correctos en código; Otros/Sin tarea no reservan sistemáticamente chart-8. |
-| D10 una puntuación/Jardín enlazado | ✅ | Mismo StatsService y enlace corregido. |
+| Decisión                           | Estado | Resultado                                                                                        |
+| ---------------------------------- | ------ | ------------------------------------------------------------------------------------------------ |
+| D1 entradas separadas              | ✅     | Reportes y Estadísticas separados.                                                               |
+| D2 solo tareas con fecha           | ⚠️     | KPI cumple; serie diaria incumple.                                                               |
+| D3 stats:read                      | ✅     | Registrado/aplicado; privacidad de títulos incumple §9.                                          |
+| D4 sin stats_daily inicial         | ✅     | Bajo demanda, sin tabla nueva. No hay datos de latencia para activar la condición de precálculo. |
+| D5 visible y ocultable en Ajustes  | ⚠️     | Default true, desactivable en Jardín; no ocultación desde Ajustes.                               |
+| D6 estimaciones después            | N/A    | No bloquea F0–F4.                                                                                |
+| D7 Recharts3/SVG                   | ⚠️     | Heatmap sí; timeline no SVG.                                                                     |
+| D8 sidebar temporal                | ✅     | Implementado, menú de cuenta no exigible mientras no exista.                                     |
+| D9 ocho tonos/prioridades          | ⚠️     | Tokens y prioridad correctos en código; Otros/Sin tarea no reservan sistemáticamente chart-8.    |
+| D10 una puntuación/Jardín enlazado | ✅     | Mismo StatsService y enlace corregido.                                                           |
 
 ## 3. Bloqueantes reproducibles
 

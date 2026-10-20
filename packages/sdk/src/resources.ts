@@ -1,5 +1,5 @@
 import { ApiError } from './errors';
-import type { components } from './generated/schema';
+import type { components, operations } from './generated/schema';
 import type { ApiClientOptions, PageQuery, Task } from './client';
 
 export type Me = components['schemas']['MeResponseDto'];
@@ -237,11 +237,12 @@ export interface ResourceClient {
   listAttachments(id: string): Promise<AttachmentPage>;
   uploadAttachment(id: string, file: Blob, fileName: string): Promise<Attachment>;
   dashboardData(): Promise<JsonObject>;
-  statsOverview(query: string): Promise<JsonObject>;
-  statsTasks(query: string): Promise<JsonObject>;
-  statsFocus(query: string): Promise<JsonObject>;
-  statsHabits(query: string): Promise<JsonObject>;
-  statsAchievement(): Promise<JsonObject>;
+  statsOverview(query: string): Promise<StatsOverview>;
+  statsTasks(query: string): Promise<StatsTasks>;
+  statsFocus(query: string): Promise<StatsFocus>;
+  statsHabits(query: string): Promise<StatsHabits>;
+  statsAchievement(): Promise<StatsAchievement>;
+  statsExport(query: string): Promise<Blob>;
   weeklyReports(): Promise<JsonObject>;
   buildWeeklyReport(): Promise<JsonObject>;
   reviewDaily(): Promise<JsonObject>;
@@ -462,15 +463,16 @@ export function resourceMethods(http: Http): ResourceClient {
     uploadAttachment: (id, file, fileName) => upload(http, id, file, fileName),
     dashboardData: () => ask('GET', '/api/v1/dashboard/data', undefined, undefined, isJsonObject),
     statsOverview: (query) =>
-      ask('GET', `/api/v1/stats/overview?${query}`, undefined, undefined, isJsonObject),
+      ask('GET', `/api/v1/stats/overview?${query}`, undefined, undefined, isStatsOverview),
     statsTasks: (query) =>
-      ask('GET', `/api/v1/stats/tasks?${query}`, undefined, undefined, isJsonObject),
+      ask('GET', `/api/v1/stats/tasks?${query}`, undefined, undefined, isStatsTasks),
     statsFocus: (query) =>
-      ask('GET', `/api/v1/stats/focus?${query}`, undefined, undefined, isJsonObject),
+      ask('GET', `/api/v1/stats/focus?${query}`, undefined, undefined, isStatsFocus),
     statsHabits: (query) =>
-      ask('GET', `/api/v1/stats/habits?${query}`, undefined, undefined, isJsonObject),
+      ask('GET', `/api/v1/stats/habits?${query}`, undefined, undefined, isStatsHabits),
+    statsExport: (query) => downloadStatistics(http, query),
     statsAchievement: () =>
-      ask('GET', '/api/v1/stats/achievement', undefined, undefined, isJsonObject),
+      ask('GET', '/api/v1/stats/achievement', undefined, undefined, isStatsAchievement),
     weeklyReports: () => ask('GET', '/api/v1/reports/weekly', undefined, undefined, isJsonObject),
     buildWeeklyReport: () =>
       ask('POST', '/api/v1/reports/weekly', undefined, undefined, isJsonObject),
@@ -807,4 +809,48 @@ function isJsonList(value: unknown): value is readonly JsonObject[] {
 
 function isEmpty(value: unknown): value is void {
   return value === undefined;
+}
+
+/** RF-2324: authenticated download, including development headers like all SDK calls. */
+async function downloadStatistics(http: Http, query: string): Promise<Blob> {
+  const headers: Record<string, string> = { accept: 'text/csv, application/json' };
+  if (http.options.devUserEmail) headers['X-Dev-User-Email'] = http.options.devUserEmail;
+  const init: RequestInit = { headers };
+  if (http.options.credentials) init.credentials = http.options.credentials;
+  const response = await http.call(
+    `${http.options.baseUrl.replace(/\/$/, '')}/api/v1/stats/export?${query}`,
+    init,
+  );
+  if (!response.ok) throw new ApiError(response.status, 'export_failed', 'Export failed');
+  return response.blob();
+}
+
+export type StatsOverview =
+  operations['StatsController_overview']['responses'][200]['content']['application/json'];
+function isStatsOverview(value: unknown): value is StatsOverview {
+  return isRecord(value) && 'summary' in value;
+}
+
+export type StatsTasks =
+  operations['StatsController_tasks']['responses'][200]['content']['application/json'];
+function isStatsTasks(value: unknown): value is StatsTasks {
+  return isRecord(value) && 'completion_rate' in value;
+}
+
+export type StatsFocus =
+  operations['StatsController_focus']['responses'][200]['content']['application/json'];
+function isStatsFocus(value: unknown): value is StatsFocus {
+  return isRecord(value) && 'focus_minutes' in value;
+}
+
+export type StatsHabits =
+  operations['StatsController_habits']['responses'][200]['content']['application/json'];
+function isStatsHabits(value: unknown): value is StatsHabits {
+  return isRecord(value) && 'habits' in value;
+}
+
+export type StatsAchievement =
+  operations['StatsController_achievement']['responses'][200]['content']['application/json'];
+function isStatsAchievement(value: unknown): value is StatsAchievement {
+  return isRecord(value) && 'enabled' in value;
 }

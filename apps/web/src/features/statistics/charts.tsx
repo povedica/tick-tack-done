@@ -1,205 +1,465 @@
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ComposedChart,
-  Legend,
-  Line,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { useEffect, useRef, useState } from 'react';
+import { Curve, Rectangle, Surface } from 'recharts';
 import { useChartTheme } from './chart-theme';
-import { formatHumanDay } from './range';
-
-export function TrendChart({
-  data,
-}: {
-  readonly data: readonly { readonly date: string; readonly completed: number; readonly created: number }[];
-}) {
-  const theme = useChartTheme();
-  const rows = data.map((row) => ({ ...row, label: formatHumanDay(row.date) }));
-  return (
-    <div className="stats-chart" role="img" aria-label="Tendencia de completadas y creadas">
-      <ResponsiveContainer width="100%" height={260}>
-        <ComposedChart data={rows}>
-          <CartesianGrid vertical={false} stroke={theme.border} />
-          <XAxis dataKey="label" tick={{ fill: theme.inkFaint, fontSize: 11 }} axisLine={false} tickLine={false} />
-          <YAxis allowDecimals={false} tick={{ fill: theme.inkFaint, fontSize: 11 }} axisLine={false} tickLine={false} />
-          <Tooltip contentStyle={tooltipStyle(theme)} />
-          <Legend />
-          <Bar dataKey="completed" name="Completadas" fill={theme.accent} radius={[3, 3, 0, 0]} />
-          <Line dataKey="created" name="Creadas" type="monotone" stroke={theme.ink2} strokeWidth={1.5} dot={false} />
-        </ComposedChart>
-      </ResponsiveContainer>
-      <DataTable
-        caption="Tendencia"
-        rows={rows.map((row) => [row.label, String(row.completed), String(row.created)])}
-        headers={['Fecha', 'Completadas', 'Creadas']}
-      />
-    </div>
-  );
+import { useStatisticsText, type StatisticsTextKey } from './text';
+import { DataTable } from './DataTable';
+type Row = Readonly<Record<string, string | number | null>>;
+interface Series {
+  key: string;
+  label: StatisticsTextKey;
+  color: string;
+  kind?: 'bar' | 'line' | 'area';
+  axis?: string;
 }
-
-export function RateChart({
+/** Recharts SVG primitives keep the full interaction/table contract without its chart-store bundle. */
+export function MetricChart({
   data,
+  series,
+  caption,
+  rate = false,
+  x = 'date',
+  stack = false,
 }: {
-  readonly data: readonly {
-    readonly date: string;
-    readonly rate: number | null;
-    readonly completed: number;
-    readonly planned: number;
-  }[];
+  readonly data: readonly Row[];
+  readonly series: readonly Series[];
+  readonly caption: StatisticsTextKey;
+  readonly rate?: boolean;
+  readonly x?: string;
+  readonly stack?: boolean;
 }) {
+  const { t, number, day } = useStatisticsText();
   const theme = useChartTheme();
-  const rows = data.map((row) => ({
-    label: formatHumanDay(row.date),
-    rate: row.rate,
-    completed: row.completed,
-    planned: row.planned,
+  const container = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ width: 600, height: 260 });
+  const [hidden, setHidden] = useState<string[]>([]);
+  const [active, setActive] = useState<number | null>(null);
+  useEffect(() => {
+    const node = container.current;
+    if (!node) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry && entry.contentRect.width > 0)
+        setSize({ width: entry.contentRect.width, height: entry.contentRect.height });
+    });
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+  const rows: (Record<string, string | number | null> & { label: string })[] = data.map((row) => ({
+    ...row,
+    label: x === 'date' ? day(String(row[x])) : String(row[x]),
   }));
+  const fields = series.filter((field) => !hidden.includes(field.key));
+  const secondary = fields.some((field) => field.axis === 'pom');
+  const left = 64,
+    right = secondary ? 40 : 24,
+    top = 20,
+    bottom = size.height - 32;
+  const width = Math.max(1, size.width - left - right);
+  const height = bottom - top;
+  const value = (row: Row, key: string) => (typeof row[key] === 'number' ? row[key] : 0);
+  const values = rows.map((row) =>
+    stack
+      ? fields.reduce((sum, field) => sum + value(row, field.key), 0)
+      : Math.max(
+          0,
+          ...fields.filter((field) => field.axis !== 'pom').map((field) => value(row, field.key)),
+        ),
+  );
+  const max = rate ? 100 : Math.max(1, ...values);
+  const pomMax = Math.max(
+    1,
+    ...rows.map((row) =>
+      Math.max(
+        0,
+        ...fields.filter((field) => field.axis === 'pom').map((field) => value(row, field.key)),
+      ),
+    ),
+  );
+  const position = (index: number) => left + ((index + 0.5) * width) / Math.max(rows.length, 1);
+  const y = (value: number, axis?: string) =>
+    bottom - (value / (axis === 'pom' ? pomMax : max)) * height;
+  const summary = `${t(caption)}: ${number(Math.min(0, ...values))}–${number(max)}`;
+  const selected = active === null ? null : rows[active];
+  const tickStep =
+    caption === 'trend' || caption === 'overdue' ? Math.max(1, Math.ceil(max / 4)) : max / 4;
+  const ticks = Array.from({ length: 5 }, (_, index) => index * tickStep).filter(
+    (value) => value <= max,
+  );
+  const barFields = fields.filter((field) => !field.kind || field.kind === 'bar');
   return (
-    <div className="stats-chart" role="img" aria-label="Tasa de completitud">
-      <ResponsiveContainer width="100%" height={220}>
-        <AreaChart data={rows}>
-          <CartesianGrid vertical={false} stroke={theme.border} />
-          <XAxis dataKey="label" tick={{ fill: theme.inkFaint, fontSize: 11 }} axisLine={false} tickLine={false} />
-          <YAxis domain={[0, 100]} tick={{ fill: theme.inkFaint, fontSize: 11 }} axisLine={false} tickLine={false} />
-          <Tooltip contentStyle={tooltipStyle(theme)} />
-          <Area
-            type="monotone"
-            dataKey="rate"
-            name="%"
-            stroke={theme.success}
-            fill={theme.success}
-            fillOpacity={0.08}
-            strokeWidth={2}
-            connectNulls={false}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
-    </div>
+    <>
+      <div
+        ref={container}
+        className="stats-chart"
+        role="group"
+        aria-label={summary}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') setActive(null);
+        }}
+      >
+        <Surface
+          width={size.width}
+          height={size.height}
+          viewBox={{ x: 0, y: 0, width: size.width, height: size.height }}
+          aria-label={summary}
+        >
+          <title>{summary}</title>
+          {ticks.map((tick) => (
+            <g key={tick}>
+              <line
+                x1={left}
+                x2={size.width - right}
+                y1={y(tick)}
+                y2={y(tick)}
+                stroke={theme.border}
+              />
+              <text
+                x={left - 6}
+                y={y(tick) + 4}
+                textAnchor="end"
+                fill={theme.inkFaint}
+                fontSize="var(--fs-xs)"
+              >
+                {number(tick)}
+              </text>
+            </g>
+          ))}
+          {rate ? (
+            <g>
+              <line
+                x1={left}
+                x2={size.width - right}
+                y1={y(80)}
+                y2={y(80)}
+                stroke={theme.success}
+                strokeDasharray="4 4"
+              />
+              <text x={left + 4} y={y(80) - 4} fill={theme.ink2} fontSize="var(--fs-xs)">
+                80 %
+              </text>
+            </g>
+          ) : null}
+          {fields.map((field, fieldIndex) => {
+            const cumulative = (row: Row) =>
+              stack
+                ? fields
+                    .slice(0, fieldIndex)
+                    .reduce((sum, previous) => sum + value(row, previous.key), 0)
+                : 0;
+            const points = rows.map((row, index) => ({
+              x: position(index),
+              y:
+                row[field.key] === null
+                  ? null
+                  : y(value(row, field.key) + cumulative(row), field.axis),
+            }));
+            const opacity = active === null ? 1 : 0.45;
+            if (field.kind === 'line')
+              return (
+                <g key={field.key}>
+                  <Curve
+                    points={points}
+                    type="linear"
+                    connectNulls={false}
+                    fill="none"
+                    stroke={field.color}
+                    strokeWidth={2}
+                  />
+                  {points.map((point, index) =>
+                    point.y === null ? null : (
+                      <circle
+                        key={index}
+                        cx={point.x}
+                        cy={point.y}
+                        r={active === index ? 4 : 2}
+                        fill={field.color}
+                      />
+                    ),
+                  )}
+                </g>
+              );
+            if (field.kind === 'area')
+              return (
+                <g key={field.key}>
+                  <Curve
+                    key={field.key}
+                    points={points}
+                    baseLine={
+                      stack
+                        ? rows.map((row, index) => ({ x: position(index), y: y(cumulative(row)) }))
+                        : bottom
+                    }
+                    type="linear"
+                    connectNulls={false}
+                    fill={field.color}
+                    fillOpacity={stack ? (fieldIndex === 0 ? 0.5 : 0.85) : 0.08}
+                    stroke={field.color}
+                    strokeWidth={2}
+                  />
+                  {points.map((point, index) =>
+                    point.y === null ? null : (
+                      <circle key={index} cx={point.x} cy={point.y} r={3} fill={field.color} />
+                    ),
+                  )}
+                </g>
+              );
+            const barWidth =
+              ((width / Math.max(rows.length, 1)) * 0.65) / Math.max(barFields.length, 1);
+            const offset = barFields.indexOf(field);
+            return (
+              <g key={field.key}>
+                {rows.map((row, index) => (
+                  <Rectangle
+                    key={index}
+                    x={position(index) - (barWidth * barFields.length) / 2 + offset * barWidth}
+                    y={y(value(row, field.key))}
+                    width={Math.max(1, barWidth)}
+                    height={bottom - y(value(row, field.key))}
+                    radius={[3, 3, 0, 0]}
+                    fill={field.color}
+                    opacity={active === index ? 1 : opacity}
+                  />
+                ))}
+              </g>
+            );
+          })}
+          {rows.map((row, index) => (
+            <g
+              key={index}
+              role="button"
+              tabIndex={0}
+              aria-label={`${row.label} · ${fields.map((field) => `${t(field.label)} ${number(value(row, field.key))}`).join(' · ')}`}
+              onMouseEnter={() => {
+                setActive(index);
+              }}
+              onMouseLeave={() => {
+                setActive(null);
+              }}
+              onFocus={() => {
+                setActive(index);
+              }}
+              onBlur={() => {
+                setActive(null);
+              }}
+              onClick={() => {
+                setActive(active === index ? null : index);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  setActive(active === index ? null : index);
+                }
+                if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+                  event.preventDefault();
+                  const target =
+                    event.currentTarget.parentElement?.querySelectorAll<SVGGElement>(
+                      '[role=button]',
+                    )[(index + (event.key === 'ArrowRight' ? 1 : -1) + rows.length) % rows.length];
+                  target?.focus();
+                }
+              }}
+            >
+              <rect
+                x={position(index) - width / Math.max(rows.length, 1) / 2}
+                y={top}
+                width={width / Math.max(rows.length, 1)}
+                height={height}
+                fill="transparent"
+              />
+              {index % Math.max(1, Math.ceil(rows.length / (size.width < 500 ? 4 : 8))) === 0 ? (
+                <text
+                  x={position(index)}
+                  y={bottom + 20}
+                  textAnchor="middle"
+                  fill={theme.inkFaint}
+                  fontSize="var(--fs-xs)"
+                >
+                  {row.label}
+                </text>
+              ) : null}
+            </g>
+          ))}
+          {secondary ? (
+            <>
+              <text
+                x={size.width - 4}
+                y={top}
+                textAnchor="end"
+                fill={theme.inkFaint}
+                fontSize="var(--fs-xs)"
+              >
+                {number(pomMax)}
+              </text>
+              <text
+                x={size.width - 4}
+                y={bottom}
+                textAnchor="end"
+                fill={theme.inkFaint}
+                fontSize="var(--fs-xs)"
+              >
+                0
+              </text>
+            </>
+          ) : null}
+        </Surface>
+        {selected ? (
+          <div className="stats-chart-tooltip" role="status">
+            <strong>{selected.label}</strong>
+            {fields.map((field) => (
+              <p key={field.key}>
+                {t(field.label)}:{' '}
+                {selected[field.key] === null ? '—' : number(value(selected, field.key))}
+              </p>
+            ))}
+            {rate && 'planned' in selected ? (
+              <p>
+                {number(value(selected, 'completed'))}/{number(value(selected, 'planned'))}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+      {series.length > 1 ? (
+        <div className="stats-legend">
+          {series.map((field) => (
+            <button
+              key={field.key}
+              type="button"
+              aria-pressed={!hidden.includes(field.key)}
+              onClick={() => {
+                setHidden(
+                  hidden.includes(field.key)
+                    ? hidden.filter((key) => key !== field.key)
+                    : [...hidden, field.key],
+                );
+              }}
+            >
+              <span style={{ background: field.color }} />
+              {t(field.label)}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <DataTable
+        caption={t(caption)}
+        headers={[
+          t(x === 'date' ? 'date' : 'hour'),
+          ...series.map((field) => t(field.label)),
+          ...(rate ? [t('completed'), t('planned')] : []),
+        ]}
+        rows={rows.map((row) => [
+          row.label,
+          ...series.map((field) =>
+            typeof row[field.key] === 'number' ? number(Number(row[field.key])) : '—',
+          ),
+          ...(rate ? [number(Number(row.completed ?? 0)), number(Number(row.planned ?? 0))] : []),
+        ])}
+      />
+    </>
   );
 }
-
-export function FocusTrendChart({
-  data,
-}: {
-  readonly data: readonly { readonly date: string; readonly minutes: number; readonly pomodoros: number }[];
-}) {
+export function TrendChart({ data }: { readonly data: readonly Row[] }) {
   const theme = useChartTheme();
-  const rows = data.map((row) => ({ ...row, label: formatHumanDay(row.date) }));
   return (
-    <div className="stats-chart" role="img" aria-label="Tendencia de foco">
-      <ResponsiveContainer width="100%" height={240}>
-        <ComposedChart data={rows}>
-          <CartesianGrid vertical={false} stroke={theme.border} />
-          <XAxis dataKey="label" tick={{ fill: theme.inkFaint, fontSize: 11 }} axisLine={false} tickLine={false} />
-          <YAxis yAxisId="min" tick={{ fill: theme.inkFaint, fontSize: 11 }} axisLine={false} tickLine={false} />
-          <YAxis yAxisId="pom" orientation="right" allowDecimals={false} tick={{ fill: theme.inkFaint, fontSize: 11 }} axisLine={false} tickLine={false} />
-          <Tooltip contentStyle={tooltipStyle(theme)} />
-          <Bar yAxisId="min" dataKey="minutes" name="Minutos" fill={theme.accent} radius={[3, 3, 0, 0]} />
-          <Line yAxisId="pom" dataKey="pomodoros" name="Pomodoros" stroke={theme.accentActive} strokeWidth={2} />
-        </ComposedChart>
-      </ResponsiveContainer>
-    </div>
+    <MetricChart
+      data={data}
+      caption="trend"
+      series={[
+        { key: 'completed', label: 'completed', color: theme.accent },
+        { key: 'created', label: 'created', color: theme.ink2, kind: 'line' },
+      ]}
+    />
   );
 }
-
+export function RateChart({ data }: { readonly data: readonly Row[] }) {
+  const theme = useChartTheme();
+  return (
+    <MetricChart
+      data={data}
+      caption="rate"
+      rate
+      series={[{ key: 'rate', label: 'rate', color: theme.success, kind: 'area' }]}
+    />
+  );
+}
+export function FocusTrendChart({ data }: { readonly data: readonly Row[] }) {
+  const theme = useChartTheme();
+  return (
+    <MetricChart
+      data={data}
+      caption="focusTrend"
+      series={[
+        { key: 'minutes', label: 'minutes', color: theme.accent },
+        {
+          key: 'pomodoros',
+          label: 'pomodoros',
+          color: theme.accentActive,
+          kind: 'line',
+          axis: 'pom',
+        },
+      ]}
+    />
+  );
+}
 export function HourHistogram({
   data,
   bestHour,
 }: {
-  readonly data: readonly { readonly hour: number; readonly minutes: number }[];
+  readonly data: readonly Row[];
   readonly bestHour: number | null;
 }) {
   const theme = useChartTheme();
-  const rows = data.map((row) => ({
-    ...row,
-    fill: row.hour === bestHour ? theme.accentActive : theme.accent,
-  }));
+  const { t } = useStatisticsText();
   return (
-    <div className="stats-chart" role="img" aria-label="Hora más enfocada">
-      <ResponsiveContainer width="100%" height={200}>
-        <BarChart data={rows}>
-          <XAxis dataKey="hour" tick={{ fill: theme.inkFaint, fontSize: 10 }} axisLine={false} tickLine={false} />
-          <Tooltip contentStyle={tooltipStyle(theme)} />
-          <Bar dataKey="minutes" name="Minutos" fill={theme.accent} radius={[2, 2, 0, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
+    <>
+      <MetricChart
+        data={data}
+        caption="bestHour"
+        x="hour"
+        series={[{ key: 'minutes', label: 'minutes', color: theme.accent }]}
+      />
       {bestHour !== null ? (
-        <p className="stats-caption">
-          Tu mejor hora: {String(bestHour)}–{String(bestHour + 1)} h
+        <p>
+          {t('bestHour')}: {bestHour}–{bestHour + 1} h
         </p>
       ) : null}
-    </div>
+    </>
   );
 }
-
-export function HabitLineChart({
-  data,
-}: {
-  readonly data: readonly { readonly date: string; readonly percent: number | null }[];
-}) {
+export function HabitLineChart({ data }: { readonly data: readonly Row[] }) {
   const theme = useChartTheme();
-  const rows = data.map((row) => ({ label: formatHumanDay(row.date), percent: row.percent }));
   return (
-    <div className="stats-chart" role="img" aria-label="Cumplimiento global de hábitos">
-      <ResponsiveContainer width="100%" height={220}>
-        <AreaChart data={rows}>
-          <CartesianGrid vertical={false} stroke={theme.border} />
-          <XAxis dataKey="label" tick={{ fill: theme.inkFaint, fontSize: 11 }} axisLine={false} tickLine={false} />
-          <YAxis domain={[0, 100]} tick={{ fill: theme.inkFaint, fontSize: 11 }} axisLine={false} tickLine={false} />
-          <Tooltip contentStyle={tooltipStyle(theme)} />
-          <Area type="monotone" dataKey="percent" stroke={theme.success} fill={theme.success} fillOpacity={0.08} strokeWidth={2} />
-        </AreaChart>
-      </ResponsiveContainer>
-    </div>
+    <MetricChart
+      data={data}
+      caption="global"
+      rate
+      series={[{ key: 'percent', label: 'percent', color: theme.success, kind: 'line' }]}
+    />
   );
 }
-
-function tooltipStyle(theme: { surface: string; border: string }) {
-  return {
-    background: theme.surface,
-    border: `1px solid ${theme.border}`,
-    borderRadius: 8,
-    fontSize: 12,
-  };
-}
-
-function DataTable({
-  caption,
-  headers,
-  rows,
-}: {
-  readonly caption: string;
-  readonly headers: readonly string[];
-  readonly rows: readonly (readonly string[])[];
-}) {
+export function OverdueChart({ data }: { readonly data: readonly Row[] }) {
+  const theme = useChartTheme();
   return (
-    <details className="stats-table">
-      <summary>Ver como tabla · {caption}</summary>
-      <table>
-        <thead>
-          <tr>
-            {headers.map((header) => (
-              <th key={header}>{header}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.join('-')}>
-              {row.map((cell) => (
-                <td key={cell}>{cell}</td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </details>
+    <MetricChart
+      data={data}
+      caption="overdue"
+      stack
+      series={[
+        { key: 'under_7', label: 'under7', color: theme.warning, kind: 'area' },
+        { key: 'days_7_30', label: 'mid', color: theme.warning, kind: 'area' },
+        { key: 'over_30', label: 'over30', color: theme.danger, kind: 'area' },
+      ]}
+    />
+  );
+}
+export function AchievementChart({ data }: { readonly data: readonly Row[] }) {
+  const theme = useChartTheme();
+  return (
+    <MetricChart
+      data={data}
+      caption="history"
+      series={[{ key: 'score', label: 'points', color: theme.accent, kind: 'line' }]}
+    />
   );
 }

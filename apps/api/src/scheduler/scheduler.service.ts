@@ -839,7 +839,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async fire(now: Date, catchUp: boolean): Promise<{ fired: number; late: number }> {
-    const workerId = `scheduler-${process.pid}`;
+    const workerId = `scheduler-${String(process.pid)}`;
     const due = await this.prisma.reminderDelivery.findMany({
       where: {
         AND: [

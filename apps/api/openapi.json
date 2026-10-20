@@ -6781,11 +6781,425 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "day",
+            "required": false,
+            "in": "query",
+            "description": "Selected timeline day, independent of the filtered period",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "group",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "day",
+                "week",
+                "month"
+              ]
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "summary": {
+                      "type": "object",
+                      "properties": {
+                        "completed": {
+                          "type": "integer"
+                        },
+                        "completed_previous": {
+                          "type": "integer"
+                        },
+                        "completed_delta_percent": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "completion_rate": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "completion_rate_delta_pt": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "completion_completed": {
+                          "type": "integer"
+                        },
+                        "completion_planned": {
+                          "type": "integer"
+                        },
+                        "focus_minutes": {
+                          "type": "number"
+                        },
+                        "focus_minutes_delta_percent": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "pomodoros": {
+                          "type": "integer"
+                        },
+                        "habit_percent": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "habit_done": {
+                          "type": "integer"
+                        },
+                        "habit_expected": {
+                          "type": "integer"
+                        },
+                        "habit_delta_pt": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "streak_current": {
+                          "type": "integer"
+                        },
+                        "streak_best_year": {
+                          "type": "integer"
+                        },
+                        "achievement": {
+                          "type": "object",
+                          "properties": {
+                            "enabled": {
+                              "type": "boolean"
+                            },
+                            "score": {
+                              "type": "number",
+                              "nullable": true
+                            },
+                            "level": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "level_index": {
+                              "type": "integer",
+                              "nullable": true
+                            },
+                            "next_threshold": {
+                              "type": "number",
+                              "nullable": true
+                            },
+                            "progress_to_next": {
+                              "type": "number",
+                              "nullable": true
+                            },
+                            "formula": {
+                              "type": "object",
+                              "properties": {
+                                "on_time_points": {
+                                  "type": "number"
+                                },
+                                "late_points": {
+                                  "type": "number"
+                                },
+                                "priority_points": {
+                                  "type": "number"
+                                },
+                                "pomodoro_points": {
+                                  "type": "number"
+                                },
+                                "habit_points": {
+                                  "type": "number"
+                                },
+                                "overdue_penalty": {
+                                  "type": "number"
+                                },
+                                "weights": {
+                                  "type": "object",
+                                  "properties": {
+                                    "on_time_base": {
+                                      "type": "number"
+                                    },
+                                    "late_base": {
+                                      "type": "number"
+                                    },
+                                    "priority_high_bonus": {
+                                      "type": "number"
+                                    },
+                                    "priority_medium_bonus": {
+                                      "type": "number"
+                                    },
+                                    "priority_low_bonus": {
+                                      "type": "number"
+                                    },
+                                    "pomodoro": {
+                                      "type": "number"
+                                    },
+                                    "habit_check_in": {
+                                      "type": "number"
+                                    },
+                                    "overdue_penalty": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": [
+                                    "on_time_base",
+                                    "late_base",
+                                    "priority_high_bonus",
+                                    "priority_medium_bonus",
+                                    "priority_low_bonus",
+                                    "pomodoro",
+                                    "habit_check_in",
+                                    "overdue_penalty"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "on_time_points",
+                                "late_points",
+                                "priority_points",
+                                "pomodoro_points",
+                                "habit_points",
+                                "overdue_penalty",
+                                "weights"
+                              ],
+                              "nullable": true
+                            },
+                            "levels": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "threshold": {
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "threshold"
+                                ]
+                              }
+                            },
+                            "history": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "date": {
+                                    "type": "string",
+                                    "format": "date"
+                                  },
+                                  "score": {
+                                    "type": "number",
+                                    "nullable": true
+                                  }
+                                },
+                                "required": [
+                                  "date",
+                                  "score"
+                                ]
+                              }
+                            }
+                          },
+                          "required": [
+                            "enabled",
+                            "score",
+                            "level",
+                            "level_index",
+                            "next_threshold",
+                            "progress_to_next",
+                            "formula",
+                            "levels",
+                            "history"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "completed",
+                        "completed_previous",
+                        "completed_delta_percent",
+                        "completion_rate",
+                        "completion_rate_delta_pt",
+                        "completion_completed",
+                        "completion_planned",
+                        "focus_minutes",
+                        "focus_minutes_delta_percent",
+                        "pomodoros",
+                        "habit_percent",
+                        "habit_done",
+                        "habit_expected",
+                        "habit_delta_pt",
+                        "streak_current",
+                        "streak_best_year",
+                        "achievement"
+                      ]
+                    },
+                    "trend": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "date": {
+                            "type": "string",
+                            "format": "date"
+                          },
+                          "completed": {
+                            "type": "integer"
+                          },
+                          "created": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "date",
+                          "completed",
+                          "created"
+                        ]
+                      }
+                    },
+                    "daily": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "date": {
+                            "type": "string",
+                            "format": "date"
+                          },
+                          "completed": {
+                            "type": "integer"
+                          },
+                          "created": {
+                            "type": "integer"
+                          },
+                          "planned": {
+                            "type": "integer"
+                          },
+                          "completion_completed": {
+                            "type": "integer"
+                          },
+                          "focus_seconds": {
+                            "type": "number"
+                          },
+                          "focus_minutes": {
+                            "type": "number"
+                          },
+                          "pomodoros": {
+                            "type": "integer"
+                          },
+                          "habit_percent": {
+                            "type": "number",
+                            "nullable": true
+                          }
+                        },
+                        "required": [
+                          "date",
+                          "completed",
+                          "created",
+                          "planned",
+                          "completion_completed",
+                          "focus_seconds",
+                          "focus_minutes",
+                          "pomodoros",
+                          "habit_percent"
+                        ]
+                      }
+                    },
+                    "best_moment": {
+                      "type": "object",
+                      "properties": {
+                        "by_weekday": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "weekday": {
+                                "type": "integer"
+                              },
+                              "completed": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "weekday",
+                              "completed"
+                            ]
+                          }
+                        },
+                        "by_band": {
+                          "type": "object",
+                          "properties": {
+                            "morning": {
+                              "type": "integer"
+                            },
+                            "afternoon": {
+                              "type": "integer"
+                            },
+                            "evening": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "morning",
+                            "afternoon",
+                            "evening"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "by_weekday",
+                        "by_band"
+                      ]
+                    },
+                    "completion_series": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "date": {
+                            "type": "string",
+                            "format": "date"
+                          },
+                          "rate": {
+                            "type": "number",
+                            "nullable": true
+                          },
+                          "completed": {
+                            "type": "integer"
+                          },
+                          "planned": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "date",
+                          "rate",
+                          "completed",
+                          "planned"
+                        ]
+                      }
+                    },
+                    "phrase": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "summary",
+                    "trend",
+                    "daily",
+                    "best_moment",
+                    "completion_series",
+                    "phrase"
+                  ]
+                }
+              }
+            }
           }
         },
         "summary": "Statistics overview KPIs and trend (RF-2321)",
@@ -6865,11 +7279,356 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "day",
+            "required": false,
+            "in": "query",
+            "description": "Selected timeline day, independent of the filtered period",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "group",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "day",
+                "week",
+                "month"
+              ]
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "trend": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "date": {
+                            "type": "string",
+                            "format": "date"
+                          },
+                          "completed": {
+                            "type": "integer"
+                          },
+                          "created": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "date",
+                          "completed",
+                          "created"
+                        ]
+                      }
+                    },
+                    "daily": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "date": {
+                            "type": "string",
+                            "format": "date"
+                          },
+                          "completed": {
+                            "type": "integer"
+                          },
+                          "created": {
+                            "type": "integer"
+                          },
+                          "planned": {
+                            "type": "integer"
+                          },
+                          "completion_completed": {
+                            "type": "integer"
+                          },
+                          "focus_seconds": {
+                            "type": "number"
+                          },
+                          "focus_minutes": {
+                            "type": "number"
+                          },
+                          "pomodoros": {
+                            "type": "integer"
+                          },
+                          "habit_percent": {
+                            "type": "number",
+                            "nullable": true
+                          }
+                        },
+                        "required": [
+                          "date",
+                          "completed",
+                          "created",
+                          "planned",
+                          "completion_completed",
+                          "focus_seconds",
+                          "focus_minutes",
+                          "pomodoros",
+                          "habit_percent"
+                        ]
+                      }
+                    },
+                    "completion_rate": {
+                      "type": "object",
+                      "properties": {
+                        "completed": {
+                          "type": "integer"
+                        },
+                        "planned": {
+                          "type": "integer"
+                        },
+                        "rate": {
+                          "type": "number",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "completed",
+                        "planned",
+                        "rate"
+                      ]
+                    },
+                    "completion_series": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "date": {
+                            "type": "string",
+                            "format": "date"
+                          },
+                          "rate": {
+                            "type": "number",
+                            "nullable": true
+                          },
+                          "completed": {
+                            "type": "integer"
+                          },
+                          "planned": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "date",
+                          "rate",
+                          "completed",
+                          "planned"
+                        ]
+                      }
+                    },
+                    "by_list": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "color": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "value": {
+                            "type": "number"
+                          },
+                          "percent": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "label",
+                          "color",
+                          "value",
+                          "percent"
+                        ]
+                      }
+                    },
+                    "by_tag": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "color": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "value": {
+                            "type": "number"
+                          },
+                          "percent": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "label",
+                          "color",
+                          "value",
+                          "percent"
+                        ]
+                      }
+                    },
+                    "by_priority": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "color": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "value": {
+                            "type": "number"
+                          },
+                          "percent": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "label",
+                          "color",
+                          "value",
+                          "percent"
+                        ]
+                      }
+                    },
+                    "punctuality": {
+                      "type": "object",
+                      "properties": {
+                        "sample": {
+                          "type": "integer"
+                        },
+                        "delay_cap_days": {
+                          "type": "number"
+                        },
+                        "capped_samples": {
+                          "type": "integer"
+                        },
+                        "on_time": {
+                          "type": "integer"
+                        },
+                        "late": {
+                          "type": "integer"
+                        },
+                        "on_time_percent": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "mean_delay_days": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "median_delay_days": {
+                          "type": "number",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "sample",
+                        "delay_cap_days",
+                        "capped_samples",
+                        "on_time",
+                        "late",
+                        "on_time_percent",
+                        "mean_delay_days",
+                        "median_delay_days"
+                      ]
+                    },
+                    "age_on_complete": {
+                      "type": "object",
+                      "properties": {
+                        "mean_days": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "median_days": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "sample": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "mean_days",
+                        "median_days",
+                        "sample"
+                      ]
+                    },
+                    "overdue_stock": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "date": {
+                            "type": "string",
+                            "format": "date"
+                          },
+                          "under_7": {
+                            "type": "integer"
+                          },
+                          "days_7_30": {
+                            "type": "integer"
+                          },
+                          "over_30": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "date",
+                          "under_7",
+                          "days_7_30",
+                          "over_30"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "trend",
+                    "daily",
+                    "completion_rate",
+                    "completion_series",
+                    "by_list",
+                    "by_tag",
+                    "by_priority",
+                    "punctuality",
+                    "age_on_complete",
+                    "overdue_stock"
+                  ]
+                }
+              }
+            }
           }
         },
         "summary": "Task statistics series and distributions (RF-2321)",
@@ -6885,6 +7644,7 @@
     },
     "/api/v1/stats/focus": {
       "get": {
+        "description": "stats:read grants aggregates. Task titles and per-task distribution require tasks:read; otherwise titles are null and by_task is empty. PAT list restrictions also apply.",
         "operationId": "StatsController_focus",
         "parameters": [
           {
@@ -6949,11 +7709,328 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "day",
+            "required": false,
+            "in": "query",
+            "description": "Selected timeline day, independent of the filtered period",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "group",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "day",
+                "week",
+                "month"
+              ]
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "focus_minutes": {
+                      "type": "number"
+                    },
+                    "focus_seconds": {
+                      "type": "number"
+                    },
+                    "pomodoros": {
+                      "type": "integer"
+                    },
+                    "completed_sessions": {
+                      "type": "integer"
+                    },
+                    "abandoned_sessions": {
+                      "type": "integer"
+                    },
+                    "completed_percent": {
+                      "type": "number",
+                      "nullable": true
+                    },
+                    "interruptions_per_session": {
+                      "type": "number"
+                    },
+                    "trend": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "date": {
+                            "type": "string",
+                            "format": "date"
+                          },
+                          "minutes": {
+                            "type": "number"
+                          },
+                          "pomodoros": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "date",
+                          "minutes",
+                          "pomodoros"
+                        ]
+                      }
+                    },
+                    "best_hour": {
+                      "type": "integer",
+                      "nullable": true
+                    },
+                    "hours": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "hour": {
+                            "type": "integer"
+                          },
+                          "minutes": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "hour",
+                          "minutes"
+                        ]
+                      }
+                    },
+                    "timeline_day": {
+                      "type": "string",
+                      "format": "date"
+                    },
+                    "period_timeline": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "start": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "end": {
+                            "type": "string",
+                            "format": "date-time",
+                            "nullable": true
+                          },
+                          "minutes": {
+                            "type": "number"
+                          },
+                          "task_title": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "completed": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "start",
+                          "end",
+                          "minutes",
+                          "task_title",
+                          "completed"
+                        ]
+                      }
+                    },
+                    "timeline": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "start": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "end": {
+                            "type": "string",
+                            "format": "date-time",
+                            "nullable": true
+                          },
+                          "minutes": {
+                            "type": "number"
+                          },
+                          "task_title": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "completed": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "start",
+                          "end",
+                          "minutes",
+                          "task_title",
+                          "completed"
+                        ]
+                      }
+                    },
+                    "heatmap": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "date": {
+                            "type": "string",
+                            "format": "date"
+                          },
+                          "minutes": {
+                            "type": "number"
+                          },
+                          "pomodoros": {
+                            "type": "integer"
+                          },
+                          "level": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "date",
+                          "minutes",
+                          "pomodoros",
+                          "level"
+                        ]
+                      }
+                    },
+                    "by_list": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "color": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "value": {
+                            "type": "number"
+                          },
+                          "percent": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "label",
+                          "color",
+                          "value",
+                          "percent"
+                        ]
+                      }
+                    },
+                    "by_tag": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "color": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "value": {
+                            "type": "number"
+                          },
+                          "percent": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "label",
+                          "color",
+                          "value",
+                          "percent"
+                        ]
+                      }
+                    },
+                    "by_task": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "color": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "value": {
+                            "type": "number"
+                          },
+                          "percent": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "label",
+                          "color",
+                          "value",
+                          "percent"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "focus_minutes",
+                    "focus_seconds",
+                    "pomodoros",
+                    "completed_sessions",
+                    "abandoned_sessions",
+                    "completed_percent",
+                    "interruptions_per_session",
+                    "trend",
+                    "best_hour",
+                    "hours",
+                    "timeline_day",
+                    "period_timeline",
+                    "timeline",
+                    "heatmap",
+                    "by_list",
+                    "by_tag",
+                    "by_task"
+                  ]
+                }
+              }
+            }
           }
         },
         "summary": "Focus statistics, heatmap and distribution (RF-2322)",
@@ -7033,11 +8110,323 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "day",
+            "required": false,
+            "in": "query",
+            "description": "Selected timeline day, independent of the filtered period",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "group",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "day",
+                "week",
+                "month"
+              ]
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "habits": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "icon": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "color": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "streak_current": {
+                            "type": "integer"
+                          },
+                          "streak_best": {
+                            "type": "integer"
+                          },
+                          "percent": {
+                            "type": "number"
+                          },
+                          "done": {
+                            "type": "integer"
+                          },
+                          "expected": {
+                            "type": "integer"
+                          },
+                          "heatmap": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "date": {
+                                  "type": "string",
+                                  "format": "date"
+                                },
+                                "count": {
+                                  "type": "integer"
+                                },
+                                "met": {
+                                  "type": "boolean"
+                                },
+                                "scheduled": {
+                                  "type": "boolean"
+                                },
+                                "level": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "date",
+                                "count",
+                                "met",
+                                "scheduled",
+                                "level"
+                              ]
+                            }
+                          },
+                          "weakest_weekday": {
+                            "type": "integer",
+                            "nullable": true
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "icon",
+                          "color",
+                          "streak_current",
+                          "streak_best",
+                          "percent",
+                          "done",
+                          "expected",
+                          "heatmap",
+                          "weakest_weekday"
+                        ]
+                      }
+                    },
+                    "ranking_best": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "icon": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "color": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "streak_current": {
+                            "type": "integer"
+                          },
+                          "streak_best": {
+                            "type": "integer"
+                          },
+                          "percent": {
+                            "type": "number"
+                          },
+                          "done": {
+                            "type": "integer"
+                          },
+                          "expected": {
+                            "type": "integer"
+                          },
+                          "heatmap": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "date": {
+                                  "type": "string",
+                                  "format": "date"
+                                },
+                                "count": {
+                                  "type": "integer"
+                                },
+                                "met": {
+                                  "type": "boolean"
+                                },
+                                "scheduled": {
+                                  "type": "boolean"
+                                },
+                                "level": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "date",
+                                "count",
+                                "met",
+                                "scheduled",
+                                "level"
+                              ]
+                            }
+                          },
+                          "weakest_weekday": {
+                            "type": "integer",
+                            "nullable": true
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "icon",
+                          "color",
+                          "streak_current",
+                          "streak_best",
+                          "percent",
+                          "done",
+                          "expected",
+                          "heatmap",
+                          "weakest_weekday"
+                        ]
+                      }
+                    },
+                    "ranking_worst": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "icon": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "color": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "streak_current": {
+                            "type": "integer"
+                          },
+                          "streak_best": {
+                            "type": "integer"
+                          },
+                          "percent": {
+                            "type": "number"
+                          },
+                          "done": {
+                            "type": "integer"
+                          },
+                          "expected": {
+                            "type": "integer"
+                          },
+                          "heatmap": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "date": {
+                                  "type": "string",
+                                  "format": "date"
+                                },
+                                "count": {
+                                  "type": "integer"
+                                },
+                                "met": {
+                                  "type": "boolean"
+                                },
+                                "scheduled": {
+                                  "type": "boolean"
+                                },
+                                "level": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "date",
+                                "count",
+                                "met",
+                                "scheduled",
+                                "level"
+                              ]
+                            }
+                          },
+                          "weakest_weekday": {
+                            "type": "integer",
+                            "nullable": true
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "icon",
+                          "color",
+                          "streak_current",
+                          "streak_best",
+                          "percent",
+                          "done",
+                          "expected",
+                          "heatmap",
+                          "weakest_weekday"
+                        ]
+                      }
+                    },
+                    "global_series": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "date": {
+                            "type": "string",
+                            "format": "date"
+                          },
+                          "percent": {
+                            "type": "number",
+                            "nullable": true
+                          }
+                        },
+                        "required": [
+                          "date",
+                          "percent"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "habits",
+                    "ranking_best",
+                    "ranking_worst",
+                    "global_series"
+                  ]
+                }
+              }
+            }
           }
         },
         "summary": "Habit statistics for the range (RF-2323)",
@@ -7057,7 +8446,160 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "score": {
+                      "type": "number",
+                      "nullable": true
+                    },
+                    "level": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "level_index": {
+                      "type": "integer",
+                      "nullable": true
+                    },
+                    "next_threshold": {
+                      "type": "number",
+                      "nullable": true
+                    },
+                    "progress_to_next": {
+                      "type": "number",
+                      "nullable": true
+                    },
+                    "formula": {
+                      "type": "object",
+                      "properties": {
+                        "on_time_points": {
+                          "type": "number"
+                        },
+                        "late_points": {
+                          "type": "number"
+                        },
+                        "priority_points": {
+                          "type": "number"
+                        },
+                        "pomodoro_points": {
+                          "type": "number"
+                        },
+                        "habit_points": {
+                          "type": "number"
+                        },
+                        "overdue_penalty": {
+                          "type": "number"
+                        },
+                        "weights": {
+                          "type": "object",
+                          "properties": {
+                            "on_time_base": {
+                              "type": "number"
+                            },
+                            "late_base": {
+                              "type": "number"
+                            },
+                            "priority_high_bonus": {
+                              "type": "number"
+                            },
+                            "priority_medium_bonus": {
+                              "type": "number"
+                            },
+                            "priority_low_bonus": {
+                              "type": "number"
+                            },
+                            "pomodoro": {
+                              "type": "number"
+                            },
+                            "habit_check_in": {
+                              "type": "number"
+                            },
+                            "overdue_penalty": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "on_time_base",
+                            "late_base",
+                            "priority_high_bonus",
+                            "priority_medium_bonus",
+                            "priority_low_bonus",
+                            "pomodoro",
+                            "habit_check_in",
+                            "overdue_penalty"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "on_time_points",
+                        "late_points",
+                        "priority_points",
+                        "pomodoro_points",
+                        "habit_points",
+                        "overdue_penalty",
+                        "weights"
+                      ],
+                      "nullable": true
+                    },
+                    "levels": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "threshold": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "threshold"
+                        ]
+                      }
+                    },
+                    "history": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "date": {
+                            "type": "string",
+                            "format": "date"
+                          },
+                          "score": {
+                            "type": "number",
+                            "nullable": true
+                          }
+                        },
+                        "required": [
+                          "date",
+                          "score"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "enabled",
+                    "score",
+                    "level",
+                    "level_index",
+                    "next_threshold",
+                    "progress_to_next",
+                    "formula",
+                    "levels",
+                    "history"
+                  ]
+                }
+              }
+            }
           }
         },
         "summary": "Achievement value, level and public formula (RF-2321)",
@@ -7139,6 +8681,28 @@
             }
           },
           {
+            "name": "day",
+            "required": false,
+            "in": "query",
+            "description": "Selected timeline day, independent of the filtered period",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "group",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "day",
+                "week",
+                "month"
+              ]
+            }
+          },
+          {
             "name": "format",
             "required": true,
             "in": "query",
@@ -7153,6 +8717,1318 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "overview": {
+                      "type": "object",
+                      "properties": {
+                        "summary": {
+                          "type": "object",
+                          "properties": {
+                            "completed": {
+                              "type": "integer"
+                            },
+                            "completed_previous": {
+                              "type": "integer"
+                            },
+                            "completed_delta_percent": {
+                              "type": "number",
+                              "nullable": true
+                            },
+                            "completion_rate": {
+                              "type": "number",
+                              "nullable": true
+                            },
+                            "completion_rate_delta_pt": {
+                              "type": "number",
+                              "nullable": true
+                            },
+                            "completion_completed": {
+                              "type": "integer"
+                            },
+                            "completion_planned": {
+                              "type": "integer"
+                            },
+                            "focus_minutes": {
+                              "type": "number"
+                            },
+                            "focus_minutes_delta_percent": {
+                              "type": "number",
+                              "nullable": true
+                            },
+                            "pomodoros": {
+                              "type": "integer"
+                            },
+                            "habit_percent": {
+                              "type": "number",
+                              "nullable": true
+                            },
+                            "habit_done": {
+                              "type": "integer"
+                            },
+                            "habit_expected": {
+                              "type": "integer"
+                            },
+                            "habit_delta_pt": {
+                              "type": "number",
+                              "nullable": true
+                            },
+                            "streak_current": {
+                              "type": "integer"
+                            },
+                            "streak_best_year": {
+                              "type": "integer"
+                            },
+                            "achievement": {
+                              "type": "object",
+                              "properties": {
+                                "enabled": {
+                                  "type": "boolean"
+                                },
+                                "score": {
+                                  "type": "number",
+                                  "nullable": true
+                                },
+                                "level": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "level_index": {
+                                  "type": "integer",
+                                  "nullable": true
+                                },
+                                "next_threshold": {
+                                  "type": "number",
+                                  "nullable": true
+                                },
+                                "progress_to_next": {
+                                  "type": "number",
+                                  "nullable": true
+                                },
+                                "formula": {
+                                  "type": "object",
+                                  "properties": {
+                                    "on_time_points": {
+                                      "type": "number"
+                                    },
+                                    "late_points": {
+                                      "type": "number"
+                                    },
+                                    "priority_points": {
+                                      "type": "number"
+                                    },
+                                    "pomodoro_points": {
+                                      "type": "number"
+                                    },
+                                    "habit_points": {
+                                      "type": "number"
+                                    },
+                                    "overdue_penalty": {
+                                      "type": "number"
+                                    },
+                                    "weights": {
+                                      "type": "object",
+                                      "properties": {
+                                        "on_time_base": {
+                                          "type": "number"
+                                        },
+                                        "late_base": {
+                                          "type": "number"
+                                        },
+                                        "priority_high_bonus": {
+                                          "type": "number"
+                                        },
+                                        "priority_medium_bonus": {
+                                          "type": "number"
+                                        },
+                                        "priority_low_bonus": {
+                                          "type": "number"
+                                        },
+                                        "pomodoro": {
+                                          "type": "number"
+                                        },
+                                        "habit_check_in": {
+                                          "type": "number"
+                                        },
+                                        "overdue_penalty": {
+                                          "type": "number"
+                                        }
+                                      },
+                                      "required": [
+                                        "on_time_base",
+                                        "late_base",
+                                        "priority_high_bonus",
+                                        "priority_medium_bonus",
+                                        "priority_low_bonus",
+                                        "pomodoro",
+                                        "habit_check_in",
+                                        "overdue_penalty"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "on_time_points",
+                                    "late_points",
+                                    "priority_points",
+                                    "pomodoro_points",
+                                    "habit_points",
+                                    "overdue_penalty",
+                                    "weights"
+                                  ],
+                                  "nullable": true
+                                },
+                                "levels": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "threshold": {
+                                        "type": "integer"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "threshold"
+                                    ]
+                                  }
+                                },
+                                "history": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "date": {
+                                        "type": "string",
+                                        "format": "date"
+                                      },
+                                      "score": {
+                                        "type": "number",
+                                        "nullable": true
+                                      }
+                                    },
+                                    "required": [
+                                      "date",
+                                      "score"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "enabled",
+                                "score",
+                                "level",
+                                "level_index",
+                                "next_threshold",
+                                "progress_to_next",
+                                "formula",
+                                "levels",
+                                "history"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "completed",
+                            "completed_previous",
+                            "completed_delta_percent",
+                            "completion_rate",
+                            "completion_rate_delta_pt",
+                            "completion_completed",
+                            "completion_planned",
+                            "focus_minutes",
+                            "focus_minutes_delta_percent",
+                            "pomodoros",
+                            "habit_percent",
+                            "habit_done",
+                            "habit_expected",
+                            "habit_delta_pt",
+                            "streak_current",
+                            "streak_best_year",
+                            "achievement"
+                          ]
+                        },
+                        "trend": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "date": {
+                                "type": "string",
+                                "format": "date"
+                              },
+                              "completed": {
+                                "type": "integer"
+                              },
+                              "created": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "date",
+                              "completed",
+                              "created"
+                            ]
+                          }
+                        },
+                        "daily": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "date": {
+                                "type": "string",
+                                "format": "date"
+                              },
+                              "completed": {
+                                "type": "integer"
+                              },
+                              "created": {
+                                "type": "integer"
+                              },
+                              "planned": {
+                                "type": "integer"
+                              },
+                              "completion_completed": {
+                                "type": "integer"
+                              },
+                              "focus_seconds": {
+                                "type": "number"
+                              },
+                              "focus_minutes": {
+                                "type": "number"
+                              },
+                              "pomodoros": {
+                                "type": "integer"
+                              },
+                              "habit_percent": {
+                                "type": "number",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "date",
+                              "completed",
+                              "created",
+                              "planned",
+                              "completion_completed",
+                              "focus_seconds",
+                              "focus_minutes",
+                              "pomodoros",
+                              "habit_percent"
+                            ]
+                          }
+                        },
+                        "best_moment": {
+                          "type": "object",
+                          "properties": {
+                            "by_weekday": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "weekday": {
+                                    "type": "integer"
+                                  },
+                                  "completed": {
+                                    "type": "integer"
+                                  }
+                                },
+                                "required": [
+                                  "weekday",
+                                  "completed"
+                                ]
+                              }
+                            },
+                            "by_band": {
+                              "type": "object",
+                              "properties": {
+                                "morning": {
+                                  "type": "integer"
+                                },
+                                "afternoon": {
+                                  "type": "integer"
+                                },
+                                "evening": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "morning",
+                                "afternoon",
+                                "evening"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "by_weekday",
+                            "by_band"
+                          ]
+                        },
+                        "completion_series": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "date": {
+                                "type": "string",
+                                "format": "date"
+                              },
+                              "rate": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "completed": {
+                                "type": "integer"
+                              },
+                              "planned": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "date",
+                              "rate",
+                              "completed",
+                              "planned"
+                            ]
+                          }
+                        },
+                        "phrase": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "summary",
+                        "trend",
+                        "daily",
+                        "best_moment",
+                        "completion_series",
+                        "phrase"
+                      ]
+                    },
+                    "tasks": {
+                      "type": "object",
+                      "properties": {
+                        "trend": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "date": {
+                                "type": "string",
+                                "format": "date"
+                              },
+                              "completed": {
+                                "type": "integer"
+                              },
+                              "created": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "date",
+                              "completed",
+                              "created"
+                            ]
+                          }
+                        },
+                        "daily": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "date": {
+                                "type": "string",
+                                "format": "date"
+                              },
+                              "completed": {
+                                "type": "integer"
+                              },
+                              "created": {
+                                "type": "integer"
+                              },
+                              "planned": {
+                                "type": "integer"
+                              },
+                              "completion_completed": {
+                                "type": "integer"
+                              },
+                              "focus_seconds": {
+                                "type": "number"
+                              },
+                              "focus_minutes": {
+                                "type": "number"
+                              },
+                              "pomodoros": {
+                                "type": "integer"
+                              },
+                              "habit_percent": {
+                                "type": "number",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "date",
+                              "completed",
+                              "created",
+                              "planned",
+                              "completion_completed",
+                              "focus_seconds",
+                              "focus_minutes",
+                              "pomodoros",
+                              "habit_percent"
+                            ]
+                          }
+                        },
+                        "completion_rate": {
+                          "type": "object",
+                          "properties": {
+                            "completed": {
+                              "type": "integer"
+                            },
+                            "planned": {
+                              "type": "integer"
+                            },
+                            "rate": {
+                              "type": "number",
+                              "nullable": true
+                            }
+                          },
+                          "required": [
+                            "completed",
+                            "planned",
+                            "rate"
+                          ]
+                        },
+                        "completion_series": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "date": {
+                                "type": "string",
+                                "format": "date"
+                              },
+                              "rate": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "completed": {
+                                "type": "integer"
+                              },
+                              "planned": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "date",
+                              "rate",
+                              "completed",
+                              "planned"
+                            ]
+                          }
+                        },
+                        "by_list": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              },
+                              "color": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "value": {
+                                "type": "number"
+                              },
+                              "percent": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "label",
+                              "color",
+                              "value",
+                              "percent"
+                            ]
+                          }
+                        },
+                        "by_tag": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              },
+                              "color": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "value": {
+                                "type": "number"
+                              },
+                              "percent": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "label",
+                              "color",
+                              "value",
+                              "percent"
+                            ]
+                          }
+                        },
+                        "by_priority": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              },
+                              "color": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "value": {
+                                "type": "number"
+                              },
+                              "percent": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "label",
+                              "color",
+                              "value",
+                              "percent"
+                            ]
+                          }
+                        },
+                        "punctuality": {
+                          "type": "object",
+                          "properties": {
+                            "sample": {
+                              "type": "integer"
+                            },
+                            "delay_cap_days": {
+                              "type": "number"
+                            },
+                            "capped_samples": {
+                              "type": "integer"
+                            },
+                            "on_time": {
+                              "type": "integer"
+                            },
+                            "late": {
+                              "type": "integer"
+                            },
+                            "on_time_percent": {
+                              "type": "number",
+                              "nullable": true
+                            },
+                            "mean_delay_days": {
+                              "type": "number",
+                              "nullable": true
+                            },
+                            "median_delay_days": {
+                              "type": "number",
+                              "nullable": true
+                            }
+                          },
+                          "required": [
+                            "sample",
+                            "delay_cap_days",
+                            "capped_samples",
+                            "on_time",
+                            "late",
+                            "on_time_percent",
+                            "mean_delay_days",
+                            "median_delay_days"
+                          ]
+                        },
+                        "age_on_complete": {
+                          "type": "object",
+                          "properties": {
+                            "mean_days": {
+                              "type": "number",
+                              "nullable": true
+                            },
+                            "median_days": {
+                              "type": "number",
+                              "nullable": true
+                            },
+                            "sample": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "mean_days",
+                            "median_days",
+                            "sample"
+                          ]
+                        },
+                        "overdue_stock": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "date": {
+                                "type": "string",
+                                "format": "date"
+                              },
+                              "under_7": {
+                                "type": "integer"
+                              },
+                              "days_7_30": {
+                                "type": "integer"
+                              },
+                              "over_30": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "date",
+                              "under_7",
+                              "days_7_30",
+                              "over_30"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "trend",
+                        "daily",
+                        "completion_rate",
+                        "completion_series",
+                        "by_list",
+                        "by_tag",
+                        "by_priority",
+                        "punctuality",
+                        "age_on_complete",
+                        "overdue_stock"
+                      ]
+                    },
+                    "focus": {
+                      "type": "object",
+                      "properties": {
+                        "focus_minutes": {
+                          "type": "number"
+                        },
+                        "focus_seconds": {
+                          "type": "number"
+                        },
+                        "pomodoros": {
+                          "type": "integer"
+                        },
+                        "completed_sessions": {
+                          "type": "integer"
+                        },
+                        "abandoned_sessions": {
+                          "type": "integer"
+                        },
+                        "completed_percent": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "interruptions_per_session": {
+                          "type": "number"
+                        },
+                        "trend": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "date": {
+                                "type": "string",
+                                "format": "date"
+                              },
+                              "minutes": {
+                                "type": "number"
+                              },
+                              "pomodoros": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "date",
+                              "minutes",
+                              "pomodoros"
+                            ]
+                          }
+                        },
+                        "best_hour": {
+                          "type": "integer",
+                          "nullable": true
+                        },
+                        "hours": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "hour": {
+                                "type": "integer"
+                              },
+                              "minutes": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "hour",
+                              "minutes"
+                            ]
+                          }
+                        },
+                        "timeline_day": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "period_timeline": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "start": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "end": {
+                                "type": "string",
+                                "format": "date-time",
+                                "nullable": true
+                              },
+                              "minutes": {
+                                "type": "number"
+                              },
+                              "task_title": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "completed": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "start",
+                              "end",
+                              "minutes",
+                              "task_title",
+                              "completed"
+                            ]
+                          }
+                        },
+                        "timeline": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "start": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "end": {
+                                "type": "string",
+                                "format": "date-time",
+                                "nullable": true
+                              },
+                              "minutes": {
+                                "type": "number"
+                              },
+                              "task_title": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "completed": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "start",
+                              "end",
+                              "minutes",
+                              "task_title",
+                              "completed"
+                            ]
+                          }
+                        },
+                        "heatmap": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "date": {
+                                "type": "string",
+                                "format": "date"
+                              },
+                              "minutes": {
+                                "type": "number"
+                              },
+                              "pomodoros": {
+                                "type": "integer"
+                              },
+                              "level": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "date",
+                              "minutes",
+                              "pomodoros",
+                              "level"
+                            ]
+                          }
+                        },
+                        "by_list": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              },
+                              "color": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "value": {
+                                "type": "number"
+                              },
+                              "percent": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "label",
+                              "color",
+                              "value",
+                              "percent"
+                            ]
+                          }
+                        },
+                        "by_tag": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              },
+                              "color": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "value": {
+                                "type": "number"
+                              },
+                              "percent": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "label",
+                              "color",
+                              "value",
+                              "percent"
+                            ]
+                          }
+                        },
+                        "by_task": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              },
+                              "color": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "value": {
+                                "type": "number"
+                              },
+                              "percent": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "label",
+                              "color",
+                              "value",
+                              "percent"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "focus_minutes",
+                        "focus_seconds",
+                        "pomodoros",
+                        "completed_sessions",
+                        "abandoned_sessions",
+                        "completed_percent",
+                        "interruptions_per_session",
+                        "trend",
+                        "best_hour",
+                        "hours",
+                        "timeline_day",
+                        "period_timeline",
+                        "timeline",
+                        "heatmap",
+                        "by_list",
+                        "by_tag",
+                        "by_task"
+                      ]
+                    },
+                    "habits": {
+                      "type": "object",
+                      "properties": {
+                        "habits": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "icon": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "color": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "streak_current": {
+                                "type": "integer"
+                              },
+                              "streak_best": {
+                                "type": "integer"
+                              },
+                              "percent": {
+                                "type": "number"
+                              },
+                              "done": {
+                                "type": "integer"
+                              },
+                              "expected": {
+                                "type": "integer"
+                              },
+                              "heatmap": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "date": {
+                                      "type": "string",
+                                      "format": "date"
+                                    },
+                                    "count": {
+                                      "type": "integer"
+                                    },
+                                    "met": {
+                                      "type": "boolean"
+                                    },
+                                    "scheduled": {
+                                      "type": "boolean"
+                                    },
+                                    "level": {
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "required": [
+                                    "date",
+                                    "count",
+                                    "met",
+                                    "scheduled",
+                                    "level"
+                                  ]
+                                }
+                              },
+                              "weakest_weekday": {
+                                "type": "integer",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "icon",
+                              "color",
+                              "streak_current",
+                              "streak_best",
+                              "percent",
+                              "done",
+                              "expected",
+                              "heatmap",
+                              "weakest_weekday"
+                            ]
+                          }
+                        },
+                        "ranking_best": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "icon": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "color": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "streak_current": {
+                                "type": "integer"
+                              },
+                              "streak_best": {
+                                "type": "integer"
+                              },
+                              "percent": {
+                                "type": "number"
+                              },
+                              "done": {
+                                "type": "integer"
+                              },
+                              "expected": {
+                                "type": "integer"
+                              },
+                              "heatmap": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "date": {
+                                      "type": "string",
+                                      "format": "date"
+                                    },
+                                    "count": {
+                                      "type": "integer"
+                                    },
+                                    "met": {
+                                      "type": "boolean"
+                                    },
+                                    "scheduled": {
+                                      "type": "boolean"
+                                    },
+                                    "level": {
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "required": [
+                                    "date",
+                                    "count",
+                                    "met",
+                                    "scheduled",
+                                    "level"
+                                  ]
+                                }
+                              },
+                              "weakest_weekday": {
+                                "type": "integer",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "icon",
+                              "color",
+                              "streak_current",
+                              "streak_best",
+                              "percent",
+                              "done",
+                              "expected",
+                              "heatmap",
+                              "weakest_weekday"
+                            ]
+                          }
+                        },
+                        "ranking_worst": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "icon": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "color": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "streak_current": {
+                                "type": "integer"
+                              },
+                              "streak_best": {
+                                "type": "integer"
+                              },
+                              "percent": {
+                                "type": "number"
+                              },
+                              "done": {
+                                "type": "integer"
+                              },
+                              "expected": {
+                                "type": "integer"
+                              },
+                              "heatmap": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "date": {
+                                      "type": "string",
+                                      "format": "date"
+                                    },
+                                    "count": {
+                                      "type": "integer"
+                                    },
+                                    "met": {
+                                      "type": "boolean"
+                                    },
+                                    "scheduled": {
+                                      "type": "boolean"
+                                    },
+                                    "level": {
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "required": [
+                                    "date",
+                                    "count",
+                                    "met",
+                                    "scheduled",
+                                    "level"
+                                  ]
+                                }
+                              },
+                              "weakest_weekday": {
+                                "type": "integer",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "icon",
+                              "color",
+                              "streak_current",
+                              "streak_best",
+                              "percent",
+                              "done",
+                              "expected",
+                              "heatmap",
+                              "weakest_weekday"
+                            ]
+                          }
+                        },
+                        "global_series": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "date": {
+                                "type": "string",
+                                "format": "date"
+                              },
+                              "percent": {
+                                "type": "number",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "date",
+                              "percent"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "habits",
+                        "ranking_best",
+                        "ranking_worst",
+                        "global_series"
+                      ]
+                    },
+                    "from": {
+                      "type": "string"
+                    },
+                    "to": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "overview",
+                    "tasks",
+                    "focus",
+                    "habits",
+                    "from",
+                    "to"
+                  ]
+                }
+              }
+            },
             "description": ""
           }
         },

@@ -1,3 +1,4 @@
+import { YearHeatmap } from '../../statistics/YearHeatmap';
 import type { Habit, HabitStats } from '@reflexionia/sdk';
 import { HABIT_WEEKDAYS, type HabitWeekday } from '@reflexionia/domain';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -57,6 +58,8 @@ export function HabitsPage() {
   const refresh = async (): Promise<void> => {
     await queryClient.invalidateQueries({ queryKey: ['habits'] });
     await queryClient.invalidateQueries({ queryKey: ['habit-stats'] });
+    await queryClient.invalidateQueries({ queryKey: ['stats'] });
+    await queryClient.invalidateQueries({ queryKey: ['achievements'] });
   };
 
   const create = useMutation({
@@ -408,11 +411,13 @@ function Heatmap({
   return (
     <section>
       <h2>{title}</h2>
-      <div className="heat">
-        {cells.map((cell) => (
-          <span key={cell.date} title={cell.date} data-level={cell.level} />
-        ))}
-      </div>
+      <YearHeatmap
+        cells={cells.map((cell) => ({
+          date: cell.date,
+          count: cell.level === 'met' ? 1 : 0,
+          level: cell.level === 'met' ? 4 : cell.level === 'partial' ? 2 : 0,
+        }))}
+      />
     </section>
   );
 }

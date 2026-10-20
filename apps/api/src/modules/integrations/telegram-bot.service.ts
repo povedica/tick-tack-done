@@ -159,7 +159,7 @@ export class TelegramBotService implements OnModuleInit {
   }
 
   private async tryPair(chatId: string, text: string): Promise<string | null> {
-    const match = text.trim().match(/^\/start(?:@\w+)?(?:\s+|_)([A-Za-z0-9_-]{16,})$/);
+    const match = /^\/start(?:@\w+)?(?:\s+|_)([A-Za-z0-9_-]{16,})$/.exec(text.trim());
     if (match === null) {
       return null;
     }

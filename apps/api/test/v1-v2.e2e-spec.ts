@@ -212,17 +212,28 @@ describe('V1 and V2 product', () => {
     const secret = 'telegram-webhook-secret';
     const stamp = randomUUID().slice(0, 8);
     const title = `planta-${stamp}`;
+    const chatId = Math.floor(Math.random() * 1000000000);
+    const updateBase = Date.now();
     try {
       await session()
         .post('/api/v1/integrations/telegram/link')
-        .send({ chat_id: '4242' })
-        .expect(201);
+        .send({ chat_id: String(chatId) })
+        .expect(410);
+      const pairing = await session().post('/api/v1/integrations/telegram/pairing').expect(201);
+      await request(server)
+        .post('/api/v1/integrations/telegram/webhook')
+        .set('x-telegram-bot-api-secret-token', secret)
+        .send({
+          update_id: updateBase,
+          message: { chat: { id: chatId }, text: `/start ${String(pairing.body.code)}` },
+        })
+        .expect(200);
       const created = await request(server)
         .post('/api/v1/integrations/telegram/webhook')
         .set('x-telegram-bot-api-secret-token', secret)
         .send({
-          update_id: 11,
-          message: { chat: { id: 4242 }, text: `/capturar ${title} manana` },
+          update_id: updateBase + 11,
+          message: { chat: { id: chatId }, text: `/capturar ${title} manana` },
         })
         .expect(200);
       expect(created.body).toEqual({ called_telegram: true, action: 'text' });
@@ -235,8 +246,8 @@ describe('V1 and V2 product', () => {
         .post('/api/v1/integrations/telegram/webhook')
         .set('x-telegram-bot-api-secret-token', secret)
         .send({
-          update_id: 12,
-          message: { chat: { id: 4242 }, text: `completar ${title}` },
+          update_id: updateBase + 12,
+          message: { chat: { id: chatId }, text: `completar ${title}` },
         })
         .expect(200);
       expect(done.body.action).toBe('text');
@@ -249,8 +260,8 @@ describe('V1 and V2 product', () => {
         .post('/api/v1/integrations/telegram/webhook')
         .set('x-telegram-bot-api-secret-token', secret)
         .send({
-          update_id: 13,
-          message: { chat: { id: 4242 }, voice: { file_id: 'voice-1' } },
+          update_id: updateBase + 13,
+          message: { chat: { id: chatId }, voice: { file_id: 'voice-1' } },
         })
         .expect(200);
       expect(voice.body).toEqual({ called_telegram: true, action: 'voice' });
@@ -259,9 +270,9 @@ describe('V1 and V2 product', () => {
         .post('/api/v1/integrations/telegram/webhook')
         .set('x-telegram-bot-api-secret-token', secret)
         .send({
-          update_id: 14,
+          update_id: updateBase + 14,
           message: {
-            chat: { id: 4242 },
+            chat: { id: chatId },
             caption: `foto-${stamp}`,
             photo: [{ file_id: 'small' }, { file_id: 'large' }],
           },
@@ -280,11 +291,16 @@ describe('V1 and V2 product', () => {
       const denied = await request(server)
         .post('/api/v1/integrations/telegram/webhook')
         .set('x-telegram-bot-api-secret-token', 'nope')
-        .send({ update_id: 15, message: { chat: { id: 4242 }, text: 'hola' } })
+        .send({ update_id: updateBase + 15, message: { chat: { id: chatId }, text: 'hola' } })
         .expect(401);
       expect(denied.body.error.code).toBe('unauthorized');
     } finally {
       globalThis.fetch = original;
+      await prisma.telegramUpdateReceipt.deleteMany({
+        where: {
+          updateId: { in: [0, 11, 12, 13, 14, 15].map((offset) => String(updateBase + offset)) },
+        },
+      });
       delete process.env.TELEGRAM_BOT_TOKEN;
       delete process.env.TELEGRAM_WEBHOOK_SECRET;
       delete process.env.TELEGRAM_VOICE_PROVIDER;
@@ -520,5 +536,7 @@ async function wipe(id: string | undefined): Promise<void> {
   await prisma.project.deleteMany({ where: { ownerId: id } });
   await prisma.tag.deleteMany({ where: { ownerId: id } });
   await prisma.session.deleteMany({ where: { userId: id } });
+  await prisma.telegramLink.deleteMany({ where: { ownerId: id } });
+  await prisma.telegramPairing.deleteMany({ where: { ownerId: id } });
   await prisma.user.deleteMany({ where: { id } });
 }

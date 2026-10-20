@@ -1,11 +1,69 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { dayKey, focusMinutesTotal, type StatsFocusRow } from '@reflexionia/domain';
+import { Prisma } from '@prisma/client';
+import {
+  dayKey,
+  focusMinutesTotal,
+  averageHabitPercent,
+  taskSeries,
+  type StatsTaskRow,
+  readStoredHabit,
+  type StatsHabitRow,
+  type StatsFocusRow,
+} from '@reflexionia/domain';
 import { PrismaService } from '../../prisma/prisma.service.js';
 
 /** Single source for focus/habit aggregates used by reports, dashboard and stats (F0). */
 @Injectable()
 export class MetricsService {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+
+  /** RF-2321: SQL buckets after the shared owner/actor/list authorization projection. */
+  async taskBuckets(
+    tasks: readonly StatsTaskRow[],
+    days: readonly string[],
+    tz: string,
+    group: string,
+  ) {
+    if (tasks.length === 0) return taskSeries(tasks, days, tz, group);
+    const from = days[0] ?? '';
+    const to = days.at(-1) ?? '';
+    const rows = await this.prisma.$queryRaw<
+      {
+        date: string;
+        completed: number;
+        created: number;
+        completion_completed: number;
+        planned: number;
+      }[]
+    >(Prisma.sql`
+      WITH eligible AS (
+        SELECT created_at AT TIME ZONE ${tz} AS created,
+          CASE WHEN completed_at <= NOW() THEN completed_at AT TIME ZONE ${tz} END AS done,
+          due_date AT TIME ZONE ${tz} AS due
+        FROM tasks WHERE id IN (${Prisma.join(tasks.map((task) => Prisma.sql`${task.id}::uuid`))}) AND status <> 'cancelled'
+      ), projected AS (
+        SELECT CASE WHEN created::date BETWEEN ${from}::date AND ${to}::date THEN date_trunc(${group}, created)::date END AS created,
+          CASE WHEN done::date BETWEEN ${from}::date AND ${to}::date THEN date_trunc(${group}, done)::date END AS done,
+          CASE WHEN due::date BETWEEN ${from}::date AND ${to}::date THEN date_trunc(${group}, due)::date END AS due
+        FROM eligible
+      ), dates AS (
+        SELECT DISTINCT date_trunc(${group}, day)::date AS day
+        FROM generate_series(${from}::date, ${to}::date, '1 day'::interval) AS day
+      )
+      SELECT to_char(d.day, 'YYYY-MM-DD') AS date,
+        COUNT(*) FILTER (WHERE p.done = d.day)::int AS completed,
+        COUNT(*) FILTER (WHERE p.created = d.day)::int AS created,
+        COUNT(*) FILTER (WHERE p.due = d.day AND p.done = d.day)::int AS completion_completed,
+        COUNT(*) FILTER (WHERE p.due = d.day)::int AS planned
+      FROM dates d LEFT JOIN projected p ON p.created = d.day OR p.done = d.day OR p.due = d.day
+      GROUP BY d.day ORDER BY d.day
+    `);
+    return rows.map((row) => ({
+      ...row,
+      rate:
+        row.planned === 0 ? null : Math.round((row.completion_completed / row.planned) * 1000) / 10,
+    }));
+  }
 
   /** Focus minutes from actualSeconds of focus sessions in [from, to). */
   async focusMinutes(ownerId: string, from: Date, to: Date): Promise<number> {
@@ -23,7 +81,7 @@ export class MetricsService {
       where: {
         ownerId,
         deletedAt: null,
-        startedAt: { gte: from, lt: to },
+        startedAt: { gte: from, lt: to < new Date() ? to : new Date() },
       },
       include: {
         task: {
@@ -31,8 +89,10 @@ export class MetricsService {
             id: true,
             title: true,
             projectId: true,
+            deletedAt: true,
+            priority: true,
             project: { select: { name: true } },
-            tags: { select: { tag: { select: { name: true } } } },
+            tags: { select: { tagId: true, tag: { select: { name: true } } } },
           },
         },
       },
@@ -45,11 +105,13 @@ export class MetricsService {
       actualSeconds: row.actualSeconds,
       completed: row.completed,
       interruptedCount: row.interruptedCount,
-      taskId: row.taskId,
-      taskTitle: row.task?.title ?? null,
-      listId: row.task?.projectId ?? null,
-      listName: row.task?.project.name ?? null,
-      tagNames: row.task?.tags.map((link) => link.tag.name) ?? [],
+      taskId: row.task?.deletedAt === null ? row.taskId : null,
+      taskTitle: row.task?.deletedAt === null ? row.task.title : null,
+      listId: row.task?.deletedAt === null ? row.task.projectId : null,
+      listName: row.task?.deletedAt === null ? row.task.project.name : null,
+      tagNames: row.task?.deletedAt === null ? row.task.tags.map((link) => link.tag.name) : [],
+      tagIds: row.task?.deletedAt === null ? row.task.tags.map((link) => link.tagId) : [],
+      priority: row.task?.deletedAt === null ? row.task.priority : 'none',
     }));
   }
 
@@ -65,44 +127,56 @@ export class MetricsService {
     });
   }
 
-  async activeHabitsExpectedDays(
-    ownerId: string,
-    from: Date,
-    to: Date,
-  ): Promise<{ done: number; expected: number }> {
-    const habits = await this.prisma.habit.findMany({
+  async habitRows(ownerId: string, tz = 'Europe/Madrid'): Promise<StatsHabitRow[]> {
+    const rows = await this.prisma.habit.findMany({
       where: { ownerId, deletedAt: null, archived: false },
       select: {
+        id: true,
+        name: true,
+        icon: true,
+        color: true,
         goal: true,
         frequency: true,
         logs: {
-          where: { deletedAt: null, date: { gte: from, lt: to } },
+          where: {
+            deletedAt: null,
+            date: {
+              lte: new Date(
+                `${dayKey(new Date().toISOString(), tz) ?? new Date().toISOString().slice(0, 10)}T00:00:00Z`,
+              ),
+            },
+          },
           select: { date: true, count: true },
         },
       },
     });
-    let done = 0;
-    let expected = 0;
-    for (const habit of habits) {
-      const target = targetOf(habit.goal);
-      const days = Array.isArray(habit.frequency)
-        ? habit.frequency.filter((value): value is number => typeof value === 'number')
-        : [];
-      for (let t = from.getTime(); t < to.getTime(); t += 24 * 60 * 60 * 1000) {
-        const date = new Date(t);
-        const weekday = date.getUTCDay();
-        if (days.length > 0 && !days.includes(weekday)) {
-          continue;
-        }
-        expected += 1;
-        const key = date.toISOString().slice(0, 10);
-        const log = habit.logs.find((row) => row.date.toISOString().slice(0, 10) === key);
-        if ((log?.count ?? 0) >= target) {
-          done += 1;
-        }
-      }
-    }
-    return { done, expected };
+    return rows.flatMap((row) => {
+      const habit = readStoredHabit(row.goal, row.frequency, null);
+      return habit === null
+        ? []
+        : [
+            {
+              id: row.id,
+              name: row.name,
+              icon: row.icon,
+              color: row.color,
+              goal: habit.goal,
+              days: habit.days,
+              logs: row.logs.map((log) => ({
+                date: log.date.toISOString().slice(0, 10),
+                count: log.count,
+              })),
+            },
+          ];
+    });
+  }
+
+  async activeHabitsExpectedDays(ownerId: string, from: Date, to: Date, tz = 'Europe/Madrid') {
+    const rows = await this.habitRows(ownerId, tz);
+    const start = dayKey(from.toISOString(), tz) ?? '';
+    const end = dayKey(new Date(to.getTime() - 1).toISOString(), tz) ?? '';
+    const today = dayKey(new Date().toISOString(), tz) ?? end;
+    return averageHabitPercent(rows, start, end, today);
   }
 
   /** Days with at least one completed focus session (for achievement focusDays). */
@@ -120,13 +194,4 @@ export class MetricsService {
     }
     return days.size;
   }
-}
-
-function targetOf(goal: unknown): number {
-  if (typeof goal !== 'object' || goal === null) {
-    return 1;
-  }
-  const record = goal as { target_count?: unknown; targetCount?: unknown };
-  const value = record.target_count ?? record.targetCount;
-  return typeof value === 'number' && value > 0 ? value : 1;
 }

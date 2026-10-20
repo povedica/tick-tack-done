@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import {
   Bell,
+  BarChart3,
   CalendarCheck,
   CalendarDays,
   CircleDot,
@@ -90,6 +91,9 @@ export function IconRail({
       </NavLink>
       <NavLink to="/ticky" end aria-label={messages.navTicky}>
         <MessageSquare size={20} aria-hidden="true" />
+      </NavLink>
+      <NavLink to="/statistics" aria-label={messages.navStatistics} title={messages.navStatistics}>
+        <BarChart3 size={20} aria-hidden="true" />
       </NavLink>
       <NavLink to="/search" aria-label={messages.navSearch}>
         <Search size={20} aria-hidden="true" />

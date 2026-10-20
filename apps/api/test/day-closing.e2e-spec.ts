@@ -201,7 +201,7 @@ describe('day closing, load and someday', () => {
     const bad = await api()
       .post(`/api/v1/planning/replan/sessions/${conflict.body.id}/apply`)
       .set('Idempotency-Key', randomUUID())
-      .send({ expected_revision: conflict.body.revision + 1 })
+      .send({ expected_revision: Number(conflict.body.revision) + 1 })
       .expect(409);
     expect(bad.body.error.code).toBe('revision_conflict');
   });

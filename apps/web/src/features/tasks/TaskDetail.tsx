@@ -409,7 +409,7 @@ export function TaskDetail({
             type="button"
             className="text-button"
             onClick={() => {
-              const someday = (task as Detail & { is_someday?: boolean }).is_someday === true;
+              const someday = (task as Detail & { is_someday?: boolean }).is_someday;
               save.mutate({
                 someday: !someday,
                 ...(someday ? {} : { start_date: null }),
