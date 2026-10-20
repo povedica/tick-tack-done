@@ -793,9 +793,10 @@ function draftFromRecurrence(raw: Record<string, unknown>): RepeatDraft {
               'month_week.weekday is invalid',
             );
           }
+          const week: Weekday = weekday;
           return {
-            setpos: setpos as 1 | 2 | 3 | 4 | -1,
-            weekday: weekday as Weekday,
+            setpos,
+            weekday: week,
           };
         })();
 

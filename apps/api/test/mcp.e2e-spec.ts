@@ -561,7 +561,7 @@ describe('MCP server', () => {
       where: { seriesId: plant.series_id, deletedAt: null },
     });
     expect(after).toBe(before);
-    void seriesRow;
+    expect(seriesRow).not.toBeNull();
   });
 });
 

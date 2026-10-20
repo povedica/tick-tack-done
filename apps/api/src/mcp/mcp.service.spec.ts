@@ -90,9 +90,7 @@ describe('McpService recurrence mapping', () => {
       }),
       undefined,
     );
-    const text = JSON.parse(
-      (result as { result: { content: { text: string }[] } }).result.content[0]!.text,
-    ) as { repeat_label: string; next_occurrence: string | null };
+    const text = JSON.parse(firstToolText(result)) as { repeat_label: string; next_occurrence: string | null };
     expect(text.repeat_label).toBe('El día 19 de cada mes');
   });
 
@@ -113,7 +111,7 @@ describe('McpService recurrence mapping', () => {
       },
     });
     expect(
-      (result as { result: { content: { text: string }[] } }).result.content[0]!.text,
+      firstToolText(result),
     ).toContain('a repeating task needs a due_date');
     expect(tasks.create).not.toHaveBeenCalled();
   });
@@ -134,7 +132,7 @@ describe('McpService recurrence mapping', () => {
       },
     });
     expect(
-      (result as { result: { content: { text: string }[] } }).result.content[0]!.text,
+      firstToolText(result),
     ).toContain('use either recurrence or repeat_rule, not both');
   });
 
@@ -252,7 +250,16 @@ describe('McpService recurrence mapping', () => {
       },
     });
     expect(
-      (result as { result: { content: { text: string }[] } }).result.content[0]!.text,
+      firstToolText(result),
     ).toBe('invalid_zone: time_zone must be an IANA name like Europe/Madrid');
   });
 });
+
+function firstToolText(result: unknown): string {
+  const content = (result as { result: { content: { text: string }[] } }).result.content[0];
+  if (content === undefined) {
+    throw new Error('missing tool text');
+  }
+  return content.text;
+}
+
