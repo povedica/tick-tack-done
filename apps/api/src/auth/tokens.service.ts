@@ -26,6 +26,8 @@ interface TokenRow {
   id: string;
   name: string;
   tokenPrefix: string;
+  oauthClientId: string | null;
+  expiresAt: Date | null;
   scopes: string[];
   createdAt: Date;
   lastUsedAt: Date | null;
@@ -45,27 +47,45 @@ export class TokensService {
     user: AuthUser,
     limitRaw: unknown,
     cursorRaw: string | undefined,
+    status?: string,
   ): Promise<TokenPageDto> {
     const limit = pageLimit(limitRaw);
     const cursor = decodeTimeCursor(cursorRaw);
-    const rows = await this.prisma.personalAccessToken.findMany({
-      where: {
-        ownerId: user.id,
-        deletedAt: null,
-        ...(cursor === null
-          ? {}
-          : {
-              OR: [
-                { createdAt: { lt: cursor.createdAt } },
-                { createdAt: cursor.createdAt, id: { lt: cursor.id } },
-              ],
-            }),
-      },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      take: limit + 1,
-      include: { oauthClient: { select: { name: true } } },
-    });
-    return pageTokens(rows, limit);
+    if (status !== undefined && status !== 'active' && status !== 'revoked') {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'status must be active or revoked',
+      );
+    }
+    const where: Prisma.PersonalAccessTokenWhereInput = {
+      ownerId: user.id,
+      deletedAt: null,
+      ...(status === 'active' ? { revokedAt: null } : {}),
+      ...(status === 'revoked'
+        ? { revokedAt: { not: null }, refreshTokens: { none: { rotatedAt: { not: null } } } }
+        : {}),
+    };
+    const [rows, total] = await Promise.all([
+      this.prisma.personalAccessToken.findMany({
+        where: {
+          ...where,
+          ...(cursor === null
+            ? {}
+            : {
+                OR: [
+                  { createdAt: { lt: cursor.createdAt } },
+                  { createdAt: cursor.createdAt, id: { lt: cursor.id } },
+                ],
+              }),
+        },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: limit + 1,
+        include: { oauthClient: { select: { name: true } } },
+      }),
+      this.prisma.personalAccessToken.count({ where }),
+    ]);
+    return { ...pageTokens(rows, limit), total };
   }
 
   async create(
@@ -270,6 +290,8 @@ function toToken(row: TokenRow): TokenDto {
     id: row.id,
     name: row.name,
     token_prefix: row.tokenPrefix,
+    oauth_client_id: row.oauthClientId,
+    expires_at: row.expiresAt?.toISOString() ?? null,
     scopes: [...row.scopes],
     created_at: row.createdAt.toISOString(),
     last_used_at: row.lastUsedAt === null ? null : row.lastUsedAt.toISOString(),
@@ -278,7 +300,7 @@ function toToken(row: TokenRow): TokenDto {
   };
 }
 
-function pageTokens(rows: readonly TokenRow[], limit: number): TokenPageDto {
+function pageTokens(rows: readonly TokenRow[], limit: number): Omit<TokenPageDto, 'total'> {
   const hasMore = rows.length > limit;
   const items = rows.slice(0, limit).map(toToken);
   const last = items.at(-1);

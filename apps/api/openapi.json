@@ -377,6 +377,19 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Active means not revoked (including expired access tokens). Revoked excludes automatic OAuth rotations.",
+            "schema": {
+              "enum": [
+                "active",
+                "revoked"
+              ],
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -12690,6 +12703,14 @@
           "name": {
             "type": "string"
           },
+          "oauth_client_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "expires_at": {
+            "type": "string",
+            "nullable": true
+          },
           "token_prefix": {
             "type": "string"
           },
@@ -12719,6 +12740,8 @@
         "required": [
           "id",
           "name",
+          "oauth_client_id",
+          "expires_at",
           "token_prefix",
           "scopes",
           "created_at",
@@ -12730,6 +12753,10 @@
       "TokenPageDto": {
         "type": "object",
         "properties": {
+          "total": {
+            "type": "number",
+            "description": "Total matching tokens before pagination; rotated rows are excluded for status=revoked"
+          },
           "items": {
             "type": "array",
             "items": {
@@ -12742,6 +12769,7 @@
           }
         },
         "required": [
+          "total",
           "items",
           "next_cursor"
         ]
@@ -12814,6 +12842,14 @@
           "name": {
             "type": "string"
           },
+          "oauth_client_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "expires_at": {
+            "type": "string",
+            "nullable": true
+          },
           "token_prefix": {
             "type": "string"
           },
@@ -12847,6 +12883,8 @@
         "required": [
           "id",
           "name",
+          "oauth_client_id",
+          "expires_at",
           "token_prefix",
           "scopes",
           "created_at",

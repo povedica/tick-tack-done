@@ -17,6 +17,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiTags,
+  ApiQuery,
 } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { respondJson } from '../http/respond.js';
@@ -34,6 +35,13 @@ export class TokensController {
   constructor(@Inject(TokensService) private readonly tokens: TokensService) {}
 
   @Get('tokens')
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['active', 'revoked'],
+    description:
+      'Active means not revoked (including expired access tokens). Revoked excludes automatic OAuth rotations.',
+  })
   @Scopes('profile:read')
   @ApiOperation({ summary: 'List personal access tokens. The secret is never returned (RF-2002).' })
   @ApiOkResponse({ type: TokenPageDto })
@@ -41,10 +49,11 @@ export class TokensController {
     @CurrentUser() user: AuthUser,
     @Query('limit') limit: string | undefined,
     @Query('cursor') cursor: string | undefined,
+    @Query('status') status: string | undefined,
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    respondJson(req, res, 200, await this.tokens.list(user, limit, cursor), true);
+    respondJson(req, res, 200, await this.tokens.list(user, limit, cursor, status), true);
   }
 
   @Post('tokens')

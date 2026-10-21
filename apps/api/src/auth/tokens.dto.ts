@@ -38,6 +38,12 @@ export class TokenDto {
   @ApiProperty()
   name!: string;
 
+  @ApiProperty({ nullable: true, type: String })
+  oauth_client_id!: string | null;
+
+  @ApiProperty({ nullable: true, type: String })
+  expires_at!: string | null;
+
   @ApiProperty()
   token_prefix!: string;
 
@@ -67,6 +73,12 @@ export class TokenCreatedDto extends TokenDto {
 }
 
 export class TokenPageDto {
+  @ApiProperty({
+    description:
+      'Total matching tokens before pagination; rotated rows are excluded for status=revoked',
+  })
+  total!: number;
+
   @ApiProperty({ type: [TokenDto] })
   items!: TokenDto[];
 

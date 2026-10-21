@@ -2855,3 +2855,13 @@ a.link:hover {
 .detail-description-preview li {
   white-space: pre-wrap;
 }
+
+.token-group-title {
+  color: var(--ink-2);
+  font-size: 0.875rem;
+  margin: 1rem 0 0;
+}
+.token-head h3 {
+  margin: 0;
+  font-size: 1rem;
+}

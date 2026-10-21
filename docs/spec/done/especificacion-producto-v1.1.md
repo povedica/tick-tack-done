@@ -697,6 +697,10 @@ totp.enabled totp.disabled achievement.updated
 import.completed drive.attached telegram.linked telegram.unlinked google.disconnected webhook.created
 ```
 
+En `token.created@v1` y `token.revoked@v1`, la representación `token` incluye
+los campos aditivos `oauth_client_id` y `expires_at` (ambos anulables), iguales
+al DTO público. Identifican la aplicación y la caducidad; nunca contienen el secreto.
+
 Payload ejemplo:
 
 ```json

@@ -123,7 +123,7 @@ export interface ApiClient extends ResourceClient {
   previewFilter(body: PreviewFilterBody, options?: ViewOptions): Promise<ViewPage>;
   filterTasks(id: string, options?: ViewOptions): Promise<ViewPage>;
   search(q: string, types?: string): Promise<SearchResponse>;
-  listTokens(): Promise<TokenPage>;
+  listTokens(query?: PageQuery & { readonly status?: 'active' | 'revoked' }): Promise<TokenPage>;
   createToken(body: CreateTokenBody): Promise<CreatedToken>;
   revokeToken(id: string): Promise<void>;
   tokenActivity(id: string): Promise<ActivityPage>;
@@ -335,8 +335,19 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         isViewPage,
       );
     },
-    listTokens() {
-      return request(call, options, 'GET', '/api/v1/me/tokens', undefined, undefined, isTokenPage);
+    listTokens(query) {
+      const params = new URLSearchParams(pageQuery(query).slice(1));
+      if (query?.status !== undefined) params.set('status', query.status);
+      const suffix = params.size === 0 ? '' : `?${params.toString()}`;
+      return request(
+        call,
+        options,
+        'GET',
+        `/api/v1/me/tokens${suffix}`,
+        undefined,
+        undefined,
+        isTokenPage,
+      );
     },
     createToken(body) {
       return request(call, options, 'POST', '/api/v1/me/tokens', body, undefined, isCreatedToken);

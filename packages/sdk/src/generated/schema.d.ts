@@ -3505,6 +3505,8 @@ export interface components {
         TokenDto: {
             id: string;
             name: string;
+            oauth_client_id: string | null;
+            expires_at: string | null;
             token_prefix: string;
             scopes: string[];
             created_at: string;
@@ -3514,6 +3516,8 @@ export interface components {
             client_name: string | null;
         };
         TokenPageDto: {
+            /** @description Total matching tokens before pagination; rotated rows are excluded for status=revoked */
+            total: number;
             items: components["schemas"]["TokenDto"][];
             next_cursor: string | null;
         };
@@ -3525,6 +3529,8 @@ export interface components {
         TokenCreatedDto: {
             id: string;
             name: string;
+            oauth_client_id: string | null;
+            expires_at: string | null;
             token_prefix: string;
             scopes: string[];
             created_at: string;
@@ -4789,7 +4795,10 @@ export interface operations {
     };
     TokensController_list: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Active means not revoked (including expired access tokens). Revoked excludes automatic OAuth rotations. */
+                status?: "active" | "revoked";
+            };
             header?: {
                 "X-Dev-User-Email"?: string;
             };
