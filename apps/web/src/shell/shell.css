@@ -582,10 +582,6 @@
     font-size: var(--fs-xs);
   }
 
-  .shell[data-drawer='open'] .mobile-control-bar {
-    visibility: hidden;
-  }
-
   .shell[data-detail='open'] > .detail-panel,
   .shell[data-detail='open'] > .detail-slot {
     position: fixed;
@@ -628,10 +624,6 @@
     /* TTD-AUD-58: no top padding (sticky headers) and no double bottom reserve */
     padding-top: 0;
     padding-bottom: var(--sp-8);
-  }
-
-  .mobile-control-bar {
-    padding-top: calc(6px + env(safe-area-inset-top));
   }
 
   .screen-page > :first-child,
@@ -863,8 +855,8 @@
   min-width: 14px;
   padding: 0 3px;
   border-radius: 99px;
-  background: #e13e39;
-  color: #fff;
+  background: var(--prio-high);
+  color: var(--on-accent);
   font-size: 9px;
   line-height: 14px;
 }
@@ -1191,7 +1183,6 @@
   .detail-slot,
   .detail-panel,
   .bottom-bar,
-  .mobile-control-bar,
   .offline-banner,
   .page-actions,
   .composer,

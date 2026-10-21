@@ -1,4 +1,16 @@
 :root {
+  --account-menu-w: 16rem;
+  --account-menu-z: 2000;
+  --account-sheet-max-h: 85dvh;
+  --account-border-w: 1px;
+  --account-focus-w: 2px;
+  --account-row-h: 2rem;
+  --account-avatar-size: 1.75rem;
+  --account-identity-avatar: 2rem;
+  --account-dot-size: 0.5rem;
+  --account-progress-track: 0.25rem;
+  --account-loading-h: 2.5rem;
+
   --calendar-quick-width: 19rem;
   --ghost-bg: var(--accent-soft);
   --ghost-border: var(--accent);
@@ -131,6 +143,18 @@
 }
 
 [data-theme='dark'] {
+  --account-menu-w: 16rem;
+  --account-menu-z: 2000;
+  --account-sheet-max-h: 85dvh;
+  --account-border-w: 1px;
+  --account-focus-w: 2px;
+  --account-row-h: 2rem;
+  --account-avatar-size: 1.75rem;
+  --account-identity-avatar: 2rem;
+  --account-dot-size: 0.5rem;
+  --account-progress-track: 0.25rem;
+  --account-loading-h: 2.5rem;
+
   color-scheme: dark;
 
   --bg: #242424;

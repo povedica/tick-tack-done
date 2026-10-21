@@ -1,5 +1,4 @@
 import { runAction } from '../components/run-action';
-import { ControlChip } from '../features/statistics/ControlSummary';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState, type CSSProperties } from 'react';
 import { Outlet, useLocation, useSearchParams } from 'react-router';
@@ -185,11 +184,6 @@ export function AppShell() {
           }}
         />
         <div className="center">
-          {narrow ? (
-            <div className="mobile-control-bar">
-              <ControlChip />
-            </div>
-          ) : null}
           {online ? null : (
             <p className="offline-banner" role="status">
               {messages.offline}. {messages.pendingSync}.

@@ -120,3 +120,62 @@ Validación de la continuación: lint y typecheck completos; 590 unitarios
 integración 127 pasan y 2 omitidos; OpenAPI estable. En Chromium pasan
 17 pruebas de alta contextual/compositor, 6 regresiones funcionales del calendario
 y la comprobación del rail en ambos temas. Las capturas nuevas permanecen locales.
+
+## Reapertura TTD-AUD-75–79 — 21/10/2026
+
+Base comprobada: `codex/ttd-audit-remaining`, `ab21786`, PR #73 abierta en borrador.
+No se consideran acreditadas las marcas de finalización anteriores.
+Informe recibido: [ttd-codex-r75.md](ttd-codex-r75.md), copiado desde la carpeta
+local del usuario. Las 101 evidencias originales se copiaron a `evidencias/` y se
+compararon byte a byte con el ZIP; no se copia el PDF ni se generan HTML/PDF.
+Los originales y las modificaciones locales ajenas quedan fuera de los commits.
+
+Matriz inicial (la inspección de código no sustituye la validación funcional):
+
+| Requisito                                                | Evidencia contrastada en este corte                                                                                 | Estado                                                                |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| 75.1 Filtros/fuentes a la izquierda, URL y persistencia  | `CalendarSidebar` solo contiene el minicalendario; `Places` mantiene el select de lista y `CalendarVisibility` en ⋯ | Ausente                                                               |
+| 75.2 Panel fijo solo en Tareas                           | `sectionShowsDetailPane` incluye calendar/focus/matrix/search/stats; `?task=` aún abre columna                      | Ausente                                                               |
+| 75.3 Plegar en cabecera                                  | `Places` no incorpora el control; sigue en `IconRail`                                                               | Ausente                                                               |
+| 75.4 Hora separada del título                            | `chipLabel` concatena hora/título en Mes; HourGrid ya separa la hora                                                | Parcial                                                               |
+| 75.5 Mover/redimensionar, teclado/táctil, Deshacer y DST | Los handlers de puntero de HourGrid seleccionan rangos de creación; no mueven tareas existentes                     | Ausente                                                               |
+| 75.6 TaskPeek y evento anclados/hoja                     | Enlaces `taskQueryHref` en HourGrid y DayGrid; evento existente sin nuevo anclaje                                   | Parcial                                                               |
+| 75.7 Hoy circular relleno en todas las superficies       | Reglas independientes en calendar.css, ui.css, shell.css y weekly.css; selector con outline                         | Parcial                                                               |
+| 75.8 Cabecera compacta, 1024/1280/1440 y móvil           | `calendar-toolbar` mantiene select, segmentado, título CalendarPeriod y + primary                                   | Ausente                                                               |
+| 75.9 Solo panel secundario izquierdo                     | Hay CalendarSidebar izquierdo y panel fijo derecho habilitado                                                       | Parcial                                                               |
+| 75.10 Todo el día: límites por vista y expansión         | HourGrid renderiza la colección sin límite de chips ni expansión de franja                                          | Parcial                                                               |
+| 75.11 PeriodNavigator/PeriodPicker compartidos           | Persisten WeekPicker y CalendarPeriod/CalendarJump independientes                                                   | Ausente                                                               |
+| 76 TaskCard único global/calendario                      | CaptureSheet conserva h1/Cancelar y TaskComposer mantiene la variante calendar                                      | Parcial                                                               |
+| 77 Quitar widgets exteriores y progreso en avatar        | Eliminados los tres montajes y barra móvil; AccountMenu usa Floating UI, progreso, estados y hoja                   | Verificado en componente y navegador simulado; backend real pendiente |
+| 78 Foco Pomo/Cronómetro, pausa, resumen y registro       | FocusPage conserva estructura anterior; controller sin pause/resume ni stopwatch                                    | Parcial                                                               |
+| 79 Aplicaciones, caducidad y filas compactas             | TokensPage sigue groupTokens y permisos expandidos; createToken sin expires_in_days; no rutas /me/oauth/grants      | Parcial                                                               |
+
+Esta matriz cubre 75–79. El contraste completo del alcance previo (fuentes de
+TTD-AUD y especificación única) continúa pendiente: no se declara cerrado ni se
+reclasifica como verificado por las pruebas de este corte. Ticky F1–F10 queda excluido.
+
+### Corte 77 — RF-1602, acceso a racha y puntuación
+
+- Rail/sidebar/barra móvil: sin `ControlChip`; se eliminan los estilos específicos
+  de esos montajes. El avatar móvil de «Más» abre el mismo contenido.
+- Menú de 256 px anclado con Floating UI (right-start, offset 8, flip/shift),
+  cabecera de identidad y progreso en dos columnas; número neutro y etiqueta/barra
+  según estado. Punto de racha en el avatar. Datos, carga, vacío y error con reintento.
+- Botón con aria-haspopup/expanded/controls, roles menu/menuitem, flechas,
+  Inicio/Fin, Escape y devolución de foco, Tab para cerrar. En móvil hoja inferior
+  con filas de al menos 44 px. Nuevos tokens en claro/oscuro e i18n es/en.
+- Tests elegidos por riesgo: 4 de componente (datos, vacío, error, carga y teclado)
+  y 4 Playwright (1280×800 / 390×844 × claro/oscuro), con API interceptada.
+  Los 4 de componente fallaron antes del cambio y pasan después.
+- Navegador simulado: ausencia de widgets/barra, contenido del menú, ancho de
+  256 px en escritorio, hoja de 390 px pegada abajo, filas táctiles y Escape/foco.
+  Revisión visual de capturas temporales de escritorio claro y móvil oscuro:
+  tarjeta legible, cifra neutra, estado coloreado y hoja sin desbordamiento.
+  No se publican nuevas capturas de auditoría; los PNG temporales no se commitean.
+- Backend real y sesión del usuario: **no comprobados**. Este corte no cambia la
+  API ni demuestra el cálculo real de racha/Control; reutiliza stats/overview.
+- Validación: typecheck completo correcto; suite completa correcta al repetir sin
+  carga paralela (un primer intento tuvo timeout de 5 s en RailSectionLink;
+  pasó aislado y en la repetición completa). OpenAPI regenerado sin diff.
+  Lint del monorepo: API/domain/SDK correctos; los errores de lint del nuevo menú
+  se corrigieron y se comprueba de nuevo web antes del commit.

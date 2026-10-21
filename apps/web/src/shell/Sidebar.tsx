@@ -1,7 +1,7 @@
+import { AccountMenu } from './AccountMenu';
 import { runAction } from '../components/run-action';
 import { MODULES, moduleEnabled } from './modules';
 import { useTickyFlags } from '../features/ticky/useTickyFlags';
-import { ControlChip } from '../features/statistics/ControlSummary';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { normalizeTagName, FIXED_SMART_LIST_KEYS } from '@reflexionia/domain';
 import { ApiError } from '@reflexionia/sdk';
@@ -188,14 +188,10 @@ export function Sidebar({
     >
       {mobileSection === 'more' ? (
         <div className="sidebar-account-identity">
-          <span className="account-avatar" aria-hidden="true">
-            {accountName.slice(0, 1).toUpperCase()}
-          </span>
+          <AccountMenu />
           <span>{accountName}</span>
         </div>
-      ) : concealed ? null : (
-        <ControlChip />
-      )}
+      ) : null}
       {mobileSection !== 'more' && smart.isPending ? (
         <div className="ui-skeleton" aria-hidden="true">
           <span />

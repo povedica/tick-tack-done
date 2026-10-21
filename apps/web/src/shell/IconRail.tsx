@@ -1,5 +1,4 @@
 import { runAction } from '../components/run-action';
-import { ControlChip } from '../features/statistics/ControlSummary';
 import { displayTitle } from '../features/tasks/displayTitle';
 import { MODULES, moduleEnabled } from './modules';
 import { useTickyFlags } from '../features/ticky/useTickyFlags';
@@ -79,7 +78,6 @@ export function IconRail({
           const label = key === 'focus' ? focusLabel : messages[module.label];
           return <RailSectionLink key={key} to={module.to} label={label} icon={Icon} />;
         })}
-      {collapsed ? <ControlChip compact /> : null}
       <span className="rail-spacer" />
       <button
         type="button"

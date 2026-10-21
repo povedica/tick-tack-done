@@ -1,6 +1,10 @@
 import { extraEs } from './extra';
 
 export const es = {
+  accountProgressLabel: 'Racha {days}. Control {score}, {state}',
+  accountProgress: 'Tu progreso',
+  streakActiveDot: 'Racha activa: {days}',
+  controlScoreOf: '{score} de 100',
   ...extraEs,
   countdownTypeMenu: 'Tipo de cuenta atrás',
   countdownDatePlaceholder: 'dd/mm/aaaa',

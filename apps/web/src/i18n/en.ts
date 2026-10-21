@@ -2,6 +2,10 @@ import { extraEn } from './extra';
 import type { es } from './es';
 
 export const en = {
+  accountProgressLabel: 'Streak {days}. Control {score}, {state}',
+  accountProgress: 'Your progress',
+  streakActiveDot: 'Active streak: {days}',
+  controlScoreOf: '{score} out of 100',
   ...extraEn,
   countdownTypeMenu: 'Countdown type',
   countdownDatePlaceholder: 'mm/dd/yyyy',

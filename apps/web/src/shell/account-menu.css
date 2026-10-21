@@ -1,0 +1,226 @@
+.account-menu {
+  position: relative;
+  color: var(--ink);
+}
+.account-trigger {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--tap);
+  min-height: var(--tap);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.account-avatar {
+  display: grid;
+  place-items: center;
+  width: var(--account-avatar-size);
+  height: var(--account-avatar-size);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--accent);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.account-streak-dot {
+  position: absolute;
+  top: var(--sp-1);
+  right: var(--sp-1);
+  width: var(--account-dot-size);
+  height: var(--account-dot-size);
+  border-radius: 50%;
+  background: var(--warning);
+}
+.account-menu-popover {
+  z-index: var(--account-menu-z);
+  box-sizing: border-box;
+  width: var(--account-menu-w);
+  max-width: calc(100vw - var(--sp-6));
+  max-height: calc(100dvh - var(--sp-6));
+  overflow: auto;
+  padding: var(--sp-2) 0;
+  border: var(--account-border-w) solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--fs-sm);
+}
+.account-menu-identity {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+}
+.account-menu-identity .account-avatar {
+  flex-shrink: 0;
+  width: var(--account-identity-avatar);
+  height: var(--account-identity-avatar);
+  background: var(--surface-2);
+}
+.account-menu-identity > div {
+  min-width: 0;
+}
+.account-menu-identity strong,
+.account-menu-identity > div > span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-menu-identity strong {
+  font-weight: 600;
+}
+.account-menu-identity > div > span {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+}
+.account-progress-heading {
+  margin: var(--sp-2) var(--sp-3);
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+}
+.account-progress,
+.account-progress-loading {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3);
+  margin: 0 var(--sp-2);
+  padding: var(--sp-3);
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+}
+.account-progress {
+  --score-color: var(--ink-3);
+  color: var(--ink);
+  text-decoration: none;
+}
+.account-progress[data-state='good'] {
+  --score-color: var(--success);
+}
+.account-progress[data-state='fair'] {
+  --score-color: var(--warning);
+}
+.account-progress[data-state='behind'] {
+  --score-color: var(--danger);
+}
+.account-progress-streak {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: var(--sp-1);
+}
+.account-progress-streak > svg {
+  color: var(--warning);
+}
+.account-progress-streak small {
+  grid-column: 1 / -1;
+}
+.account-progress strong {
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.account-progress small {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+}
+.account-progress-score {
+  display: grid;
+  gap: var(--sp-1);
+}
+.account-progress-score progress {
+  appearance: none;
+  border: 0;
+  width: 100%;
+  height: var(--account-progress-track);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  background: var(--surface-3);
+  color: var(--score-color);
+}
+.account-progress-score progress::-webkit-progress-bar {
+  background: var(--surface-3);
+}
+.account-progress-score progress::-webkit-progress-value {
+  background: var(--score-color);
+  border-radius: var(--radius-full);
+}
+.account-progress-score progress::-moz-progress-bar {
+  background: var(--score-color);
+  border-radius: var(--radius-full);
+}
+.account-progress-score .account-progress-label {
+  color: var(--score-color);
+}
+.account-progress-loading > span {
+  height: var(--account-loading-h);
+  background: var(--surface-3);
+  border-radius: var(--radius-sm);
+}
+.account-progress-error {
+  padding: var(--sp-2) var(--sp-3);
+}
+.account-menu-links {
+  display: grid;
+  margin-top: var(--sp-2);
+  padding-top: var(--sp-2);
+  border-top: var(--account-border-w) solid var(--border);
+}
+.account-menu-links a,
+.account-menu-popover button {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--account-row-h);
+  padding: 0 var(--sp-3);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-decoration: none;
+  text-align: left;
+  cursor: pointer;
+}
+.account-menu-links svg {
+  color: var(--ink-3);
+  flex-shrink: 0;
+}
+.account-menu-links a:hover,
+.account-menu-popover button:hover {
+  background: var(--sidebar-hover-bg);
+}
+.account-menu-links .account-sign-out:hover {
+  color: var(--danger);
+}
+.account-trigger:focus-visible,
+.account-menu-popover [role='menuitem']:focus-visible {
+  outline: var(--account-focus-w) solid var(--focus-ring);
+  outline-offset: var(--account-focus-w);
+}
+@media (max-width: 1023px) {
+  .account-menu-popover {
+    position: fixed !important;
+    top: auto !important;
+    left: 0 !important;
+    right: 0;
+    bottom: 0;
+    transform: none !important;
+    width: 100%;
+    max-width: none;
+    max-height: var(--account-sheet-max-h);
+    padding-bottom: max(var(--sp-3), env(safe-area-inset-bottom));
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+  .account-menu-links a,
+  .account-menu-popover button {
+    min-height: var(--tap);
+  }
+}
