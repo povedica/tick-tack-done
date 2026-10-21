@@ -16,7 +16,7 @@ import type {
   TokenPageDto,
 } from './tokens.dto.js';
 import type { Tx } from '../prisma/tx.js';
-import { isApiScope } from './scopes.js';
+import { isApiScope, isOauthScope } from './scopes.js';
 import { requireBrowserSession } from './session-access.js';
 import { TokenAudit } from './token-audit.js';
 import { newPersonalAccessToken } from './token-secret.js';
@@ -202,7 +202,7 @@ export class TokensService {
     },
   ): Promise<{ readonly id: string; readonly token: string }> {
     const unique = dedupe(input.scopes);
-    if (unique.length === 0 || unique.some((scope) => !isApiScope(scope))) {
+    if (unique.length === 0 || unique.some((scope) => !isOauthScope(scope))) {
       throw new DomainException(
         HttpStatus.BAD_REQUEST,
         'validation_failed',

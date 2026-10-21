@@ -153,6 +153,7 @@ export const es = {
   tokensTitle: 'Tokens de agente',
   tokensHint: 'Un token por agente, con los permisos justos.',
   tokenName: 'Agente',
+  scopeSensitive: 'Permiso sensible',
   tokenScopes: 'Permisos',
   tokenCreate: 'Crear token',
   tokenSaving: 'Creando…',

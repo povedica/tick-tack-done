@@ -62,11 +62,16 @@ export function isApiScope(value: string): value is ApiScope {
   return PAT_SCOPES.has(value);
 }
 
-/**
- * Used when an OAuth client omits `scope`. The prompt listed these and counted 21;
- * the list itself is 20. Countdowns, `profile:write` and `backup:read` stay grantable
- * when the client asks and the owner approves them. `account:admin` is never an API scope.
- */
+/** External OAuth clients cannot request the app's internal notification/Ticky scopes. */
+export const OAUTH_SCOPES = API_SCOPES.filter(
+  (scope) => !scope.startsWith('ticky:') && scope !== 'notifications:self:write',
+);
+const EXTERNAL_SCOPES: ReadonlySet<string> = new Set(OAUTH_SCOPES);
+export function isOauthScope(value: string): value is ApiScope {
+  return EXTERNAL_SCOPES.has(value);
+}
+
+/** Ordinary scopes offered when the client omits scope; sensitive permissions need an explicit request. */
 export const OAUTH_DEFAULT_SCOPES = [
   'tasks:read',
   'tasks:write',
@@ -86,8 +91,6 @@ export const OAUTH_DEFAULT_SCOPES = [
   'calendar:write',
   'reminders:write',
   'profile:read',
-  'webhooks:manage',
-  'automations:manage',
   'stats:read',
 ] as const satisfies readonly ApiScope[];
 
