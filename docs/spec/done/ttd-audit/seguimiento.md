@@ -126,3 +126,7 @@ completa: 122 pasan, 2 omitidos. OpenAPI regenerado sin diferencias.
 
 Validación de TTD-AUD-35/36: typecheck y lint completos; 281 tests de dominio,
 97 web, 102 API y 9 SDK. Integración completa: 123 pasan, 2 omitidos.
+
+CodeQL detectó una ruta desde metadatos OAuth hacia el hash de ETag. El listado
+selecciona solo campos públicos del DTO y no calcula ETag para esta respuesta
+sensible (`Cache-Control: no-store`); un test comprueba la cabecera.

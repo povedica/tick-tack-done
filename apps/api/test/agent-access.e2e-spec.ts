@@ -102,6 +102,7 @@ describe('personal access tokens', () => {
 
     const listed = await api.get('/api/v1/me/tokens').expect(200);
     expect(listed.headers['x-ratelimit-limit']).toBeUndefined();
+    expect(listed.headers['cache-control']).toBe('no-store');
     expect(JSON.stringify(listed.body)).not.toContain(secret);
     expect(listed.body.items[0].token_prefix).toBe(secret.slice(0, 16));
 

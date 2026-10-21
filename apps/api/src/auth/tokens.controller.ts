@@ -53,7 +53,8 @@ export class TokensController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    respondJson(req, res, 200, await this.tokens.list(user, limit, cursor, status), true);
+    res.setHeader('Cache-Control', 'no-store');
+    respondJson(req, res, 200, await this.tokens.list(user, limit, cursor, status), false);
   }
 
   @Post('tokens')
