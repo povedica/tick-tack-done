@@ -15,7 +15,7 @@ siguen el orden de prioridad de la petición; no se consideran cerrados.
 | TTD-AUD-08 | aplazado  | —                                                         | F-1…F-10 excluidos expresamente; solo se abordarán accesos y maquetación de ttd junto a TTD-AUD-07.                                                                         |
 | TTD-AUD-09 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                                     |
 | TTD-AUD-10 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-11 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                                     |
+| TTD-AUD-11 | corregido | pendiente de publicación                                  | Constructor común API/automatización, lunes local, payload completo v2; test de límite semanal UTC/local con tareas, hábitos y foco. Históricos preservados.                |
 | TTD-AUD-12 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                                     |
 | TTD-AUD-13 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                                     |
 | TTD-AUD-14 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                                     |
@@ -197,3 +197,26 @@ Validación de TTD-AUD-43: typecheck, lint y tests completos (281 dominio,
 Validación de TTD-AUD-28: typecheck, lint y suites completas en verde
 (281 dominio, 110 web, 104 API, 9 SDK); seis regresiones de errores y rollback.
 Muestra negativa de lint rechazada por no-floating-promises; OpenAPI sin diferencias.
+
+## TTD-AUD-11: criterios de aceptación
+
+- Reproducción previa: domingo UTC que ya es lunes en Pacific/Kiritimati guardaba
+  una semana con fecha de domingo y payload incompleto.
+- API manual y automatización comparten constructor del read model; el cálculo
+  diario puro usa ISO y vive en packages/domain.
+- La misma generación persiste siete días, completadas/creadas, hábitos, foco,
+  zona horaria, metrics_version=2 y calculated_at; respeta el tono configurado.
+- Integración con PostgreSQL: una completada/creada, un hábito cumplido/esperado
+  y 30 minutos de foco; ambos productores actualizan el mismo ID del lunes local.
+- Se preservan las transacciones y los sobres de los eventos de cada productor;
+  catálogo actualizado con la semántica de semana local.
+- Históricos inmutables (RF-2204): siguen sin recalcularse en GET. Tras desplegar,
+  usar «Actualizar» en la semana actual o POST /reports/weekly para regenerarla;
+  las siguientes ejecuciones automáticas ya guardan el payload completo.
+- RF cubiertos: RF-2201, RF-2202, RF-2203, RF-2204 y RF-604. Sin migración de modelo.
+- Pendiente cuenta real: regenerar la semana actual y comprobar tarjetas y fecha
+  de cálculo en /reports/weekly.
+
+Validación de TTD-AUD-11: typecheck, lint y suites completas en verde
+(284 dominio, 110 web, 101 API y 9 SDK); integración: 124 pasan, 2 omitidos.
+OpenAPI regenerado sin diferencias.
