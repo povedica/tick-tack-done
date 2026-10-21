@@ -3,54 +3,54 @@
 Registro incremental del trabajo solicitado el 21/10/2026. Los hallazgos pendientes
 siguen el orden de prioridad de la petición; no se consideran cerrados.
 
-| ID         | Estado    | PR                                                        | Notas                                                                                                                           |
-| ---------- | --------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| TTD-AUD-01 | corregido | [#60](https://github.com/povedica/tick-tack-done/pull/60) | Fecha efectiva en filtros y filas; inicio/duración en API de vistas y SDK. Tests de dominio, formato, mapeo, SQL e integración. |
-| TTD-AUD-02 | corregido | [#61](https://github.com/povedica/tick-tack-done/pull/61) | Rangos ES/EN, título limpio, inicio y duración; tests del parser y creación real por API, incluidos cambios DST.                |
-| TTD-AUD-03 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-04 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-05 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-06 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-07 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-08 | aplazado  | —                                                         | F-1…F-10 excluidos expresamente; solo se abordarán accesos y maquetación de ttd junto a TTD-AUD-07.                             |
-| TTD-AUD-09 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-10 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-11 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-12 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-13 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-14 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-15 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-16 | aplazado  | —                                                         | Pendiente de reproducción antes de modificar el código.                                                                         |
-| TTD-AUD-17 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-18 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-19 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-20 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-21 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-22 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-23 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-24 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-25 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-26 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-27 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-28 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-29 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-30 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-31 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-32 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-33 | aplazado  | —                                                         | Pendiente de reproducción antes de modificar el código.                                                                         |
-| TTD-AUD-34 | aplazado  | —                                                         | Pendiente de reproducción antes de modificar el código.                                                                         |
-| TTD-AUD-35 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-36 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-37 | aplazado  | —                                                         | Pendiente de reproducción antes de modificar el código.                                                                         |
-| TTD-AUD-38 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-39 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-40 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-41 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-42 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-43 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-44 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-45 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
-| TTD-AUD-46 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
+| ID         | Estado    | PR                                                        | Notas                                                                                                                                                       |
+| ---------- | --------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| TTD-AUD-01 | corregido | [#60](https://github.com/povedica/tick-tack-done/pull/60) | Fecha efectiva en filtros y filas; inicio/duración en API de vistas y SDK. Tests de dominio, formato, mapeo, SQL e integración.                             |
+| TTD-AUD-02 | corregido | [#61](https://github.com/povedica/tick-tack-done/pull/61) | Rangos ES/EN, título limpio, inicio y duración; tests del parser y creación real por API, incluidos cambios DST.                                            |
+| TTD-AUD-03 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-04 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-05 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-06 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-07 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-08 | aplazado  | —                                                         | F-1…F-10 excluidos expresamente; solo se abordarán accesos y maquetación de ttd junto a TTD-AUD-07.                                                         |
+| TTD-AUD-09 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-10 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-11 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-12 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-13 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-14 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-15 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-16 | aplazado  | —                                                         | Pendiente de reproducción antes de modificar el código.                                                                                                     |
+| TTD-AUD-17 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-18 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-19 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-20 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-21 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-22 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-23 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-24 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-25 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-26 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-27 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-28 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-29 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-30 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-31 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-32 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-33 | aplazado  | —                                                         | Pendiente de reproducción antes de modificar el código.                                                                                                     |
+| TTD-AUD-34 | aplazado  | —                                                         | Pendiente de reproducción antes de modificar el código.                                                                                                     |
+| TTD-AUD-35 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-36 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-37 | corregido | [#62](https://github.com/povedica/tick-tack-done/pull/62) | Reproducido PostgreSQL 25P02; nombre interno OAuth único antes del INSERT, sin reintentos en transacción abortada. Tests de reautorización y choque manual. |
+| TTD-AUD-38 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-39 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-40 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-41 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-42 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-43 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-44 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-45 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
+| TTD-AUD-46 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
 
 ## TTD-AUD-01: criterios de aceptación
 
@@ -92,3 +92,18 @@ automática bloqueó su publicación adicional en este repositorio público.
 
 Validación de TTD-AUD-02: typecheck y lint completos; 281 tests de dominio,
 95 web, 102 API y 9 SDK; integración completa: 120 pasan, 2 omitidos.
+
+## TTD-AUD-37: criterios de aceptación
+
+- Reproducción local confirmada antes de modificar código: dos tests fallaban con
+  PostgreSQL `25P02` al reintentar tras el conflicto de unicidad.
+- Emitir dos autorizaciones consecutivas para el mismo cliente funciona.
+- Un token manual llamado «ChatGPT» no bloquea OAuth y conserva su estado activo.
+- Se mantienen los eventos de emisión dentro de la transacción y los secretos no
+  se incluyen en nombres ni eventos.
+- Nombre interno elegido antes del INSERT con UUID; se mantiene el límite de 80
+  caracteres y el índice existente de nombres activos. Sin cambios de modelo ni migración.
+- RF cubierto: RF-2002. Pendiente validación del flujo real de ChatGPT por Pablo.
+
+Validación de TTD-AUD-37: typecheck, lint y tests completos en verde; integración
+completa: 122 pasan, 2 omitidos. OpenAPI regenerado sin diferencias.
