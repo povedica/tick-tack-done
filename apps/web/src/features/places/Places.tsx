@@ -51,7 +51,6 @@ import { newMutation, runOrQueue } from '../offline/client';
 import { collectTasks } from '../today/board';
 import { calendarDay, formatDueTime } from '../today/groups';
 import { TaskList } from '../tasks/TaskList';
-import { TaskComposer } from '../tasks/TaskComposer';
 import { taskQueryHref } from '../../shell/use-open-task';
 import { Board } from '../views/components/ViewPages';
 import { viewsApi } from '../views/api';

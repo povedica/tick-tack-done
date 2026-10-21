@@ -105,9 +105,7 @@ export function FocusPage() {
       ? 0
       : Math.min(1, Math.max(0, (plannedSeconds - remaining) / plannedSeconds));
   const ring = 2 * Math.PI * 54;
-  const loading =
-    (sessions.isPending && sessions.data === undefined) ||
-    (settings.isPending && settings.data === undefined);
+  const loading = sessions.isPending || settings.isPending;
   if (loading) {
     return (
       <section className="screen-page">
@@ -124,9 +122,9 @@ export function FocusPage() {
           title={fill(messages.loadFailed, messages.focusTitle)}
           retryLabel={messages.retry}
           onRetry={() => {
-            void sessions.refetch();
-            void settings.refetch();
-            void stats.refetch();
+            runAction(sessions.refetch());
+            runAction(settings.refetch());
+            runAction(stats.refetch());
           }}
         />
       </section>
@@ -151,7 +149,10 @@ export function FocusPage() {
             cx="60"
             cy="60"
             r="54"
-            style={{ strokeDasharray: `${ring}`, strokeDashoffset: `${ring * (1 - progress)}` }}
+            style={{
+              strokeDasharray: String(ring),
+              strokeDashoffset: String(ring * (1 - progress)),
+            }}
           />
         </svg>
         <p className="focus-timer-clock detail-title">{clock(remaining)}</p>

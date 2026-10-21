@@ -251,13 +251,13 @@ export function MatrixBoard({
         </div>
       </div>
       {info ? <p className="matrix-info ui-muted">{messages.matrixRules}</p> : null}
-      {tasks.isPending && tasks.data === undefined ? <SkeletonRows /> : null}
+      {tasks.isPending ? <SkeletonRows /> : null}
       {tasks.isError ? (
         <ErrorState
           title={fill(messages.loadFailed, messages.matrixTitle)}
           retryLabel={messages.retry}
           onRetry={() => {
-            void tasks.refetch();
+            runAction(tasks.refetch());
           }}
         />
       ) : null}

@@ -151,13 +151,13 @@ export function CountdownsPage() {
           </button>
         </div>
       </header>
-      {rows.isPending && rows.data === undefined ? <SkeletonRows /> : null}
+      {rows.isPending ? <SkeletonRows /> : null}
       {rows.isError ? (
         <ErrorState
           title={messages.countdownLoadFailed}
           retryLabel={messages.retry}
           onRetry={() => {
-            void rows.refetch();
+            runAction(rows.refetch());
           }}
         />
       ) : null}

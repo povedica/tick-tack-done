@@ -98,7 +98,7 @@ export function FeaturesPage() {
     });
   }
 
-  if (me.isPending && me.data === undefined) {
+  if (me.isPending) {
     return (
       <section className="token-settings">
         <h1>{messages.settingsFeatures}</h1>
@@ -114,7 +114,7 @@ export function FeaturesPage() {
           title={fill(messages.loadFailed, messages.settingsFeatures)}
           retryLabel={messages.retry}
           onRetry={() => {
-            void me.refetch();
+            runAction(me.refetch());
           }}
         />
       </section>

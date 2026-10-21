@@ -31,7 +31,7 @@ export function WorkdaySettings() {
     }
   }
 
-  if (me.isPending && me.data === undefined) {
+  if (me.isPending) {
     return (
       <section>
         <h1>{messages.workdayTitle}</h1>
@@ -47,7 +47,7 @@ export function WorkdaySettings() {
           title={fill(messages.loadFailed, messages.workdayTitle)}
           retryLabel={messages.retry}
           onRetry={() => {
-            void me.refetch();
+            runAction(me.refetch());
           }}
         />
       </section>

@@ -101,7 +101,7 @@ export function TaskDetail({
       setSaved(true);
       setError(null);
       if (!outcome.queued) {
-        void refresh();
+        runAction(refresh());
       }
     },
     onError: (caught: unknown) => {

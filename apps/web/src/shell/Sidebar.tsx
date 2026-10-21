@@ -902,7 +902,7 @@ function ListMenu({
                         location.pathname === `/lists/${project.id}` ||
                         location.pathname === `/projects/${project.id}`
                       ) {
-                        navigate('/inbox', { replace: true });
+                        return navigate('/inbox', { replace: true });
                       }
                     }),
                   );

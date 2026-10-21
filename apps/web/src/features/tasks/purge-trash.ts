@@ -48,7 +48,7 @@ export function decrementTrashCount(page: SmartListPage): SmartListPage {
     ...page,
     items: page.items.map((item) =>
       item.key === 'trash'
-        ? { ...item, task_count: Math.max(0, (item.task_count ?? 0) - 1) }
+        ? { ...item, task_count: Math.max(0, item.task_count - 1) }
         : item,
     ),
   };

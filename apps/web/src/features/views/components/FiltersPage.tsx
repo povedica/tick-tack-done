@@ -2,6 +2,7 @@ import type { ViewPage } from '@reflexionia/sdk';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link } from 'react-router';
+import { runAction } from '../../../components/run-action';
 import { Button, ErrorState, SkeletonRows } from '../../../components/ui';
 import { fill, useMessages, type Messages } from '../../../i18n';
 import { viewsApi } from '../api';
@@ -82,7 +83,7 @@ export function FiltersPage() {
     },
   });
 
-  if (filters.isPending && filters.data === undefined) {
+  if (filters.isPending) {
     return (
       <main className="screen-page">
         <h1>{messages.filtersTitle}</h1>
@@ -99,12 +100,14 @@ export function FiltersPage() {
           title={fill(messages.loadFailed, messages.filtersTitle)}
           retryLabel={messages.retry}
           onRetry={() => {
-            void filters.refetch();
+            runAction(filters.refetch());
           }}
         />
       </main>
     );
   }
+
+  const filterItems = filters.data.items;
 
   return (
     <main className="screen-page filters-page">
@@ -112,7 +115,7 @@ export function FiltersPage() {
       <p>{messages.filtersHint}</p>
       {error !== null ? <p className="error">{error}</p> : null}
       <ul className="task-list">
-        {(filters.data?.items ?? []).map((filter) => (
+        {filterItems.map((filter) => (
           <li key={filter.id}>
             <Link to={`/filters/${filter.id}`}>{filter.name}</Link>
             <span>{messages.filterCount.replace('{count}', String(filter.task_count))}</span>
@@ -143,9 +146,7 @@ export function FiltersPage() {
           </li>
         ))}
       </ul>
-      {(filters.data?.items.length ?? 0) === 0 && filters.isSuccess ? (
-        <p>{messages.filterEmpty}</p>
-      ) : null}
+      {filterItems.length === 0 ? <p>{messages.filterEmpty}</p> : null}
       <form
         className="habit-form filters-form"
         onSubmit={(event) => {

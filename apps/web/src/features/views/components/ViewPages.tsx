@@ -172,12 +172,12 @@ export function Board({
   const [params, setParams] = useSearchParams();
   const [prefs, setPrefs] = useState(() =>
     readViewPrefs(viewKey, {
-      group: (initialGroup as ViewGroupBy | undefined) ?? 'none',
+      group: initialGroup,
       hideCompleted: !revealCompleted,
     }),
   );
-  const groupBy = prefs.group as GroupBy;
-  const sort = prefs.sort as Sort;
+  const groupBy: GroupBy = prefs.group;
+  const sort: Sort = prefs.sort;
   const details = prefs.showDetails;
   const hideCompleted = prefs.hideCompleted;
   const [matrixLayout, setMatrixLayout] = useState(() =>
