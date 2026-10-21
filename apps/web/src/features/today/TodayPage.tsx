@@ -12,6 +12,7 @@ import { useActionToast } from '../../components/action-toast';
 import { useMessages, type Messages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
 import { warningText } from '../capture/components/CaptureSheet';
+import { allDaySlot } from '../capture/calendar-slot';
 import { openTaskComposer, useCaptureNotice } from '../capture/notice';
 import { TodayPlanStrip, type DayLoadBody } from './TodayPlanStrip';
 import { TodayHabits } from './TodayHabits';
@@ -112,7 +113,20 @@ export function TodayPage() {
       window.removeEventListener('focus', check);
     };
   }, [habitsHidden]);
-  const [matrixLayout, setMatrixLayout] = useState(() => readMatrixLayout('today'));
+  const [matrixLayout, setMatrixLayout] = useState(() => {
+    const requested = params.get('view');
+    return requested === 'list' || requested === 'matrix' || requested === 'kanban'
+      ? requested
+      : readMatrixLayout('today');
+  });
+  useEffect(() => {
+    const requested = params.get('view');
+    if (
+      (requested === 'list' || requested === 'matrix' || requested === 'kanban') &&
+      requested !== matrixLayout
+    )
+      setMatrixLayout(requested);
+  }, [params, matrixLayout]);
   const jobs = useRef(new Map<string, CompleteJob>());
   const leaveTimers = useRef(new Map<string, number>());
   const tasks = useQuery({
@@ -491,6 +505,21 @@ export function TodayPage() {
       moreLabel: messages.moreActions,
       untitled: messages.untitled,
       groupKind: overdueLabel ? 'due' : group,
+      onCreate:
+        matrixLayout === 'kanban'
+          ? () => {
+              openTaskComposer({
+                text: '',
+                slot: allDaySlot(calendarDay(new Date().toISOString(), zone), zone),
+                defaultProjectId: inbox?.id,
+                ...(group === 'priority' && ['high', 'medium', 'low', 'none'].includes(sectionId)
+                  ? { priority: sectionId as 'high' | 'medium' | 'low' | 'none' }
+                  : {}),
+                ...(group === 'list' && projectNames.has(sectionId) ? { project: sectionId } : {}),
+                ...(group === 'tag' && tagNames.has(sectionId) ? { tags: [sectionId] } : {}),
+              });
+            }
+          : undefined,
       collapsed: collapsed.has(overdueLabel ? 'overdue' : sectionId),
       selected,
       leaving,
@@ -544,6 +573,9 @@ export function TodayPage() {
             onChange={(next) => {
               writeMatrixLayout('today', next);
               setMatrixLayout(next);
+              const query = new URLSearchParams(params);
+              query.set('view', next);
+              setParams(query, { replace: true });
             }}
           />
           <div className="group-popover">
@@ -622,7 +654,9 @@ export function TodayPage() {
           </ViewMenu>
         </div>
       </header>
-      <TaskComposer inputRef={addRef} viewDay="today" defaultProjectId={inbox?.id} />
+      {matrixLayout !== 'kanban' ? (
+        <TaskComposer inputRef={addRef} viewDay="today" defaultProjectId={inbox?.id} />
+      ) : null}
       <TodayPlanStrip
         load={load.isSuccess ? load.data : undefined}
         loading={load.isPending && showLoad}
@@ -681,7 +715,13 @@ export function TodayPage() {
               ) : (
                 <div id="overdue" hidden />
               )}
-              {sections.map((section) => (
+              {(matrixLayout === 'kanban' && group === 'priority'
+                ? ['high', 'medium', 'low', 'none'].map((id) => ({
+                    id,
+                    tasks: sections.find((section) => section.id === id)?.tasks ?? [],
+                  }))
+                : sections
+              ).map((section) => (
                 <TaskGroup key={section.id} {...groupProps(section.id, section.tasks)} />
               ))}
               {showWhen && eveningTasks.length > 0 ? (

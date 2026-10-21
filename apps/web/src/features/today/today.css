@@ -1408,3 +1408,154 @@ a.task-title {
 .today-layout.is-kanban .today-habits-column {
   margin-left: auto;
 }
+
+/* Kanban cards keep their contents inside the column, independent of list density. */
+.today-layout.is-kanban {
+  align-items: stretch;
+}
+.today-layout.is-kanban .today-task-groups > .task-group,
+.today-layout.is-kanban #overdue > .task-group,
+.today-layout.is-kanban .today-habits-column {
+  flex-basis: 300px;
+  min-width: 280px;
+  max-width: 360px;
+}
+.today-layout.is-kanban .task-group {
+  background: transparent;
+  padding: var(--sp-1);
+}
+.today-layout.is-kanban .task-group > summary {
+  position: static;
+  min-height: 40px;
+  margin-bottom: var(--sp-2);
+  padding-inline: var(--sp-2);
+  background: transparent;
+}
+.kanban-column-add {
+  display: grid;
+  place-items: center;
+  margin-left: auto;
+  padding: var(--sp-1);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.kanban-column-add:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.today-layout.is-kanban .task-row {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: var(--sp-2);
+  height: auto;
+  min-height: 72px;
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.today-layout.is-kanban .task-row > .task-grip {
+  display: none;
+}
+.today-layout.is-kanban .task-row > .task-check-hit {
+  grid-column: 1;
+  grid-row: 1;
+  width: 20px;
+  min-width: 20px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0;
+}
+.today-layout.is-kanban .task-row > .task-title {
+  grid-column: 2;
+  grid-row: 1;
+  padding: 0;
+  margin: 0;
+  height: auto;
+  min-height: 24px;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.5;
+}
+.today-layout.is-kanban .task-row > .task-meta {
+  grid-column: 2;
+  grid-row: 2;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: center;
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0;
+  margin: 0;
+  height: auto;
+  white-space: normal;
+  gap: var(--sp-1);
+}
+.today-layout.is-kanban .task-meta > * {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.today-layout.is-kanban .task-list > li::after {
+  display: none;
+}
+.kanban-add-space {
+  min-height: 64px;
+}
+.kanban-add-space > button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  width: 100%;
+  min-height: 56px;
+  border: 0;
+  background: transparent;
+  border-radius: var(--radius-md);
+  color: var(--ink-3);
+  font: inherit;
+  cursor: pointer;
+}
+.kanban-add-space > button:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.today-layout.is-kanban .task-group[open] > .task-list {
+  max-height: calc(100dvh - 260px);
+  overflow-y: auto;
+  padding: 2px 4px var(--sp-4);
+}
+.today-layout.is-kanban .today-habits-column {
+  margin-top: 0;
+}
+.today-layout.is-kanban .today-habits {
+  margin-top: 0;
+}
+
+.today-layout.is-kanban .task-list {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+.today-layout.is-kanban .task-list > li {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+.today-layout.is-kanban .task-row {
+  width: 100%;
+  box-sizing: border-box;
+}
+.today-layout.is-kanban .task-group > summary .task-count {
+  margin-inline-start: var(--sp-1);
+  margin-inline-end: auto;
+}

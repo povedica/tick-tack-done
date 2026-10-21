@@ -130,13 +130,13 @@ export function TaskComposer({
       text.trim().length > 0 ||
         content.trim().length > 0 ||
         files.length > 0 ||
-        (tags?.length ?? 0) > 0 ||
-        date !== null ||
-        priority !== undefined ||
-        project !== null ||
-        kind === 'note',
+        JSON.stringify(tags) !== JSON.stringify(initialDraft?.tags ?? null) ||
+        date !== (initialDraft?.date ?? null) ||
+        priority !== initialDraft?.priority ||
+        project !== (initialDraft?.project ?? null) ||
+        kind !== (initialDraft?.kind ?? 'task'),
     );
-  }, [text, content, files, tags, date, priority, project, kind, onDraftChange]);
+  }, [text, content, files, tags, date, priority, project, kind, initialDraft, onDraftChange]);
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
   const tagQuery = useQuery({ queryKey: ['tags'], queryFn: collectTags });
   const request = useMemo(
@@ -286,6 +286,12 @@ export function TaskComposer({
           kind,
           content,
           ...(project === null ? {} : { project_id: project }),
+          ...(initialDraft?.columnId === undefined
+            ? {}
+            : {
+                column_id:
+                  project !== null && project !== defaultProjectId ? null : initialDraft.columnId,
+              }),
           ...(priority === undefined ? {} : { priority }),
           ...(date === null
             ? {}
@@ -672,6 +678,9 @@ export function TaskComposer({
                 disabled={frozen}
                 onClick={() => {
                   onExpand({
+                    ...(initialDraft?.columnId === undefined
+                      ? {}
+                      : { columnId: initialDraft.columnId }),
                     text,
                     content,
                     date,

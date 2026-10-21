@@ -61,7 +61,7 @@ async function fixture(page: Page, fail = false) {
         tag_ids: [],
         tags: [],
         project_name: 'Bandeja',
-        column_id: null,
+        column_id: request.column_id ?? null,
         parent_id: null,
         completed_at: null,
         created_at: '2026-10-20T10:00:00Z',
@@ -86,6 +86,12 @@ async function fixture(page: Page, fail = false) {
         group_by: 'none',
         sort: 'due',
       };
+    if (
+      path.startsWith('/tasks/') &&
+      route.request().method() === 'GET' &&
+      !path.slice(7).includes('/')
+    )
+      body = created.find((task) => task.id === path.slice(7)) ?? {};
     if (path === '/calendar/events')
       body = {
         tasks: [],
@@ -286,3 +292,89 @@ for (const width of [1280, 390]) {
     await expect(page.locator('.matrix-board')).toBeVisible();
   });
 }
+
+test('Kanban opens contextual capture from header and space, and only shows detail for a selected task', async ({
+  page,
+}) => {
+  const posts = await fixture(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/today?group=priority');
+  const field = page.locator('.today .task-composer input[name=title]');
+  await field.fill(
+    'Título muy largo de una tarea para comprobar que todo su contenido se ajusta al ancho de la tarjeta sin invadir ninguna columna vecina',
+  );
+  await field.press('Enter');
+  await expect.poll(() => posts.length).toBe(1);
+  await page
+    .locator('.task-view-toggle')
+    .getByRole('button', { name: 'Kanban', exact: true })
+    .click();
+  await expect(page.locator('.detail-slot')).toHaveCount(0);
+  await expect(page.locator('.today .task-composer')).toHaveCount(0);
+  const high = page.locator('.today-task-groups > .task-group').first();
+  await high.locator('.kanban-column-add').click();
+  const modal = page.locator('.calendar-quick-add');
+  await expect(modal).toBeVisible();
+  await modal.locator('input[name=title]').fill('Alta de columna');
+  await modal.getByRole('button', { name: 'Añadir', exact: true }).click();
+  await expect.poll(() => posts.length).toBe(2);
+  expect(posts[1]?.priority).toBe('high');
+  await high.locator('.kanban-add-space button').click();
+  await expect(modal).toBeVisible();
+  await modal.getByRole('button', { name: 'Cancelar', exact: true }).click();
+  const card = page.locator('.today-task-groups .task-row').filter({ hasText: 'Título muy largo' });
+  const fits = await card.evaluate((node) => {
+    const title = node.querySelector('.task-title')!.getBoundingClientRect();
+    const box = node.getBoundingClientRect();
+    return (
+      title.left >= box.left && title.right <= box.right && node.scrollWidth <= node.clientWidth
+    );
+  });
+  expect(fits).toBe(true);
+  await card.locator('.task-title').click();
+  await expect(page.locator('.detail-slot')).toBeVisible();
+  await page
+    .locator('.detail-slot')
+    .getByRole('button', { name: 'Cerrar', exact: true })
+    .first()
+    .click();
+  await expect(page.locator('.detail-slot')).toHaveCount(0);
+  await page.screenshot({ path: '/tmp/today-kanban-refined.png', fullPage: true });
+});
+
+test('List Kanban opens the shared modal with its target column', async ({ page }) => {
+  const posts = await fixture(page);
+  await page.route('**/api/v1/projects/work/columns', (route) =>
+    route.fulfill({
+      json: { items: [{ id: 'todo', name: 'Pendientes', wip_limit: null }], next_cursor: null },
+    }),
+  );
+  await page.goto('/list/work?view=kanban');
+  const column = page
+    .locator('.kanban-col')
+    .filter({ has: page.getByRole('heading', { name: /Pendientes/ }) });
+  await expect(column).toBeVisible();
+  await expect(page.locator('.detail-slot')).toHaveCount(0);
+  await column.locator('.kanban-column-add').click();
+  await page.locator('.calendar-quick-add input[name=title]').fill('Preparar una propuesta');
+  await page
+    .locator('.calendar-quick-add')
+    .getByRole('button', { name: 'Añadir', exact: true })
+    .click();
+  await expect.poll(() => posts.length).toBe(1);
+  expect(posts[0]).toMatchObject({ project_id: 'work', column_id: 'todo' });
+  await column.locator('.kanban-add-space button').click();
+  await expect(page.locator('.calendar-quick-add')).toBeVisible();
+});
+
+test('Kanban direct URL opens columns without an empty detail pane', async ({ page }) => {
+  await fixture(page);
+  await page.goto('/today?view=kanban&group=priority');
+  await expect(page.locator('.today-layout')).toHaveClass(/is-kanban/);
+  await expect(page.locator('.detail-slot')).toHaveCount(0);
+  await expect(page.locator('.today-task-groups .kanban-column-add')).toHaveCount(4);
+  await page.locator('.today-task-groups .kanban-column-add').first().click();
+  await expect(page.locator('.calendar-quick-add')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.calendar-quick-add')).toHaveCount(0);
+});

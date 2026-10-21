@@ -43,7 +43,14 @@ export function AppShell() {
   const showSidebar = sectionShowsSidebar(section);
   const showDetailPane = sectionShowsDetailPane(section) && !narrow;
   const sidebarCollapsed = !showSidebar || collapsed;
-  const detailOpen = showDetailPane || (narrow && taskId !== null);
+  const requestedView = new URLSearchParams(location.search).get('view');
+  const kanban =
+    requestedView === 'kanban' ||
+    (requestedView === null &&
+      location.pathname === '/today' &&
+      localStorage.getItem('tick-tack-done.matrix.view.today') === 'kanban');
+  const detailOpen =
+    (showDetailPane && (!kanban || taskId !== null)) || (narrow && taskId !== null);
   const floatingDetail = !narrow && !sectionShowsDetailPane(section) && taskId !== null;
 
   useEffect(() => {

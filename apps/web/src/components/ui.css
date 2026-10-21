@@ -3007,3 +3007,42 @@ a.link:hover {
     --today-mark-size: var(--today-size-picker-mobile);
   }
 }
+
+.kanban-col {
+  flex: 0 0 300px;
+  max-width: 360px;
+  border: 0;
+  background: transparent;
+}
+.kanban-col > h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 40px;
+  margin: 0 0 var(--sp-2);
+}
+.kanban-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-3);
+  box-shadow: var(--shadow-sm);
+  min-width: 0;
+}
+.kanban-card-title {
+  min-width: 0;
+}
+.kanban-card-title > button {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+  height: auto;
+}
+.kanban-card-title > .task-check-hit {
+  flex: 0 0 20px;
+  min-width: 20px;
+}
+.kanban-card-meta {
+  padding-inline-start: 26px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

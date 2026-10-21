@@ -198,6 +198,13 @@ export function Board({
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
   const inboxId = projects.data?.items.find((project) => project.is_inbox)?.id;
   const view = parseView(params.get('view') ?? prefs.view);
+  useEffect(() => {
+    if (view === 'kanban' && params.get('view') !== 'kanban') {
+      const query = new URLSearchParams(params);
+      query.set('view', 'kanban');
+      setParams(query, { replace: true });
+    }
+  }, [view, params, setParams]);
   const page = useQuery({
     queryKey: [...queryKey, groupBy, sort],
     queryFn: () => load(groupBy, sort),

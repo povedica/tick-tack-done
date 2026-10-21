@@ -844,3 +844,30 @@ Validación: dos Playwright a 1280/390px comprueban controles, tarjeta legible,
 orden de Hábitos y cambios de vista en Mañana. Pase conjunto 35/35 correcto.
 606 unitarios, incluidos alcance Mañana, lint/typecheck generales y OpenAPI sin
 diff correctos; comprobación web final adicional. Capturas sólo /tmp, API simulada.
+
+
+## 2026-10-22 — Kanban: tarjetas, captura en columnas y detalle contextual
+
+RF-301/304, RF-501/502, RF-1902/1903. Columnas transparentes, anchos acotados
+y tarjetas con borde suave, altura por contenido, título multilínea y metadatos
+que respetan el ancho. Lista de cada columna con scroll independiente. Hoy
+agrupado por prioridad ofrece las cuatro columnas incluso vacías; Hábitos sigue
+al final. Alta en línea superior oculta en Kanban.
+
+En Kanban el panel derecho sólo se monta con tarea seleccionada. × elimina la
+selección y recupera espacio del tablero. URL view=kanban y preferencia local
+compatibles; enlaces directos y navegación entre vistas respetados. Tarjeta
+abre detalle al pulsar su contenido no interactivo; controles mantienen su acción.
+
++ en cabecera y primer hueco al final abren el modal compartido: Hoy conserva
+fecha y prioridad/lista/etiqueta del grupo; listas conservan proyecto y column_id,
+y agrupaciones por fecha conservan su fecha contextual. columnId viaja en el
+borrador y se preserva al expandir; se limpia si se cambia a otro proyecto.
+No se consideran cambios los valores iniciales del contexto: modal vacío cierra
+sin confirmación; ediciones reales conservan la protección de borrador.
+
+Validación: 37 Playwright de editor/calendario/Kanban correctos, más pase final
+Kanban con URL directa, creación desde ambas zonas, prioridad/column_id reales
+en POST simulado, título largo sin desbordar, apertura y × del panel. 606 unitarios,
+lint/typecheck generales y OpenAPI sin diff correctos, más verificación web final.
+Capturas revisadas en /tmp; API simulada, pendiente revisión visual real del usuario.

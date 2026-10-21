@@ -8,6 +8,7 @@ export interface CaptureDraft {
   readonly date?: DateDraft | null;
   readonly priority?: 'none' | 'low' | 'medium' | 'high' | undefined;
   readonly project?: string | null;
+  readonly columnId?: string | null;
   readonly tags?: string[] | null;
   readonly files?: File[];
   readonly kind?: 'task' | 'note';

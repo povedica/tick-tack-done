@@ -7,6 +7,7 @@ import {
   GripVertical,
   ListChecks,
   MoreHorizontal,
+  Plus,
   Paperclip,
   Pin,
   Repeat,
@@ -40,6 +41,7 @@ export function TaskGroup({
   details,
   openTaskId,
   deadlineSoonDays = 2,
+  onCreate,
   onToggle,
   onComplete,
   onOpen,
@@ -69,6 +71,7 @@ export function TaskGroup({
   readonly details: boolean;
   readonly openTaskId: string | null;
   readonly deadlineSoonDays?: number;
+  readonly onCreate?: (() => void) | undefined;
   readonly onToggle: (id: string, open: boolean) => void;
   readonly onComplete: (task: TodayTask) => void;
   readonly onOpen: (id: string) => void;
@@ -81,6 +84,9 @@ export function TaskGroup({
     <details
       id={id}
       className="task-group"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onCreate?.();
+      }}
       open={!collapsed}
       onToggle={(event) => {
         onToggle(id, event.currentTarget.open);
@@ -106,6 +112,20 @@ export function TaskGroup({
         <ChevronDown className="task-chevron" size={16} aria-hidden="true" />
         <span>{label}</span>
         <span className="task-count">{tasks.length}</span>
+        {onCreate ? (
+          <button
+            type="button"
+            className="kanban-column-add"
+            aria-label={`${messagesFor(locale).addTask}: ${label}`}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onCreate();
+            }}
+          >
+            <Plus size={18} aria-hidden="true" />
+          </button>
+        ) : null}
       </summary>
       <ul className="task-list" data-details={details ? 'on' : 'off'}>
         {tasks.map((task) => {
@@ -135,6 +155,14 @@ export function TaskGroup({
               <div
                 className={classes}
                 data-task-id={task.id}
+                onClick={(event) => {
+                  if (
+                    onCreate &&
+                    event.target instanceof Element &&
+                    !event.target.closest('button, a, input, label')
+                  )
+                    onOpen(task.id);
+                }}
                 draggable
                 tabIndex={focusId === task.id ? 0 : -1}
                 onFocus={() => {
@@ -257,6 +285,18 @@ export function TaskGroup({
             </li>
           );
         })}
+        {onCreate ? (
+          <li className="kanban-add-space">
+            <button
+              type="button"
+              aria-label={`${messagesFor(locale).addTask}: ${label}`}
+              onClick={onCreate}
+            >
+              <Plus size={16} aria-hidden="true" />
+              {messagesFor(locale).addTask}
+            </button>
+          </li>
+        ) : null}
       </ul>
     </details>
   );
