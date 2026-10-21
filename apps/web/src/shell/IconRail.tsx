@@ -5,12 +5,12 @@ import { MODULES, moduleEnabled } from './modules';
 import { useTickyFlags } from '../features/ticky/useTickyFlags';
 import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, HelpCircle, ListTodo, PanelLeft, Plus } from 'lucide-react';
-import { NavLink, useLocation, useNavigate } from 'react-router';
+import { useNavigate } from 'react-router';
 import { api } from '../api';
 import { AccountMenu } from './AccountMenu';
 import { useFeatures } from '../features/settings/feature-flags';
 import { useMessages } from '../i18n';
-import { sectionOf } from './section-of';
+import { RailSectionLink } from './RailSectionLink';
 import { formatClock, useActiveFocus } from './useActiveFocus';
 
 export function IconRail({
@@ -24,8 +24,6 @@ export function IconRail({
 }) {
   const messages = useMessages();
   const navigate = useNavigate();
-  const location = useLocation();
-  const tasksActive = sectionOf(location.pathname) === 'tasks';
   const flags = useFeatures((state) => state.flags);
   const ticky = useTickyFlags();
   const focus = useActiveFocus();
@@ -70,14 +68,7 @@ export function IconRail({
   return (
     <nav className="icon-rail" aria-label={messages.appName}>
       <AccountMenu />
-      <NavLink
-        to="/today"
-        aria-label={messages.navTasks}
-        title={messages.navTasks}
-        className={() => (tasksActive ? 'active' : '')}
-      >
-        <ListTodo size={20} aria-hidden="true" />
-      </NavLink>
+      <RailSectionLink to="/today" label={messages.navTasks} icon={ListTodo} tasks />
       {flags.navigation_order
         .filter((key) =>
           moduleEnabled(key, flags, ticky.isSuccess && ticky.data.ui && !ticky.data.kill),
@@ -86,11 +77,7 @@ export function IconRail({
           const module = MODULES[key];
           const Icon = module.icon;
           const label = key === 'focus' ? focusLabel : messages[module.label];
-          return (
-            <NavLink key={key} to={module.to} aria-label={label} title={label}>
-              <Icon size={20} aria-hidden="true" />
-            </NavLink>
-          );
+          return <RailSectionLink key={key} to={module.to} label={label} icon={Icon} />;
         })}
       {collapsed ? <ControlChip compact /> : null}
       <span className="rail-spacer" />
@@ -98,7 +85,7 @@ export function IconRail({
         type="button"
         className="rail-bell"
         aria-label={overdueLabel}
-        title={overdueLabel}
+        data-rail-tooltip={overdueLabel}
         aria-busy={overdue.isFetching}
         onClick={() => {
           if (overdue.isError) {
@@ -126,14 +113,12 @@ export function IconRail({
           <span className="rail-badge">{badge > 99 ? '99+' : String(badge)}</span>
         ) : null}
       </button>
-      <NavLink to="/settings/shortcuts" aria-label={messages.navHelp} title={messages.navHelp}>
-        <HelpCircle size={20} aria-hidden="true" />
-      </NavLink>
+      <RailSectionLink to="/settings/shortcuts" label={messages.navHelp} icon={HelpCircle} />
       <button
         type="button"
         className="rail-add"
         aria-label={messages.fab}
-        title={messages.fab}
+        data-rail-tooltip={messages.fab}
         onClick={onCapture}
       >
         <Plus size={20} aria-hidden="true" />
@@ -143,7 +128,7 @@ export function IconRail({
         className="rail-toggle"
         aria-expanded={!collapsed}
         aria-label={collapsed ? messages.expandSidebar : messages.collapseSidebar}
-        title={collapsed ? messages.expandSidebar : messages.collapseSidebar}
+        data-rail-tooltip={collapsed ? messages.expandSidebar : messages.collapseSidebar}
         onClick={onToggleCollapsed}
       >
         <PanelLeft size={20} aria-hidden="true" />

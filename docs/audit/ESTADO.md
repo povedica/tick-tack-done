@@ -1,4 +1,4 @@
-# Estado de la auditoría ttd-codex (TTD-AUD-01…73)
+# Estado de la auditoría ttd-codex (TTD-AUD-01…74)
 
 Fuente: `docs/spec/ttd-codex/ttd-codex-especificacion-unica.md`  
 Worktree: `todo-worktrees/ttd-aud-fase-0` · Rama: `fix/ttd-aud-fase-0`  
@@ -95,11 +95,28 @@ Base: `origin/main` @ arranque de la rama.
 
 - Código de auditoría implementado en esta PR.
 - Quedan parciales ops: 47 GCP, 59 sync servidor ViewPrefs.
-- AUD-38: no se paginará activity de tokens (producto: volumen acotado; basta la primera página + UI clara).
-- **Una sola PR (#71); no abrir PRs adicionales.**
+- AUD-38: #73 amplía la actividad de tokens con paginación por cursor y reintento.
+- #71 está integrada en main. La continuación autorizada y los nuevos alcances se concentran en #73.
 
 ### Comprobaciones manuales pendientes
 
 - Tras desplegar: editar una tarea 10+ veces y confirmar que `activity_log.changes` no anida `activity`.
 - MCP `create_task` con `due_date: "YYYY-MM-DD"` → all-day en Europe/Madrid.
 - MCP `update_task` con campo inventado → `isError: true`.
+
+## Continuación en #73 (21/10/2026)
+
+- TTD-AUD-74: alta contextual en calendario, popover anclado al punto, selección de rango,
+  zonas horarias/DST, teclado, hoja móvil y conservación del borrador al ampliar el editor.
+  El arrastre de varios días en la cuadrícula mensual queda como mejora opcional.
+- Main integrado después de la fusión de #71; conflictos resueltos conservando sus mejoras.
+- Rail: activo blanco con contorno más grueso (fallback de Lucide), inactivos atenuados,
+  hover y foco con tooltip localizado, sin fondos. Estado derivado de la ruta y
+  `aria-current`; badges opacos. La selección de la segunda columna no cambia.
+  Requisitos relacionados: RF-1902 (teclado) y RF-1903 (temas).
+
+Validación de la continuación: lint y typecheck completos; 590 unitarios
+(299 dominio, 163 web, 117 API, 11 SDK), cobertura de dominio 89,48 %;
+integración 127 pasan y 2 omitidos; OpenAPI estable. En Chromium pasan
+17 pruebas de alta contextual/compositor, 6 regresiones funcionales del calendario
+y la comprobación del rail en ambos temas. Las capturas nuevas permanecen locales.

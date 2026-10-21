@@ -343,3 +343,38 @@ test('TTD-AUD-74: touch hold and drag selects a range on mobile', async ({ page 
     due_date: '2026-10-24T08:30:00.000Z',
   });
 });
+
+test('icon rail keeps only the routed section active in both themes', async ({ page }) => {
+  await fixture(page);
+  await page.goto('/calendar/week?date=2026-10-24');
+  const rail = page.locator('.icon-rail');
+  const active = rail.locator('> a[aria-current="page"]');
+  const inactive = rail.locator('> a.rail-section-inactive').first();
+  await expect(active).toHaveCount(1);
+  await expect(active).toHaveAccessibleName('Calendario');
+  await expect(active.locator('svg')).toHaveAttribute('data-variant', 'heavy');
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate(
+      (value) => document.documentElement.setAttribute('data-theme', value),
+      theme,
+    );
+    await expect(active).toHaveCSS('color', 'rgb(255, 255, 255)');
+    await expect(active).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    await expect(inactive).toHaveCSS('color', 'rgba(255, 255, 255, 0.55)');
+    await inactive.hover();
+    await page.clock.runFor(200);
+    await expect(inactive).toHaveCSS('color', 'rgba(255, 255, 255, 0.75)');
+    await expect(inactive).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    expect(await inactive.evaluate((node) => getComputedStyle(node, '::after').visibility)).toBe(
+      'visible',
+    );
+    await page.mouse.move(500, 100);
+    await inactive.focus();
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Shift+Tab');
+    await expect(inactive).toBeFocused();
+    await expect(inactive).toHaveCSS('outline-style', 'solid');
+    await page.screenshot({ path: `test-results/rail-${theme}.png` });
+    await inactive.blur();
+  }
+});

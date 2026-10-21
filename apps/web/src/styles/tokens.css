@@ -8,7 +8,11 @@
   --sidebar-bg: #f2f5fe;
   --rail-bg: #4772fa;
   --rail-ink: #ffffff;
-  --rail-active-bg: rgb(0 0 0 / 0.16);
+  --rail-icon-inactive: rgb(255 255 255 / 0.55);
+  --rail-icon-hover: rgb(255 255 255 / 0.75);
+  --rail-icon-active: #ffffff;
+  --rail-tooltip-bg: #242424;
+  --rail-tooltip-ink: #ffffff;
   --sidebar-hover-bg: rgb(255 255 255 / 0.38);
   --sidebar-active-bg: rgb(255 255 255 / 0.62);
   --surface: #ffffff;
@@ -133,7 +137,11 @@
   --sidebar-bg: #1c1c1c;
   --rail-bg: #242424;
   --rail-ink: #ffffff;
-  --rail-active-bg: rgb(255 255 255 / 0.12);
+  --rail-icon-inactive: rgb(255 255 255 / 0.55);
+  --rail-icon-hover: rgb(255 255 255 / 0.75);
+  --rail-icon-active: #ffffff;
+  --rail-tooltip-bg: #242424;
+  --rail-tooltip-ink: #ffffff;
   --sidebar-hover-bg: var(--surface-2);
   --sidebar-active-bg: var(--accent-soft);
   --surface: #222222;

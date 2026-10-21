@@ -729,10 +729,48 @@
   transition: background-color var(--dur-fast) var(--ease);
 }
 
-.icon-rail a:hover,
-.icon-rail button:hover,
-.icon-rail a[aria-current='page'] {
-  background: var(--rail-active-bg);
+/* Keep opacity on the glyph so notification badges remain fully opaque. */
+.icon-rail > [data-rail-tooltip] {
+  position: relative;
+  color: var(--rail-icon-inactive);
+  transition: color var(--dur-fast) var(--ease);
+}
+.icon-rail > [data-rail-tooltip]:hover,
+.icon-rail > [data-rail-tooltip]:focus-visible {
+  color: var(--rail-icon-hover);
+  background: transparent;
+}
+.icon-rail > .rail-section[aria-current='page'] {
+  color: var(--rail-icon-active);
+  background: transparent;
+}
+.icon-rail > [data-rail-tooltip]:focus-visible {
+  outline: 2px solid var(--rail-icon-active);
+  outline-offset: 2px;
+}
+.icon-rail > [data-rail-tooltip]::after {
+  content: attr(data-rail-tooltip);
+  position: absolute;
+  z-index: 60;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--rail-tooltip-bg);
+  color: var(--rail-tooltip-ink);
+  font-size: var(--fs-sm);
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+.icon-rail > [data-rail-tooltip]:hover::after,
+.icon-rail > [data-rail-tooltip]:focus-visible::after {
+  visibility: visible;
+  opacity: 1;
 }
 
 .rail-avatar {
