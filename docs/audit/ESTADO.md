@@ -65,8 +65,8 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-57 | 1 | pendiente | — | Depende de 54 |
 | TTD-AUD-58 | 3 | pendiente | — | |
 | TTD-AUD-59 | 2 | pendiente | — | |
-| TTD-AUD-60 | 2 | pendiente | — | Depende de 61 |
-| TTD-AUD-61 | 2 | pendiente | — | |
+| TTD-AUD-60 | 2 | corregido (parcial) | #71 | Panel detalle fijo + DetailEmpty en escritorio; falta no navegar fuera desde matrix/calendar |
+| TTD-AUD-61 | 2 | corregido (parcial) | #71 | sectionOf + ocultar sidebar; CalendarSidebar stub (mini-mes pendiente) |
 | TTD-AUD-62 | 2 | pendiente | — | Depende de 14 |
 | TTD-AUD-63 | 2 | pendiente | — | |
 | TTD-AUD-64 | 2 | pendiente | — | |

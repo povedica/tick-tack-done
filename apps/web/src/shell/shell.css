@@ -56,6 +56,34 @@
   overflow: hidden;
 }
 
+.detail-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  padding: var(--sp-6);
+  text-align: center;
+  color: var(--ink-2);
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+}
+
+.detail-empty h2 {
+  margin: 0;
+  font-size: var(--fs-lg);
+  color: var(--ink);
+}
+
+.detail-empty p {
+  margin: 0;
+  max-width: 18rem;
+}
+
+.calendar-sidebar .sidebar-block {
+  padding: var(--sp-4);
+}
+
 .shell > .detail-slot > .detail-panel {
   flex: 1;
   height: 100%;
