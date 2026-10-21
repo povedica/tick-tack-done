@@ -728,3 +728,11 @@ Capturas revisadas en /tmp; datos simulados, sin validación de sesión real.
 Las 75 regresiones existentes de calendario, captura y arrastre pasan. En el
 primer pase amplio una prueba nueva comparaba antes de cargar el color de la
 lista; ahora espera ese estilo y las dos pruebas finales pasan (claro/oscuro).
+
+
+## 2026-10-22 — 75.11 excluido del alcance
+
+El usuario indica expresamente «Este no lo hagas». Se retira 75.11 del alcance
+pendiente: no compartir el selector de periodos del Reporte semanal con Calendario.
+Calendario conserva su selector actual. Esta decisión sustituye las indicaciones
+anteriores sobre 75.11, incluida la aclaración vinculante del 21/10.

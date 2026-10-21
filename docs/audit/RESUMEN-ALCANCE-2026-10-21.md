@@ -55,7 +55,7 @@ código actual. Las decisiones posteriores prevalecen sobre los diseños inicial
 | 75.8 Cabecera | Adaptada y probada según feedback | Cierre visual/funcional final de escritorio; no restaurar «⋯» ni la antigua navegación dentro del selector móvil |
 | 75.9 Paneles secundarios | Columna derecha retirada fuera de Tareas el 22/10 | Repaso visual de desktop; drawer móvil ya corregido |
 | 75.10 Todo el día | Adaptado y probado | Revisión final global; el límite de dos y DaySheet sustituyen la expansión de franja del diseño inicial |
-| 75.11 Navegador compartido | Pendiente | Reutilizar EXACTAMENTE la UI del selector del Reporte semanal mediante componente compartido; no rediseñar Reporte para ajustarlo al calendario |
+| 75.11 Navegador compartido | Excluido por el usuario (22/10) | No implementar. Calendario conserva su selector actual; no compartir el selector del Reporte semanal |
 | 76 Composer único | Parcial | Unificar alta global y calendario en TaskCard; CaptureSheet aún mantiene su estructura y variante propia; comprobar teclado virtual y todos los accesos |
 | 77 Avatar/progreso | Implementado, validado con API simulada | Recorrido con sesión/datos reales y cierre de aceptación |
 | 78 Foco/Pomodoro | Pendiente de rediseño completo | Pomo/Cronómetro, pausa/continuar, progreso, presets por sesión, Resumen/Registro, distribución móvil/escritorio y endpoints indicados en la spec |
