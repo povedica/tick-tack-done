@@ -851,3 +851,70 @@
     hyphens: auto;
   }
 }
+
+/* RF-1101: the annual overview uses the available shell height. */
+.outlet:has(> .calendar-year) {
+  padding-bottom: var(--sp-2);
+}
+.calendar-page.calendar-year {
+  height: 100%;
+  min-height: 0;
+  padding-block: var(--sp-2);
+  gap: var(--sp-2);
+}
+.calendar-year > .calendar-toolbar {
+  flex-shrink: 0;
+}
+.calendar-year .year-board {
+  flex: 1;
+  min-height: 0;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  gap: var(--year-board-gap);
+}
+.calendar-year .year-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  align-self: stretch;
+}
+.calendar-year .year-month {
+  flex-shrink: 0;
+  text-align: start;
+  margin-bottom: var(--sp-1);
+}
+.calendar-year .year-mini {
+  flex: 1;
+  min-height: 0;
+  grid-template-rows: repeat(7, minmax(0, 1fr));
+  gap: 0;
+}
+.calendar-page.calendar-year .year-day {
+  min-height: 0;
+  padding: 0;
+  gap: 0;
+  font-size: var(--year-day-font);
+  --today-mark-size: var(--year-today-size);
+}
+.calendar-year .year-dow {
+  padding: 0;
+  font-size: var(--year-day-font);
+}
+.calendar-year .year-marks {
+  flex-wrap: nowrap;
+}
+@media (max-width: 700px) {
+  .calendar-year .year-board {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: repeat(4, minmax(0, 1fr));
+  }
+  .calendar-year .year-month {
+    min-height: var(--tap);
+  }
+  .calendar-page.calendar-year .year-day,
+  .calendar-year .year-dow {
+    font-size: var(--year-day-font-mobile);
+  }
+}

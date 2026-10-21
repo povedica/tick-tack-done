@@ -32,6 +32,10 @@
   --account-progress-track: 0.25rem;
   --account-loading-h: 2.5rem;
 
+  --year-board-gap: clamp(0.5rem, 1.5vh, 1rem);
+  --year-day-font: 0.6875rem;
+  --year-day-font-mobile: 0.625rem;
+  --year-today-size: 1rem;
   --cal-two-weeks-cell-h: clamp(8rem, 22dvh, 12rem);
   --cal-two-weeks-cell-h-mobile: clamp(5.5rem, 14dvh, 7rem);
   --calendar-quick-width: 19rem;
@@ -166,6 +170,10 @@
 }
 
 [data-theme='dark'] {
+  --year-board-gap: clamp(0.5rem, 1.5vh, 1rem);
+  --year-day-font: 0.6875rem;
+  --year-day-font-mobile: 0.625rem;
+  --year-today-size: 1rem;
   --cal-two-weeks-cell-h: clamp(8rem, 22dvh, 12rem);
   --cal-two-weeks-cell-h-mobile: clamp(5.5rem, 14dvh, 7rem);
   --today-mark-bg: color-mix(in srgb, var(--accent) 88%, black);

@@ -304,3 +304,23 @@ la sesión real del usuario ni cierra el resto de 75 (incluido 75.11 pendiente).
 
 Cierre técnico de este ajuste: lint, typecheck y test del monorepo en verde
 (598 pruebas). OpenAPI regenerado sin cambios en API/SDK. Sin cambios de API.
+
+
+### Año dentro del viewport — RF-1101
+
+Ajustada la vista anual al alto útil del shell: 3×4 meses en móvil, 4×3 en
+escritorio, sin apilado de 12 meses ni desbordamiento inferior. El trimestre no
+cambia. Los botones de mes conservan acceso a la vista mensual; en móvil tienen
+44 px. Prueba dirigida reproduce antes el desbordamiento (3772 px en móvil y
+955 px en escritorio) y pasa después a 390×844 y 1280×800, claro y oscuro, con API
+simulada. No acredita sesión real del usuario. Sin cambios de API ni lógica de
+negocio; comprobaciones generales previas en verde y dos Playwright nuevos.
+
+### Nueva referencia de cabecera y Semana móvil — en curso
+
+Pablo pide cabecera simplificada según TickTick (periodo + selector de vistas
+con iconos y selección + menú), y Semana móvil en dos columnas con minicalendario
+en primera celda y siete días ordenados. Deslizar horizontalmente avanza o
+retrocede una semana; no debe impedir el scroll vertical. Referencias del chat:
+`codex-clipboard-7e1f432b-608e-469d-b90b-a81d48eb9213.jpg` y
+`codex-clipboard-0e245194-1530-462c-9e44-8c489f73950f.jpg`.

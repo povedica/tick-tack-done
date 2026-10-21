@@ -544,3 +544,44 @@ test('RF-1902 visual evidence of mini-calendar, options and long mobile day shee
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
+
+for (const viewport of [
+  { width: 390, height: 844 },
+  { width: 1280, height: 800 },
+]) {
+  test(`RF-1101 year fits available viewport ${viewport.width}`, async ({ page }) => {
+    await fixture(page);
+    await page.setViewportSize(viewport);
+    await page.goto('/calendar/year?date=2026-10-21');
+    await expect(page.locator('.year-card')).toHaveCount(12);
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate(
+        (value) => document.documentElement.setAttribute('data-theme', value),
+        theme,
+      );
+      const board = await page.locator('.year-board').boundingBox();
+      const bottom =
+        viewport.width < 700
+          ? (await page.locator('.bottom-bar').boundingBox())!.y
+          : viewport.height;
+      expect(board!.x).toBeGreaterThanOrEqual(0);
+      expect(board!.x + board!.width).toBeLessThanOrEqual(viewport.width);
+      expect(board!.y + board!.height).toBeLessThanOrEqual(bottom);
+      const cards = await page.locator('.year-card').evaluateAll((nodes) =>
+        nodes.map((node) => {
+          const rect = node.getBoundingClientRect();
+          return {
+            top: rect.top,
+            bottom: rect.bottom,
+            overflow: node.scrollHeight > node.clientHeight + 1,
+          };
+        }),
+      );
+      expect(cards.every((card) => card.bottom <= bottom && !card.overflow)).toBe(true);
+      if (viewport.width < 700)
+        expect(new Set(cards.map((card) => Math.round(card.top))).size).toBe(4);
+    }
+    await page.locator('.year-month').last().click();
+    await expect(page).toHaveURL(/calendar\/month\?date=2026-12-01/);
+  });
+}
