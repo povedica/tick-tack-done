@@ -1,7 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
 test.use({ timezoneId: 'Europe/Madrid' });
 const views = ['day', 'week', 'month', 'agenda', 'year', 'quarter', 'multi-week', 'multi-day'];
-async function fixture(page: Page) {
+async function fixture(
+  page: Page,
+  options: { count?: number; delayed?: boolean; error?: boolean; startOnly?: boolean } = {},
+) {
   const task = {
     id: 'task',
     project_id: 'list',
@@ -122,6 +125,43 @@ async function fixture(page: Page) {
         ],
         next_cursor: null,
       };
+    if (path === '/tasks' && options.count !== undefined)
+      body = {
+        items: Array.from({ length: options.count }, (_, index) => ({
+          ...task,
+          id: `density-${index}`,
+          title:
+            index === 0
+              ? 'Breve'
+              : `Elemento ${index + 1}: título largo de prueba que necesita varias líneas para mantener toda su información`,
+          is_all_day: true,
+        })),
+        next_cursor: null,
+      };
+    if (path === '/calendar/events' && options.count !== undefined)
+      body = { external: [], tasks: [] };
+    if (options.startOnly && path === '/calendar/events')
+      body = {
+        external: [],
+        tasks: [{ id: 'start-only', start_date: task.due_date, due_date: null }],
+      };
+    if (path === '/tasks/start-only')
+      body = {
+        ...task,
+        id: 'start-only',
+        title: 'Tarea solo con inicio',
+        start_date: task.due_date,
+        due_date: null,
+      };
+    if ((path === '/tasks' || path === '/calendar/events') && options.delayed)
+      await new Promise((resolve) => setTimeout(resolve, 700));
+    if (path === '/calendar/events' && options.error) {
+      await route.fulfill({
+        status: 503,
+        json: { code: 'unavailable', message: 'Prueba sintética' },
+      });
+      return;
+    }
     await route.fulfill({ json: body });
   });
 }
@@ -147,6 +187,9 @@ for (const width of [1440, 390, 320])
         if (width < 700) expect(await page.locator('.calendar-mobile-view option').count()).toBe(8);
         if (view === 'week') {
           await expect(page.locator('.hour-col')).toHaveCount(7);
+          await expect
+            .poll(() => page.locator('.hour-board').evaluate((node) => node.scrollTop))
+            .toBeGreaterThan(0);
           await expect(page.locator('.hour-span')).toHaveCount(1);
           await expect(page.locator('.hour-span')).toHaveCSS('grid-column-end', 'span 3');
           if (width < 700)
@@ -181,13 +224,13 @@ for (const width of [1440, 390, 320])
         if (view === 'year') await expect(page.locator('.year-card')).toHaveCount(12);
         if (view === 'quarter') await expect(page.locator('.year-card')).toHaveCount(3);
         await page.screenshot({
-          path: `../../docs/reviews/assets/calendar-2026-10-21/${view}-${width}-${theme}.png`,
+          path: `../../docs/reviews/assets/calendar-remediation-2026-10-21/${view}-${width}-${theme}.png`,
         });
       }
     });
   }
 
-test('RF-1101: native period picker and complete mobile day sheet keep the selected date', async ({
+test('RF-1101: visible mini-calendar and complete mobile day sheet keep the selected date', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 900 });
@@ -199,11 +242,128 @@ test('RF-1101: native period picker and complete mobile day sheet keep the selec
   await expect(dialog.getByText('Evento real a medianoche', { exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
-  await page.locator('.calendar-period>summary').click();
+  await page.locator('.calendar-period>button').click();
   await page.getByLabel('Fecha', { exact: true }).fill('2026-11-03');
   await expect(page).toHaveURL(/date=2026-11-03/);
   await page.locator('.calendar-mobile-view').selectOption('day');
   await expect(page.locator('.calendar-period h1')).toContainText('3 de noviembre');
   await page.locator('.calendar-nav').getByRole('button', { name: 'Hoy', exact: true }).click();
   await expect(page).toHaveURL(/date=2026-10-20/);
+});
+
+for (const count of [0, 1, 3, 10, 30])
+  test(`RF-1101 measured month capacity: ${count} items`, async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await fixture(page, { count });
+    await page.goto('/calendar/month?date=2026-10-20');
+    const cell = page.locator('[data-day="2026-10-20"]');
+    await expect(cell.locator('.calendar-cell-items > *')).toHaveCount(count);
+    await expect
+      .poll(async () => {
+        const visible = await cell
+          .locator('.calendar-cell-items > *')
+          .evaluateAll(
+            (nodes) =>
+              nodes.filter((node) => getComputedStyle(node).visibility !== 'hidden').length,
+          );
+        const more = cell.locator('.calendar-overflow');
+        const hidden = (await more.count())
+          ? Number((await more.innerText()).match(/\d+/)?.[0])
+          : 0;
+        return visible + hidden;
+      })
+      .toBe(count);
+    if (count <= 1) await expect(cell.locator('.calendar-overflow')).toHaveCount(0);
+    if (count >= 10) {
+      await expect(cell.locator('.calendar-overflow')).toBeVisible();
+      await cell.locator('.calendar-overflow').click();
+      await expect(page.getByRole('dialog').locator('.agenda-row')).toHaveCount(count);
+      await page.keyboard.press('Escape');
+    }
+    await page.screenshot({
+      path: `../../docs/reviews/assets/calendar-remediation-2026-10-21/density-${count}.png`,
+    });
+  });
+
+test('RF-1902 menu dismissal, keyboard date jump, year URL and working weekends', async ({
+  page,
+}) => {
+  await fixture(page);
+  await page.goto('/calendar/year?date=2026-10-20');
+  const more = page.getByRole('button', { name: 'Más', exact: true });
+  await more.click();
+  await page.keyboard.press('Escape');
+  await expect(more).toBeFocused();
+  await more.click();
+  await page.getByRole('link', { name: 'Trimestre', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page).toHaveURL(/quarter/);
+  await more.click();
+  await page.locator('h1').click();
+  await expect(page.getByRole('dialog')).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  await page.locator('.calendar-period > button').click();
+  const pick = page.getByRole('button', { name: 'martes, 20 de octubre de 2026', exact: true });
+  await pick.focus();
+  await pick.press('ArrowRight');
+  await expect(
+    page.getByRole('button', { name: 'miércoles, 21 de octubre de 2026', exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/date=2026-10-21/);
+  await expect(page.locator('.calendar-period > button')).toBeFocused();
+  await page.goto('/calendar/year?date=2026-10-20');
+  await page.getByRole('button', { name: 'noviembre', exact: true }).click();
+  await expect(page).toHaveURL(/month\?date=2026-11-01/);
+  await page.reload();
+  await expect(page.locator('h1')).toContainText('noviembre');
+  await page.goto('/calendar/multi-day?date=2026-10-24');
+  await page.getByRole('button', { name: 'Opciones del calendario' }).click();
+  await page.getByLabel('Solo semana laboral (L–V)').check();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.hour-col')).toHaveCount(1);
+  await expect(page.locator('h1')).toContainText('26');
+});
+
+test('RF-1101 range selector, stable useful scroll and sticky hourly axis', async ({ page }) => {
+  await fixture(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/calendar/multi-week?date=2026-10-20');
+  await page.getByLabel('Número de semanas').selectOption('4');
+  await expect(page.locator('.cal-cell')).toHaveCount(28);
+  await page.getByRole('button', { name: 'Periodo siguiente' }).click();
+  await expect(page).toHaveURL(/date=2026-11-17/);
+  await page.reload();
+  await expect(page.getByLabel('Número de semanas')).toHaveValue('4');
+  await page.goto('/calendar/week?date=2026-10-20');
+  await expect
+    .poll(() => page.locator('.hour-board').evaluate((n) => n.scrollTop))
+    .toBeGreaterThan(0);
+  const board = page.locator('.hour-board');
+  await board.evaluate((n) => {
+    n.scrollLeft = n.scrollWidth;
+  });
+  const gutter = await page.locator('.hour-gutter').boundingBox();
+  const box = await board.boundingBox();
+  expect(Math.abs(gutter!.x - box!.x)).toBeLessThan(3);
+  await page.locator('.hour-board').evaluate((n) => {
+    n.scrollTop = 0;
+  });
+  await expect(page.getByRole('button', { name: '00:00 Evento real a medianoche' })).toBeVisible();
+});
+
+test('RF-1102 start-only task uses the existing calendar contract', async ({ page }) => {
+  await fixture(page, { startOnly: true });
+  await page.goto('/calendar/agenda?date=2026-10-20');
+  await expect(
+    page.locator('.agenda-row').filter({ hasText: 'Tarea solo con inicio' }),
+  ).toBeVisible();
+});
+
+test('RF-1101 remote loading and failure never announce an empty calendar', async ({ page }) => {
+  await fixture(page, { delayed: true, error: true });
+  await page.goto('/calendar/agenda?date=2026-10-20');
+  await expect(page.getByText('No hay tareas con fecha en este periodo.')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Reintentar' })).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText('No hay tareas con fecha en este periodo.')).toHaveCount(0);
 });

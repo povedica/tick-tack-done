@@ -1,4 +1,5 @@
-import { CalendarDays, ChevronDown, Plus } from 'lucide-react';
+import { CalendarMenu, CalendarPeriod } from '../calendar/CalendarControls';
+import { CalendarDays, Plus } from 'lucide-react';
 import { CalendarTaskMark } from '../calendar/CalendarTaskMark';
 import { openTaskComposer } from '../capture/notice';
 import '../calendar/calendar.css';
@@ -6,7 +7,15 @@ import { PriorityCheck } from '../../components/PriorityCheck';
 import { displayTitle } from '../tasks/displayTitle';
 import { ApiError, type Project, type Task } from '@reflexionia/sdk';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  Fragment,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import {
   Link,
   NavLink,
@@ -54,6 +63,8 @@ import {
   overflowHref,
   quarterMonths,
   shiftView,
+  spanDays,
+  startOfWeek,
   tasksOnCell,
   viewDays,
   yearQueryRange,
@@ -330,11 +341,16 @@ export function CalendarPage() {
   const [workweek, setWorkweek] = useState(
     () => localStorage.getItem('tick-tack-done.calendar-workweek') === 'true',
   );
-  const allCells = viewDays(current ?? 'month', cursor, weekStart);
-  const cells =
+  const weekCount = Math.max(2, Math.min(6, Number(params.get('weeks')) || 2));
+  const allCells =
+    current === 'multi-week'
+      ? spanDays(startOfWeek(cursor, weekStart), weekCount * 7)
+      : viewDays(current ?? 'month', cursor, weekStart);
+  const filteredCells =
     workweek && (current === 'week' || current === 'multi-day')
       ? allCells.filter((day) => day.getDay() !== 0 && day.getDay() !== 6)
       : allCells;
+  const cells = filteredCells;
   const range = current === 'year' ? yearQueryRange(cursor) : monthQueryRange(cells);
   const tasks = useQuery({
     queryKey: ['calendar-tasks', range.dueAfter, range.dueBefore],
@@ -350,6 +366,22 @@ export function CalendarPage() {
   const externalQuery = useQuery({
     queryKey: ['calendar-events', range.dueAfter, range.dueBefore],
     queryFn: () => api.calendarEvents(range.dueAfter, range.dueBefore),
+  });
+  const startTaskIds = Array.isArray(externalQuery.data?.tasks)
+    ? externalQuery.data.tasks.flatMap((value: unknown) => {
+        if (typeof value !== 'object' || value === null) return [];
+        const row = value as { id?: unknown; start_date?: unknown; due_date?: unknown };
+        return typeof row.id === 'string' &&
+          typeof row.start_date === 'string' &&
+          row.due_date === null
+          ? [row.id]
+          : [];
+      })
+    : [];
+  const startTasks = useQuery({
+    queryKey: ['calendar-start-tasks', ...startTaskIds],
+    queryFn: () => Promise.all(startTaskIds.map((id) => api.getTask(id))),
+    enabled: startTaskIds.length > 0,
   });
   const subscriptions = useQuery({
     queryKey: ['calendar-subscriptions'],
@@ -372,16 +404,31 @@ export function CalendarPage() {
     return map;
   }, [projects.data]);
   const dated = showTasks
-    ? (tasks.data ?? []).filter((task) => task.due_date !== null && task.kind === 'task')
+    ? [
+        ...(tasks.data ?? []),
+        ...(startTasks.data ?? []).map((task) => ({ ...task, due_date: task.start_date })),
+      ].filter(
+        (task, index, all) =>
+          task.due_date !== null &&
+          task.kind === 'task' &&
+          all.findIndex((other) => other.id === task.id) === index,
+      )
     : [];
   const title = calendarTitle(locale, current ?? 'month', cursor, cells);
   const move = (delta: number): void => {
-    const next = shiftView(cursor, current ?? 'month', delta, weekStart);
+    const next =
+      current === 'multi-week'
+        ? new Date(
+            cursor.getFullYear(),
+            cursor.getMonth(),
+            cursor.getDate() + delta * weekCount * 7,
+          )
+        : shiftView(cursor, current ?? 'month', delta, weekStart);
     setCursor(next);
     {
       const query = new URLSearchParams(params);
       query.set('date', localDateParam(next));
-      setParams(query, { replace: true });
+      setParams(query);
     }
   };
   return (
@@ -402,7 +449,7 @@ export function CalendarPage() {
               setCursor(today);
               const query = new URLSearchParams(params);
               query.set('date', localDateParam(today));
-              setParams(query, { replace: true });
+              setParams(query);
             }}
           >
             {messages.calToday}
@@ -416,28 +463,36 @@ export function CalendarPage() {
             ›
           </Button>
         </div>
-        <details className="calendar-period">
-          <summary>
-            <h1>{title}</h1>
-            <ChevronDown size={14} aria-hidden="true" />
-          </summary>
-          <label>
-            {messages.dateSet}
-            <input
-              type="date"
-              value={localKey(cursor)}
+        <CalendarPeriod
+          title={title}
+          date={cursor}
+          onPick={(date) => {
+            setCursor(date);
+            const query = new URLSearchParams(params);
+            query.set('date', localKey(date));
+            setParams(query);
+          }}
+        />
+        {current === 'multi-week' ? (
+          <label className="calendar-range">
+            {messages.calendarWeeks}
+            <select
+              aria-label={messages.calendarWeekCount}
+              value={weekCount}
               onChange={(event) => {
-                const date = dayFromParam(event.target.value);
-                if (date) {
-                  setCursor(date);
-                  const query = new URLSearchParams(params);
-                  query.set('date', localKey(date));
-                  setParams(query, { replace: true });
-                }
+                const query = new URLSearchParams(params);
+                query.set('weeks', event.target.value);
+                setParams(query);
               }}
-            />
+            >
+              {[2, 3, 4, 5, 6].map((count) => (
+                <option key={count} value={count}>
+                  {count}
+                </option>
+              ))}
+            </select>
           </label>
-        </details>
+        ) : null}
         {current === 'week' || current === 'multi-day' ? (
           <span className="calendar-week-number">S{isoWeek(cells[0] ?? cursor)}</span>
         ) : null}
@@ -451,16 +506,22 @@ export function CalendarPage() {
               {labelView(messages, item)}
             </Link>
           ))}
-          <details>
-            <summary>{messages.calendarMoreViews}</summary>
-            <div>
-              {['year', 'quarter', 'multi-week', 'multi-day'].map((item) => (
-                <Link key={item} to={`/calendar/${item}?date=${localKey(cursor)}`}>
-                  {labelView(messages, item)}
-                </Link>
-              ))}
-            </div>
-          </details>
+          <CalendarMenu label={messages.calendarMoreViews}>
+            {(close) => (
+              <div className="calendar-view-links">
+                {['year', 'quarter', 'multi-week', 'multi-day'].map((item) => (
+                  <Link
+                    key={item}
+                    onClick={close}
+                    aria-current={current === item ? 'page' : undefined}
+                    to={`/calendar/${item}?date=${localKey(cursor)}`}
+                  >
+                    {labelView(messages, item)}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </CalendarMenu>
         </nav>
         <select
           className="calendar-mobile-view"
@@ -485,38 +546,54 @@ export function CalendarPage() {
         >
           <Plus size={17} aria-hidden="true" />
         </Button>
-        <details className="calendar-options">
-          <summary aria-label={messages.calendarOptions}>⋯</summary>
-          <div>
-            {current === 'week' || current === 'multi-day' ? (
-              <label>
-                <input
-                  type="checkbox"
-                  checked={workweek}
-                  onChange={(event) => {
-                    setWorkweek(event.target.checked);
-                    localStorage.setItem(
-                      'tick-tack-done.calendar-workweek',
-                      String(event.target.checked),
-                    );
-                  }}
-                />
-                {messages.calWorkweek}
-              </label>
-            ) : null}
-            <CalendarVisibility
-              messages={messages}
-              showTasks={showTasks}
-              onTasks={setShowTasks}
-              subscriptions={subscriptionItems(subscriptions.data)}
-            />
-          </div>
-        </details>
+        <CalendarMenu className="calendar-options" label={messages.calendarOptions} trigger="⋯">
+          {() => (
+            <div className="calendar-options-content">
+              {current === 'week' || current === 'multi-day' ? (
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={workweek}
+                    onChange={(event) => {
+                      setWorkweek(event.target.checked);
+                      localStorage.setItem(
+                        'tick-tack-done.calendar-workweek',
+                        String(event.target.checked),
+                      );
+                    }}
+                  />
+                  {messages.calWorkweek}
+                </label>
+              ) : null}
+              <CalendarVisibility
+                messages={messages}
+                showTasks={showTasks}
+                onTasks={setShowTasks}
+                subscriptions={subscriptionItems(subscriptions.data)}
+              />
+              <Link to="/settings/calendar">{messages.settingsCalendar}</Link>
+            </div>
+          )}
+        </CalendarMenu>
       </header>
-      {subscriptionItems(subscriptions.data).length === 0 && external.length === 0 ? (
-        <p className="ui-muted">
-          <Link to="/settings/calendar">{messages.externalEmptyTitle}</Link>
-        </p>
+      {current === 'agenda' ? (
+        <p className="calendar-window">{messages.calendarAgendaWindow}</p>
+      ) : null}
+      {tasks.isPending ||
+      externalQuery.isPending ||
+      (startTaskIds.length > 0 && startTasks.isPending) ? (
+        <SkeletonRows />
+      ) : null}
+      {tasks.isError || externalQuery.isError || startTasks.isError ? (
+        <ErrorState
+          title={messages.loadFailed}
+          retryLabel={messages.retry}
+          onRetry={() => {
+            void tasks.refetch();
+            void externalQuery.refetch();
+            if (startTaskIds.length) void startTasks.refetch();
+          }}
+        />
       ) : null}
       {openEvent !== null ? (
         <ExternalEventPopover
@@ -528,81 +605,93 @@ export function CalendarPage() {
           }}
         />
       ) : null}
-      {current === 'quarter' ? (
-        <YearBoard
-          year={cursor.getFullYear()}
-          months={quarterMonths(cursor).map((month) => month.getMonth())}
-          tasks={dated}
-          events={external}
-          weekStart="monday"
-          colors={colors}
-          onOpen={(month) => {
-            setCursor(new Date(cursor.getFullYear(), month, 1));
-            void navigate(
-              `/calendar/month?date=${localKey(new Date(cursor.getFullYear(), month, 1))}`,
-            );
-          }}
-        />
-      ) : null}
-      {current === 'year' ? (
-        <YearBoard
-          year={cursor.getFullYear()}
-          events={external}
-          tasks={dated}
-          weekStart={weekStart}
-          colors={colors}
-          onOpen={(month) => {
-            setCursor(new Date(cursor.getFullYear(), month, 1));
-            void navigate('/calendar/month');
-          }}
-        />
-      ) : null}
-      {current === 'agenda' ? (
-        <Agenda
-          tasks={dated}
-          events={external}
-          locale={locale}
-          messages={messages}
-          colors={colors}
-          onOpenEvent={setOpenEvent}
-        />
-      ) : null}
-      {current === 'day' || current === 'week' || current === 'multi-day' ? (
-        <HourGrid
-          days={cells}
-          tasks={dated}
-          events={external}
-          colors={colors}
-          messages={messages}
-          onOpenEvent={setOpenEvent}
-        />
-      ) : null}
-      {current === 'multi-week' || current === 'month' ? (
+      {!tasks.isPending &&
+      !externalQuery.isPending &&
+      !(startTaskIds.length > 0 && startTasks.isPending) &&
+      !startTasks.isError &&
+      !tasks.isError &&
+      !externalQuery.isError ? (
         <>
-          <DayGrid
-            days={current === 'month' ? monthCells(startOfMonth(cursor), weekStart) : cells}
-            columns={7}
-            tasks={dated}
-            events={external}
-            colors={colors}
-            onOpenEvent={setOpenEvent}
-            messages={messages}
-            cursor={cursor}
-            outsideMonth
-            onPick={setPicked}
-          />
-          {picked !== null ? (
-            <DaySheet
-              dayKey={picked}
+          {current === 'quarter' ? (
+            <YearBoard
+              year={cursor.getFullYear()}
+              months={quarterMonths(cursor).map((month) => month.getMonth())}
               tasks={dated}
               events={external}
+              weekStart="monday"
+              colors={colors}
+              onOpen={(month) => {
+                setCursor(new Date(cursor.getFullYear(), month, 1));
+                void navigate(
+                  `/calendar/month?date=${localKey(new Date(cursor.getFullYear(), month, 1))}`,
+                );
+              }}
+            />
+          ) : null}
+          {current === 'year' ? (
+            <YearBoard
+              year={cursor.getFullYear()}
+              events={external}
+              tasks={dated}
+              weekStart={weekStart}
+              colors={colors}
+              onOpen={(month) => {
+                setCursor(new Date(cursor.getFullYear(), month, 1));
+                void navigate(
+                  `/calendar/month?date=${localKey(new Date(cursor.getFullYear(), month, 1))}`,
+                );
+              }}
+            />
+          ) : null}
+          {current === 'agenda' ? (
+            <Agenda
+              days={cells}
+              tasks={dated}
+              events={external}
+              locale={locale}
               messages={messages}
               colors={colors}
               onOpenEvent={setOpenEvent}
-              onClose={() => {
-                setPicked(null);
-              }}
             />
+          ) : null}
+          {current === 'day' || current === 'week' || current === 'multi-day' ? (
+            <HourGrid
+              days={cells}
+              tasks={dated}
+              events={external}
+              colors={colors}
+              messages={messages}
+              onOpenEvent={setOpenEvent}
+            />
+          ) : null}
+          {current === 'multi-week' || current === 'month' ? (
+            <>
+              <DayGrid
+                days={current === 'month' ? monthCells(startOfMonth(cursor), weekStart) : cells}
+                columns={7}
+                tasks={dated}
+                events={external}
+                colors={colors}
+                onOpenEvent={setOpenEvent}
+                messages={messages}
+                cursor={cursor}
+                outsideMonth
+                onPick={setPicked}
+              />
+              {picked !== null ? (
+                <DaySheet
+                  dayKey={picked}
+                  tasks={dated}
+                  events={external}
+                  messages={messages}
+                  colors={colors}
+                  onOpenEvent={setOpenEvent}
+                  onClose={() => {
+                    setPicked(null);
+                  }}
+                />
+              ) : null}
+            </>
           ) : null}
         </>
       ) : null}
@@ -682,6 +771,85 @@ function DayGrid({
   readonly dots?: boolean;
 }) {
   const locale = useAppLocale();
+  const grid = useRef<HTMLDivElement>(null);
+  const [overflow, setOverflow] = useState<Record<string, number>>({});
+  useLayoutEffect(() => {
+    const node = grid.current;
+    if (!node) return;
+    let frame = 0;
+    const measure = () => {
+      const counts: Record<string, number> = {};
+      const barSpace = new Map<number, number>();
+      const hiddenBars = new Map<string, number>();
+      for (const bar of node.querySelectorAll<HTMLElement>('.calendar-month-span')) {
+        const week = Number(bar.dataset.week);
+        const cell = node.querySelector<HTMLElement>(`[data-week="${String(week)}"].cal-cell`);
+        const offset = barSpace.get(week) ?? 0;
+        const height = bar.getBoundingClientRect().height;
+        const visible = !!cell && offset + height <= cell.clientHeight * 0.5;
+        bar.style.marginTop = `${String(32 + offset)}px`;
+        bar.style.visibility = visible ? 'visible' : 'hidden';
+        bar.inert = !visible;
+        bar.setAttribute('aria-hidden', String(!visible));
+        if (visible) barSpace.set(week, offset + height + 3);
+        else
+          for (const cell of node.querySelectorAll<HTMLElement>(
+            `.cal-cell[data-week="${String(week)}"]`,
+          )) {
+            const col = Number(cell.dataset.column);
+            if (
+              col >= Number(bar.dataset.column) &&
+              col < Number(bar.dataset.column) + Number(bar.dataset.span)
+            ) {
+              const key = cell.dataset.day ?? '';
+              hiddenBars.set(key, (hiddenBars.get(key) ?? 0) + 1);
+            }
+          }
+      }
+      for (const cell of node.querySelectorAll<HTMLElement>('.cal-cell')) {
+        const key = cell.dataset.day ?? '';
+        const list = cell.querySelector<HTMLElement>('.calendar-cell-items');
+        if (!list) continue;
+        const space = window.innerWidth <= 700 ? 0 : (barSpace.get(Number(cell.dataset.week)) ?? 0);
+        list.style.marginTop = `${String(space)}px`;
+        const children = [...list.children] as HTMLElement[];
+        const room = cell.clientHeight - list.offsetTop - 4;
+        const heights = children.map((child) => child.offsetHeight + 3);
+        const total = heights.reduce((sum, height) => sum + height, 0);
+        const reserve = total > room || hiddenBars.has(key) ? 26 : 0;
+        let used = 0;
+        let hidden = hiddenBars.get(key) ?? 0;
+        children.forEach((child, index) => {
+          used += heights[index] ?? 0;
+          const visible = used <= room - reserve;
+          child.style.visibility = visible ? 'visible' : 'hidden';
+          child.inert = !visible;
+          child.setAttribute('aria-hidden', String(!visible));
+          if (!visible) hidden++;
+        });
+        counts[key] = hidden;
+      }
+      setOverflow((previous) =>
+        JSON.stringify(previous) === JSON.stringify(counts) ? previous : counts,
+      );
+    };
+    const schedule = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(measure);
+    };
+    const observer = new ResizeObserver(schedule);
+    observer.observe(node);
+    node
+      .querySelectorAll('.cal-cell, .calendar-cell-items > *, .calendar-month-span')
+      .forEach((child) => {
+        observer.observe(child);
+      });
+    measure();
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [days, tasks, events]);
   const todayKey = localKey(new Date());
   const weekday = new Intl.DateTimeFormat(locale, { weekday: 'short' });
   const heads = Array.from({ length: columns }, (_, index) =>
@@ -702,6 +870,7 @@ function DayGrid({
   );
   return (
     <div
+      ref={grid}
       className={dots ? 'cal-month is-dots' : 'cal-month'}
       style={{
         gridTemplateColumns: `${dots ? '' : '2rem '}repeat(${String(columns)}, minmax(0, 1fr))`,
@@ -745,6 +914,9 @@ function DayGrid({
             ) : null}
             <div
               className={classes}
+              data-day={key}
+              data-week={Math.floor(index / columns)}
+              data-column={(index % columns) + 2}
               style={{
                 gridColumn: (index % columns) + (dots ? 1 : 2),
                 gridRow: Math.floor(index / columns) + 2,
@@ -761,6 +933,8 @@ function DayGrid({
                 {onPick !== undefined ? (
                   <button
                     type="button"
+                    aria-label={`${day.toLocaleDateString(locale, { dateStyle: 'full' })}, ${String(chips.length)} ${chips.length === 1 ? messages.calendarItem : messages.calendarItems}`}
+                    aria-current={key === todayKey ? 'date' : undefined}
                     onClick={() => {
                       onPick(key);
                     }}
@@ -784,15 +958,7 @@ function DayGrid({
                   />
                 ))}
               </span>
-              <div
-                className="calendar-cell-items"
-                style={{
-                  marginTop: dots
-                    ? 0
-                    : bars.filter((bar) => bar.weekIndex === Math.floor(index / columns)).length *
-                      28,
-                }}
-              >
+              <div className="calendar-cell-items">
                 {dots
                   ? null
                   : chips
@@ -847,23 +1013,29 @@ function DayGrid({
                         ),
                       )}
               </div>
+              {(overflow[key] ?? 0) > 0 ? (
+                <button type="button" className="calendar-overflow" onClick={() => onPick?.(key)}>
+                  +{overflow[key]} {messages.calendarMoreViews.toLocaleLowerCase(locale)}
+                </button>
+              ) : null}
             </div>
           </Fragment>
         );
       })}
       {!dots
         ? bars.map((bar) => {
-            const slot = bars.filter((item) => item.weekIndex === bar.weekIndex).indexOf(bar);
             return (
               <button
                 key={`${bar.event.id}-${String(bar.weekIndex)}`}
                 type="button"
                 className="cal-pill calendar-month-span"
+                data-week={bar.weekIndex}
+                data-column={bar.position.column}
+                data-span={bar.position.span}
                 style={{
                   ...chipStyle(bar.event.color),
                   gridColumn: `${String(bar.position.column)} / span ${String(bar.position.span)}`,
                   gridRow: bar.weekIndex + 2,
-                  marginTop: 30 + slot * 28,
                 }}
                 onClick={() => {
                   onOpenEvent?.(bar.event);
@@ -897,6 +1069,7 @@ function YearBoard({
   readonly onOpen: (month: number) => void;
 }) {
   const locale = useAppLocale();
+  const messages = useMessages();
   const todayKey = localKey(new Date());
   const monthName = new Intl.DateTimeFormat(locale, { month: 'long' });
   const weekday = new Intl.DateTimeFormat(locale, { weekday: 'narrow' });
@@ -943,6 +1116,7 @@ function YearBoard({
                 const when = new Intl.DateTimeFormat(locale, {
                   day: 'numeric',
                   month: 'long',
+                  year: 'numeric',
                 }).format(day);
                 return (
                   <Fragment key={key}>
@@ -958,7 +1132,8 @@ function YearBoard({
                         .filter((item) => item.length > 0)
                         .join(' ')}
                       to={`/calendar/day?date=${key}`}
-                      aria-label={marks.length > 0 ? `${when}, ${String(marks.length)}` : when}
+                      aria-current={key === todayKey ? 'date' : undefined}
+                      aria-label={`${when}, ${String(tasksOnCell(tasks, day).length + eventsOnDay(events, day).length)} ${tasksOnCell(tasks, day).length + eventsOnDay(events, day).length === 1 ? messages.calendarItem : messages.calendarItems}`}
                     >
                       <span className="year-num">{day.getDate()}</span>
                       <span className="year-marks" aria-hidden="true">
@@ -995,6 +1170,7 @@ function dayMarks(
 }
 
 function Agenda({
+  days,
   tasks,
   events,
   locale,
@@ -1002,6 +1178,7 @@ function Agenda({
   colors,
   onOpenEvent,
 }: {
+  readonly days?: readonly Date[];
   readonly tasks: readonly Task[];
   readonly events: readonly ExternalEventView[];
   readonly locale: string;
@@ -1031,17 +1208,23 @@ function Agenda({
       });
   }
   for (const event of events) {
-    add(eventDayRange(event).start, {
-      kind: 'event',
-      event,
-      time: event.is_all_day ? '' : event.starts_at,
-    });
+    const range = eventDayRange(event);
+    const dates = days
+      ? days.map(localKey).filter((key) => key >= range.start && key <= range.end)
+      : [range.start];
+    for (const key of dates)
+      add(key, {
+        kind: 'event',
+        event,
+        time: event.is_all_day ? '' : key > range.start ? `${key}T00:00` : event.starts_at,
+      });
   }
-  const forward = [...groups.entries()].sort(([left], [right]) => left.localeCompare(right));
+  const visibleKeys = days ? new Set(days.map(localKey)) : null;
+  const forward = [...groups.entries()]
+    .filter(([key]) => !visibleKeys || visibleKeys.has(key))
+    .sort(([left], [right]) => left.localeCompare(right));
   const weekday = new Intl.DateTimeFormat(locale, {
     weekday: 'short',
-    day: 'numeric',
-    month: 'short',
   });
   const monthName = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' });
   if (forward.length === 0)
@@ -1077,7 +1260,7 @@ function Agenda({
                           >
                             {event.is_all_day
                               ? messages.calAllDay
-                              : `${clockLabel(event.starts_at, locale)}${event.ends_at ? ` – ${clockLabel(event.ends_at, locale)}` : ''}`}
+                              : `${key > eventDayRange(event).start ? '00:00' : clockLabel(event.starts_at, locale)}${event.ends_at ? ` – ${key < eventDayRange(event).end ? '24:00' : clockLabel(event.ends_at, locale)}` : ''}`}
                           </time>
                           <CalendarDays
                             className="calendar-event-mark"
@@ -1198,6 +1381,7 @@ function DaySheet({
     >
       <Button onClick={onClose}>{messages.close}</Button>
       <Agenda
+        days={[day]}
         tasks={tasksOnCell(tasks, day)}
         events={eventsOnDay(events, day)}
         locale={locale}
@@ -1309,53 +1493,38 @@ function CalendarVisibility({
   }[];
 }) {
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
   return (
-    <div className="group-popover">
-      <Button
-        type="button"
-        aria-expanded={open}
-        onClick={() => {
-          setOpen((current) => !current);
-        }}
-      >
-        {messages.calendarSource}
-      </Button>
-      {open ? (
-        <div className="menu-card" role="menu">
-          <label>
-            <input
-              type="checkbox"
-              checked={showTasks}
-              onChange={() => {
-                onTasks(!showTasks);
-              }}
-            />
-            {messages.calendarTasks}
-          </label>
-          {subscriptions.map((row) => (
-            <label key={row.id}>
-              <input
-                type="checkbox"
-                checked={row.visible}
-                onChange={() => {
-                  if (!navigator.onLine) {
-                    return;
-                  }
-                  void api
-                    .updateCalendarSubscription(row.id, { visible: !row.visible })
-                    .then(() => {
-                      void queryClient.invalidateQueries({ queryKey: ['calendar-subscriptions'] });
-                      void queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
-                    });
-                }}
-              />
-              {row.summary ?? row.id}
-            </label>
-          ))}
-        </div>
-      ) : null}
-    </div>
+    <fieldset className="calendar-sources">
+      <legend>{messages.calendarSource}</legend>
+      <label>
+        <input
+          type="checkbox"
+          checked={showTasks}
+          onChange={() => {
+            onTasks(!showTasks);
+          }}
+        />
+        {messages.calendarTasks}
+      </label>
+      {subscriptions.map((row) => (
+        <label key={row.id}>
+          <input
+            type="checkbox"
+            checked={row.visible}
+            onChange={() => {
+              if (!navigator.onLine) {
+                return;
+              }
+              void api.updateCalendarSubscription(row.id, { visible: !row.visible }).then(() => {
+                void queryClient.invalidateQueries({ queryKey: ['calendar-subscriptions'] });
+                void queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+              });
+            }}
+          />
+          {row.summary ?? row.id}
+        </label>
+      ))}
+    </fieldset>
   );
 }
 

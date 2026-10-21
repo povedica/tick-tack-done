@@ -1,6 +1,6 @@
 import type { Task } from '@reflexionia/sdk';
 import { CalendarDays } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { eventDayRange, eventSpan } from './event-span';
 import { chipStyle, type ExternalEventView } from '../calendar/ExternalEvent';
@@ -32,6 +32,29 @@ export function HourGrid({
   messages: Messages;
   onOpenEvent: (event: ExternalEventView) => void;
 }) {
+  const board = useRef<HTMLDivElement>(null);
+  const header = useRef<HTMLDivElement>(null);
+  const periodKey = days.map(localKey).join(',');
+  useLayoutEffect(() => {
+    const node = board.current;
+    const head = header.current;
+    if (!node || !head) return;
+    const measure = () => {
+      node.style.setProperty('--hour-header-height', `${String(head.offsetHeight)}px`);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(head);
+    // Choose a stable entry hour before paint; remote results never reset manual scrolling.
+    const now = new Date();
+    const hour = periodKey.includes(localKey(now))
+      ? Math.max(0, Math.min(18, now.getHours() - 1))
+      : 8;
+    node.scrollTop = hour * HOUR_PX;
+    return () => {
+      observer.disconnect();
+    };
+  }, [periodKey]);
   const locale = useAppLocale();
   const hours = Array.from(
     { length: GRID_END_HOUR - GRID_START_HOUR },
@@ -47,12 +70,14 @@ export function HourGrid({
     });
   return (
     <div
+      ref={board}
       className="hour-board"
       data-columns={days.length}
+      data-scroll-hint={`${messages.calendarSwipe} ↔`}
       tabIndex={0}
       aria-label={messages.calendarTitle}
     >
-      <div className="hour-headers" style={columns}>
+      <div ref={header} className="hour-headers" style={columns}>
         <span />
         {days.map((day) => (
           <h2 key={localKey(day)} className={localKey(day) === today ? 'is-today' : undefined}>

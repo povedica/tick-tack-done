@@ -1,21 +1,21 @@
-# Calendarios: lenguaje común en las ocho vistas
+# Calendarios: revisión tras la auditoría del 21/10/2026
 
-RF-1101–1105, RF-1902/1903 y bloque 4 del documento del 20/10.
+RF-1101–1105, RF-1902/1903 y bloque 4 del documento de alcance del 20/10 (ahora en `docs/spec/done/`). La revisión anterior certificaba composición con pruebas insuficientes; queda sustituida por esta revisión y su evidencia sintética.
 
-Barra compartida con navegación anterior/Hoy/siguiente, periodo y salto mediante calendario nativo, semana ISO, vistas segmentadas y Más, captura global y opciones de visibilidad conservadas. En móvil hay selector de las ocho vistas y Hoy visible, comprobado hasta 320 px.
+## Primer corte
 
-Tareas con checkbox interactivo; eventos con icono de calendario y detalle de solo lectura. Ninguna marca se deduce del título ni de la hora. Agenda agrupa mes y día, separa la hora/rango del título y conserva el texto íntegro. Permite consultar periodos anteriores. Eventos a medianoche mantienen 00:00.
+Toolbar móvil deliberadamente en dos filas, Hoy y selector legibles hasta 320 px. Mini-calendario visible con fecha completa, selección, flechas de teclado y salto directo; Popover existente para Escape, clic exterior, foco y límites del viewport. Opciones sin otra capa anidada. Año conserva el mes en URL al abrirlo. Navegación temporal con historial.
 
-Día/Semana/Varias jornadas comparten cabeceras y franja de todo el día. Cada tarea usa su columna y los eventos de varios días abarcan solo sus fechas. Eventos con hora que cruzan medianoche permanecen en la rejilla, divididos por sus días. La rejilla cubre desde las 00:00 y distribuye solapamientos en columnas paralelas. Semana móvil conserva los siete días con desplazamiento contenido.
+Agenda y detalle del día comparten composición compacta; eliminadas las definiciones globales conflictivas de `ui.css`. Fecha sin número duplicado, horas/rangos sin salto, títulos íntegros y marcas por tipo real. Los eventos que atraviesan días aparecen en cada día visible y el panel inferior utiliza el día seleccionado. La ayuda de integraciones vive en Opciones. La Agenda conserva su ventana de 60 días y avance de 30, ahora explícitos.
 
-Mes/Varias semanas muestran chips íntegros y barras continuas de eventos de varios días. Las filas crecen con el contenido: se elimina el recorte arbitrario a tres elementos, sin ocultar registros mientras haya espacio. En móvil usan puntos por elemento; pulsar un día abre diálogo inferior con toda su lista y cierre por Escape. Año/Trimestre reutilizan el mismo componente de mini-meses con altura natural, marcas de tareas/eventos y enlace de cada día a Día; Trimestre añade semanas ISO.
+Rejilla de 24 horas con posición de entrada útil y estable al recibir datos, cabecera y franja persistentes, eje horario fijo al desplazar horizontalmente. Las marcas de todo-el-día y de solapamientos dejan más anchura al título. Varias semanas tiene selector 2–6 y filas compactas. Mes mide alturas reales de chips y barras (sin offsets de 28 px), muestra +n exacto ante desborde y abre el detalle completo. En móvil conserva puntos y acceso al día. Cabeceras sin cápsulas, fechas con nombre completo y cantidad, hoy anunciado, Año móvil con una columna más legible y Trimestre con altura natural.
 
-Tokens del tema para fondos, acento y controles. El token `--on-accent` permite texto legible sobre acento también en oscuro en los flujos modificados. Se mantienen fuentes/colores del registro, filtros de visibilidad e integraciones de solo lectura.
+R02 confirmado: el endpoint calendario incluye tareas con solo inicio, mientras la consulta por vencimiento las excluía. Se recupera su detalle por API existente y se sitúan en el inicio, sin alterar modelo/API. Los rangos de tareas con vencimiento siguen representados por su vencimiento; no se introduce una nueva duración semántica de tarea. R03 corregido en URL. R04 conserva el solape explícito. R07 no produce conjunto vacío: tres días naturales siempre contienen al menos un laborable; el título usa los días visibles.
 
-## Verificación
+## Validación en curso
 
-Seis recorridos Playwright de las ocho vistas (48 combinaciones: 1440/390/320, claro/oscuro) más prueba de salto y diálogo completo del día. Datos sintéticos, sin escribir en cuentas personales. Unitarias de distribución horaria y eventos nocturnos; regresión de suscripciones, alineación y otras superficies. Capturas en `assets/calendar-2026-10-21/`.
+`pnpm test` completo pasó con Node 26; la primera ejecución simultánea con lint y TypeScript tuvo un timeout de HealthController, que pasó al repetir la suite. TypeScript global correcto. Ajustes de lint corregidos; pendiente repetir comprobación final. OpenAPI regenerado sin diff. No se cambia API, modelo ni eventos de dominio.
 
-## Cierre del alcance
+Pruebas Playwright sintéticas: matriz de ocho vistas a 1440/390/320 claro/oscuro, capacidad 0/1/3/10/30, detalle completo, selector de rango y recarga, eje horario después de desplazamiento, inicio sin vencimiento y carga/error. Quince de dieciséis pasaron; el último recorrido esperaba un nombre antiguo de checkbox y se está repitiendo con el nombre real.
 
-Lint y TypeScript correctos; 436 unitarias y 110 pruebas de integración correctas. 84 pruebas de navegador distintas verificadas entre los flujos afectados, incluidas las siete de Calendarios. Build API/SDK/PWA correcto; permanece el aviso previo de tamaño del bundle principal. OpenAPI y SDK regenerados de nuevo, sin diff. Contraste medido del texto nuevo: 5,59:1 en primarios, 5,46:1 en vencimiento claro y 6,87:1 en oscuro. El redimensionado del panel se prueba con teclado, arrastre y recarga.
+Las capturas anteriores en `assets/calendar-2026-10-21/` se conservan como antes sintético. El después se genera en `assets/calendar-remediation-2026-10-21/`; revisión visual final en curso. Ninguna evidencia privada se publica. No se certifica todavía lector de pantalla físico, gestos en dispositivo real ni la matriz ampliada de tablet/zoom/DST.
