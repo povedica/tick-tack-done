@@ -6,7 +6,7 @@ siguen el orden de prioridad de la petición; no se consideran cerrados.
 | ID         | Estado    | PR                                                        | Notas                                                                                                                           |
 | ---------- | --------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | TTD-AUD-01 | corregido | [#60](https://github.com/povedica/tick-tack-done/pull/60) | Fecha efectiva en filtros y filas; inicio/duración en API de vistas y SDK. Tests de dominio, formato, mapeo, SQL e integración. |
-| TTD-AUD-02 | corregido | pendiente de publicación                                  | Rangos ES/EN, título limpio, inicio y duración; tests del parser y creación real por API, incluidos cambios DST.                |
+| TTD-AUD-02 | corregido | [#61](https://github.com/povedica/tick-tack-done/pull/61) | Rangos ES/EN, título limpio, inicio y duración; tests del parser y creación real por API, incluidos cambios DST.                |
 | TTD-AUD-03 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
 | TTD-AUD-04 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
 | TTD-AUD-05 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
@@ -89,3 +89,6 @@ automática bloqueó su publicación adicional en este repositorio público.
 - API: `raw_text` persiste inicio y duración; no hace falta añadir campos al contrato.
 - La vista previa del composer reconoce el inicio; las filas usan el formato de #60.
 - RF cubiertos: RF-102, RF-601, RF-602, RF-604.
+
+Validación de TTD-AUD-02: typecheck y lint completos; 281 tests de dominio,
+95 web, 102 API y 9 SDK; integración completa: 120 pasan, 2 omitidos.
