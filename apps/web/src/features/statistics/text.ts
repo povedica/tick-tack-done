@@ -181,11 +181,19 @@ export function useStatisticsText() {
       weekday: 'short',
       timeZone: 'UTC',
     });
-  const duration = (minutes: number) =>
-    minutes < 60
-      ? `${number(minutes)} min`
-      : `${number(Math.floor(minutes / 60))} h ${number(minutes % 60)} min`;
+  const duration = (minutes: number) => formatFocusDuration(minutes, locale);
   const countDays = (value: number) =>
     `${number(value)} ${t(new Intl.PluralRules(locale).select(value) === 'one' ? 'day' : 'days')}`;
   return { t, number, day, weekday, duration, countDays, locale };
+}
+
+/** TTD-AUD-10: never show fractional focus minutes in the UI. */
+export function formatFocusDuration(minutes: number, locale: string): string {
+  const whole = Math.max(0, Math.round(minutes));
+  const number = (value: number) =>
+    new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(value);
+  if (whole < 60) {
+    return `${number(whole)} min`;
+  }
+  return `${number(Math.floor(whole / 60))} h ${number(whole % 60)} min`;
 }

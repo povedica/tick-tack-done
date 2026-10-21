@@ -46,6 +46,8 @@ export {
 export type { ParsedRule, RepeatDraft, RuleFailure, Weekday } from './recurrence/rule';
 
 export { instantFromWall, startOfZonedDay } from './dates/zoned';
+export { parseTaskInstant } from './dates/parse-instant';
+export type { ParsedTaskInstant } from './dates/parse-instant';
 export { isOverdue, snoozeDue } from './dates/schedule';
 export type { DateSnoozePreset, ScheduleFailure, SnoozedDates } from './dates/schedule';
 
@@ -203,18 +205,20 @@ export type {
 } from './habits/habits';
 
 export {
-  applyQuadrantDrop,
   DEFAULT_QUADRANT_EFFECTS,
   defaultQuadrant,
   isImportant,
   isUrgent,
   MATRIX_QUADRANTS,
+  minimalQuadrantPatch,
   quadrantOf,
 } from './views/matrix';
 export type {
   DueEffect,
   MatrixQuadrant,
   MatrixTask,
+  MinimalQuadrantPatch,
+  MinimalQuadrantTask,
   QuadrantEffect,
   QuadrantPatch,
   QuadrantRule,

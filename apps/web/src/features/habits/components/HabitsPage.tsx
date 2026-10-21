@@ -21,6 +21,7 @@ export function HabitsPage() {
   const toast = useActionToast((state) => state.show);
   const habits = useQuery({ queryKey: ['habits'], queryFn: () => api.listHabits() });
   const [editor, setEditor] = useState<Habit | 'new' | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Habit | null>(null);
   const [error, setError] = useState(false);
   const active = (habits.data?.items ?? []).filter((habit) => !habit.archived);
   const archived = (habits.data?.items ?? []).filter((habit) => habit.archived);
@@ -64,7 +65,7 @@ export function HabitsPage() {
     });
   };
   const remove = (habit: Habit) => {
-    if (window.confirm(t.confirmDelete)) mutation.mutate(() => api.deleteHabit(habit.id));
+    setPendingDelete(habit);
   };
   const save = (body: CreateHabitBody) => {
     mutation.mutate(async () => {
@@ -232,6 +233,34 @@ export function HabitsPage() {
             ))}
           </ul>
         </details>
+      ) : null}
+      {pendingDelete !== null ? (
+        <div className="token-confirm" role="alertdialog">
+          <p>{t.confirmDelete}</p>
+          <span className="token-actions">
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                setPendingDelete(null);
+              }}
+            >
+              {m.cancel}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="danger"
+              onClick={() => {
+                const habit = pendingDelete;
+                setPendingDelete(null);
+                mutation.mutate(() => api.deleteHabit(habit.id));
+              }}
+            >
+              {t.remove}
+            </Button>
+          </span>
+        </div>
       ) : null}
     </main>
   );

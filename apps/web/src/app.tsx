@@ -1,6 +1,8 @@
 import { runAction } from './components/run-action';
+import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState, type ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useNavigate, useSearchParams } from 'react-router';
+import { api } from './api';
 import { CaptureSheet } from './features/capture/components/CaptureSheet';
 import { TokensPage } from './features/tokens/components/TokensPage';
 import { CommandPalette } from './features/views/components/CommandPalette';
@@ -67,6 +69,7 @@ import { TodayPage } from './features/today/TodayPage';
 import { ShortcutHelp } from './shell/ShortcutHelp';
 import { GlobalKeys } from './shell/GlobalKeys';
 import { AppShell } from './shell/AppShell';
+import { NotFoundPage } from './shell/NotFoundPage';
 import { ThemeSync } from './theme/ThemeSync';
 
 export function App() {
@@ -175,7 +178,14 @@ function Shell() {
             <Route path="/review/daily" element={<ReviewPage />} />
             <Route path="/review/weekly" element={<ReviewPage />} />
             <Route path="/search" element={<SearchPage />} />
-            <Route path="/ticky" element={<TickyPage />} />
+            <Route
+              path="/ticky"
+              element={
+                <FeatureRoute flag="ticky">
+                  <TickyPage />
+                </FeatureRoute>
+              }
+            />
             <Route path="/sticky" element={<DashboardPage />} />
             <Route path="/tokens" element={<TokensPage />} />
             <Route path="/oauth/consent" element={<ConsentPage />} />
@@ -199,7 +209,7 @@ function Shell() {
               <Route path="shortcuts" element={<ShortcutSettings />} />
             </Route>
             <Route path="/repeat" element={<RepeatPage />} />
-            <Route path="*" element={<Navigate to="/today" replace />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Route>
       </Routes>
@@ -214,7 +224,14 @@ function FeatureRoute({
   readonly flag: keyof FeatureFlags;
   readonly children: ReactNode;
 }) {
-  const enabled = useFeatures((state) => state.flags[flag]);
+  const me = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
+  const enabled = useFeatures((state) => {
+    const value = state.flags[flag];
+    return typeof value === 'boolean' ? value : true;
+  });
+  if (me.isPending) {
+    return <div className="page-loading" aria-busy="true" />;
+  }
   if (!enabled) {
     return <Navigate to="/today?disabled=1" replace />;
   }

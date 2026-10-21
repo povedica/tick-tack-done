@@ -2,7 +2,7 @@ import { runAction } from '../components/run-action';
 import { ControlChip } from '../features/statistics/ControlSummary';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState, type CSSProperties } from 'react';
-import { Outlet, useSearchParams } from 'react-router';
+import { Outlet, useLocation, useSearchParams } from 'react-router';
 import { api } from '../api';
 import { dismissPopover } from '../components/popover-stack';
 import { LocationWatch } from '../features/product/ProductPages';
@@ -15,17 +15,22 @@ import { openTaskComposer, useCaptureOpen } from '../features/capture/notice';
 import { refreshTaskSurfaces } from '../features/tasks/refresh';
 import { useMessages } from '../i18n';
 import { BottomBar } from './BottomBar';
+import { CalendarSidebar } from './CalendarSidebar';
+import { DetailEmpty } from './DetailEmpty';
 import { IconRail } from './IconRail';
 import { readSidebarCollapsed, writeSidebarCollapsed } from './sidebar-state';
 import { ShellActionsProvider } from './shell-actions';
 import { DetailResizer, readDetailWidth, storeDetailWidth } from './DetailResizer';
 import { FocusCloser, formatClock, useActiveFocus } from './useActiveFocus';
+import { ScreenBoundary } from './ErrorBoundary';
+import { sectionOf, sectionShowsDetailPane, sectionShowsSidebar } from './section-of';
 import { Sidebar } from './Sidebar';
 import { isSidebarShortcut, isTypingTarget } from './shortcuts';
 import { AccountPreferenceSync } from '../theme/AccountPreferenceSync';
 
 export function AppShell() {
   const messages = useMessages();
+  const location = useLocation();
   const [params, setParams] = useSearchParams();
   const taskId = params.get('task');
   const [collapsed, setCollapsed] = useState(() => readSidebarCollapsed(localStorage));
@@ -34,6 +39,11 @@ export function AppShell() {
   const narrow = useNarrow();
   const [online, setOnline] = useState(() => navigator.onLine);
   const [detailWidth, setDetailWidth] = useState(() => readDetailWidth(localStorage));
+  const section = sectionOf(location.pathname);
+  const showSidebar = sectionShowsSidebar(section);
+  const showDetailPane = sectionShowsDetailPane(section) && !narrow;
+  const sidebarCollapsed = !showSidebar || collapsed;
+  const detailOpen = showDetailPane || taskId !== null;
 
   useEffect(() => {
     const on = (): void => {
@@ -128,26 +138,38 @@ export function AppShell() {
       <AccountPreferenceSync />
       <div
         className="shell"
-        data-sidebar={collapsed ? 'collapsed' : 'expanded'}
+        data-sidebar={sidebarCollapsed ? 'collapsed' : 'expanded'}
+        data-section={section}
         data-drawer={drawer ? 'open' : 'closed'}
-        data-detail={taskId === null ? 'closed' : 'open'}
+        data-drawer-section={drawer ? drawerSection : undefined}
+        data-detail={detailOpen ? 'open' : 'closed'}
         style={{ '--detail-w': `${String(detailWidth)}px` } as CSSProperties}
       >
         <FocusTitle />
         <IconRail
-          collapsed={collapsed}
+          collapsed={sidebarCollapsed}
           onToggleCollapsed={toggleNav}
           onCapture={() => {
             closeDrawer();
             openTaskComposer();
           }}
         />
-        <Sidebar
-          collapsed={collapsed}
-          mobileSection={narrow ? drawerSection : undefined}
-          concealed={narrow ? !drawer : collapsed}
-          onNavigate={closeDrawer}
-        />
+        {section === 'calendar' ? (
+          <CalendarSidebar
+            collapsed={sidebarCollapsed}
+            concealed={narrow ? !drawer : sidebarCollapsed}
+            onNavigate={closeDrawer}
+          />
+        ) : showSidebar ? (
+          <Sidebar
+            collapsed={sidebarCollapsed}
+            mobileSection={narrow ? drawerSection : undefined}
+            concealed={narrow ? !drawer : sidebarCollapsed}
+            onNavigate={closeDrawer}
+          />
+        ) : (
+          <aside className="sidebar" data-collapsed="true" data-concealed="true" hidden />
+        )}
         <a className="skip-link" href="#content">
           {messages.skip}
         </a>
@@ -175,10 +197,12 @@ export function AppShell() {
           )}
           <LocationWatch />
           <div className="outlet" id="content">
-            <Outlet />
+            <ScreenBoundary resetKey={location.pathname}>
+              <Outlet />
+            </ScreenBoundary>
           </div>
         </div>
-        {taskId !== null ? (
+        {detailOpen ? (
           <div className="detail-slot">
             <DetailResizer
               width={detailWidth}
@@ -187,7 +211,11 @@ export function AppShell() {
                 storeDetailWidth(localStorage, next);
               }}
             />
-            <TaskDetail taskId={taskId} onClose={closeDetail} />
+            {taskId !== null ? (
+              <TaskDetail taskId={taskId} onClose={closeDetail} />
+            ) : (
+              <DetailEmpty />
+            )}
           </div>
         ) : null}
         <FocusCloser />

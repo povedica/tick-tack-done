@@ -26,6 +26,8 @@ export function HabitDetailPage() {
   const [count, setCount] = useState(1);
   const [note, setNote] = useState('');
   const [error, setError] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmUnmark, setConfirmUnmark] = useState(false);
   const habit = useQuery({ queryKey: ['habit', id], queryFn: () => api.getHabit(id) });
   const stats = useQuery({
     queryKey: ['habit-stats', id, month.getFullYear()],
@@ -119,17 +121,43 @@ export function HabitDetailPage() {
             size="sm"
             variant="ghost"
             onClick={() => {
-              if (window.confirm(t.confirmDelete))
-                mutation.mutate(async () => {
-                  await api.deleteHabit(id);
-                  runAction(Promise.resolve(navigate('/habits')));
-                });
+              setConfirmDelete(true);
             }}
           >
             {t.remove}
           </Button>
         </div>
       </header>
+      {confirmDelete ? (
+        <div className="token-confirm" role="alertdialog">
+          <p>{t.confirmDelete}</p>
+          <span className="token-actions">
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                setConfirmDelete(false);
+              }}
+            >
+              {m.cancel}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="danger"
+              onClick={() => {
+                setConfirmDelete(false);
+                mutation.mutate(async () => {
+                  await api.deleteHabit(id);
+                  runAction(Promise.resolve(navigate('/habits')));
+                });
+              }}
+            >
+              {t.remove}
+            </Button>
+          </span>
+        </div>
+      ) : null}
       {error ? <p role="alert">{t.failed}</p> : null}
       {editing ? (
         <HabitEditor
@@ -256,15 +284,40 @@ export function HabitDetailPage() {
             <Button type="submit" variant="primary" disabled={mutation.isPending}>
               {t.save}
             </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => {
-                if (window.confirm(t.confirmUnmark)) saveLog(0);
-              }}
-            >
-              {t.unmark}
-            </Button>
+            {confirmUnmark ? (
+              <span className="token-actions">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    setConfirmUnmark(false);
+                  }}
+                >
+                  {m.cancel}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="danger"
+                  onClick={() => {
+                    setConfirmUnmark(false);
+                    saveLog(0);
+                  }}
+                >
+                  {t.unmark}
+                </Button>
+              </span>
+            ) : (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setConfirmUnmark(true);
+                }}
+              >
+                {t.unmark}
+              </Button>
+            )}
             <Button
               type="button"
               variant="ghost"

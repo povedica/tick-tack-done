@@ -101,6 +101,10 @@ export interface ActivityEntry {
   readonly action: string;
   readonly created_at: string;
   readonly actor_id: string;
+  readonly actor_kind?: string | null;
+  readonly token_id?: string | null;
+  readonly token_name?: string | null;
+  readonly oauth_client_id?: string | null;
 }
 
 export interface TaskDetail extends Task {
@@ -285,6 +289,7 @@ export interface ResourceClient {
   listStickies(): Promise<JsonObject>;
   createSticky(text: string): Promise<JsonObject>;
   integrationStatus(kind: 'telegram' | 'drive' | 'google'): Promise<JsonObject>;
+  createTelegramPairing(): Promise<JsonObject>;
   googleConnect(): Promise<JsonObject>;
   listWebhooks(): Promise<JsonObject>;
   createWebhook(body: JsonObject): Promise<JsonObject>;
@@ -582,6 +587,8 @@ export function resourceMethods(http: Http): ResourceClient {
     createSticky: (text) => ask('POST', '/api/v1/sticky-notes', { text }, undefined, isJsonObject),
     integrationStatus: (kind) =>
       ask('GET', `/api/v1/integrations/${kind}`, undefined, undefined, isJsonObject),
+    createTelegramPairing: () =>
+      ask('POST', '/api/v1/integrations/telegram/pairing', undefined, undefined, isJsonObject),
     googleConnect: () =>
       ask('GET', '/api/v1/integrations/google/start', undefined, undefined, isJsonObject),
     listWebhooks: () => ask('GET', '/api/v1/webhooks', undefined, undefined, isJsonObject),

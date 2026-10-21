@@ -152,9 +152,17 @@
 }
 .countdown-card header {
   justify-content: space-between;
+  gap: var(--sp-2);
+}
+.countdown-emoji {
+  flex-shrink: 0;
+  line-height: 1.2;
+  font-size: 1.1em;
 }
 .countdown-title {
   display: -webkit-box;
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   white-space: normal;
   font-weight: 600;
@@ -197,6 +205,12 @@
   display: grid;
   gap: 0.35rem;
 }
+.countdown-dialog label:has(input[type='checkbox']),
+.countdown-dialog label:has(input[type='radio']) {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
 .countdown-dialog fieldset {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -204,6 +218,7 @@
 .countdown-dialog fieldset label {
   display: flex;
   align-items: center;
+  gap: var(--sp-2);
 }
 .countdown-dialog label:has(> input[type='checkbox']),
 .countdown-dialog label:has(> input[type='radio']) {

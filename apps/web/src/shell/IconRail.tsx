@@ -5,11 +5,12 @@ import { MODULES, moduleEnabled } from './modules';
 import { useTickyFlags } from '../features/ticky/useTickyFlags';
 import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, HelpCircle, ListTodo, PanelLeft, Plus } from 'lucide-react';
-import { NavLink, useNavigate } from 'react-router';
+import { NavLink, useLocation, useNavigate } from 'react-router';
 import { api } from '../api';
 import { AccountMenu } from './AccountMenu';
 import { useFeatures } from '../features/settings/feature-flags';
 import { useMessages } from '../i18n';
+import { sectionOf } from './section-of';
 import { formatClock, useActiveFocus } from './useActiveFocus';
 
 export function IconRail({
@@ -23,6 +24,8 @@ export function IconRail({
 }) {
   const messages = useMessages();
   const navigate = useNavigate();
+  const location = useLocation();
+  const tasksActive = sectionOf(location.pathname) === 'tasks';
   const flags = useFeatures((state) => state.flags);
   const ticky = useTickyFlags();
   const focus = useActiveFocus();
@@ -67,7 +70,12 @@ export function IconRail({
   return (
     <nav className="icon-rail" aria-label={messages.appName}>
       <AccountMenu />
-      <NavLink to="/today" end aria-label={messages.navToday} title={messages.navToday}>
+      <NavLink
+        to="/today"
+        aria-label={messages.navTasks}
+        title={messages.navTasks}
+        className={() => (tasksActive ? 'active' : '')}
+      >
         <ListTodo size={20} aria-hidden="true" />
       </NavLink>
       {flags.navigation_order

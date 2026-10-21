@@ -93,7 +93,7 @@ describe('time API', () => {
         due_date: '2026-10-19T07:00:00.000Z',
         time_zone: 'Europe/Madrid',
         is_all_day: false,
-        duration_minutes: 30,
+        duration_minutes: 60,
       })
       .expect(201);
     expect(created.body.due_date).toBe('2026-10-19T07:00:00.000Z');

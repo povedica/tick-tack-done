@@ -37,8 +37,34 @@ describe('MCP tool catalog', () => {
   it('RF-2001: read scopes do not include write tools', () => {
     const names = visibleTools(['tasks:read']).map((tool) => tool.name);
     expect(names).toContain('list_tasks');
+    expect(names).toContain('list_task_comments');
+    expect(names).toContain('list_task_attachments');
     expect(names).not.toContain('create_task');
     expect(names).not.toContain('complete_task');
+    expect(names).not.toContain('delete_task');
+  });
+
+  it('TTD-AUD-50: trash tools require tasks:trash', () => {
+    const write = visibleTools(['tasks:read', 'tasks:write']).map((tool) => tool.name);
+    expect(write).not.toContain('delete_task');
+    expect(write).not.toContain('restore_task');
+    const trash = visibleTools(['tasks:trash']).map((tool) => tool.name);
+    expect(trash).toEqual(expect.arrayContaining(['delete_task', 'restore_task']));
+  });
+
+  it('TTD-AUD-53: reopen/cancel are write-scoped', () => {
+    const write = visibleTools(['tasks:write']).map((tool) => tool.name);
+    expect(write).toEqual(
+      expect.arrayContaining(['reopen_task', 'cancel_task', 'move_task', 'assign_task']),
+    );
+  });
+
+  it('TTD-AUD-52: reminder tools require reminders:write', () => {
+    const read = visibleTools(['tasks:read']).map((tool) => tool.name);
+    expect(read).toContain('list_task_reminders');
+    expect(read).not.toContain('add_task_reminder');
+    const write = visibleTools(['reminders:write']).map((tool) => tool.name);
+    expect(write).toEqual(expect.arrayContaining(['add_task_reminder', 'delete_task_reminder']));
   });
 
   it('RF-2532: calendar tools follow calendar scopes', () => {
@@ -88,5 +114,18 @@ describe('MCP tool catalog', () => {
     expect(complete?.inputSchema.properties).toHaveProperty('advance');
     expect(complete?.inputSchema.properties).toHaveProperty('materialize_next');
     expect(complete?.description).toContain('next_future');
+  });
+
+  it('TTD-AUD-48/49: create_task exposes tags and quick_add is listed', () => {
+    const create = MCP_TOOLS.find((item) => item.name === 'create_task');
+    expect(create?.inputSchema.properties).toHaveProperty('tag_ids');
+    expect(create?.inputSchema.properties).toHaveProperty('tags');
+    expect(create?.inputSchema.properties).toHaveProperty('parse');
+    expect(create?.inputSchema.properties).toHaveProperty('content');
+    const update = MCP_TOOLS.find((item) => item.name === 'update_task');
+    expect(update?.inputSchema.properties).toHaveProperty('add_tag_ids');
+    expect(update?.inputSchema.properties).toHaveProperty('remove_tag_ids');
+    expect(MCP_TOOLS.some((tool) => tool.name === 'quick_add')).toBe(true);
+    expect(visibleTools(['tasks:write']).map((tool) => tool.name)).toContain('quick_add');
   });
 });

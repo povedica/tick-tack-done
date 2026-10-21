@@ -92,7 +92,8 @@
   display: none;
 }
 .composer-main:focus-within .composer-submit,
-.composer-main.has-draft .composer-submit {
+.composer-main.has-draft .composer-submit,
+.capture-card .composer-submit {
   display: flex;
 }
 .composer-date:hover,

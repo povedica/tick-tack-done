@@ -13,4 +13,10 @@ describe('feature flags', () => {
       matrix: false,
     });
   });
+
+  it('TTD-AUD-63: ticky stays off unless explicitly enabled', () => {
+    expect(featureFlags({}).ticky).toBe(false);
+    expect(featureFlags({ ticky: true }).ticky).toBe(true);
+    expect(featureFlags({ ticky: false }).ticky).toBe(false);
+  });
 });

@@ -9,14 +9,17 @@ import { PriorityCheck } from '../../components/PriorityCheck';
 import { Highlight } from '../../components/Highlight';
 import { Button, TagChip } from '../../components/ui';
 import { fill, type Messages } from '../../i18n';
+import { useAppLocale } from '../../i18n/locale';
 import type { ViewDay } from '../capture/quick-add';
 import { collectTags } from './collect';
 import { refreshTaskSurfaces } from './refresh';
+import { purgeTrashTask } from './purge-trash';
 import { displayTitle } from './displayTitle';
 import { completeBody } from './complete-body';
 import { TaskComposer } from './TaskComposer';
 import { formatTaskRowDate } from './row-date';
 import { isOverdue, isSameDay, type RowModel } from './model';
+import { calendarDay } from '../today/groups';
 
 export function TaskList({
   messages,
@@ -304,18 +307,7 @@ function TaskRow({
         <GripVertical className="task-grip" size={12} aria-hidden="true" />
       )}
       {trash ? (
-        <TrashActions
-          restoreLabel={messages.restore}
-          purgeLabel={messages.purge}
-          confirmLabel={messages.confirmDelete}
-          cancelLabel={messages.cancel}
-          onRestore={() => {
-            runAction(api.restoreTask(row.id).then(() => refreshTaskSurfaces(queryClient)));
-          }}
-          onPurge={() => {
-            runAction(api.purgeTask(row.id).then(() => refreshTaskSurfaces(queryClient)));
-          }}
-        />
+        <span className="task-check-spacer" aria-hidden="true" />
       ) : (
         <PriorityCheck
           priority={row.priority}
@@ -416,10 +408,31 @@ function TaskRow({
               : formatTaskRowDate(row, locale, now, messages)}
           </time>
         ) : null}
+        {trash ? (
+          <TrashActions
+            restoreLabel={messages.restore}
+            purgeLabel={messages.purge}
+            confirmLabel={messages.confirmDelete}
+            cancelLabel={messages.cancel}
+            onRestore={() => {
+              runAction(api.restoreTask(row.id).then(() => refreshTaskSurfaces(queryClient)));
+            }}
+            onPurge={() => {
+              runAction(purgeTrashTask(queryClient, row.id));
+            }}
+          />
+        ) : null}
       </span>
-      <button type="button" className="task-more" aria-label={messages.openDetail} onClick={onOpen}>
-        <MoreHorizontal size={16} aria-hidden="true" />
-      </button>
+      {trash ? null : (
+        <button
+          type="button"
+          className="task-more"
+          aria-label={messages.openDetail}
+          onClick={onOpen}
+        >
+          <MoreHorizontal size={16} aria-hidden="true" />
+        </button>
+      )}
     </div>
   );
 }
@@ -448,11 +461,12 @@ function Kanban({
   const queryClient = useQueryClient();
   const [section, setSection] = useState('');
   const [boardError, setBoardError] = useState<string | null>(null);
+  const dateMode = columns.length === 0;
   const loose = rows.some((row) => row.columnId === null || row.columnId.length === 0);
-  const cols =
-    columns.length === 0
-      ? [{ id: 'none', name: messages.noSection }]
-      : [...columns, ...(loose ? [{ id: 'none', name: messages.noSection }] : [])];
+  const cols = dateMode
+    ? dateKanbanColumns(messages)
+    : [...columns, ...(loose ? [{ id: 'none', name: messages.noSection }] : [])];
+  const now = useMemo(() => new Date(), []);
   return (
     <div className="kanban-wrap">
       {boardError !== null ? (
@@ -463,9 +477,11 @@ function Kanban({
       <div className="kanban">
         {cols.map((column) => {
           const items = rows.filter((row) =>
-            column.id === 'none'
-              ? row.columnId === null || row.columnId.length === 0
-              : row.columnId === column.id,
+            dateMode
+              ? dateBucketOf(row, now) === column.id
+              : column.id === 'none'
+                ? row.columnId === null || row.columnId.length === 0
+                : row.columnId === column.id,
           );
           return (
             <section
@@ -479,8 +495,12 @@ function Kanban({
                 if (id.length === 0) {
                   return;
                 }
+                const row = rows.find((item) => item.id === id);
+                const body = dateMode
+                  ? dateBucketPatch(column.id, row ?? null, now)
+                  : { column_id: column.id === 'none' ? null : column.id };
                 void api
-                  .patchTask(id, { column_id: column.id === 'none' ? null : column.id })
+                  .patchTask(id, body)
                   .then(() => refreshTaskSurfaces(queryClient))
                   .catch((error: unknown) => {
                     if (error instanceof ApiError && error.code === 'wip_exceeded') {
@@ -554,7 +574,7 @@ function Kanban({
             </section>
           );
         })}
-        {projectId !== undefined ? (
+        {projectId !== undefined && !dateMode ? (
           <form
             className="kanban-col kanban-add"
             onSubmit={(event) => {
@@ -596,23 +616,44 @@ function Timeline({
   readonly onOpen: (id: string) => void;
 }) {
   const queryClient = useQueryClient();
-  const [zoom, setZoom] = useState<'day' | 'week' | 'month'>('week');
-  const planned = rows.filter((row) => row.dueDate !== null);
-  const loose = rows.filter((row) => row.dueDate === null);
+  const locale = useAppLocale();
+  const [zoom, setZoom] = useState<'day' | 'week' | 'month'>(() => {
+    try {
+      const stored = window.localStorage.getItem('tick-tack-done.timeline.zoom');
+      return stored === 'day' || stored === 'week' || stored === 'month' ? stored : 'week';
+    } catch {
+      return 'week';
+    }
+  });
+  const planned = rows.filter((row) => (row.startDate ?? row.dueDate) !== null);
+  const loose = rows.filter((row) => (row.startDate ?? row.dueDate) === null);
+  const zoomLabel = {
+    day: messages.timelineDay,
+    week: messages.timelineWeek,
+    month: messages.timelineMonth,
+  } as const;
+  const dayFormat = new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric' });
   return (
     <div className="timeline" data-zoom={zoom}>
       <div className="page-toolbar">
         <span>{messages.timelineZoom}</span>
-        {(['day', 'week', 'month'] as const).map((item) => (
-          <Button
-            key={item}
-            onClick={() => {
-              setZoom(item);
-            }}
-          >
-            {item}
-          </Button>
-        ))}
+        <div className="timeline-zoom" role="group" aria-label={messages.timelineZoom}>
+          {(['day', 'week', 'month'] as const).map((item) => (
+            <Button
+              key={item}
+              size="sm"
+              variant="ghost"
+              className={zoom === item ? 'is-on' : undefined}
+              aria-pressed={zoom === item}
+              onClick={() => {
+                setZoom(item);
+                window.localStorage.setItem('tick-tack-done.timeline.zoom', item);
+              }}
+            >
+              {zoomLabel[item]}
+            </Button>
+          ))}
+        </div>
       </div>
       <aside>
         <h3>{messages.unscheduled}</h3>
@@ -656,7 +697,9 @@ function Timeline({
       <div className="timeline-axis">
         {timelineDays(zoom).map((day) => {
           const key = day.toDateString();
-          const items = planned.filter((row) => new Date(row.dueDate ?? '').toDateString() === key);
+          const items = planned.filter(
+            (row) => new Date(row.startDate ?? row.dueDate ?? '').toDateString() === key,
+          );
           return (
             <section
               key={key}
@@ -677,16 +720,17 @@ function Timeline({
                 );
               }}
             >
-              <h3>
-                {new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric' }).format(
-                  day,
-                )}
-              </h3>
+              <h3>{dayFormat.format(day)}</h3>
               {items.map((row) => (
                 <button
                   key={row.id}
                   type="button"
                   className="timeline-bar"
+                  title={shownTitle(
+                    row.title,
+                    row.tags.map((tag) => tag.name),
+                    messages.untitled,
+                  )}
                   onClick={() => {
                     onOpen(row.id);
                   }}
@@ -869,6 +913,69 @@ function formatRowDate(
 function shownTitle(title: string, tagNames: readonly string[], untitled: string): string {
   const text = displayTitle(title, tagNames);
   return text.length === 0 ? untitled : text;
+}
+
+/** TTD-AUD-68: date columns when the list has no board sections. */
+function dateKanbanColumns(
+  messages: Messages,
+): readonly { readonly id: string; readonly name: string; readonly wip_limit?: number | null }[] {
+  return [
+    { id: 'overdue', name: messages.overdueTitle },
+    { id: 'today', name: messages.navToday },
+    { id: 'tomorrow', name: messages.navTomorrow },
+    { id: 'next7', name: messages.navNext7 },
+    { id: 'later', name: messages.kanbanLater },
+    { id: 'nodate', name: messages.noDate },
+  ];
+}
+
+function dateBucketOf(row: RowModel, now: Date): string {
+  if (row.dueDate === null) {
+    return 'nodate';
+  }
+  const zone = row.timeZone.length > 0 ? row.timeZone : 'UTC';
+  const today = calendarDay(now.toISOString(), zone);
+  const due = calendarDay(row.dueDate, zone);
+  if (due < today) {
+    return 'overdue';
+  }
+  if (due === today) {
+    return 'today';
+  }
+  const tomorrow = calendarDay(new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(), zone);
+  if (due === tomorrow) {
+    return 'tomorrow';
+  }
+  const weekEnd = calendarDay(
+    new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    zone,
+  );
+  if (due <= weekEnd) {
+    return 'next7';
+  }
+  return 'later';
+}
+
+function dateBucketPatch(
+  bucket: string,
+  row: RowModel | null,
+  now: Date,
+): { due_date: string | null; is_all_day: boolean } {
+  const zone = row?.timeZone && row.timeZone.length > 0 ? row.timeZone : 'UTC';
+  if (bucket === 'nodate') {
+    return { due_date: null, is_all_day: true };
+  }
+  const offsetDays =
+    bucket === 'overdue' || bucket === 'today'
+      ? 0
+      : bucket === 'tomorrow'
+        ? 1
+        : bucket === 'next7'
+          ? 3
+          : 14;
+  const target = new Date(now.getTime() + offsetDays * 24 * 60 * 60 * 1000);
+  const key = calendarDay(target.toISOString(), zone);
+  return { due_date: `${key}T00:00:00.000Z`, is_all_day: true };
 }
 
 function searchSnippet(content: string, query: string): string {

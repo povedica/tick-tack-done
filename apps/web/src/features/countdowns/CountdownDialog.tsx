@@ -1,33 +1,26 @@
 import { useState } from 'react';
 import { Button, Modal } from '../../components/ui';
+import { useMessages } from '../../i18n';
+import { useAppLocale } from '../../i18n/locale';
 import type { Countdown, CountdownDraft, CountdownType, RepeatRule } from './api';
 import { TYPE_LABEL } from './presentation';
-import { useAppLocale } from '../../i18n/locale';
-import { useMessages } from '../../i18n';
 import { formatCountdownDay, parseCountdownDay } from './civil-date';
 
-const REMINDERS = [
-  [0, 'El mismo día (09:00)'],
-  [1, '1 día antes (09:00)'],
-  [2, '2 días antes (09:00)'],
-  [3, '3 días antes (09:00)'],
-  [7, '1 semana antes (09:00)'],
-] as const;
-
+const REMINDER_OFFSETS = [0, 1, 2, 3, 7] as const;
 const COLORS = [
-  ['none', 'Sin color'],
-  ['blue', 'Azul'],
-  ['teal', 'Turquesa'],
-  ['green', 'Verde'],
-  ['lime', 'Lima'],
-  ['orange', 'Naranja'],
-  ['red', 'Rojo'],
-  ['pink', 'Rosa'],
-  ['purple', 'Morado'],
-  ['navy', 'Azul marino'],
-  ['brown', 'Marrón'],
-  ['black', 'Negro'],
-  ['rainbow', 'Arcoíris'],
+  'none',
+  'blue',
+  'teal',
+  'green',
+  'lime',
+  'orange',
+  'red',
+  'pink',
+  'purple',
+  'navy',
+  'brown',
+  'black',
+  'rainbow',
 ] as const;
 
 function draftFor(type: CountdownType, value?: Countdown): CountdownDraft {
@@ -69,6 +62,56 @@ export function CountdownDialog({
     draft.reminders.filter((item) => !item.constant).map((item) => item.offsetDays),
   );
   const constant = draft.reminders.some((item) => item.constant);
+  const reminderLabel = (offset: number): string => {
+    switch (offset) {
+      case 0:
+        return messages.countdownReminderSameDay;
+      case 1:
+        return messages.countdownReminder1d;
+      case 2:
+        return messages.countdownReminder2d;
+      case 3:
+        return messages.countdownReminder3d;
+      case 7:
+        return messages.countdownReminder1w;
+      default:
+        return messages.countdownReminderCustom;
+    }
+  };
+  const colorLabel = (value: (typeof COLORS)[number]): string => {
+    switch (value) {
+      case 'none':
+        return messages.countdownColorNone;
+      case 'blue':
+        return messages.countdownColorBlue;
+      case 'teal':
+        return messages.countdownColorTeal;
+      case 'green':
+        return messages.countdownColorGreen;
+      case 'lime':
+        return messages.countdownColorLime;
+      case 'orange':
+        return messages.countdownColorOrange;
+      case 'red':
+        return messages.countdownColorRed;
+      case 'pink':
+        return messages.countdownColorPink;
+      case 'purple':
+        return messages.countdownColorPurple;
+      case 'navy':
+        return messages.countdownColorNavy;
+      case 'brown':
+        return messages.countdownColorBrown;
+      case 'black':
+        return messages.countdownColorBlack;
+      case 'rainbow':
+        return messages.countdownColorRainbow;
+      default: {
+        const unreachable: never = value;
+        return unreachable;
+      }
+    }
+  };
   const toggleReminder = (offset: number): void => {
     setDraft((current) => ({
       ...current,
@@ -79,7 +122,7 @@ export function CountdownDialog({
   };
   return (
     <Modal
-      title={countdown === undefined ? 'Nueva cuenta atrás' : 'Editar cuenta atrás'}
+      title={countdown === undefined ? messages.countdownDialogNew : messages.countdownDialogEdit}
       onClose={onClose}
     >
       <form
@@ -91,9 +134,9 @@ export function CountdownDialog({
         }}
       >
         <label>
-          Emoji
+          {messages.countdownEmoji}
           <input
-            aria-label="Emoji"
+            aria-label={messages.countdownEmoji}
             value={draft.emoji ?? ''}
             maxLength={8}
             placeholder="⏳"
@@ -103,7 +146,7 @@ export function CountdownDialog({
           />
         </label>
         <label>
-          Nombre
+          {messages.countdownTitleField}
           <input
             autoFocus
             value={draft.title}
@@ -115,7 +158,7 @@ export function CountdownDialog({
           />
         </label>
         <label>
-          Fecha
+          {messages.countdownDateField}
           <input
             type="text"
             placeholder={messages.countdownDatePlaceholder}
@@ -134,8 +177,9 @@ export function CountdownDialog({
           />
         </label>
         <label>
-          Tipo
+          {messages.countdownTypeField}
           <select
+            className="ui-select"
             value={draft.type}
             onChange={(event) => {
               setDraft({ ...draft, type: event.target.value as CountdownType });
@@ -149,8 +193,9 @@ export function CountdownDialog({
           </select>
         </label>
         <label>
-          Color
+          {messages.countdownColorField}
           <select
+            className="ui-select"
             value={draft.color ?? 'none'}
             onChange={(event) => {
               setDraft({
@@ -162,31 +207,32 @@ export function CountdownDialog({
               });
             }}
           >
-            {COLORS.map(([value, label]) => (
+            {COLORS.map((value) => (
               <option key={value} value={value}>
-                {label}
+                {colorLabel(value)}
               </option>
             ))}
           </select>
         </label>
         <label>
-          Repetición
+          {messages.countdownRepeatField}
           <select
+            className="ui-select"
             value={draft.repeatRule}
             onChange={(event) => {
               setDraft({ ...draft, repeatRule: event.target.value as RepeatRule });
             }}
           >
-            <option value="none">Ninguna</option>
-            <option value="daily">Diaria</option>
-            <option value="weekly">Semanal</option>
-            <option value="monthly">Mensual</option>
-            <option value="yearly">Anual</option>
+            <option value="none">{messages.countdownRepeatNone}</option>
+            <option value="daily">{messages.countdownRepeatDaily}</option>
+            <option value="weekly">{messages.countdownRepeatWeekly}</option>
+            <option value="monthly">{messages.countdownRepeatMonthly}</option>
+            <option value="yearly">{messages.countdownRepeatYearly}</option>
           </select>
         </label>
         <fieldset>
-          <legend>Recordatorios</legend>
-          {REMINDERS.map(([offset, label]) => (
+          <legend>{messages.countdownReminders}</legend>
+          {REMINDER_OFFSETS.map((offset) => (
             <label key={offset}>
               <input
                 type="checkbox"
@@ -195,11 +241,11 @@ export function CountdownDialog({
                   toggleReminder(offset);
                 }}
               />
-              {label}
+              {reminderLabel(offset)}
             </label>
           ))}
           <label>
-            Personalizado (días antes)
+            {messages.countdownReminderCustom}
             <input
               type="number"
               min="1"
@@ -227,11 +273,11 @@ export function CountdownDialog({
                 }));
               }}
             />
-            Recordatorio constante
+            {messages.countdownReminderConstant}
           </label>
         </fieldset>
         <fieldset>
-          <legend>Modo de cálculo</legend>
+          <legend>{messages.countdownDayMode}</legend>
           <label>
             <input
               type="radio"
@@ -240,7 +286,7 @@ export function CountdownDialog({
                 setDraft({ ...draft, dayMode: 'standard' });
               }}
             />
-            Estándar — el día 1 empieza después de la fecha
+            {messages.countdownDayModeStandard}
           </label>
           <label>
             <input
@@ -250,7 +296,7 @@ export function CountdownDialog({
                 setDraft({ ...draft, dayMode: 'plus_one' });
               }}
             />
-            Estándar +1 día — el día 1 empieza en la fecha
+            {messages.countdownDayModePlusOne}
           </label>
         </fieldset>
         <label>
@@ -261,7 +307,7 @@ export function CountdownDialog({
               setDraft({ ...draft, showInSmartList: event.target.checked });
             }}
           />
-          Mostrar el día D en Hoy
+          {messages.countdownShowInToday}
         </label>
         <label>
           <input
@@ -271,10 +317,10 @@ export function CountdownDialog({
               setDraft({ ...draft, showInSidebar: event.target.checked });
             }}
           />
-          Mostrar en la barra lateral
+          {messages.countdownShowInSidebar}
         </label>
         <label>
-          Notas
+          {messages.countdownNotes}
           <textarea
             value={draft.notes ?? ''}
             onChange={(event) => {
@@ -284,10 +330,10 @@ export function CountdownDialog({
         </label>
         <div className="countdown-dialog-actions">
           <Button type="button" onClick={onClose}>
-            Cancelar
+            {messages.cancel}
           </Button>
           <Button variant="primary" type="submit">
-            Guardar
+            {messages.repeatSave}
           </Button>
         </div>
       </form>

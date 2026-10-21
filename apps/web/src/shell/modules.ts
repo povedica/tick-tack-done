@@ -33,6 +33,7 @@ export function moduleEnabled(
   flags: FeatureFlags,
   tickyAvailable = false,
 ): boolean {
-  if (key === 'ticky') return tickyAvailable;
+  if (key === 'ticky') return flags.ticky && tickyAvailable;
+  if (key === 'habits') return flags.habits;
   return key === 'matrix' || key === 'focus' || key === 'countdowns' ? flags[key] : true;
 }

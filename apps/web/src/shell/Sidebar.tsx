@@ -32,7 +32,7 @@ import {
 import { useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import { Link, NavLink, useLocation, useMatch, useNavigate } from 'react-router';
 import { api } from '../api';
-import { Badge } from '../components/ui';
+import { Badge, Button } from '../components/ui';
 import { TagIcon } from '../components/TagIcon';
 import { fill, useMessages, type Messages } from '../i18n';
 import { useFeatures } from '../features/settings/feature-flags';
@@ -183,6 +183,7 @@ export function Sidebar({
       aria-label={mobileSection === 'more' ? messages.navMore : messages.appName}
       className="sidebar"
       data-collapsed={collapsed ? 'true' : 'false'}
+      data-mobile-section={mobileSection}
       inert={concealed ? true : undefined}
     >
       {mobileSection === 'more' ? (
@@ -217,34 +218,32 @@ export function Sidebar({
       ) : null}
       <nav>
         {mobileSection === 'more' ? (
-          <NavGroup id="mobile-more" title={messages.navMore}>
-            <ul className="nav-list">
-              {flags.navigation_order
-                .filter(
-                  (key) =>
-                    key !== 'calendar' &&
-                    moduleEnabled(key, flags, ticky.isSuccess && ticky.data.ui && !ticky.data.kill),
-                )
-                .map((key) => {
-                  const module = MODULES[key];
-                  const Icon = module.icon;
-                  return (
-                    <li key={key}>
-                      <SideLink to={module.to} onNavigate={onNavigate}>
-                        <Icon size={20} aria-hidden="true" />
-                        <span className="nav-label">{messages[module.label]}</span>
-                      </SideLink>
-                    </li>
-                  );
-                })}
-              <li>
-                <SideLink to="/filters" onNavigate={onNavigate}>
-                  <List size={20} aria-hidden="true" />
-                  <span className="nav-label">{messages.filtersTitle}</span>
-                </SideLink>
-              </li>
-            </ul>
-          </NavGroup>
+          <ul className="mobile-more-grid" aria-label={messages.navMore}>
+            {flags.navigation_order
+              .filter(
+                (key) =>
+                  key !== 'calendar' &&
+                  moduleEnabled(key, flags, ticky.isSuccess && ticky.data.ui && !ticky.data.kill),
+              )
+              .map((key) => {
+                const module = MODULES[key];
+                const Icon = module.icon;
+                return (
+                  <li key={key}>
+                    <SideLink to={module.to} onNavigate={onNavigate}>
+                      <Icon size={22} aria-hidden="true" />
+                      <span className="nav-label">{messages[module.label]}</span>
+                    </SideLink>
+                  </li>
+                );
+              })}
+            <li>
+              <SideLink to="/filters" onNavigate={onNavigate}>
+                <List size={22} aria-hidden="true" />
+                <span className="nav-label">{messages.filtersTitle}</span>
+              </SideLink>
+            </li>
+          </ul>
         ) : (
           <>
             <section className="sidebar-smart-lists" aria-label={messages.smartListsTitle}>
@@ -401,7 +400,9 @@ export function Sidebar({
                       }
                     }}
                   />
-                  <button type="submit">{messages.createLabel}</button>
+                  <Button type="submit" size="sm" variant="primary">
+                    {messages.createLabel}
+                  </Button>
                   {listError !== null ? <p className="error">{listError}</p> : null}
                 </form>
               ) : null}
@@ -592,7 +593,9 @@ export function Sidebar({
                       }
                     }}
                   />
-                  <button type="submit">{messages.createLabel}</button>
+                  <Button type="submit" size="sm" variant="primary">
+                    {messages.createLabel}
+                  </Button>
                   {tagError !== null ? <p className="error">{tagError}</p> : null}
                 </form>
               ) : null}
@@ -818,6 +821,8 @@ function ListMenu({
   readonly onClose: () => void;
   readonly onChanged: () => void;
 }) {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [name, setName] = useState(project.is_inbox ? messages.smartInbox : project.name);
   const [confirm, setConfirm] = useState(false);
   return (
@@ -892,6 +897,13 @@ function ListMenu({
                     api.deleteProject(project.id).then(() => {
                       onChanged();
                       onClose();
+                      if (
+                        location.pathname === `/list/${project.id}` ||
+                        location.pathname === `/lists/${project.id}` ||
+                        location.pathname === `/projects/${project.id}`
+                      ) {
+                        return navigate('/inbox', { replace: true });
+                      }
                     }),
                   );
                 }}

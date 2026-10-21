@@ -398,7 +398,7 @@ export function TaskComposer({
         {details ? (
           <textarea
             className="composer-content"
-            aria-label={messages.openDetail}
+            aria-label={messages.addDescription}
             placeholder={calendar ? messages.calendarQuickDescription : undefined}
             onKeyDown={(event) => {
               if (
@@ -619,7 +619,7 @@ export function TaskComposer({
               }}
             >
               <FileText size={16} />
-              {messages.openDetail}
+              {messages.addDescription}
             </button>
             <button
               type="button"

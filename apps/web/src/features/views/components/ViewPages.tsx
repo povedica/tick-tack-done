@@ -2,7 +2,7 @@ import { runAction } from '../../../components/run-action';
 import type { ViewPage } from '@reflexionia/sdk';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Menu } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { api } from '../../../api';
 import { completeBody } from '../../tasks/complete-body';
@@ -25,12 +25,18 @@ import { rowFromTask, rowsFromView, smartApiKey } from '../../tasks/model';
 import { refreshTaskSurfaces } from '../../tasks/refresh';
 import { TaskList } from '../../tasks/TaskList';
 import type { ViewDay } from '../../capture/quick-add';
-import { readStoredView, writeStoredView } from '../view-prefs';
+import {
+  patchViewPrefs,
+  readViewPrefs,
+  type StoredBoardView,
+  type ViewGroupBy,
+  type ViewSort,
+} from '../view-prefs';
 import { viewsApi } from '../api';
 
 type GroupBy = ViewPage['group_by'];
 type Sort = ViewPage['sort'];
-type BoardView = 'list' | 'kanban' | 'timeline';
+type BoardView = StoredBoardView;
 
 export function SmartListViewPage() {
   const messages = useMessages();
@@ -126,7 +132,7 @@ export function ProjectListPage() {
   );
 }
 
-function Board({
+export function Board({
   messages,
   title,
   queryKey,
@@ -141,6 +147,7 @@ function Board({
   revealCompleted = false,
   initialGroup = 'section',
   matrixListId,
+  headerActions,
 }: {
   readonly messages: Messages;
   readonly title: string;
@@ -149,23 +156,32 @@ function Board({
   readonly enabled?: boolean | undefined;
   readonly createProjectId?: string | undefined;
   readonly createViewDay?: ViewDay | null | undefined;
-  readonly columns?: readonly { readonly id: string; readonly name: string }[] | undefined;
+  readonly columns?:
+    | readonly { readonly id: string; readonly name: string; readonly wip_limit?: number | null }[]
+    | undefined;
   readonly notice?: string | undefined;
   readonly note?: boolean | undefined;
   readonly viewKey: string;
   readonly revealCompleted?: boolean | undefined;
   readonly initialGroup?: GroupBy | undefined;
   readonly matrixListId?: string | undefined;
+  readonly headerActions?: ReactNode;
 }) {
   const queryClient = useQueryClient();
   const locale = useAppLocale();
   const shell = useShellActions();
   const flags = useFeatures((state) => state.flags);
   const [params, setParams] = useSearchParams();
-  const [groupBy, setGroupBy] = useState<GroupBy>(initialGroup);
-  const [sort, setSort] = useState<Sort>('manual');
-  const [details, setDetails] = useState(true);
-  const [hideCompleted, setHideCompleted] = useState(!revealCompleted);
+  const [prefs, setPrefs] = useState(() =>
+    readViewPrefs(viewKey, {
+      group: initialGroup,
+      hideCompleted: !revealCompleted,
+    }),
+  );
+  const groupBy: GroupBy = prefs.group;
+  const sort: Sort = prefs.sort;
+  const details = prefs.showDetails;
+  const hideCompleted = prefs.hideCompleted;
   const [matrixLayout, setMatrixLayout] = useState(() =>
     matrixListId === undefined ? 'list' : readMatrixLayout(`list:${matrixListId}`),
   );
@@ -177,7 +193,7 @@ function Board({
   }, [matrixListId]);
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
   const inboxId = projects.data?.items.find((project) => project.is_inbox)?.id;
-  const view = parseView(params.get('view') ?? readStoredView(viewKey));
+  const view = parseView(params.get('view') ?? prefs.view);
   const page = useQuery({
     queryKey: [...queryKey, groupBy, sort],
     queryFn: () => load(groupBy, sort),
@@ -195,8 +211,12 @@ function Board({
         : row,
     );
 
+  function savePrefs(patch: Partial<typeof prefs>): void {
+    setPrefs(patchViewPrefs(viewKey, patch));
+  }
+
   function chooseView(next: BoardView): void {
-    writeStoredView(viewKey, next);
+    savePrefs({ view: next });
     const query = new URLSearchParams(params);
     query.set('view', next);
     setParams(query, { replace: true });
@@ -217,6 +237,7 @@ function Board({
           <h1>{title}</h1>
         </div>
         <div className="page-actions">
+          {headerActions}
           {flags.matrix && matrixListId !== undefined ? (
             <MatrixViewToggle
               value={matrixLayout}
@@ -229,16 +250,25 @@ function Board({
           <span className="ui-badge">
             {page.isPending
               ? '—'
-              : messages.taskCount.replace('{count}', String(page.data?.count ?? rows.length))}
+              : (() => {
+                  const count = page.data?.count ?? rows.length;
+                  return count === 1
+                    ? messages.taskCountOne
+                    : messages.taskCount.replace('{count}', String(count));
+                })()}
           </span>
           <ViewMenu
             messages={messages}
             view={view}
             onView={chooseView}
             details={details}
-            onDetails={setDetails}
+            onDetails={(value) => {
+              savePrefs({ showDetails: value });
+            }}
             hideCompleted={hideCompleted}
-            onHideCompleted={setHideCompleted}
+            onHideCompleted={(value) => {
+              savePrefs({ hideCompleted: value });
+            }}
             onPrint={() => {
               window.print();
             }}
@@ -248,7 +278,7 @@ function Board({
               <select
                 value={groupBy}
                 onChange={(event) => {
-                  setGroupBy(event.target.value as GroupBy);
+                  savePrefs({ group: event.target.value as ViewGroupBy });
                 }}
               >
                 <option value="none">{messages.groupNone}</option>
@@ -263,7 +293,7 @@ function Board({
               <select
                 value={sort}
                 onChange={(event) => {
-                  setSort(event.target.value as Sort);
+                  savePrefs({ sort: event.target.value as ViewSort });
                 }}
               >
                 <option value="manual">{messages.sortManual}</option>

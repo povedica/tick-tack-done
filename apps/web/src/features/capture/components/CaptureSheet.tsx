@@ -20,18 +20,33 @@ export function CaptureSheet({
 }) {
   const messages = useMessages();
   return (
-    <div className="sheet">
-      <h1>{messages.captureTitle}</h1>
-      <TaskComposer
-        initialText={initialText}
-        initialDraft={initialDraft}
-        autoFocus
-        onCaptured={onCreated}
-        onDismiss={onClose}
-      />
-      <Button type="button" onClick={onClose}>
-        {messages.cancel}
-      </Button>
+    <div
+      className="sheet"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="capture-sheet-title"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') onClose();
+      }}
+    >
+      <div className="capture-card">
+        <h1 id="capture-sheet-title">{messages.captureTitle}</h1>
+        <TaskComposer
+          initialText={initialText}
+          initialDraft={initialDraft}
+          autoFocus
+          onCaptured={onCreated}
+          onDismiss={onClose}
+        />
+        <div className="capture-card-footer">
+          <Button type="button" onClick={onClose}>
+            {messages.cancel}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

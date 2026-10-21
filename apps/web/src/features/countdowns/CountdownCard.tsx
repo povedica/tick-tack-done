@@ -38,10 +38,10 @@ export function CountdownCard({
       }}
     >
       <header>
-        <span className="countdown-title">
-          <span aria-hidden="true">{countdown.emoji ?? '⏳'}</span>
-          {countdown.title}
+        <span className="countdown-emoji" aria-hidden="true">
+          {countdown.emoji ?? '⏳'}
         </span>
+        <span className="countdown-title">{countdown.title}</span>
         <div className="countdown-actions">
           {!archived ? (
             <button

@@ -26,6 +26,18 @@ const id = { type: 'string', format: 'uuid' };
 const limit = { type: 'integer', minimum: 1, maximum: 100 };
 const cursor = { type: 'string', minLength: 1 };
 const name = { type: 'string', minLength: 1 };
+const tagIds = {
+  type: 'array',
+  items: id,
+  maxItems: 50,
+  description: 'Tag UUIDs to assign (replaces the whole set when used on update_task).',
+};
+const tagNames = {
+  type: 'array',
+  items: { type: 'string', minLength: 1, maxLength: 100 },
+  maxItems: 50,
+  description: 'Tag names to assign; missing names are created (same as quick add).',
+};
 
 const weekdayEnum = {
   type: 'string',
@@ -91,9 +103,22 @@ export const MCP_TOOLS: readonly McpTool[] = [
   {
     name: 'list_tasks',
     description:
-      'List active tasks. start_date is when you plan to do the task. due_date is the deadline. Tasks with only due_date still appear on that day. someday=true lists Someday; the default excludes them.',
+      'List tasks. Default status is active. Pass status=completed|cancelled|archived|all to include others. Optional filters: tag_id, priority, from/to (due_date bounds as ISO). someday=true lists Someday; the default excludes them. Workflow columns (pending/in progress) are list board columns via column_id (TTD-AUD-53).',
     scopes: ['tasks:read'],
-    inputSchema: objectSchema({ limit, cursor, project_id: id, someday: { type: 'boolean' } }),
+    inputSchema: objectSchema({
+      limit,
+      cursor,
+      project_id: id,
+      tag_id: id,
+      from: { type: 'string', description: 'Lower bound for due_date (ISO 8601).' },
+      to: { type: 'string', description: 'Upper bound for due_date (ISO 8601).' },
+      priority: { type: 'string', enum: ['none', 'low', 'medium', 'high'] },
+      someday: { type: 'boolean' },
+      status: {
+        type: 'string',
+        enum: ['active', 'completed', 'archived', 'cancelled', 'all'],
+      },
+    }),
   },
   {
     name: 'get_task',
@@ -104,16 +129,51 @@ export const MCP_TOOLS: readonly McpTool[] = [
   {
     name: 'create_task',
     description:
-      "Create a task. project_id defaults to the inbox. start_date is when you plan to do it; due_date is the deadline. someday parks it out of Today; evening_only reserves it for this evening. To make it REPEAT, pass `recurrence` (structured) — the task needs a due_date, which anchors the series. Examples: 'cada día' = {freq:'daily'}; 'cada lunes y jueves' = {freq:'weekly', weekdays:['MO','TH']}; 'cada 19 de mes' = {freq:'monthly', month_day:19}; 'el último viernes del mes' = {freq:'monthly', month_week:{setpos:-1, weekday:'FR'}}; 'cada día laborable' = {freq:'weekly', weekdays:['MO','TU','WE','TH','FR']}. Default interval is 1; 'cada 3 días' = {freq:'daily', interval:3}. End with until (date) or count (N times). repeat_from:'completion_date' repeats from when it was completed ('regar cada 3 días desde que lo hice'). Advanced: pass a raw RRULE string as repeat_rule instead. One occurrence exists at a time; the next one appears after completing the current (see complete_task).",
+      "Create a task. project_id defaults to the inbox. start_date is when you plan to do it; due_date is the deadline. someday parks it out of Today; evening_only reserves it for this evening. Pass tag_ids or tags (names; missing names are created). content is the description. parse=true runs the same quick-add parser as the app on title (#tag, ^list, !priority, natural dates). To make it REPEAT, pass `recurrence` (structured) — the task needs a due_date, which anchors the series. Examples: 'cada día' = {freq:'daily'}; 'cada lunes y jueves' = {freq:'weekly', weekdays:['MO','TH']}; 'cada 19 de mes' = {freq:'monthly', month_day:19}; 'el último viernes del mes' = {freq:'monthly', month_week:{setpos:-1, weekday:'FR'}}; 'cada día laborable' = {freq:'weekly', weekdays:['MO','TU','WE','TH','FR']}. Default interval is 1; 'cada 3 días' = {freq:'daily', interval:3}. End with until (date) or count (N times). repeat_from:'completion_date' repeats from when it was completed ('regar cada 3 días desde que lo hice'). Advanced: pass a raw RRULE string as repeat_rule instead. One occurrence exists at a time; the next one appears after completing the current (see complete_task).",
     scopes: ['tasks:write'],
     inputSchema: objectSchema(
       {
         title: { type: 'string', minLength: 1, maxLength: 500 },
         project_id: id,
-        due_date: { type: 'string' },
-        start_date: { type: 'string' },
+        parent_id: {
+          ...id,
+          description: 'Parent task id to create a one-level subtask (TTD-AUD-52).',
+        },
+        column_id: {
+          ...id,
+          description:
+            'Board column id for workflow (pending / in progress). Prefer this over inventing workflow_state (TTD-AUD-53).',
+        },
+        content: {
+          type: 'string',
+          maxLength: 100_000,
+          description: 'Task description (Markdown). Distinct from comments and sticky notes.',
+        },
+        tag_ids: tagIds,
+        tags: tagNames,
+        parse: {
+          type: 'boolean',
+          description:
+            'If true, parse title with the quick-add parser (same as the capture box). Explicit fields win over the parse.',
+        },
+        due_date: {
+          type: 'string',
+          description:
+            'YYYY-MM-DD = all-day in the task time zone; YYYY-MM-DDTHH:mm±hh:mm = timed instant.',
+        },
+        start_date: {
+          type: 'string',
+          description:
+            'YYYY-MM-DD = all-day in the task time zone; YYYY-MM-DDTHH:mm±hh:mm = timed instant.',
+        },
         is_all_day: { type: 'boolean' },
-        duration_minutes: { type: 'integer', minimum: 0, maximum: 1440 },
+        duration_minutes: {
+          type: 'integer',
+          minimum: 0,
+          maximum: 1440,
+          description:
+            'Kept as given. If start_date and due_date are both set within 24h, must match their span.',
+        },
         priority: { type: 'string', enum: ['none', 'low', 'medium', 'high'] },
         someday: { type: 'boolean' },
         evening_only: { type: 'boolean' },
@@ -127,6 +187,19 @@ export const MCP_TOOLS: readonly McpTool[] = [
         repeat_from: repeatFromSchema,
       },
       ['title'],
+    ),
+  },
+  {
+    name: 'quick_add',
+    description:
+      'Capture a task from natural language (same parser as the in-app capture box): #tags, ^list, !priority, dates like «mañana 09:00-09:30».',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema(
+      {
+        text: { type: 'string', minLength: 1, maxLength: 2000 },
+        project_id: id,
+      },
+      ['text'],
     ),
   },
   {
@@ -152,18 +225,186 @@ export const MCP_TOOLS: readonly McpTool[] = [
     ),
   },
   {
+    name: 'reopen_task',
+    description:
+      'Reopen a completed task (API uncomplete). Workflow columns are separate from status — use column_id when available (TTD-AUD-53).',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'cancel_task',
+    description: 'Cancel a task (status=cancelled). Soft-delete uses delete_task instead.',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'delete_task',
+    description:
+      'Soft-delete a task into trash (30-day retention). Requires tasks:trash. Use restore_task to bring it back.',
+    scopes: ['tasks:trash'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'restore_task',
+    description: 'Restore a soft-deleted task from trash.',
+    scopes: ['tasks:trash'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'list_task_comments',
+    description: 'List comments on a task (oldest first).',
+    scopes: ['tasks:read'],
+    inputSchema: objectSchema({ task_id: id }, ['task_id']),
+  },
+  {
+    name: 'add_task_comment',
+    description: 'Add a Markdown comment on a task.',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema(
+      {
+        task_id: id,
+        body: { type: 'string', minLength: 1, maxLength: 100_000 },
+      },
+      ['task_id', 'body'],
+    ),
+  },
+  {
+    name: 'list_task_attachments',
+    description:
+      'List attachment metadata for a task (id, file_name, mime_type, byte_size). Binary upload/download stays on the REST API (TTD-AUD-51).',
+    scopes: ['tasks:read'],
+    inputSchema: objectSchema({ task_id: id }, ['task_id']),
+  },
+  {
+    name: 'move_task',
+    description: 'Move a task to another list (and optionally a board column).',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema(
+      {
+        id,
+        project_id: id,
+        column_id: { type: ['string', 'null'], format: 'uuid' },
+      },
+      ['id', 'project_id'],
+    ),
+  },
+  {
+    name: 'add_checklist_item',
+    description: 'Add a checklist item on a task.',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema(
+      {
+        task_id: id,
+        title: { type: 'string', minLength: 1, maxLength: 500 },
+      },
+      ['task_id', 'title'],
+    ),
+  },
+  {
+    name: 'update_checklist_item',
+    description: 'Rename a checklist item.',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema(
+      {
+        task_id: id,
+        item_id: id,
+        title: { type: 'string', minLength: 1, maxLength: 500 },
+      },
+      ['task_id', 'item_id', 'title'],
+    ),
+  },
+  {
+    name: 'complete_checklist_item',
+    description: 'Mark a checklist item complete.',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema({ task_id: id, item_id: id }, ['task_id', 'item_id']),
+  },
+  {
+    name: 'uncomplete_checklist_item',
+    description: 'Reopen a checklist item.',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema({ task_id: id, item_id: id }, ['task_id', 'item_id']),
+  },
+  {
+    name: 'list_task_reminders',
+    description: 'List reminders on a task (TTD-AUD-52).',
+    scopes: ['tasks:read'],
+    inputSchema: objectSchema({ task_id: id }, ['task_id']),
+  },
+  {
+    name: 'add_task_reminder',
+    description:
+      'Add a reminder. Relative example: type=relative, trigger=TRIGGER:-PT15M (15 minutes before due). Absolute: type=absolute, trigger=TRIGGER, absolute_at=ISO datetime.',
+    scopes: ['reminders:write'],
+    inputSchema: objectSchema(
+      {
+        task_id: id,
+        trigger: { type: 'string', minLength: 1, maxLength: 200 },
+        type: { type: 'string', enum: ['relative', 'absolute', 'location', 'daily_digest'] },
+        absolute_at: { type: ['string', 'null'] },
+        channel: { type: 'string', enum: ['push', 'email', 'both'] },
+      },
+      ['task_id', 'trigger', 'type'],
+    ),
+  },
+  {
+    name: 'delete_task_reminder',
+    description: 'Delete a reminder from a task.',
+    scopes: ['reminders:write'],
+    inputSchema: objectSchema({ task_id: id, reminder_id: id }, ['task_id', 'reminder_id']),
+  },
+  {
+    name: 'assign_task',
+    description:
+      'Assign or unassign a task (assignee_id=null clears). Prefer one account per person plus shared lists for authorship (TTD-AUD-57).',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema(
+      {
+        id,
+        assignee_id: { type: ['string', 'null'], format: 'uuid' },
+      },
+      ['id', 'assignee_id'],
+    ),
+  },
+  {
     name: 'update_task',
     description:
-      'Update a task. start_date is when you plan to do it; due_date is the deadline and may be cleared without changing when. someday=true clears when and keeps the deadline. To change repetition pass recurrence or repeat_rule (same rules as create_task). recurrence:null (or repeat_rule:null) removes the series; changing the rule does not regenerate past occurrences or the series_id unless you clear it.',
+      'Update a task. start_date is when you plan to do it; due_date is the deadline and may be cleared without changing when. someday=true clears when and keeps the deadline. tag_ids/tags replace the set; add_tag_ids/add_tags and remove_tag_ids/remove_tags adjust it. content updates the description. column_id sets the board workflow column. parse=true parses the new title like quick add. To change repetition pass recurrence or repeat_rule (same rules as create_task). recurrence:null (or repeat_rule:null) removes the series; changing the rule does not regenerate past occurrences or the series_id unless you clear it. To change list use move_task.',
     scopes: ['tasks:write'],
     inputSchema: objectSchema(
       {
         id,
         title: { type: 'string', minLength: 1, maxLength: 500 },
-        due_date: { type: ['string', 'null'] },
-        start_date: { type: ['string', 'null'] },
+        content: { type: ['string', 'null'], maxLength: 100_000 },
+        column_id: { type: ['string', 'null'], format: 'uuid' },
+        tag_ids: tagIds,
+        tags: tagNames,
+        add_tag_ids: tagIds,
+        add_tags: tagNames,
+        remove_tag_ids: tagIds,
+        remove_tags: tagNames,
+        parse: {
+          type: 'boolean',
+          description: 'If true, parse title with the quick-add parser. Explicit fields win.',
+        },
+        due_date: {
+          type: ['string', 'null'],
+          description:
+            'YYYY-MM-DD = all-day in the task time zone; YYYY-MM-DDTHH:mm±hh:mm = timed instant; null clears.',
+        },
+        start_date: {
+          type: ['string', 'null'],
+          description:
+            'YYYY-MM-DD = all-day in the task time zone; YYYY-MM-DDTHH:mm±hh:mm = timed instant; null clears.',
+        },
         is_all_day: { type: 'boolean' },
-        duration_minutes: { type: ['integer', 'null'], minimum: 0, maximum: 1440 },
+        duration_minutes: {
+          type: ['integer', 'null'],
+          minimum: 0,
+          maximum: 1440,
+          description:
+            'Kept as given. If start_date and due_date are both set within 24h, must match their span.',
+        },
         priority: { type: 'string', enum: ['none', 'low', 'medium', 'high'] },
         someday: { type: 'boolean' },
         evening_only: { type: 'boolean' },
@@ -423,9 +664,10 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: 'search',
-    description: 'Search tasks, lists and tags.',
+    description:
+      'Search tasks, lists and tags. Each group is capped by limit (default 20, max 50).',
     scopes: ['tasks:read'],
-    inputSchema: objectSchema({ q: { type: 'string' } }, ['q']),
+    inputSchema: objectSchema({ q: { type: 'string', maxLength: 200 }, limit, cursor }, ['q']),
   },
   {
     name: 'list_notes',

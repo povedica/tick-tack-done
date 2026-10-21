@@ -48,20 +48,44 @@ select {
   position: fixed;
   inset: 0;
   z-index: 80;
-  display: grid;
-  place-items: center;
-  padding: 24px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: min(12vh, 96px) 16px 24px;
   background: rgb(25 25 25 / 0.28);
 }
 
-.sheet form {
-  width: min(32rem, 100%);
-  max-height: min(80dvh, 40rem);
-  overflow: auto;
+.capture-card {
+  width: min(560px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   padding: 20px;
   border-radius: 16px;
   background: var(--surface);
   box-shadow: var(--shadow-lg);
+}
+
+.capture-card > h1 {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.capture-card-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.sheet form,
+.capture-card form {
+  width: 100%;
+  max-height: none;
+  overflow: visible;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .sheet .actions button {

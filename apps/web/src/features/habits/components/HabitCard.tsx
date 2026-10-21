@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import type { Habit } from '@reflexionia/sdk';
+import { useState } from 'react';
 import { Link } from 'react-router';
+import { Button } from '../../../components/ui';
 import { useMessages } from '../../../i18n';
 import { useAppLocale } from '../../../i18n/locale';
 import { api } from '../../../api';
@@ -25,6 +27,7 @@ export function HabitCard({
   const m = useMessages();
   const t = useHabitCopy();
   const locale = useAppLocale();
+  const [confirmUnmark, setConfirmUnmark] = useState(false);
   const stats = useQuery({
     queryKey: ['habit-stats', habit.id, Number(habit.today.date.slice(0, 4))],
     queryFn: () => api.habitStats(habit.id, Number(habit.today.date.slice(0, 4))),
@@ -98,16 +101,45 @@ export function HabitCard({
         })}
       </div>
       {habit.today.count > 0 ? (
-        <button
-          type="button"
-          className="text-button"
-          disabled={busy}
-          onClick={() => {
-            if (window.confirm(t.confirmUnmark)) onCheck(today, 0, null);
-          }}
-        >
-          {t.unmark}
-        </button>
+        confirmUnmark ? (
+          <div className="token-confirm" role="alertdialog">
+            <p>{t.confirmUnmark}</p>
+            <span className="token-actions">
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  setConfirmUnmark(false);
+                }}
+              >
+                {m.cancel}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="danger"
+                disabled={busy}
+                onClick={() => {
+                  setConfirmUnmark(false);
+                  onCheck(today, 0, null);
+                }}
+              >
+                {t.unmark}
+              </Button>
+            </span>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="text-button"
+            disabled={busy}
+            onClick={() => {
+              setConfirmUnmark(true);
+            }}
+          >
+            {t.unmark}
+          </button>
+        )
       ) : null}
       <label className="habit-note-field">
         {t.note}

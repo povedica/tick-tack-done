@@ -129,7 +129,7 @@ export function ControlChip({ compact = false }: { readonly compact?: boolean })
             {countDays(query.streak).slice(number(query.streak).length)} ·{' '}
           </span>
         )}
-        <strong>{score === null ? '—' : number(score)}</strong>
+        <strong>{score === null ? '—' : `${number(score)}/100`}</strong>
         {compact ? null : <span>{label}</span>}
       </button>
       {open

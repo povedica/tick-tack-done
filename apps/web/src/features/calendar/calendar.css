@@ -4,8 +4,11 @@
   gap: 8px;
   flex-wrap: wrap;
   min-width: 0;
-  position: relative;
-  z-index: 5;
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  padding-block: var(--sp-2);
+  background: var(--surface);
 }
 .calendar-toolbar .ui-button {
   min-height: 32px;
