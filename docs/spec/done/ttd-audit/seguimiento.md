@@ -47,7 +47,7 @@ siguen el orden de prioridad de la petición; no se consideran cerrados.
 | TTD-AUD-40 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                           |
 | TTD-AUD-41 | corregido | [#64](https://github.com/povedica/tick-tack-done/pull/64) | Utilidad compartida: Gestionar separado de Escritura, Cuenta atrás en formulario y marca de permisos sensibles.                                                   |
 | TTD-AUD-42 | corregido | [#64](https://github.com/povedica/tick-tack-done/pull/64) | Sensibles desmarcados, defaults sin webhooks/automatizaciones, internos excluidos, etiquetas ES/EN, componentes y estados de la app.                              |
-| TTD-AUD-43 | corregido | pendiente de publicación                                  | Reconectar con cuenta conectada; confirmación compartida Google/Drive informa de Calendar y Drive; errores visibles y parámetro de retorno eliminado.             |
+| TTD-AUD-43 | corregido | [#65](https://github.com/povedica/tick-tack-done/pull/65) | Reconectar con cuenta conectada; confirmación compartida Google/Drive informa de Calendar y Drive; errores visibles y parámetro de retorno eliminado.             |
 | TTD-AUD-44 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                           |
 | TTD-AUD-45 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                           |
 | TTD-AUD-46 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                           |
@@ -170,3 +170,6 @@ Validación de TTD-AUD-41/42: typecheck, lint y tests completos (281 dominio,
 - Pendiente real: desde Calendar, reconectar en dos clics y probar la desconexión
   tras comprobar el aviso de que afecta a ambos servicios.
 - RF cubiertos: RF-1103, RF-2004, RF-2005 y RF-2006.
+
+Validación de TTD-AUD-43: typecheck, lint y tests completos (281 dominio,
+104 web, 104 API, 9 SDK); cuatro regresiones Google; OpenAPI sin diferencias.
