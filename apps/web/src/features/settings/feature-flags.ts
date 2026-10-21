@@ -6,6 +6,9 @@ export interface FeatureFlags {
   readonly countdowns: boolean;
   readonly focus: boolean;
   readonly matrix: boolean;
+  readonly habits: boolean;
+  /** Opt-in: off until the account enables it (TTD-AUD-63). */
+  readonly ticky: boolean;
   readonly when_deadline: boolean;
   readonly day_load: boolean;
   readonly day_closing: boolean;
@@ -17,6 +20,8 @@ export const DEFAULT_FEATURES: FeatureFlags = {
   countdowns: true,
   focus: true,
   matrix: true,
+  habits: true,
+  ticky: false,
   when_deadline: true,
   day_load: true,
   day_closing: true,
@@ -30,6 +35,8 @@ export function featureFlags(value: unknown): FeatureFlags {
     countdowns: row.countdowns !== false,
     focus: row.focus !== false,
     matrix: row.matrix !== false,
+    habits: row.habits !== false,
+    ticky: row.ticky === true,
     when_deadline: row.when_deadline !== false,
     day_load: row.day_load !== false,
     day_closing: row.day_closing !== false,

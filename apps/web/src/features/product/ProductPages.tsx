@@ -1,9 +1,9 @@
 import { runAction } from '../../components/run-action';
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link, useLocation, useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
-import { Button } from '../../components/ui';
+import { Button, ErrorState, SkeletonRows } from '../../components/ui';
 import {
   GoogleAccessActions,
   googleAuthorizationUrl,
@@ -11,8 +11,9 @@ import {
 } from './GoogleAccessActions';
 import { InboundEmailCard } from '../settings/InboundEmailCard';
 import { GoogleCalendarsCard } from '../settings/GoogleCalendarsCard';
-import { useMessages } from '../../i18n';
+import { fill, useMessages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
+import { taskQueryHref } from '../../shell/use-open-task';
 
 function itemsOf(value: unknown): readonly Record<string, unknown>[] {
   if (typeof value !== 'object' || value === null || !('items' in value)) {
@@ -44,6 +45,7 @@ export { ReportsPage, ReviewPage } from './WeeklyPages';
 
 export function FocusPage() {
   const messages = useMessages();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const sessions = useQuery({
     queryKey: ['focus-sessions'],
@@ -97,6 +99,37 @@ export function FocusPage() {
   const pomodoros = numberOf(stats.data?.completed_pomodoros);
   const minutes = Math.round(numberOf(stats.data?.focus_seconds) / 60);
   const streak = numberOf(stats.data?.streak_days);
+  const plannedSeconds = planned * 60;
+  const progress =
+    started === null || plannedSeconds <= 0
+      ? 0
+      : Math.min(1, Math.max(0, (plannedSeconds - remaining) / plannedSeconds));
+  const ring = 2 * Math.PI * 54;
+  const loading = sessions.isPending || settings.isPending;
+  if (loading) {
+    return (
+      <section className="screen-page">
+        <h1>{messages.focusTitle}</h1>
+        <SkeletonRows />
+      </section>
+    );
+  }
+  if (sessions.isError || settings.isError) {
+    return (
+      <section className="screen-page">
+        <h1>{messages.focusTitle}</h1>
+        <ErrorState
+          title={fill(messages.loadFailed, messages.focusTitle)}
+          retryLabel={messages.retry}
+          onRetry={() => {
+            runAction(sessions.refetch());
+            runAction(settings.refetch());
+            runAction(stats.refetch());
+          }}
+        />
+      </section>
+    );
+  }
   return (
     <section className="screen-page">
       <h1>{messages.focusTitle}</h1>
@@ -104,27 +137,41 @@ export function FocusPage() {
       <p className="ui-muted">{messages.focusLifetime}</p>
       {focused.data !== undefined ? (
         <p>
-          <Link to={`/list/${focused.data.project_id}?task=${focused.data.id}`}>
+          <Link to={taskQueryHref(location.pathname, location.search, focused.data.id)}>
             {focused.data.title}
           </Link>
         </p>
       ) : null}
-      <p className="detail-title">{clock(remaining)}</p>
+      <div className="focus-timer" aria-live="polite">
+        <svg className="focus-timer-ring" viewBox="0 0 120 120" aria-hidden="true">
+          <circle cx="60" cy="60" r="54" />
+          <circle
+            cx="60"
+            cy="60"
+            r="54"
+            style={{
+              strokeDasharray: String(ring),
+              strokeDashoffset: String(ring * (1 - progress)),
+            }}
+          />
+        </svg>
+        <p className="focus-timer-clock detail-title">{clock(remaining)}</p>
+      </div>
       {started === null ? (
         <div className="page-toolbar">
-          {[15, 25, 50].map((minutes) => (
+          {[15, 25, 50].map((preset) => (
             <Button
-              key={minutes}
-              aria-pressed={planned === minutes}
+              key={preset}
+              aria-pressed={planned === preset}
               onClick={() => {
                 runAction(
-                  api.updateFocusSettings({ pomodoro_minutes: minutes }).then(() => {
+                  api.updateFocusSettings({ pomodoro_minutes: preset }).then(() => {
                     runAction(queryClient.invalidateQueries({ queryKey: ['focus-settings'] }));
                   }),
                 );
               }}
             >
-              {String(minutes)} min
+              {String(preset)} min
             </Button>
           ))}
         </div>
@@ -281,7 +328,7 @@ export function CalendarSettings() {
                 );
               }}
             >
-              {copied ? messages.copied : messages.webhookCopySecret}
+              {copied ? messages.copied : messages.feedCopyUrl}
             </Button>
           </div>
         ) : null}
@@ -451,6 +498,21 @@ export function IntegrationSettings() {
   }
   const voice = flag(telegram.data, 'voice');
   const photo = flag(telegram.data, 'photo');
+  const telegramConfigured = flag(telegram.data, 'configured');
+  const telegramLinked = flag(telegram.data, 'linked');
+  const [pairingCode, setPairingCode] = useState<string | null>(null);
+  const [pairingError, setPairingError] = useState<string | null>(null);
+  const pairTelegram = useMutation({
+    mutationFn: () => api.createTelegramPairing(),
+    onSuccess: (body) => {
+      const code = text(body.code);
+      setPairingCode(code.length > 0 ? code : null);
+      setPairingError(null);
+    },
+    onError: () => {
+      setPairingError(messages.telegramPairingFailed);
+    },
+  });
   return (
     <section className="token-settings">
       <header className="page-header">
@@ -466,6 +528,7 @@ export function IntegrationSettings() {
       ) : null}
       {connectGoogle.isError ? <p role="alert">{messages.googleErrorNote}</p> : null}
       {googleFlag === 'error' ? <p role="alert">{messages.googleErrorNote}</p> : null}
+      {googleFlag === 'denied' ? <p role="alert">{messages.googleDeniedNote}</p> : null}
 
       <section className="token-panel" aria-labelledby="google-title">
         <div className="token-panel-head">
@@ -572,27 +635,27 @@ export function IntegrationSettings() {
         <div className="token-panel-head">
           <div>
             <h2 id="telegram-title">Telegram</h2>
-            <p>{flag(telegram.data, 'linked') ? messages.telegramHint : messages.telegramSoon}</p>
+            {telegram.isFetched ? (
+              <p>{telegramLinked ? messages.telegramHint : messages.telegramSoon}</p>
+            ) : (
+              <p className="token-meta">…</p>
+            )}
           </div>
           {telegram.isFetched ? (
             <StatusPill
-              on={flag(telegram.data, 'linked')}
+              on={telegramLinked}
               onLabel={messages.integrationConnected}
-              offLabel={
-                flag(telegram.data, 'configured')
-                  ? messages.integrationIdle
-                  : messages.integrationSoon
-              }
+              offLabel={telegramConfigured ? messages.integrationIdle : messages.integrationSoon}
             />
           ) : null}
         </div>
-        {voice || photo ? (
+        {telegram.isFetched && (voice || photo) ? (
           <ul className="token-chips">
             {voice ? <li className="token-chip">{messages.telegramVoice}</li> : null}
             {photo ? <li className="token-chip">{messages.telegramPhoto}</li> : null}
           </ul>
         ) : null}
-        {flag(telegram.data, 'linked') ? (
+        {telegram.isFetched && telegramLinked ? (
           <Button
             type="button"
             size="sm"
@@ -600,6 +663,7 @@ export function IntegrationSettings() {
             onClick={() => {
               runAction(
                 api.disconnectTelegram().then(() => {
+                  setPairingCode(null);
                   runAction(telegram.refetch());
                 }),
               );
@@ -607,11 +671,31 @@ export function IntegrationSettings() {
           >
             {messages.googleDisconnect}
           </Button>
-        ) : (
+        ) : null}
+        {telegram.isFetched && !telegramLinked && telegramConfigured ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="primary"
+            loading={pairTelegram.isPending}
+            onClick={() => {
+              pairTelegram.mutate();
+            }}
+          >
+            {messages.telegramLink}
+          </Button>
+        ) : null}
+        {telegram.isFetched && !telegramLinked && !telegramConfigured ? (
           <Button type="button" size="sm" disabled>
             {messages.integrationSoon}
           </Button>
-        )}
+        ) : null}
+        {pairingError !== null ? <p role="alert">{pairingError}</p> : null}
+        {pairingCode !== null ? (
+          <p className="token-meta" role="status">
+            {messages.telegramPairingHint.replace('{code}', pairingCode)}
+          </p>
+        ) : null}
       </section>
 
       <InboundEmailCard />

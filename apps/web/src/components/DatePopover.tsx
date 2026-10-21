@@ -54,7 +54,7 @@ export function DatePopover({
   const [tab, setTab] = useState<'date' | 'duration'>('date');
   const [draft, setDraft] = useState(value);
   const [cursor, setCursor] = useState(() => monthOf(value.dueDate, timeZone));
-  const [sub, setSub] = useState<'time' | 'reminder' | 'repeat' | null>(null);
+  const [sub, setSub] = useState<'time' | 'end' | 'reminder' | 'repeat' | null>(null);
   const [everyDays, setEveryDays] = useState(2);
   const [everyWeeks, setEveryWeeks] = useState(2);
   const [end, setEnd] = useState<'never' | 'date' | 'count'>('never');
@@ -73,6 +73,13 @@ export function DatePopover({
   const dayKey = draft.dueDate === null ? '' : calendarDay(draft.dueDate, timeZone);
   const time =
     draft.dueDate !== null && !draft.allDay ? wallClock(draft.dueDate, timeZone) : '09:00';
+  const endTime =
+    draft.dueDate !== null && !draft.allDay && draft.durationMinutes !== null
+      ? wallClock(
+          new Date(Date.parse(draft.dueDate) + draft.durationMinutes * 60_000).toISOString(),
+          timeZone,
+        )
+      : '';
   const start = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
   const shift = (start.getDay() - (weekStart === 'monday' ? 1 : 0) + 7) % 7;
   const cells = Array.from({ length: 42 }, (_, index) => {
@@ -101,6 +108,12 @@ export function DatePopover({
       dueDate: instant,
       allDay,
     }));
+  }
+
+  /** TTD-AUD-03: picking only a day on a dateless task is all-day; keep clock if it already had one. */
+  function pickDay(key: string): void {
+    const allDay = value.dueDate === null ? true : draft.allDay;
+    setDay(key, allDay);
   }
 
   function applyRepeat(base: string): void {
@@ -206,7 +219,7 @@ export function DatePopover({
               size="sm"
               variant="ghost"
               onClick={() => {
-                setDay(todayKey, draft.allDay);
+                pickDay(todayKey);
               }}
             >
               {messages.dateToday}
@@ -216,7 +229,7 @@ export function DatePopover({
               size="sm"
               variant="ghost"
               onClick={() => {
-                setDay(shiftDayKey(todayKey, 1), draft.allDay);
+                pickDay(shiftDayKey(todayKey, 1));
               }}
             >
               {messages.dateTomorrow}
@@ -226,7 +239,7 @@ export function DatePopover({
               size="sm"
               variant="ghost"
               onClick={() => {
-                setDay(shiftDayKey(todayKey, 7), draft.allDay);
+                pickDay(shiftDayKey(todayKey, 7));
               }}
             >
               {messages.dateIn7}
@@ -288,7 +301,7 @@ export function DatePopover({
                     .filter((item) => item.length > 0)
                     .join(' ')}
                   onClick={() => {
-                    setDay(key, draft.allDay);
+                    pickDay(key);
                   }}
                 >
                   {date.getDate()}
@@ -318,6 +331,43 @@ export function DatePopover({
                 setDay(key, false, event.target.value);
               }}
             />
+          ) : null}
+          {draft.dueDate !== null && !draft.allDay ? (
+            <>
+              <button
+                type="button"
+                className="popover-row"
+                onClick={() => {
+                  setSub(sub === 'end' ? null : 'end');
+                }}
+              >
+                <span>{messages.endTime}</span>
+                <span>{endTime.length > 0 ? endTime : messages.noTime}</span>
+              </button>
+              {sub === 'end' ? (
+                <input
+                  type="time"
+                  lang={timeLang}
+                  step={60}
+                  value={endTime.length > 0 ? endTime : time}
+                  aria-label={messages.endTime}
+                  onChange={(event) => {
+                    const [startH, startM] = time.split(':').map(Number);
+                    const [endH, endM] = event.target.value.split(':').map(Number);
+                    const startMin = (startH ?? 0) * 60 + (startM ?? 0);
+                    let endMin = (endH ?? 0) * 60 + (endM ?? 0);
+                    if (endMin <= startMin) {
+                      endMin = startMin + 15;
+                    }
+                    setDraft((current) => ({
+                      ...current,
+                      durationMinutes: endMin - startMin,
+                      allDay: false,
+                    }));
+                  }}
+                />
+              ) : null}
+            </>
           ) : null}
           <button
             type="button"

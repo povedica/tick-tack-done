@@ -2,7 +2,9 @@ import type { ViewPage } from '@reflexionia/sdk';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { useMessages, type Messages } from '../../../i18n';
+import { runAction } from '../../../components/run-action';
+import { Button, ErrorState, SkeletonRows } from '../../../components/ui';
+import { fill, useMessages, type Messages } from '../../../i18n';
 import { viewsApi } from '../api';
 import {
   EMPTY_CONDITION,
@@ -81,26 +83,55 @@ export function FiltersPage() {
     },
   });
 
+  if (filters.isPending) {
+    return (
+      <main className="screen-page">
+        <h1>{messages.filtersTitle}</h1>
+        <SkeletonRows />
+      </main>
+    );
+  }
+
+  if (filters.isError) {
+    return (
+      <main className="screen-page">
+        <h1>{messages.filtersTitle}</h1>
+        <ErrorState
+          title={fill(messages.loadFailed, messages.filtersTitle)}
+          retryLabel={messages.retry}
+          onRetry={() => {
+            runAction(filters.refetch());
+          }}
+        />
+      </main>
+    );
+  }
+
+  const filterItems = filters.data.items;
+
   return (
-    <main className="screen-page">
+    <main className="screen-page filters-page">
       <h1>{messages.filtersTitle}</h1>
       <p>{messages.filtersHint}</p>
       {error !== null ? <p className="error">{error}</p> : null}
       <ul className="task-list">
-        {(filters.data?.items ?? []).map((filter) => (
+        {filterItems.map((filter) => (
           <li key={filter.id}>
             <Link to={`/filters/${filter.id}`}>{filter.name}</Link>
             <span>{messages.filterCount.replace('{count}', String(filter.task_count))}</span>
-            <button
+            <Button
               type="button"
+              size="sm"
               onClick={() => {
                 pin.mutate(filter.id);
               }}
             >
               {messages.filterPin}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              size="sm"
+              variant={confirmDelete === filter.id ? 'danger' : 'secondary'}
               onClick={() => {
                 if (confirmDelete !== filter.id) {
                   setConfirmDelete(filter.id);
@@ -111,15 +142,13 @@ export function FiltersPage() {
               }}
             >
               {confirmDelete === filter.id ? messages.filterDeleteBody : messages.filterDelete}
-            </button>
+            </Button>
           </li>
         ))}
       </ul>
-      {(filters.data?.items.length ?? 0) === 0 && filters.isSuccess ? (
-        <p>{messages.filterEmpty}</p>
-      ) : null}
+      {filterItems.length === 0 ? <p>{messages.filterEmpty}</p> : null}
       <form
-        className="habit-form"
+        className="habit-form filters-form"
         onSubmit={(event) => {
           event.preventDefault();
           create.mutate();
@@ -137,6 +166,7 @@ export function FiltersPage() {
         <label>
           {messages.filterMode}
           <select
+            className="ui-select"
             value={mode}
             onChange={(event) => {
               setMode(event.target.value === 'advanced' ? 'advanced' : 'normal');
@@ -148,8 +178,9 @@ export function FiltersPage() {
         </label>
         {mode === 'advanced' ? (
           <label>
-            {messages.combinatorAnd}
+            {messages.filterCombine}
             <select
+              className="ui-select"
               value={outer}
               onChange={(event) => {
                 setOuter(event.target.value === 'OR' ? 'OR' : 'AND');
@@ -164,8 +195,9 @@ export function FiltersPage() {
           <fieldset key={groupIndex}>
             {mode === 'advanced' ? (
               <label>
-                {messages.combinatorAnd}
+                {messages.filterCombine}
                 <select
+                  className="ui-select"
                   value={group.combinator}
                   onChange={(event) => {
                     setGroups(
@@ -195,8 +227,9 @@ export function FiltersPage() {
                 }}
               />
             ))}
-            <button
+            <Button
               type="button"
+              size="sm"
               onClick={() => {
                 setGroups(
                   updateGroup(groups, groupIndex, {
@@ -207,31 +240,37 @@ export function FiltersPage() {
               }}
             >
               {messages.filterAddCondition}
-            </button>
+            </Button>
           </fieldset>
         ))}
         {mode === 'advanced' ? (
-          <button
+          <Button
             type="button"
+            size="sm"
             onClick={() => {
               setGroups([...groups, { combinator: 'AND', conditions: [EMPTY_CONDITION] }]);
             }}
           >
             {messages.filterAddGroup}
-          </button>
+          </Button>
         ) : null}
         <div className="actions">
-          <button
+          <Button
             type="button"
             onClick={() => {
               previewQuery.mutate({ groupBy, sort });
             }}
           >
             {messages.filterPreview}
-          </button>
-          <button type="submit" disabled={name.trim().length === 0 || create.isPending}>
+          </Button>
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={name.trim().length === 0 || create.isPending}
+            loading={create.isPending}
+          >
             {create.isPending ? messages.filterSaving : messages.filterSave}
-          </button>
+          </Button>
         </div>
       </form>
       <ListView
@@ -265,8 +304,9 @@ function ConditionEditor({
   return (
     <div className="condition">
       <label>
-        {messages.fieldKeyword}
+        {messages.filterField}
         <select
+          className="ui-select"
           value={condition.field}
           onChange={(event) => {
             const field = asField(event.target.value);
@@ -298,6 +338,7 @@ function ConditionEditor({
       ) : null}
       {condition.field === 'list' ? (
         <select
+          className="ui-select"
           value={condition.value}
           onChange={(event) => {
             onChange({ ...condition, value: event.target.value });
@@ -313,6 +354,7 @@ function ConditionEditor({
       ) : null}
       {condition.field === 'date' ? (
         <select
+          className="ui-select"
           value={condition.op}
           onChange={(event) => {
             onChange({ ...condition, op: event.target.value });
@@ -346,6 +388,7 @@ function ConditionEditor({
       ) : null}
       {condition.field === 'priority' ? (
         <select
+          className="ui-select"
           value={condition.value}
           onChange={(event) => {
             onChange({ ...condition, value: event.target.value });
@@ -360,6 +403,7 @@ function ConditionEditor({
       ) : null}
       {condition.field === 'status' ? (
         <select
+          className="ui-select"
           value={condition.value}
           onChange={(event) => {
             onChange({ ...condition, value: event.target.value });

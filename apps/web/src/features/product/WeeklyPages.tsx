@@ -2,7 +2,7 @@ import { runAction } from '../../components/run-action';
 import { useState } from 'react';
 import { ApiError } from '@reflexionia/sdk';
 import { Check, Sun, CalendarDays, Ban } from 'lucide-react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
 import { Button } from '../../components/ui';
@@ -12,6 +12,7 @@ import { calendarDay, shiftDayKey, zonedWallTime } from '../today/groups';
 import { completeBody } from '../tasks/complete-body';
 import { refreshTaskSurfaces } from '../tasks/refresh';
 import { displayTitle } from '../tasks/displayTitle';
+import { taskQueryHref } from '../../shell/use-open-task';
 import './weekly.css';
 import { useWeeklyCopy } from './weekly-text';
 
@@ -220,25 +221,27 @@ export function ReportsPage() {
 
 export function ReviewPage() {
   const copy = useWeeklyCopy();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const query = useQuery({ queryKey: ['review-weekly'], queryFn: () => api.reviewWeekly() });
   const [step, setStep] = useState(0);
   const [selected, setSelected] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
+  const [confirmAction, setConfirmAction] = useState<'done' | 'cancel' | null>(null);
   const data = row(query.data);
   const ids = Array.isArray(data[step === 1 ? 'overdue_ids' : 'undated_ids'])
     ? (data[step === 1 ? 'overdue_ids' : 'undated_ids'] as unknown[])
     : [];
   const tasks = list(data.tasks).filter((t) => ids.includes(t.id));
   const eligible = tasks.filter((t) => t.recurring === false && selected.includes(str(t.id)));
-  async function act(action: 'done' | 'today' | 'tomorrow' | 'cancel') {
+  async function act(action: 'done' | 'today' | 'tomorrow' | 'cancel', force = false) {
     if (!eligible.length || busy) return;
-    if (
-      (action === 'done' || action === 'cancel') &&
-      !window.confirm(copy.confirm(action === 'done', eligible.length))
-    )
+    if ((action === 'done' || action === 'cancel') && !force) {
+      setConfirmAction(action);
       return;
+    }
+    setConfirmAction(null);
     setBusy(true);
     setNotice('');
     let succeeded = 0;
@@ -371,7 +374,7 @@ export function ReviewPage() {
                     />
                     <Link
                       className="weekly-task-title"
-                      to={`/list/${str(t.listId)}?task=${id}`}
+                      to={taskQueryHref(location.pathname, location.search, id)}
                       title={str(t.title)}
                     >
                       {displayTitle(str(t.title))}
@@ -430,6 +433,33 @@ export function ReviewPage() {
             <Ban size={16} aria-hidden="true" />
             {copy.cancel}
           </Button>
+          {confirmAction !== null ? (
+            <div className="token-confirm" role="alertdialog">
+              <p>{copy.confirm(confirmAction === 'done', eligible.length)}</p>
+              <span className="token-actions">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    setConfirmAction(null);
+                  }}
+                >
+                  {copy.cancel}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="danger"
+                  disabled={busy}
+                  onClick={() => {
+                    runAction(act(confirmAction, true));
+                  }}
+                >
+                  {confirmAction === 'done' ? copy.done : copy.cancel}
+                </Button>
+              </span>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </section>

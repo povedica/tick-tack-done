@@ -1,9 +1,8 @@
 import { runAction } from '../../components/run-action';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type SyntheticEvent } from 'react';
+import { useMessages } from '../../i18n';
 import { tickyApi, type TickyRoutine, type TickyRoutineDraft } from './api';
-
-const weekdays = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
 function emptyDraft(): TickyRoutineDraft {
   return {
@@ -19,23 +18,8 @@ function hourValue(value: string): string {
   return value.slice(0, 5);
 }
 
-function nextRun(value: string | null): string {
-  if (value === null) return 'Sin próxima preparación';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Horario pendiente de recalcular';
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date);
-}
-
-function issueText(issue: TickyRoutine['schedule_issue']): string | null {
-  if (issue === 'ambiguous_local_time') return 'La hora coincide dos veces por el cambio horario.';
-  if (issue === 'nonexistent_local_time') return 'La hora no existe por el cambio horario.';
-  return null;
-}
-
 export function TickyRoutines() {
+  const messages = useMessages();
   const queryClient = useQueryClient();
   const routines = useQuery({ queryKey: ['ticky', 'routines'], queryFn: tickyApi.routines });
   const authority = useQuery({ queryKey: ['ticky', 'authority'], queryFn: tickyApi.authority });
@@ -43,10 +27,19 @@ export function TickyRoutines() {
   const [editing, setEditing] = useState<TickyRoutine | null>(null);
   const [notice, setNotice] = useState('');
   const canWrite = authority.data?.action_scopes.includes('ticky:routines:write') === true;
+  const weekdays = [
+    messages.tickyWeekMon,
+    messages.tickyWeekTue,
+    messages.tickyWeekWed,
+    messages.tickyWeekThu,
+    messages.tickyWeekFri,
+    messages.tickyWeekSat,
+    messages.tickyWeekSun,
+  ];
   const finish = () => {
     setEditing(null);
     setDraft(emptyDraft());
-    setNotice('Rutina guardada en modo shadow. No se enviarán avisos.');
+    setNotice(messages.tickyRoutineSaved);
     runAction(queryClient.invalidateQueries({ queryKey: ['ticky', 'routines'] }));
   };
   const create = useMutation({
@@ -68,7 +61,7 @@ export function TickyRoutines() {
     onError: (error: Error) => {
       setNotice(
         error.message.includes('409') || error.message.includes('cambió')
-          ? 'La rutina cambió en otra sesión; hemos actualizado la lista. Revisa y vuelve a guardar.'
+          ? messages.tickyRoutineConflict
           : error.message,
       );
       runAction(queryClient.invalidateQueries({ queryKey: ['ticky', 'routines'] }));
@@ -77,7 +70,7 @@ export function TickyRoutines() {
   const pause = useMutation({
     mutationFn: tickyApi.pauseRoutine,
     onSuccess: () => {
-      setNotice('Rutina pausada.');
+      setNotice(messages.tickyRoutinePausedNotice);
       runAction(queryClient.invalidateQueries({ queryKey: ['ticky', 'routines'] }));
     },
     onError: (error: Error) => {
@@ -85,6 +78,22 @@ export function TickyRoutines() {
     },
   });
   const saving = create.isPending || update.isPending || pause.isPending;
+
+  function nextRun(value: string | null): string {
+    if (value === null) return messages.tickyNextRunNone;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return messages.tickyNextRunPending;
+    return new Intl.DateTimeFormat(undefined, {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(date);
+  }
+
+  function issueText(issue: TickyRoutine['schedule_issue']): string | null {
+    if (issue === 'ambiguous_local_time') return messages.tickyIssueAmbiguous;
+    if (issue === 'nonexistent_local_time') return messages.tickyIssueMissing;
+    return null;
+  }
 
   function editRoutine(routine: TickyRoutine) {
     setEditing(routine);
@@ -116,16 +125,13 @@ export function TickyRoutines() {
 
   return (
     <section className="ticky-routines" aria-labelledby="ticky-routines-title">
-      <h2 id="ticky-routines-title">Rutinas</h2>
-      <p>
-        Las rutinas funcionan en modo shadow: preparan contenido interno y no envían notificaciones.
-        La hora se interpreta en la zona elegida.
-      </p>
-      {routines.isPending || authority.isPending ? <p>Cargando rutinas…</p> : null}
+      <h2 id="ticky-routines-title">{messages.tickyRoutinesTitle}</h2>
+      <p>{messages.tickyRoutinesHint}</p>
+      {routines.isPending || authority.isPending ? <p>{messages.tickyRoutinesLoading}</p> : null}
       {routines.isError || authority.isError ? (
-        <p role="alert">No se pudieron consultar las rutinas ni se ha cambiado su estado.</p>
+        <p role="alert">{messages.tickyRoutinesFailed}</p>
       ) : null}
-      {routines.data?.items.length === 0 ? <p>Aún no hay rutinas.</p> : null}
+      {routines.data?.items.length === 0 ? <p>{messages.tickyRoutinesEmpty}</p> : null}
       <ul className="ticky-routine-list">
         {routines.data?.items.map((routine) => {
           const issue = issueText(routine.schedule_issue);
@@ -133,18 +139,20 @@ export function TickyRoutines() {
             <li key={routine.id} className="ticky-routine">
               <div>
                 <strong>
-                  {routine.kind === 'daily_plan' ? 'Plan diario' : 'Revisión semanal'}
+                  {routine.kind === 'daily_plan'
+                    ? messages.tickyRoutineDaily
+                    : messages.tickyRoutineWeekly}
                   {routine.kind === 'weekly_review' && routine.weekday !== null
                     ? ` · ${weekdays[routine.weekday] ?? ''}`
                     : ''}
                 </strong>
                 <p>
-                  {hourValue(routine.local_hour)} · {routine.timezone} · ventana{' '}
-                  {routine.window_minutes} min
+                  {hourValue(routine.local_hour)} · {routine.timezone} · {routine.window_minutes}{' '}
+                  min
                 </p>
-                <p>{routine.enabled ? nextRun(routine.next_at) : 'Pausada'}</p>
-                {issue === null ? null : <p role="alert">{issue} Edita la hora para continuar.</p>}
-                {routine.shadow ? <small>Modo shadow · sin avisos</small> : null}
+                <p>{routine.enabled ? nextRun(routine.next_at) : messages.tickyRoutinePaused}</p>
+                {issue === null ? null : <p role="alert">{issue}</p>}
+                {routine.shadow ? <small>{messages.tickyRoutineShadow}</small> : null}
               </div>
               {canWrite ? (
                 <div className="ticky-actions">
@@ -155,7 +163,7 @@ export function TickyRoutines() {
                       editRoutine(routine);
                     }}
                   >
-                    Editar
+                    {messages.tickyRoutineEdit}
                   </button>
                   {routine.enabled ? (
                     <button
@@ -165,7 +173,7 @@ export function TickyRoutines() {
                         pause.mutate(routine.id);
                       }}
                     >
-                      Pausar
+                      {messages.tickyRoutinePause}
                     </button>
                   ) : null}
                 </div>
@@ -176,9 +184,9 @@ export function TickyRoutines() {
       </ul>
       {canWrite ? (
         <form className="ticky-routine-form" onSubmit={submit}>
-          <h3>{editing === null ? 'Crear rutina' : 'Editar rutina'}</h3>
+          <h3>{editing === null ? messages.tickyRoutineCreate : messages.tickyRoutineEditTitle}</h3>
           <label>
-            Tipo{' '}
+            {messages.tickyRoutineType}{' '}
             <select
               value={draft.kind}
               disabled={saving}
@@ -189,13 +197,13 @@ export function TickyRoutines() {
                 }));
               }}
             >
-              <option value="daily_plan">Plan diario</option>
-              <option value="weekly_review">Revisión semanal</option>
+              <option value="daily_plan">{messages.tickyRoutineDaily}</option>
+              <option value="weekly_review">{messages.tickyRoutineWeekly}</option>
             </select>
           </label>
           {draft.kind === 'weekly_review' ? (
             <label>
-              Día{' '}
+              {messages.tickyRoutineDay}{' '}
               <select
                 value={draft.weekday ?? 0}
                 disabled={saving}
@@ -212,7 +220,7 @@ export function TickyRoutines() {
             </label>
           ) : null}
           <label>
-            Hora local{' '}
+            {messages.tickyLocalHour}{' '}
             <input
               type="time"
               required
@@ -224,7 +232,7 @@ export function TickyRoutines() {
             />
           </label>
           <label>
-            Zona horaria IANA{' '}
+            {messages.tickyTimeZone}{' '}
             <input
               type="text"
               required
@@ -237,7 +245,7 @@ export function TickyRoutines() {
             />
           </label>
           <label>
-            Ventana para preparar (minutos){' '}
+            {messages.tickyWindowMinutes}{' '}
             <input
               type="number"
               required
@@ -259,11 +267,11 @@ export function TickyRoutines() {
                 setDraft((value) => ({ ...value, enabled: event.target.checked }));
               }}
             />
-            Permitir preparación automática en modo shadow
+            {messages.tickyAutoShadow}
           </label>
           <div className="ticky-actions">
             <button type="submit" disabled={saving || draft.timezone.trim().length === 0}>
-              Guardar
+              {messages.repeatSave}
             </button>
             {editing !== null ? (
               <button
@@ -275,7 +283,7 @@ export function TickyRoutines() {
                   setNotice('');
                 }}
               >
-                Cancelar edición
+                {messages.tickyCancelEdit}
               </button>
             ) : null}
           </div>

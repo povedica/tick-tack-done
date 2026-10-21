@@ -27,6 +27,7 @@ import {
   useSearchParams,
 } from 'react-router';
 import { eventDayRange, eventSpan } from './event-span';
+import { rememberCalendarView } from '../../shell/BottomBar';
 import { api } from '../../api';
 import { completeBody } from '../tasks/complete-body';
 import { useActionToast } from '../../components/action-toast';
@@ -50,7 +51,9 @@ import { newMutation, runOrQueue } from '../offline/client';
 import { collectTasks } from '../today/board';
 import { calendarDay, formatDueTime } from '../today/groups';
 import { TaskList } from '../tasks/TaskList';
-import { TaskComposer } from '../tasks/TaskComposer';
+import { taskQueryHref } from '../../shell/use-open-task';
+import { Board } from '../views/components/ViewPages';
+import { viewsApi } from '../views/api';
 import { HourGrid } from './HourGrid';
 import {
   isoWeek,
@@ -120,36 +123,19 @@ export function InboxPage() {
     .map((task) => rowFromTask(task, names, tagNames));
   const current = rows[cursor];
 
-  return (
-    <section className="screen-page">
-      <header className="page-header">
-        <h1>
-          {messages.inboxTitle}{' '}
-          {inbox !== undefined ? <span className="ui-badge">{inbox.active_task_count}</span> : null}
-        </h1>
-        <Button
-          onClick={() => {
-            setProcess(true);
-            setCursor(0);
-          }}
-        >
-          {messages.process}
-        </Button>
-      </header>
-      {!process ? <TaskComposer defaultProjectId={inbox?.id} /> : null}
-      {tasks.isPending ? <SkeletonRows /> : null}
-      {tasks.isError ? (
-        <ErrorState
-          title={fill(messages.loadFailed, messages.inboxTitle)}
-          retryLabel={messages.retry}
-          onRetry={() => {
-            runAction(tasks.refetch());
-          }}
-        />
-      ) : null}
-      {process && current !== undefined ? (
-        <>
-          <p>{fill(messages.processOf, `${String(cursor + 1)}/${String(rows.length)}`)}</p>
+  function step(text?: string): void {
+    setCursor((value) => value + 1);
+    if (text !== undefined) {
+      useActionToast.getState().show(text);
+    }
+    runAction(refreshTaskSurfaces(queryClient));
+  }
+
+  if (process) {
+    return (
+      <section className="screen-page">
+        <header className="page-header">
+          <h1>{messages.inboxTitle}</h1>
           <Button
             variant="ghost"
             onClick={() => {
@@ -158,86 +144,107 @@ export function InboxPage() {
           >
             {messages.processExit}
           </Button>
-          <ProcessCard
-            messages={messages}
-            locale={locale}
-            taskTitle={current.title}
-            projects={projects.data?.items ?? []}
-            onDate={(preset, date) => {
-              runAction(
-                api.snoozeTask(current.id, preset, date).then(() => {
-                  step(messages.processDate);
-                }),
-              );
-            }}
-            onMove={(projectId) => {
-              runAction(
-                api.moveTask(current.id, projectId).then(() => {
-                  step(messages.processMove);
-                }),
-              );
-            }}
-            onDone={() => {
-              runAction(
-                runOrQueue(newMutation('complete', current.id, {}), (key) =>
-                  api.completeTask(current.id, completeBody(), key),
-                ).then(() => {
-                  step(messages.processDoneAction);
-                }),
-              );
-            }}
-            onDelete={() => {
-              const id = current.id;
-              runAction(
-                api.deleteTask(id).then(() => {
-                  useActionToast.getState().show(messages.movedToTrash, () => {
-                    runAction(api.restoreTask(id).then(() => refreshTaskSurfaces(queryClient)));
-                  });
-                  step(messages.movedToTrash);
-                }),
-              );
-            }}
-            onSkip={() => {
-              step();
-            }}
-          />
-        </>
-      ) : null}
-      {process && current === undefined && !tasks.isPending ? (
-        <EmptyState title={messages.processDone} body={messages.emptyInbox} />
-      ) : null}
-      {!process && !tasks.isError ? (
-        rows.length === 0 && !tasks.isPending ? (
-          <EmptyState title={messages.inboxTitle} body={messages.emptyInbox} />
+        </header>
+        {current !== undefined ? (
+          <>
+            <p>{fill(messages.processOf, `${String(cursor + 1)}/${String(rows.length)}`)}</p>
+            <ProcessCard
+              messages={messages}
+              locale={locale}
+              taskTitle={current.title}
+              projects={projects.data?.items ?? []}
+              onDate={(preset, date) => {
+                runAction(
+                  api.snoozeTask(current.id, preset, date).then(() => {
+                    step(messages.processDate);
+                  }),
+                );
+              }}
+              onMove={(projectId) => {
+                runAction(
+                  api.moveTask(current.id, projectId).then(() => {
+                    step(messages.processMove);
+                  }),
+                );
+              }}
+              onDone={() => {
+                runAction(
+                  runOrQueue(newMutation('complete', current.id, {}), (key) =>
+                    api.completeTask(current.id, completeBody(), key),
+                  ).then(() => {
+                    step(messages.processDoneAction);
+                  }),
+                );
+              }}
+              onDelete={() => {
+                const id = current.id;
+                runAction(
+                  api.deleteTask(id).then(() => {
+                    useActionToast.getState().show(messages.movedToTrash, () => {
+                      runAction(api.restoreTask(id).then(() => refreshTaskSurfaces(queryClient)));
+                    });
+                    step(messages.movedToTrash);
+                  }),
+                );
+              }}
+              onSkip={() => {
+                step();
+              }}
+            />
+          </>
         ) : (
-          <TaskList
-            messages={messages}
-            rows={rows}
-            locale={locale}
-            view="list"
-            onComplete={(row) => {
-              runAction(
-                runOrQueue(newMutation('complete', row.id, {}), (key) =>
-                  api.completeTask(row.id, completeBody(), key),
-                ),
-              );
-            }}
-            onCreated={() => {
-              runAction(refreshTaskSurfaces(queryClient));
-            }}
-          />
-        )
-      ) : null}
-    </section>
-  );
-
-  function step(text?: string): void {
-    setCursor((value) => value + 1);
-    if (text !== undefined) {
-      useActionToast.getState().show(text);
-    }
-    runAction(refreshTaskSurfaces(queryClient));
+          <EmptyState title={messages.processDone} body={messages.emptyInbox} />
+        )}
+      </section>
+    );
   }
+
+  if (inbox === undefined) {
+    return tasks.isPending ? (
+      <SkeletonRows />
+    ) : (
+      <EmptyState title={messages.inboxTitle} body={messages.emptyInbox} />
+    );
+  }
+
+  return (
+    <Board
+      key={inbox.id}
+      messages={messages}
+      title={messages.inboxTitle}
+      queryKey={['inbox-tasks', inbox.id]}
+      createProjectId={inbox.id}
+      matrixListId={inbox.id}
+      viewKey="inbox"
+      headerActions={
+        <Button
+          onClick={() => {
+            setProcess(true);
+            setCursor(0);
+          }}
+        >
+          {messages.process}
+        </Button>
+      }
+      load={(groupBy, sort) =>
+        viewsApi.previewFilter(
+          {
+            mode: 'normal',
+            rules: {
+              combinator: 'AND',
+              groups: [
+                {
+                  combinator: 'AND',
+                  conditions: [{ field: 'list', op: 'in', value: [inbox.id] }],
+                },
+              ],
+            },
+          },
+          { groupBy, sort },
+        )
+      }
+    />
+  );
 }
 
 function ProcessCard({
@@ -345,6 +352,11 @@ export function CalendarPage() {
       runAction(Promise.resolve(navigate('/calendar/month', { replace: true })));
     }
   }, [view, knownView, navigate]);
+  useEffect(() => {
+    if (typeof current === 'string') {
+      rememberCalendarView(current);
+    }
+  }, [current]);
   useEffect(() => {
     const date = dayFromParam(params.get('date') ?? '');
     if (date) setCursor(date);
@@ -791,6 +803,7 @@ function DayGrid({
   readonly onPick?: (dayKey: string) => void;
   readonly dots?: boolean;
 }) {
+  const location = useLocation();
   const locale = useAppLocale();
   const grid = useRef<HTMLDivElement>(null);
   const [overflow, setOverflow] = useState<Record<string, number>>({});
@@ -1005,7 +1018,7 @@ function DayGrid({
                                   ? 'cal-pill is-overdue'
                                   : 'cal-pill'
                               }
-                              to={`/list/${chip.task.project_id}?task=${chip.task.id}`}
+                              to={taskQueryHref(location.pathname, location.search, chip.task.id)}
                             >
                               {chipLabel(chip.task, messages.untitled, locale)}
                             </Link>
@@ -1207,6 +1220,7 @@ function Agenda({
   readonly colors: ReadonlyMap<string, string>;
   readonly onOpenEvent: (event: ExternalEventView) => void;
 }) {
+  const location = useLocation();
   const cache = useQueryClient();
   const [pending, setPending] = useState<ReadonlySet<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
@@ -1341,7 +1355,7 @@ function Agenda({
                         <Link
                           className="agenda-card"
                           title={title}
-                          to={`/list/${task.project_id}?task=${task.id}`}
+                          to={taskQueryHref(location.pathname, location.search, task.id)}
                         >
                           <span>{title}</span>
                         </Link>

@@ -10,7 +10,7 @@ import { DatePopover, reminderLabel, type DateDraft } from '../../components/Dat
 import { bindPopover } from '../../components/popover-stack';
 import { PriorityMenu } from '../../components/PriorityMenu';
 import { TagPicker } from '../../components/TagPicker';
-import { Button } from '../../components/ui';
+import { Button, SkeletonRows } from '../../components/ui';
 import { useActionToast } from '../../components/action-toast';
 import { fill, useMessages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
@@ -97,11 +97,11 @@ export function TaskDetail({
   const save = useMutation({
     mutationFn: (body: Parameters<typeof api.patchTask>[1]) =>
       runOrQueue(newMutation('update', taskId, { ...body }), () => api.patchTask(taskId, body)),
-    onSuccess: async (outcome) => {
+    onSuccess: (outcome) => {
       setSaved(true);
       setError(null);
       if (!outcome.queued) {
-        await refresh();
+        runAction(refresh());
       }
     },
     onError: (caught: unknown) => {
@@ -146,7 +146,8 @@ export function TaskDetail({
   if (detail.data === undefined) {
     return (
       <aside className="detail-panel" aria-busy="true">
-        <p>{messages.saving}</p>
+        <SkeletonRows />
+        <p className="ui-muted">{messages.detailLoading}</p>
       </aside>
     );
   }
@@ -411,10 +412,10 @@ export function TaskDetail({
               }}
             >
               <CalendarDays size={14} aria-hidden="true" />
-              {task.start_date === null
+              {(task.start_date ?? task.due_date) === null
                 ? messages.whenField
                 : formatDueChip(
-                    task.start_date,
+                    task.start_date ?? task.due_date,
                     task.time_zone,
                     task.is_all_day,
                     new Date(),
@@ -638,12 +639,23 @@ export function TaskDetail({
           <h3>{messages.activity}</h3>
           {task.activity.length === 0 ? <p>{messages.noActivity}</p> : null}
           <ul>
-            {task.activity.map((entry) => (
-              <li key={entry.id}>
-                {entry.actor_id === me.data?.id ? messages.actorYou : messages.actorOther} ·{' '}
-                {activityText(entry.action, messages)} · {relativeTime(entry.created_at, locale)}
-              </li>
-            ))}
+            {task.activity.map((entry) => {
+              const via =
+                entry.token_name !== undefined &&
+                entry.token_name !== null &&
+                entry.token_name.length > 0
+                  ? fill(messages.createdVia, entry.token_name)
+                  : entry.actor_kind === 'api' || entry.token_id
+                    ? messages.createdViaApi
+                    : null;
+              return (
+                <li key={entry.id}>
+                  {entry.actor_id === me.data?.id ? messages.actorYou : messages.actorOther}
+                  {via !== null ? ` ${via}` : ''} · {activityText(entry.action, messages)} ·{' '}
+                  {relativeTime(entry.created_at, locale)}
+                </li>
+              );
+            })}
           </ul>
         </section>
       ) : null}

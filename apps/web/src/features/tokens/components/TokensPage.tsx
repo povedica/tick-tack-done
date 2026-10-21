@@ -1,6 +1,7 @@
 import { runAction } from '../../../components/run-action';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { ApiError } from '@reflexionia/sdk';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
 import { Button, SkeletonRows } from '../../../components/ui';
 import { fill, useMessages, type Messages } from '../../../i18n';
@@ -52,6 +53,10 @@ export function TokensPage() {
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [revokeError, setRevokeError] = useState<string | null>(null);
+  const [secretCopied, setSecretCopied] = useState(false);
+  const [confirmDismissSecret, setConfirmDismissSecret] = useState(false);
+  const nameRef = useRef<HTMLInputElement>(null);
   const activity = useQuery({
     queryKey: ['token-activity', selected],
     enabled: selected !== null,
@@ -66,6 +71,7 @@ export function TokensPage() {
     mutationFn: () => tokensApi.createToken({ name: name.trim(), scopes }),
     onSuccess: async (created) => {
       setSecret(created.token);
+      setSecretCopied(false);
       setSelected(created.id);
       setName('');
       setScopes([]);
@@ -73,19 +79,26 @@ export function TokensPage() {
       setError(null);
       await queryClient.invalidateQueries({ queryKey: ['tokens'] });
     },
-    onError: () => {
+    onError: (reason) => {
+      if (reason instanceof ApiError && reason.code === 'token_name_taken') {
+        setError(messages.tokenNameTaken);
+        window.requestAnimationFrame(() => {
+          nameRef.current?.focus();
+        });
+        return;
+      }
       setError(messages.tokenFailed);
     },
   });
   const revoke = useMutation({
     mutationFn: (id: string) => tokensApi.revokeToken(id),
     onSuccess: async () => {
-      setSecret(null);
       setConfirmId(null);
+      setRevokeError(null);
       await queryClient.invalidateQueries({ queryKey: ['tokens'] });
     },
     onError: () => {
-      setError(messages.tokenFailed);
+      setRevokeError(messages.tokenRevokeFailed);
     },
   });
   const items = tokens.data?.pages.flatMap((page) => page.items) ?? [];
@@ -105,9 +118,22 @@ export function TokensPage() {
     try {
       await navigator.clipboard.writeText(value);
       rememberCopy(key);
+      if (key === 'secret') {
+        setSecretCopied(true);
+      }
     } catch {
       setCopied(null);
     }
+  }
+
+  function dismissSecret() {
+    if (!secretCopied && secret !== null && !confirmDismissSecret) {
+      setConfirmDismissSecret(true);
+      return;
+    }
+    setConfirmDismissSecret(false);
+    setSecret(null);
+    setSecretCopied(false);
   }
 
   return (
@@ -169,9 +195,18 @@ export function TokensPage() {
       </section>
 
       {secret !== null ? (
-        <div className="token-secret" role="status">
-          <p>{messages.tokenSecret}</p>
-          <code>{secret}</code>
+        <div className="token-secret">
+          <p className="sr-only" aria-live="polite">
+            {messages.tokenCreatedOnce}
+          </p>
+          <p aria-hidden="true">{messages.tokenSecret}</p>
+          <input
+            className="token-secret-value"
+            type="text"
+            readOnly
+            value={secret}
+            aria-label={messages.tokenCopySecret}
+          />
           <Button
             type="button"
             size="sm"
@@ -181,6 +216,27 @@ export function TokensPage() {
           >
             {copied === 'secret' ? messages.copied : messages.tokenCopySecret}
           </Button>
+          {confirmDismissSecret ? (
+            <span className="token-confirm" role="alertdialog">
+              <p>{messages.tokenSecret}</p>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  setConfirmDismissSecret(false);
+                }}
+              >
+                {messages.cancel}
+              </Button>
+              <Button type="button" size="sm" variant="danger" onClick={dismissSecret}>
+                {messages.tokenDismissSecret}
+              </Button>
+            </span>
+          ) : (
+            <Button type="button" size="sm" variant="ghost" onClick={dismissSecret}>
+              {messages.tokenDismissSecret}
+            </Button>
+          )}
         </div>
       ) : null}
 
@@ -217,12 +273,14 @@ export function TokensPage() {
               {messages.tokenName}
             </label>
             <input
+              ref={nameRef}
               id="token-name"
               className="token-name"
               value={name}
               maxLength={80}
               onChange={(event) => {
                 setName(event.target.value);
+                setError(null);
               }}
             />
             <div className="token-resources" role="group" aria-label={messages.tokenScopes}>
@@ -341,7 +399,6 @@ export function TokensPage() {
                       aria-expanded={open}
                       onClick={() => {
                         setSelected(open ? null : token.id);
-                        setSecret(null);
                       }}
                     >
                       {open ? messages.tokenHideActivity : messages.tokenActivity}
@@ -353,6 +410,7 @@ export function TokensPage() {
                         variant="danger"
                         onClick={() => {
                           setConfirmId(token.id);
+                          setRevokeError(null);
                         }}
                       >
                         {messages.tokenRevoke}
@@ -361,7 +419,8 @@ export function TokensPage() {
                   </div>
                   {confirmId === token.id ? (
                     <div className="token-confirm">
-                      <p>{fill(messages.tokenRevokeBody, token.name)}</p>
+                      <p>{fill(messages.tokenRevokeBody, token.client_name ?? token.name)}</p>
+                      {revokeError !== null ? <p role="alert">{revokeError}</p> : null}
                       <span className="token-actions">
                         <Button
                           type="button"
@@ -369,6 +428,7 @@ export function TokensPage() {
                           variant="ghost"
                           onClick={() => {
                             setConfirmId(null);
+                            setRevokeError(null);
                           }}
                         >
                           {messages.cancel}
@@ -379,6 +439,7 @@ export function TokensPage() {
                           variant="danger"
                           loading={revoke.isPending}
                           onClick={() => {
+                            setRevokeError(null);
                             revoke.mutate(token.id);
                           }}
                         >
@@ -392,13 +453,24 @@ export function TokensPage() {
                       {activity.isSuccess && activity.data.items.length === 0 ? (
                         <p className="token-meta">{messages.tokenActivityEmpty}</p>
                       ) : null}
+                      {activity.isPending ? <SkeletonRows /> : null}
+                      {activity.isError ? (
+                        <p role="alert">
+                          {messages.tokenFailed}
+                          <Button
+                            type="button"
+                            onClick={() => {
+                              runAction(activity.refetch());
+                            }}
+                          >
+                            {messages.retry}
+                          </Button>
+                        </p>
+                      ) : null}
                       <ul className="token-activity">
                         {(activity.data?.items ?? []).map((entry) => (
                           <li key={entry.id}>
-                            <span>
-                              {actionLabel(messages, entry.action)} ·{' '}
-                              {entityLabel(messages, entry.entity_type)}
-                            </span>
+                            <span>{activityLine(messages, entry)}</span>
                             <time dateTime={entry.created_at}>
                               {when(entry.created_at, locale)}
                             </time>
@@ -442,12 +514,19 @@ export function TokensPage() {
             <summary>
               {messages.tokensRevokedFold} ({String(revokedTotal)})
             </summary>
-            <ul>
+            <ul className="token-revoked-list">
               {revokedItems.map((token) => (
-                <li key={token.id}>
-                  {token.client_name ?? token.name}
+                <li key={token.id} className="token-revoked-row">
+                  <div>
+                    <strong>{token.client_name ?? token.name}</strong>
+                    <span className="token-meta">
+                      {token.oauth_client_id === null
+                        ? messages.tokenManualGroup
+                        : `${messages.tokenAuthorization} · ${token.client_name ?? token.name}`}
+                    </span>
+                  </div>
                   {token.revoked_at !== null ? (
-                    <time dateTime={token.revoked_at}> · {when(token.revoked_at, locale)}</time>
+                    <time dateTime={token.revoked_at}>{when(token.revoked_at, locale)}</time>
                   ) : null}
                 </li>
               ))}
@@ -519,6 +598,38 @@ function whenRelative(iso: string, locale: string, messages: Messages): string {
   return when(iso, locale);
 }
 
+function activityLine(
+  messages: Messages,
+  entry: {
+    readonly action: string;
+    readonly entity_type: string;
+    readonly changes?: unknown;
+  },
+): string {
+  const changes =
+    typeof entry.changes === 'object' && entry.changes !== null
+      ? (entry.changes as Record<string, unknown>)
+      : {};
+  if (entry.entity_type === 'http_request') {
+    const method = typeof changes.method === 'string' ? changes.method : 'GET';
+    const path = typeof changes.path === 'string' ? changes.path : '';
+    const outcome =
+      changes.outcome === 'scope_missing'
+        ? messages.tokenOutcomeDenied
+        : changes.outcome === 'rate_limited'
+          ? messages.tokenOutcomeLimited
+          : messages.tokenOutcomeAllowed;
+    return `${method} ${path} · ${outcome}`;
+  }
+  if (entry.entity_type === 'oauth_token') {
+    if (changes.outcome === 'issued') return messages.tokenIssued;
+    if (changes.outcome === 'refreshed') return messages.tokenRefreshed;
+    if (changes.outcome === 'revoked') return messages.tokenRevokedEvent;
+    if (changes.outcome === 'reused') return messages.tokenReuseDetected;
+  }
+  return `${actionLabel(messages, entry.action)} · ${entityLabel(messages, entry.entity_type)}`;
+}
+
 function actionLabel(messages: Messages, action: string): string {
   switch (action) {
     case 'created':
@@ -548,6 +659,8 @@ function entityLabel(messages: Messages, entity: string): string {
       return messages.entityRequest;
     case 'personal_access_token':
       return messages.entityToken;
+    case 'oauth_token':
+      return messages.entityOauthToken;
     default:
       return entity;
   }

@@ -169,8 +169,11 @@ export function WebhookSettings() {
   const [url, setUrl] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [secret, setSecret] = useState<string | null>(null);
+  const [secretId, setSecretId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [rotateId, setRotateId] = useState<string | null>(null);
+  const [rowError, setRowError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   return (
     <section className="token-settings">
@@ -216,7 +219,7 @@ export function WebhookSettings() {
             {messages.webhookCreate}
           </Button>
         </form>
-        {secret !== null && secret.length > 0 ? (
+        {secret !== null && secret.length > 0 && secretId === null ? (
           <div className="token-secret">
             <p>{messages.webhookSecretOnce}</p>
             <code>{secret}</code>
@@ -240,6 +243,7 @@ export function WebhookSettings() {
         ) : null}
       </section>
       <section className="token-panel is-list" aria-label={messages.settingsWebhooks}>
+        {rows.isPending ? <p className="token-meta">…</p> : null}
         {rows.isError ? <p role="alert">{messages.settingsFailed}</p> : null}
         {rows.isSuccess && items.length === 0 ? (
           <p className="token-empty">{messages.webhooksEmpty}</p>
@@ -287,12 +291,13 @@ export function WebhookSettings() {
                   variant="ghost"
                   onClick={() => {
                     setNotice(null);
+                    setRowError(null);
                     void api.pingWebhook(id).then(
                       () => {
                         setNotice(messages.webhookTestOk);
                       },
                       (reason: unknown) => {
-                        setError(failureMessage(reason, messages.settingsFailed));
+                        setRowError(failureMessage(reason, messages.settingsFailed));
                       },
                     );
                   }}
@@ -304,12 +309,9 @@ export function WebhookSettings() {
                   size="sm"
                   variant="ghost"
                   onClick={() => {
-                    runAction(
-                      api.rotateWebhook(id).then((body) => {
-                        setSecret(text(body.secret));
-                        setCopied(false);
-                      }),
-                    );
+                    setRotateId(id);
+                    setConfirmId(null);
+                    setRowError(null);
                   }}
                 >
                   {messages.webhookRotate}
@@ -320,11 +322,71 @@ export function WebhookSettings() {
                   variant="ghost"
                   onClick={() => {
                     setConfirmId(id);
+                    setRotateId(null);
                   }}
                 >
                   {messages.purge}
                 </Button>
               </span>
+              {rowError !== null && (rotateId === id || confirmId === id) ? (
+                <p role="alert">{rowError}</p>
+              ) : null}
+              {secretId === id && secret !== null && secret.length > 0 ? (
+                <div className="token-secret">
+                  <p>{messages.webhookSecretOnce}</p>
+                  <code>{secret}</code>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      void navigator.clipboard.writeText(secret).then(
+                        () => {
+                          setCopied(true);
+                        },
+                        () => {
+                          setCopied(false);
+                        },
+                      );
+                    }}
+                  >
+                    {copied ? messages.copied : messages.webhookCopySecret}
+                  </Button>
+                </div>
+              ) : null}
+              {rotateId === id ? (
+                <div className="token-confirm">
+                  <p>{messages.webhookRotateBody}</p>
+                  <span className="token-actions">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setRotateId(null);
+                      }}
+                    >
+                      {messages.cancel}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="danger"
+                      onClick={() => {
+                        runAction(
+                          api.rotateWebhook(id).then((body) => {
+                            setSecret(text(body.secret));
+                            setSecretId(id);
+                            setCopied(false);
+                            setRotateId(null);
+                          }),
+                        );
+                      }}
+                    >
+                      {messages.webhookRotate}
+                    </Button>
+                  </span>
+                </div>
+              ) : null}
               {confirmId === id ? (
                 <div className="token-confirm">
                   <p>{messages.webhookDeleteBody}</p>

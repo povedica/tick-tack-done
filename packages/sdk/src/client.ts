@@ -67,6 +67,8 @@ export interface ApiClientOptions {
   readonly fetchImpl?: typeof fetch;
   readonly credentials?: 'include' | 'omit' | 'same-origin';
   readonly csrfToken?: string | (() => string | undefined);
+  /** TTD-AUD-29: called once per 401 before the ApiError is thrown. */
+  readonly onUnauthorized?: (path: string) => void;
 }
 
 export interface UpdateTaskBody {
@@ -368,7 +370,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         call,
         options,
         'GET',
-        `/api/v1/me/tokens/${id}/activity`,
+        `/api/v1/me/tokens/${id}/activity?limit=100`,
         undefined,
         undefined,
         isActivityPage,
@@ -500,8 +502,11 @@ async function request<T>(
     }
     throw new ApiError(response.status, 'request_failed', 'Response is empty');
   }
-  const payload: unknown = await response.json();
+  const payload: unknown = await response.json().catch(() => null);
   if (!response.ok) {
+    if (response.status === 401 && options.onUnauthorized !== undefined) {
+      options.onUnauthorized(path);
+    }
     const error = readError(payload);
     throw new ApiError(response.status, error.code, error.message);
   }

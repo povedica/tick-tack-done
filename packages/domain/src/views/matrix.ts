@@ -1,4 +1,6 @@
+import { parseTaskInstant } from '../dates/parse-instant';
 import { matchesFilter, type FilterClock, type FilterSubject } from '../filters/clause';
+import { civilDateKey } from '../planning/day-load';
 import type { FilterRules, Priority } from '../types';
 
 /** RF-1004. Urgent is due within 24 h or already overdue. Important is high or medium. */
@@ -106,15 +108,80 @@ export interface QuadrantPatch {
   readonly dueDate: string | null;
 }
 
-/** Dropping a card applies the destination quadrant's priority and date effect. */
-export function applyQuadrantDrop(effect: QuadrantEffect, nowIso: string): QuadrantPatch {
-  const now = Date.parse(nowIso);
-  const base = Number.isNaN(now) ? Date.parse('2026-01-01T00:00:00.000Z') : now;
-  if (effect.due === 'clear') {
-    return { priority: effect.priority, dueDate: null };
+export interface MinimalQuadrantTask {
+  readonly priority: Priority;
+  readonly dueDate: string | null;
+  readonly isAllDay: boolean;
+  readonly timeZone: string;
+}
+
+export interface MinimalQuadrantPatch {
+  readonly priority: Priority;
+  readonly dueDate: string | null;
+  readonly isAllDay: boolean;
+  /** True when the task already belongs in the target quadrant. */
+  readonly unchanged: boolean;
+}
+
+function targetNeedsUrgent(quadrant: MatrixQuadrant): boolean {
+  return quadrant === 'do' || quadrant === 'delegate';
+}
+
+function targetNeedsImportant(quadrant: MatrixQuadrant): boolean {
+  return quadrant === 'do' || quadrant === 'schedule';
+}
+
+function todayAllDay(nowIso: string, timeZone: string): string {
+  const parsed = parseTaskInstant(civilDateKey(nowIso, timeZone) ?? nowIso.slice(0, 10), timeZone);
+  return parsed.ok ? parsed.iso : nowIso;
+}
+
+function plusDaysAllDay(nowIso: string, timeZone: string, days: number): string {
+  const key = civilDateKey(nowIso, timeZone) ?? nowIso.slice(0, 10);
+  const base = Date.parse(`${key}T12:00:00.000Z`);
+  const shifted = new Date(base + days * DAY_MS).toISOString();
+  const nextKey = civilDateKey(shifted, timeZone) ?? shifted.slice(0, 10);
+  const parsed = parseTaskInstant(nextKey, timeZone);
+  return parsed.ok ? parsed.iso : shifted;
+}
+
+/**
+ * TTD-AUD-62: change only what is needed for the target quadrant.
+ * Never clears the due date on drop; preserves all-day when adjusting urgency.
+ */
+export function minimalQuadrantPatch(
+  task: MinimalQuadrantTask,
+  target: MatrixQuadrant,
+  nowIso: string,
+): MinimalQuadrantPatch {
+  const zone = task.timeZone.length > 0 ? task.timeZone : 'UTC';
+  const urgent = isUrgent(task.dueDate, nowIso);
+  const important = isImportant(task.priority);
+  const wantUrgent = targetNeedsUrgent(target);
+  const wantImportant = targetNeedsImportant(target);
+
+  let priority = task.priority;
+  if (wantImportant && !important) {
+    priority = target === 'do' ? 'high' : 'medium';
+  } else if (!wantImportant && important) {
+    priority = target === 'delegate' ? 'low' : 'none';
   }
-  const delta = effect.due === 'within_24h' ? 60 * 60 * 1000 : 7 * DAY_MS;
-  return { priority: effect.priority, dueDate: new Date(base + delta).toISOString() };
+
+  let dueDate = task.dueDate;
+  let isAllDay = task.isAllDay;
+  if (wantUrgent && !urgent) {
+    dueDate = todayAllDay(nowIso, zone);
+    isAllDay = true;
+  } else if (!wantUrgent && urgent && target !== 'drop') {
+    dueDate = plusDaysAllDay(nowIso, zone, 2);
+    isAllDay = true;
+  }
+  // drop: keep dueDate as-is (never clear)
+
+  const unchanged =
+    priority === task.priority && dueDate === task.dueDate && isAllDay === task.isAllDay;
+
+  return { priority, dueDate, isAllDay, unchanged };
 }
 
 function toSubject(task: MatrixTask): FilterSubject {

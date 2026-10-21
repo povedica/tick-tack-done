@@ -13,6 +13,7 @@ import {
 import { Link } from 'react-router';
 import { PriorityCheck } from '../../components/PriorityCheck';
 import { TagChip } from '../../components/ui';
+import { useMessages } from '../../i18n';
 import { displayTitle } from '../tasks/displayTitle';
 import { dragHasTask, setTaskDrag, taskDragId } from './drag';
 import { calendarDay, taskWhen, type TaskGroupKey, type TodayTask } from './groups';
@@ -76,6 +77,7 @@ export function TaskGroup({
   readonly onPriorityDrop: (taskId: string, priority: TodayTask['priority']) => void;
   readonly onFocus: (id: string) => void;
 }) {
+  const messages = useMessages();
   return (
     <details
       id={id}
@@ -223,15 +225,15 @@ export function TaskGroup({
                       {when.date}
                     </time>
                   ) : null}
-                  {deadlineText(task, deadlineSoonDays) !== null ? (
+                  {deadlineText(task, deadlineSoonDays, messages) !== null ? (
                     <span
                       className={
-                        deadlineText(task, deadlineSoonDays)?.tone === 'late'
+                        deadlineText(task, deadlineSoonDays, messages)?.tone === 'late'
                           ? 'task-date is-overdue'
                           : 'task-date'
                       }
                     >
-                      {deadlineText(task, deadlineSoonDays)?.label}
+                      {deadlineText(task, deadlineSoonDays, messages)?.label}
                     </span>
                   ) : null}
                   {when.time !== null ? (
@@ -264,6 +266,7 @@ export function TaskGroup({
 function deadlineText(
   task: TodayTask,
   soonDays: number,
+  messages: { dueTodayBang: string; dueTomorrowLabel: string; dueInDays: string },
 ): { readonly label: string; readonly tone: 'soon' | 'late' } | null {
   if (task.isSomeday === true || task.dueDate == null || task.status !== 'active') {
     return null;
@@ -277,13 +280,16 @@ function deadlineText(
     return null;
   }
   if (diff === 0) {
-    return { label: '¡Vence hoy!', tone: 'late' };
+    return { label: messages.dueTodayBang, tone: 'late' };
   }
   if (diff === 1) {
-    return { label: 'Vence mañana', tone: 'soon' };
+    return { label: messages.dueTomorrowLabel, tone: 'soon' };
   }
   if (diff <= soonDays) {
-    return { label: `Vence en ${String(diff)} días`, tone: 'soon' };
+    return {
+      label: messages.dueInDays.replace('{count}', String(diff)),
+      tone: 'soon',
+    };
   }
   return null;
 }

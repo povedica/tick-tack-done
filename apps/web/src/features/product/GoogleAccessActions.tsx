@@ -83,11 +83,11 @@ export function GoogleAccessActions({
 }
 
 export function googleCallbackNotice(params: URLSearchParams): {
-  readonly notice: 'connected' | 'error';
+  readonly notice: 'connected' | 'error' | 'denied';
   readonly params: URLSearchParams;
 } | null {
   const notice = params.get('google');
-  if (notice !== 'connected' && notice !== 'error') return null;
+  if (notice !== 'connected' && notice !== 'error' && notice !== 'denied') return null;
   const cleaned = new URLSearchParams(params);
   cleaned.delete('google');
   return { notice, params: cleaned };

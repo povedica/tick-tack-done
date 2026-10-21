@@ -58,7 +58,7 @@
   justify-content: flex-start;
   gap: 6px;
   position: sticky;
-  top: 0;
+  top: var(--page-header-h, 3rem);
   z-index: 1;
   height: 28px;
   min-height: 28px;
@@ -1362,8 +1362,10 @@ a.task-title {
   position: sticky;
   top: 0;
   z-index: 5;
-  background: var(--surface);
+  background: var(--bg);
   padding-bottom: var(--sp-2);
+  border-bottom: 1px solid transparent;
+  box-shadow: 0 1px 0 rgb(0 0 0 / 0.04);
 }
 
 .review-card {

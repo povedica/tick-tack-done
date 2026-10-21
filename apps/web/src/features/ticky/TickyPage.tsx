@@ -172,20 +172,20 @@ export function TickyPage({ taskHint }: { readonly taskHint?: string }) {
         <label>
           Conversación{' '}
           <select
-            aria-label="Conversación"
+            aria-label={messages.tickyConversation}
             value={threadId ?? ''}
             disabled={send.isPending}
             onChange={(event) => {
               selectThread(event.target.value || null);
             }}
           >
-            <option value="">Nueva conversación</option>
+            <option value="">{messages.tickyNewConversation}</option>
             {threadId !== null && !threads.data?.items.some((item) => item.id === threadId) ? (
-              <option value={threadId}>Conversación actual</option>
+              <option value={threadId}>{messages.tickyCurrentConversation}</option>
             ) : null}
             {threads.data?.items.map((item, index) => (
               <option key={item.id} value={item.id}>
-                Conversación {index + 1}
+                {messages.tickyConversationN.replace('{n}', String(index + 1))}
               </option>
             ))}
           </select>
@@ -201,19 +201,17 @@ export function TickyPage({ taskHint }: { readonly taskHint?: string }) {
                   selectThread(null);
                   setLog([
                     result.state === 'deleted'
-                      ? 'Conversación borrada.'
-                      : 'Borrado solicitado; quedan ejecuciones o checkpoints pendientes.',
+                      ? messages.tickyConversationDeleted
+                      : messages.tickyDeletePending,
                   ]);
                   runAction(queryClient.invalidateQueries({ queryKey: ['ticky'] }));
                 })
                 .catch(() => {
-                  setLog([
-                    'No se pudo confirmar el borrado. Consulta el historial antes de repetir.',
-                  ]);
+                  setLog([messages.tickyDeleteFailed]);
                 });
             }}
           >
-            Borrar conversación
+            {messages.tickyDeleteConversation}
           </button>
         )}
       </div>
@@ -235,11 +233,7 @@ export function TickyPage({ taskHint }: { readonly taskHint?: string }) {
           <li key={`${String(index)}-${line.slice(0, 12)}`}>{line}</li>
         ))}
       </ul>
-      {history.isError ? (
-        <p role="alert">
-          No se ha podido recuperar el historial. No repitas una acción sin verificar su estado.
-        </p>
-      ) : null}
+      {history.isError ? <p role="alert">{messages.tickyHistoryFailed}</p> : null}
       {history.data?.messages
         .filter(
           (message) => message.result === null && ['accepted', 'running'].includes(message.state),
@@ -257,16 +251,16 @@ export function TickyPage({ taskHint }: { readonly taskHint?: string }) {
                   runAction(queryClient.invalidateQueries({ queryKey: ['ticky'] }));
                 })
                 .catch(() => {
-                  setLog(['No se pudo recuperar la consulta. Revisa su estado antes de repetir.']);
+                  setLog([messages.tickyRecoverFailed]);
                 });
             }}
           >
-            Recuperar consulta pendiente
+            {messages.tickyRecoverPending}
           </button>
         ))}
       {flags.data.model && models.data !== undefined ? (
         <label>
-          Modelo
+          {messages.tickyModel}
           <select
             value={modelId}
             onChange={(event) => {
@@ -274,7 +268,7 @@ export function TickyPage({ taskHint }: { readonly taskHint?: string }) {
             }}
             disabled={send.isPending}
           >
-            <option value="">Sin IA</option>
+            <option value="">{messages.tickyNoAi}</option>
             {models.data.items.map((model) => (
               <option key={model.id} value={model.id}>
                 {model.label}
@@ -319,15 +313,15 @@ export function TickyPage({ taskHint }: { readonly taskHint?: string }) {
                   .then(() => {
                     streamAbort.current?.abort();
                     setRunId(null);
-                    setLog(['Cancelación solicitada. Los efectos ya aplicados no se deshacen.']);
+                    setLog([messages.tickyCancelRequested]);
                     runAction(queryClient.invalidateQueries({ queryKey: ['ticky'] }));
                   })
                   .catch(() => {
-                    setLog(['No se pudo confirmar la cancelación. Revisa el historial.']);
+                    setLog([messages.tickyCancelFailed]);
                   });
               }}
             >
-              Cancelar consulta
+              {messages.tickyCancelQuery}
             </button>
           )}
         </div>

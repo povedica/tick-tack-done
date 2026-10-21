@@ -324,7 +324,7 @@ export function TaskComposer({
         {details ? (
           <textarea
             className="composer-content"
-            aria-label={messages.openDetail}
+            aria-label={messages.addDescription}
             value={content}
             disabled={frozen}
             onChange={(event) => {
@@ -471,7 +471,7 @@ export function TaskComposer({
               }}
             >
               <FileText size={16} />
-              {messages.openDetail}
+              {messages.addDescription}
             </button>
             <button
               type="button"

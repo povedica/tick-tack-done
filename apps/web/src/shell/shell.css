@@ -56,6 +56,34 @@
   overflow: hidden;
 }
 
+.detail-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  padding: var(--sp-6);
+  text-align: center;
+  color: var(--ink-2);
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+}
+
+.detail-empty h2 {
+  margin: 0;
+  font-size: var(--fs-lg);
+  color: var(--ink);
+}
+
+.detail-empty p {
+  margin: 0;
+  max-width: 18rem;
+}
+
+.calendar-sidebar .sidebar-block {
+  padding: var(--sp-4);
+}
+
 .shell > .detail-slot > .detail-panel {
   flex: 1;
   height: 100%;
@@ -230,12 +258,12 @@
 }
 
 .sidebar .nav-link:hover {
-  background: rgb(255 255 255 / 0.38);
+  background: var(--surface-2);
 }
 
 .sidebar .nav-link.is-active,
 .sidebar .nav-link[data-selected='true'] {
-  background: rgb(255 255 255 / 0.62);
+  background: var(--accent-soft);
   color: var(--ink);
 }
 
@@ -500,9 +528,62 @@
     display: block;
     position: fixed;
     inset: 0;
-    z-index: 25;
+    z-index: 35;
     border: 0;
     background: rgb(25 25 25 / 0.4);
+  }
+
+  /* TTD-AUD-33: «Más» as a bottom sheet without nested scroll */
+  .shell[data-drawer-section='more'] .sidebar {
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-height: min(78dvh, 36rem);
+    transform: translateY(105%);
+    border-right: 0;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    padding-bottom: calc(var(--sp-4) + env(safe-area-inset-bottom));
+  }
+
+  .shell[data-drawer='open'][data-drawer-section='more'] .sidebar {
+    transform: none;
+    z-index: 40;
+  }
+
+  .shell[data-drawer='open'][data-drawer-section='more'] .sidebar > nav {
+    overflow: visible;
+  }
+
+  .mobile-more-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--sp-2);
+    margin: 0;
+    padding: var(--sp-2) 0;
+    list-style: none;
+  }
+
+  .mobile-more-grid .nav-link {
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--sp-1);
+    min-height: 4.5rem;
+    padding: var(--sp-2);
+    text-align: center;
+  }
+
+  .mobile-more-grid .nav-label {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    font-size: var(--fs-xs);
+  }
+
+  .shell[data-drawer='open'] .mobile-control-bar {
+    visibility: hidden;
   }
 
   .shell[data-detail='open'] > .detail-panel,
@@ -544,11 +625,19 @@
 
   .outlet,
   .settings-main {
-    padding-bottom: calc(var(--bottombar-h) + env(safe-area-inset-bottom) + var(--sp-8));
+    /* TTD-AUD-58: no top padding (sticky headers) and no double bottom reserve */
+    padding-top: 0;
+    padding-bottom: var(--sp-8);
   }
 
-  .outlet {
-    padding-top: var(--sp-5);
+  .mobile-control-bar {
+    padding-top: calc(6px + env(safe-area-inset-top));
+  }
+
+  .screen-page > :first-child,
+  .today > :first-child,
+  .stats-page > :first-child {
+    padding-top: var(--sp-3);
   }
 
   .today-header h1,
@@ -693,6 +782,42 @@
   stroke-dasharray: 94;
 }
 
+/* TTD-AUD-20: large focus timer ring */
+.focus-timer {
+  position: relative;
+  width: min(220px, 70vw);
+  aspect-ratio: 1;
+  margin: 1.5rem auto;
+  display: grid;
+  place-items: center;
+}
+
+.focus-timer-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.focus-timer-ring circle {
+  fill: none;
+  stroke: color-mix(in srgb, var(--ink-3) 55%, transparent);
+  stroke-width: 8;
+}
+
+.focus-timer-ring circle + circle {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.4s ease;
+}
+
+.focus-timer-clock {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  z-index: 1;
+}
+
 .rail-badge {
   position: absolute;
   top: 0;
@@ -706,15 +831,101 @@
   line-height: 14px;
 }
 
+.calendar-mini {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.calendar-mini-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.calendar-mini-nav button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.calendar-mini-nav button:hover {
+  background: var(--surface-2);
+}
+
+.calendar-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+  text-align: center;
+}
+
+.calendar-mini-head {
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+}
+
+.calendar-mini-day {
+  display: grid;
+  place-items: center;
+  min-height: 28px;
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font-size: var(--fs-xs);
+  text-decoration: none;
+}
+
+.calendar-mini-day.is-outside {
+  color: var(--ink-faint);
+}
+
+.calendar-mini-day.is-today {
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+
+.calendar-mini-day:hover {
+  background: var(--surface-2);
+}
+
+.countdown-confirm {
+  position: fixed;
+  z-index: 50;
+  right: var(--sp-4);
+  bottom: calc(var(--bottombar-h, 0px) + var(--sp-4));
+  left: var(--sp-4);
+  max-width: 24rem;
+  margin-inline: auto;
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+
 .page-title {
   display: flex;
+  flex: 1;
   align-items: center;
   gap: 4px;
   min-width: 0;
 }
 
+.page-title h1 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .page-actions {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 2px;
 }
@@ -932,4 +1143,47 @@
 }
 .sidebar-more-footer button.nav-link:hover {
   background: var(--surface-2);
+}
+
+/* TTD-AUD-59: print the task list without chrome */
+@media print {
+  .icon-rail,
+  .sidebar,
+  .scrim,
+  .detail-slot,
+  .detail-panel,
+  .bottom-bar,
+  .mobile-control-bar,
+  .offline-banner,
+  .page-actions,
+  .composer,
+  .capture-card,
+  .sheet,
+  .skip-link {
+    display: none !important;
+  }
+
+  .shell,
+  .shell[data-detail='open'],
+  .shell[data-sidebar='collapsed'],
+  .shell[data-sidebar='collapsed'][data-detail='open'] {
+    display: block;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    grid-template-columns: none;
+  }
+
+  .center,
+  .outlet {
+    display: block;
+    overflow: visible;
+    height: auto;
+    max-height: none;
+  }
+
+  .screen-page,
+  .today-header {
+    break-inside: avoid;
+  }
 }

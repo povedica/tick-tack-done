@@ -1,7 +1,7 @@
 import { Flag, Sparkles, X } from 'lucide-react';
 import { Link } from 'react-router';
 import { fill, type Messages } from '../../i18n';
-import { useTickyFlags } from '../ticky/useTickyFlags';
+import { useTickyAvailable } from '../ticky/useTickyAvailable';
 
 export function DetailHeader({
   priority,
@@ -39,7 +39,7 @@ export function DetailHeader({
   readonly onOpenPriority: () => void;
   readonly onClose: () => void;
 }) {
-  const ticky = useTickyFlags();
+  const ticky = useTickyAvailable();
   const priorityName =
     priority === 'high'
       ? messages.priorityHigh
@@ -54,7 +54,7 @@ export function DetailHeader({
         {saving ? savingLabel : saved ? savedLabel : ''}
       </span>
       <span className="detail-head-spacer" />
-      {ticky.isSuccess && ticky.data.ui && !ticky.data.kill ? (
+      {ticky.available ? (
         <Link
           className="icon-button detail-assistant"
           to={`/ticky?task=${encodeURIComponent(taskId)}`}
