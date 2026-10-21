@@ -3,7 +3,7 @@ import { displayTitle } from '../features/tasks/displayTitle';
 import { MODULES, moduleEnabled } from './modules';
 import { useTickyFlags } from '../features/ticky/useTickyFlags';
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, HelpCircle, ListTodo, PanelLeft, Plus } from 'lucide-react';
+import { AlertTriangle, HelpCircle, ListTodo, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { api } from '../api';
 import { AccountMenu } from './AccountMenu';
@@ -12,15 +12,7 @@ import { useMessages } from '../i18n';
 import { RailSectionLink } from './RailSectionLink';
 import { formatClock, useActiveFocus } from './useActiveFocus';
 
-export function IconRail({
-  collapsed,
-  onToggleCollapsed,
-  onCapture,
-}: {
-  readonly collapsed: boolean;
-  readonly onToggleCollapsed: () => void;
-  readonly onCapture: () => void;
-}) {
+export function IconRail({ onCapture }: { readonly onCapture: () => void }) {
   const messages = useMessages();
   const navigate = useNavigate();
   const flags = useFeatures((state) => state.flags);
@@ -120,16 +112,6 @@ export function IconRail({
         onClick={onCapture}
       >
         <Plus size={20} aria-hidden="true" />
-      </button>
-      <button
-        type="button"
-        className="rail-toggle"
-        aria-expanded={!collapsed}
-        aria-label={collapsed ? messages.expandSidebar : messages.collapseSidebar}
-        data-rail-tooltip={collapsed ? messages.expandSidebar : messages.collapseSidebar}
-        onClick={onToggleCollapsed}
-      >
-        <PanelLeft size={20} aria-hidden="true" />
       </button>
     </nav>
   );

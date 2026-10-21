@@ -133,7 +133,10 @@ export function AppShell() {
     <ShellActionsProvider
       value={{
         toggleNav,
-        navLabel: collapsed ? messages.expandSidebar : messages.collapseSidebar,
+        navLabel: (narrow ? drawer : !sidebarCollapsed)
+          ? messages.collapseSidebar
+          : messages.expandSidebar,
+        navExpanded: narrow ? drawer : !sidebarCollapsed,
       }}
     >
       <AccountPreferenceSync />
@@ -148,8 +151,6 @@ export function AppShell() {
       >
         <FocusTitle />
         <IconRail
-          collapsed={sidebarCollapsed}
-          onToggleCollapsed={toggleNav}
           onCapture={() => {
             closeDrawer();
             openTaskComposer();

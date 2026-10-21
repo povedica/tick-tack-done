@@ -40,6 +40,7 @@ export function CalendarSidebar({
   });
   return (
     <aside
+      id="section-sidebar"
       className="sidebar calendar-sidebar"
       data-collapsed={collapsed ? 'true' : 'false'}
       data-concealed={concealed ? 'true' : 'false'}

@@ -647,3 +647,21 @@ Playwright recorre cinco secciones sin columna, sus enlaces profundos y Escape,
 Tareas con columna y cierre de detalle móvil: correcto con API simulada.
 La prueba de composición tablet/móvil/200 % también pasa: resuelto el ancho cero
 de Agenda al liberar la columna derecha. Sin cambios de API/modelo/eventos.
+
+
+## 75.3 — plegado compartido en cabecera (22/10/2026)
+
+SidebarFoldButton compartido entre Calendario, Hoy y ViewPages. A la izquierda
+del título, usa PanelLeft, aria-expanded real y aria-controls del sidebar;
+etiquetas es/en existentes y tooltip con atajo [. En móvil abre el drawer de
+Listas; Escape lo cierra. Retirado el botón duplicado del rail y sus props.
+El atajo de teclado continúa funcionando. Estilos con tokens, objetivo de 44px
+móvil y botón compacto de escritorio. Agenda añade sólo el control de plegado
+junto a sus filtros/vistas, sin restaurar fecha o navegación eliminadas.
+
+Cuatro Playwright correctos: plegado en 1280/390 para calendario Mes/Agenda y
+Tareas Hoy/Bandeja, estados ARIA y atajo; posiciones de filtros/vistas en las
+ocho vistas a ambos anchos. Dos regresiones de Agenda correctas antes del ajuste
+final de orden visual; repetición final de plegado 2/2 correcta. 171 unitarios
+web, lint web y typecheck correctos. Inspección visual 1280/390, capturas sólo
+/tmp y API simulada. Sin cambios de API/modelo/eventos.

@@ -1,3 +1,4 @@
+import { SidebarFoldButton } from '../../shell/SidebarFoldButton';
 import { DayWeekStrip } from '../calendar/DayWeekStrip';
 import { CalendarFilterRow } from '../calendar/CalendarFilterRow';
 import { useVerticalCalendarNavigation } from '../calendar/useVerticalCalendarNavigation';
@@ -637,6 +638,7 @@ export function CalendarPage() {
   return (
     <section className={`screen-page is-wide calendar-page calendar-${current ?? 'month'}`}>
       <header className="calendar-toolbar">
+        <SidebarFoldButton />
         {current !== 'agenda' ? (
           <>
             <div className="calendar-nav">

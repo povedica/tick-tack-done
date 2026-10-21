@@ -749,8 +749,7 @@
   height: 28px;
 }
 
-.rail-add,
-.rail-toggle {
+.rail-add {
   margin-top: 4px;
 }
 
@@ -1195,4 +1194,36 @@
 .task-detail-dialog > .detail-panel {
   height: 100%;
   border-left: 0;
+}
+
+.page-title > .sidebar-fold-button,
+.calendar-toolbar > button.sidebar-fold-button {
+  flex-shrink: 0;
+  min-width: calc(var(--sp-4) + var(--sp-3));
+  min-height: calc(var(--sp-4) + var(--sp-3));
+  padding: var(--sp-1);
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  border-radius: var(--radius-sm);
+  transition:
+    background var(--dur-fast),
+    color var(--dur-fast);
+}
+@media (max-width: 1023px) {
+  .page-title > .sidebar-fold-button,
+  .calendar-toolbar > button.sidebar-fold-button {
+    min-width: var(--tap);
+    min-height: var(--tap);
+  }
+  .sidebar-fold-button svg {
+    width: var(--sp-5);
+    height: var(--sp-5);
+  }
+}
+
+.page-title > .sidebar-fold-button:hover,
+.calendar-toolbar > button.sidebar-fold-button:hover {
+  color: var(--ink);
+  background: var(--surface-2);
 }

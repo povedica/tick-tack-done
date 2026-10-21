@@ -179,6 +179,7 @@ export function Sidebar({
 
   return (
     <aside
+      id="section-sidebar"
       aria-hidden={concealed ? true : undefined}
       aria-label={mobileSection === 'more' ? messages.navMore : messages.appName}
       className="sidebar"

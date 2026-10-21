@@ -1,7 +1,6 @@
 import { runAction } from '../../../components/run-action';
 import type { ViewPage } from '@reflexionia/sdk';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Menu } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { api } from '../../../api';
@@ -9,7 +8,7 @@ import { completeBody } from '../../tasks/complete-body';
 import { ViewMenu } from '../../../components/ViewMenu';
 import { useMessages, type Messages } from '../../../i18n';
 import { useAppLocale } from '../../../i18n/locale';
-import { useShellActions } from '../../../shell/shell-actions';
+import { SidebarFoldButton } from '../../../shell/SidebarFoldButton';
 import { MatrixBoard, MatrixViewToggle } from '../../matrix/MatrixBoard';
 import { readMatrixLayout, writeMatrixLayout } from '../../matrix/layout';
 import { useFeatures } from '../../settings/feature-flags';
@@ -169,7 +168,6 @@ export function Board({
 }) {
   const queryClient = useQueryClient();
   const locale = useAppLocale();
-  const shell = useShellActions();
   const flags = useFeatures((state) => state.flags);
   const [params, setParams] = useSearchParams();
   const [prefs, setPrefs] = useState(() =>
@@ -226,14 +224,7 @@ export function Board({
     <main className="screen-page">
       <header className="today-header">
         <div className="page-title">
-          <button
-            type="button"
-            className="icon-button"
-            aria-label={shell.navLabel}
-            onClick={shell.toggleNav}
-          >
-            <Menu size={20} aria-hidden="true" />
-          </button>
+          <SidebarFoldButton />
           <h1>{title}</h1>
         </div>
         <div className="page-actions">

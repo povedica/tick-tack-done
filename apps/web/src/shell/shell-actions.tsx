@@ -3,6 +3,7 @@ import { createContext, useContext, type ReactNode } from 'react';
 interface ShellActions {
   readonly toggleNav: () => void;
   readonly navLabel: string;
+  readonly navExpanded: boolean;
 }
 
 const ShellActionsContext = createContext<ShellActions | null>(null);
@@ -20,7 +21,7 @@ export function ShellActionsProvider({
 export function useShellActions(): ShellActions {
   const value = useContext(ShellActionsContext);
   if (value === null) {
-    return { toggleNav: () => undefined, navLabel: '' };
+    return { toggleNav: () => undefined, navLabel: '', navExpanded: false };
   }
   return value;
 }

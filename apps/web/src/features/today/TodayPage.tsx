@@ -1,7 +1,7 @@
 import { runAction } from '../../components/run-action';
 import { displayTitle } from '../tasks/displayTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowUpDown, Lightbulb, Menu, Sprout } from 'lucide-react';
+import { ArrowUpDown, Lightbulb, Sprout } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { api } from '../../api';
@@ -19,7 +19,7 @@ import './today-support.css';
 import { HABITS_DISMISS_KEY, habitsDismissed } from '../habits/dismiss';
 import { flushOfflineQueue, newMutation, runOrQueue } from '../offline/client';
 import { isTypingTarget } from '../../shell/shortcuts';
-import { useShellActions } from '../../shell/shell-actions';
+import { SidebarFoldButton } from '../../shell/SidebarFoldButton';
 import { collectTags } from '../tasks/collect';
 import { completeBody } from '../tasks/complete-body';
 import { TaskComposer } from '../tasks/TaskComposer';
@@ -70,7 +70,6 @@ const COLLAPSE_KEY = 'tick-tack-done.today.collapsed';
 export function TodayPage() {
   const messages = useMessages();
   const flags = useFeatures((state) => state.flags);
-  const shell = useShellActions();
   const locale = useAppLocale();
   const navigate = useNavigate();
   const location = useLocation();
@@ -532,14 +531,7 @@ export function TodayPage() {
     <section className="today" aria-labelledby="today-heading">
       <header className="today-header">
         <div className="page-title">
-          <button
-            type="button"
-            className="icon-button"
-            aria-label={shell.navLabel}
-            onClick={shell.toggleNav}
-          >
-            <Menu size={20} aria-hidden="true" />
-          </button>
+          <SidebarFoldButton />
           <div>
             <h1 id="today-heading">{messages.todayTitle}</h1>
             <p className="today-date">{dateLabel}</p>

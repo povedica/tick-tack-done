@@ -47,7 +47,7 @@ código actual. Las decisiones posteriores prevalecen sobre los diseños inicial
 | --- | --- | --- |
 | 75.1 Filtros/fuentes | Adaptado al panel flotante solicitado después | Revisión final de paridad funcional; no afirmar implementado el sidebar original, sustituido por decisión del usuario |
 | 75.2 Panel fijo sólo en Tareas | Implementado el 22/10 | Sólo tasks mantiene columna; otras secciones abren detalle centrado y móvil conserva hoja |
-| 75.3 Plegado en cabecera | Pendiente respecto al diseño inicial | Resolver plegado compartido de escritorio según la cabecera final; no restaurar controles retirados en móvil |
+| 75.3 Plegado en cabecera | Implementado el 22/10 | Compartido Calendario/Hoy/Tareas, rail sin duplicado, ARIA/atajo y drawer móvil probados |
 | 75.4 Tarjetas/horas | Muy avanzado | Revisar consistencia final por vista; por decisión posterior no se repite hora dentro de tarjetas con franja horaria |
 | 75.5 Mover/redimensionar | Pendiente | Arrastrar tareas existentes, redimensionar, pasar a/desde todo el día, optimismo/Deshacer, teclado/táctil y DST; crear seleccionando rango no cubre esto |
 | 75.6 TaskPeek/evento anclado | Parcial | TaskPeek junto a tarjeta y evento externo anclado; el detalle actual no acredita ese patrón |

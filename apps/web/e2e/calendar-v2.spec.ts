@@ -925,7 +925,7 @@ test('RF-1101 agenda starts today and loads months only on explicit request', as
   const today = timeline.locator('[data-agenda-day="2026-10-20"]');
   await expect(today).toBeVisible();
   const toolbar = page.locator('.calendar-toolbar');
-  await expect(toolbar.getByRole('button')).toHaveCount(2);
+  await expect(toolbar.getByRole('button')).toHaveCount(3);
   await expect(toolbar.locator('.calendar-period, .calendar-nav, .calendar-add')).toHaveCount(0);
   await expect(today).toBeInViewport();
   const initialRange = new URL(ranges.at(-1)!);
@@ -993,7 +993,7 @@ test('RF-1101 desktop agenda header keeps only filters and view icons', async ({
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/calendar/agenda');
   const toolbar = page.locator('.calendar-toolbar');
-  await expect(toolbar.getByRole('button')).toHaveCount(2);
+  await expect(toolbar.getByRole('button')).toHaveCount(3);
   await expect(toolbar.locator('.calendar-period, .calendar-nav, .calendar-add')).toHaveCount(0);
   await toolbar.getByRole('button', { name: 'Calendario', exact: true }).click();
   await expect(page.locator('.calendar-mobile-navigation')).toHaveCount(0);
@@ -1340,3 +1340,44 @@ test('75.2/75.9 fixed task pane belongs only to Tasks and other sections open a 
   await page.locator('.detail-close').click();
   await expect(page.locator('.shell > .detail-slot')).toHaveCount(0);
 });
+
+for (const width of [1280, 390]) {
+  test(`75.3 header fold button controls the sidebar consistently at ${width}`, async ({
+    page,
+  }) => {
+    await fixture(page);
+    await page.setViewportSize({ width, height: 844 });
+    for (const path of [
+      '/calendar/month?date=2026-10-20',
+      '/calendar/agenda',
+      '/today',
+      '/inbox',
+    ]) {
+      await page.goto(path);
+      const fold = page.locator('.sidebar-fold-button');
+      await expect(fold).toHaveCount(1);
+      await expect(fold).toHaveAttribute('aria-controls', 'section-sidebar');
+      await expect(page.locator('.rail-toggle')).toHaveCount(0);
+      if (path.startsWith('/calendar/month')) await page.screenshot({ path: `/tmp/ttd-fold-${width}.png` });
+      const expanded = await fold.getAttribute('aria-expanded');
+      await fold.click();
+      await expect(fold).toHaveAttribute('aria-expanded', expanded === 'true' ? 'false' : 'true');
+      if (width < 700) {
+        await expect(page.locator('.shell')).toHaveAttribute('data-drawer', 'open');
+        await expect(page.locator('#section-sidebar')).toBeVisible();
+        await expect(page.locator('#section-sidebar')).toHaveAttribute(
+          'data-mobile-section',
+          'lists',
+        );
+        await page.keyboard.press('Escape');
+        await expect(page.locator('.shell')).toHaveAttribute('data-drawer', 'closed');
+      } else {
+        await fold.click();
+        await fold.focus();
+        await page.keyboard.press('[');
+        await expect(fold).toHaveAttribute('aria-expanded', expanded === 'true' ? 'false' : 'true');
+        await page.keyboard.press('[');
+      }
+    }
+  });
+}
