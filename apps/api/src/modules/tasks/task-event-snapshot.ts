@@ -1,9 +1,9 @@
-type SnapshotTask = {
+interface SnapshotTask {
   activity?: unknown;
   items: readonly { id: string; status: string }[];
   subtasks: readonly { id: string; status: string; title: string }[];
   checklist_progress: { completed: number; total: number };
-};
+}
 
 /**
  * TTD-AUD-65: event payloads must not embed task.activity (which itself embeds
@@ -11,7 +11,9 @@ type SnapshotTask = {
  */
 export function taskEventSnapshot(detail: SnapshotTask): Record<string, unknown> {
   const record = detail as SnapshotTask & Record<string, unknown>;
-  const { activity: _activity, items, subtasks, ...summary } = record;
+  const { items, subtasks, ...rest } = record;
+  const summary: Record<string, unknown> = { ...rest };
+  delete summary.activity;
   return {
     ...summary,
     items: items.map((item) => ({ id: item.id, status: item.status })),

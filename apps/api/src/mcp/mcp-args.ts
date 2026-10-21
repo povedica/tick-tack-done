@@ -7,7 +7,7 @@ export type McpArgsValidation =
   | { readonly ok: true }
   | { readonly ok: false; readonly message: string };
 
-type JsonSchema = {
+interface JsonSchema {
   readonly type?: string | readonly string[];
   readonly properties?: Readonly<Record<string, JsonSchema>>;
   readonly required?: readonly string[];
@@ -21,7 +21,7 @@ type JsonSchema = {
   readonly maximum?: number;
   readonly pattern?: string;
   readonly description?: string;
-};
+}
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -45,7 +45,9 @@ function validateNode(
   errors: string[],
 ): void {
   if (schema.type !== undefined) {
-    const types = Array.isArray(schema.type) ? schema.type : [schema.type];
+    const types: readonly string[] = Array.isArray(schema.type)
+      ? schema.type
+      : [schema.type];
     if (!types.some((type) => matchesType(type, value))) {
       errors.push(`${label(path)} must be ${types.join(' | ')}`);
       return;
@@ -82,15 +84,16 @@ function validateNode(
       }
     }
     if (schema.minimum !== undefined && value < schema.minimum) {
-      errors.push(`${label(path)} is below minimum ${schema.minimum}`);
+      errors.push(`${label(path)} is below minimum ${String(schema.minimum)}`);
     }
     if (schema.maximum !== undefined && value > schema.maximum) {
-      errors.push(`${label(path)} is above maximum ${schema.maximum}`);
+      errors.push(`${label(path)} is above maximum ${String(schema.maximum)}`);
     }
   }
-  if (Array.isArray(value) && schema.items !== undefined) {
+  const itemsSchema = schema.items;
+  if (Array.isArray(value) && itemsSchema !== undefined) {
     value.forEach((item, index) => {
-      validateNode(schema.items as JsonSchema, item, `${path}[${index}]`, errors);
+      validateNode(itemsSchema, item, `${path}[${String(index)}]`, errors);
     });
   }
   if (isRecord(value) && schema.properties !== undefined) {

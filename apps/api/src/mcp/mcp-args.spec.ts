@@ -8,7 +8,10 @@ describe('validateMcpArgs (TTD-AUD-54)', () => {
 
   it('rejects unknown fields with a clear list', () => {
     expect(update).toBeDefined();
-    const result = validateMcpArgs(update!.inputSchema, {
+    if (update === undefined) {
+      return;
+    }
+    const result = validateMcpArgs(update.inputSchema, {
       id: '11111111-1111-4111-8111-111111111111',
       status: 'completed',
       parent_id: '22222222-2222-4222-8222-222222222222',
@@ -22,14 +25,19 @@ describe('validateMcpArgs (TTD-AUD-54)', () => {
   });
 
   it('rejects wrong enum and wrong type', () => {
+    expect(update).toBeDefined();
+    expect(create).toBeDefined();
+    if (update === undefined || create === undefined) {
+      return;
+    }
     expect(
-      validateMcpArgs(update!.inputSchema, {
+      validateMcpArgs(update.inputSchema, {
         id: '11111111-1111-4111-8111-111111111111',
         priority: 'urgent',
       }).ok,
     ).toBe(false);
     expect(
-      validateMcpArgs(create!.inputSchema, {
+      validateMcpArgs(create.inputSchema, {
         title: 'Demo',
         duration_minutes: '30',
       }).ok,
@@ -37,8 +45,12 @@ describe('validateMcpArgs (TTD-AUD-54)', () => {
   });
 
   it('accepts a valid create_task payload', () => {
+    expect(create).toBeDefined();
+    if (create === undefined) {
+      return;
+    }
     expect(
-      validateMcpArgs(create!.inputSchema, {
+      validateMcpArgs(create.inputSchema, {
         title: 'Demo',
         due_date: '2026-10-22',
         duration_minutes: 30,

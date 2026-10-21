@@ -470,7 +470,7 @@ export class McpService {
         const dueForAnchor =
           schedule.due_date !== undefined ? schedule.due_date : (existing.due_date ?? null);
         const recurrence = recurrenceFields(args, dueForAnchor, existing.repeat_rule);
-        let tagIds = await this.resolveUpdateTags(user, args, existing.tag_ids ?? []);
+        let tagIds = await this.resolveUpdateTags(user, args, existing.tag_ids);
         let title =
           typeof args.title === 'string' ? requiredString(args, 'title', 500) : undefined;
         let parsedSchedule = schedule;
@@ -491,9 +491,7 @@ export class McpService {
             ...(schedule.start_date === undefined && parsed.start !== null
               ? { start_date: parsed.start.date }
               : {}),
-            ...(schedule.priority === undefined &&
-            parsed.priority !== null &&
-            parsed.priority !== undefined
+            ...(schedule.priority === undefined && parsed.priority !== null
               ? { priority: parsed.priority }
               : {}),
             ...(schedule.duration_minutes === undefined && parsed.durationMinutes !== null
@@ -703,9 +701,13 @@ export class McpService {
           undefined,
         );
         return {
-          ...result,
+          text: result.text,
+          list: result.list,
+          tags: result.tags,
+          priority: result.priority,
+          done: result.done,
           groups: result.groups.map((group) => ({
-            ...group,
+            type: group.type,
             items: group.items.slice(0, limit),
           })),
         };
