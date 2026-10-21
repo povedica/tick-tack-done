@@ -41,7 +41,7 @@ siguen el orden de prioridad de la petición; no se consideran cerrados.
 | TTD-AUD-34 | aplazado  | —                                                         | Pendiente de reproducción antes de modificar el código.                                                                                                     |
 | TTD-AUD-35 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
 | TTD-AUD-36 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
-| TTD-AUD-37 | corregido | pendiente de publicación                                  | Reproducido PostgreSQL 25P02; nombre interno OAuth único antes del INSERT, sin reintentos en transacción abortada. Tests de reautorización y choque manual. |
+| TTD-AUD-37 | corregido | [#62](https://github.com/povedica/tick-tack-done/pull/62) | Reproducido PostgreSQL 25P02; nombre interno OAuth único antes del INSERT, sin reintentos en transacción abortada. Tests de reautorización y choque manual. |
 | TTD-AUD-38 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
 | TTD-AUD-39 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
 | TTD-AUD-40 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                     |
@@ -104,3 +104,6 @@ Validación de TTD-AUD-02: typecheck y lint completos; 281 tests de dominio,
 - Nombre interno elegido antes del INSERT con UUID; se mantiene el límite de 80
   caracteres y el índice existente de nombres activos. Sin cambios de modelo ni migración.
 - RF cubierto: RF-2002. Pendiente validación del flujo real de ChatGPT por Pablo.
+
+Validación de TTD-AUD-37: typecheck, lint y tests completos en verde; integración
+completa: 122 pasan, 2 omitidos. OpenAPI regenerado sin diferencias.
