@@ -489,3 +489,52 @@ describe('parseQuickAdd golden capture (Q.9)', () => {
     expect(golden('116:000').title).toBe('116:000');
   });
 });
+
+describe('TTD-AUD-02 time ranges', () => {
+  it.each(['mañana 09:00-09:30', 'mañana 9:00–9:30', 'mañana de 9 a 9:30'])(
+    'RF-102 RF-602: consumes %s and schedules a 30-minute interval',
+    (range) => {
+      const text = `Meeting ${range}`;
+      const result = parsed(text);
+      expect(result.title).toBe('Meeting');
+      expect(result.start).toEqual({ date: localDue(1, 9, 0), isAllDay: false });
+      expect(result.due).toBeNull();
+      expect(result.durationMinutes).toBe(30);
+      expect(result.spans.map((span) => text.slice(span.start, span.end)).join(' ')).toBe(range);
+    },
+  );
+  it('RF-102: English meridiem range uses its start and a duration', () => {
+    const result = parsed('Meeting tomorrow 9am-10am', 'en');
+    expect(result.title).toBe('Meeting');
+    expect(result.start?.date).toBe(localDue(1, 9, 0));
+    expect(result.durationMinutes).toBe(60);
+  });
+  it.each(['09:30-09:00', '09:00-09:00', '25:00-26:00'])(
+    'RF-102: invalid range %s cannot produce a duration',
+    (range) => {
+      expect(parsed(`Meeting mañana ${range}`).durationMinutes).toBeNull();
+    },
+  );
+});
+
+it('TTD-AUD-02 RF-102: standalone range, adjacent tags and recurrence preserve capture metadata', () => {
+  const bare = parsed('Meeting 13:00-13:30 #work');
+  expect(bare.title).toBe('Meeting');
+  expect(bare.start?.date).toBe(localDue(0, 13, 0));
+  expect(bare.durationMinutes).toBe(30);
+  expect(bare.tagNames).toEqual(['work']);
+  const repeated = parsed('Meeting cada lunes 09:00-09:30');
+  expect(repeated.title).toBe('Meeting');
+  expect(repeated.start).not.toBeNull();
+  expect(repeated.repeatRule).toContain('FREQ=WEEKLY');
+  expect(repeated.durationMinutes).toBe(30);
+});
+
+it.each([
+  ['2026-03-28T12:00:00.000Z', 60],
+  ['2026-10-24T12:00:00.000Z', 180],
+])('TTD-AUD-02 RF-604: range spans the DST change after %s', (now, minutes) => {
+  const result = parsed('Meeting mañana 01:30-03:30', 'es', now);
+  expect(result.title).toBe('Meeting');
+  expect(result.durationMinutes).toBe(minutes);
+});

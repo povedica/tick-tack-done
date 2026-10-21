@@ -57,6 +57,25 @@ describe('RF-101/102/601/801: task composer explicit metadata', () => {
       .set('X-Dev-User-Email', email)
       .set('Idempotency-Key', key)
       .send(body);
+  it.each(['mañana 09:00-09:30', 'mañana de 9 a 9:30', 'tomorrow 9am-10am'])(
+    'TTD-AUD-02 RF-102 RF-602: raw range %s persists start and duration',
+    async (range) => {
+      const response = await create({
+        raw_text: `Meeting ${range}`,
+        time_zone: 'Europe/Madrid',
+      }).expect(201);
+      expect(response.body.title).toBe('Meeting');
+      expect(response.body.start_date).toEqual(expect.any(String));
+      expect(response.body.due_date).toBeNull();
+      expect(response.body.is_all_day).toBe(false);
+      expect(response.body.duration_minutes).toBe(range.includes('10am') ? 60 : 30);
+      const task = await prisma.task.findUniqueOrThrow({
+        where: { id: response.body.id as string },
+      });
+      expect(task.startDate?.toISOString()).toBe(response.body.start_date);
+      expect(task.durationMinutes).toBe(response.body.duration_minutes);
+    },
+  );
   it('RF-102/801: explicit date, duration, recurrence and zero-minute reminder are atomic and idempotent', async () => {
     const key = randomUUID();
     const body = {

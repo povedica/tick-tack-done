@@ -128,6 +128,8 @@ const TAG = /(?<![\p{L}\p{N}])#([\p{L}\p{N}_][\p{L}\p{N}_-]{0,98})(?![\p{L}\p{N}
 const LIST = /(?<![\p{L}\p{N}])[~^@]([\p{L}\p{N}_][\p{L}\p{N}_-]{0,98})(?![\p{L}\p{N}])/giu;
 
 interface Clock {
+  readonly durationMinutes?: number;
+  readonly rangeEnd?: Clock;
   readonly hour: number;
   readonly minute: number;
 }
@@ -254,6 +256,7 @@ const builtinMatchers: readonly Matcher[] = [
   matchMonthWord,
   matchWeekday,
   matchOffset,
+  matchTimeRange,
   matchDayPart,
   matchMeridiem,
   matchAmPm,
@@ -491,6 +494,34 @@ function matchOffset(
       },
     };
   });
+}
+
+/** RF-102: ranges are one span, so the end time never leaks into the title. */
+function rangeClock(match: RegExpExecArray): Clock | null {
+  const start = clockFrom(match[1], match[2], match[3]);
+  const end = clockFrom(match[4], match[5], match[6]);
+  if (start === null || end === null) return null;
+  const durationMinutes = (end.hour - start.hour) * 60 + end.minute - start.minute;
+  if (durationMinutes <= 0 || durationMinutes > 24 * 60) return null;
+  return { ...start, durationMinutes, rangeEnd: end };
+}
+
+function matchTimeRange(
+  text: string,
+  from: number,
+  _language: QuickAddLanguage,
+  clock: ClockContext | null,
+): Found | null {
+  if (clock === null) return null;
+  return scan(
+    text,
+    from,
+    /(?<![\p{L}\p{N}])(?:(?:de|from)\s+)?(\d{1,2})(?::(\d{2}))?\s*([ap])?\.?m?\.?\s*(?:[-–]|a|to)\s*(\d{1,2})(?::(\d{2}))?\s*([ap])?\.?m?\.?(?![\p{L}\p{N}:])/giu,
+    (match) => {
+      const range = rangeClock(match);
+      return range === null ? null : looseClock(match.index, match.index + match[0].length, range);
+    },
+  );
 }
 
 function matchDayPart(
@@ -954,6 +985,9 @@ function dateFound(
     end: timed.end,
     kind: 'date',
     apply: (draft) => {
+      if (timed.clock?.durationMinutes !== undefined) {
+        draft.durationMinutes = timed.clock.durationMinutes;
+      }
       draft.dates.push({
         start,
         end: timed.end,
@@ -962,7 +996,7 @@ function dateFound(
         repeatRule,
         weekday,
         resolved: null,
-        slot,
+        slot: timed.clock?.durationMinutes === undefined ? slot : 'when',
       });
     },
   };
@@ -970,6 +1004,14 @@ function dateFound(
 
 function extendWithTime(text: string, from: number): { end: number; clock: Clock | null } {
   const slice = text.slice(from);
+  const range =
+    /^\s+(?:(?:a\s+las|at)\s+)?(?:(?:de|from)\s+)?(\d{1,2})(?::(\d{2}))?\s*([ap])?\.?m?\.?\s*(?:[-–]|a|to)\s*(\d{1,2})(?::(\d{2}))?\s*([ap])?\.?m?\.?(?![\p{L}\p{N}:])/iu.exec(
+      slice,
+    );
+  if (range !== null) {
+    const clock = rangeClock(range);
+    if (clock !== null) return { end: from + range[0].length, clock };
+  }
   const match =
     /^(?:\s+(?:a\s+las|at))?(?:\s+(\d{1,2}):(\d{2})(?:\s*([ap])\.?m\.?)?|\s+(\d{1,2})\s*([ap])\.?m\.?)/iu.exec(
       slice,
@@ -1169,7 +1211,10 @@ function assignSlots(draft: Draft, clock: ClockContext): void {
     const time =
       anchor.clock ?? (draft.clocks.length === 0 ? null : closestClock(anchor, draft.clocks).clock);
     const resolved = anchor.resolved ?? dueForAnchor(anchor, time, clock);
-    if (anchor.slot === 'when') {
+    if (time?.durationMinutes !== undefined) {
+      draft.durationMinutes = rangeDuration(resolved, time, clock.timeZone);
+    }
+    if (anchor.slot === 'when' || time?.durationMinutes !== undefined) {
       draft.start = resolved;
       sawWhen = true;
     } else {
@@ -1205,12 +1250,29 @@ function settleBareClock(draft: Draft, clock: ClockContext): QuickAddSpan[] {
     { ...day, hour: chosen.clock.hour, minute: chosen.clock.minute, second: 0 },
     clock.timeZone,
   );
-  draft.due = date === null ? null : { date, isAllDay: false };
+  const resolved = date === null ? null : { date, isAllDay: false };
+  if (chosen.clock.durationMinutes !== undefined) {
+    draft.start = resolved;
+    draft.durationMinutes = rangeDuration(resolved, chosen.clock, clock.timeZone);
+  } else {
+    draft.due = resolved;
+  }
   draft.repeatRule = null;
   finishCapture(draft);
   return draft.clocks
     .filter((item) => item !== chosen)
     .map((item) => ({ start: item.start, end: item.end, kind: 'date' as const }));
+}
+
+/** The elapsed duration must still end at the requested wall time across DST. */
+function rangeDuration(start: QuickAddDue | null, time: Clock, timeZone: string): number | null {
+  if (start === null || time.rangeEnd === undefined) return null;
+  const day = wallClock(start.date, timeZone);
+  if (day === null) return null;
+  const end = instantFromWall({ ...day, ...time.rangeEnd, second: 0 }, timeZone);
+  if (end === null) return null;
+  const minutes = (Date.parse(end) - Date.parse(start.date)) / 60_000;
+  return minutes > 0 && minutes <= 24 * 60 ? minutes : null;
 }
 
 function dueForAnchor(
