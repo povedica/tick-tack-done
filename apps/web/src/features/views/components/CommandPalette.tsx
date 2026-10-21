@@ -5,6 +5,7 @@ import { useEffect, useId, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useMessages, type Messages } from '../../../i18n';
 import { viewsApi } from '../api';
+import { ErrorState, SkeletonRows } from '../../../components/ui';
 
 export function CommandPalette({ onClose }: { readonly onClose: () => void }) {
   const messages = useMessages();
@@ -52,6 +53,26 @@ export function CommandPalette({ onClose }: { readonly onClose: () => void }) {
             setQuery(event.target.value);
           }}
         />
+        {query.trim().length > 0 && search.isPending ? <SkeletonRows /> : null}
+        {query.trim().length > 0 && search.isError ? (
+          <ErrorState
+            title={messages.paletteLoadFailed}
+            retryLabel={messages.retry}
+            onRetry={() => {
+              runAction(search.refetch());
+            }}
+          />
+        ) : null}
+        {query.trim().length === 0 && projects.isPending ? <SkeletonRows /> : null}
+        {query.trim().length === 0 && projects.isError ? (
+          <ErrorState
+            title={messages.paletteLoadFailed}
+            retryLabel={messages.retry}
+            onRetry={() => {
+              runAction(projects.refetch());
+            }}
+          />
+        ) : null}
         <ul className="task-list">
           <li>
             <button

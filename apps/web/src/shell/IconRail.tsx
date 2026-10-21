@@ -56,6 +56,9 @@ export function IconRail({
     staleTime: 60_000,
   });
   const badge = overdue.data ?? 0;
+  const overdueLabel = overdue.isError
+    ? `${messages.overdueLoadFailed} ${messages.retry}`
+    : messages.overdueTitle;
   const focusLabel =
     focus === null
       ? messages.navFocus
@@ -86,9 +89,14 @@ export function IconRail({
       <button
         type="button"
         className="rail-bell"
-        aria-label={messages.overdueTitle}
-        title={messages.overdueTitle}
+        aria-label={overdueLabel}
+        title={overdueLabel}
+        aria-busy={overdue.isFetching}
         onClick={() => {
+          if (overdue.isError) {
+            runAction(overdue.refetch());
+            return;
+          }
           runAction(Promise.resolve(navigate('/today', { state: { scrollTo: 'overdue' } })));
           window.setTimeout(() => {
             document
@@ -98,7 +106,15 @@ export function IconRail({
         }}
       >
         <AlertTriangle size={20} aria-hidden="true" />
-        {badge > 0 ? (
+        {overdue.isError ? (
+          <span className="rail-badge" aria-hidden="true">
+            !
+          </span>
+        ) : overdue.isPending ? (
+          <span className="rail-badge" aria-hidden="true">
+            …
+          </span>
+        ) : badge > 0 ? (
           <span className="rail-badge">{badge > 99 ? '99+' : String(badge)}</span>
         ) : null}
       </button>

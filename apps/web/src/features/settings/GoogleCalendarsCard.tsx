@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { api } from '../../api';
-import { Button } from '../../components/ui';
+import { Button, ErrorState, SkeletonRows } from '../../components/ui';
 import { useMessages, type Messages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
 import { dotStyle } from '../calendar/ExternalEvent';
@@ -60,6 +60,24 @@ export function GoogleCalendarsCard() {
     mutationFn: (id: string) => api.refreshCalendarSubscription(id),
     onSuccess: refresh,
   });
+  if (google.data === undefined) {
+    return (
+      <section className="token-panel" aria-label={messages.googleCalendars}>
+        <h2>{messages.googleCalendars}</h2>
+        {google.isPending ? (
+          <SkeletonRows />
+        ) : (
+          <ErrorState
+            title={messages.calendarLoadFailed}
+            retryLabel={messages.retry}
+            onRetry={() => {
+              runAction(google.refetch());
+            }}
+          />
+        )}
+      </section>
+    );
+  }
   if (!connected) {
     return (
       <section className="token-panel">
@@ -85,7 +103,29 @@ export function GoogleCalendarsCard() {
           ) : null}
         </div>
       </div>
-      {calendars.length === 0 && subscriptions.length === 0 ? (
+      {remote.isPending || local.isPending ? <SkeletonRows /> : null}
+      {local.isError ? (
+        <ErrorState
+          title={messages.calendarLoadFailed}
+          retryLabel={messages.retry}
+          onRetry={() => {
+            runAction(local.refetch());
+          }}
+        />
+      ) : null}
+      {remote.isError ? (
+        <ErrorState
+          title={messages.calendarLoadFailed}
+          retryLabel={messages.retry}
+          onRetry={() => {
+            runAction(remote.refetch());
+          }}
+        />
+      ) : null}
+      {remote.isSuccess &&
+      local.isSuccess &&
+      calendars.length === 0 &&
+      subscriptions.length === 0 ? (
         <p className="token-empty">{messages.externalEmptyTitle}</p>
       ) : null}
       {calendars.map((calendar) => {

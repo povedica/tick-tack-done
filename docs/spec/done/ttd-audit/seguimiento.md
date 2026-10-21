@@ -35,7 +35,7 @@ siguen el orden de prioridad de la petición; no se consideran cerrados.
 | TTD-AUD-28 | corregido | [#66](https://github.com/povedica/tick-tack-done/pull/66)                                                            | runAction común aplicado a promesas UI sin rechazo; MutationCache global, avisos accesibles ES/EN, rollback y respaldo unhandledrejection; lint no admite void como escape. |
 | TTD-AUD-29 | externo pendiente de validar | [#71](https://github.com/povedica/tick-tack-done/pull/71) | Sesión caducada: implementado por Cursor; no se duplica ni se considera validado en #73. |
 | TTD-AUD-30 | externo pendiente de validar | [#71](https://github.com/povedica/tick-tack-done/pull/71) | Boundary por ruta: implementado por Cursor; no se duplica ni se considera validado en #73. |
-| TTD-AUD-31 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
+| TTD-AUD-31 | parcial | [#73](https://github.com/povedica/tick-tack-done/pull/73), [#71](https://github.com/povedica/tick-tack-done/pull/71) | #73 paleta y ajustes de calendario; #71 foco/filtros/matriz/cuentas atrás/funcionalidades/jornada. Rail: contador no disponible y reintento. Pendiente validar combinación. |
 | TTD-AUD-32 | externo pendiente de validar | [#71](https://github.com/povedica/tick-tack-done/pull/71) | Confirmaciones y plurales: implementado por Cursor; no se duplica ni se considera validado en #73. |
 | TTD-AUD-33 | externo pendiente de validar | [#71](https://github.com/povedica/tick-tack-done/pull/71) | Navegación móvil: implementado por Cursor; no se duplica ni se considera validado en #73. |
 | TTD-AUD-34 | corregido parcialmente | [#73](https://github.com/povedica/tick-tack-done/pull/73) | Reproducida petición /me prematura en login; sincronización montada solo dentro de AppShell autenticado. Pendiente confirmar los cuatro errores originales en despliegue. |
@@ -367,3 +367,24 @@ modelo ni eventos. Complementa el requisito transversal de autenticación de 10.
   accesibles de los cuatro componentes Ticky.
 - 120 tests web, ESLint y TypeScript web en verde. Quedan pendientes las razones
   estructuradas de Control y la combinación con cuentas atrás de #71.
+
+## TTD-AUD-31: paleta y calendario
+
+- Paleta: esqueleto y error con Reintentar tanto al cargar listas como al buscar;
+  un 503 no se presenta como ausencia de resultados. La regresión también confirmó
+  que la lista subyacente interceptaba el clic en Reintentar: la capa fija de la
+  paleta usa ahora el nivel de modal existente (50).
+- Ajustes de calendario: estados de proyectos, feeds y Google con reintento;
+  creación deshabilitada si no se han cargado las listas. No se muestra una píldora
+  de desconexión cuando falla la consulta de estado.
+- Calendarios Google: carga/error al consultar conexión, calendarios y suscripciones;
+  vacío solo cuando ambas consultas terminan correctamente. Datos cacheados se
+  conservan al refrescar, sin esqueleto que los sustituya.
+- Chromium verifica 503 y recuperación en búsqueda, feeds y Google; confirma que
+  el botón de la paleta recibe el clic y aparecen los resultados tras reintentar.
+  ESLint y TypeScript web en verde. Sin API, eventos ni modelo nuevos; RF-1502 y
+  RF-2004, sobre endpoints públicos existentes.
+
+El rail distingue carga (…) y error (!) de un contador real; el nombre accesible
+explica el fallo y ofrece Reintentar desde el mismo botón. La prueba fallaba antes
+por no existir ese estado y recupera el contador 1 tras reintentar. RF-901.

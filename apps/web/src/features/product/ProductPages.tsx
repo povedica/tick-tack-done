@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
-import { Button } from '../../components/ui';
+import { Button, ErrorState, SkeletonRows } from '../../components/ui';
 import {
   GoogleAccessActions,
   googleAuthorizationUrl,
@@ -226,11 +226,21 @@ export function CalendarSettings() {
             <p>{messages.calendarFeedHint}</p>
           </div>
         </div>
+        {projects.isPending ? <SkeletonRows /> : null}
+        {projects.isError ? (
+          <ErrorState
+            title={messages.calendarLoadFailed}
+            retryLabel={messages.retry}
+            onRetry={() => {
+              runAction(projects.refetch());
+            }}
+          />
+        ) : null}
         <form
           className="token-form"
           onSubmit={(event) => {
             event.preventDefault();
-            if (projectId.length === 0) {
+            if (projectId.length === 0 || !projects.isSuccess) {
               return;
             }
             runAction(
@@ -248,6 +258,7 @@ export function CalendarSettings() {
           <select
             id="calendar-list"
             className="token-name is-short"
+            disabled={!projects.isSuccess}
             value={projectId}
             onChange={(event) => {
               setPicked(event.target.value);
@@ -259,7 +270,12 @@ export function CalendarSettings() {
               </option>
             ))}
           </select>
-          <Button type="submit" variant="primary" size="sm" disabled={projectId.length === 0}>
+          <Button
+            type="submit"
+            variant="primary"
+            size="sm"
+            disabled={projectId.length === 0 || !projects.isSuccess}
+          >
             {messages.feedCreate}
           </Button>
         </form>
@@ -293,6 +309,16 @@ export function CalendarSettings() {
             <p>{messages.calendarFeedHint}</p>
           </div>
         </div>
+        {feeds.isPending ? <SkeletonRows /> : null}
+        {feeds.isError ? (
+          <ErrorState
+            title={messages.calendarLoadFailed}
+            retryLabel={messages.retry}
+            onRetry={() => {
+              runAction(feeds.refetch());
+            }}
+          />
+        ) : null}
         {feeds.isSuccess && feedRows.length === 0 ? (
           <p className="token-empty">{messages.feedEmptyList}</p>
         ) : null}
@@ -387,7 +413,7 @@ export function CalendarSettings() {
             <h2 id="calendar-google-title">Google</h2>
             <p>{messages.calendarGoogleHint}</p>
           </div>
-          {google.isFetched ? (
+          {google.data !== undefined ? (
             <StatusPill
               on={googleOn}
               onLabel={messages.integrationConnected}
@@ -397,6 +423,16 @@ export function CalendarSettings() {
             />
           ) : null}
         </div>
+        {google.isPending ? <SkeletonRows /> : null}
+        {google.isError ? (
+          <ErrorState
+            title={messages.calendarLoadFailed}
+            retryLabel={messages.retry}
+            onRetry={() => {
+              runAction(google.refetch());
+            }}
+          />
+        ) : null}
         {text(google.data?.account).length > 0 ? (
           <p className="token-meta">{text(google.data?.account)}</p>
         ) : null}

@@ -1,6 +1,85 @@
 import { expect, test, type Page } from '@playwright/test';
 import { renderedContrast } from './contrast';
 
+test('TTD-AUD-31: rail shows unavailable overdue count and retries', async ({ page }) => {
+  await fixtures(page);
+  let fail = true;
+  await page.route('**/api/v1/tasks?*', (route) => {
+    if (new URL(route.request().url()).searchParams.get('overdue') !== 'true')
+      return route.fallback();
+    return route.fulfill(
+      fail ? { status: 503, json: {} } : { json: { items: [task], next_cursor: null } },
+    );
+  });
+  await page.goto('/today');
+  const retry = page
+    .locator('.icon-rail')
+    .getByRole('button', { name: 'No se pudo consultar las vencidas. Reintentar', exact: true });
+  await expect(retry).toBeVisible();
+  fail = false;
+  await retry.click();
+  await expect(page.locator('.rail-bell .rail-badge')).toHaveText('1');
+});
+
+test('TTD-AUD-31: calendar errors are retriable and do not claim disconnected or empty', async ({
+  page,
+}) => {
+  await fixtures(page);
+  let fail = true;
+  await page.route('**/api/v1/calendar/feeds', (route) =>
+    route.fulfill(fail ? { status: 503, json: {} } : { json: { items: [] } }),
+  );
+  await page.route('**/api/v1/integrations/google', (route) =>
+    route.fulfill(
+      fail ? { status: 503, json: {} } : { json: { connected: false, configured: true } },
+    ),
+  );
+  await page.goto('/settings/calendar');
+  const feeds = page.getByRole('region', { name: 'Feeds activos', exact: true });
+  const google = page.getByRole('region', { name: 'Calendarios de Google', exact: true });
+  await expect(feeds.getByRole('alert')).toBeVisible();
+  await expect(google.getByRole('alert')).toBeVisible();
+  await expect(
+    page.getByRole('region', { name: 'Google', exact: true }).locator('.token-pill'),
+  ).toHaveCount(0);
+  await expect(feeds.locator('.token-empty')).toHaveCount(0);
+  fail = false;
+  await feeds.getByRole('button', { name: 'Reintentar' }).click();
+  await google.getByRole('button', { name: 'Reintentar' }).click();
+  await expect(feeds.getByRole('alert')).toHaveCount(0);
+  await expect(google.getByRole('alert')).toHaveCount(0);
+  await expect(feeds.locator('.token-empty')).toHaveCount(1);
+});
+
+test('TTD-AUD-31: failed palette search offers retry instead of an empty result', async ({
+  page,
+}) => {
+  await fixtures(page);
+  let fail = true;
+  await page.route('**/api/v1/search?*', (route) =>
+    route.fulfill(
+      fail
+        ? { status: 503, json: {} }
+        : {
+            json: {
+              text: 'audit',
+              groups: [{ type: 'task', items: [{ id: 'found', title: 'Found after retry' }] }],
+            },
+          },
+    ),
+  );
+  await page.goto('/today');
+  await expect(page.locator('.shell')).toBeVisible();
+  await page.keyboard.press('Control+k');
+  const dialog = page.getByRole('dialog', { name: 'Buscar', exact: true });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('textbox').fill('audit');
+  await expect(dialog.getByRole('alert')).toBeVisible();
+  fail = false;
+  await dialog.getByRole('button', { name: 'Reintentar', exact: true }).click({ timeout: 3000 });
+  await expect(dialog).toContainText('Found after retry');
+});
+
 test('TTD-AUD-27: Today deadline hints follow English locale', async ({ page }) => {
   await fixtures(page, { locale: 'en', dueDate: '2026-10-20T15:00:00Z' });
   await page.goto('/today');
