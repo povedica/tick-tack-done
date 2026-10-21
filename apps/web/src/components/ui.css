@@ -695,17 +695,6 @@
   color: color-mix(in srgb, var(--ink) 35%, transparent);
 }
 
-.year-day.is-today .year-num {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.35rem;
-  height: 1.35rem;
-  border-radius: var(--radius-full);
-  background: var(--accent);
-  color: var(--ink-inverse);
-}
-
 .year-marks {
   display: flex;
   gap: 2px;
@@ -2359,17 +2348,6 @@
   text-align: center;
 }
 
-.cal-cell.is-today strong {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: var(--radius-full);
-  background: var(--accent);
-  color: var(--ink-inverse);
-}
-
 .cal-cell.is-outside > strong {
   color: var(--ink-3);
 }
@@ -2456,19 +2434,6 @@ a.link:hover {
 
 .hour-headers h2.is-today {
   color: var(--accent);
-}
-
-.hour-headers h2.is-today span {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 1.75rem;
-  padding: 0 6px;
-  margin: 2px auto 0;
-  border-radius: 999px;
-  background: var(--accent);
-  color: var(--ink-inverse);
-  line-height: 1.5rem;
 }
 
 .hour-allday-label {
@@ -2800,10 +2765,6 @@ a.link:hover {
   .calendar-year .year-day {
     min-height: 1.35rem;
   }
-  .calendar-year .year-day.is-today .year-num {
-    width: 1.15rem;
-    height: 1.15rem;
-  }
 }
 
 .detail-panel .detail-check li {
@@ -2977,4 +2938,70 @@ a.link:hover {
 }
 .consent-redirect {
   overflow-wrap: anywhere;
+}
+
+/* TTD-AUD-75.7: the day number itself owns the circle in every surface. */
+.today-mark {
+  display: inline-grid;
+  place-items: center;
+  box-sizing: border-box;
+  inline-size: var(--today-mark-size);
+  block-size: var(--today-mark-size);
+  padding: 0;
+  border-radius: 50%;
+  aspect-ratio: 1;
+  background: var(--today-mark-bg);
+  color: var(--today-mark-ink);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.hour-headers {
+  --today-mark-size: var(--today-size-header);
+}
+.cal-cell {
+  --today-mark-size: var(--today-size-month);
+}
+.year-day {
+  --today-mark-size: var(--today-size-year);
+}
+.calendar-mini-day {
+  --today-mark-size: var(--today-size-mini);
+}
+.week-calendar-grid,
+.calendar-jump-grid {
+  --today-mark-size: var(--today-size-picker);
+}
+.calendar-page .hour-headers h2 > .today-mark {
+  font-size: var(--fs-md);
+  line-height: 1;
+  min-width: 0;
+}
+.week-calendar-grid button .today-mark,
+.calendar-page .year-num.today-mark {
+  width: var(--today-mark-size);
+  height: var(--today-mark-size);
+  background: var(--today-mark-bg);
+  color: var(--today-mark-ink);
+  outline: none;
+}
+.calendar-mini-day:hover .today-mark,
+.cal-cell button:hover .today-mark,
+.cal-cell a:hover .today-mark {
+  background: var(--today-mark-hover-bg);
+}
+@media (max-width: 1023px) {
+  .hour-headers {
+    --today-mark-size: var(--today-size-header-mobile);
+  }
+  .cal-cell {
+    --today-mark-size: var(--today-size-month-mobile);
+  }
+  .calendar-mini-day {
+    --today-mark-size: var(--today-size-mini-mobile);
+  }
+  .week-calendar-grid,
+  .calendar-jump-grid {
+    --today-mark-size: var(--today-size-picker-mobile);
+  }
 }

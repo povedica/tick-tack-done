@@ -915,11 +915,6 @@
   color: var(--ink-faint);
 }
 
-.calendar-mini-day.is-today {
-  background: var(--accent-soft);
-  font-weight: 600;
-}
-
 .calendar-mini-day:hover {
   background: var(--surface-2);
 }

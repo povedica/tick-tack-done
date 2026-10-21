@@ -1,3 +1,5 @@
+import { TodayMark } from '../../components/period/TodayMark';
+import { useCalendarToday } from '../../components/period/useCalendarToday';
 import { QuickAddPopover } from '../capture/components/QuickAddPopover';
 import { allDaySlot, type CalendarSlot, type SlotAnchor } from '../capture/calendar-slot';
 import { runAction } from '../../components/run-action';
@@ -957,7 +959,7 @@ function DayGrid({
       observer.disconnect();
     };
   }, [days, tasks, events]);
-  const todayKey = localKey(new Date());
+  const todayKey = useCalendarToday();
   const weekday = new Intl.DateTimeFormat(locale, { weekday: 'short' });
   const heads = Array.from({ length: columns }, (_, index) =>
     weekday.format(days[index] ?? cursor),
@@ -1079,10 +1081,12 @@ function DayGrid({
                       onPick(key);
                     }}
                   >
-                    {day.getDate()}
+                    <TodayMark today={key === todayKey}>{day.getDate()}</TodayMark>
                   </button>
                 ) : (
-                  <Link to={href}>{day.getDate()}</Link>
+                  <Link to={href}>
+                    <TodayMark today={key === todayKey}>{day.getDate()}</TodayMark>
+                  </Link>
                 )}
               </strong>
               <span className="cal-dots" aria-hidden="true">
@@ -1210,7 +1214,7 @@ function YearBoard({
 }) {
   const locale = useAppLocale();
   const messages = useMessages();
-  const todayKey = localKey(new Date());
+  const todayKey = useCalendarToday();
   const monthName = new Intl.DateTimeFormat(locale, { month: 'long' });
   const weekday = new Intl.DateTimeFormat(locale, { weekday: 'narrow' });
   const sample = monthCells(new Date(year, 0, 1), weekStart);
@@ -1275,7 +1279,9 @@ function YearBoard({
                       aria-current={key === todayKey ? 'date' : undefined}
                       aria-label={`${when}, ${String(tasksOnCell(tasks, day).length + eventsOnDay(events, day).length)} ${tasksOnCell(tasks, day).length + eventsOnDay(events, day).length === 1 ? messages.calendarItem : messages.calendarItems}`}
                     >
-                      <span className="year-num">{day.getDate()}</span>
+                      <TodayMark className="year-num" today={key === todayKey}>
+                        {day.getDate()}
+                      </TodayMark>
                       <span className="year-marks" aria-hidden="true">
                         {marks.map((color, index) => (
                           <i key={`${color}-${String(index)}`} style={{ background: color }} />
@@ -1330,7 +1336,7 @@ function Agenda({
   const cache = useQueryClient();
   const [pending, setPending] = useState<ReadonlySet<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
-  const todayKey = localKey(new Date());
+  const todayKey = useCalendarToday();
   type Item =
     | { kind: 'task'; task: Task; time: string }
     | { kind: 'event'; event: ExternalEventView; time: string };

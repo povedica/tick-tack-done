@@ -3,6 +3,7 @@ import type { es } from './es';
 
 export const en = {
   accountProgressLabel: 'Streak {days}. Control {score}, {state}',
+  calendarTodayLabel: '{date}, today',
   accountProgress: 'Your progress',
   streakActiveDot: 'Active streak: {days}',
   controlScoreOf: '{score} out of 100',

@@ -179,3 +179,29 @@ reclasifica como verificado por las pruebas de este corte. Ticky F1–F10 queda 
   pasó aislado y en la repetición completa). OpenAPI regenerado sin diff.
   Lint del monorepo: API/domain/SDK correctos; los errores de lint del nuevo menú
   se corrigieron y se comprueba de nuevo web antes del commit.
+
+
+### Corte 75.7 — RF-604: hoy circular y fecha de cuenta
+
+- `TodayMark` aplica `.today-mark`, `data-today` y `aria-current="date"` al número
+  en HourGrid (Día/Semana/Varios días), Mes/Varias semanas, Año/Trimestre,
+  minicalendario, CalendarJump y WeekPicker. Se retiran los rellenos/aros
+  independientes. Dimensiones por contexto en tokens de ambos temas; blanco
+  `--on-accent` sobre `--today-mark-bg`, sin padding horizontal en el círculo.
+- `useCalendarToday` usa la zona de la cuenta (por defecto Europe/Madrid), programa
+  la siguiente medianoche local y se refresca al recuperar foco/visibilidad.
+  No presupone días de 24 horas. También corrige la fecha de hoy de Agenda.
+- Tres unitarios significativos: día de Madrid antes de medianoche UTC y próxima
+  medianoche en los días de 25/23 horas. Suite web Node 26: 170 correctos.
+- Dos recorridos Playwright (1280×800 y 390×844), API simulada, navegador en
+  America/New_York: paso 21→22 a medianoche Madrid sin recargar; forma circular
+  ±0,5 px, radio 50 %, texto blanco y contraste ≥4,5 en seis acentos × claro/oscuro
+  de cabecera; círculo también en Mes, Año y selector CalendarJump.
+  El test de navegador falló antes del cambio. Una regla heredada de min-width
+  deformaba el círculo móvil en 2 px: se detectó y corrigió su prioridad.
+- Regresión del corte 77: los cuatro recorridos siguen correctos tras tocar CSS
+  compartido. Total del pase dirigido: seis recorridos correctos.
+- Lint/typecheck web correctos. Sin cambios de API ni dominio; OpenAPI permanece
+  igual al regenerado del corte anterior. No se declara validado el backend real
+  ni el Reporte semanal en navegador: WeekPicker usa el componente compartido,
+  pero el navegador compartido completo sigue pendiente en 75.11.

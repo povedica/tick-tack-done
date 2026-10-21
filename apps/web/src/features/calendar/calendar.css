@@ -157,16 +157,6 @@
 .calendar-page .cal-dots {
   flex-wrap: wrap;
 }
-.calendar-page .cal-cell.is-today strong > button,
-.calendar-page .cal-cell.is-today strong > a {
-  display: inline-grid;
-  place-items: center;
-  min-width: 24px;
-  min-height: 24px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: var(--on-accent);
-}
 .calendar-page .year-board {
   align-items: start;
   grid-auto-rows: auto;
@@ -182,15 +172,6 @@
 .calendar-page .year-day.is-today {
   background: transparent;
   color: var(--ink);
-}
-.calendar-page .year-day.is-today .year-num {
-  display: grid;
-  place-items: center;
-  min-width: 23px;
-  min-height: 23px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: var(--on-accent);
 }
 .calendar-page .year-dow {
   align-items: center;
@@ -210,11 +191,6 @@
   font-size: 20px;
   line-height: 28px;
   min-width: 28px;
-}
-.calendar-page .hour-headers h2.is-today > span {
-  background: var(--accent);
-  color: var(--on-accent);
-  border-radius: 50%;
 }
 .calendar-page .hour-allday {
   gap: 3px;

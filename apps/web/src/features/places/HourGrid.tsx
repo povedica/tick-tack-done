@@ -1,3 +1,5 @@
+import { TodayMark } from '../../components/period/TodayMark';
+import { useCalendarToday } from '../../components/period/useCalendarToday';
 import {
   allDaySlot,
   slotFromPoint,
@@ -109,7 +111,7 @@ export function HourGrid({
     { length: GRID_END_HOUR - GRID_START_HOUR },
     (_, index) => GRID_START_HOUR + index,
   );
-  const today = localKey(new Date());
+  const today = useCalendarToday(timeZone);
   const widths = days.map((day) => {
     const key = localKey(day);
     const intervals = [
@@ -169,9 +171,20 @@ export function HourGrid({
       <div ref={header} className="hour-headers" style={columns}>
         <span />
         {days.map((day) => (
-          <h2 key={localKey(day)} className={localKey(day) === today ? 'is-today' : undefined}>
+          <h2
+            key={localKey(day)}
+            className={localKey(day) === today ? 'is-today' : undefined}
+            aria-label={
+              localKey(day) === today
+                ? messages.calendarTodayLabel.replace(
+                    '{date}',
+                    day.toLocaleDateString(locale, { dateStyle: 'full' }),
+                  )
+                : undefined
+            }
+          >
             <small>{day.toLocaleDateString(locale, { weekday: 'short' })}</small>
-            <span>{day.getDate()}</span>
+            <TodayMark today={localKey(day) === today}>{day.getDate()}</TodayMark>
           </h2>
         ))}
       </div>

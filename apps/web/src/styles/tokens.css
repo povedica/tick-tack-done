@@ -1,4 +1,18 @@
 :root {
+  --today-mark-bg: color-mix(in srgb, var(--accent) 88%, black);
+  --today-mark-ink: var(--on-accent);
+  --today-mark-hover-bg: color-mix(in srgb, var(--today-mark-bg) 90%, white);
+  --today-mark-size: 1.75rem;
+  --today-size-header: 1.75rem;
+  --today-size-header-mobile: 1.625rem;
+  --today-size-month: 1.375rem;
+  --today-size-month-mobile: 1.25rem;
+  --today-size-mini: 1.375rem;
+  --today-size-mini-mobile: 1.75rem;
+  --today-size-picker: 1.5rem;
+  --today-size-picker-mobile: 2rem;
+  --today-size-year: 1.25rem;
+
   --account-menu-w: 16rem;
   --account-menu-z: 2000;
   --account-sheet-max-h: 85dvh;
@@ -143,6 +157,20 @@
 }
 
 [data-theme='dark'] {
+  --today-mark-bg: color-mix(in srgb, var(--accent) 88%, black);
+  --today-mark-ink: var(--on-accent);
+  --today-mark-hover-bg: color-mix(in srgb, var(--today-mark-bg) 90%, white);
+  --today-mark-size: 1.75rem;
+  --today-size-header: 1.75rem;
+  --today-size-header-mobile: 1.625rem;
+  --today-size-month: 1.375rem;
+  --today-size-month-mobile: 1.25rem;
+  --today-size-mini: 1.375rem;
+  --today-size-mini-mobile: 1.75rem;
+  --today-size-picker: 1.5rem;
+  --today-size-picker-mobile: 2rem;
+  --today-size-year: 1.25rem;
+
   --account-menu-w: 16rem;
   --account-menu-z: 2000;
   --account-sheet-max-h: 85dvh;
