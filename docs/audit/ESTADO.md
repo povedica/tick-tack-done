@@ -26,8 +26,8 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-18 | 5 | pendiente | — | |
 | TTD-AUD-19 | 5 | pendiente | — | |
 | TTD-AUD-20 | 5 | pendiente | — | |
-| TTD-AUD-21 | 3 | pendiente | — | |
-| TTD-AUD-22 | 5 | pendiente | — | |
+| TTD-AUD-21 | 3 | corregido | #71 | h1 nowrap; emoji fuera del clamp |
+| TTD-AUD-22 | 5 | corregido | #71 | Tokens dark --countdown-*-bg/ink |
 | TTD-AUD-23 | 5 | pendiente | — | |
 | TTD-AUD-24 | 5 | pendiente | — | |
 | TTD-AUD-25 | 5 | pendiente | — | |
@@ -38,15 +38,15 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-30 | 5 | pendiente | — | |
 | TTD-AUD-31 | 5 | pendiente | — | |
 | TTD-AUD-32 | 5 | pendiente | — | |
-| TTD-AUD-33 | 3 | pendiente | — | Depende de 63 |
+| TTD-AUD-33 | 3 | corregido | #71 | Hoja inferior «Más»; Ticky filtrado; scrim encima |
 | TTD-AUD-34 | 5 | pendiente | — | |
 | TTD-AUD-35 | 4 | verificado en main | #63 | Paginación tokens; no reimplementar |
 | TTD-AUD-36 | 4 | verificado en tests | #71 | tokenExpired + UI pill; token-groups.spec |
 | TTD-AUD-37 | 4 | verificado en main | #62 | OAuth name conflicts; no reimplementar |
 | TTD-AUD-38 | 4 | corregido (parcial) | #71 | Etiquetas método/ruta/resultado + oauth lifecycle; paginación API pendiente |
-| TTD-AUD-39 | 4 | pendiente | — | Depende de 35 |
-| TTD-AUD-40 | 4 | pendiente | — | Depende de 35 |
-| TTD-AUD-41 | 4 | pendiente | — | Depende de 35 |
+| TTD-AUD-39 | 4 | corregido | #71 | Error revoke en banda; 409 nombre tomado |
+| TTD-AUD-40 | 4 | corregido | #71 | aria-live sin secreto; dismiss explícito |
+| TTD-AUD-41 | 4 | corregido | #71 | manage/countdowns/sensitive + scopes.spec |
 | TTD-AUD-42 | 4 | verificado en main | #64 | Consentimiento OAuth; no reimplementar |
 | TTD-AUD-43 | 4 | verificado en main | #65 | Reconexión Google; depende de 47 para testing |
 | TTD-AUD-44 | 4 | pendiente | — | |
@@ -74,8 +74,8 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-66 | 2 | corregido (parcial) | #71 | ViewMenu + prefs por vista; cabecera unificada vía Board |
 | TTD-AUD-67 | 2 | corregido | #71 | Inbox usa Board + ViewMenu; Procesar todo se mantiene |
 | TTD-AUD-68 | 2 | corregido | #71 | Kanban por fecha si no hay secciones; sin «Nueva sección» en smart |
-| TTD-AUD-69 | 2 | pendiente | — | Depende de 66 |
-| TTD-AUD-70 | 3 | pendiente | — | Depende de 58, 66 |
+| TTD-AUD-69 | 2 | corregido | #71 | Toolbar full-width; zoom i18n; locale; start_date |
+| TTD-AUD-70 | 3 | corregido | #71 | page-title ellipsis; badge nowrap; actions shrink-0 |
 | TTD-AUD-71 | 3 | pendiente | — | Depende de 58, 61 |
 | TTD-AUD-72 | 3 | pendiente | — | Depende de 58, 62 |
 | TTD-AUD-73 | 5 | pendiente | — | Depende de 31 |

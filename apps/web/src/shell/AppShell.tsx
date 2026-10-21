@@ -138,6 +138,7 @@ export function AppShell() {
         data-sidebar={sidebarCollapsed ? 'collapsed' : 'expanded'}
         data-section={section}
         data-drawer={drawer ? 'open' : 'closed'}
+        data-drawer-section={drawer ? drawerSection : undefined}
         data-detail={detailOpen ? 'open' : 'closed'}
         style={{ '--detail-w': `${String(detailWidth)}px` } as CSSProperties}
       >

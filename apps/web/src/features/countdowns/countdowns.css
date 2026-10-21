@@ -14,6 +14,8 @@
 }
 .countdown-title-select h1 {
   margin: 0;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .countdown-title-select select {
   border: 0;
@@ -97,47 +99,69 @@
   box-shadow: var(--shadow-sm);
 }
 .countdown-card[data-color='blue'] {
-  background: #e8f0ff;
+  background: var(--countdown-blue-bg, #e8f0ff);
+  color: var(--countdown-blue-ink, inherit);
 }
 .countdown-card[data-color='teal'] {
-  background: #daf5f1;
+  background: var(--countdown-teal-bg, #daf5f1);
+  color: var(--countdown-teal-ink, inherit);
 }
 .countdown-card[data-color='green'] {
-  background: #e3f5df;
+  background: var(--countdown-green-bg, #e3f5df);
+  color: var(--countdown-green-ink, inherit);
 }
 .countdown-card[data-color='lime'] {
-  background: #f0f8d8;
+  background: var(--countdown-lime-bg, #f0f8d8);
+  color: var(--countdown-lime-ink, inherit);
 }
 .countdown-card[data-color='orange'] {
-  background: #fff0d6;
+  background: var(--countdown-orange-bg, #fff0d6);
+  color: var(--countdown-orange-ink, inherit);
 }
 .countdown-card[data-color='red'] {
-  background: #ffebeb;
+  background: var(--countdown-red-bg, #ffebeb);
+  color: var(--countdown-red-ink, inherit);
 }
 .countdown-card[data-color='pink'] {
-  background: #ffe8f0;
+  background: var(--countdown-pink-bg, #ffe8f0);
+  color: var(--countdown-pink-ink, inherit);
 }
 .countdown-card[data-color='purple'] {
-  background: #f1eaff;
+  background: var(--countdown-purple-bg, #f1eaff);
+  color: var(--countdown-purple-ink, inherit);
 }
 .countdown-card[data-color='navy'] {
-  background: #e5ebf9;
+  background: var(--countdown-navy-bg, #e5ebf9);
+  color: var(--countdown-navy-ink, inherit);
 }
 .countdown-card[data-color='brown'] {
-  background: #f4ebe5;
+  background: var(--countdown-brown-bg, #f4ebe5);
+  color: var(--countdown-brown-ink, inherit);
 }
 .countdown-card[data-color='black'] {
-  background: #2c2c2c;
-  color: #fff;
+  background: var(--countdown-black-bg, #2c2c2c);
+  color: var(--countdown-black-ink, #fff);
 }
 .countdown-card[data-color='rainbow'] {
-  background: linear-gradient(135deg, #eaf1ff, #ffedf5, #fff4d9);
+  background: var(
+    --countdown-rainbow-bg,
+    linear-gradient(135deg, #eaf1ff, #ffedf5, #fff4d9)
+  );
+  color: var(--countdown-rainbow-ink, inherit);
 }
 .countdown-card header {
   justify-content: space-between;
+  gap: var(--sp-2);
+}
+.countdown-emoji {
+  flex-shrink: 0;
+  line-height: 1.2;
+  font-size: 1.1em;
 }
 .countdown-title {
   display: -webkit-box;
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   white-space: normal;
   font-weight: 600;

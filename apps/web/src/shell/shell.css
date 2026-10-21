@@ -528,9 +528,62 @@
     display: block;
     position: fixed;
     inset: 0;
-    z-index: 25;
+    z-index: 35;
     border: 0;
     background: rgb(25 25 25 / 0.4);
+  }
+
+  /* TTD-AUD-33: «Más» as a bottom sheet without nested scroll */
+  .shell[data-drawer-section='more'] .sidebar {
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-height: min(78dvh, 36rem);
+    transform: translateY(105%);
+    border-right: 0;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    padding-bottom: calc(var(--sp-4) + env(safe-area-inset-bottom));
+  }
+
+  .shell[data-drawer='open'][data-drawer-section='more'] .sidebar {
+    transform: none;
+    z-index: 40;
+  }
+
+  .shell[data-drawer='open'][data-drawer-section='more'] .sidebar > nav {
+    overflow: visible;
+  }
+
+  .mobile-more-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--sp-2);
+    margin: 0;
+    padding: var(--sp-2) 0;
+    list-style: none;
+  }
+
+  .mobile-more-grid .nav-link {
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--sp-1);
+    min-height: 4.5rem;
+    padding: var(--sp-2);
+    text-align: center;
+  }
+
+  .mobile-more-grid .nav-label {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    font-size: var(--fs-xs);
+  }
+
+  .shell[data-drawer='open'] .mobile-control-bar {
+    visibility: hidden;
   }
 
   .shell[data-detail='open'] > .detail-panel,
@@ -744,13 +797,21 @@
 
 .page-title {
   display: flex;
+  flex: 1;
   align-items: center;
   gap: 4px;
   min-width: 0;
 }
 
+.page-title h1 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .page-actions {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 2px;
 }

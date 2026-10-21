@@ -1,6 +1,7 @@
 import { runAction } from '../../../components/run-action';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { ApiError } from '@reflexionia/sdk';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
 import { Button, SkeletonRows } from '../../../components/ui';
 import { fill, useMessages, type Messages } from '../../../i18n';
@@ -52,6 +53,9 @@ export function TokensPage() {
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [revokeError, setRevokeError] = useState<string | null>(null);
+  const [secretCopied, setSecretCopied] = useState(false);
+  const nameRef = useRef<HTMLInputElement>(null);
   const activity = useQuery({
     queryKey: ['token-activity', selected],
     enabled: selected !== null,
@@ -66,6 +70,7 @@ export function TokensPage() {
     mutationFn: () => tokensApi.createToken({ name: name.trim(), scopes }),
     onSuccess: async (created) => {
       setSecret(created.token);
+      setSecretCopied(false);
       setSelected(created.id);
       setName('');
       setScopes([]);
@@ -73,19 +78,26 @@ export function TokensPage() {
       setError(null);
       await queryClient.invalidateQueries({ queryKey: ['tokens'] });
     },
-    onError: () => {
+    onError: (reason) => {
+      if (reason instanceof ApiError && reason.code === 'token_name_taken') {
+        setError(messages.tokenNameTaken);
+        window.requestAnimationFrame(() => {
+          nameRef.current?.focus();
+        });
+        return;
+      }
       setError(messages.tokenFailed);
     },
   });
   const revoke = useMutation({
     mutationFn: (id: string) => tokensApi.revokeToken(id),
     onSuccess: async () => {
-      setSecret(null);
       setConfirmId(null);
+      setRevokeError(null);
       await queryClient.invalidateQueries({ queryKey: ['tokens'] });
     },
     onError: () => {
-      setError(messages.tokenFailed);
+      setRevokeError(messages.tokenRevokeFailed);
     },
   });
   const items = tokens.data?.pages.flatMap((page) => page.items) ?? [];
@@ -105,9 +117,23 @@ export function TokensPage() {
     try {
       await navigator.clipboard.writeText(value);
       rememberCopy(key);
+      if (key === 'secret') {
+        setSecretCopied(true);
+      }
     } catch {
       setCopied(null);
     }
+  }
+
+  function dismissSecret() {
+    if (!secretCopied && secret !== null) {
+      const ok = window.confirm(messages.tokenSecret);
+      if (!ok) {
+        return;
+      }
+    }
+    setSecret(null);
+    setSecretCopied(false);
   }
 
   return (
@@ -169,9 +195,18 @@ export function TokensPage() {
       </section>
 
       {secret !== null ? (
-        <div className="token-secret" role="status">
-          <p>{messages.tokenSecret}</p>
-          <code>{secret}</code>
+        <div className="token-secret">
+          <p className="sr-only" aria-live="polite">
+            {messages.tokenCreatedOnce}
+          </p>
+          <p aria-hidden="true">{messages.tokenSecret}</p>
+          <input
+            className="token-secret-value"
+            type="text"
+            readOnly
+            value={secret}
+            aria-label={messages.tokenCopySecret}
+          />
           <Button
             type="button"
             size="sm"
@@ -180,6 +215,9 @@ export function TokensPage() {
             }}
           >
             {copied === 'secret' ? messages.copied : messages.tokenCopySecret}
+          </Button>
+          <Button type="button" size="sm" variant="ghost" onClick={dismissSecret}>
+            {messages.tokenDismissSecret}
           </Button>
         </div>
       ) : null}
@@ -217,12 +255,14 @@ export function TokensPage() {
               {messages.tokenName}
             </label>
             <input
+              ref={nameRef}
               id="token-name"
               className="token-name"
               value={name}
               maxLength={80}
               onChange={(event) => {
                 setName(event.target.value);
+                setError(null);
               }}
             />
             <div className="token-resources" role="group" aria-label={messages.tokenScopes}>
@@ -341,7 +381,6 @@ export function TokensPage() {
                       aria-expanded={open}
                       onClick={() => {
                         setSelected(open ? null : token.id);
-                        setSecret(null);
                       }}
                     >
                       {open ? messages.tokenHideActivity : messages.tokenActivity}
@@ -353,6 +392,7 @@ export function TokensPage() {
                         variant="danger"
                         onClick={() => {
                           setConfirmId(token.id);
+                          setRevokeError(null);
                         }}
                       >
                         {messages.tokenRevoke}
@@ -361,7 +401,15 @@ export function TokensPage() {
                   </div>
                   {confirmId === token.id ? (
                     <div className="token-confirm">
-                      <p>{fill(messages.tokenRevokeBody, token.name)}</p>
+                      <p>
+                        {fill(
+                          messages.tokenRevokeBody,
+                          token.client_name ?? token.name,
+                        )}
+                      </p>
+                      {revokeError !== null ? (
+                        <p role="alert">{revokeError}</p>
+                      ) : null}
                       <span className="token-actions">
                         <Button
                           type="button"
@@ -369,6 +417,7 @@ export function TokensPage() {
                           variant="ghost"
                           onClick={() => {
                             setConfirmId(null);
+                            setRevokeError(null);
                           }}
                         >
                           {messages.cancel}
@@ -379,6 +428,7 @@ export function TokensPage() {
                           variant="danger"
                           loading={revoke.isPending}
                           onClick={() => {
+                            setRevokeError(null);
                             revoke.mutate(token.id);
                           }}
                         >

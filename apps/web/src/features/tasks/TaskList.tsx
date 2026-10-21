@@ -9,6 +9,7 @@ import { PriorityCheck } from '../../components/PriorityCheck';
 import { Highlight } from '../../components/Highlight';
 import { Button, TagChip } from '../../components/ui';
 import { fill, type Messages } from '../../i18n';
+import { useAppLocale } from '../../i18n/locale';
 import type { ViewDay } from '../capture/quick-add';
 import { collectTags } from './collect';
 import { refreshTaskSurfaces } from './refresh';
@@ -605,23 +606,44 @@ function Timeline({
   readonly onOpen: (id: string) => void;
 }) {
   const queryClient = useQueryClient();
-  const [zoom, setZoom] = useState<'day' | 'week' | 'month'>('week');
-  const planned = rows.filter((row) => row.dueDate !== null);
-  const loose = rows.filter((row) => row.dueDate === null);
+  const locale = useAppLocale();
+  const [zoom, setZoom] = useState<'day' | 'week' | 'month'>(() => {
+    try {
+      const stored = window.localStorage.getItem('tick-tack-done.timeline.zoom');
+      return stored === 'day' || stored === 'week' || stored === 'month' ? stored : 'week';
+    } catch {
+      return 'week';
+    }
+  });
+  const planned = rows.filter((row) => (row.startDate ?? row.dueDate) !== null);
+  const loose = rows.filter((row) => (row.startDate ?? row.dueDate) === null);
+  const zoomLabel = {
+    day: messages.timelineDay,
+    week: messages.timelineWeek,
+    month: messages.timelineMonth,
+  } as const;
+  const dayFormat = new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric' });
   return (
     <div className="timeline" data-zoom={zoom}>
       <div className="page-toolbar">
         <span>{messages.timelineZoom}</span>
-        {(['day', 'week', 'month'] as const).map((item) => (
-          <Button
-            key={item}
-            onClick={() => {
-              setZoom(item);
-            }}
-          >
-            {item}
-          </Button>
-        ))}
+        <div className="timeline-zoom" role="group" aria-label={messages.timelineZoom}>
+          {(['day', 'week', 'month'] as const).map((item) => (
+            <Button
+              key={item}
+              size="sm"
+              variant="ghost"
+              className={zoom === item ? 'is-on' : undefined}
+              aria-pressed={zoom === item}
+              onClick={() => {
+                setZoom(item);
+                window.localStorage.setItem('tick-tack-done.timeline.zoom', item);
+              }}
+            >
+              {zoomLabel[item]}
+            </Button>
+          ))}
+        </div>
       </div>
       <aside>
         <h3>{messages.unscheduled}</h3>
@@ -665,7 +687,9 @@ function Timeline({
       <div className="timeline-axis">
         {timelineDays(zoom).map((day) => {
           const key = day.toDateString();
-          const items = planned.filter((row) => new Date(row.dueDate ?? '').toDateString() === key);
+          const items = planned.filter(
+            (row) => new Date(row.startDate ?? row.dueDate ?? '').toDateString() === key,
+          );
           return (
             <section
               key={key}
@@ -686,16 +710,17 @@ function Timeline({
                 );
               }}
             >
-              <h3>
-                {new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric' }).format(
-                  day,
-                )}
-              </h3>
+              <h3>{dayFormat.format(day)}</h3>
               {items.map((row) => (
                 <button
                   key={row.id}
                   type="button"
                   className="timeline-bar"
+                  title={shownTitle(
+                    row.title,
+                    row.tags.map((tag) => tag.name),
+                    messages.untitled,
+                  )}
                   onClick={() => {
                     onOpen(row.id);
                   }}
