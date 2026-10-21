@@ -43,7 +43,7 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-35 | 4 | verificado en main | #63 | Paginación tokens; no reimplementar |
 | TTD-AUD-36 | 4 | verificado en tests | #71 | tokenExpired + UI pill; token-groups.spec |
 | TTD-AUD-37 | 4 | verificado en main | #62 | OAuth name conflicts; no reimplementar |
-| TTD-AUD-38 | 4 | pendiente | — | Depende de 35 |
+| TTD-AUD-38 | 4 | corregido (parcial) | #71 | Etiquetas método/ruta/resultado + oauth lifecycle; paginación API pendiente |
 | TTD-AUD-39 | 4 | pendiente | — | Depende de 35 |
 | TTD-AUD-40 | 4 | pendiente | — | Depende de 35 |
 | TTD-AUD-41 | 4 | pendiente | — | Depende de 35 |
@@ -73,7 +73,7 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-65 | 0 | corregido | #71 | taskEventSnapshot + migración strip activity |
 | TTD-AUD-66 | 2 | corregido (parcial) | #71 | ViewMenu + prefs por vista; cabecera unificada vía Board |
 | TTD-AUD-67 | 2 | corregido | #71 | Inbox usa Board + ViewMenu; Procesar todo se mantiene |
-| TTD-AUD-68 | 2 | pendiente | — | Depende de 66 |
+| TTD-AUD-68 | 2 | corregido | #71 | Kanban por fecha si no hay secciones; sin «Nueva sección» en smart |
 | TTD-AUD-69 | 2 | pendiente | — | Depende de 66 |
 | TTD-AUD-70 | 3 | pendiente | — | Depende de 58, 66 |
 | TTD-AUD-71 | 3 | pendiente | — | Depende de 58, 61 |

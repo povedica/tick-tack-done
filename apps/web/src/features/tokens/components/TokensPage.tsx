@@ -392,13 +392,24 @@ export function TokensPage() {
                       {activity.isSuccess && activity.data.items.length === 0 ? (
                         <p className="token-meta">{messages.tokenActivityEmpty}</p>
                       ) : null}
+                      {activity.isPending ? <SkeletonRows /> : null}
+                      {activity.isError ? (
+                        <p role="alert">
+                          {messages.tokenFailed}
+                          <Button
+                            type="button"
+                            onClick={() => {
+                              runAction(activity.refetch());
+                            }}
+                          >
+                            {messages.retry}
+                          </Button>
+                        </p>
+                      ) : null}
                       <ul className="token-activity">
                         {(activity.data?.items ?? []).map((entry) => (
                           <li key={entry.id}>
-                            <span>
-                              {actionLabel(messages, entry.action)} ·{' '}
-                              {entityLabel(messages, entry.entity_type)}
-                            </span>
+                            <span>{activityLine(messages, entry)}</span>
                             <time dateTime={entry.created_at}>
                               {when(entry.created_at, locale)}
                             </time>
@@ -519,6 +530,38 @@ function whenRelative(iso: string, locale: string, messages: Messages): string {
   return when(iso, locale);
 }
 
+function activityLine(
+  messages: Messages,
+  entry: {
+    readonly action: string;
+    readonly entity_type: string;
+    readonly changes?: unknown;
+  },
+): string {
+  const changes =
+    typeof entry.changes === 'object' && entry.changes !== null
+      ? (entry.changes as Record<string, unknown>)
+      : {};
+  if (entry.entity_type === 'http_request') {
+    const method = typeof changes.method === 'string' ? changes.method : 'GET';
+    const path = typeof changes.path === 'string' ? changes.path : '';
+    const outcome =
+      changes.outcome === 'scope_missing'
+        ? messages.tokenOutcomeDenied
+        : changes.outcome === 'rate_limited'
+          ? messages.tokenOutcomeLimited
+          : messages.tokenOutcomeAllowed;
+    return `${method} ${path} · ${outcome}`;
+  }
+  if (entry.entity_type === 'oauth_token') {
+    if (changes.outcome === 'issued') return messages.tokenIssued;
+    if (changes.outcome === 'refreshed') return messages.tokenRefreshed;
+    if (changes.outcome === 'revoked') return messages.tokenRevokedEvent;
+    if (changes.outcome === 'reused') return messages.tokenReuseDetected;
+  }
+  return `${actionLabel(messages, entry.action)} · ${entityLabel(messages, entry.entity_type)}`;
+}
+
 function actionLabel(messages: Messages, action: string): string {
   switch (action) {
     case 'created':
@@ -548,6 +591,8 @@ function entityLabel(messages: Messages, entity: string): string {
       return messages.entityRequest;
     case 'personal_access_token':
       return messages.entityToken;
+    case 'oauth_token':
+      return messages.entityOauthToken;
     default:
       return entity;
   }

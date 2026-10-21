@@ -18,6 +18,7 @@ import { completeBody } from './complete-body';
 import { TaskComposer } from './TaskComposer';
 import { formatTaskRowDate } from './row-date';
 import { isOverdue, isSameDay, type RowModel } from './model';
+import { calendarDay } from '../today/groups';
 
 export function TaskList({
   messages,
@@ -449,11 +450,12 @@ function Kanban({
   const queryClient = useQueryClient();
   const [section, setSection] = useState('');
   const [boardError, setBoardError] = useState<string | null>(null);
+  const dateMode = columns.length === 0;
   const loose = rows.some((row) => row.columnId === null || row.columnId.length === 0);
-  const cols =
-    columns.length === 0
-      ? [{ id: 'none', name: messages.noSection }]
-      : [...columns, ...(loose ? [{ id: 'none', name: messages.noSection }] : [])];
+  const cols = dateMode
+    ? dateKanbanColumns(messages)
+    : [...columns, ...(loose ? [{ id: 'none', name: messages.noSection }] : [])];
+  const now = useMemo(() => new Date(), []);
   return (
     <div className="kanban-wrap">
       {boardError !== null ? (
@@ -464,9 +466,11 @@ function Kanban({
       <div className="kanban">
         {cols.map((column) => {
           const items = rows.filter((row) =>
-            column.id === 'none'
-              ? row.columnId === null || row.columnId.length === 0
-              : row.columnId === column.id,
+            dateMode
+              ? dateBucketOf(row, now) === column.id
+              : column.id === 'none'
+                ? row.columnId === null || row.columnId.length === 0
+                : row.columnId === column.id,
           );
           return (
             <section
@@ -480,8 +484,12 @@ function Kanban({
                 if (id.length === 0) {
                   return;
                 }
+                const row = rows.find((item) => item.id === id);
+                const body = dateMode
+                  ? dateBucketPatch(column.id, row ?? null, now)
+                  : { column_id: column.id === 'none' ? null : column.id };
                 void api
-                  .patchTask(id, { column_id: column.id === 'none' ? null : column.id })
+                  .patchTask(id, body)
                   .then(() => refreshTaskSurfaces(queryClient))
                   .catch((error: unknown) => {
                     if (error instanceof ApiError && error.code === 'wip_exceeded') {
@@ -555,7 +563,7 @@ function Kanban({
             </section>
           );
         })}
-        {projectId !== undefined ? (
+        {projectId !== undefined && !dateMode ? (
           <form
             className="kanban-col kanban-add"
             onSubmit={(event) => {
@@ -870,6 +878,72 @@ function formatRowDate(
 function shownTitle(title: string, tagNames: readonly string[], untitled: string): string {
   const text = displayTitle(title, tagNames);
   return text.length === 0 ? untitled : text;
+}
+
+/** TTD-AUD-68: date columns when the list has no board sections. */
+function dateKanbanColumns(
+  messages: Messages,
+): readonly { readonly id: string; readonly name: string; readonly wip_limit?: number | null }[] {
+  return [
+    { id: 'overdue', name: messages.overdueTitle },
+    { id: 'today', name: messages.navToday },
+    { id: 'tomorrow', name: messages.navTomorrow },
+    { id: 'next7', name: messages.navNext7 },
+    { id: 'later', name: messages.kanbanLater },
+    { id: 'nodate', name: messages.noDate },
+  ];
+}
+
+function dateBucketOf(row: RowModel, now: Date): string {
+  if (row.dueDate === null) {
+    return 'nodate';
+  }
+  const zone = row.timeZone.length > 0 ? row.timeZone : 'UTC';
+  const today = calendarDay(now.toISOString(), zone);
+  const due = calendarDay(row.dueDate, zone);
+  if (due < today) {
+    return 'overdue';
+  }
+  if (due === today) {
+    return 'today';
+  }
+  const tomorrow = calendarDay(
+    new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(),
+    zone,
+  );
+  if (due === tomorrow) {
+    return 'tomorrow';
+  }
+  const weekEnd = calendarDay(
+    new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    zone,
+  );
+  if (due <= weekEnd) {
+    return 'next7';
+  }
+  return 'later';
+}
+
+function dateBucketPatch(
+  bucket: string,
+  row: RowModel | null,
+  now: Date,
+): { due_date: string | null; is_all_day: boolean } {
+  const zone = row?.timeZone && row.timeZone.length > 0 ? row.timeZone : 'UTC';
+  if (bucket === 'nodate') {
+    return { due_date: null, is_all_day: true };
+  }
+  const offsetDays =
+    bucket === 'overdue' || bucket === 'today'
+      ? 0
+      : bucket === 'tomorrow'
+        ? 1
+        : bucket === 'next7'
+          ? 3
+          : 14;
+  const target = new Date(now.getTime() + offsetDays * 24 * 60 * 60 * 1000);
+  const key = calendarDay(target.toISOString(), zone);
+  return { due_date: `${key}T00:00:00.000Z`, is_all_day: true };
 }
 
 function searchSnippet(content: string, query: string): string {
