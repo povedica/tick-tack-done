@@ -97,41 +97,42 @@
   box-shadow: var(--shadow-sm);
 }
 .countdown-card[data-color='blue'] {
-  background: #e8f0ff;
+  background: var(--countdown-blue-bg);
 }
 .countdown-card[data-color='teal'] {
-  background: #daf5f1;
+  background: var(--countdown-teal-bg);
 }
 .countdown-card[data-color='green'] {
-  background: #e3f5df;
+  background: var(--countdown-green-bg);
 }
 .countdown-card[data-color='lime'] {
-  background: #f0f8d8;
+  background: var(--countdown-lime-bg);
 }
 .countdown-card[data-color='orange'] {
-  background: #fff0d6;
+  background: var(--countdown-orange-bg);
 }
 .countdown-card[data-color='red'] {
-  background: #ffebeb;
+  background: var(--countdown-red-bg);
 }
 .countdown-card[data-color='pink'] {
-  background: #ffe8f0;
+  background: var(--countdown-pink-bg);
 }
 .countdown-card[data-color='purple'] {
-  background: #f1eaff;
+  background: var(--countdown-purple-bg);
 }
 .countdown-card[data-color='navy'] {
-  background: #e5ebf9;
+  background: var(--countdown-navy-bg);
 }
 .countdown-card[data-color='brown'] {
-  background: #f4ebe5;
+  background: var(--countdown-brown-bg);
 }
 .countdown-card[data-color='black'] {
-  background: #2c2c2c;
-  color: #fff;
+  background: var(--countdown-black-bg);
+  color: var(--countdown-black-ink);
 }
 .countdown-card[data-color='rainbow'] {
-  background: linear-gradient(135deg, #eaf1ff, #ffedf5, #fff4d9);
+  background-color: var(--countdown-blue-bg);
+  background-image: var(--countdown-rainbow-bg);
 }
 .countdown-card header {
   justify-content: space-between;
@@ -155,21 +156,21 @@
   display: block;
   margin: auto 0 0.4rem;
   text-align: center;
-  color: var(--accent);
+  color: var(--accent-ink);
   font-size: clamp(2.25rem, 5vw, 4rem);
   line-height: 1;
 }
 .countdown-card[data-color='black'] .countdown-number {
-  color: #fff;
+  color: var(--countdown-black-ink);
 }
 .countdown-card p {
   margin: 0;
   text-align: center;
-  color: var(--ink-2);
+  color: var(--ink-3);
   font-size: 0.875rem;
 }
 .countdown-card[data-color='black'] p {
-  color: #e6e6e6;
+  color: var(--countdown-black-muted);
 }
 .countdown-dialog {
   display: grid;

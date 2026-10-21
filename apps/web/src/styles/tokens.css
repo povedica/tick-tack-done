@@ -50,6 +50,26 @@
 
   --focus-ring: #4772fa;
 
+  --countdown-blue-bg: #e8f0ff;
+  --countdown-teal-bg: #daf5f1;
+  --countdown-green-bg: #e3f5df;
+  --countdown-lime-bg: #f0f8d8;
+  --countdown-orange-bg: #fff0d6;
+  --countdown-red-bg: #ffebeb;
+  --countdown-pink-bg: #ffe8f0;
+  --countdown-purple-bg: #f1eaff;
+  --countdown-navy-bg: #e5ebf9;
+  --countdown-brown-bg: #f4ebe5;
+  --countdown-black-bg: #2c2c2c;
+  --countdown-black-ink: #ffffff;
+  --countdown-black-muted: #e6e6e6;
+  --countdown-rainbow-bg: linear-gradient(
+    135deg,
+    var(--countdown-blue-bg),
+    var(--countdown-pink-bg),
+    var(--countdown-orange-bg)
+  );
+
   --font-serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
   --font-sans:
     system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -149,6 +169,17 @@
 
   --focus-ring: #4772fa;
 
+  --countdown-blue-bg: #1b2a45;
+  --countdown-teal-bg: #14332e;
+  --countdown-green-bg: #21351c;
+  --countdown-lime-bg: #30361b;
+  --countdown-orange-bg: #3b2d17;
+  --countdown-red-bg: #3d2222;
+  --countdown-pink-bg: #3d2230;
+  --countdown-purple-bg: #2e2540;
+  --countdown-navy-bg: #202b43;
+  --countdown-brown-bg: #332820;
+
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.2);
   --shadow-md: 0 8px 24px rgb(0 0 0 / 0.28);
   --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.36);
@@ -202,6 +233,31 @@
   --accent-ink: #292524;
   --focus-ring: #44403c;
   --rail-bg: #44403c;
+}
+
+[data-theme='dark'][data-accent='violet'] {
+  --accent-ink: #ddd6fe;
+  --accent-soft: rgb(124 58 237 / 0.28);
+}
+
+[data-theme='dark'][data-accent='teal'] {
+  --accent-ink: #99f6e4;
+  --accent-soft: rgb(20 184 166 / 0.18);
+}
+
+[data-theme='dark'][data-accent='amber'] {
+  --accent-ink: #fde68a;
+  --accent-soft: rgb(245 158 11 / 0.18);
+}
+
+[data-theme='dark'][data-accent='rose'] {
+  --accent-ink: #fecdd3;
+  --accent-soft: rgb(244 63 94 / 0.2);
+}
+
+[data-theme='dark'][data-accent='slate'] {
+  --accent-ink: #e7e5e4;
+  --accent-soft: rgb(168 162 158 / 0.18);
 }
 
 :root[data-density='compact'] {
