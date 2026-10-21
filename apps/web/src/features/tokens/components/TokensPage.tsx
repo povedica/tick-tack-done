@@ -1,5 +1,5 @@
 import { runAction } from '../../../components/run-action';
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router';
 import { Button, SkeletonRows } from '../../../components/ui';
@@ -52,16 +52,23 @@ export function TokensPage() {
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const activity = useQuery({
+  const activity = useInfiniteQuery({
     queryKey: ['token-activity', selected],
     enabled: selected !== null,
-    queryFn: () => {
+    initialPageParam: null as string | null,
+    retry: false,
+    queryFn: ({ pageParam }) => {
       if (selected === null) {
         throw new Error('token');
       }
-      return tokensApi.tokenActivity(selected);
+      return tokensApi.tokenActivity(
+        selected,
+        pageParam === null ? undefined : { cursor: pageParam },
+      );
     },
+    getNextPageParam: (page) => page.next_cursor ?? undefined,
   });
+  const activityItems = activity.data?.pages.flatMap((page) => page.items) ?? [];
   const create = useMutation({
     mutationFn: () => tokensApi.createToken({ name: name.trim(), scopes }),
     onSuccess: async (created) => {
@@ -388,12 +395,17 @@ export function TokensPage() {
                     </div>
                   ) : null}
                   {open ? (
-                    <div>
-                      {activity.isSuccess && activity.data.items.length === 0 ? (
+                    <div
+                      role="region"
+                      aria-label={messages.tokenActivity}
+                      aria-busy={activity.isFetching}
+                    >
+                      {activity.isPending ? <SkeletonRows /> : null}
+                      {activity.isSuccess && activityItems.length === 0 ? (
                         <p className="token-meta">{messages.tokenActivityEmpty}</p>
                       ) : null}
                       <ul className="token-activity">
-                        {(activity.data?.items ?? []).map((entry) => (
+                        {activityItems.map((entry) => (
                           <li key={entry.id}>
                             <span>
                               {actionLabel(messages, entry.action)} ·{' '}
@@ -405,6 +417,36 @@ export function TokensPage() {
                           </li>
                         ))}
                       </ul>
+                      {activity.isError ? (
+                        <p role="alert">
+                          {messages.tokenActivityFailed}
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => {
+                              runAction(
+                                activity.isFetchNextPageError
+                                  ? activity.fetchNextPage()
+                                  : activity.refetch(),
+                              );
+                            }}
+                          >
+                            {messages.retry}
+                          </Button>
+                        </p>
+                      ) : null}
+                      {activity.hasNextPage && !activity.isFetchNextPageError ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          loading={activity.isFetchingNextPage}
+                          onClick={() => {
+                            runAction(activity.fetchNextPage());
+                          }}
+                        >
+                          {messages.tokenLoadMore}
+                        </Button>
+                      ) : null}
                     </div>
                   ) : null}
                 </article>

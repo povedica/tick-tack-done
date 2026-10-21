@@ -126,7 +126,7 @@ export interface ApiClient extends ResourceClient {
   listTokens(query?: PageQuery & { readonly status?: 'active' | 'revoked' }): Promise<TokenPage>;
   createToken(body: CreateTokenBody): Promise<CreatedToken>;
   revokeToken(id: string): Promise<void>;
-  tokenActivity(id: string): Promise<ActivityPage>;
+  tokenActivity(id: string, query?: PageQuery): Promise<ActivityPage>;
   login(body: { email: string; password: string }): Promise<SessionBody>;
   register(body: { email: string; password: string; display_name: string }): Promise<SessionBody>;
   registrationOpen(): Promise<boolean>;
@@ -363,12 +363,12 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         isEmpty,
       );
     },
-    tokenActivity(id) {
+    tokenActivity(id, query) {
       return request(
         call,
         options,
         'GET',
-        `/api/v1/me/tokens/${id}/activity`,
+        `/api/v1/me/tokens/${id}/activity${pageQuery(query)}`,
         undefined,
         undefined,
         isActivityPage,

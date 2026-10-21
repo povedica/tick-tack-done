@@ -182,6 +182,7 @@ export const es = {
   tokenNeverUsed: 'Sin usar',
   tokenActivity: 'Actividad',
   tokenActivityEmpty: 'Este token todavía no ha hecho nada.',
+  tokenActivityFailed: 'No se ha podido cargar la actividad.',
   scopeTasksRead: 'Leer tareas',
   scopeTasksWrite: 'Escribir tareas',
   scopeListsRead: 'Leer listas',

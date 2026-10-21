@@ -1,6 +1,72 @@
 import { expect, test, type Page } from '@playwright/test';
 import { renderedContrast } from './contrast';
 
+test('TTD-AUD-38: activity keeps loaded entries and retries the next page', async ({ page }) => {
+  await fixtures(page);
+  await page.route('**/api/v1/me/tokens?*', (route) =>
+    route.fulfill({
+      json: {
+        items:
+          new URL(route.request().url()).searchParams.get('status') === 'revoked'
+            ? []
+            : [
+                {
+                  id: 'audit-token',
+                  name: 'Audit token',
+                  token_prefix: 'ttd_test',
+                  scopes: ['tasks:read'],
+                  created_at: '2026-10-21T10:00:00Z',
+                  last_used_at: null,
+                  revoked_at: null,
+                  oauth_client_id: null,
+                  client_name: null,
+                  expires_at: null,
+                },
+              ],
+        next_cursor: null,
+        total: 1,
+      },
+    }),
+  );
+  let failInitial = true;
+  let failNext = true;
+  await page.route('**/api/v1/me/tokens/audit-token/activity*', (route) => {
+    const next = new URL(route.request().url()).searchParams.get('cursor');
+    if (next === null && failInitial) return route.fulfill({ status: 503, json: {} });
+    if (next !== null && failNext) return route.fulfill({ status: 503, json: {} });
+    return route.fulfill({
+      json: {
+        items: [
+          {
+            id: next === null ? 'first' : 'second',
+            entity_type: 'task',
+            entity_id: 'task',
+            action: next === null ? 'created' : 'updated',
+            changes: {},
+            created_at: next === null ? '2026-10-21T10:00:00Z' : '2026-10-20T10:00:00Z',
+          },
+        ],
+        next_cursor: next === null ? 'older-page' : null,
+      },
+    });
+  });
+  await page.goto('/settings/tokens');
+  await page.getByRole('button', { name: 'Actividad', exact: true }).click();
+  const activity = page.getByRole('region', { name: 'Actividad' });
+  await expect(activity.getByRole('alert')).toContainText('No se ha podido cargar la actividad.');
+  await expect(activity).not.toContainText('Este token todavía no ha hecho nada.');
+  failInitial = false;
+  await activity.getByRole('button', { name: 'Reintentar' }).click();
+  await expect(activity.locator('li')).toHaveCount(1);
+  await activity.getByRole('button', { name: 'Cargar más' }).click();
+  await expect(activity.getByRole('alert')).toBeVisible();
+  await expect(activity.locator('li')).toHaveCount(1);
+  failNext = false;
+  await activity.getByRole('button', { name: 'Reintentar' }).click();
+  await expect(activity.locator('li')).toHaveCount(2);
+  await expect(activity.getByRole('button', { name: 'Cargar más' })).toHaveCount(0);
+});
+
 for (const theme of ['light', 'dark'] as const) {
   for (const accent of ['indigo', 'violet', 'teal', 'amber', 'rose', 'slate']) {
     test(`TTD-AUD-25: navigation and theme selection retain contrast (${theme}, ${accent})`, async ({

@@ -42,7 +42,7 @@ siguen el orden de prioridad de la petición; no se consideran cerrados.
 | TTD-AUD-35 | corregido | [#63](https://github.com/povedica/tick-tack-done/pull/63)                                                            | Activos y revocados paginados; agrupación por ID de aplicación; recuento del servidor excluye rotaciones automáticas. Reproducido con 80 rotaciones y 56 activos.           |
 | TTD-AUD-36 | corregido | [#63](https://github.com/povedica/tick-tack-done/pull/63)                                                            | Caducidad expuesta desde el modelo existente; estado Caducado en la UI, sin perder la opción de revocar.                                                                    |
 | TTD-AUD-37 | corregido | [#62](https://github.com/povedica/tick-tack-done/pull/62)                                                            | Reproducido PostgreSQL 25P02; nombre interno OAuth único antes del INSERT, sin reintentos en transacción abortada. Tests de reautorización y choque manual.                 |
-| TTD-AUD-38 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
+| TTD-AUD-38 | parcial | [#73](https://github.com/povedica/tick-tack-done/pull/73), [#71](https://github.com/povedica/tick-tack-done/pull/71) | #73 pagina actividad, carga y errores con reintento; #71 aporta etiquetas de peticiones y ciclo de vida, pendientes de integrar y validar. |
 | TTD-AUD-39 | externo pendiente de validar | [#71](https://github.com/povedica/tick-tack-done/pull/71) | Errores de tokens: implementado por Cursor; no se duplica ni se considera validado en #73. |
 | TTD-AUD-40 | externo pendiente de validar | [#71](https://github.com/povedica/tick-tack-done/pull/71) | Accesibilidad del secreto: implementado por Cursor; no se duplica ni se considera validado en #73. |
 | TTD-AUD-41 | corregido | [#64](https://github.com/povedica/tick-tack-done/pull/64)                                                            | Utilidad compartida: Gestionar separado de Escritura, Cuenta atrás en formulario y marca de permisos sensibles.                                                             |
@@ -337,3 +337,16 @@ Validación: ESLint y TypeScript web; 13 regresiones Chromium de login y contras
 (todas las combinaciones de tema/acento). El test de contraste espera el final de
 la aplicación asíncrona de preferencias antes de medir. Sin cambios de contrato,
 modelo ni eventos. Complementa el requisito transversal de autenticación de 10.1.
+
+## TTD-AUD-38: paginación de actividad
+
+- SDK: `tokenActivity(id, {cursor, limit})` conserva la llamada anterior sin opciones
+  y usa los parámetros públicos existentes. La regresión fallaba al perder cursor
+  y límite; los diez tests SDK pasan después del cambio.
+- UI: consulta infinita por token, esqueleto inicial, error ES/EN y Reintentar,
+  Cargar más, `aria-busy` y región con nombre. Un fallo al cargar la página siguiente
+  conserva las entradas previas; Reintentar solicita esa página, sin reiniciar la lista.
+- Chromium reproduce error inicial 503, recuperación, segunda página 503 y nueva
+  recuperación: aparecen las dos entradas, sin duplicados y sin Cargar más al acabar.
+- Sin cambio de API, OpenAPI, modelo ni eventos. RF-2002. La presentación de método,
+  ruta, resultado y ciclo de vida sigue en #71; no se declara cerrado el hallazgo.

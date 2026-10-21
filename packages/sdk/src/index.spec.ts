@@ -12,6 +12,21 @@ function requestUrl(url: Parameters<typeof fetch>[0]): string {
 }
 
 describe('sdk', () => {
+  it('RF-2002: forwards the activity cursor and limit', async () => {
+    const urls: string[] = [];
+    const client = createApiClient({
+      baseUrl: 'http://api.test',
+      fetchImpl: (url) => {
+        urls.push(requestUrl(url));
+        return Promise.resolve(new Response(JSON.stringify({ items: [], next_cursor: null })));
+      },
+    });
+    await client.tokenActivity('token-1', { cursor: 'older/page', limit: 20 });
+    const url = new URL(urls[0] ?? 'http://invalid');
+    expect(url.pathname).toBe('/api/v1/me/tokens/token-1/activity');
+    expect(url.searchParams.get('cursor')).toBe('older/page');
+    expect(url.searchParams.get('limit')).toBe('20');
+  });
   it('keeps the client sourced from OpenAPI', () => {
     expect(SDK_SOURCE).toBe('openapi');
   });

@@ -8,8 +8,7 @@ test('TTD-AUD-34: login loads without unexpected browser errors', async ({ page 
     const expectedSessionProbe =
       message.location().url.endsWith('/api/v1/auth/session') &&
       message.text().includes('401 (Unauthorized)');
-    if (message.type() === 'error' && !expectedSessionProbe)
-      errors.push(message.text());
+    if (message.type() === 'error' && !expectedSessionProbe) errors.push(message.text());
   });
   await page.route('**/api/v1/**', (route) => {
     const path = new URL(route.request().url()).pathname;
