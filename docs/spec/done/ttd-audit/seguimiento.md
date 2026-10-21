@@ -1,6 +1,6 @@
 # Seguimiento de la auditoría TTD
 
-Registro incremental del trabajo solicitado el 21/10/2026. Los hallazgos pendientes
+Registro incremental del trabajo solicitado el 21/10/2026. Por instrucción posterior del usuario, los hallazgos restantes se acumulan en una sola PR con commits y pushes parciales. Los hallazgos pendientes
 siguen el orden de prioridad de la petición; no se consideran cerrados.
 
 | ID         | Estado    | PR                                                                                                                   | Notas                                                                                                                                                                       |
@@ -14,7 +14,7 @@ siguen el orden de prioridad de la petición; no se consideran cerrados.
 | TTD-AUD-07 | corregido | [#69](https://github.com/povedica/tick-tack-done/pull/69)                                                            | Accesos de navegación/detalle condicionados a ui y kill de la API existente; estado directo, error y reintento; screen-page común.                                          |
 | TTD-AUD-08 | aplazado  | —                                                                                                                    | F-1…F-10 excluidos por petición expresa. No se añade configuración ni activación; la disponibilidad y maquetación de ttd se corrigen con TTD-AUD-07.                        |
 | TTD-AUD-09 | corregido | [#72](https://github.com/povedica/tick-tack-done/pull/72)                                                            | Panel y Estadísticas comparten contador, lunes local y exclusión de canceladas; etiqueta esta semana y periodo API coherente. Tests UTC, cambio de día local y DST.         |
-| TTD-AUD-10 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
+| TTD-AUD-10 | aplazado  | [#71](https://github.com/povedica/tick-tack-done/pull/71)                                                            | Arreglo en curso por otro agente; no se duplica. Prueba PostgreSQL adicional confirma segundos reales y totales por periodo.                                                |
 | TTD-AUD-11 | corregido | [#67](https://github.com/povedica/tick-tack-done/pull/67)                                                            | Constructor común API/automatización, lunes local, payload completo v2; test de límite semanal UTC/local con tareas, hábitos y foco. Históricos preservados.                |
 | TTD-AUD-12 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
 | TTD-AUD-13 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
@@ -274,3 +274,12 @@ OpenAPI regenerado sin diferencias.
 Validación TTD-AUD-09: typecheck, lint y suites completas (289 dominio,
 110 web, 101 API, 9 SDK); integración 126 pasan y 2 omitidos.
 Regresión Chromium del KPI en verde; OpenAPI/SDK regenerados.
+
+## Coordinación y validación de foco
+
+La PR #71 pertenece al agente que sigue trabajando con la auditoría ampliada.
+Este trabajo continúa en otra PR acumulativa, sin modificar su rama ni duplicar
+TTD-AUD-10 y los cambios 54/55/56/60/61/65 ya iniciados allí.
+Una prueba PostgreSQL adicional comprueba iniciar y terminar tras 81 s: se
+persisten 81 s y un pomodoro; ambas APIs coinciden para el mismo periodo.
+No se reproduce un registro incorrecto de actualSeconds. RF-1204/RF-1205.
