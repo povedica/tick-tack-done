@@ -161,6 +161,7 @@ export class McpService {
     switch (name) {
       case 'list_tasks': {
         const projectId = uuidOrEmpty(args.project_id);
+        const tagId = uuidOrEmpty(args.tag_id);
         const cursor = cursorOf(args);
         const status =
           args.status === 'completed' ||
@@ -169,10 +170,23 @@ export class McpService {
           args.status === 'all'
             ? args.status
             : 'active';
+        const priority =
+          args.priority === 'none' ||
+          args.priority === 'low' ||
+          args.priority === 'medium' ||
+          args.priority === 'high'
+            ? args.priority
+            : undefined;
+        const dueAfter = typeof args.from === 'string' ? args.from : undefined;
+        const dueBefore = typeof args.to === 'string' ? args.to : undefined;
         const page = await this.tasks.list(user, {
           limit,
           ...(cursor === undefined ? {} : { cursor }),
           ...(projectId === undefined ? {} : { projectId }),
+          ...(tagId === undefined ? {} : { tagId }),
+          ...(priority === undefined ? {} : { priority }),
+          ...(dueAfter === undefined ? {} : { dueAfter }),
+          ...(dueBefore === undefined ? {} : { dueBefore }),
           status,
           includeDescendants: true,
           flat: false,
@@ -382,6 +396,51 @@ export class McpService {
           requiredUuid(args, 'task_id'),
           requiredUuid(args, 'item_id'),
         );
+      case 'list_task_reminders':
+        return {
+          items: await this.tasks.listReminders(user, requiredUuid(args, 'task_id')),
+        };
+      case 'add_task_reminder': {
+        const type = args.type;
+        if (
+          type !== 'relative' &&
+          type !== 'absolute' &&
+          type !== 'location' &&
+          type !== 'daily_digest'
+        ) {
+          throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'type required');
+        }
+        const channel =
+          args.channel === 'email' || args.channel === 'both' || args.channel === 'push'
+            ? args.channel
+            : undefined;
+        const absoluteAt =
+          args.absolute_at === null
+            ? null
+            : typeof args.absolute_at === 'string'
+              ? args.absolute_at
+              : undefined;
+        return (
+          await this.tasks.createReminder(
+            user,
+            requiredUuid(args, 'task_id'),
+            {
+              trigger: requiredString(args, 'trigger', 200),
+              type,
+              ...(absoluteAt === undefined ? {} : { absolute_at: absoluteAt }),
+              ...(channel === undefined ? {} : { channel }),
+            },
+            undefined,
+          )
+        ).body;
+      }
+      case 'delete_task_reminder':
+        await this.tasks.deleteReminder(
+          user,
+          requiredUuid(args, 'task_id'),
+          requiredUuid(args, 'reminder_id'),
+        );
+        return { ok: true };
       case 'assign_task': {
         const taskId = requiredUuid(args, 'id');
         const assigneeId =

@@ -8,7 +8,7 @@ Base: `origin/main` @ arranque de la rama.
 |---|---|---|---|---|
 | TTD-AUD-01 | 0 | verificado en tests | #60 | Tests: filters.spec, row-date.spec, automation-dates.e2e, matrix/propose |
 | TTD-AUD-02 | 0 | verificado en tests | #61 | Tests: nlp/parse.spec time ranges; task-composer.e2e |
-| TTD-AUD-03 | 5 | pendiente | — | Depende de 01 |
+| TTD-AUD-03 | 5 | corregido | #71 | Atajos de día → all-day si no había fecha |
 | TTD-AUD-04 | 5 | pendiente | — | Depende de 01, 03 |
 | TTD-AUD-05 | 2 | verificado en main | #68 | Menú acciones; verificar tras 64 si hace falta pulido |
 | TTD-AUD-06 | 5 | pendiente | — | |
@@ -57,7 +57,7 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-49 | 1 | corregido | #71 | quick_add + parse=true en create/update |
 | TTD-AUD-50 | 1 | corregido | #71 | delete_task / restore_task (scope tasks:trash) |
 | TTD-AUD-51 | 1 | corregido | #71 | content + list/add comments + list attachments |
-| TTD-AUD-52 | 1 | corregido (parcial) | #71 | move_task, parent_id, checklist CRUD, search limit; faltan recordatorios/filtros extra |
+| TTD-AUD-52 | 1 | corregido | #71 | + reminders MCP + list_tasks tag/from/to/priority |
 | TTD-AUD-53 | 1 | corregido | #71 | reopen/cancel + status en list_tasks; flujo vía column_id |
 | TTD-AUD-54 | 0 | corregido | #71 | Validación estricta MCP con validateMcpArgs |
 | TTD-AUD-55 | 0 | corregido | #71 | parseTaskInstant YYYY-MM-DD → medianoche local + is_all_day |

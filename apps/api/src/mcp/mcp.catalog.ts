@@ -103,12 +103,16 @@ export const MCP_TOOLS: readonly McpTool[] = [
   {
     name: 'list_tasks',
     description:
-      'List tasks. Default status is active. Pass status=completed|cancelled|archived|all to include others. start_date is when you plan to do the task. due_date is the deadline. someday=true lists Someday; the default excludes them. Workflow columns (pending/in progress) are list board columns — use column_id on create/update when that lands; there is no separate workflow_state field (TTD-AUD-53).',
+      'List tasks. Default status is active. Pass status=completed|cancelled|archived|all to include others. Optional filters: tag_id, priority, from/to (due_date bounds as ISO). someday=true lists Someday; the default excludes them. Workflow columns (pending/in progress) are list board columns via column_id (TTD-AUD-53).',
     scopes: ['tasks:read'],
     inputSchema: objectSchema({
       limit,
       cursor,
       project_id: id,
+      tag_id: id,
+      from: { type: 'string', description: 'Lower bound for due_date (ISO 8601).' },
+      to: { type: 'string', description: 'Upper bound for due_date (ISO 8601).' },
+      priority: { type: 'string', enum: ['none', 'low', 'medium', 'high'] },
       someday: { type: 'boolean' },
       status: {
         type: 'string',
@@ -320,6 +324,34 @@ export const MCP_TOOLS: readonly McpTool[] = [
     description: 'Reopen a checklist item.',
     scopes: ['tasks:write'],
     inputSchema: objectSchema({ task_id: id, item_id: id }, ['task_id', 'item_id']),
+  },
+  {
+    name: 'list_task_reminders',
+    description: 'List reminders on a task (TTD-AUD-52).',
+    scopes: ['tasks:read'],
+    inputSchema: objectSchema({ task_id: id }, ['task_id']),
+  },
+  {
+    name: 'add_task_reminder',
+    description:
+      'Add a reminder. Relative example: type=relative, trigger=TRIGGER:-PT15M (15 minutes before due). Absolute: type=absolute, trigger=TRIGGER, absolute_at=ISO datetime.',
+    scopes: ['reminders:write'],
+    inputSchema: objectSchema(
+      {
+        task_id: id,
+        trigger: { type: 'string', minLength: 1, maxLength: 200 },
+        type: { type: 'string', enum: ['relative', 'absolute', 'location', 'daily_digest'] },
+        absolute_at: { type: ['string', 'null'] },
+        channel: { type: 'string', enum: ['push', 'email', 'both'] },
+      },
+      ['task_id', 'trigger', 'type'],
+    ),
+  },
+  {
+    name: 'delete_task_reminder',
+    description: 'Delete a reminder from a task.',
+    scopes: ['reminders:write'],
+    inputSchema: objectSchema({ task_id: id, reminder_id: id }, ['task_id', 'reminder_id']),
   },
   {
     name: 'assign_task',

@@ -103,6 +103,12 @@ export function DatePopover({
     }));
   }
 
+  /** TTD-AUD-03: picking only a day on a dateless task is all-day; keep clock if it already had one. */
+  function pickDay(key: string): void {
+    const allDay = value.dueDate === null ? true : draft.allDay;
+    setDay(key, allDay);
+  }
+
   function applyRepeat(base: string): void {
     setDraft((current) => ({ ...current, repeatRule: withEnd(base, end, until, count) }));
     setSub(null);
@@ -206,7 +212,7 @@ export function DatePopover({
               size="sm"
               variant="ghost"
               onClick={() => {
-                setDay(todayKey, draft.allDay);
+                pickDay(todayKey);
               }}
             >
               {messages.dateToday}
@@ -216,7 +222,7 @@ export function DatePopover({
               size="sm"
               variant="ghost"
               onClick={() => {
-                setDay(shiftDayKey(todayKey, 1), draft.allDay);
+                pickDay(shiftDayKey(todayKey, 1));
               }}
             >
               {messages.dateTomorrow}
@@ -226,7 +232,7 @@ export function DatePopover({
               size="sm"
               variant="ghost"
               onClick={() => {
-                setDay(shiftDayKey(todayKey, 7), draft.allDay);
+                pickDay(shiftDayKey(todayKey, 7));
               }}
             >
               {messages.dateIn7}
@@ -288,7 +294,7 @@ export function DatePopover({
                     .filter((item) => item.length > 0)
                     .join(' ')}
                   onClick={() => {
-                    setDay(key, draft.allDay);
+                    pickDay(key);
                   }}
                 >
                   {date.getDate()}

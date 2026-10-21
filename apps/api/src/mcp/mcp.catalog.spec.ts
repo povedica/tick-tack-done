@@ -59,6 +59,16 @@ describe('MCP tool catalog', () => {
     );
   });
 
+  it('TTD-AUD-52: reminder tools require reminders:write', () => {
+    const read = visibleTools(['tasks:read']).map((tool) => tool.name);
+    expect(read).toContain('list_task_reminders');
+    expect(read).not.toContain('add_task_reminder');
+    const write = visibleTools(['reminders:write']).map((tool) => tool.name);
+    expect(write).toEqual(
+      expect.arrayContaining(['add_task_reminder', 'delete_task_reminder']),
+    );
+  });
+
   it('RF-2532: calendar tools follow calendar scopes', () => {
     const read = visibleTools(['calendar:read']).map((tool) => tool.name);
     expect(read).toEqual(
