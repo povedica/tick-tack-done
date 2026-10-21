@@ -194,10 +194,11 @@ export function completionRate(
 }
 
 export function countCompletedCreated(
-  tasks: readonly StatsTaskRow[],
+  tasks: readonly Pick<StatsTaskRow, 'status' | 'createdAt' | 'completedAt'>[],
   from: string,
   to: string,
   tz: string,
+  until?: string,
 ): { completed: number; created: number } {
   let completed = 0;
   let created = 0;
@@ -206,12 +207,22 @@ export function countCompletedCreated(
       continue;
     }
     const createdDay = dayKey(task.createdAt, tz);
-    if (createdDay !== null && createdDay >= from && createdDay <= to) {
+    if (
+      createdDay !== null &&
+      createdDay >= from &&
+      createdDay <= to &&
+      (until === undefined || Date.parse(task.createdAt) <= Date.parse(until))
+    ) {
       created += 1;
     }
     if (task.completedAt !== null) {
       const done = dayKey(task.completedAt, tz);
-      if (done !== null && done >= from && done <= to) {
+      if (
+        done !== null &&
+        done >= from &&
+        done <= to &&
+        (until === undefined || Date.parse(task.completedAt) <= Date.parse(until))
+      ) {
         completed += 1;
       }
     }

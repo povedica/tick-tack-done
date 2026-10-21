@@ -1,9 +1,58 @@
 import { describe, expect, it } from 'vitest';
 import { dashboardSnapshot, productivityPanel, weeklyNarrative, overdueAgeGroups } from './kpis';
+import { countCompletedCreated } from '../stats/aggregate';
 
 const now = '2026-10-18T12:00:00.000Z';
 
 describe('dashboard', () => {
+  it.each([
+    ['UTC', '2026-10-20T12:00:00Z', '2026-10-19', '2026-10-19T09:00:00Z', '2026-10-18T09:00:00Z'],
+    [
+      'Pacific/Kiritimati',
+      '2026-10-18T12:30:00Z',
+      '2026-10-19',
+      '2026-10-18T11:00:00Z',
+      '2026-10-18T09:00:00Z',
+    ],
+    [
+      'Europe/Madrid',
+      '2026-10-26T01:00:00Z',
+      '2026-10-26',
+      '2026-10-25T23:30:00Z',
+      '2026-10-25T21:00:00Z',
+    ],
+  ])(
+    'TTD-AUD-09 RF-2102: calendar-week counts agree with statistics in %s',
+    (zone, now, monday, current, previous) => {
+      const row = (at: string, status: 'completed' | 'cancelled' = 'completed') => ({
+        id: at,
+        title: 'Activity',
+        priority: 'none',
+        isAllDay: false,
+        createdAt: at,
+        completedAt: at,
+        dueDate: null,
+        status,
+        listId: 'one',
+        listName: 'One',
+        listColor: null,
+        tagNames: [],
+        tagIds: [],
+      });
+      const rows = [
+        row(current),
+        row(previous),
+        row(current, 'cancelled'),
+        row(new Date(Date.parse(now) + 3600000).toISOString()),
+      ];
+      const stats = countCompletedCreated(rows, monday, monday, zone, now);
+      const dashboard = dashboardSnapshot(rows, [], now, zone);
+      expect(stats).toEqual({ completed: 1, created: 1 });
+      expect(dashboard.completed_week).toBe(stats.completed);
+      expect(dashboard.created).toBe(stats.created);
+      expect(dashboard.completed_previous_week).toBe(1);
+    },
+  );
   it('groups overdue ages without overlap at days 0, 6, 7, 30 and 31', () => {
     const groups = overdueAgeGroups(
       [0, 6, 7, 30, 31].map((days_overdue) => ({ list_id: 'one', name: 'One', days_overdue })),

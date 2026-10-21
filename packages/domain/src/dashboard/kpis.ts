@@ -1,5 +1,6 @@
 import type { Priority } from '../types';
 import { formatInTimeZone } from 'date-fns-tz';
+import { countCompletedCreated, addCalendarDays } from '../stats/aggregate';
 
 function dayKey(iso: string, timeZone: string): string | null {
   try {
@@ -94,34 +95,21 @@ export function dashboardSnapshot(
 ): DashboardSnapshot {
   const now = Date.parse(nowIso);
   const todayKey = dayKey(nowIso, timeZone) ?? nowIso.slice(0, 10);
-  const weekStart = now - 7 * DAY_MS;
-  const previousStart = now - 14 * DAY_MS;
-  let completedToday = 0;
-  let completedWeek = 0;
-  let completedPrevious = 0;
+  const localDate = new Date(`${todayKey}T12:00:00Z`);
+  const monday = addCalendarDays(todayKey, -((localDate.getUTCDay() + 6) % 7)) ?? todayKey;
+  const current = countCompletedCreated(tasks, monday, todayKey, timeZone, nowIso);
+  const previous = countCompletedCreated(
+    tasks,
+    addCalendarDays(monday, -7) ?? monday,
+    addCalendarDays(monday, -1) ?? monday,
+    timeZone,
+  );
+  const today = countCompletedCreated(tasks, todayKey, todayKey, timeZone, nowIso);
   let overdue = 0;
   let next7 = 0;
-  let created = 0;
-  let completed = 0;
   const lists = new Map<string, { name: string; active: number }>();
   const tags = new Map<string, number>();
   for (const task of tasks) {
-    const createdMs = Date.parse(task.createdAt);
-    if (!Number.isNaN(createdMs) && createdMs >= weekStart && createdMs <= now) {
-      created += 1;
-    }
-    const completedMs = task.completedAt === null ? Number.NaN : Date.parse(task.completedAt);
-    if (!Number.isNaN(completedMs)) {
-      if (task.completedAt !== null && dayKey(task.completedAt, timeZone) === todayKey) {
-        completedToday += 1;
-      }
-      if (completedMs >= weekStart && completedMs <= now) {
-        completedWeek += 1;
-        completed += 1;
-      } else if (completedMs >= previousStart && completedMs < weekStart) {
-        completedPrevious += 1;
-      }
-    }
     if (task.status === 'active' && task.dueDate !== null) {
       const due = Date.parse(task.dueDate);
       if (!Number.isNaN(due) && due < now) {
@@ -141,15 +129,15 @@ export function dashboardSnapshot(
     }
   }
   return {
-    completed_today: completedToday,
-    completed_week: completedWeek,
-    completed_previous_week: completedPrevious,
-    trend: completedWeek - completedPrevious,
+    completed_today: today.completed,
+    completed_week: current.completed,
+    completed_previous_week: previous.completed,
+    trend: current.completed - previous.completed,
     overdue,
     next_7_days: next7,
-    created,
-    completed,
-    net: completed - created,
+    created: current.created,
+    completed: current.completed,
+    net: current.completed - current.created,
     habit_percent: habitPercent(habits, todayKey),
     by_list: [...lists.entries()]
       .map(([listId, value]) => ({ list_id: listId, name: value.name, active: value.active }))

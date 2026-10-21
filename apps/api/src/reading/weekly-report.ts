@@ -32,7 +32,7 @@ export async function readWeeklyReport(
   const range = parseDayBounds(monday, addCalendarDays(monday, 6) ?? monday, user.timeZone);
   const week = new Date(`${monday}T00:00:00Z`);
   const periodStart = new Date(range?.startIso ?? week.toISOString());
-  const snapshot = await loadDashboardSnapshot(prisma, user.id, now);
+  const snapshot = await loadDashboardSnapshot(prisma, user.id, now, user.timeZone);
   const focusRows = await metrics.focusRows(user.id, periodStart, now);
   const focusMinutes = focusMinutesTotal(focusRows);
   const habits = await metrics.activeHabitsExpectedDays(user.id, periodStart, now, user.timeZone);

@@ -13,7 +13,7 @@ siguen el orden de prioridad de la petición; no se consideran cerrados.
 | TTD-AUD-06 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
 | TTD-AUD-07 | corregido | [#69](https://github.com/povedica/tick-tack-done/pull/69)                                                            | Accesos de navegación/detalle condicionados a ui y kill de la API existente; estado directo, error y reintento; screen-page común.                                          |
 | TTD-AUD-08 | aplazado  | —                                                                                                                    | F-1…F-10 excluidos por petición expresa. No se añade configuración ni activación; la disponibilidad y maquetación de ttd se corrigen con TTD-AUD-07.                        |
-| TTD-AUD-09 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
+| TTD-AUD-09 | corregido | pendiente de publicación                                                                                             | Panel y Estadísticas comparten contador, lunes local y exclusión de canceladas; etiqueta esta semana y periodo API coherente. Tests UTC, cambio de día local y DST.         |
 | TTD-AUD-10 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
 | TTD-AUD-11 | corregido | [#67](https://github.com/povedica/tick-tack-done/pull/67)                                                            | Constructor común API/automatización, lunes local, payload completo v2; test de límite semanal UTC/local con tareas, hábitos y foco. Históricos preservados.                |
 | TTD-AUD-12 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
@@ -260,3 +260,17 @@ No se alteran la urgencia por defecto de matriz ni la puntuación de revisión.
 Validación del complemento TTD-AUD-01: typecheck, lint y suites completas
 (286 dominio, 110 web, 101 API, 9 SDK); integración 125 pasan y 2 omitidos;
 OpenAPI regenerado sin diferencias.
+
+## TTD-AUD-09: criterios de aceptación
+
+- Reproducción previa en dominio y PostgreSQL: Panel=3 frente a Estadísticas=1 con las mismas tareas (actual, anterior y cancelada).
+- Contador común de completadas/creadas; canceladas excluidas. Semana desde lunes civil local hasta el instante actual; futuro excluido. Comparación con semana anterior completa.
+- Tres regresiones: UTC, domingo UTC/lunes de Pacific/Kiritimati y cambio DST de Madrid. Regresión HTTP compara ambos endpoints y el inicio del periodo.
+- Etiqueta «esta semana» y explicación ES/EN en i18n; prueba Chromium del KPI actualizada y en verde.
+- Snapshot exige zona explícita: Panel, MCP e informe semanal pasan la zona de la cuenta. Vencidas y próximos siete días conservan sus criterios.
+- OpenAPI y SDK regenerados para documentar la semántica del periodo. No se cambia el contrato de campos ni el modelo.
+- RF-2102, RF-1601, RF-2321 y RF-604.
+
+Validación TTD-AUD-09: typecheck, lint y suites completas (289 dominio,
+110 web, 101 API, 9 SDK); integración 126 pasan y 2 omitidos.
+Regresión Chromium del KPI en verde; OpenAPI/SDK regenerados.

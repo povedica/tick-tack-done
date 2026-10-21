@@ -1,6 +1,9 @@
 import { extraEs } from './extra';
 
 export const es = {
+  dashboardWeekLabel: 'esta semana',
+  dashboardCalculationText:
+    'Hoy y esta semana siguen la zona horaria de tu cuenta. La semana empieza el lunes; completadas y creadas excluyen las tareas canceladas, igual que Estadísticas. La tendencia compara con la semana anterior completa. Los cierres en lote y las importaciones pueden contar. Las vencidas están incluidas en las pendientes, también las subtareas. Los eventos proceden de calendarios sincronizados y se deduplican por identidad y ocurrencia.',
   tickyStatusError: 'No se ha podido comprobar la disponibilidad de Ticky.',
   tickyKillStatus:
     'Ticky está detenido por el interruptor de emergencia del servidor. Contacta con el administrador.',

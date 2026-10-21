@@ -8,7 +8,7 @@ export async function loadDashboardSnapshot(
   prisma: PrismaService,
   ownerId: string,
   now: Date,
-  timeZone = 'UTC',
+  timeZone: string,
 ): Promise<DashboardSnapshot> {
   const tasks = await prisma.task.findMany({
     where: { ownerId, deletedAt: null },
