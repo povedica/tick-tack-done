@@ -32,7 +32,7 @@ siguen el orden de prioridad de la petición; no se consideran cerrados.
 | TTD-AUD-25 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                                     |
 | TTD-AUD-26 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                                     |
 | TTD-AUD-27 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-28 | corregido | pendiente de publicación                                  | runAction común aplicado a promesas UI sin rechazo; MutationCache global, avisos accesibles ES/EN, rollback y respaldo unhandledrejection; lint no admite void como escape. |
+| TTD-AUD-28 | corregido | [#66](https://github.com/povedica/tick-tack-done/pull/66) | runAction común aplicado a promesas UI sin rechazo; MutationCache global, avisos accesibles ES/EN, rollback y respaldo unhandledrejection; lint no admite void como escape. |
 | TTD-AUD-29 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                                     |
 | TTD-AUD-30 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                                     |
 | TTD-AUD-31 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                                     |
@@ -193,3 +193,7 @@ Validación de TTD-AUD-43: typecheck, lint y tests completos (281 dominio,
 - RF cubiertos: RF-201 y RF-208; no se cambia la semántica de mutaciones ni la cola offline.
 - Pendiente navegador: provocar 500 en acciones representativas de cada pantalla
   y comprobar que el aviso aparece y la pantalla conserva/restaura su estado.
+
+Validación de TTD-AUD-28: typecheck, lint y suites completas en verde
+(281 dominio, 110 web, 104 API, 9 SDK); seis regresiones de errores y rollback.
+Muestra negativa de lint rechazada por no-floating-promises; OpenAPI sin diferencias.
