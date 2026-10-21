@@ -536,6 +536,11 @@ for (const width of [1280, 390]) {
     await title.fill('Borrador compartido');
     await title.press('Escape');
     await expect(card.getByRole('alertdialog')).toBeVisible();
+    await expect(card.locator('.composer-discard')).toHaveCSS(
+      'background-color',
+      'rgba(0, 0, 0, 0)',
+    );
+    await page.screenshot({ path: `/tmp/composer-discard-centered-${width}.png` });
     await card.getByRole('button', { name: 'Seguir editando' }).click();
     await expect(title).toHaveValue('Borrador compartido');
     await card.getByRole('button', { name: 'Bandeja', exact: true }).click();
@@ -641,7 +646,8 @@ for (const width of [1280, 390]) {
     const date = page.locator('.date-popover');
     const start = date.getByRole('textbox', { name: 'Hora', exact: true });
     await expect(start).toBeVisible();
-    await expect(start).toHaveAttribute('type', 'text');
+    await expect(start).toHaveAttribute('type', 'time');
+    expect((await start.boundingBox())!.width).toBeLessThanOrEqual(120);
     await expect(start).toHaveAttribute('placeholder', 'HH:mm');
     await start.fill('10:00');
     const end = date.getByRole('textbox', { name: 'Hasta', exact: true });
@@ -651,9 +657,6 @@ for (const width of [1280, 390]) {
     await expect(end).toHaveValue('11:15');
     await date.getByRole('button', { name: 'Hasta: Sin hora', exact: true }).click();
     await expect(end).toHaveValue('');
-    await expect(start).toHaveValue('10:00');
-    await start.fill('28:99');
-    await start.press('Tab');
     await expect(start).toHaveValue('10:00');
     await date.getByRole('button', { name: 'Hora: Sin hora', exact: true }).click();
     await expect(start).toHaveValue('');

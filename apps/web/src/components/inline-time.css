@@ -13,8 +13,10 @@
   flex: 1;
   min-width: 0;
 }
-.date-popover .inline-time-row input {
-  width: 6rem;
+.date-popover .inline-time-row input[type='time'] {
+  width: 6.5rem;
+  flex: 0 0 6.5rem;
+  margin: 0 0 0 auto;
   min-width: 0;
   border: 0;
   background: transparent;

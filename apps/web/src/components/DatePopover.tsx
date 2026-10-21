@@ -727,7 +727,7 @@ function localKey(date: Date): string {
   return `${String(date.getFullYear())}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-/** Plain text avoids native pickers and accepts only complete 24-hour times. */
+/** Native hour/minute controls live directly in the row. */
 function InlineTime({
   label,
   emptyLabel,
@@ -741,6 +741,7 @@ function InlineTime({
   readonly onChange: (value: string) => void;
   readonly onClear: () => void;
 }) {
+  const locale = useAppLocale();
   const [text, setText] = useState(value);
   useEffect(() => {
     setText(value);
@@ -751,17 +752,15 @@ function InlineTime({
       <label>
         {label}
         <input
-          type="text"
-          inputMode="text"
+          type="time"
+          lang={locale.startsWith('en') ? 'en-GB' : 'es-ES'}
+          step={60}
           autoComplete="off"
           spellCheck={false}
           aria-label={label}
           placeholder="HH:mm"
           value={text}
           maxLength={5}
-          onFocus={(event) => {
-            event.currentTarget.select();
-          }}
           onChange={(event) => {
             const next = event.target.value;
             setText(next);

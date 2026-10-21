@@ -806,3 +806,20 @@ placeholder HH:mm que haga explícitos los dos puntos; × conserva la acción
 Sin hora. Se añade el placeholder a ambos campos.
 Validación: 33/33 Playwright finales, 605 unitarios y typecheck generales
 correctos; lint de dominio/API y lint web corregido correctos. OpenAPI sin diff.
+
+
+## 2026-10-22 — aclaración de controles de hora y confirmación de borrador
+
+El usuario pide recuperar los controles nativos anteriores en la propia fila.
+Hora/Hasta vuelven a input time (segmentos y controles del navegador), sin
+el desplegable intermedio anterior, y conservan × para quitar la hora.
+Selector CSS específico evita la regla heredada que estiraba los campos; ancho
+6,5rem, alineación a la derecha y sin margen inferior. Mantiene edición HH:mm
+y los comportamientos de +30min y borrado de fin ya verificados.
+
+Confirmación sin fondo gris, texto y acciones centrados. Seguir editando usa
+acento principal; Descartar queda como acción de texto roja, con foco accesible.
+Esta indicación sustituye la propuesta previa de panel gris y acciones a la derecha.
+Validación conjunta: 35 Playwright correctos, cuatro repeticiones finales de
+confirmación/teclado correctas. Lint/typecheck generales y 606 unitarios correctos;
+OpenAPI regenerado sin diff. Capturas locales revisadas en /tmp.
