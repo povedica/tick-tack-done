@@ -736,3 +736,19 @@ El usuario indica expresamente «Este no lo hagas». Se retira 75.11 del alcance
 pendiente: no compartir el selector de periodos del Reporte semanal con Calendario.
 Calendario conserva su selector actual. Esta decisión sustituye las indicaciones
 anteriores sobre 75.11, incluida la aclaración vinculante del 21/10.
+
+
+## 2026-10-22 — maquetación de la vista anual
+
+RF-1101 / RF-1903. Nombres de mes centrados sobre su mini-calendario, con
+mayúscula inicial y altura consistente. Retirado el margen negativo que acercaba
+los días al título; separación explícita de 4px, padding interior uniforme y
+gaps entre meses adaptados a escritorio y móvil. Conserva doce meses en el
+viewport (4×3 escritorio, 3×4 móvil) y la navegación existente.
+
+Capturas revisadas en /tmp con API simulada. Playwright: encaje y alineación de
+los doce meses a 320/390/1280px en claro/oscuro, composición a zoom 200% y
+navegación táctil anual correctos. Sin cambios de API; OpenAPI sin diff.
+Lint y typecheck generales correctos. 605 unitarios correctos por paquetes;
+lint interrumpido por recursos y un timeout de API en el primer pase concurrente
+se resuelven al repetir lint y los 117 tests de API de forma aislada.

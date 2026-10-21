@@ -887,9 +887,12 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
   grid-template-rows: repeat(3, minmax(0, 1fr));
   align-items: stretch;
-  gap: var(--year-board-gap);
+  column-gap: var(--sp-4);
+  row-gap: var(--sp-3);
 }
 .calendar-year .year-card {
+  padding: var(--sp-1);
+  gap: var(--sp-1);
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -898,12 +901,16 @@
 }
 .calendar-year .year-month {
   flex-shrink: 0;
-  text-align: start;
-  margin-bottom: 0;
-  min-height: var(--tap);
+  width: 100%;
+  text-align: center;
+  margin: 0;
+  padding: var(--sp-1) 0;
+  min-height: 32px;
+  line-height: 1.25;
+  text-transform: capitalize;
 }
 .calendar-year .year-mini {
-  margin-top: calc(-1 * var(--sp-3));
+  margin-top: 0;
   flex: 1;
   min-height: 0;
   grid-template-rows: repeat(7, minmax(0, 1fr));
@@ -930,13 +937,14 @@
   .calendar-year .year-board {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     grid-template-rows: repeat(4, minmax(0, 1fr));
+    gap: var(--sp-2);
   }
-  .calendar-year .year-month {
-    min-height: var(--tap);
+  .calendar-year .year-card {
+    padding-inline: 0;
   }
   .calendar-page.calendar-year .year-day,
   .calendar-year .year-dow {
-    font-size: var(--year-day-font-mobile);
+    font-size: clamp(0.5625rem, 2.56vw, var(--year-day-font-mobile));
   }
 }
 

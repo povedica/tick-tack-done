@@ -614,6 +614,7 @@ test('RF-1902 visual evidence of mini-calendar, options and long mobile day shee
 });
 
 for (const viewport of [
+  { width: 320, height: 740 },
   { width: 390, height: 844 },
   { width: 1280, height: 800 },
 ]) {
@@ -642,10 +643,20 @@ for (const viewport of [
             top: rect.top,
             bottom: rect.bottom,
             overflow: node.scrollHeight > node.clientHeight + 1,
+            title: (() => {
+              const title = node.querySelector('.year-month')!.getBoundingClientRect();
+              const mini = node.querySelector('.year-mini')!.getBoundingClientRect();
+              return {
+                gap: mini.top - title.bottom,
+                offset: Math.abs((title.left + title.right) / 2 - (mini.left + mini.right) / 2),
+              };
+            })(),
           };
         }),
       );
       expect(cards.every((card) => card.bottom <= bottom && !card.overflow)).toBe(true);
+      expect(cards.every((card) => card.title.gap >= 4 && card.title.offset <= 1)).toBe(true);
+      await page.screenshot({ path: `/tmp/calendar-year-layout-${viewport.width}-${theme}.png` });
       if (viewport.width < 700)
         expect(new Set(cards.map((card) => Math.round(card.top))).size).toBe(4);
     }
