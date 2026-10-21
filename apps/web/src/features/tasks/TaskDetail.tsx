@@ -411,10 +411,10 @@ export function TaskDetail({
               }}
             >
               <CalendarDays size={14} aria-hidden="true" />
-              {task.start_date === null
+              {(task.start_date ?? task.due_date) === null
                 ? messages.whenField
                 : formatDueChip(
-                    task.start_date,
+                    task.start_date ?? task.due_date,
                     task.time_zone,
                     task.is_all_day,
                     new Date(),

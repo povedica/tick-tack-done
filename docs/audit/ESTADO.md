@@ -9,7 +9,7 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-01 | 0 | verificado en tests | #60 | Tests: filters.spec, row-date.spec, automation-dates.e2e, matrix/propose |
 | TTD-AUD-02 | 0 | verificado en tests | #61 | Tests: nlp/parse.spec time ranges; task-composer.e2e |
 | TTD-AUD-03 | 5 | corregido | #71 | Atajos de día → all-day si no había fecha |
-| TTD-AUD-04 | 5 | pendiente | — | Depende de 01, 03 |
+| TTD-AUD-04 | 5 | corregido (parcial) | #71 | Chip Cuándo = start??due; duración nowrap; fin en DatePopover pendiente |
 | TTD-AUD-05 | 2 | verificado en main | #68 | Menú acciones; verificar tras 64 si hace falta pulido |
 | TTD-AUD-06 | 5 | pendiente | — | |
 | TTD-AUD-07 | 2 | verificado en main | #69 | Gate Ticky + layout; 63 puede ampliar el interruptor |
@@ -28,11 +28,11 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-20 | 5 | pendiente | — | |
 | TTD-AUD-21 | 3 | corregido | #71 | h1 nowrap; emoji fuera del clamp |
 | TTD-AUD-22 | 5 | corregido | #71 | Tokens dark --countdown-*-bg/ink |
-| TTD-AUD-23 | 5 | pendiente | — | |
+| TTD-AUD-23 | 5 | corregido (parcial) | #71 | Labels checkbox/radio flex; date/select nativos pendientes |
 | TTD-AUD-24 | 5 | pendiente | — | |
-| TTD-AUD-25 | 5 | pendiente | — | |
-| TTD-AUD-26 | 5 | pendiente | — | |
-| TTD-AUD-27 | 5 | pendiente | — | |
+| TTD-AUD-25 | 5 | corregido (parcial) | #71 | Active/hover tokens + rail oscuro; theme switch pendiente |
+| TTD-AUD-26 | 5 | corregido | #71 | Login submit usa --accent |
+| TTD-AUD-27 | 5 | corregido (parcial) | #71 | Due hoy/mañana i18n; countdowns/ticky pendientes |
 | TTD-AUD-28 | 0 | verificado en tests | #66 | Tests: run-action.spec.ts, query-client.spec.ts |
 | TTD-AUD-29 | 0 | corregido | #71 | onUnauthorized → login?next=; red ≠ logout |
 | TTD-AUD-30 | 5 | pendiente | — | |

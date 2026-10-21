@@ -2911,7 +2911,7 @@ a.link:hover {
   color: var(--ink);
   font: inherit;
   font-size: 12px;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
   cursor: pointer;
 }
 .detail-meta-chip[data-empty='true'] {

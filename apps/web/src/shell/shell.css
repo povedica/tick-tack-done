@@ -258,12 +258,12 @@
 }
 
 .sidebar .nav-link:hover {
-  background: rgb(255 255 255 / 0.38);
+  background: var(--surface-2);
 }
 
 .sidebar .nav-link.is-active,
 .sidebar .nav-link[data-selected='true'] {
-  background: rgb(255 255 255 / 0.62);
+  background: var(--accent-soft);
   color: var(--ink);
 }
 

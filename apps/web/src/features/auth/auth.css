@@ -69,7 +69,7 @@
   margin-top: 4px;
   border: 0;
   border-radius: 10px;
-  background: #4772fa;
+  background: var(--accent);
   color: var(--ink-inverse);
   font: inherit;
   font-weight: 600;
