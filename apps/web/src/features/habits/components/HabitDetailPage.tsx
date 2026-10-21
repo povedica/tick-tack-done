@@ -1,3 +1,4 @@
+import { runAction } from '../../../components/run-action';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router';
@@ -51,8 +52,8 @@ export function HabitDetailPage() {
         <p role="alert">{t.failed}</p>
         <Button
           onClick={() => {
-            void habit.refetch();
-            void stats.refetch();
+            runAction(habit.refetch());
+            runAction(stats.refetch());
           }}
         >
           {m.retry}
@@ -121,7 +122,7 @@ export function HabitDetailPage() {
               if (window.confirm(t.confirmDelete))
                 mutation.mutate(async () => {
                   await api.deleteHabit(id);
-                  void navigate('/habits');
+                  runAction(Promise.resolve(navigate('/habits')));
                 });
             }}
           >

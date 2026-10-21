@@ -1,3 +1,4 @@
+import { runAction } from '../../components/run-action';
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router';
@@ -123,7 +124,7 @@ export function AdjustmentPage() {
                       variant={picked?.decision === 'skip' || !picked ? 'primary' : 'ghost'}
                       disabled={busy}
                       onClick={() => {
-                        void choose(card.task_id, 'skip', null);
+                        runAction(choose(card.task_id, 'skip', null));
                       }}
                     >
                       {m.planKeep}
@@ -134,10 +135,12 @@ export function AdjustmentPage() {
                         variant="ghost"
                         disabled={busy}
                         onClick={() => {
-                          void choose(
-                            card.task_id,
-                            card.suggested?.decision ?? 'skip',
-                            card.suggested?.target_date ?? null,
+                          runAction(
+                            choose(
+                              card.task_id,
+                              card.suggested?.decision ?? 'skip',
+                              card.suggested?.target_date ?? null,
+                            ),
                           );
                         }}
                       >
@@ -149,7 +152,7 @@ export function AdjustmentPage() {
                       variant="ghost"
                       disabled={busy}
                       onClick={() => {
-                        void choose(card.task_id, 'done', null);
+                        runAction(choose(card.task_id, 'done', null));
                       }}
                     >
                       {m.decisionDone}
@@ -159,7 +162,7 @@ export function AdjustmentPage() {
                       variant="ghost"
                       disabled={busy}
                       onClick={() => {
-                        void choose(card.task_id, 'plan_day', null);
+                        runAction(choose(card.task_id, 'plan_day', null));
                       }}
                     >
                       {m.decisionTomorrow}
@@ -169,7 +172,7 @@ export function AdjustmentPage() {
                       variant="ghost"
                       disabled={busy}
                       onClick={() => {
-                        void choose(card.task_id, 'someday', null);
+                        runAction(choose(card.task_id, 'someday', null));
                       }}
                     >
                       {m.somedayAction}
@@ -179,7 +182,7 @@ export function AdjustmentPage() {
                       variant="ghost"
                       disabled={busy}
                       onClick={() => {
-                        void choose(card.task_id, 'cancel', null);
+                        runAction(choose(card.task_id, 'cancel', null));
                       }}
                     >
                       {m.decisionCancel}
@@ -211,7 +214,7 @@ export function AdjustmentPage() {
                 variant="primary"
                 disabled={busy}
                 onClick={() => {
-                  void apply();
+                  runAction(apply());
                 }}
               >
                 {m.applyReplan}

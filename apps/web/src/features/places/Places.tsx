@@ -1,3 +1,4 @@
+import { runAction } from '../../components/run-action';
 import { CalendarMenu, CalendarPeriod } from '../calendar/CalendarControls';
 import { CalendarDays, Plus } from 'lucide-react';
 import { CalendarTaskMark } from '../calendar/CalendarTaskMark';
@@ -142,7 +143,7 @@ export function InboxPage() {
           title={fill(messages.loadFailed, messages.inboxTitle)}
           retryLabel={messages.retry}
           onRetry={() => {
-            void tasks.refetch();
+            runAction(tasks.refetch());
           }}
         />
       ) : null}
@@ -163,30 +164,38 @@ export function InboxPage() {
             taskTitle={current.title}
             projects={projects.data?.items ?? []}
             onDate={(preset, date) => {
-              void api.snoozeTask(current.id, preset, date).then(() => {
-                step(messages.processDate);
-              });
+              runAction(
+                api.snoozeTask(current.id, preset, date).then(() => {
+                  step(messages.processDate);
+                }),
+              );
             }}
             onMove={(projectId) => {
-              void api.moveTask(current.id, projectId).then(() => {
-                step(messages.processMove);
-              });
+              runAction(
+                api.moveTask(current.id, projectId).then(() => {
+                  step(messages.processMove);
+                }),
+              );
             }}
             onDone={() => {
-              void runOrQueue(newMutation('complete', current.id, {}), (key) =>
-                api.completeTask(current.id, completeBody(), key),
-              ).then(() => {
-                step(messages.processDoneAction);
-              });
+              runAction(
+                runOrQueue(newMutation('complete', current.id, {}), (key) =>
+                  api.completeTask(current.id, completeBody(), key),
+                ).then(() => {
+                  step(messages.processDoneAction);
+                }),
+              );
             }}
             onDelete={() => {
               const id = current.id;
-              void api.deleteTask(id).then(() => {
-                useActionToast.getState().show(messages.movedToTrash, () => {
-                  void api.restoreTask(id).then(() => refreshTaskSurfaces(queryClient));
-                });
-                step(messages.movedToTrash);
-              });
+              runAction(
+                api.deleteTask(id).then(() => {
+                  useActionToast.getState().show(messages.movedToTrash, () => {
+                    runAction(api.restoreTask(id).then(() => refreshTaskSurfaces(queryClient)));
+                  });
+                  step(messages.movedToTrash);
+                }),
+              );
             }}
             onSkip={() => {
               step();
@@ -207,12 +216,14 @@ export function InboxPage() {
             locale={locale}
             view="list"
             onComplete={(row) => {
-              void runOrQueue(newMutation('complete', row.id, {}), (key) =>
-                api.completeTask(row.id, completeBody(), key),
+              runAction(
+                runOrQueue(newMutation('complete', row.id, {}), (key) =>
+                  api.completeTask(row.id, completeBody(), key),
+                ),
               );
             }}
             onCreated={() => {
-              void refreshTaskSurfaces(queryClient);
+              runAction(refreshTaskSurfaces(queryClient));
             }}
           />
         )
@@ -225,7 +236,7 @@ export function InboxPage() {
     if (text !== undefined) {
       useActionToast.getState().show(text);
     }
-    void refreshTaskSurfaces(queryClient);
+    runAction(refreshTaskSurfaces(queryClient));
   }
 }
 
@@ -331,7 +342,7 @@ export function CalendarPage() {
   useEffect(() => {
     // CAL-0: unknown calendar routes redirect instead of silently rendering month.
     if (view !== undefined && !knownView) {
-      void navigate('/calendar/month', { replace: true });
+      runAction(Promise.resolve(navigate('/calendar/month', { replace: true })));
     }
   }, [view, knownView, navigate]);
   useEffect(() => {
@@ -528,7 +539,9 @@ export function CalendarPage() {
           aria-label={messages.calendarTitle}
           value={current}
           onChange={(event) => {
-            void navigate(`/calendar/${event.target.value}?date=${localKey(cursor)}`);
+            runAction(
+              Promise.resolve(navigate(`/calendar/${event.target.value}?date=${localKey(cursor)}`)),
+            );
           }}
         >
           {CAL_VIEWS.map((item) => (
@@ -589,9 +602,9 @@ export function CalendarPage() {
           title={fill(messages.loadFailed, messages.calendarTitle)}
           retryLabel={messages.retry}
           onRetry={() => {
-            void tasks.refetch();
-            void externalQuery.refetch();
-            if (startTaskIds.length) void startTasks.refetch();
+            runAction(tasks.refetch());
+            runAction(externalQuery.refetch());
+            if (startTaskIds.length) runAction(startTasks.refetch());
           }}
         />
       ) : null}
@@ -622,8 +635,12 @@ export function CalendarPage() {
               colors={colors}
               onOpen={(month) => {
                 setCursor(new Date(cursor.getFullYear(), month, 1));
-                void navigate(
-                  `/calendar/month?date=${localKey(new Date(cursor.getFullYear(), month, 1))}`,
+                runAction(
+                  Promise.resolve(
+                    navigate(
+                      `/calendar/month?date=${localKey(new Date(cursor.getFullYear(), month, 1))}`,
+                    ),
+                  ),
                 );
               }}
             />
@@ -637,8 +654,12 @@ export function CalendarPage() {
               colors={colors}
               onOpen={(month) => {
                 setCursor(new Date(cursor.getFullYear(), month, 1));
-                void navigate(
-                  `/calendar/month?date=${localKey(new Date(cursor.getFullYear(), month, 1))}`,
+                runAction(
+                  Promise.resolve(
+                    navigate(
+                      `/calendar/month?date=${localKey(new Date(cursor.getFullYear(), month, 1))}`,
+                    ),
+                  ),
                 );
               }}
             />
@@ -1515,10 +1536,14 @@ function CalendarVisibility({
               if (!navigator.onLine) {
                 return;
               }
-              void api.updateCalendarSubscription(row.id, { visible: !row.visible }).then(() => {
-                void queryClient.invalidateQueries({ queryKey: ['calendar-subscriptions'] });
-                void queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
-              });
+              runAction(
+                api.updateCalendarSubscription(row.id, { visible: !row.visible }).then(() => {
+                  runAction(
+                    queryClient.invalidateQueries({ queryKey: ['calendar-subscriptions'] }),
+                  );
+                  runAction(queryClient.invalidateQueries({ queryKey: ['calendar-events'] }));
+                }),
+              );
             }}
           />
           {row.summary ?? row.id}
@@ -1728,7 +1753,7 @@ export function SearchPage() {
                   row.status === 'completed'
                     ? api.uncompleteTask(row.id, crypto.randomUUID())
                     : api.completeTask(row.id, completeBody(), crypto.randomUUID());
-                void call.then(() => refreshTaskSurfaces(queryClient));
+                runAction(call.then(() => refreshTaskSurfaces(queryClient)));
               }}
             />
           ) : (
@@ -1763,7 +1788,7 @@ export function NoteRoute() {
   const navigate = useNavigate();
   useEffect(() => {
     if (id !== undefined && taskId !== undefined) {
-      void navigate(`/list/${id}?task=${taskId}`, { replace: true });
+      runAction(Promise.resolve(navigate(`/list/${id}?task=${taskId}`, { replace: true })));
     }
   }, [id, navigate, taskId]);
   return <SkeletonRows />;
@@ -1779,7 +1804,11 @@ export function TaskRoute() {
   });
   useEffect(() => {
     if (detail.data !== undefined) {
-      void navigate(`/list/${detail.data.project_id}?task=${detail.data.id}`, { replace: true });
+      runAction(
+        Promise.resolve(
+          navigate(`/list/${detail.data.project_id}?task=${detail.data.id}`, { replace: true }),
+        ),
+      );
     }
   }, [detail.data, navigate]);
   if (detail.isError) {
@@ -2244,11 +2273,13 @@ export function AccountPage() {
                   size="sm"
                   variant="ghost"
                   onClick={() => {
-                    void api.cancelTotp().finally(() => {
-                      setSetup(null);
-                      setTotpCode('');
-                      setTotpError(null);
-                    });
+                    runAction(
+                      api.cancelTotp().finally(() => {
+                        setSetup(null);
+                        setTotpCode('');
+                        setTotpError(null);
+                      }),
+                    );
                   }}
                 >
                   {messages.cancel}
@@ -2324,7 +2355,7 @@ export function AccountPage() {
                 if (confirmEmail !== profile.email) {
                   return;
                 }
-                void api.deleteAccount(profile.email);
+                runAction(api.deleteAccount(profile.email));
               }}
             >
               <label className="token-label" htmlFor="account-delete">
@@ -2493,7 +2524,7 @@ export function NotificationSettings() {
               .then(() => {
                 setDefaultDraft(null);
                 setStatus(messages.saved);
-                void queryClient.invalidateQueries({ queryKey: ['me'] });
+                runAction(queryClient.invalidateQueries({ queryKey: ['me'] }));
               })
               .catch(() => {
                 setStatus(messages.saveFailed);
@@ -2563,13 +2594,15 @@ export function NotificationSettings() {
                   onChange={(event) => {
                     const next = event.target.value;
                     setListOverrides((previous) => ({ ...previous, [list.id]: next }));
-                    void api
-                      .updateProject(list.id, {
-                        default_reminder_trigger: next.length === 0 ? null : next,
-                      })
-                      .then(() => {
-                        void queryClient.invalidateQueries({ queryKey: ['projects'] });
-                      });
+                    runAction(
+                      api
+                        .updateProject(list.id, {
+                          default_reminder_trigger: next.length === 0 ? null : next,
+                        })
+                        .then(() => {
+                          runAction(queryClient.invalidateQueries({ queryKey: ['projects'] }));
+                        }),
+                    );
                   }}
                 >
                   <option value="">{messages.reminderInherit}</option>
@@ -2600,9 +2633,11 @@ export function NotificationSettings() {
                 setPush('missing');
                 return;
               }
-              void Notification.requestPermission().then((next) => {
-                setPush(next);
-              });
+              runAction(
+                Notification.requestPermission().then((next) => {
+                  setPush(next);
+                }),
+              );
             }}
           >
             {messages.pushEnable}

@@ -1,3 +1,4 @@
+import { runAction } from './run-action';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { api } from '../api';
@@ -97,10 +98,12 @@ export function TagPicker({
   );
 
   function create(name: string): void {
-    void api.createTag({ name, color: '#4772fa' }, crypto.randomUUID()).then((tag) => {
-      setQuery('');
-      onToggle(tag.id);
-      void queryClient.invalidateQueries({ queryKey: ['tags'] });
-    });
+    runAction(
+      api.createTag({ name, color: '#4772fa' }, crypto.randomUUID()).then((tag) => {
+        setQuery('');
+        onToggle(tag.id);
+        runAction(queryClient.invalidateQueries({ queryKey: ['tags'] }));
+      }),
+    );
   }
 }

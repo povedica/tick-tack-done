@@ -1,3 +1,4 @@
+import { runAction } from '../components/run-action';
 import { ControlChip } from '../features/statistics/ControlSummary';
 import { displayTitle } from '../features/tasks/displayTitle';
 import { MODULES, moduleEnabled } from './modules';
@@ -84,7 +85,7 @@ export function IconRail({
         aria-label={messages.overdueTitle}
         title={messages.overdueTitle}
         onClick={() => {
-          void navigate('/today', { state: { scrollTo: 'overdue' } });
+          runAction(Promise.resolve(navigate('/today', { state: { scrollTo: 'overdue' } })));
           window.setTimeout(() => {
             document
               .getElementById('overdue')

@@ -1,3 +1,4 @@
+import { runAction } from '../../components/run-action';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { createApiClient } from '@reflexionia/sdk';
@@ -130,7 +131,7 @@ export function ConsentPage() {
           disabled={loading || sending !== null || chosen.length === 0}
           loading={sending === 'allow'}
           onClick={() => {
-            void decide(true);
+            runAction(decide(true));
           }}
         >
           {messages.consentAllow}
@@ -140,7 +141,7 @@ export function ConsentPage() {
           disabled={loading || sending !== null}
           loading={sending === 'deny'}
           onClick={() => {
-            void decide(false);
+            runAction(decide(false));
           }}
         >
           {messages.consentDeny}

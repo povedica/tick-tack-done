@@ -1,3 +1,4 @@
+import { runAction } from '../../components/run-action';
 import { useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router';
@@ -393,7 +394,7 @@ export function DashboardPage() {
               disabled={saving}
               variant="primary"
               onClick={() => {
-                void save();
+                runAction(save());
               }}
             >
               {saving ? t('loading') : t('save')}
@@ -414,7 +415,7 @@ export function DashboardPage() {
           {t('error')}
           <Button
             onClick={() => {
-              void layout.refetch();
+              runAction(layout.refetch());
             }}
           >
             {t('retry')}

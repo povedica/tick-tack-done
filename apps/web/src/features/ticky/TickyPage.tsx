@@ -1,3 +1,4 @@
+import { runAction } from '../../components/run-action';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { useMessages } from '../../i18n';
@@ -126,7 +127,7 @@ export function TickyPage({ taskHint }: { readonly taskHint?: string }) {
       setRunId(null);
       setPhase(body.proposal === null || body.proposal === undefined ? 'done' : 'review');
       setDraft('');
-      void queryClient.invalidateQueries({ queryKey: ['ticky'] });
+      runAction(queryClient.invalidateQueries({ queryKey: ['ticky'] }));
     },
     onError: (error: Error) => {
       setPhase(error.message.includes('scope') ? 'error' : 'error');
@@ -192,7 +193,7 @@ export function TickyPage({ taskHint }: { readonly taskHint?: string }) {
                       ? 'Conversación borrada.'
                       : 'Borrado solicitado; quedan ejecuciones o checkpoints pendientes.',
                   ]);
-                  void queryClient.invalidateQueries({ queryKey: ['ticky'] });
+                  runAction(queryClient.invalidateQueries({ queryKey: ['ticky'] }));
                 })
                 .catch(() => {
                   setLog([
@@ -245,7 +246,7 @@ export function TickyPage({ taskHint }: { readonly taskHint?: string }) {
                 .then((body) => {
                   setLatest(body);
                   setRunId(null);
-                  void queryClient.invalidateQueries({ queryKey: ['ticky'] });
+                  runAction(queryClient.invalidateQueries({ queryKey: ['ticky'] }));
                 })
                 .catch(() => {
                   setLog(['No se pudo recuperar la consulta. Revisa su estado antes de repetir.']);
@@ -311,7 +312,7 @@ export function TickyPage({ taskHint }: { readonly taskHint?: string }) {
                     streamAbort.current?.abort();
                     setRunId(null);
                     setLog(['Cancelación solicitada. Los efectos ya aplicados no se deshacen.']);
-                    void queryClient.invalidateQueries({ queryKey: ['ticky'] });
+                    runAction(queryClient.invalidateQueries({ queryKey: ['ticky'] }));
                   })
                   .catch(() => {
                     setLog(['No se pudo confirmar la cancelación. Revisa el historial.']);

@@ -1,3 +1,4 @@
+import { runAction } from '../../components/run-action';
 import { actionBlocked, validateProposal, type ProposalBody } from '@reflexionia/domain';
 import { useEffect, useState } from 'react';
 import { tickyApi } from './api';
@@ -19,25 +20,27 @@ export function ProposalReview({
     setSelected([]);
     setApplied(false);
     setProposal(null);
-    void (async () => {
-      try {
-        const candidate = value as ProposalBody;
-        await validateProposal(candidate);
-        if (
-          !/^[a-f0-9]{64}$/.test(candidate.approval_digest ?? '') ||
-          !Number.isFinite(Date.parse(candidate.expires_at))
-        )
-          throw new Error('Invalid proposal');
-        new Intl.DateTimeFormat('es', { timeZone: candidate.timezone }).format(new Date());
-        if (!active.signal.aborted) {
-          setProposal(candidate);
-          setNotice('Selecciona los cambios que quieres aprobar.');
+    runAction(
+      (async () => {
+        try {
+          const candidate = value as ProposalBody;
+          await validateProposal(candidate);
+          if (
+            !/^[a-f0-9]{64}$/.test(candidate.approval_digest ?? '') ||
+            !Number.isFinite(Date.parse(candidate.expires_at))
+          )
+            throw new Error('Invalid proposal');
+          new Intl.DateTimeFormat('es', { timeZone: candidate.timezone }).format(new Date());
+          if (!active.signal.aborted) {
+            setProposal(candidate);
+            setNotice('Selecciona los cambios que quieres aprobar.');
+          }
+        } catch {
+          if (!active.signal.aborted)
+            setNotice('No se ha podido verificar esta propuesta. No se aplicará.');
         }
-      } catch {
-        if (!active.signal.aborted)
-          setNotice('No se ha podido verificar esta propuesta. No se aplicará.');
-      }
-    })();
+      })(),
+    );
     return () => {
       active.abort();
     };
@@ -127,7 +130,7 @@ export function ProposalReview({
               Date.now() >= Date.parse(proposal.expires_at)
             }
             onClick={() => {
-              void approve();
+              runAction(approve());
             }}
           >
             Aprobar seleccionados

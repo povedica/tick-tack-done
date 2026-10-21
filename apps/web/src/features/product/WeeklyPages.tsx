@@ -1,3 +1,4 @@
+import { runAction } from '../../components/run-action';
 import { useState } from 'react';
 import { ApiError } from '@reflexionia/sdk';
 import { Check, Sun, CalendarDays, Ban } from 'lucide-react';
@@ -63,7 +64,7 @@ export function ReportsPage() {
     try {
       const result = row(await api.buildWeeklyReport());
       await query.refetch();
-      void navigate(`/reports/weekly/${str(result.week)}`);
+      runAction(Promise.resolve(navigate(`/reports/weekly/${str(result.week)}`)));
     } catch {
       setError(copy.refreshError);
     } finally {
@@ -85,7 +86,7 @@ export function ReportsPage() {
           available={rows.map((r) => str(r.week))}
           today={today}
           onSelect={(value) => {
-            void navigate(`/reports/weekly/${value}`);
+            runAction(Promise.resolve(navigate(`/reports/weekly/${value}`)));
           }}
         />
       ) : null}
@@ -97,9 +98,9 @@ export function ReportsPage() {
           <Button
             onClick={() => {
               if (listed === undefined && week !== undefined) {
-                void detail.refetch();
+                runAction(detail.refetch());
               } else {
-                void query.refetch();
+                runAction(query.refetch());
               }
             }}
           >
@@ -206,7 +207,7 @@ export function ReportsPage() {
         <Button
           disabled={busy}
           onClick={() => {
-            void update();
+            runAction(update());
           }}
         >
           {busy ? copy.refreshing : copy.refresh}
@@ -298,7 +299,7 @@ export function ReviewPage() {
           {copy.loadError}{' '}
           <Button
             onClick={() => {
-              void query.refetch();
+              runAction(query.refetch());
             }}
           >
             {copy.retry}
@@ -396,7 +397,7 @@ export function ReviewPage() {
           <Button
             disabled={busy}
             onClick={() => {
-              void act('done');
+              runAction(act('done'));
             }}
           >
             <Check size={16} aria-hidden="true" />
@@ -405,7 +406,7 @@ export function ReviewPage() {
           <Button
             disabled={busy}
             onClick={() => {
-              void act('today');
+              runAction(act('today'));
             }}
           >
             <Sun size={16} aria-hidden="true" />
@@ -414,7 +415,7 @@ export function ReviewPage() {
           <Button
             disabled={busy}
             onClick={() => {
-              void act('tomorrow');
+              runAction(act('tomorrow'));
             }}
           >
             <CalendarDays size={16} aria-hidden="true" />
@@ -423,7 +424,7 @@ export function ReviewPage() {
           <Button
             disabled={busy}
             onClick={() => {
-              void act('cancel');
+              runAction(act('cancel'));
             }}
           >
             <Ban size={16} aria-hidden="true" />

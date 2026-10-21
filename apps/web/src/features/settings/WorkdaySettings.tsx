@@ -1,3 +1,4 @@
+import { runAction } from '../../components/run-action';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api } from '../../api';
@@ -44,14 +45,16 @@ export function WorkdaySettings() {
               const value = typeof raw === 'string' ? raw : '';
               return value.length === 0 ? null : value;
             };
-            void save({
-              work_day_start: text('work_day_start'),
-              work_day_end: text('work_day_end'),
-              evening_start: text('evening_start') ?? '18:00',
-              shutdown_reminder_time: text('shutdown_reminder_time'),
-              default_task_duration_minutes: Number(form.get('default_task_duration_minutes')),
-              deadline_soon_days: Number(form.get('deadline_soon_days')),
-            });
+            runAction(
+              save({
+                work_day_start: text('work_day_start'),
+                work_day_end: text('work_day_end'),
+                evening_start: text('evening_start') ?? '18:00',
+                shutdown_reminder_time: text('shutdown_reminder_time'),
+                default_task_duration_minutes: Number(form.get('default_task_duration_minutes')),
+                deadline_soon_days: Number(form.get('deadline_soon_days')),
+              }),
+            );
           }}
         >
           <label>

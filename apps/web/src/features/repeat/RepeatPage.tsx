@@ -1,3 +1,4 @@
+import { runAction } from '../../components/run-action';
 import { buildRepeatRule, describeRepeatRule, type Weekday } from '@reflexionia/domain';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
@@ -90,7 +91,7 @@ export function RepeatPage() {
         className="task-group"
         onSubmit={(event) => {
           event.preventDefault();
-          void save();
+          runAction(save());
         }}
       >
         <label>

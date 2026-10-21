@@ -1,3 +1,4 @@
+import { runAction } from '../../components/run-action';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { GripVertical, MoreHorizontal } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -149,43 +150,49 @@ export function TaskList({
           </span>
           <Button
             onClick={() => {
-              void Promise.all(
-                [...selected].map((id) =>
-                  api.completeTask(id, completeBody(), crypto.randomUUID()),
-                ),
-              ).then(() => {
-                setSelected(new Set());
-                void refreshTaskSurfaces(queryClient);
-                onCreated?.();
-              });
+              runAction(
+                Promise.all(
+                  [...selected].map((id) =>
+                    api.completeTask(id, completeBody(), crypto.randomUUID()),
+                  ),
+                ).then(() => {
+                  setSelected(new Set());
+                  runAction(refreshTaskSurfaces(queryClient));
+                  onCreated?.();
+                }),
+              );
             }}
           >
             {messages.batchComplete}
           </Button>
           <Button
             onClick={() => {
-              void api
-                .batchTasks({
-                  action: 'due',
-                  ids: [...selected],
-                  due_date: new Date(Date.now() + 86_400_000).toISOString(),
-                })
-                .then(() => {
-                  setSelected(new Set());
-                  onCreated?.();
-                });
+              runAction(
+                api
+                  .batchTasks({
+                    action: 'due',
+                    ids: [...selected],
+                    due_date: new Date(Date.now() + 86_400_000).toISOString(),
+                  })
+                  .then(() => {
+                    setSelected(new Set());
+                    onCreated?.();
+                  }),
+              );
             }}
           >
             {messages.batchDate}
           </Button>
           <Button
             onClick={() => {
-              void api
-                .batchTasks({ action: 'priority', ids: [...selected], priority: 'high' })
-                .then(() => {
-                  setSelected(new Set());
-                  onCreated?.();
-                });
+              runAction(
+                api
+                  .batchTasks({ action: 'priority', ids: [...selected], priority: 'high' })
+                  .then(() => {
+                    setSelected(new Set());
+                    onCreated?.();
+                  }),
+              );
             }}
           >
             {messages.batchPriority}
@@ -193,10 +200,12 @@ export function TaskList({
           <Button
             variant="danger"
             onClick={() => {
-              void api.batchTasks({ action: 'delete', ids: [...selected] }).then(() => {
-                setSelected(new Set());
-                onCreated?.();
-              });
+              runAction(
+                api.batchTasks({ action: 'delete', ids: [...selected] }).then(() => {
+                  setSelected(new Set());
+                  onCreated?.();
+                }),
+              );
             }}
           >
             {messages.batchDelete}
@@ -270,7 +279,9 @@ function TaskRow({
           return;
         }
         event.preventDefault();
-        void api.patchTask(id, { before_id: row.id }).then(() => refreshTaskSurfaces(queryClient));
+        runAction(
+          api.patchTask(id, { before_id: row.id }).then(() => refreshTaskSurfaces(queryClient)),
+        );
       }}
       onTouchEnd={(event) => {
         const touch = event.changedTouches[0];
@@ -299,10 +310,10 @@ function TaskRow({
           confirmLabel={messages.confirmDelete}
           cancelLabel={messages.cancel}
           onRestore={() => {
-            void api.restoreTask(row.id).then(() => refreshTaskSurfaces(queryClient));
+            runAction(api.restoreTask(row.id).then(() => refreshTaskSurfaces(queryClient)));
           }}
           onPurge={() => {
-            void api.purgeTask(row.id).then(() => refreshTaskSurfaces(queryClient));
+            runAction(api.purgeTask(row.id).then(() => refreshTaskSurfaces(queryClient)));
           }}
         />
       ) : (
@@ -492,7 +503,7 @@ function Kanban({
                     limitLabel={messages.columnLimitShort}
                     current={column.wip_limit ?? null}
                     onSave={(value) => {
-                      void api.updateColumn(projectId, column.id, { wip_limit: value });
+                      runAction(api.updateColumn(projectId, column.id, { wip_limit: value }));
                     }}
                   />
                 ) : null}
@@ -552,10 +563,12 @@ function Kanban({
               if (name.length === 0) {
                 return;
               }
-              void api.createColumn(projectId, name, crypto.randomUUID()).then(() => {
-                setSection('');
-                void queryClient.invalidateQueries({ queryKey: ['columns', projectId] });
-              });
+              runAction(
+                api.createColumn(projectId, name, crypto.randomUUID()).then(() => {
+                  setSection('');
+                  runAction(queryClient.invalidateQueries({ queryKey: ['columns', projectId] }));
+                }),
+              );
             }}
           >
             <input
@@ -624,12 +637,14 @@ function Timeline({
               </button>
               <Button
                 onClick={() => {
-                  void api
-                    .patchTask(row.id, {
-                      due_date: new Date().toISOString(),
-                      start_date: new Date().toISOString(),
-                    })
-                    .then(() => refreshTaskSurfaces(queryClient));
+                  runAction(
+                    api
+                      .patchTask(row.id, {
+                        due_date: new Date().toISOString(),
+                        start_date: new Date().toISOString(),
+                      })
+                      .then(() => refreshTaskSurfaces(queryClient)),
+                  );
                 }}
               >
                 {messages.placeToday}
@@ -655,9 +670,11 @@ function Timeline({
                 }
                 const due = new Date(day);
                 due.setHours(9, 0, 0, 0);
-                void api
-                  .patchTask(id, { due_date: due.toISOString(), start_date: due.toISOString() })
-                  .then(() => refreshTaskSurfaces(queryClient));
+                runAction(
+                  api
+                    .patchTask(id, { due_date: due.toISOString(), start_date: due.toISOString() })
+                    .then(() => refreshTaskSurfaces(queryClient)),
+                );
               }}
             >
               <h3>

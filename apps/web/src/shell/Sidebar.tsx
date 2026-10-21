@@ -1,3 +1,4 @@
+import { runAction } from '../components/run-action';
 import { MODULES, moduleEnabled } from './modules';
 import { ControlChip } from '../features/statistics/ControlSummary';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -205,7 +206,7 @@ export function Sidebar({
           <button
             type="button"
             onClick={() => {
-              void smart.refetch();
+              runAction(smart.refetch());
             }}
           >
             {messages.retry}
@@ -263,11 +264,13 @@ export function Sidebar({
                       if (due === null) {
                         return;
                       }
-                      void api
-                        .patchTask(id, { due_date: due, is_all_day: true, time_zone: zone })
-                        .then(() => {
-                          void refreshTaskSurfaces(queryClient);
-                        });
+                      runAction(
+                        api
+                          .patchTask(id, { due_date: due, is_all_day: true, time_zone: zone })
+                          .then(() => {
+                            runAction(refreshTaskSurfaces(queryClient));
+                          }),
+                      );
                     }}
                   >
                     <SideLink to={smartPath(item.key)} onNavigate={onNavigate}>
@@ -362,7 +365,7 @@ export function Sidebar({
                         setDraft('');
                         setListError(null);
                         listField.current?.focus();
-                        void queryClient.invalidateQueries({ queryKey: ['projects'] });
+                        runAction(queryClient.invalidateQueries({ queryKey: ['projects'] }));
                       },
                       (error: unknown) => {
                         setListError(
@@ -440,9 +443,11 @@ export function Sidebar({
                         return;
                       }
                       event.preventDefault();
-                      void api.moveTask(id, project.id).then(() => {
-                        void refreshTaskSurfaces(queryClient);
-                      });
+                      runAction(
+                        api.moveTask(id, project.id).then(() => {
+                          runAction(refreshTaskSurfaces(queryClient));
+                        }),
+                      );
                     }}
                   >
                     <SideLink to={`/list/${project.id}`} section onNavigate={onNavigate}>
@@ -476,7 +481,7 @@ export function Sidebar({
                           setMenuId(null);
                         }}
                         onChanged={() => {
-                          void queryClient.invalidateQueries({ queryKey: ['projects'] });
+                          runAction(queryClient.invalidateQueries({ queryKey: ['projects'] }));
                         }}
                       />
                     ) : null}
@@ -550,7 +555,7 @@ export function Sidebar({
                         setTagDraft('');
                         setTagError(null);
                         tagField.current?.focus();
-                        void queryClient.invalidateQueries({ queryKey: ['tags'] });
+                        runAction(queryClient.invalidateQueries({ queryKey: ['tags'] }));
                       },
                       (error: unknown) => {
                         setTagError(
@@ -716,11 +721,13 @@ export function Sidebar({
             type="button"
             className="nav-link"
             onClick={() => {
-              void api.logout().then(() => {
-                queryClient.clear();
-                onNavigate();
-                void navigate('/login', { replace: true });
-              });
+              runAction(
+                api.logout().then(() => {
+                  queryClient.clear();
+                  onNavigate();
+                  runAction(Promise.resolve(navigate('/login', { replace: true })));
+                }),
+              );
             }}
           >
             <LogOut size={20} aria-hidden="true" />
@@ -816,10 +823,12 @@ function ListMenu({
           if (next.length === 0 || project.is_inbox) {
             return;
           }
-          void api.updateProject(project.id, { name: next }).then(() => {
-            onChanged();
-            onClose();
-          });
+          runAction(
+            api.updateProject(project.id, { name: next }).then(() => {
+              onChanged();
+              onClose();
+            }),
+          );
         }}
       >
         <input
@@ -840,10 +849,12 @@ function ListMenu({
             style={{ background: color }}
             aria-label={color}
             onClick={() => {
-              void api.updateProject(project.id, { color }).then(() => {
-                onChanged();
-                onClose();
-              });
+              runAction(
+                api.updateProject(project.id, { color }).then(() => {
+                  onChanged();
+                  onClose();
+                }),
+              );
             }}
           />
         ))}
@@ -854,10 +865,12 @@ function ListMenu({
             type="button"
             className="menu-item"
             onClick={() => {
-              void api.archiveProject(project.id, crypto.randomUUID()).then(() => {
-                onChanged();
-                onClose();
-              });
+              runAction(
+                api.archiveProject(project.id, crypto.randomUUID()).then(() => {
+                  onChanged();
+                  onClose();
+                }),
+              );
             }}
           >
             {messages.archiveList}
@@ -869,10 +882,12 @@ function ListMenu({
                 type="button"
                 className="menu-item is-danger"
                 onClick={() => {
-                  void api.deleteProject(project.id).then(() => {
-                    onChanged();
-                    onClose();
-                  });
+                  runAction(
+                    api.deleteProject(project.id).then(() => {
+                      onChanged();
+                      onClose();
+                    }),
+                  );
                 }}
               >
                 {messages.confirmDeleteList}

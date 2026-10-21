@@ -1,3 +1,4 @@
+import { runAction } from '../components/run-action';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
@@ -64,10 +65,12 @@ export function FocusCloser() {
       return;
     }
     closed.current = id;
-    void api.finishFocus(id).then(() => {
-      void queryClient.invalidateQueries({ queryKey: ['focus-sessions'] });
-      void queryClient.invalidateQueries({ queryKey: ['focus-stats'] });
-    });
+    runAction(
+      api.finishFocus(id).then(() => {
+        runAction(queryClient.invalidateQueries({ queryKey: ['focus-sessions'] }));
+        runAction(queryClient.invalidateQueries({ queryKey: ['focus-stats'] }));
+      }),
+    );
   }, [id, queryClient]);
   return null;
 }

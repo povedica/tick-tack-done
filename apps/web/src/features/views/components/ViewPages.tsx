@@ -1,3 +1,4 @@
+import { runAction } from '../../../components/run-action';
 import type { ViewPage } from '@reflexionia/sdk';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Menu } from 'lucide-react';
@@ -295,19 +296,23 @@ function Board({
           createViewDay={createViewDay}
           onComplete={(row) => {
             if (row.status === 'completed') {
-              void api.uncompleteTask(row.id, crypto.randomUUID()).then(() => {
-                void refreshTaskSurfaces(queryClient);
-              });
+              runAction(
+                api.uncompleteTask(row.id, crypto.randomUUID()).then(() => {
+                  runAction(refreshTaskSurfaces(queryClient));
+                }),
+              );
               return;
             }
-            void runOrQueue(newMutation('complete', row.id, {}), (key) =>
-              api.completeTask(row.id, completeBody(), key),
-            ).then(() => {
-              void refreshTaskSurfaces(queryClient);
-            });
+            runAction(
+              runOrQueue(newMutation('complete', row.id, {}), (key) =>
+                api.completeTask(row.id, completeBody(), key),
+              ).then(() => {
+                runAction(refreshTaskSurfaces(queryClient));
+              }),
+            );
           }}
           onCreated={() => {
-            void refreshTaskSurfaces(queryClient);
+            runAction(refreshTaskSurfaces(queryClient));
           }}
         />
       )}
@@ -345,10 +350,12 @@ export function CancelledPage() {
         view="list"
         hideCompleted={false}
         onComplete={(row) => {
-          void api.completeTask(row.id, completeBody(), crypto.randomUUID()).then(() => {
-            void refreshTaskSurfaces(queryClient);
-            void queryClient.invalidateQueries({ queryKey: ['cancelled-tasks'] });
-          });
+          runAction(
+            api.completeTask(row.id, completeBody(), crypto.randomUUID()).then(() => {
+              runAction(refreshTaskSurfaces(queryClient));
+              runAction(queryClient.invalidateQueries({ queryKey: ['cancelled-tasks'] }));
+            }),
+          );
         }}
       />
     </main>
@@ -397,9 +404,11 @@ export function TagViewPage() {
         locale={locale}
         view="list"
         onComplete={(row) => {
-          void api.completeTask(row.id, completeBody(), crypto.randomUUID()).then(() => {
-            void refreshTaskSurfaces(queryClient);
-          });
+          runAction(
+            api.completeTask(row.id, completeBody(), crypto.randomUUID()).then(() => {
+              runAction(refreshTaskSurfaces(queryClient));
+            }),
+          );
         }}
       />
     </main>

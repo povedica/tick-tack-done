@@ -1,3 +1,4 @@
+import { runAction } from '../../components/run-action';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { useMessages } from '../../i18n';
@@ -84,16 +85,36 @@ export function ShutdownPage({ kind }: { readonly kind: 'shutdown' | 'replan' })
                   <span> — {card.suggested.reason}</span>
                 ) : null}
                 <div>
-                  <button type="button" onClick={() => void choose(card.task_id, 'done', null)}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      runAction(choose(card.task_id, 'done', null));
+                    }}
+                  >
                     {messages.decisionDone}
                   </button>
-                  <button type="button" onClick={() => void choose(card.task_id, 'plan_day', null)}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      runAction(choose(card.task_id, 'plan_day', null));
+                    }}
+                  >
                     {messages.decisionTomorrow}
                   </button>
-                  <button type="button" onClick={() => void choose(card.task_id, 'someday', null)}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      runAction(choose(card.task_id, 'someday', null));
+                    }}
+                  >
                     {messages.somedayAction}
                   </button>
-                  <button type="button" onClick={() => void choose(card.task_id, 'cancel', null)}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      runAction(choose(card.task_id, 'cancel', null));
+                    }}
+                  >
                     {messages.decisionCancel}
                   </button>
                 </div>
@@ -101,11 +122,21 @@ export function ShutdownPage({ kind }: { readonly kind: 'shutdown' | 'replan' })
             ))}
           </ul>
           {kind === 'replan' ? (
-            <button type="button" onClick={() => void apply()}>
+            <button
+              type="button"
+              onClick={() => {
+                runAction(apply());
+              }}
+            >
               {messages.applyProposal}
             </button>
           ) : null}
-          <button type="button" onClick={() => void apply()}>
+          <button
+            type="button"
+            onClick={() => {
+              runAction(apply());
+            }}
+          >
             {kind === 'shutdown' ? messages.closeDay : messages.applyReplan}
           </button>
         </>

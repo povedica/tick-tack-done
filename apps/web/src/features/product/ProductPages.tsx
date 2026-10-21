@@ -1,3 +1,4 @@
+import { runAction } from '../../components/run-action';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -116,9 +117,11 @@ export function FocusPage() {
               key={minutes}
               aria-pressed={planned === minutes}
               onClick={() => {
-                void api.updateFocusSettings({ pomodoro_minutes: minutes }).then(() => {
-                  void queryClient.invalidateQueries({ queryKey: ['focus-settings'] });
-                });
+                runAction(
+                  api.updateFocusSettings({ pomodoro_minutes: minutes }).then(() => {
+                    runAction(queryClient.invalidateQueries({ queryKey: ['focus-settings'] }));
+                  }),
+                );
               }}
             >
               {String(minutes)} min
@@ -146,24 +149,28 @@ export function FocusPage() {
             <Button
               variant="primary"
               onClick={() => {
-                void api.finishFocus(live.id as string).then(() => {
-                  void queryClient.invalidateQueries({ queryKey: ['focus-sessions'] });
-                  void queryClient.invalidateQueries({ queryKey: ['focus-stats'] });
-                  void queryClient.invalidateQueries({ queryKey: ['stats'] });
-                  void queryClient.invalidateQueries({ queryKey: ['achievements'] });
-                });
+                runAction(
+                  api.finishFocus(live.id as string).then(() => {
+                    runAction(queryClient.invalidateQueries({ queryKey: ['focus-sessions'] }));
+                    runAction(queryClient.invalidateQueries({ queryKey: ['focus-stats'] }));
+                    runAction(queryClient.invalidateQueries({ queryKey: ['stats'] }));
+                    runAction(queryClient.invalidateQueries({ queryKey: ['achievements'] }));
+                  }),
+                );
               }}
             >
               {messages.focusFinish}
             </Button>
             <Button
               onClick={() => {
-                void api.abortFocus(live.id as string).then(() => {
-                  void queryClient.invalidateQueries({ queryKey: ['focus-sessions'] });
-                  void queryClient.invalidateQueries({ queryKey: ['focus-stats'] });
-                  void queryClient.invalidateQueries({ queryKey: ['stats'] });
-                  void queryClient.invalidateQueries({ queryKey: ['achievements'] });
-                });
+                runAction(
+                  api.abortFocus(live.id as string).then(() => {
+                    runAction(queryClient.invalidateQueries({ queryKey: ['focus-sessions'] }));
+                    runAction(queryClient.invalidateQueries({ queryKey: ['focus-stats'] }));
+                    runAction(queryClient.invalidateQueries({ queryKey: ['stats'] }));
+                    runAction(queryClient.invalidateQueries({ queryKey: ['achievements'] }));
+                  }),
+                );
               }}
             >
               {messages.cancel}
@@ -173,9 +180,11 @@ export function FocusPage() {
           <Button
             variant="primary"
             onClick={() => {
-              void api.startFocus().then(() => {
-                void queryClient.invalidateQueries({ queryKey: ['focus-sessions'] });
-              });
+              runAction(
+                api.startFocus().then(() => {
+                  runAction(queryClient.invalidateQueries({ queryKey: ['focus-sessions'] }));
+                }),
+              );
             }}
           >
             {messages.focusStart}
@@ -224,11 +233,13 @@ export function CalendarSettings() {
             if (projectId.length === 0) {
               return;
             }
-            void api.createCalendarFeed(projectId).then((body) => {
-              setUrl(text(body.url));
-              setCopied(false);
-              void queryClient.invalidateQueries({ queryKey: ['calendar-feeds'] });
-            });
+            runAction(
+              api.createCalendarFeed(projectId).then((body) => {
+                setUrl(text(body.url));
+                setCopied(false);
+                runAction(queryClient.invalidateQueries({ queryKey: ['calendar-feeds'] }));
+              }),
+            );
           }}
         >
           <label className="token-label" htmlFor="calendar-list">
@@ -311,10 +322,12 @@ export function CalendarSettings() {
                   size="sm"
                   variant="ghost"
                   onClick={() => {
-                    void api.rotateCalendarFeed(id).then((body) => {
-                      setUrl(text(body.url));
-                      setCopied(false);
-                    });
+                    runAction(
+                      api.rotateCalendarFeed(id).then((body) => {
+                        setUrl(text(body.url));
+                        setCopied(false);
+                      }),
+                    );
                   }}
                 >
                   {messages.feedRotate}
@@ -349,10 +362,14 @@ export function CalendarSettings() {
                       size="sm"
                       variant="danger"
                       onClick={() => {
-                        void api.revokeCalendarFeed(id).then(() => {
-                          setConfirmId(null);
-                          void queryClient.invalidateQueries({ queryKey: ['calendar-feeds'] });
-                        });
+                        runAction(
+                          api.revokeCalendarFeed(id).then(() => {
+                            setConfirmId(null);
+                            runAction(
+                              queryClient.invalidateQueries({ queryKey: ['calendar-feeds'] }),
+                            );
+                          }),
+                        );
                       }}
                     >
                       {messages.revoke}
@@ -422,9 +439,9 @@ export function IntegrationSettings() {
     mutationFn: () => api.disconnectGoogle(),
     onSuccess: () => {
       setConfirmGoogle(null);
-      void google.refetch();
-      void drive.refetch();
-      void queryClient.invalidateQueries({ queryKey: ['google-calendars'] });
+      runAction(google.refetch());
+      runAction(drive.refetch());
+      runAction(queryClient.invalidateQueries({ queryKey: ['google-calendars'] }));
     },
   });
   const busy = connectGoogle.isPending || disconnectGoogle.isPending;
@@ -471,7 +488,7 @@ export function IntegrationSettings() {
             <Button
               type="button"
               onClick={() => {
-                void google.refetch();
+                runAction(google.refetch());
               }}
             >
               {messages.retry}
@@ -522,7 +539,7 @@ export function IntegrationSettings() {
             <Button
               type="button"
               onClick={() => {
-                void drive.refetch();
+                runAction(drive.refetch());
               }}
             >
               {messages.retry}
@@ -581,9 +598,11 @@ export function IntegrationSettings() {
             size="sm"
             variant="ghost"
             onClick={() => {
-              void api.disconnectTelegram().then(() => {
-                void telegram.refetch();
-              });
+              runAction(
+                api.disconnectTelegram().then(() => {
+                  runAction(telegram.refetch());
+                }),
+              );
             }}
           >
             {messages.googleDisconnect}
@@ -627,7 +646,7 @@ export function LocationWatch() {
     }
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        void api.reportLocation(position.coords.latitude, position.coords.longitude);
+        runAction(api.reportLocation(position.coords.latitude, position.coords.longitude));
       },
       () => undefined,
       { enableHighAccuracy: false, maximumAge: 60_000, timeout: 8_000 },

@@ -1,3 +1,4 @@
+import { runAction } from '../../components/run-action';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type SyntheticEvent } from 'react';
 import { tickyApi, type TickyRoutine, type TickyRoutineDraft } from './api';
@@ -46,7 +47,7 @@ export function TickyRoutines() {
     setEditing(null);
     setDraft(emptyDraft());
     setNotice('Rutina guardada en modo shadow. No se enviarán avisos.');
-    void queryClient.invalidateQueries({ queryKey: ['ticky', 'routines'] });
+    runAction(queryClient.invalidateQueries({ queryKey: ['ticky', 'routines'] }));
   };
   const create = useMutation({
     mutationFn: tickyApi.createRoutine,
@@ -70,14 +71,14 @@ export function TickyRoutines() {
           ? 'La rutina cambió en otra sesión; hemos actualizado la lista. Revisa y vuelve a guardar.'
           : error.message,
       );
-      void queryClient.invalidateQueries({ queryKey: ['ticky', 'routines'] });
+      runAction(queryClient.invalidateQueries({ queryKey: ['ticky', 'routines'] }));
     },
   });
   const pause = useMutation({
     mutationFn: tickyApi.pauseRoutine,
     onSuccess: () => {
       setNotice('Rutina pausada.');
-      void queryClient.invalidateQueries({ queryKey: ['ticky', 'routines'] });
+      runAction(queryClient.invalidateQueries({ queryKey: ['ticky', 'routines'] }));
     },
     onError: (error: Error) => {
       setNotice(error.message);

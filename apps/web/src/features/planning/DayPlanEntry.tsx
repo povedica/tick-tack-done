@@ -1,3 +1,4 @@
+import { runAction } from '../../components/run-action';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../api';
 import { useMessages } from '../../i18n';
@@ -41,7 +42,7 @@ export function DayPlanEntry() {
         <button
           type="button"
           onClick={() => {
-            void status.refetch();
+            runAction(status.refetch());
           }}
         >
           {m.retry}

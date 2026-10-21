@@ -1,3 +1,4 @@
+import { runAction } from '../../components/run-action';
 import { ApiError, type Project } from '@reflexionia/sdk';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -41,7 +42,7 @@ export function AutomationSettings() {
               })
               .then(() => {
                 setName('');
-                void queryClient.invalidateQueries({ queryKey: ['automations'] });
+                runAction(queryClient.invalidateQueries({ queryKey: ['automations'] }));
               })
               .catch((reason: unknown) => {
                 setError(failureMessage(reason, messages.settingsFailed));
@@ -100,9 +101,11 @@ export function AutomationSettings() {
                   size="sm"
                   variant="ghost"
                   onClick={() => {
-                    void api.updateAutomation(id, { enabled: !enabled }).then(() => {
-                      void queryClient.invalidateQueries({ queryKey: ['automations'] });
-                    });
+                    runAction(
+                      api.updateAutomation(id, { enabled: !enabled }).then(() => {
+                        runAction(queryClient.invalidateQueries({ queryKey: ['automations'] }));
+                      }),
+                    );
                   }}
                 >
                   {enabled ? messages.automationPause : messages.automationResume}
@@ -137,10 +140,12 @@ export function AutomationSettings() {
                       size="sm"
                       variant="danger"
                       onClick={() => {
-                        void api.deleteAutomation(id).then(() => {
-                          setConfirmId(null);
-                          void queryClient.invalidateQueries({ queryKey: ['automations'] });
-                        });
+                        runAction(
+                          api.deleteAutomation(id).then(() => {
+                            setConfirmId(null);
+                            runAction(queryClient.invalidateQueries({ queryKey: ['automations'] }));
+                          }),
+                        );
                       }}
                     >
                       {messages.purge}
@@ -186,7 +191,7 @@ export function WebhookSettings() {
                 setUrl('');
                 setSecret(text(body.secret));
                 setCopied(false);
-                void queryClient.invalidateQueries({ queryKey: ['webhooks'] });
+                runAction(queryClient.invalidateQueries({ queryKey: ['webhooks'] }));
               })
               .catch(() => {
                 setError(messages.settingsFailed);
@@ -267,9 +272,11 @@ export function WebhookSettings() {
                   size="sm"
                   variant="ghost"
                   onClick={() => {
-                    void api.updateWebhook(id, { active: !active }).then(() => {
-                      void queryClient.invalidateQueries({ queryKey: ['webhooks'] });
-                    });
+                    runAction(
+                      api.updateWebhook(id, { active: !active }).then(() => {
+                        runAction(queryClient.invalidateQueries({ queryKey: ['webhooks'] }));
+                      }),
+                    );
                   }}
                 >
                   {active ? messages.webhookPause : messages.webhookResume}
@@ -297,10 +304,12 @@ export function WebhookSettings() {
                   size="sm"
                   variant="ghost"
                   onClick={() => {
-                    void api.rotateWebhook(id).then((body) => {
-                      setSecret(text(body.secret));
-                      setCopied(false);
-                    });
+                    runAction(
+                      api.rotateWebhook(id).then((body) => {
+                        setSecret(text(body.secret));
+                        setCopied(false);
+                      }),
+                    );
                   }}
                 >
                   {messages.webhookRotate}
@@ -335,10 +344,12 @@ export function WebhookSettings() {
                       size="sm"
                       variant="danger"
                       onClick={() => {
-                        void api.deleteWebhook(id).then(() => {
-                          setConfirmId(null);
-                          void queryClient.invalidateQueries({ queryKey: ['webhooks'] });
-                        });
+                        runAction(
+                          api.deleteWebhook(id).then(() => {
+                            setConfirmId(null);
+                            runAction(queryClient.invalidateQueries({ queryKey: ['webhooks'] }));
+                          }),
+                        );
                       }}
                     >
                       {messages.purge}
@@ -433,7 +444,7 @@ export function SharingSettings() {
               .addMember(projectId, email.trim(), permission)
               .then(() => {
                 setEmail('');
-                void members.refetch();
+                runAction(members.refetch());
               })
               .catch((reason: unknown) => {
                 setError(

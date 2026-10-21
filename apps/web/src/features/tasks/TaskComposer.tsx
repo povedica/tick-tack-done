@@ -1,3 +1,4 @@
+import { runAction } from '../../components/run-action';
 import {
   CalendarDays,
   ChevronDown,
@@ -237,7 +238,7 @@ export function TaskComposer({
         className="quick-add task-composer-form"
         onSubmit={(event) => {
           event.preventDefault();
-          void submit();
+          runAction(submit());
         }}
       >
         <div className={text.trim().length > 0 ? 'composer-main has-draft' : 'composer-main'}>
@@ -494,7 +495,7 @@ export function TaskComposer({
                 type="button"
                 className="popover-row"
                 onClick={() => {
-                  void projects.refetch();
+                  runAction(projects.refetch());
                 }}
               >
                 {messages.retry}
@@ -586,7 +587,7 @@ export function TaskComposer({
             type="button"
             disabled={busy}
             onClick={() => {
-              void submit();
+              runAction(submit());
             }}
           >
             {messages.retry}
