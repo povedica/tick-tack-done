@@ -205,7 +205,6 @@ export type {
 } from './habits/habits';
 
 export {
-  applyQuadrantDrop,
   DEFAULT_QUADRANT_EFFECTS,
   defaultQuadrant,
   isImportant,

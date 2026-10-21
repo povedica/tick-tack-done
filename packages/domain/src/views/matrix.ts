@@ -187,17 +187,6 @@ export function minimalQuadrantPatch(
   return { priority, dueDate, isAllDay, unchanged };
 }
 
-/** @deprecated Prefer minimalQuadrantPatch (TTD-AUD-62). */
-export function applyQuadrantDrop(effect: QuadrantEffect, nowIso: string): QuadrantPatch {
-  const now = Date.parse(nowIso);
-  const base = Number.isNaN(now) ? Date.parse('2026-01-01T00:00:00.000Z') : now;
-  if (effect.due === 'clear') {
-    return { priority: effect.priority, dueDate: null };
-  }
-  const delta = effect.due === 'within_24h' ? 60 * 60 * 1000 : 7 * DAY_MS;
-  return { priority: effect.priority, dueDate: new Date(base + delta).toISOString() };
-}
-
 function toSubject(task: MatrixTask): FilterSubject {
   return {
     listId: task.listId,

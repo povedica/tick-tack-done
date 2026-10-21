@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  applyQuadrantDrop,
   defaultQuadrant,
-  DEFAULT_QUADRANT_EFFECTS,
   minimalQuadrantPatch,
   quadrantOf,
   type MatrixTask,
@@ -90,22 +88,6 @@ describe('matrix', () => {
       { now, timeZone: 'Europe/Madrid' },
     );
     expect(placed).toBe('do');
-  });
-
-  it('RF-1004: a drop on schedule sets medium priority and a later date', () => {
-    const patch = applyQuadrantDrop(DEFAULT_QUADRANT_EFFECTS.schedule, now);
-    expect(patch.priority).toBe('medium');
-    expect(patch.dueDate).toBe('2026-10-25T12:00:00.000Z');
-  });
-
-  it('RF-1004: a drop on drop clears the date', () => {
-    expect(applyQuadrantDrop(DEFAULT_QUADRANT_EFFECTS.drop, now).dueDate).toBeNull();
-  });
-
-  it('RF-1004: a drop on do is due within 24 hours', () => {
-    expect(applyQuadrantDrop(DEFAULT_QUADRANT_EFFECTS.do, 'not-a-date').dueDate).toBe(
-      '2026-01-01T01:00:00.000Z',
-    );
   });
 
   it('TTD-AUD-62: low tomorrow all-day to do becomes high today all-day', () => {
