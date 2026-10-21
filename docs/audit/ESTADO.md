@@ -264,3 +264,7 @@ Ajuste posterior de 77 solicitado por Pablo: ambos sidebars móviles pasan al 88
 del ancho del viewport mediante `--mobile-sidebar-w` en claro/oscuro. Se conserva
 la franja exterior para cerrar. Sustituye el límite anterior de 240 px; el drawer
 no depende ya del ancho del sidebar de escritorio.
+
+El fondo exterior del drawer recibe además desenfoque de 4 px y opacidad más
+oscura (55 % en claro / 60 % en oscuro), mediante tokens de ambos temas y
+backdrop-filter con prefijo Safari. El sidebar permanece por encima y nítido.

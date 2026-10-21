@@ -531,6 +531,8 @@
     z-index: var(--shell-scrim-z);
     border: 0;
     background: var(--shell-scrim-bg);
+    -webkit-backdrop-filter: blur(var(--shell-scrim-blur));
+    backdrop-filter: blur(var(--shell-scrim-blur));
   }
 
   /* Listas and Más share the same left drawer and row layout. */

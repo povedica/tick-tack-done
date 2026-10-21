@@ -16,7 +16,8 @@
   --mobile-sidebar-w: 88vw;
   --shell-drawer-z: 40;
   --shell-scrim-z: 35;
-  --shell-scrim-bg: color-mix(in srgb, var(--ink) 40%, transparent);
+  --shell-scrim-blur: 0.25rem;
+  --shell-scrim-bg: color-mix(in srgb, var(--ink) 55%, transparent);
   --account-progress-value-fs: 1.125rem;
   --account-progress-label-fs: 0.6875rem;
   --account-progress-value-gap: 0.125rem;
@@ -180,7 +181,8 @@
   --mobile-sidebar-w: 88vw;
   --shell-drawer-z: 40;
   --shell-scrim-z: 35;
-  --shell-scrim-bg: rgb(0 0 0 / 0.4);
+  --shell-scrim-blur: 0.25rem;
+  --shell-scrim-bg: rgb(0 0 0 / 0.6);
   --account-progress-value-fs: 1.125rem;
   --account-progress-label-fs: 0.6875rem;
   --account-progress-value-gap: 0.125rem;
