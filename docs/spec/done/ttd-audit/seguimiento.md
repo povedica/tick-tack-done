@@ -11,8 +11,8 @@ siguen el orden de prioridad de la petición; no se consideran cerrados.
 | TTD-AUD-04 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                                     |
 | TTD-AUD-05 | corregido | [#68](https://github.com/povedica/tick-tack-done/pull/68) | Menú vertical acotado al viewport, sin desbordamiento; flechas/Inicio/Fin/Escape y retorno del foco. Regresión Chromium a 1280 y 360 px.                                    |
 | TTD-AUD-06 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-07 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-08 | aplazado  | —                                                         | F-1…F-10 excluidos expresamente; solo se abordarán accesos y maquetación de ttd junto a TTD-AUD-07.                                                                         |
+| TTD-AUD-07 | corregido | pendiente de publicación                                  | Accesos de navegación/detalle condicionados a ui y kill de la API existente; estado directo, error y reintento; screen-page común.                                          |
+| TTD-AUD-08 | aplazado  | —                                                         | F-1…F-10 excluidos por petición expresa. No se añade configuración ni activación; la disponibilidad y maquetación de ttd se corrigen con TTD-AUD-07.                        |
 | TTD-AUD-09 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                                     |
 | TTD-AUD-10 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                                     |
 | TTD-AUD-11 | corregido | [#67](https://github.com/povedica/tick-tack-done/pull/67) | Constructor común API/automatización, lunes local, payload completo v2; test de límite semanal UTC/local con tareas, hábitos y foco. Históricos preservados.                |
@@ -229,3 +229,17 @@ OpenAPI regenerado sin diferencias.
 - Regresión del diálogo de fecha y su foco atrapado también pasa. No cambia el comportamiento de las acciones.
 - RF cubiertos: RF-1001 y RF-1902. Sin API, modelo, colores fijos ni textos nuevos.
 - Validación: typecheck, lint, 284 tests de dominio, 110 web, 101 API y 9 SDK; 3 pruebas Chromium en verde.
+
+## TTD-AUD-07/08: alcance y aceptación
+
+- Reproducción previa: ui=false conservaba dos enlaces a Ticky en escritorio y móvil.
+- IconRail, menú móvil y detalle comparten la consulta de capacidades existente; ui=false, kill, carga y error no ofrecen el acceso. Al recuperarse vuelven sin recargar la app.
+- /ticky conserva la URL y muestra desactivado por administrador, interruptor de emergencia o error de consulta, con Reintentar. No afirma conocer configuración o salud que la API no expone.
+- screen-page aplica márgenes comunes; inspección visual local de capturas Chromium a 1280 y 360 px. Las imágenes no se publican.
+- Tests de error→kill→habilitado, acceso desde detalle y regresiones de menú/fecha.
+- RF-1901, RF-1902 y APP-06 (integración Ticky). Sin cambios de API, modelo ni servicio externo.
+- TTD-AUD-08 y redirección a ajustes de Ticky quedan fuera: requieren la configuración F-1…F-10 que el usuario excluyó expresamente. No se presenta una pantalla de activación ficticia.
+
+Validación de TTD-AUD-07: typecheck y lint; 284 tests dominio, 110 web,
+101 API y 9 SDK; 6 pruebas Chromium (3 de disponibilidad y 3 de menú/fecha).
+OpenAPI regenerado sin diferencias.

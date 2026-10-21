@@ -1,5 +1,6 @@
 import { runAction } from '../components/run-action';
 import { MODULES, moduleEnabled } from './modules';
+import { useTickyFlags } from '../features/ticky/useTickyFlags';
 import { ControlChip } from '../features/statistics/ControlSummary';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { normalizeTagName, FIXED_SMART_LIST_KEYS } from '@reflexionia/domain';
@@ -78,6 +79,7 @@ export function Sidebar({
     ? me.data.display_name
     : (me.data?.email ?? messages.settingsAccount);
   const flags = useFeatures((state) => state.flags);
+  const ticky = useTickyFlags();
   const showCounters = usePreferences((state) => state.showCounters);
   const queryClient = useQueryClient();
   const catalog = { staleTime: 5 * 60_000 };
@@ -218,7 +220,11 @@ export function Sidebar({
           <NavGroup id="mobile-more" title={messages.navMore}>
             <ul className="nav-list">
               {flags.navigation_order
-                .filter((key) => key !== 'calendar' && moduleEnabled(key, flags))
+                .filter(
+                  (key) =>
+                    key !== 'calendar' &&
+                    moduleEnabled(key, flags, ticky.isSuccess && ticky.data.ui && !ticky.data.kill),
+                )
                 .map((key) => {
                   const module = MODULES[key];
                   const Icon = module.icon;

@@ -2,6 +2,7 @@ import { runAction } from '../components/run-action';
 import { ControlChip } from '../features/statistics/ControlSummary';
 import { displayTitle } from '../features/tasks/displayTitle';
 import { MODULES, moduleEnabled } from './modules';
+import { useTickyFlags } from '../features/ticky/useTickyFlags';
 import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, HelpCircle, ListTodo, PanelLeft, Plus } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router';
@@ -23,6 +24,7 @@ export function IconRail({
   const messages = useMessages();
   const navigate = useNavigate();
   const flags = useFeatures((state) => state.flags);
+  const ticky = useTickyFlags();
   const focus = useActiveFocus();
   const task = useQuery({
     queryKey: ['task', focus?.taskId],
@@ -66,7 +68,9 @@ export function IconRail({
         <ListTodo size={20} aria-hidden="true" />
       </NavLink>
       {flags.navigation_order
-        .filter((key) => moduleEnabled(key, flags))
+        .filter((key) =>
+          moduleEnabled(key, flags, ticky.isSuccess && ticky.data.ui && !ticky.data.kill),
+        )
         .map((key) => {
           const module = MODULES[key];
           const Icon = module.icon;

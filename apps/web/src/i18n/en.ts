@@ -2,6 +2,10 @@ import { extraEn } from './extra';
 import type { es } from './es';
 
 export const en = {
+  tickyStatusError: 'Ticky availability could not be checked.',
+  tickyKillStatus: 'Ticky is stopped by the server emergency switch. Contact the administrator.',
+  tickyServerDisabled:
+    'The administrator has disabled Ticky on this server. Contact them to check its availability.',
   focusLifetime: 'All time',
   appName: 'tick-tack-done',
   todayTitle: 'Today',
