@@ -1,6 +1,11 @@
 import { extraEs } from './extra';
 
 export const es = {
+  tickyStatusError: 'No se ha podido comprobar la disponibilidad de Ticky.',
+  tickyKillStatus:
+    'Ticky está detenido por el interruptor de emergencia del servidor. Contacta con el administrador.',
+  tickyServerDisabled:
+    'El administrador ha desactivado Ticky en este servidor. Contacta con él para conocer su disponibilidad.',
   focusLifetime: 'Histórico completo',
   appName: 'tick-tack-done',
   todayTitle: 'Hoy',

@@ -28,6 +28,11 @@ export const MODULES = {
   search: { to: '/search', label: 'navSearch', icon: Search },
 } satisfies Record<NavigationModule, { to: string; label: keyof Messages; icon: typeof Search }>;
 
-export function moduleEnabled(key: NavigationModule, flags: FeatureFlags): boolean {
+export function moduleEnabled(
+  key: NavigationModule,
+  flags: FeatureFlags,
+  tickyAvailable = false,
+): boolean {
+  if (key === 'ticky') return tickyAvailable;
   return key === 'matrix' || key === 'focus' || key === 'countdowns' ? flags[key] : true;
 }

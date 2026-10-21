@@ -1,6 +1,50 @@
 import { expect, test, type Page } from '@playwright/test';
 
 for (const width of [1280, 360]) {
+  test(`TTD-AUD-07: disabled Ticky has no navigation or task entry (${width}px)`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await fixtures(page, { ticky: 'disabled' });
+    await page.goto('/today?task=audit-task');
+    await expect(page.locator('textarea.detail-title')).toBeVisible();
+    await expect(page.locator('a[href^="/ticky"]')).toHaveCount(0);
+    await page.goto('/ticky');
+    const screen = page.locator('.ticky-page');
+    await expect(screen).toHaveClass(/screen-page/);
+    await expect(screen).toContainText('El administrador ha desactivado Ticky');
+    await expect(screen.locator('textarea')).toHaveCount(0);
+    await expect(screen.getByRole('button', { name: 'Reintentar' })).toBeVisible();
+    await page.screenshot({ path: test.info().outputPath(`ticky-disabled-${width}.png`) });
+  });
+}
+
+test('TTD-AUD-07: server capability can recover and kill switch stays closed', async ({ page }) => {
+  await fixtures(page);
+  let state = 'error';
+  await page.route('**/api/v1/ticky/flags', async (route) => {
+    if (state === 'error') await route.fulfill({ status: 503, json: {} });
+    else
+      await route.fulfill({
+        json: { ui: true, kill: state === 'kill', read: false, model: false, routines: false },
+      });
+  });
+  await page.goto('/ticky');
+  await expect(page.getByRole('alert')).toContainText('No se ha podido comprobar');
+  await expect(page.locator('a[href^="/ticky"]')).toHaveCount(0);
+  state = 'kill';
+  await page.getByRole('button', { name: 'Reintentar' }).click();
+  await expect(page.getByRole('status')).toContainText('interruptor de emergencia');
+  await expect(page.locator('a[href^="/ticky"]')).toHaveCount(0);
+  state = 'enabled';
+  await page.getByRole('button', { name: 'Reintentar' }).click();
+  await expect(page.locator('.ticky-composer')).toBeVisible();
+  await expect(page.locator('.icon-rail a[href="/ticky"]')).toBeVisible();
+  await page.goto('/today?task=audit-task');
+  await expect(page.locator('.detail-assistant')).toBeVisible();
+});
+
+for (const width of [1280, 360]) {
   test(`TTD-AUD-05: task actions fit vertically and support keyboard (${width}px)`, async ({
     page,
   }) => {
@@ -96,6 +140,7 @@ async function fixtures(
     reviewCount?: number;
     focusSeconds?: number;
     empty?: boolean;
+    ticky?: 'enabled' | 'disabled';
   } = {},
 ) {
   const sampleTask = {
@@ -132,6 +177,16 @@ async function fixtures(
     const url = new URL(route.request().url());
     const path = url.pathname.replace('/api/v1', '');
     let body: unknown = { items: [], next_cursor: null };
+    if (path === '/ticky/flags')
+      body = {
+        ui: options.ticky !== 'disabled',
+        read: false,
+        model: false,
+        execution: false,
+        routines: false,
+        telegram: false,
+        kill: false,
+      };
     if (path === '/auth/session')
       body = {
         csrf_token: 'test',

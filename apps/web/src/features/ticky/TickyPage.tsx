@@ -6,6 +6,8 @@ import { tickyApi, waitForTickyRun } from './api';
 import { ProposalReview } from './ProposalReview';
 import { TickyRoutines } from './TickyRoutines';
 import { TickySettings } from './TickySettings';
+import { useTickyFlags } from './useTickyFlags';
+import { Button, SkeletonRows } from '../../components/ui';
 import './ticky.css';
 
 type Phase =
@@ -17,8 +19,7 @@ type Phase =
   | 'verifying'
   | 'done'
   | 'offline'
-  | 'error'
-  | 'disabled';
+  | 'error';
 
 export function TickyPage({ taskHint }: { readonly taskHint?: string }) {
   const messages = useMessages();
@@ -36,10 +37,7 @@ export function TickyPage({ taskHint }: { readonly taskHint?: string }) {
   const [runId, setRunId] = useState<string | null>(null);
   const streamAbort = useRef<AbortController | null>(null);
 
-  const flags = useQuery({
-    queryKey: ['ticky', 'flags'],
-    queryFn: () => tickyApi.flags(),
-  });
+  const flags = useTickyFlags();
 
   const models = useQuery({
     queryKey: ['ticky', 'models'],
@@ -91,12 +89,6 @@ export function TickyPage({ taskHint }: { readonly taskHint?: string }) {
     }
   }, [online]);
 
-  useEffect(() => {
-    if (flags.data !== undefined && !flags.data.ui) {
-      setPhase('disabled');
-    }
-  }, [flags.data]);
-
   const send = useMutation({
     mutationFn: async () => {
       if (!online) {
@@ -142,21 +134,40 @@ export function TickyPage({ taskHint }: { readonly taskHint?: string }) {
   if (latest !== null)
     results.set(typeof latest.run_id === 'string' ? latest.run_id : 'latest', latest);
 
-  if (phase === 'disabled' || (flags.data !== undefined && !flags.data.ui)) {
+  if (flags.isPending || flags.isError || !flags.data.ui || flags.data.kill) {
     return (
-      <section className="ticky-page" aria-labelledby="ticky-title">
+      <section className="screen-page ticky-page" aria-labelledby="ticky-title">
         <h1 id="ticky-title">{messages.tickyTitle}</h1>
-        <p>{messages.tickyDisabled}</p>
+        {flags.isPending ? (
+          <SkeletonRows />
+        ) : (
+          <>
+            <p role={flags.isError ? 'alert' : 'status'}>
+              {flags.isError
+                ? messages.tickyStatusError
+                : flags.data.kill
+                  ? messages.tickyKillStatus
+                  : messages.tickyServerDisabled}
+            </p>
+            <Button
+              onClick={() => {
+                runAction(flags.refetch());
+              }}
+            >
+              {messages.retry}
+            </Button>
+          </>
+        )}
       </section>
     );
   }
 
   return (
-    <section className="ticky-page" aria-labelledby="ticky-title">
+    <section className="screen-page ticky-page" aria-labelledby="ticky-title">
       <h1 id="ticky-title">{messages.tickyTitle}</h1>
       <p className="ticky-hint">{messages.tickyHint}</p>
       <TickySettings />
-      {flags.data?.routines ? <TickyRoutines /> : null}
+      {flags.data.routines ? <TickyRoutines /> : null}
       <div className="ticky-actions">
         <label>
           Conversación{' '}
@@ -216,10 +227,7 @@ export function TickyPage({ taskHint }: { readonly taskHint?: string }) {
               <p key={index}>{line}</p>
             ))}
             {body.proposal === null || body.proposal === undefined ? null : (
-              <ProposalReview
-                value={body.proposal}
-                executionEnabled={flags.data?.execution === true}
-              />
+              <ProposalReview value={body.proposal} executionEnabled={flags.data.execution} />
             )}
           </li>
         ))}
@@ -256,7 +264,7 @@ export function TickyPage({ taskHint }: { readonly taskHint?: string }) {
             Recuperar consulta pendiente
           </button>
         ))}
-      {flags.data?.model === true && models.data !== undefined ? (
+      {flags.data.model && models.data !== undefined ? (
         <label>
           Modelo
           <select
@@ -374,8 +382,6 @@ function phaseLabel(phase: Phase, messages: ReturnType<typeof useMessages>): str
       return messages.tickyOffline;
     case 'error':
       return messages.tickyError;
-    case 'disabled':
-      return messages.tickyDisabled;
     default:
       return messages.tickyPhaseIdle;
   }

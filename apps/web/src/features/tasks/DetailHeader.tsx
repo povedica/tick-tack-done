@@ -1,6 +1,7 @@
 import { Flag, Sparkles, X } from 'lucide-react';
 import { Link } from 'react-router';
 import { fill, type Messages } from '../../i18n';
+import { useTickyFlags } from '../ticky/useTickyFlags';
 
 export function DetailHeader({
   priority,
@@ -38,6 +39,7 @@ export function DetailHeader({
   readonly onOpenPriority: () => void;
   readonly onClose: () => void;
 }) {
+  const ticky = useTickyFlags();
   const priorityName =
     priority === 'high'
       ? messages.priorityHigh
@@ -52,14 +54,16 @@ export function DetailHeader({
         {saving ? savingLabel : saved ? savedLabel : ''}
       </span>
       <span className="detail-head-spacer" />
-      <Link
-        className="icon-button detail-assistant"
-        to={`/ticky?task=${encodeURIComponent(taskId)}`}
-        aria-label={messages.tickyHelpTask}
-        title={messages.tickyHelpTask}
-      >
-        <Sparkles size={18} aria-hidden="true" />
-      </Link>
+      {ticky.isSuccess && ticky.data.ui && !ticky.data.kill ? (
+        <Link
+          className="icon-button detail-assistant"
+          to={`/ticky?task=${encodeURIComponent(taskId)}`}
+          aria-label={messages.tickyHelpTask}
+          title={messages.tickyHelpTask}
+        >
+          <Sparkles size={18} aria-hidden="true" />
+        </Link>
+      ) : null}
       <button
         type="button"
         className="icon-button"
