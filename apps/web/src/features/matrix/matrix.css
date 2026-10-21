@@ -104,10 +104,15 @@
   }
 
   .matrix-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 6;
     display: flex;
     gap: var(--sp-2);
     margin-bottom: var(--sp-3);
+    padding-block: var(--sp-2);
     overflow-x: auto;
+    background: var(--surface);
   }
 
   .matrix-tabs button {

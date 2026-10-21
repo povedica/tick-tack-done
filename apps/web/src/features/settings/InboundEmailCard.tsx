@@ -2,7 +2,7 @@ import { runAction } from '../../components/run-action';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api } from '../../api';
-import { Button } from '../../components/ui';
+import { Button, SkeletonRows } from '../../components/ui';
 import { useMessages } from '../../i18n';
 
 const INBOUND_DOMAIN = 'in.todo.reflexionia.com';
@@ -13,6 +13,7 @@ export function InboundEmailCard() {
   const inbound = useQuery({ queryKey: ['inbound'], queryFn: () => api.inboundEmail() });
   const [address, setAddress] = useState<string | null>(null);
   const [confirmMail, setConfirmMail] = useState(false);
+  const [confirmRotate, setConfirmRotate] = useState(false);
   const active = inbound.data?.active === true;
   const shown = address ?? (active ? `••••@${INBOUND_DOMAIN}` : null);
   return (
@@ -28,43 +29,75 @@ export function InboundEmailCard() {
           </span>
         ) : null}
       </div>
-      {shown !== null ? (
+      {inbound.isPending ? <SkeletonRows /> : null}
+      {inbound.isFetched && shown !== null ? (
         <p className="token-url">
           <code>{shown}</code>
         </p>
       ) : null}
-      {address === null ? (
+      {inbound.isFetched && address === null ? (
         <p className="token-meta">{active ? messages.inboundMasked : messages.inboundMissing}</p>
       ) : null}
-      <div className="token-actions">
-        <Button
-          type="button"
-          size="sm"
-          onClick={() => {
-            runAction(
-              api.rotateInboundEmail().then((created) => {
-                setAddress(created.address);
-                setConfirmMail(false);
-                runAction(queryClient.invalidateQueries({ queryKey: ['inbound'] }));
-              }),
-            );
-          }}
-        >
-          {messages.regenerate}
-        </Button>
-        {active ? (
+      {inbound.isFetched ? (
+        <div className="token-actions">
           <Button
             type="button"
             size="sm"
-            variant="ghost"
             onClick={() => {
-              setConfirmMail(true);
+              setConfirmRotate(true);
+              setConfirmMail(false);
             }}
           >
-            {messages.revoke}
+            {messages.regenerate}
           </Button>
-        ) : null}
-      </div>
+          {active ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setConfirmMail(true);
+                setConfirmRotate(false);
+              }}
+            >
+              {messages.revoke}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+      {confirmRotate ? (
+        <div className="token-confirm">
+          <p>{messages.inboundRegenerateBody}</p>
+          <span className="token-actions">
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setConfirmRotate(false);
+              }}
+            >
+              {messages.cancel}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="danger"
+              onClick={() => {
+                runAction(
+                  api.rotateInboundEmail().then((created) => {
+                    setAddress(created.address);
+                    setConfirmRotate(false);
+                    runAction(queryClient.invalidateQueries({ queryKey: ['inbound'] }));
+                  }),
+                );
+              }}
+            >
+              {messages.regenerate}
+            </Button>
+          </span>
+        </div>
+      ) : null}
       {confirmMail ? (
         <div className="token-confirm">
           <p>{messages.inboundRevokeBody}</p>

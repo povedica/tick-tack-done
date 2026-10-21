@@ -62,6 +62,13 @@ export const extraEs = {
   movedToTrash: 'Tarea movida a la papelera',
   duplicated: 'Tarea duplicada',
   taskCount: '{count} tareas',
+  taskCountOne: '1 tarea',
+  feedCopyUrl: 'Copiar URL',
+  webhookRotateBody: 'El secreto actual deja de valer al momento.',
+  telegramLink: 'Vincular',
+  telegramPairingHint: 'En Telegram envía /start {code} al bot. El código caduca pronto.',
+  telegramPairingFailed: 'No se ha podido crear el código de vinculación.',
+  inboundRegenerateBody: 'La dirección actual deja de crear tareas. Se muestra una nueva una sola vez.',
   restore: 'Restaurar',
   purge: 'Eliminar',
   noteBadge: 'Nota',
@@ -243,6 +250,8 @@ export const extraEs = {
   googleHint: 'Calendario y Drive salen de esta cuenta.',
   googleConnectedNote: 'Google ha quedado conectado.',
   googleErrorNote: 'Google no ha completado la conexión.',
+  googleDeniedNote:
+    'Google ha rechazado la conexión. Si ves «Acceso bloqueado», la app aún está en revisión: pide al administrador que te añada como tester.',
   inboundHint:
     'Un correo a esta dirección se convierte en una tarea. La dirección nueva se muestra una sola vez.',
   inboundMissing:
@@ -913,6 +922,14 @@ export const extraEn = {
   movedToTrash: 'Task moved to the trash',
   duplicated: 'Task duplicated',
   taskCount: '{count} tasks',
+  taskCountOne: '1 task',
+  feedCopyUrl: 'Copy URL',
+  webhookRotateBody: 'The current secret stops working immediately.',
+  telegramLink: 'Link',
+  telegramPairingHint: 'In Telegram send /start {code} to the bot. The code expires soon.',
+  telegramPairingFailed: 'The pairing code could not be created.',
+  inboundRegenerateBody:
+    'The current address stops creating tasks. A new one is shown only once.',
   restore: 'Restore',
   purge: 'Delete',
   noteBadge: 'Note',
@@ -1091,6 +1108,8 @@ export const extraEn = {
   googleHint: 'Calendar and Drive come from this account.',
   googleConnectedNote: 'Google is connected.',
   googleErrorNote: 'Google did not finish connecting.',
+  googleDeniedNote:
+    'Google rejected the connection. If you see “Access blocked”, the app is still under review: ask the admin to add you as a tester.',
   inboundHint: 'Mail to this address becomes a task. A new address is shown once.',
   inboundMissing:
     'There is no address yet. Regenerate creates one at in.todo.reflexionia.com and shows it once.',

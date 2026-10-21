@@ -37,7 +37,7 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-29 | 0 | corregido | #71 | onUnauthorized → login?next=; red ≠ logout |
 | TTD-AUD-30 | 5 | pendiente | — | |
 | TTD-AUD-31 | 5 | pendiente | — | |
-| TTD-AUD-32 | 5 | pendiente | — | |
+| TTD-AUD-32 | 5 | corregido (parcial) | #71 | Plural 1 tarea + boot sesión; confirm() nativo pendiente |
 | TTD-AUD-33 | 3 | corregido | #71 | Hoja inferior «Más»; Ticky filtrado; scrim encima |
 | TTD-AUD-34 | 5 | pendiente | — | |
 | TTD-AUD-35 | 4 | verificado en main | #63 | Paginación tokens; no reimplementar |
@@ -49,10 +49,10 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-41 | 4 | corregido | #71 | manage/countdowns/sensitive + scopes.spec |
 | TTD-AUD-42 | 4 | verificado en main | #64 | Consentimiento OAuth; no reimplementar |
 | TTD-AUD-43 | 4 | verificado en main | #65 | Reconexión Google; depende de 47 para testing |
-| TTD-AUD-44 | 4 | pendiente | — | |
-| TTD-AUD-45 | 4 | pendiente | — | |
-| TTD-AUD-46 | 4 | pendiente | — | Depende de 35 |
-| TTD-AUD-47 | 4 | pendiente | — | Código + tarea manual en Google Cloud Console |
+| TTD-AUD-44 | 4 | corregido | #71 | Telegram pairing + inbound regenerate confirm |
+| TTD-AUD-45 | 4 | corregido | #71 | Webhook rotate confirm + feed Copiar URL |
+| TTD-AUD-46 | 4 | corregido | #71 | Lista revocados con estilo |
+| TTD-AUD-47 | 4 | corregido (parcial) | #71 | ?google=denied + mensaje; verificación GCP manual |
 | TTD-AUD-48 | 1 | corregido | #71 | tag_ids/tags + add/remove en create/update |
 | TTD-AUD-49 | 1 | corregido | #71 | quick_add + parse=true en create/update |
 | TTD-AUD-50 | 1 | corregido | #71 | delete_task / restore_task (scope tasks:trash) |
@@ -76,8 +76,8 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-68 | 2 | corregido | #71 | Kanban por fecha si no hay secciones; sin «Nueva sección» en smart |
 | TTD-AUD-69 | 2 | corregido | #71 | Toolbar full-width; zoom i18n; locale; start_date |
 | TTD-AUD-70 | 3 | corregido | #71 | page-title ellipsis; badge nowrap; actions shrink-0 |
-| TTD-AUD-71 | 3 | pendiente | — | Depende de 58, 61 |
-| TTD-AUD-72 | 3 | pendiente | — | Depende de 58, 62 |
+| TTD-AUD-71 | 3 | corregido | #71 | BottomBar última vista; toolbar sticky; DaySheet ya existía |
+| TTD-AUD-72 | 3 | corregido | #71 | matrix-tabs sticky + tabpanel a11y |
 | TTD-AUD-73 | 5 | pendiente | — | Depende de 31 |
 
 ## Resumen por fase

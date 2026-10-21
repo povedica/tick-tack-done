@@ -503,12 +503,19 @@ export function TokensPage() {
             <summary>
               {messages.tokensRevokedFold} ({String(revokedTotal)})
             </summary>
-            <ul>
+            <ul className="token-revoked-list">
               {revokedItems.map((token) => (
-                <li key={token.id}>
-                  {token.client_name ?? token.name}
+                <li key={token.id} className="token-revoked-row">
+                  <div>
+                    <strong>{token.client_name ?? token.name}</strong>
+                    <span className="token-meta">
+                      {token.oauth_client_id === null
+                        ? messages.tokenManualGroup
+                        : `${messages.tokenAuthorization} · ${token.client_name ?? token.name}`}
+                    </span>
+                  </div>
                   {token.revoked_at !== null ? (
-                    <time dateTime={token.revoked_at}> · {when(token.revoked_at, locale)}</time>
+                    <time dateTime={token.revoked_at}>{when(token.revoked_at, locale)}</time>
                   ) : null}
                 </li>
               ))}

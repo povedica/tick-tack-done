@@ -76,7 +76,12 @@ export function RequireSession() {
     );
   }
   if (status === 'unknown') {
-    return <p className="ui-muted">{messages.sessionChecking}</p>;
+    return (
+      <div className="session-boot" role="status" aria-live="polite">
+        <strong className="session-boot-brand">{messages.appName}</strong>
+        <p>{messages.sessionChecking}</p>
+      </div>
+    );
   }
   if (status === 'anonymous') {
     const next = encodeURIComponent(`${location.pathname}${location.search}`);

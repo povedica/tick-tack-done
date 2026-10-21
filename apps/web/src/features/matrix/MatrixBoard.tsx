@@ -260,6 +260,8 @@ export function MatrixBoard({
             key={quad.key}
             type="button"
             role="tab"
+            id={`matrix-tab-${quad.key}`}
+            aria-controls={`matrix-panel-${quad.key}`}
             aria-selected={active === quad.key}
             onClick={() => {
               setActive(quad.key);
@@ -273,6 +275,10 @@ export function MatrixBoard({
         {quads.map((quad) => (
           <section
             key={quad.key}
+            id={`matrix-panel-${quad.key}`}
+            role="tabpanel"
+            aria-labelledby={`matrix-tab-${quad.key}`}
+            hidden={narrow && active !== quad.key ? true : undefined}
             className={`quad ${quad.tone}${active === quad.key ? ' is-active' : ''}`}
             onDragOver={(event) => {
               if (!narrow) {

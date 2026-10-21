@@ -1803,6 +1803,78 @@
   font-size: var(--fs-xs);
 }
 
+.token-revoked {
+  margin-top: var(--sp-4);
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+}
+
+.token-revoked > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.token-revoked-list {
+  display: grid;
+  gap: var(--sp-2);
+  margin: var(--sp-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.token-revoked-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.token-revoked-row strong {
+  display: block;
+}
+
+.token-revoked-row .token-meta {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+}
+
+.token-revoked-row time {
+  flex-shrink: 0;
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+}
+
+.session-boot {
+  display: grid;
+  place-content: center;
+  gap: var(--sp-3);
+  min-height: 100dvh;
+  padding: var(--sp-6);
+  text-align: center;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.session-boot-brand {
+  font-family: var(--font-sans);
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.session-boot p {
+  margin: 0;
+  color: var(--ink-2);
+}
+
 .token-form {
   display: flex;
   flex-direction: column;

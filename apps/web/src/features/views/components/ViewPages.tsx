@@ -248,7 +248,12 @@ export function Board({
           <span className="ui-badge">
             {page.isPending
               ? '—'
-              : messages.taskCount.replace('{count}', String(page.data?.count ?? rows.length))}
+              : (() => {
+                  const count = page.data?.count ?? rows.length;
+                  return count === 1
+                    ? messages.taskCountOne
+                    : messages.taskCount.replace('{count}', String(count));
+                })()}
           </span>
           <ViewMenu
             messages={messages}

@@ -266,6 +266,7 @@ export class IntegrationsController {
   async callback(
     @Query('code') code: string | undefined,
     @Query('state') state: string | undefined,
+    @Query('error') oauthError: string | undefined,
     @Res() res: Response,
   ): Promise<void> {
     const parsed = state === undefined ? null : readState(state);
@@ -275,6 +276,10 @@ export class IntegrationsController {
       'http://127.0.0.1:5173'
     ).replace(/\/$/, '');
     const back = parsed === null ? fallback : parsed.redirect.replace(/\/api\/v1.*$/, '');
+    if (oauthError === 'access_denied') {
+      res.redirect(302, `${back}/settings/integrations?google=denied`);
+      return;
+    }
     if (parsed === null || code === undefined || code.length === 0) {
       res.redirect(302, `${back}/settings/integrations?google=error`);
       return;

@@ -27,6 +27,7 @@ import {
   useSearchParams,
 } from 'react-router';
 import { eventDayRange, eventSpan } from './event-span';
+import { rememberCalendarView } from '../../shell/BottomBar';
 import { api } from '../../api';
 import { completeBody } from '../tasks/complete-body';
 import { useActionToast } from '../../components/action-toast';
@@ -352,6 +353,11 @@ export function CalendarPage() {
       runAction(Promise.resolve(navigate('/calendar/month', { replace: true })));
     }
   }, [view, knownView, navigate]);
+  useEffect(() => {
+    if (typeof current === 'string') {
+      rememberCalendarView(current);
+    }
+  }, [current]);
   useEffect(() => {
     const date = dayFromParam(params.get('date') ?? '');
     if (date) setCursor(date);
