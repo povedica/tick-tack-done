@@ -31,7 +31,13 @@ Archivo: `apps/api/src/http/api-exception.filter.ts` (función `errorBody`).
 Todos los errores de la API se serializan como:
 
 ```json
-{ "error": { "code": "rate_limited", "message": "Too many requests", "details": { "retry_after": 812 } } }
+{
+  "error": {
+    "code": "rate_limited",
+    "message": "Too many requests",
+    "details": { "retry_after": 812 }
+  }
+}
 ```
 
 Es el formato interno de la API (lo usa la web), pero en los endpoints OAuth incumple el estándar:

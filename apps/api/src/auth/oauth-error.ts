@@ -101,8 +101,7 @@ export function oauthAuthorizeErrorRedirect(
 export function authorizeErrorCode(exception: DomainException): string {
   const status = exception.getStatus();
   const body = exception.getResponse();
-  const code =
-    isRecord(body) && typeof body.code === 'string' ? body.code : 'invalid_request';
+  const code = isRecord(body) && typeof body.code === 'string' ? body.code : 'invalid_request';
   if (status === TOO_MANY_REQUESTS || code === 'rate_limited') {
     return 'temporarily_unavailable';
   }
