@@ -20,20 +20,20 @@ Playwright: 25 pruebas entre `calendar-v2.spec.ts` y `calendar-google.spec.ts`. 
 
 [Índice de capturas sintéticas](assets/calendar-remediation-2026-10-21/README.md). Las anteriores se conservan en `assets/calendar-2026-10-21/` como antes sintético. Revisadas visualmente las ocho vistas a 1440 y 390 en ambos temas: composición, jerarquía, alineación, densidad, títulos y scroll. Los controles y fechas también se contrastaron con el árbol de accesibilidad del navegador. Las capturas de 320/360, tablet y zoom amplían la evidencia; no sustituyen una revisión con dispositivos físicos.
 
-| Hallazgo | Resultado comprobado |
-| --- | --- |
-| C01 | Toolbar móvil en dos filas; Hoy, vista y periodo reconocibles a 320/390. |
-| C02 | Cascada de Agenda consolidada; fecha compacta y filas sin tarjeta, también en detalle. |
-| C03 | Entrada cerca de ahora o a las 08:00; acceso a 00:00 conservado; scroll no depende de los datos recibidos. |
-| C04 | Selector de 2–6 semanas, filas compactas, rango y URL coherentes al navegar/recargar. |
-| C05 | Siete fechas y eje fijo al desplazar; pista de deslizamiento. |
-| C06 | Marca integrada y más anchura útil; títulos completos; columnas horarias con solapamiento ensanchadas solo cuando lo necesitan. |
-| C07 | Selección, Escape, clic exterior, foco y teclado comprobados; fuentes sin submenú. |
-| C08 | Mini-calendario visible al abrir periodo; selección con teclado, entrada directa y URL. |
-| C09 | Cabeceras simples; barras con alturas medidas, sin offsets fijos. |
-| C10 | Fecha completa, cantidad con unidad y hoy en nombres accesibles; foco visible y fechas de Año más amplias. |
-| C11 | Español sin Title Case; configuración externa disponible en Opciones. |
-| C12 | Año/Trimestre conservan meses y alineación; mayor área por fecha, altura natural. |
+| Hallazgo | Resultado comprobado                                                                                                            |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| C01      | Toolbar móvil en dos filas; Hoy, vista y periodo reconocibles a 320/390.                                                        |
+| C02      | Cascada de Agenda consolidada; fecha compacta y filas sin tarjeta, también en detalle.                                          |
+| C03      | Entrada cerca de ahora o a las 08:00; acceso a 00:00 conservado; scroll no depende de los datos recibidos.                      |
+| C04      | Selector de 2–6 semanas, filas compactas, rango y URL coherentes al navegar/recargar.                                           |
+| C05      | Siete fechas y eje fijo al desplazar; pista de deslizamiento.                                                                   |
+| C06      | Marca integrada y más anchura útil; títulos completos; columnas horarias con solapamiento ensanchadas solo cuando lo necesitan. |
+| C07      | Selección, Escape, clic exterior, foco y teclado comprobados; fuentes sin submenú.                                              |
+| C08      | Mini-calendario visible al abrir periodo; selección con teclado, entrada directa y URL.                                         |
+| C09      | Cabeceras simples; barras con alturas medidas, sin offsets fijos.                                                               |
+| C10      | Fecha completa, cantidad con unidad y hoy en nombres accesibles; foco visible y fechas de Año más amplias.                      |
+| C11      | Español sin Title Case; configuración externa disponible en Opciones.                                                           |
+| C12      | Año/Trimestre conservan meses y alineación; mayor área por fecha, altura natural.                                               |
 
 ## Riesgos contrastados y límites
 

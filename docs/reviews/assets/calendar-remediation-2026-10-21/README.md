@@ -2,16 +2,16 @@
 
 Fixtures deterministas en `apps/web/e2e/calendar-v2.spec.ts`. Sin datos personales. Antes: [matriz sintética previa](../calendar-2026-10-21/). Después: esta carpeta. Cambian colores de origen para cubrir tareas y fuentes distintas.
 
-| Vista | 1440 claro | 1440 oscuro | 390 claro | 390 oscuro |
-| --- | --- | --- | --- | --- |
-| Día | [1440 light](day-1440-light.png) | [1440 dark](day-1440-dark.png) | [390 light](day-390-light.png) | [390 dark](day-390-dark.png) |
-| Semana | [1440 light](week-1440-light.png) | [1440 dark](week-1440-dark.png) | [390 light](week-390-light.png) | [390 dark](week-390-dark.png) |
-| Varios días | [1440 light](multi-day-1440-light.png) | [1440 dark](multi-day-1440-dark.png) | [390 light](multi-day-390-light.png) | [390 dark](multi-day-390-dark.png) |
-| Mes | [1440 light](month-1440-light.png) | [1440 dark](month-1440-dark.png) | [390 light](month-390-light.png) | [390 dark](month-390-dark.png) |
+| Vista          | 1440 claro                              | 1440 oscuro                           | 390 claro                             | 390 oscuro                          |
+| -------------- | --------------------------------------- | ------------------------------------- | ------------------------------------- | ----------------------------------- |
+| Día            | [1440 light](day-1440-light.png)        | [1440 dark](day-1440-dark.png)        | [390 light](day-390-light.png)        | [390 dark](day-390-dark.png)        |
+| Semana         | [1440 light](week-1440-light.png)       | [1440 dark](week-1440-dark.png)       | [390 light](week-390-light.png)       | [390 dark](week-390-dark.png)       |
+| Varios días    | [1440 light](multi-day-1440-light.png)  | [1440 dark](multi-day-1440-dark.png)  | [390 light](multi-day-390-light.png)  | [390 dark](multi-day-390-dark.png)  |
+| Mes            | [1440 light](month-1440-light.png)      | [1440 dark](month-1440-dark.png)      | [390 light](month-390-light.png)      | [390 dark](month-390-dark.png)      |
 | Varias semanas | [1440 light](multi-week-1440-light.png) | [1440 dark](multi-week-1440-dark.png) | [390 light](multi-week-390-light.png) | [390 dark](multi-week-390-dark.png) |
-| Agenda | [1440 light](agenda-1440-light.png) | [1440 dark](agenda-1440-dark.png) | [390 light](agenda-390-light.png) | [390 dark](agenda-390-dark.png) |
-| Año | [1440 light](year-1440-light.png) | [1440 dark](year-1440-dark.png) | [390 light](year-390-light.png) | [390 dark](year-390-dark.png) |
-| Trimestre | [1440 light](quarter-1440-light.png) | [1440 dark](quarter-1440-dark.png) | [390 light](quarter-390-light.png) | [390 dark](quarter-390-dark.png) |
+| Agenda         | [1440 light](agenda-1440-light.png)     | [1440 dark](agenda-1440-dark.png)     | [390 light](agenda-390-light.png)     | [390 dark](agenda-390-dark.png)     |
+| Año            | [1440 light](year-1440-light.png)       | [1440 dark](year-1440-dark.png)       | [390 light](year-390-light.png)       | [390 dark](year-390-dark.png)       |
+| Trimestre      | [1440 light](quarter-1440-light.png)    | [1440 dark](quarter-1440-dark.png)    | [390 light](quarter-390-light.png)    | [390 dark](quarter-390-dark.png)    |
 
 ## Casos adicionales
 

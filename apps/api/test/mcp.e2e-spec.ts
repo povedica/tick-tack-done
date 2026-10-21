@@ -339,7 +339,9 @@ describe('MCP server', () => {
         resource,
       });
       expect(plain.status).toBe(302);
-      const plainRedirect = new URL(plain.headers.location as string);
+      const plainLocation = plain.headers.location;
+      if (typeof plainLocation !== 'string') throw new Error('Expected OAuth redirect location');
+      const plainRedirect = new URL(plainLocation);
       expect(plainRedirect.origin + plainRedirect.pathname).toBe(redirectUri);
       expect(plainRedirect.searchParams.get('error')).toBe('invalid_request');
       expect(plainRedirect.searchParams.get('state')).toBe('state-oauth-1');
@@ -476,14 +478,16 @@ describe('MCP server', () => {
         })
         .expect(201);
       const badCode = new URL(badVerifier.body.redirect_to as string).searchParams.get('code');
-      const mismatched = await request(server).post('/api/v1/oauth/token').send({
-        grant_type: 'authorization_code',
-        code: badCode,
-        redirect_uri: redirectUri,
-        client_id: clientId,
-        code_verifier: 'b'.repeat(43),
-        resource,
-      });
+      const mismatched = await request(server)
+        .post('/api/v1/oauth/token')
+        .send({
+          grant_type: 'authorization_code',
+          code: badCode,
+          redirect_uri: redirectUri,
+          client_id: clientId,
+          code_verifier: 'b'.repeat(43),
+          resource,
+        });
       expect(mismatched.status).toBe(400);
       expect(mismatched.body).toEqual({
         error: 'invalid_grant',
