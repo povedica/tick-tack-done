@@ -2,7 +2,8 @@ import { runAction } from '../../components/run-action';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api } from '../../api';
-import { useMessages } from '../../i18n';
+import { ErrorState, SkeletonRows } from '../../components/ui';
+import { fill, useMessages } from '../../i18n';
 
 interface WorkdayMe {
   readonly work_day_start: string | null;
@@ -28,6 +29,29 @@ export function WorkdaySettings() {
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : messages.settingsFailed);
     }
+  }
+
+  if (me.isPending && me.data === undefined) {
+    return (
+      <section>
+        <h1>{messages.workdayTitle}</h1>
+        <SkeletonRows />
+      </section>
+    );
+  }
+  if (me.isError) {
+    return (
+      <section>
+        <h1>{messages.workdayTitle}</h1>
+        <ErrorState
+          title={fill(messages.loadFailed, messages.workdayTitle)}
+          retryLabel={messages.retry}
+          onRetry={() => {
+            void me.refetch();
+          }}
+        />
+      </section>
+    );
   }
 
   return (

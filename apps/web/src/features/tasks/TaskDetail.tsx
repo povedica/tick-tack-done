@@ -639,12 +639,23 @@ export function TaskDetail({
           <h3>{messages.activity}</h3>
           {task.activity.length === 0 ? <p>{messages.noActivity}</p> : null}
           <ul>
-            {task.activity.map((entry) => (
-              <li key={entry.id}>
-                {entry.actor_id === me.data?.id ? messages.actorYou : messages.actorOther} ·{' '}
-                {activityText(entry.action, messages)} · {relativeTime(entry.created_at, locale)}
-              </li>
-            ))}
+            {task.activity.map((entry) => {
+              const via =
+                entry.token_name !== undefined &&
+                entry.token_name !== null &&
+                entry.token_name.length > 0
+                  ? fill(messages.createdVia, entry.token_name)
+                  : entry.actor_kind === 'api' || entry.token_id
+                    ? messages.createdViaApi
+                    : null;
+              return (
+                <li key={entry.id}>
+                  {entry.actor_id === me.data?.id ? messages.actorYou : messages.actorOther}
+                  {via !== null ? ` ${via}` : ''} · {activityText(entry.action, messages)} ·{' '}
+                  {relativeTime(entry.created_at, locale)}
+                </li>
+              );
+            })}
           </ul>
         </section>
       ) : null}

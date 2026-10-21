@@ -101,6 +101,10 @@ export interface ActivityEntry {
   readonly action: string;
   readonly created_at: string;
   readonly actor_id: string;
+  readonly actor_kind?: string | null;
+  readonly token_id?: string | null;
+  readonly token_name?: string | null;
+  readonly oauth_client_id?: string | null;
 }
 
 export interface TaskDetail extends Task {

@@ -2154,6 +2154,7 @@ export class TasksService {
       where: { ownerId, entityType: 'task', entityId: id, deletedAt: null },
       orderBy: { createdAt: 'desc' },
       take: 50,
+      include: { token: { select: { name: true, oauthClientId: true } } },
     });
     return {
       ...toTaskSummary(row, progressOf(row.checklist)),
@@ -2165,6 +2166,10 @@ export class TasksService {
         changes: entry.changes,
         created_at: entry.createdAt.toISOString(),
         actor_id: entry.actorId,
+        actor_kind: entry.tokenId === null ? 'user' : 'api',
+        token_id: entry.tokenId,
+        token_name: entry.token?.name ?? null,
+        oauth_client_id: entry.token?.oauthClientId ?? null,
       })),
     };
   }

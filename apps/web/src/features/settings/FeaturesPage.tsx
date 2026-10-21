@@ -4,9 +4,10 @@ import { useState } from 'react';
 import { ArrowDown, ArrowUp, GripVertical } from 'lucide-react';
 import { moveNavigationModule, type NavigationModule } from '@reflexionia/domain';
 import { api } from '../../api';
+import { ErrorState, SkeletonRows } from '../../components/ui';
 import { MODULES } from '../../shell/modules';
 import { useStatisticsText } from '../statistics/text';
-import { useMessages } from '../../i18n';
+import { fill, useMessages } from '../../i18n';
 import { useTickyAvailable } from '../ticky/useTickyAvailable';
 import { featureFlags, useFeatures, type FeatureFlags } from './feature-flags';
 
@@ -95,6 +96,29 @@ export function FeaturesPage() {
       ...flags,
       navigation_order: moveNavigationModule(flags.navigation_order, source, target),
     });
+  }
+
+  if (me.isPending && me.data === undefined) {
+    return (
+      <section className="token-settings">
+        <h1>{messages.settingsFeatures}</h1>
+        <SkeletonRows />
+      </section>
+    );
+  }
+  if (me.isError) {
+    return (
+      <section className="token-settings">
+        <h1>{messages.settingsFeatures}</h1>
+        <ErrorState
+          title={fill(messages.loadFailed, messages.settingsFeatures)}
+          retryLabel={messages.retry}
+          onRetry={() => {
+            void me.refetch();
+          }}
+        />
+      </section>
+    );
   }
 
   return (
