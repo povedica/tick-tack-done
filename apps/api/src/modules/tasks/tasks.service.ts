@@ -295,7 +295,12 @@ export class TasksService {
     return created.task;
   }
 
-  create(user: AuthUser, dto: CreateTaskDto, keyRaw: string | undefined): Promise<Saved> {
+  create(
+    user: AuthUser,
+    dto: CreateTaskDto,
+    keyRaw: string | undefined,
+    source: 'manual' | 'api' = 'manual',
+  ): Promise<Saved> {
     if (
       dto.reminder_trigger !== undefined &&
       dto.reminder_trigger !== null &&
@@ -313,7 +318,7 @@ export class TasksService {
       key,
       fingerprint: requestFingerprint('POST', '/api/v1/tasks', dto),
       statusCode: 201,
-      execute: (tx) => this.insertTask(tx, user, dto),
+      execute: (tx) => this.insertTask(tx, user, dto, source),
     });
   }
 

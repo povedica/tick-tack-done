@@ -5,6 +5,7 @@ import {
   describeRepeatRule,
   firstAfter,
   HABIT_WEEKDAYS,
+  parseMentions,
   parseQuickAdd,
   parseRepeatRule,
   proposeDaily,
@@ -161,11 +162,18 @@ export class McpService {
       case 'list_tasks': {
         const projectId = uuidOrEmpty(args.project_id);
         const cursor = cursorOf(args);
+        const status =
+          args.status === 'completed' ||
+          args.status === 'archived' ||
+          args.status === 'cancelled' ||
+          args.status === 'all'
+            ? args.status
+            : 'active';
         const page = await this.tasks.list(user, {
           limit,
           ...(cursor === undefined ? {} : { cursor }),
           ...(projectId === undefined ? {} : { projectId }),
-          status: 'active',
+          status,
           includeDescendants: true,
           flat: false,
           sort: 'manual',
@@ -178,14 +186,43 @@ export class McpService {
           items: page.items.map((item) => enrichTask(item)),
         };
       }
-      case 'get_task':
-        return enrichTask(await this.tasks.get(user, requiredUuid(args, 'id')));
+      case 'get_task': {
+        const task = enrichTask(await this.tasks.get(user, requiredUuid(args, 'id')));
+        const created = await this.prisma.activityLog.findFirst({
+          where: {
+            entityType: 'task',
+            entityId: requiredUuid(args, 'id'),
+            action: 'created',
+            deletedAt: null,
+          },
+          orderBy: { createdAt: 'asc' },
+          select: {
+            actorId: true,
+            tokenId: true,
+            token: { select: { name: true, oauthClientId: true } },
+          },
+        });
+        return {
+          ...task,
+          created_via:
+            created === null
+              ? null
+              : {
+                  actor_id: created.actorId,
+                  token_id: created.tokenId,
+                  token_name: created.token?.name ?? null,
+                  oauth_client_id: created.token?.oauthClientId ?? null,
+                },
+        };
+      }
       case 'create_task': {
         const schedule = taskSchedule(args);
         const recurrence = recurrenceFields(args, schedule.due_date ?? null, null);
         const tagIds = await this.resolveCreateTags(user, args);
         const title = requiredString(args, 'title', 500);
         const parse = args.parse === true;
+        const parentId = uuidOrEmpty(args.parent_id);
+        const columnId = uuidOrEmpty(args.column_id);
         return enrichTask(
           (
             await this.tasks.create(
@@ -195,10 +232,13 @@ export class McpService {
                 project_id: await this.projectId(user, args),
                 ...(typeof args.content === 'string' ? { content: args.content } : {}),
                 ...(tagIds === undefined ? {} : { tag_ids: tagIds }),
+                ...(parentId === undefined ? {} : { parent_id: parentId }),
+                ...(columnId === undefined ? {} : { column_id: columnId }),
                 ...schedule,
                 ...recurrence,
               },
               undefined,
+              'api',
             )
           ).body,
         );
@@ -215,6 +255,7 @@ export class McpService {
                   : { project_id: await this.projectId(user, args) }),
               },
               undefined,
+              'api',
             )
           ).body,
         );
@@ -236,6 +277,132 @@ export class McpService {
           )
         ).body;
         return enrichTask(body);
+      }
+      case 'reopen_task':
+        return enrichTask(await this.tasks.uncomplete(user, requiredUuid(args, 'id')));
+      case 'cancel_task':
+        return enrichTask(await this.tasks.cancel(user, requiredUuid(args, 'id')));
+      case 'delete_task':
+        await this.tasks.remove(user, requiredUuid(args, 'id'));
+        return { deleted: true, trashed: true };
+      case 'restore_task':
+        return enrichTask(await this.tasks.restore(user, requiredUuid(args, 'id')));
+      case 'list_task_comments': {
+        const taskId = requiredUuid(args, 'task_id');
+        await this.tasks.get(user, taskId);
+        const rows = await this.prisma.comment.findMany({
+          where: { taskId, deletedAt: null },
+          orderBy: { createdAt: 'asc' },
+          take: limit,
+        });
+        return {
+          items: rows.map((row) => ({
+            id: row.id,
+            body: row.body,
+            author_id: row.authorId,
+            mentions: parseMentions(row.body),
+          })),
+        };
+      }
+      case 'add_task_comment': {
+        const taskId = requiredUuid(args, 'task_id');
+        const body = requiredString(args, 'body', 100_000);
+        const task = await this.tasks.get(user, taskId);
+        const row = await this.prisma.$transaction(async (tx) => {
+          const created = await tx.comment.create({
+            data: {
+              ownerId: user.id,
+              taskId,
+              authorId: user.id,
+              body,
+            },
+          });
+          await this.events.record(tx, actorOf(user), {
+            type: DomainEvent.commentCreated,
+            entityType: 'comment',
+            entityId: created.id,
+            action: 'commented',
+            data: asJson({ body, mentions: parseMentions(body), task_id: taskId }),
+            previous: null,
+          });
+          return created;
+        });
+        return {
+          id: row.id,
+          body: row.body,
+          author_id: row.authorId,
+          mentions: parseMentions(body),
+          task_id: task.id,
+        };
+      }
+      case 'list_task_attachments':
+        return {
+          items: await this.tasks.listAttachments(user, requiredUuid(args, 'task_id')),
+        };
+      case 'move_task': {
+        const moveColumnId =
+          args.column_id === null ? null : uuidOrEmpty(args.column_id);
+        return enrichTask(
+          await this.tasks.move(user, requiredUuid(args, 'id'), {
+            project_id: requiredUuid(args, 'project_id'),
+            ...(moveColumnId === undefined ? {} : { column_id: moveColumnId }),
+          }),
+        );
+      }
+      case 'add_checklist_item':
+        return (
+          await this.tasks.createItem(
+            user,
+            requiredUuid(args, 'task_id'),
+            { title: requiredString(args, 'title', 500) },
+            undefined,
+          )
+        ).body;
+      case 'update_checklist_item': {
+        const patch: { title?: string } = {};
+        if (typeof args.title === 'string') {
+          patch.title = requiredString(args, 'title', 500);
+        }
+        return this.tasks.updateItem(
+          user,
+          requiredUuid(args, 'task_id'),
+          requiredUuid(args, 'item_id'),
+          patch,
+        );
+      }
+      case 'complete_checklist_item':
+        return this.tasks.completeItem(
+          user,
+          requiredUuid(args, 'task_id'),
+          requiredUuid(args, 'item_id'),
+        );
+      case 'uncomplete_checklist_item':
+        return this.tasks.uncompleteItem(
+          user,
+          requiredUuid(args, 'task_id'),
+          requiredUuid(args, 'item_id'),
+        );
+      case 'assign_task': {
+        const taskId = requiredUuid(args, 'id');
+        const assigneeId =
+          args.assignee_id === null ? null : (uuidOrEmpty(args.assignee_id) ?? null);
+        const task = await this.tasks.get(user, taskId);
+        const row = await this.prisma.$transaction(async (tx) => {
+          const saved = await tx.task.update({
+            where: { id: taskId },
+            data: { assigneeId },
+          });
+          await this.events.record(tx, actorOf(user), {
+            type: DomainEvent.taskAssigned,
+            entityType: 'task',
+            entityId: taskId,
+            action: 'assigned',
+            data: asJson({ assignee_id: assigneeId }),
+            previous: asJson({ assignee_id: task.assignee_id ?? null }),
+          });
+          return saved;
+        });
+        return { id: row.id, assignee_id: row.assigneeId };
       }
       case 'update_task': {
         const id = requiredUuid(args, 'id');
@@ -275,6 +442,7 @@ export class McpService {
               : {}),
           };
         }
+        const columnId = args.column_id === null ? null : uuidOrEmpty(args.column_id);
         return enrichTask(
           await this.tasks.update(user, id, {
             ...(title === undefined ? {} : { title }),
@@ -284,6 +452,7 @@ export class McpService {
                 ? { content: args.content }
                 : {}),
             ...(tagIds === undefined ? {} : { tag_ids: tagIds }),
+            ...(columnId === undefined ? {} : { column_id: columnId }),
             ...parsedSchedule,
             ...recurrence,
           }),
@@ -468,8 +637,20 @@ export class McpService {
         return this.countdowns.archive(user, requiredUuid(args, 'id'), true);
       case 'unarchive_countdown':
         return this.countdowns.archive(user, requiredUuid(args, 'id'), false);
-      case 'search':
-        return this.search.search(user, requiredString(args, 'q', 200), undefined);
+      case 'search': {
+        const result = await this.search.search(
+          user,
+          requiredString(args, 'q', 200),
+          undefined,
+        );
+        return {
+          ...result,
+          groups: result.groups.map((group) => ({
+            ...group,
+            items: group.items.slice(0, limit),
+          })),
+        };
+      }
       case 'list_notes':
         return this.prisma.task.findMany({
           where: { ownerId: user.id, kind: 'note', deletedAt: null },

@@ -37,8 +37,26 @@ describe('MCP tool catalog', () => {
   it('RF-2001: read scopes do not include write tools', () => {
     const names = visibleTools(['tasks:read']).map((tool) => tool.name);
     expect(names).toContain('list_tasks');
+    expect(names).toContain('list_task_comments');
+    expect(names).toContain('list_task_attachments');
     expect(names).not.toContain('create_task');
     expect(names).not.toContain('complete_task');
+    expect(names).not.toContain('delete_task');
+  });
+
+  it('TTD-AUD-50: trash tools require tasks:trash', () => {
+    const write = visibleTools(['tasks:read', 'tasks:write']).map((tool) => tool.name);
+    expect(write).not.toContain('delete_task');
+    expect(write).not.toContain('restore_task');
+    const trash = visibleTools(['tasks:trash']).map((tool) => tool.name);
+    expect(trash).toEqual(expect.arrayContaining(['delete_task', 'restore_task']));
+  });
+
+  it('TTD-AUD-53: reopen/cancel are write-scoped', () => {
+    const write = visibleTools(['tasks:write']).map((tool) => tool.name);
+    expect(write).toEqual(
+      expect.arrayContaining(['reopen_task', 'cancel_task', 'move_task', 'assign_task']),
+    );
   });
 
   it('RF-2532: calendar tools follow calendar scopes', () => {

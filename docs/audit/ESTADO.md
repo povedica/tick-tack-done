@@ -55,14 +55,14 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-47 | 4 | pendiente | — | Código + tarea manual en Google Cloud Console |
 | TTD-AUD-48 | 1 | corregido | #71 | tag_ids/tags + add/remove en create/update |
 | TTD-AUD-49 | 1 | corregido | #71 | quick_add + parse=true en create/update |
-| TTD-AUD-50 | 1 | pendiente | — | Depende de 54 |
-| TTD-AUD-51 | 1 | en curso | — | content ya en create/update; faltan comentarios/adjuntos |
-| TTD-AUD-52 | 1 | pendiente | — | Depende de 54 |
-| TTD-AUD-53 | 1 | pendiente | — | Depende de 54 |
+| TTD-AUD-50 | 1 | corregido | #71 | delete_task / restore_task (scope tasks:trash) |
+| TTD-AUD-51 | 1 | corregido | #71 | content + list/add comments + list attachments |
+| TTD-AUD-52 | 1 | corregido (parcial) | #71 | move_task, parent_id, checklist CRUD, search limit; faltan recordatorios/filtros extra |
+| TTD-AUD-53 | 1 | corregido | #71 | reopen/cancel + status en list_tasks; flujo vía column_id |
 | TTD-AUD-54 | 0 | corregido | #71 | Validación estricta MCP con validateMcpArgs |
 | TTD-AUD-55 | 0 | corregido | #71 | parseTaskInstant YYYY-MM-DD → medianoche local + is_all_day |
 | TTD-AUD-56 | 0 | corregido | #71 | deriveDurationMinutes rechaza mismatch; no pisa explicit |
-| TTD-AUD-57 | 1 | pendiente | — | Depende de 54 |
+| TTD-AUD-57 | 1 | corregido (parcial) | #71 | source=api en MCP; created_via en get_task; assign_task; cuentas por persona = ops |
 | TTD-AUD-58 | 3 | pendiente | — | |
 | TTD-AUD-59 | 2 | pendiente | — | |
 | TTD-AUD-60 | 2 | corregido (parcial) | #71 | Panel detalle fijo + DetailEmpty en escritorio; falta no navegar fuera desde matrix/calendar |
@@ -82,11 +82,14 @@ Base: `origin/main` @ arranque de la rama.
 
 ## Resumen por fase
 
-### Fase 0 — casi cerrada
-- Corregidos en #71: 65, 54, 55, 56, 10, 16, 29.
-- Ya en main (solo verificar): 01, 02, 09, 11, 28 (y 05/07/35/37/42/43).
-- Siguiente: Fase 1 MCP (48–57).
+### Fase 0 — cerrada en #71
+- Corregidos: 65, 54, 55, 56, 10, 16, 29 (+ verificados en main/tests).
+
+### Fase 1 — MCP casi cerrada en #71
+- Corregidos: 48, 49, 50, 51, 53.
+- Parcial: 52 (faltan recordatorios y más filtros), 57 (ops + UI «vía» pendiente).
 - **Una sola PR (#71) hasta el final; no abrir PRs adicionales.**
+- Siguiente: cerrar restos de 52/57 y pasar a Fase 2 UX.
 
 ### Comprobaciones manuales pendientes
 - Tras desplegar: editar una tarea 10+ veces y confirmar que `activity_log.changes` no anida `activity`.

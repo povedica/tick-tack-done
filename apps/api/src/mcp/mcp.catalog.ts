@@ -103,9 +103,18 @@ export const MCP_TOOLS: readonly McpTool[] = [
   {
     name: 'list_tasks',
     description:
-      'List active tasks. start_date is when you plan to do the task. due_date is the deadline. Tasks with only due_date still appear on that day. someday=true lists Someday; the default excludes them.',
+      'List tasks. Default status is active. Pass status=completed|cancelled|archived|all to include others. start_date is when you plan to do the task. due_date is the deadline. someday=true lists Someday; the default excludes them. Workflow columns (pending/in progress) are list board columns — use column_id on create/update when that lands; there is no separate workflow_state field (TTD-AUD-53).',
     scopes: ['tasks:read'],
-    inputSchema: objectSchema({ limit, cursor, project_id: id, someday: { type: 'boolean' } }),
+    inputSchema: objectSchema({
+      limit,
+      cursor,
+      project_id: id,
+      someday: { type: 'boolean' },
+      status: {
+        type: 'string',
+        enum: ['active', 'completed', 'archived', 'cancelled', 'all'],
+      },
+    }),
   },
   {
     name: 'get_task',
@@ -122,7 +131,20 @@ export const MCP_TOOLS: readonly McpTool[] = [
       {
         title: { type: 'string', minLength: 1, maxLength: 500 },
         project_id: id,
-        content: { type: 'string', maxLength: 100_000 },
+        parent_id: {
+          ...id,
+          description: 'Parent task id to create a one-level subtask (TTD-AUD-52).',
+        },
+        column_id: {
+          ...id,
+          description:
+            'Board column id for workflow (pending / in progress). Prefer this over inventing workflow_state (TTD-AUD-53).',
+        },
+        content: {
+          type: 'string',
+          maxLength: 100_000,
+          description: 'Task description (Markdown). Distinct from comments and sticky notes.',
+        },
         tag_ids: tagIds,
         tags: tagNames,
         parse: {
@@ -199,15 +221,130 @@ export const MCP_TOOLS: readonly McpTool[] = [
     ),
   },
   {
+    name: 'reopen_task',
+    description:
+      'Reopen a completed task (API uncomplete). Workflow columns are separate from status — use column_id when available (TTD-AUD-53).',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'cancel_task',
+    description: 'Cancel a task (status=cancelled). Soft-delete uses delete_task instead.',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'delete_task',
+    description:
+      'Soft-delete a task into trash (30-day retention). Requires tasks:trash. Use restore_task to bring it back.',
+    scopes: ['tasks:trash'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'restore_task',
+    description: 'Restore a soft-deleted task from trash.',
+    scopes: ['tasks:trash'],
+    inputSchema: objectSchema({ id }, ['id']),
+  },
+  {
+    name: 'list_task_comments',
+    description: 'List comments on a task (oldest first).',
+    scopes: ['tasks:read'],
+    inputSchema: objectSchema({ task_id: id }, ['task_id']),
+  },
+  {
+    name: 'add_task_comment',
+    description: 'Add a Markdown comment on a task.',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema(
+      {
+        task_id: id,
+        body: { type: 'string', minLength: 1, maxLength: 100_000 },
+      },
+      ['task_id', 'body'],
+    ),
+  },
+  {
+    name: 'list_task_attachments',
+    description:
+      'List attachment metadata for a task (id, file_name, mime_type, byte_size). Binary upload/download stays on the REST API (TTD-AUD-51).',
+    scopes: ['tasks:read'],
+    inputSchema: objectSchema({ task_id: id }, ['task_id']),
+  },
+  {
+    name: 'move_task',
+    description: 'Move a task to another list (and optionally a board column).',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema(
+      {
+        id,
+        project_id: id,
+        column_id: { type: ['string', 'null'], format: 'uuid' },
+      },
+      ['id', 'project_id'],
+    ),
+  },
+  {
+    name: 'add_checklist_item',
+    description: 'Add a checklist item on a task.',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema(
+      {
+        task_id: id,
+        title: { type: 'string', minLength: 1, maxLength: 500 },
+      },
+      ['task_id', 'title'],
+    ),
+  },
+  {
+    name: 'update_checklist_item',
+    description: 'Rename a checklist item.',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema(
+      {
+        task_id: id,
+        item_id: id,
+        title: { type: 'string', minLength: 1, maxLength: 500 },
+      },
+      ['task_id', 'item_id', 'title'],
+    ),
+  },
+  {
+    name: 'complete_checklist_item',
+    description: 'Mark a checklist item complete.',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema({ task_id: id, item_id: id }, ['task_id', 'item_id']),
+  },
+  {
+    name: 'uncomplete_checklist_item',
+    description: 'Reopen a checklist item.',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema({ task_id: id, item_id: id }, ['task_id', 'item_id']),
+  },
+  {
+    name: 'assign_task',
+    description:
+      'Assign or unassign a task (assignee_id=null clears). Prefer one account per person plus shared lists for authorship (TTD-AUD-57).',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema(
+      {
+        id,
+        assignee_id: { type: ['string', 'null'], format: 'uuid' },
+      },
+      ['id', 'assignee_id'],
+    ),
+  },
+  {
     name: 'update_task',
     description:
-      'Update a task. start_date is when you plan to do it; due_date is the deadline and may be cleared without changing when. someday=true clears when and keeps the deadline. tag_ids/tags replace the set; add_tag_ids/add_tags and remove_tag_ids/remove_tags adjust it. content updates the description. parse=true parses the new title like quick add. To change repetition pass recurrence or repeat_rule (same rules as create_task). recurrence:null (or repeat_rule:null) removes the series; changing the rule does not regenerate past occurrences or the series_id unless you clear it.',
+      'Update a task. start_date is when you plan to do it; due_date is the deadline and may be cleared without changing when. someday=true clears when and keeps the deadline. tag_ids/tags replace the set; add_tag_ids/add_tags and remove_tag_ids/remove_tags adjust it. content updates the description. column_id sets the board workflow column. parse=true parses the new title like quick add. To change repetition pass recurrence or repeat_rule (same rules as create_task). recurrence:null (or repeat_rule:null) removes the series; changing the rule does not regenerate past occurrences or the series_id unless you clear it. To change list use move_task.',
     scopes: ['tasks:write'],
     inputSchema: objectSchema(
       {
         id,
         title: { type: 'string', minLength: 1, maxLength: 500 },
         content: { type: ['string', 'null'], maxLength: 100_000 },
+        column_id: { type: ['string', 'null'], format: 'uuid' },
         tag_ids: tagIds,
         tags: tagNames,
         add_tag_ids: tagIds,
@@ -495,9 +632,10 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: 'search',
-    description: 'Search tasks, lists and tags.',
+    description:
+      'Search tasks, lists and tags. Each group is capped by limit (default 20, max 50).',
     scopes: ['tasks:read'],
-    inputSchema: objectSchema({ q: { type: 'string' } }, ['q']),
+    inputSchema: objectSchema({ q: { type: 'string', maxLength: 200 }, limit, cursor }, ['q']),
   },
   {
     name: 'list_notes',

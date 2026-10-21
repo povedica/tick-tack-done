@@ -23,6 +23,16 @@ describe('McpService recurrence mapping', () => {
     create: vi.fn(),
     update: vi.fn(),
     complete: vi.fn(),
+    uncomplete: vi.fn(),
+    cancel: vi.fn(),
+    remove: vi.fn(),
+    restore: vi.fn(),
+    move: vi.fn(),
+    createItem: vi.fn(),
+    updateItem: vi.fn(),
+    completeItem: vi.fn(),
+    uncompleteItem: vi.fn(),
+    listAttachments: vi.fn(),
     occurrences: vi.fn(),
     detach: vi.fn(),
   };
@@ -40,6 +50,14 @@ describe('McpService recurrence mapping', () => {
     tag: {
       findFirst: vi.fn().mockResolvedValue(null),
     },
+    activityLog: {
+      findFirst: vi.fn().mockResolvedValue(null),
+    },
+    comment: {
+      findMany: vi.fn().mockResolvedValue([]),
+      create: vi.fn(),
+    },
+    $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma)),
   };
 
   let service: McpService;
@@ -100,6 +118,7 @@ describe('McpService recurrence mapping', () => {
         repeat_from: 'due_date',
       }),
       undefined,
+      'api',
     );
     const text = JSON.parse(toolText(result)) as {
       repeat_label: string;
@@ -314,6 +333,7 @@ describe('McpService recurrence mapping', () => {
         tag_ids: ['44444444-4444-4444-8444-444444444444'],
       }),
       undefined,
+      'api',
     );
   });
 
@@ -342,7 +362,113 @@ describe('McpService recurrence mapping', () => {
         raw_text: 'Prueba parser #Instinct mañana 09:00-09:30',
       }),
       undefined,
+      'api',
     );
+  });
+
+  it('TTD-AUD-53: reopen_task and cancel_task call TasksService', async () => {
+    tasks.uncomplete.mockResolvedValue({
+      id: '33333333-3333-4333-8333-333333333333',
+      status: 'active',
+    });
+    tasks.cancel.mockResolvedValue({
+      id: '33333333-3333-4333-8333-333333333333',
+      status: 'cancelled',
+    });
+    await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 11,
+      method: 'tools/call',
+      params: {
+        name: 'reopen_task',
+        arguments: { id: '33333333-3333-4333-8333-333333333333' },
+      },
+    });
+    expect(tasks.uncomplete).toHaveBeenCalledWith(
+      user,
+      '33333333-3333-4333-8333-333333333333',
+    );
+    await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 12,
+      method: 'tools/call',
+      params: {
+        name: 'cancel_task',
+        arguments: { id: '33333333-3333-4333-8333-333333333333' },
+      },
+    });
+    expect(tasks.cancel).toHaveBeenCalledWith(user, '33333333-3333-4333-8333-333333333333');
+  });
+
+  it('TTD-AUD-50: delete_task soft-deletes via remove', async () => {
+    tasks.remove.mockResolvedValue(undefined);
+    const trashUser = { ...user, scopes: [...user.scopes, 'tasks:trash'] };
+    const result = await service.handle(trashUser, {
+      jsonrpc: '2.0',
+      id: 13,
+      method: 'tools/call',
+      params: {
+        name: 'delete_task',
+        arguments: { id: '33333333-3333-4333-8333-333333333333' },
+      },
+    });
+    expect(tasks.remove).toHaveBeenCalledWith(
+      trashUser,
+      '33333333-3333-4333-8333-333333333333',
+    );
+    expect(JSON.parse(toolText(result))).toEqual({ deleted: true, trashed: true });
+  });
+
+  it('TTD-AUD-51: list_task_comments loads prisma comments', async () => {
+    tasks.get.mockResolvedValue({ id: '33333333-3333-4333-8333-333333333333' });
+    prisma.comment.findMany.mockResolvedValue([
+      {
+        id: '55555555-5555-4555-8555-555555555555',
+        body: 'Hola @Ana',
+        authorId: user.id,
+      },
+    ]);
+    const result = await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 14,
+      method: 'tools/call',
+      params: {
+        name: 'list_task_comments',
+        arguments: { task_id: '33333333-3333-4333-8333-333333333333' },
+      },
+    });
+    expect(JSON.parse(toolText(result))).toEqual({
+      items: [
+        {
+          id: '55555555-5555-4555-8555-555555555555',
+          body: 'Hola @Ana',
+          author_id: user.id,
+          mentions: ['ana'],
+        },
+      ],
+    });
+  });
+
+  it('TTD-AUD-52: move_task forwards project_id', async () => {
+    tasks.move.mockResolvedValue({
+      id: '33333333-3333-4333-8333-333333333333',
+      project_id: '22222222-2222-4222-8222-222222222222',
+    });
+    await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 15,
+      method: 'tools/call',
+      params: {
+        name: 'move_task',
+        arguments: {
+          id: '33333333-3333-4333-8333-333333333333',
+          project_id: '22222222-2222-4222-8222-222222222222',
+        },
+      },
+    });
+    expect(tasks.move).toHaveBeenCalledWith(user, '33333333-3333-4333-8333-333333333333', {
+      project_id: '22222222-2222-4222-8222-222222222222',
+    });
   });
 });
 
