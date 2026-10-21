@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { TodayMark } from '../../components/period/TodayMark';
 import { useCalendarToday } from '../../components/period/useCalendarToday';
 import { useRef, useState, type ReactNode } from 'react';
@@ -40,12 +41,28 @@ export function CalendarMenu({
       >
         {trigger ?? label}
       </button>
+      {open && (className === 'calendar-mobile-views' || className === 'calendar-filter-menu')
+        ? createPortal(
+            <div
+              className="calendar-views-backdrop"
+              aria-hidden="true"
+              onMouseDown={(event) => {
+                event.preventDefault();
+              }}
+            />,
+            document.body,
+          )
+        : null}
       <Popover
         open={open}
         anchor={anchor}
         label={label}
         onClose={close}
-        className="calendar-popover"
+        className={
+          className === 'calendar-filter-menu'
+            ? 'calendar-popover calendar-filter-popover'
+            : 'calendar-popover'
+        }
       >
         {children(close)}
       </Popover>

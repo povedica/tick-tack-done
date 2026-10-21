@@ -517,7 +517,12 @@
     box-shadow: none;
   }
 
+  .shell[data-drawer='open'] .bottom-bar {
+    z-index: calc(var(--shell-drawer-z) + 1);
+  }
+
   .shell[data-drawer='open'] .sidebar {
+    padding-bottom: calc(var(--bottombar-h) + env(safe-area-inset-bottom) + var(--sp-3));
     transform: none;
     visibility: visible;
     box-shadow: var(--shadow-lg);

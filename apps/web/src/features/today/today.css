@@ -1020,10 +1020,6 @@ a.task-title {
   bottom: 52px;
 }
 
-.detail-back {
-  display: none;
-}
-
 .detail-check {
   margin: 0;
   padding: 0;
@@ -1349,10 +1345,6 @@ a.task-title {
 }
 
 @media (max-width: 699px) {
-  .detail-back {
-    display: grid;
-  }
-
   .detail-title {
     font-size: 20px;
   }

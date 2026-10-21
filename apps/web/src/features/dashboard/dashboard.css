@@ -350,7 +350,9 @@
   box-shadow: 0 20px 70px #0003;
 }
 .garden-dialog::backdrop {
-  background: #13213b66;
+  background: var(--overlay-backdrop-bg);
+  -webkit-backdrop-filter: blur(var(--overlay-backdrop-blur));
+  backdrop-filter: blur(var(--overlay-backdrop-blur));
 }
 .garden-dialog > header {
   display: flex;

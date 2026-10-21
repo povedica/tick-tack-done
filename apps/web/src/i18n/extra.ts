@@ -1,4 +1,12 @@
 export const extraEs = {
+  descriptionHeading: 'Encabezado',
+  descriptionList: 'Lista con viñetas',
+  descriptionChecklist: 'Lista de tareas',
+  descriptionQuote: 'Cita',
+  descriptionCode: 'Bloque de código',
+  calendarFilterTitle: 'Filtrar calendario',
+  calendarActiveFilters: 'Filtros activos: {count}',
+  calendarFilterAll: 'Todas',
   calendarMoreViews: 'Más',
   calendarOptions: 'Opciones del calendario',
   planAdjustHint:
@@ -48,7 +56,9 @@ export const extraEs = {
   calendarItem: 'elemento',
   calendarItems: 'elementos',
   calendarSwipe: 'Desliza para ver los siete días',
-  calendarAgendaWindow: '60 días · avance de 30 días',
+  calendarAgendaWindow: 'Amplía la agenda con los botones de cada extremo',
+  calendarAgendaPrevious: 'Ver mes anterior',
+  calendarAgendaNext: 'Ver mes siguiente',
   calWeekNumber: 'Semana ISO',
   navigationOrderTitle: 'Orden de los módulos',
   navigationOrderHint:
@@ -743,6 +753,7 @@ export const extraEs = {
   selectTask: 'Seleccionar',
   moveToList: 'Mover a…',
   calendarSource: 'Calendario',
+  calendarNoSubscriptions: 'No hay calendarios suscritos',
   batchSelected: '{count} seleccionadas',
   parentSearch: 'Buscar tarea padre',
   noParent: 'Sin tarea padre',
@@ -1021,6 +1032,14 @@ export const extraEs = {
 } as const;
 
 export const extraEn = {
+  descriptionHeading: 'Heading',
+  descriptionList: 'Bullet list',
+  descriptionChecklist: 'Checklist',
+  descriptionQuote: 'Quote',
+  descriptionCode: 'Code block',
+  calendarFilterTitle: 'Filter calendar',
+  calendarActiveFilters: 'Active filters: {count}',
+  calendarFilterAll: 'All',
   calendarMoreViews: 'More',
   calendarOptions: 'Calendar options',
   planAdjustHint:
@@ -1069,7 +1088,9 @@ export const extraEn = {
   calendarItem: 'item',
   calendarItems: 'items',
   calendarSwipe: 'Swipe to see all seven days',
-  calendarAgendaWindow: '60 days · advances by 30 days',
+  calendarAgendaWindow: 'Extend the agenda using the buttons at either end',
+  calendarAgendaPrevious: 'View previous month',
+  calendarAgendaNext: 'View next month',
   calWeekNumber: 'ISO week',
   navigationOrderTitle: 'Module order',
   navigationOrderHint:
@@ -1759,6 +1780,7 @@ export const extraEn = {
   selectTask: 'Select',
   moveToList: 'Move to…',
   calendarSource: 'Calendar',
+  calendarNoSubscriptions: 'No subscribed calendars',
   batchSelected: '{count} selected',
   parentSearch: 'Search parent task',
   noParent: 'No parent task',

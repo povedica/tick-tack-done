@@ -321,7 +321,9 @@
   box-shadow: 0 16px 64px var(--accent-soft);
 }
 .week-calendar::backdrop {
-  background: color-mix(in srgb, var(--ink) 30%, transparent);
+  background: var(--overlay-backdrop-bg);
+  -webkit-backdrop-filter: blur(var(--overlay-backdrop-blur));
+  backdrop-filter: blur(var(--overlay-backdrop-blur));
 }
 .week-calendar-head,
 .week-month-nav {

@@ -153,13 +153,13 @@ export function AppShell() {
             openTaskComposer();
           }}
         />
-        {section === 'calendar' ? (
+        {section === 'calendar' && !narrow ? (
           <CalendarSidebar
             collapsed={sidebarCollapsed}
-            concealed={narrow ? !drawer : sidebarCollapsed}
+            concealed={sidebarCollapsed}
             onNavigate={closeDrawer}
           />
-        ) : showSidebar ? (
+        ) : narrow || showSidebar ? (
           <Sidebar
             collapsed={sidebarCollapsed}
             mobileSection={narrow ? drawerSection : undefined}
