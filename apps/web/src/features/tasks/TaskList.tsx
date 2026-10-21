@@ -12,6 +12,7 @@ import { fill, type Messages } from '../../i18n';
 import type { ViewDay } from '../capture/quick-add';
 import { collectTags } from './collect';
 import { refreshTaskSurfaces } from './refresh';
+import { purgeTrashTask } from './purge-trash';
 import { displayTitle } from './displayTitle';
 import { completeBody } from './complete-body';
 import { TaskComposer } from './TaskComposer';
@@ -313,7 +314,7 @@ function TaskRow({
             runAction(api.restoreTask(row.id).then(() => refreshTaskSurfaces(queryClient)));
           }}
           onPurge={() => {
-            runAction(api.purgeTask(row.id).then(() => refreshTaskSurfaces(queryClient)));
+            runAction(purgeTrashTask(queryClient, row.id));
           }}
         />
       ) : (

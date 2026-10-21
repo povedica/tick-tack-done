@@ -21,7 +21,7 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-13 | 5 | pendiente | — | |
 | TTD-AUD-14 | 2 | pendiente | — | Depende de 62 |
 | TTD-AUD-15 | 5 | pendiente | — | |
-| TTD-AUD-16 | 0 | pendiente | — | |
+| TTD-AUD-16 | 0 | corregido | #71 | Purga optimista + rollback; contador trash |
 | TTD-AUD-17 | 5 | pendiente | — | |
 | TTD-AUD-18 | 5 | pendiente | — | |
 | TTD-AUD-19 | 5 | pendiente | — | |
@@ -34,7 +34,7 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-26 | 5 | pendiente | — | |
 | TTD-AUD-27 | 5 | pendiente | — | |
 | TTD-AUD-28 | 0 | verificado en tests | #66 | Tests: run-action.spec.ts, query-client.spec.ts |
-| TTD-AUD-29 | 0 | pendiente | — | |
+| TTD-AUD-29 | 0 | corregido | #71 | onUnauthorized → login?next=; red ≠ logout |
 | TTD-AUD-30 | 5 | pendiente | — | |
 | TTD-AUD-31 | 5 | pendiente | — | |
 | TTD-AUD-32 | 5 | pendiente | — | |
@@ -82,9 +82,11 @@ Base: `origin/main` @ arranque de la rama.
 
 ## Resumen por fase
 
-### Fase 0 — en curso
-- Corregidos: 65 (snapshot + migración), 55/56 (fechas/duración), 54 (validación MCP).
-- Pendiente: verificar 01/02/11/28; corregir 09/10/16/29.
+### Fase 0 — casi cerrada
+- Corregidos en #71: 65, 54, 55, 56, 10, 16, 29.
+- Ya en main (solo verificar): 01, 02, 09, 11, 28 (y 05/07/35/37/42/43).
+- Siguiente: Fase 1 MCP (48–57).
+- **Una sola PR (#71) hasta el final; no abrir PRs adicionales.**
 
 ### Comprobaciones manuales pendientes
 - Tras desplegar: editar una tarea 10+ veces y confirmar que `activity_log.changes` no anida `activity`.

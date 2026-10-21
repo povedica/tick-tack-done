@@ -153,6 +153,7 @@ export const en = {
   settingsTitle: 'Settings',
   loginTitle: 'Sign in',
   sessionChecking: 'Checking the session…',
+  sessionNetworkError: 'Could not check the session. Check your connection and try again.',
   registerTitle: 'Create account',
   forgotTitle: 'Reset password',
   smartListsLink: 'Smart lists',
