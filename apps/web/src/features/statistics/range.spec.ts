@@ -50,7 +50,9 @@ describe('RF-2321 statistics navigation', () => {
     });
     const state =
       'range=custom&from=2026-10-01&to=2026-10-20&list=l&tag=t&priority=high&day=2026-10-19';
-    writeStatsState(state);
+    writeStatsState(state + '&task=temporary');
+    expect(readStatsState()).toBe(state);
+    data.set('tick-tack-done.stats.state', state + '&task=legacy');
     expect(readStatsState()).toBe(state);
     writeStoredRange('month');
     expect(readStoredRange()).toBe('month');

@@ -114,6 +114,7 @@ async function fixture(
         ],
         next_cursor: null,
       };
+    if (path === '/tasks/task') body = { ...task, items: [], subtasks: [], activity: [] };
     if (path === '/projects')
       body = {
         items: [
@@ -1301,4 +1302,41 @@ test('RF-1101 mobile workweek reuses weekend space for the five weekdays', async
   const bounds = (await board.boundingBox())!;
   const last = (await board.locator('.mobile-week-day').last().boundingBox())!;
   expect(Math.abs(last.y + last.height - bounds.y - bounds.height)).toBeLessThan(2);
+});
+
+test('75.2/75.9 fixed task pane belongs only to Tasks and other sections open a floating detail', async ({
+  page,
+}) => {
+  await fixture(page);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  for (const path of [
+    '/calendar/month?date=2026-10-20',
+    '/focus',
+    '/matrix',
+    '/search',
+    '/statistics',
+  ]) {
+    await page.goto(path);
+    await expect(page.locator('.shell')).toHaveAttribute('data-detail', 'closed');
+    await expect(page.locator('.shell > .detail-slot')).toHaveCount(0);
+    await expect(page.locator('.detail-empty')).toHaveCount(0);
+    await page.goto(`${path}${path.includes('?') ? '&' : '?'}task=task`);
+    const detail = page.getByRole('dialog', { name: 'Tarea', exact: true });
+    await expect(detail).toBeVisible();
+    await expect(detail.locator('.detail-title')).toHaveValue(/Tarea sintética/);
+    await expect(page.locator('.shell')).toHaveAttribute('data-detail', 'closed');
+    await expect(page.locator('.shell > .detail-slot')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await expect(detail).toHaveCount(0);
+    await expect(page).not.toHaveURL(/task=task/);
+  }
+  await page.goto('/today');
+  await expect(page.locator('.shell')).toHaveAttribute('data-detail', 'open');
+  await expect(page.locator('.detail-empty')).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/calendar/month?date=2026-10-20&task=task');
+  await expect(page.locator('.shell > .detail-slot .detail-title')).toHaveValue(/Tarea sintética/);
+  await expect(page.locator('.task-detail-dialog')).toHaveCount(0);
+  await page.locator('.detail-close').click();
+  await expect(page.locator('.shell > .detail-slot')).toHaveCount(0);
 });

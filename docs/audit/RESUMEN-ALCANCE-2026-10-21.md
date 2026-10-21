@@ -46,14 +46,14 @@ código actual. Las decisiones posteriores prevalecen sobre los diseños inicial
 | Punto | Estado actual | Qué falta |
 | --- | --- | --- |
 | 75.1 Filtros/fuentes | Adaptado al panel flotante solicitado después | Revisión final de paridad funcional; no afirmar implementado el sidebar original, sustituido por decisión del usuario |
-| 75.2 Panel fijo sólo en Tareas | Pendiente | `sectionShowsDetailPane` aún incluye Calendario, Foco, Matriz, Búsqueda y Estadísticas |
+| 75.2 Panel fijo sólo en Tareas | Implementado el 22/10 | Sólo tasks mantiene columna; otras secciones abren detalle centrado y móvil conserva hoja |
 | 75.3 Plegado en cabecera | Pendiente respecto al diseño inicial | Resolver plegado compartido de escritorio según la cabecera final; no restaurar controles retirados en móvil |
 | 75.4 Tarjetas/horas | Muy avanzado | Revisar consistencia final por vista; por decisión posterior no se repite hora dentro de tarjetas con franja horaria |
 | 75.5 Mover/redimensionar | Pendiente | Arrastrar tareas existentes, redimensionar, pasar a/desde todo el día, optimismo/Deshacer, teclado/táctil y DST; crear seleccionando rango no cubre esto |
 | 75.6 TaskPeek/evento anclado | Parcial | TaskPeek junto a tarjeta y evento externo anclado; el detalle actual no acredita ese patrón |
 | 75.7 Hoy circular | Implementado y probado | Validación real final; no confundir con navegador de periodo compartido |
 | 75.8 Cabecera | Adaptada y probada según feedback | Cierre visual/funcional final de escritorio; no restaurar «⋯» ni la antigua navegación dentro del selector móvil |
-| 75.9 Paneles secundarios | Parcial | Quitar columna derecha depende de 75.2; drawer móvil ya corregido |
+| 75.9 Paneles secundarios | Columna derecha retirada fuera de Tareas el 22/10 | Repaso visual de desktop; drawer móvil ya corregido |
 | 75.10 Todo el día | Adaptado y probado | Revisión final global; el límite de dos y DaySheet sustituyen la expansión de franja del diseño inicial |
 | 75.11 Navegador compartido | Pendiente | Reutilizar EXACTAMENTE la UI del selector del Reporte semanal mediante componente compartido; no rediseñar Reporte para ajustarlo al calendario |
 | 76 Composer único | Parcial | Unificar alta global y calendario en TaskCard; CaptureSheet aún mantiene su estructura y variante propia; comprobar teclado virtual y todos los accesos |
@@ -66,8 +66,8 @@ código actual. Las decisiones posteriores prevalecen sobre los diseños inicial
 - Hoy: cabecera limpia y vistas en menú; Kanban debe funcionar realmente.
 - Plan del día móvil: ocultar resumen de capacidad y alinear título/Planificar.
 - Año: investigar lentitud observada; no hay diagnóstico demostrado.
-- Desktop al 200 % de zoom: Agenda queda sin ancho con los paneles laterales;
-  reproducido en la prueba de composición a 1440 px. Pendiente para el repaso desktop.
+- Desktop al 200 % de zoom: fallo de Agenda resuelto el 22/10 al retirar la
+  columna derecha; la prueba de composición a 1440 px pasa.
 - Consolidar los overrides CSS de calendario sin cambiar lo validado.
 - AUD-34: investigar incidencias de login; quedó aplazado.
 - AUD-47: configuración/validación manual de Google Cloud y OAuth.
@@ -101,3 +101,6 @@ Tokens/MCP (79) y validación con datos reales. No se declara cumplimiento globa
 - Las expectativas antiguas de ocho vistas móviles y cabecera de Agenda con h1
   se actualizan según las decisiones del usuario. Capturas exclusivamente en /tmp.
 - Las pruebas usan API simulada; no acreditan sesión real ni despliegue.
+
+Actualización 22/10: el fallo de zoom pendiente del cierre anterior queda resuelto
+y verificado en navegador. Ver el corte 75.2/75.9 en ESTADO.md.

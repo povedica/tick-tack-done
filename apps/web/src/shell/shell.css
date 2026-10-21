@@ -1181,3 +1181,18 @@
     break-inside: avoid;
   }
 }
+
+/* 75.2/75.9: selected tasks outside Tasks float over the full-width section. */
+.task-detail-dialog {
+  width: min(var(--content-max), calc(100vw - var(--sp-8)));
+  height: calc(100dvh - var(--sp-8));
+  max-height: calc(100dvh - var(--sp-8));
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+.task-detail-dialog > .detail-panel {
+  height: 100%;
+  border-left: 0;
+}

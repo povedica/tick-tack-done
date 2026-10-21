@@ -628,3 +628,22 @@ paneles). Queda registrado para el repaso desktop, sin ocultar el fallo.
 API simulada; no se acredita sesión real. Capturas temporales /tmp; los seis
 PNG que la prueba antigua había regenerado se restauraron a su estado limpio.
 Documentos locales del usuario excluidos de los commits.
+
+
+## 75.2/75.9 — panel fijo sólo en Tareas (22/10/2026)
+
+Implementada la política compartida sectionShowsDetailPane: sólo tasks conserva
+columna fija. Calendario, Foco, Matriz, Búsqueda y Estadísticas recuperan ancho;
+?task= mantiene enlace profundo y abre TaskDetail centrado mediante Popover en
+escritorio. Móvil conserva la hoja completa existente. Cierre con X/Escape/fuera,
+foco y menús anidados reutilizan los componentes compartidos. El detalle anclado
+a la tarjeta y la hoja específica de 75.6 siguen pendientes.
+
+La prueba de política falla antes y pasa después. 171 unitarios web correctos;
+tras corregir un fallo descubierto en Estadísticas, pasan los 17 unitarios de
+política/rango. Estadísticas ya no guarda/restaura task en preferencias, evitando
+que cerrar el detalle vuelva a abrirlo. Lint afectado y typecheck web correctos.
+Playwright recorre cinco secciones sin columna, sus enlaces profundos y Escape,
+Tareas con columna y cierre de detalle móvil: correcto con API simulada.
+La prueba de composición tablet/móvil/200 % también pasa: resuelto el ancho cero
+de Agenda al liberar la columna derecha. Sin cambios de API/modelo/eventos.

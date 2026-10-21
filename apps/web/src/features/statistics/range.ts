@@ -149,14 +149,18 @@ export function formatDuration(minutes: number): string {
 const STATE_KEY = 'tick-tack-done.stats.state';
 export function readStatsState(): string {
   try {
-    return localStorage.getItem(STATE_KEY) ?? '';
+    const params = new URLSearchParams(localStorage.getItem(STATE_KEY) ?? '');
+    params.delete('task');
+    return params.toString();
   } catch {
     return '';
   }
 }
 export function writeStatsState(search: string): void {
   try {
-    localStorage.setItem(STATE_KEY, search);
+    const params = new URLSearchParams(search);
+    params.delete('task');
+    localStorage.setItem(STATE_KEY, params.toString());
   } catch {
     /* Storage is optional. */
   }

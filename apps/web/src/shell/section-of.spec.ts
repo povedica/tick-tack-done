@@ -28,9 +28,19 @@ describe('sectionOf (TTD-AUD-61)', () => {
     expect(sectionShowsSidebar('matrix')).toBe(false);
   });
 
-  it('keeps the detail column for task-family sections', () => {
+  it('75.2/75.9 keeps the fixed detail column only in Tasks', () => {
     expect(sectionShowsDetailPane('tasks')).toBe(true);
-    expect(sectionShowsDetailPane('calendar')).toBe(true);
+    for (const section of [
+      'calendar',
+      'matrix',
+      'search',
+      'focus',
+      'stats',
+      'settings',
+      'other',
+    ] as const) {
+      expect(sectionShowsDetailPane(section)).toBe(false);
+    }
     expect(sectionShowsDetailPane('habits')).toBe(false);
   });
 });

@@ -5,6 +5,7 @@ import { Outlet, useLocation, useSearchParams } from 'react-router';
 import { api } from '../api';
 import { dismissPopover } from '../components/popover-stack';
 import { LocationWatch } from '../features/product/ProductPages';
+import { Popover } from '../components/Popover';
 import { TaskDetail } from '../features/tasks/TaskDetail';
 import { useQueryClient } from '@tanstack/react-query';
 import { useActionToast } from '../components/action-toast';
@@ -42,7 +43,8 @@ export function AppShell() {
   const showSidebar = sectionShowsSidebar(section);
   const showDetailPane = sectionShowsDetailPane(section) && !narrow;
   const sidebarCollapsed = !showSidebar || collapsed;
-  const detailOpen = showDetailPane || taskId !== null;
+  const detailOpen = showDetailPane || (narrow && taskId !== null);
+  const floatingDetail = !narrow && !sectionShowsDetailPane(section) && taskId !== null;
 
   useEffect(() => {
     const on = (): void => {
@@ -210,6 +212,18 @@ export function AppShell() {
             ) : (
               <DetailEmpty />
             )}
+          </div>
+        ) : null}
+        {floatingDetail ? (
+          <div className="ui-scrim task-detail-overlay">
+            <Popover
+              open
+              label={messages.taskTitle}
+              onClose={closeDetail}
+              className="task-detail-dialog"
+            >
+              <TaskDetail taskId={taskId} onClose={closeDetail} />
+            </Popover>
           </div>
         ) : null}
         <FocusCloser />
