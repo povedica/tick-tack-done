@@ -98,8 +98,8 @@ export function TaskComposer({
   const dateValue = useMemo<DateDraft>(
     () =>
       date ?? {
-        dueDate: request.parsed.due?.date ?? request.dueDate,
-        allDay: request.parsed.due?.isAllDay ?? true,
+        dueDate: request.parsed.start?.date ?? request.parsed.due?.date ?? request.dueDate,
+        allDay: request.parsed.start?.isAllDay ?? request.parsed.due?.isAllDay ?? true,
         durationMinutes: request.parsed.durationMinutes ?? null,
         reminder: request.parsed.reminderTrigger,
         reminderTouched: false,

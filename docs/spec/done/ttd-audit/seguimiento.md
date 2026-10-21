@@ -6,7 +6,7 @@ siguen el orden de prioridad de la petición; no se consideran cerrados.
 | ID         | Estado    | PR                                                        | Notas                                                                                                                           |
 | ---------- | --------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | TTD-AUD-01 | corregido | [#60](https://github.com/povedica/tick-tack-done/pull/60) | Fecha efectiva en filtros y filas; inicio/duración en API de vistas y SDK. Tests de dominio, formato, mapeo, SQL e integración. |
-| TTD-AUD-02 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
+| TTD-AUD-02 | corregido | pendiente de publicación                                  | Rangos ES/EN, título limpio, inicio y duración; tests del parser y creación real por API, incluidos cambios DST.                |
 | TTD-AUD-03 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
 | TTD-AUD-04 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
 | TTD-AUD-05 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                         |
@@ -76,3 +76,16 @@ Validación de TTD-AUD-01: typecheck, lint y tests completos en verde (271 domin
 95 web, 102 API, 9 SDK); integración completa: 117 pasan, 2 omitidos.
 Las fuentes de la auditoría y sus evidencias se conservan en local: la revisión
 automática bloqueó su publicación adicional en este repositorio público.
+
+## TTD-AUD-02: criterios de aceptación
+
+- `mañana 09:00-09:30`, `mañana 9:00–9:30` y `mañana de 9 a 9:30`:
+  título limpio, inicio 09:00 y duración 30 min (tests que fallaban antes del arreglo).
+- `tomorrow 9am-10am`: inicio 09:00, duración 60 min, título limpio.
+- Rangos invertidos, de cero minutos o con hora inválida: sin duración negativa.
+- Rango sin día y rango recurrente: conservan etiquetas y recurrencia.
+- Horario de verano/invierno: duración transcurrida calculada en la zona de captura,
+  conservando la hora de fin solicitada.
+- API: `raw_text` persiste inicio y duración; no hace falta añadir campos al contrato.
+- La vista previa del composer reconoce el inicio; las filas usan el formato de #60.
+- RF cubiertos: RF-102, RF-601, RF-602, RF-604.
