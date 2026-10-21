@@ -43,7 +43,7 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-35 | 4 | verificado en main | #63 | Paginación tokens; no reimplementar |
 | TTD-AUD-36 | 4 | verificado en tests | #71 | tokenExpired + UI pill; token-groups.spec |
 | TTD-AUD-37 | 4 | verificado en main | #62 | OAuth name conflicts; no reimplementar |
-| TTD-AUD-38 | 4 | corregido | #71 | UI etiquetas+lifecycle; sin paginación (decisión: no crece sin límite) |
+| TTD-AUD-38 | 4 | corregido | #71 | UI etiquetas+lifecycle; una página de 100 (sin más páginas) |
 | TTD-AUD-39 | 4 | corregido | #71 | Error revoke en banda; 409 nombre tomado |
 | TTD-AUD-40 | 4 | corregido | #71 | aria-live sin secreto; dismiss explícito |
 | TTD-AUD-41 | 4 | corregido | #71 | manage/countdowns/sensitive + scopes.spec |

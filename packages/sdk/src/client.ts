@@ -370,7 +370,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         call,
         options,
         'GET',
-        `/api/v1/me/tokens/${id}/activity`,
+        `/api/v1/me/tokens/${id}/activity?limit=100`,
         undefined,
         undefined,
         isActivityPage,
