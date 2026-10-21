@@ -1,6 +1,92 @@
 import { expect, test, type Page } from '@playwright/test';
 import { renderedContrast } from './contrast';
 
+test('TTD-AUD-27: Today deadline hints follow English locale', async ({ page }) => {
+  await fixtures(page, { locale: 'en', dueDate: '2026-10-20T15:00:00Z' });
+  await page.goto('/today');
+  await expect(page.getByText('Due today!', { exact: true })).toBeVisible();
+  await expect(page.getByText('¡Vence hoy!', { exact: true })).toHaveCount(0);
+});
+
+test('TTD-AUD-27: Ticky conversation and permissions follow English locale', async ({ page }) => {
+  await fixtures(page, { locale: 'en' });
+  await page.addInitScript(() => localStorage.setItem('tick-tack-done.locale', 'en'));
+  await page.route('**/api/v1/ticky/authority', (route) =>
+    route.fulfill({
+      json: {
+        version: 1,
+        autonomy: 1,
+        paused: false,
+        revoked: false,
+        list_ids: ['audit-list'],
+        owned_list_ids: ['audit-list'],
+        action_scopes: ['ticky:routines:write'],
+        fine_scopes: ['tasks:create'],
+        workday_start: null,
+        workday_end: null,
+        inbox_list_id: null,
+      },
+    }),
+  );
+  await page.route('**/api/v1/ticky/flags', (route) =>
+    route.fulfill({
+      json: {
+        ui: true,
+        read: false,
+        model: true,
+        execution: false,
+        routines: true,
+        telegram: false,
+        kill: false,
+      },
+    }),
+  );
+  await page.route('**/api/v1/ticky/routines', (route) =>
+    route.fulfill({
+      json: {
+        items: [
+          {
+            id: 'routine',
+            kind: 'weekly_review',
+            timezone: 'Europe/Madrid',
+            local_hour: '09:00',
+            weekday: 0,
+            enabled: true,
+            window_minutes: 15,
+            shadow: true,
+            version: 1,
+            next_at: null,
+            schedule_issue: 'ambiguous_local_time',
+          },
+        ],
+      },
+    }),
+  );
+  await page.route('**/api/v1/ticky/threads', (route) => route.fulfill({ json: { id: 'thread' } }));
+  await page.route('**/api/v1/ticky/threads/thread/messages', (route) =>
+    route.fulfill({ json: { proposal: {} } }),
+  );
+  await page.goto('/ticky');
+  await expect(page.getByRole('combobox', { name: 'Conversation', exact: true })).toBeVisible();
+  await expect(page.getByText('Permissions and preferences', { exact: true })).toBeVisible();
+  await expect(page.getByRole('option', { name: 'New conversation', exact: true })).toBeAttached();
+  await page.getByText('Permissions and preferences', { exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Save permissions', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('checkbox', { name: 'Create tasks after my approval' }),
+  ).toBeVisible();
+  await expect(page.locator('.ticky-settings')).not.toContainText('permisos');
+  await expect(page.getByRole('heading', { name: 'Routines', exact: true })).toBeVisible();
+  await expect(page.locator('.ticky-routine')).toContainText('Monday');
+  await expect(page.locator('.ticky-routine')).toContainText('This time occurs twice');
+  await expect(page.getByRole('option', { name: 'No AI', exact: true })).toBeAttached();
+  await page.getByRole('textbox', { name: 'What do you want help with?' }).fill('Review my plan');
+  await page.getByRole('button', { name: 'Send', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Proposal review' })).toContainText(
+    'This proposal could not be verified. It will not be applied.',
+  );
+});
+
 test('TTD-AUD-38: activity keeps loaded entries and retries the next page', async ({ page }) => {
   await fixtures(page);
   await page.route('**/api/v1/me/tokens?*', (route) =>
@@ -251,6 +337,7 @@ async function fixtures(
     focusSeconds?: number;
     empty?: boolean;
     ticky?: 'enabled' | 'disabled';
+    locale?: 'es' | 'en';
   } = {},
 ) {
   const sampleTask = {
@@ -316,7 +403,7 @@ async function fixtures(
         email: 'audit@example.test',
         display_name: 'Auditoría',
         time_zone: 'Europe/Madrid',
-        locale: 'es',
+        locale: options.locale ?? 'es',
         density: options.density ?? 'comfortable',
         accent: options.accent ?? 'indigo',
         ...(options.theme === undefined ? {} : { theme: options.theme }),

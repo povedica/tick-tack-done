@@ -647,7 +647,7 @@ export function TodayPage() {
             <span aria-hidden="true">{item.emoji ?? '⏳'}</span>
             <span>
               <strong>{item.title}</strong>
-              <small>¡Es hoy!</small>
+              <small>{messages.countdownIsToday}</small>
             </span>
           </Link>
         ))}
@@ -744,7 +744,7 @@ export function TodayPage() {
       ) : null}
       {(countdowns.data?.items.length ?? 0) > 0 ? (
         <section className="countdown-upcoming">
-          <h2>Próximas fechas</h2>
+          <h2>{messages.upcomingDates}</h2>
           <ul>
             {countdowns.data?.items
               .filter((item) => item.kind !== 'today')

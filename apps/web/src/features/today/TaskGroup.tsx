@@ -1,3 +1,4 @@
+import { messagesFor, fill, type Messages } from '../../i18n';
 import {
   AlarmClock,
   Calendar,
@@ -223,15 +224,15 @@ export function TaskGroup({
                       {when.date}
                     </time>
                   ) : null}
-                  {deadlineText(task, deadlineSoonDays) !== null ? (
+                  {deadlineText(task, deadlineSoonDays, messagesFor(locale)) !== null ? (
                     <span
                       className={
-                        deadlineText(task, deadlineSoonDays)?.tone === 'late'
+                        deadlineText(task, deadlineSoonDays, messagesFor(locale))?.tone === 'late'
                           ? 'task-date is-overdue'
                           : 'task-date'
                       }
                     >
-                      {deadlineText(task, deadlineSoonDays)?.label}
+                      {deadlineText(task, deadlineSoonDays, messagesFor(locale))?.label}
                     </span>
                   ) : null}
                   {when.time !== null ? (
@@ -264,6 +265,7 @@ export function TaskGroup({
 function deadlineText(
   task: TodayTask,
   soonDays: number,
+  messages: Messages,
 ): { readonly label: string; readonly tone: 'soon' | 'late' } | null {
   if (task.isSomeday === true || task.dueDate == null || task.status !== 'active') {
     return null;
@@ -277,13 +279,13 @@ function deadlineText(
     return null;
   }
   if (diff === 0) {
-    return { label: '¡Vence hoy!', tone: 'late' };
+    return { label: messages.deadlineToday, tone: 'late' };
   }
   if (diff === 1) {
-    return { label: 'Vence mañana', tone: 'soon' };
+    return { label: messages.deadlineTomorrow, tone: 'soon' };
   }
   if (diff <= soonDays) {
-    return { label: `Vence en ${String(diff)} días`, tone: 'soon' };
+    return { label: fill(messages.deadlineInDays, String(diff)), tone: 'soon' };
   }
   return null;
 }

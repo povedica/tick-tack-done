@@ -1,18 +1,12 @@
+import { useMessages } from '../../i18n';
 import { runAction } from '../../components/run-action';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { collectProjects } from '../tasks/collect';
 import { tickyApi, type TickyAuthority } from './api';
 
-const permissions: Readonly<Record<string, string>> = {
-  'tasks:create': 'Crear tareas tras mi aprobación',
-  'tasks:update': 'Editar tareas tras mi aprobación',
-  'calendar:read': 'Usar la ocupación de mi calendario',
-  'ticky:routines:read': 'Consultar rutinas',
-  'ticky:routines:write': 'Preparar y editar rutinas sin avisos',
-};
-
 export function TickySettings() {
+  const messages = useMessages();
   const [open, setOpen] = useState(false);
   const authority = useQuery({
     queryKey: ['ticky', 'authority'],
@@ -30,12 +24,12 @@ export function TickySettings() {
         setOpen(event.currentTarget.open);
       }}
     >
-      <summary>Permisos y preferencias</summary>
+      <summary>{messages.tickyPermissions}</summary>
       {authority.isError || projects.isError ? (
-        <p role="alert">No se han podido recuperar los permisos. No se han cambiado.</p>
+        <p role="alert">{messages.tickyPermissionsFailed}</p>
       ) : null}
       {authority.data === undefined || projects.data === undefined ? (
-        <p>Cargando permisos…</p>
+        <p>{messages.tickyPermissionsLoading}</p>
       ) : (
         <SettingsForm
           authority={authority.data}
@@ -55,6 +49,14 @@ function SettingsForm({
   readonly authority: TickyAuthority;
   readonly projects: readonly { id: string; name: string }[];
 }) {
+  const messages = useMessages();
+  const permissions: Readonly<Record<string, string>> = {
+    'tasks:create': messages.tickyPermissionCreate,
+    'tasks:update': messages.tickyPermissionUpdate,
+    'calendar:read': messages.tickyPermissionCalendar,
+    'ticky:routines:read': messages.tickyPermissionRoutinesRead,
+    'ticky:routines:write': messages.tickyPermissionRoutinesWrite,
+  };
   const queryClient = useQueryClient();
   const [lists, setLists] = useState(authority.list_ids);
   const [scopes, setScopes] = useState(authority.action_scopes);
@@ -74,7 +76,7 @@ function SettingsForm({
   const save = useMutation({
     mutationFn: (patch: Record<string, unknown>) => tickyApi.updateAuthority(patch),
     onSuccess: () => {
-      setNotice('Permisos guardados.');
+      setNotice(messages.tickyPermissionsSaved);
       runAction(queryClient.invalidateQueries({ queryKey: ['ticky'] }));
     },
     onError: (error: Error) => {
@@ -96,9 +98,9 @@ function SettingsForm({
         });
       }}
     >
-      <p>Elige hasta diez listas propias. Los cambios de tareas siempre necesitan tu aprobación.</p>
+      <p>{messages.tickyListsHint}</p>
       <label>
-        Nivel de ayuda{' '}
+        {messages.tickyAssistanceLevel}{' '}
         <select
           value={autonomy}
           disabled={save.isPending}
@@ -106,13 +108,13 @@ function SettingsForm({
             setAutonomy(Number(event.target.value));
           }}
         >
-          <option value={0}>A0 · Desactivado</option>
-          <option value={1}>A1 · Consultar</option>
-          <option value={2}>A2 · Preparar propuestas</option>
+          <option value={0}>{messages.tickyAutonomyOff}</option>
+          <option value={1}>{messages.tickyAutonomyRead}</option>
+          <option value={2}>{messages.tickyAutonomyPrepare}</option>
         </select>
       </label>
       <fieldset disabled={save.isPending}>
-        <legend>Listas permitidas</legend>
+        <legend>{messages.tickyAllowedLists}</legend>
         {projects.map((project) => (
           <label key={project.id}>
             <input
@@ -133,7 +135,7 @@ function SettingsForm({
         ))}
       </fieldset>
       <label>
-        Bandeja para capturas{' '}
+        {messages.tickyCaptureInbox}{' '}
         <select
           value={inbox}
           disabled={save.isPending}
@@ -141,7 +143,7 @@ function SettingsForm({
             setInbox(event.target.value);
           }}
         >
-          <option value="">Sin bandeja de captura</option>
+          <option value="">{messages.tickyNoCaptureInbox}</option>
           {projects
             .filter((project) => lists.includes(project.id))
             .map((project) => (
@@ -152,7 +154,7 @@ function SettingsForm({
         </select>
       </label>
       <fieldset disabled={save.isPending}>
-        <legend>Permisos explícitos</legend>
+        <legend>{messages.tickyExplicitPermissions}</legend>
         {Object.entries(permissions)
           .filter(([scope]) => authority.fine_scopes.includes(scope))
           .map(([scope, label]) => (
@@ -170,9 +172,9 @@ function SettingsForm({
             </label>
           ))}
       </fieldset>
-      <p>Sin una jornada y un calendario vigentes, la capacidad queda desconocida.</p>
+      <p>{messages.tickyCapacityUnknown}</p>
       <label>
-        Inicio de jornada{' '}
+        {messages.tickyWorkdayStart}{' '}
         <input
           type="time"
           value={start}
@@ -182,7 +184,7 @@ function SettingsForm({
         />
       </label>
       <label>
-        Fin de jornada{' '}
+        {messages.tickyWorkdayEnd}{' '}
         <input
           type="time"
           value={end}
@@ -192,7 +194,7 @@ function SettingsForm({
         />
       </label>
       <button type="submit" disabled={save.isPending}>
-        Guardar permisos
+        {messages.tickySavePermissions}
       </button>
       <div className="ticky-actions">
         <button
@@ -202,7 +204,7 @@ function SettingsForm({
             save.mutate({ paused: !authority.paused });
           }}
         >
-          {authority.paused ? 'Reactivar Ticky' : 'Pausar Ticky'}
+          {authority.paused ? messages.tickyResume : messages.tickyPause}
         </button>
         <button
           type="button"
@@ -211,7 +213,7 @@ function SettingsForm({
             save.mutate({ revoked: !authority.revoked });
           }}
         >
-          {authority.revoked ? 'Restablecer autorización' : 'Revocar autorización'}
+          {authority.revoked ? messages.tickyRestoreAuthority : messages.tickyRevokeAuthority}
         </button>
       </div>
       <p role="status">{notice}</p>

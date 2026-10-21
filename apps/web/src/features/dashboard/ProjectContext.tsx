@@ -1,7 +1,9 @@
+import { useMessages, fill } from '../../i18n';
 import { Link } from 'react-router';
 import { count, label, row, rows } from './model';
 
 export function ProjectContext({ value }: { readonly value: unknown }) {
+  const messages = useMessages();
   const data = row(value);
   const projects = rows(data.items)
     .filter(
@@ -11,7 +13,7 @@ export function ProjectContext({ value }: { readonly value: unknown }) {
   return (
     <div className="garden-projects">
       {projects.length === 0 ? (
-        <p className="garden-empty">Ningún proyecto necesita revisión.</p>
+        <p className="garden-empty">{messages.projectsNoReview}</p>
       ) : (
         <ul className="garden-project-list">
           {projects.map((item) => (
@@ -19,12 +21,14 @@ export function ProjectContext({ value }: { readonly value: unknown }) {
               <Link to={`/list/${label(item.id)}`}>{label(item.name)}</Link>
               <span>
                 <strong>{String(count(item.active_tasks))}</strong>{' '}
-                {count(item.active_tasks) === 1 ? 'pendiente' : 'pendientes'}
+                {count(item.active_tasks) === 1
+                  ? messages.projectPendingOne
+                  : messages.projectPendingMany}
               </span>
               <p>
                 {item.state === 'stale'
-                  ? `Sin actividad en más de ${String(count(data.review_after_days))} días.`
-                  : 'Sin tareas pendientes; revisa si está terminado.'}
+                  ? fill(messages.projectStale, String(count(data.review_after_days)))
+                  : messages.projectReviewComplete}
               </p>
             </li>
           ))}

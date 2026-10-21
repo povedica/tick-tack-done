@@ -31,7 +31,7 @@ siguen el orden de prioridad de la petición; no se consideran cerrados.
 | TTD-AUD-24 | corregido | [#73](https://github.com/povedica/tick-tack-done/pull/73)                                                            | Popover controlado: elegir, Escape, clic fuera y reemplazar por menú de tarjeta cierran el anterior; foco restaurado; icono de agrupar distinguible.                        |
 | TTD-AUD-25 | corregido | [#73](https://github.com/povedica/tick-tack-done/pull/73)                                                            | Tokens de lateral y rail por tema; selección, hover e iconos legibles. Doce combinaciones tema/acento verificadas en Chromium, incluido selector de tema.                   |
 | TTD-AUD-26 | corregido | [#73](https://github.com/povedica/tick-tack-done/pull/73)                                                            | Botón de acceso usa var(--accent); regresiones violeta y verde que fallaban antes. Registro comparte selector CSS; formulario deshabilitado en este entorno.                |
-| TTD-AUD-27 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
+| TTD-AUD-27 | parcial | [#73](https://github.com/povedica/tick-tack-done/pull/73), [#71](https://github.com/povedica/tick-tack-done/pull/71) | #73 centraliza Ticky, avisos de Hoy y contexto de proyectos; #71 cuentas atrás. Pendiente sustituir razones de Control por códigos y validar la combinación. |
 | TTD-AUD-28 | corregido | [#66](https://github.com/povedica/tick-tack-done/pull/66)                                                            | runAction común aplicado a promesas UI sin rechazo; MutationCache global, avisos accesibles ES/EN, rollback y respaldo unhandledrejection; lint no admite void como escape. |
 | TTD-AUD-29 | externo pendiente de validar | [#71](https://github.com/povedica/tick-tack-done/pull/71) | Sesión caducada: implementado por Cursor; no se duplica ni se considera validado en #73. |
 | TTD-AUD-30 | externo pendiente de validar | [#71](https://github.com/povedica/tick-tack-done/pull/71) | Boundary por ruta: implementado por Cursor; no se duplica ni se considera validado en #73. |
@@ -350,3 +350,20 @@ modelo ni eventos. Complementa el requisito transversal de autenticación de 10.
   recuperación: aparecen las dos entradas, sin duplicados y sin Cargar más al acabar.
 - Sin cambio de API, OpenAPI, modelo ni eventos. RF-2002. La presentación de método,
   ruta, resultado y ciclo de vida sigue en #71; no se declara cerrado el hallazgo.
+
+## TTD-AUD-27: textos de Ticky, Hoy y proyectos
+
+- Textos centrales ES/EN en conversación, permisos, propuestas y rutinas de la UI
+  web de ttd. Fechas y días de semana siguen el idioma elegido; sin cambios de
+  capacidades ni del servicio Ticky externo (F-1…F-10 siguen excluidos).
+- Errores locales del stream traducidos; errores HTTP conservan status y code
+  estructurados y muestran un texto del idioma elegido. Los conflictos de rutina
+  se reconocen por 409, sin buscar palabras españolas en la frase del servidor.
+- Avisos de vencimiento, cuenta atrás de Hoy y contexto de proyectos usan i18n.
+- Regresión Chromium falla contra TickyPage anterior y pasa después. Comprueba
+  conversación, permisos, rutinas/día de semana, modelo y propuesta inválida en
+  inglés; otra prueba verifica Due today. Tests de transporte verifican inglés y
+  preservación de código/status. Un guard AST impide textos fijos en JSX y atributos
+  accesibles de los cuatro componentes Ticky.
+- 120 tests web, ESLint y TypeScript web en verde. Quedan pendientes las razones
+  estructuradas de Control y la combinación con cuentas atrás de #71.

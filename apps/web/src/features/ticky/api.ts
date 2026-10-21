@@ -1,6 +1,30 @@
+import { messagesFor } from '../../i18n';
+import { resolveLocale, useLocale } from '../../i18n/locale';
 import { DEV_USER_EMAIL } from '../../config';
 import { sessionMode } from '../../api';
 import { readCsrfToken } from '../auth/session';
+
+function currentMessages() {
+  return messagesFor(resolveLocale(useLocale.getState().choice));
+}
+
+export class TickyApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string | undefined,
+  ) {
+    const messages = currentMessages();
+    super(
+      status === 409
+        ? messages.tickyRequestConflict
+        : status === 403
+          ? messages.tickyRequestDenied
+          : status === 429
+            ? messages.tickyRequestLimit
+            : messages.tickyError,
+    );
+  }
+}
 
 async function tickyFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = tickyHeaders();
@@ -14,7 +38,7 @@ async function tickyFetch<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as { message?: string; code?: string };
-    throw new Error(body.message ?? body.code ?? `ticky_${String(response.status)}`);
+    throw new TickyApiError(response.status, body.code);
   }
   if (response.status === 204) {
     return undefined as T;
@@ -177,8 +201,8 @@ export async function waitForTickyRun(
     if (!response.ok || response.body === null) {
       throw new Error(
         response.status === 409
-          ? 'El historial cambió. Consúltalo antes de repetir el mensaje.'
-          : 'No se ha podido recuperar la respuesta. Revisa el historial antes de repetir.',
+          ? currentMessages().tickyHistoryChanged
+          : currentMessages().tickyResponseFailed,
       );
     }
     const reader = response.body.getReader();
@@ -192,7 +216,7 @@ export async function waitForTickyRun(
         }
         buffer += decoder.decode(chunk.value, { stream: true }).replace(/\r\n/g, '\n');
         if (buffer.length > 1_000_000) {
-          throw new Error('La respuesta es demasiado grande. Revisa el historial.');
+          throw new Error(currentMessages().tickyResponseLarge);
         }
         let boundary = buffer.indexOf('\n\n');
         while (boundary >= 0) {
@@ -213,11 +237,11 @@ export async function waitForTickyRun(
           if (data.length > 0) {
             const value: unknown = JSON.parse(data);
             if (value === null || typeof value !== 'object') {
-              throw new Error('Respuesta de Ticky no válida.');
+              throw new Error(currentMessages().tickyResponseInvalid);
             }
             const event = value as Record<string, unknown>;
             if (event.run_id !== runId) {
-              throw new Error('Respuesta de Ticky no válida.');
+              throw new Error(currentMessages().tickyResponseInvalid);
             }
             if (event.type === 'run.completed') {
               if (
@@ -225,12 +249,12 @@ export async function waitForTickyRun(
                 typeof event.payload !== 'object' ||
                 Array.isArray(event.payload)
               ) {
-                throw new Error('Respuesta de Ticky no válida.');
+                throw new Error(currentMessages().tickyResponseInvalid);
               }
               return event.payload as Record<string, unknown>;
             }
             if (event.type === 'run.failed') {
-              throw new Error('La consulta no terminó. Revisa el historial antes de repetir.');
+              throw new Error(currentMessages().tickyRunFailed);
             }
           }
           boundary = buffer.indexOf('\n\n');
@@ -241,5 +265,5 @@ export async function waitForTickyRun(
       reader.releaseLock();
     }
   }
-  throw new Error('Se interrumpió la conexión. Revisa el historial antes de repetir el mensaje.');
+  throw new Error(currentMessages().tickyConnectionLost);
 }

@@ -1,3 +1,5 @@
+import { useMessages } from '../../i18n';
+import { useAppLocale } from '../../i18n/locale';
 import { runAction } from '../../components/run-action';
 import { actionBlocked, validateProposal, type ProposalBody } from '@reflexionia/domain';
 import { useEffect, useState } from 'react';
@@ -10,9 +12,11 @@ export function ProposalReview({
   readonly value: unknown;
   readonly executionEnabled: boolean;
 }) {
+  const messages = useMessages();
+  const locale = useAppLocale();
   const [proposal, setProposal] = useState<ProposalBody | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
-  const [notice, setNotice] = useState('Verificando propuesta…');
+  const [notice, setNotice] = useState(messages.tickyProposalChecking);
   const [busy, setBusy] = useState(false);
   const [applied, setApplied] = useState(false);
   useEffect(() => {
@@ -30,32 +34,31 @@ export function ProposalReview({
             !Number.isFinite(Date.parse(candidate.expires_at))
           )
             throw new Error('Invalid proposal');
-          new Intl.DateTimeFormat('es', { timeZone: candidate.timezone }).format(new Date());
+          new Intl.DateTimeFormat(locale, { timeZone: candidate.timezone }).format(new Date());
           if (!active.signal.aborted) {
             setProposal(candidate);
-            setNotice('Selecciona los cambios que quieres aprobar.');
+            setNotice(messages.tickyProposalSelect);
           }
         } catch {
-          if (!active.signal.aborted)
-            setNotice('No se ha podido verificar esta propuesta. No se aplicará.');
+          if (!active.signal.aborted) setNotice(messages.tickyProposalInvalid);
         }
       })(),
     );
     return () => {
       active.abort();
     };
-  }, [value]);
+  }, [value, locale, messages]);
 
   async function approve() {
     if (proposal === null || busy || applied || selected.length === 0) return;
     setBusy(true);
-    setNotice('Aplicando los cambios seleccionados…');
+    setNotice(messages.tickyProposalApplying);
     try {
       await tickyApi.storeProposal(proposal);
       await tickyApi.approve(proposal.proposal_id, proposal.approval_digest ?? '', selected);
     } catch {
       // A failed response does not establish whether a domain effect happened.
-      setNotice('Verificando el ledger antes de cualquier repetición…');
+      setNotice(messages.tickyProposalLedger);
     } finally {
       const statuses = await Promise.all(
         selected.map(async (id) => {
@@ -70,7 +73,9 @@ export function ProposalReview({
         (status) => 'status' in status && status.status === 'applied',
       ).length;
       setNotice(
-        `Cambios confirmados: ${String(confirmed)} de ${String(selected.length)}. Los demás quedan pendientes de comprobar. No repetiré la aprobación automáticamente.`,
+        messages.tickyChangesConfirmed
+          .replace('{confirmed}', String(confirmed))
+          .replace('{total}', String(selected.length)),
       );
       setApplied(true);
       setBusy(false);
@@ -78,15 +83,15 @@ export function ProposalReview({
   }
 
   return (
-    <section className="ticky-proposal" aria-label="Revisión de propuesta">
-      <h2>Revisar cambios</h2>
+    <section className="ticky-proposal" aria-label={messages.tickyProposalReview}>
+      <h2>{messages.tickyReviewChanges}</h2>
       <p role="status">{notice}</p>
       {proposal === null ? null : (
         <>
           <p>
-            Caduca:{' '}
-            {new Date(proposal.expires_at).toLocaleString('es', { timeZone: proposal.timezone })} (
-            {proposal.timezone})
+            {messages.tickyExpires}{' '}
+            {new Date(proposal.expires_at).toLocaleString(locale, { timeZone: proposal.timezone })}{' '}
+            ({proposal.timezone})
           </p>
           {proposal.items.map((item) => (
             <label key={item.action_id} className="ticky-proposal-item">
@@ -103,23 +108,21 @@ export function ProposalReview({
                 }}
               />
               <span>
-                {item.tool} · versión {item.expected_version}
+                {item.tool} · {messages.tickyVersion} {item.expected_version}
                 <br />
-                Antes: {JSON.stringify(item.before)}
+                {messages.tickyBefore} {JSON.stringify(item.before)}
                 <br />
-                Después: {JSON.stringify(item.after)}
+                {messages.tickyAfter} {JSON.stringify(item.after)}
                 {actionBlocked(item) === null ? null : (
                   <>
                     <br />
-                    Este cambio necesita revisión adicional y no se puede aprobar aquí.
+                    {messages.tickyAdditionalReview}
                   </>
                 )}
               </span>
             </label>
           ))}
-          {!executionEnabled ? (
-            <p>La ejecución está desactivada. La propuesta no ha aplicado cambios.</p>
-          ) : null}
+          {!executionEnabled ? <p>{messages.tickyExecutionOff}</p> : null}
           <button
             type="button"
             disabled={
@@ -133,7 +136,7 @@ export function ProposalReview({
               runAction(approve());
             }}
           >
-            Aprobar seleccionados
+            {messages.tickyApproveSelected}
           </button>
         </>
       )}
