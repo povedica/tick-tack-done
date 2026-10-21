@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-async function fixture(page: Page, fail = false) {
+async function fixture(page: Page, fail = false, patches: Record<string, unknown>[] = []) {
   const creations: Record<string, unknown>[] = [];
   const created: Record<string, unknown>[] = [];
   await page.clock.install({ time: new Date('2026-10-20T10:00:00Z') });
@@ -75,6 +75,7 @@ async function fixture(page: Page, fail = false) {
     } else if (path === '/tasks') body = { items: created, next_cursor: null };
     if (
       path.includes('/views/') ||
+      path === '/filters/preview' ||
       /\/smart-lists\/[^/]+\/tasks/.test(path) ||
       path === '/projects/work/tasks'
     )
@@ -92,6 +93,13 @@ async function fixture(page: Page, fail = false) {
       !path.slice(7).includes('/')
     )
       body = created.find((task) => task.id === path.slice(7)) ?? {};
+    if (/^\/tasks\/[^/]+$/.test(path) && route.request().method() === 'PATCH') {
+      const patch = route.request().postDataJSON() as Record<string, unknown>;
+      const task = created.find((task) => task.id === path.slice(7));
+      if (task) Object.assign(task, patch);
+      patches.push({ id: path.slice(7), ...patch });
+      body = task ?? {};
+    }
     if (path === '/calendar/events')
       body = {
         tasks: [],
@@ -377,4 +385,82 @@ test('Kanban direct URL opens columns without an empty detail pane', async ({ pa
   await expect(page.locator('.calendar-quick-add')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.locator('.calendar-quick-add')).toHaveCount(0);
+});
+
+test('Kanban card padding opens detail, hover only shades its card and dragging changes priority', async ({
+  page,
+}) => {
+  const patches: Record<string, unknown>[] = [];
+  const posts = await fixture(page, false, patches);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto('/today?group=priority');
+  const field = page.locator('.today .task-composer input[name=title]');
+  for (const title of ['Preparar propuesta', 'Otra tarea']) {
+    await field.fill(title);
+    await field.press('Enter');
+    await expect(field).toHaveValue('');
+  }
+  await expect.poll(() => posts.length).toBe(2);
+  await page
+    .locator('.task-view-toggle')
+    .getByRole('button', { name: 'Kanban', exact: true })
+    .click();
+  const card = page
+    .locator('.today-task-groups .task-row')
+    .filter({ hasText: 'Preparar propuesta' });
+  const other = page.locator('.today-task-groups .task-row').filter({ hasText: 'Otra tarea' });
+  await expect(other).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  const background = await other.evaluate((node) => getComputedStyle(node).backgroundColor);
+  await card.hover();
+  await expect(card).not.toHaveCSS('background-color', background);
+  await expect(other).toHaveCSS('background-color', background);
+  await card.click({ position: { x: 150, y: 5 } });
+  await expect(page.locator('.detail-slot')).toBeVisible();
+  await page
+    .locator('.detail-slot')
+    .getByRole('button', { name: 'Cerrar', exact: true })
+    .first()
+    .click();
+  const high = page.locator('.today-task-groups > .task-group').first();
+  await expect(page.locator('.detail-slot')).toHaveCount(0);
+  await card.dragTo(high.locator('summary'), { sourcePosition: { x: 150, y: 5 } });
+  await expect.poll(() => patches.some((patch) => patch.priority === 'high')).toBe(true);
+  await expect(high.getByRole('button', { name: 'Preparar propuesta', exact: true })).toBeVisible();
+  await expect(page.locator('.calendar-quick-add')).toHaveCount(0);
+  await expect(page.locator('.detail-slot')).toHaveCount(0);
+});
+
+test('Kanban drag between list columns persists the destination column', async ({ page }) => {
+  const patches: Record<string, unknown>[] = [];
+  const posts = await fixture(page, false, patches);
+  await page.route('**/api/v1/projects/work/columns', (route) =>
+    route.fulfill({
+      json: {
+        items: [
+          { id: 'todo', name: 'Pendientes' },
+          { id: 'next', name: 'En curso' },
+        ],
+        next_cursor: null,
+      },
+    }),
+  );
+  await page.goto('/list/work?view=kanban');
+  const source = page
+    .locator('.kanban-col')
+    .filter({ has: page.getByRole('heading', { name: /Pendientes/ }) });
+  const target = page
+    .locator('.kanban-col')
+    .filter({ has: page.getByRole('heading', { name: /En curso/ }) });
+  await source.locator('.kanban-column-add').click();
+  await page.locator('.calendar-quick-add input[name=title]').fill('Mover entre secciones');
+  await page
+    .locator('.calendar-quick-add')
+    .getByRole('button', { name: 'Añadir', exact: true })
+    .click();
+  await expect.poll(() => posts.length).toBe(1);
+  await source.locator('.kanban-card').dragTo(target);
+  await expect.poll(() => patches.some((patch) => patch.column_id === 'next')).toBe(true);
+  await expect(
+    target.getByRole('button', { name: 'Mover entre secciones', exact: true }),
+  ).toBeVisible();
 });

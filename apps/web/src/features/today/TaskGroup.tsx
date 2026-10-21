@@ -48,6 +48,7 @@ export function TaskGroup({
   onMore,
   onSelect,
   onPriorityDrop,
+  onColumnDrop,
   onFocus,
 }: {
   readonly id: string;
@@ -77,6 +78,7 @@ export function TaskGroup({
   readonly onOpen: (id: string) => void;
   readonly onMore: (task: TodayTask, x: number, y: number) => void;
   readonly onSelect: (id: string, mode: 'toggle' | 'range' | 'plain') => void;
+  readonly onColumnDrop?: ((taskId: string) => void) | undefined;
   readonly onPriorityDrop: (taskId: string, priority: TodayTask['priority']) => void;
   readonly onFocus: (id: string) => void;
 }) {
@@ -92,11 +94,27 @@ export function TaskGroup({
         onToggle(id, event.currentTarget.open);
       }}
       onDragOver={(event) => {
-        if (groupKind === 'priority' && dragHasTask(event.dataTransfer)) {
+        if ((groupKind === 'priority' || onColumnDrop) && dragHasTask(event.dataTransfer)) {
           event.preventDefault();
+          event.dataTransfer.dropEffect = 'move';
+          event.currentTarget.dataset.dragOver = 'true';
         }
       }}
+      onDragLeave={(event) => {
+        if (
+          !(event.relatedTarget instanceof Node) ||
+          !event.currentTarget.contains(event.relatedTarget)
+        )
+          delete event.currentTarget.dataset.dragOver;
+      }}
       onDrop={(event) => {
+        delete event.currentTarget.dataset.dragOver;
+        const dropped = taskDragId(event.dataTransfer);
+        if (onColumnDrop && dropped !== null) {
+          event.preventDefault();
+          onColumnDrop(dropped);
+          return;
+        }
         if (groupKind !== 'priority') {
           return;
         }
@@ -151,18 +169,24 @@ export function TaskGroup({
             .filter((item) => item.length > 0)
             .join(' ');
           return (
-            <li key={task.id}>
+            <li
+              key={task.id}
+              draggable={onCreate !== undefined}
+              onDragStart={(event) => {
+                if (onCreate) setTaskDrag(event.dataTransfer, task.id);
+              }}
+              onClick={(event) => {
+                if (
+                  onCreate &&
+                  event.target instanceof Element &&
+                  !event.target.closest('button, a, input, label')
+                )
+                  onOpen(task.id);
+              }}
+            >
               <div
                 className={classes}
                 data-task-id={task.id}
-                onClick={(event) => {
-                  if (
-                    onCreate &&
-                    event.target instanceof Element &&
-                    !event.target.closest('button, a, input, label')
-                  )
-                    onOpen(task.id);
-                }}
                 draggable
                 tabIndex={focusId === task.id ? 0 : -1}
                 onFocus={() => {

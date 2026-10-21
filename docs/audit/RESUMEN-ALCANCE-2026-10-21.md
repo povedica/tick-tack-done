@@ -104,3 +104,16 @@ Tokens/MCP (79) y validación con datos reales. No se declara cumplimiento globa
 
 Actualización 22/10: el fallo de zoom pendiente del cierre anterior queda resuelto
 y verificado en navegador. Ver el corte 75.2/75.9 en ESTADO.md.
+
+### Kanban: interacción de tarjetas (22 oct 2026)
+
+RF-304 y RF-1002: clic en toda la tarjeta, incluidos sus márgenes, abre el detalle;
+checkbox, enlaces y acciones conservan su comportamiento. Hover azul suave sólo
+en la tarjeta señalada. Arrastre entre columnas con indicación de destino:
+secciones actualizan column_id; Hoy actualiza prioridad, lista, etiqueta principal
+o fecha según la agrupación. Fechas conservan hora y duración. Reutiliza endpoints
+públicos existentes, incluido moveTask para cambios de lista.
+
+Validación: lint y typecheck generales, 606 unitarios y OpenAPI sin diff.
+Pruebas Playwright de clic en padding, hover aislado y arrastre nativo entre
+prioridades y secciones con persistencia simulada en API.

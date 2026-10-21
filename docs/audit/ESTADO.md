@@ -871,3 +871,16 @@ Kanban con URL directa, creación desde ambas zonas, prioridad/column_id reales
 en POST simulado, título largo sin desbordar, apertura y × del panel. 606 unitarios,
 lint/typecheck generales y OpenAPI sin diff correctos, más verificación web final.
 Capturas revisadas en /tmp; API simulada, pendiente revisión visual real del usuario.
+
+### Kanban: interacción de tarjetas (22 oct 2026)
+
+RF-304 y RF-1002: clic en toda la tarjeta, incluidos sus márgenes, abre el detalle;
+checkbox, enlaces y acciones conservan su comportamiento. Hover azul suave sólo
+en la tarjeta señalada. Arrastre entre columnas con indicación de destino:
+secciones actualizan column_id; Hoy actualiza prioridad, lista, etiqueta principal
+o fecha según la agrupación. Fechas conservan hora y duración. Reutiliza endpoints
+públicos existentes, incluido moveTask para cambios de lista.
+
+Validación: lint y typecheck generales, 606 unitarios y OpenAPI sin diff.
+Pruebas Playwright de clic en padding, hover aislado y arrastre nativo entre
+prioridades y secciones con persistencia simulada en API.

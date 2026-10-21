@@ -3046,3 +3046,14 @@ a.link:hover {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+.kanban-card {
+  cursor: pointer;
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+}
+.kanban-card:hover {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
+}

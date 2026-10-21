@@ -1559,3 +1559,17 @@ a.task-title {
   margin-inline-start: var(--sp-1);
   margin-inline-end: auto;
 }
+
+.today-layout.is-kanban .task-list > li:not(.kanban-add-space) {
+  cursor: pointer;
+  border-radius: var(--radius-lg);
+}
+.today-layout.is-kanban .task-list > li:not(.kanban-add-space):hover .task-row {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
+}
+.today-layout.is-kanban .task-group[data-drag-over='true'] {
+  background: var(--accent-soft);
+  outline: 1px dashed var(--accent);
+  outline-offset: -1px;
+}

@@ -1,3 +1,4 @@
+import { calendarDragPatch } from '@reflexionia/domain';
 import { runAction } from '../../components/run-action';
 import { displayTitle } from '../tasks/displayTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -549,6 +550,51 @@ export function TodayPage() {
         setMenu({ id: task.id, x, y });
       },
       onSelect: chooseSelect,
+      onColumnDrop:
+        matrixLayout === 'kanban' && group !== 'none' && group !== 'priority'
+          ? (taskId: string) => {
+              const task = tasks.data?.find((task) => task.id === taskId);
+              if (!task) return;
+              if (group === 'list' && projectNames.has(sectionId))
+                runAction(
+                  api
+                    .moveTask(taskId, sectionId, null)
+                    .then(() => refreshTaskSurfaces(queryClient)),
+                );
+              if (group === 'tag')
+                patchTask(taskId, {
+                  tag_ids:
+                    sectionId === 'none'
+                      ? []
+                      : [
+                          sectionId,
+                          ...task.tagIds.filter((id) => id !== sectionId && id !== task.tagIds[0]),
+                        ],
+                });
+              if (group === 'due') {
+                if (sectionId === 'none') patchTask(taskId, { due_date: null, start_date: null });
+                else {
+                  const day = overdueLabel
+                    ? shiftDayKey(calendarDay(new Date().toISOString(), task.timeZone), -1)
+                    : sectionId;
+                  if (/^\d{4}-\d{2}-\d{2}$/.test(day))
+                    patchTask(
+                      taskId,
+                      calendarDragPatch(
+                        {
+                          due_date: task.dueDate,
+                          start_date: task.startDate ?? null,
+                          duration_minutes: task.durationMinutes ?? null,
+                          is_all_day: task.allDay,
+                        },
+                        { day, preserveClock: true },
+                        task.timeZone,
+                      ),
+                    );
+                }
+              }
+            }
+          : undefined,
       onPriorityDrop: (taskId: string, priority: TodayTask['priority']) => {
         patchTask(taskId, { priority });
       },

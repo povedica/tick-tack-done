@@ -512,8 +512,18 @@ function Kanban({
               }}
               onDragOver={(event) => {
                 event.preventDefault();
+                event.dataTransfer.dropEffect = 'move';
+                event.currentTarget.classList.add('is-over');
+              }}
+              onDragLeave={(event) => {
+                if (
+                  !(event.relatedTarget instanceof Node) ||
+                  !event.currentTarget.contains(event.relatedTarget)
+                )
+                  event.currentTarget.classList.remove('is-over');
               }}
               onDrop={(event) => {
+                event.currentTarget.classList.remove('is-over');
                 const id = event.dataTransfer.getData('text/plain');
                 if (id.length === 0) {
                   return;
