@@ -1,14 +1,17 @@
 ---
-title: "tick-tack-done — Especificación única para Codex"
+title: 'tick-tack-done — Especificación única para Codex'
 ---
+
 # tick-tack-done — Especificación única para Codex
+
 - **Aplicación:** https://todo.reflexionia.com
 - **Repositorio:** https://github.com/povedica/tick-tack-done (base del análisis: commit `b484fe8`, 21/10/2026 13:53 hora de Madrid)
 - **Fecha:** 21/10/2026 (hora de Madrid)
 - **Contenido:** consolida la especificación de auditoría (TTD-AUD-01 a 57), la adenda de Google y MCP, la revisión de la propuesta de Tokens y MCP, el análisis de código de la ronda de interfaz (TTD-AUD-58 a 65), el recorrido de navegador por ttd y la comparación con TickTick (TTD-AUD-66 a 73 y la sección 4).
 - **Rutas de código:** `web/` = `apps/web/src/`, `api/` = `apps/api/src/`, `domain/` = `packages/domain/src/`.
-- **Confianza de la causa:** *Alta* = verificada leyendo el código; *Media* = muy probable, sin reproducir en local; *Baja* = hipótesis.
-- **Severidades:** *Crítica* = datos incorrectos o funcionalidad principal rota; *Alta* = funcionalidad rota o muy visible; *Media* = maquetación o comportamiento confuso; *Baja* = pulido.
+- **Confianza de la causa:** _Alta_ = verificada leyendo el código; _Media_ = muy probable, sin reproducir en local; _Baja_ = hipótesis.
+- **Severidades:** _Crítica_ = datos incorrectos o funcionalidad principal rota; _Alta_ = funcionalidad rota o muy visible; _Media_ = maquetación o comportamiento confuso; _Baja_ = pulido.
+
 ## 0. Instrucciones para Codex
 
 > **Copia este bloque como instrucción inicial del agente.**
@@ -68,9 +71,11 @@ Eres el agente de desarrollo de **tick-tack-done (ttd)**: https://github.com/pov
   ```
 
   Actualízalo en cada PR.
+
 - Si un criterio de aceptación no se puede cumplir tal cual, explica por qué en la PR y en `ESTADO.md`, y propone una alternativa. No lo omitas en silencio.
 
 ## 1. Resumen ejecutivo
+
 - **73 hallazgos:** Crítica 2 · Alta 27 · Media 38 · Baja 6.
 - **Corregidos en main y pendientes de verificar en producción (8):** TTD-AUD-01, TTD-AUD-02, TTD-AUD-11, TTD-AUD-28, TTD-AUD-35, TTD-AUD-37, TTD-AUD-42, TTD-AUD-43.
 - **Datos en riesgo (Fase 0):**
@@ -89,81 +94,81 @@ Eres el agente de desarrollo de **tick-tack-done (ttd)**: https://github.com/pov
 
 **Tabla de hallazgos**
 
-| ID | Título | Severidad | Área | Estado | Depende de |
-|---|---|---|---|---|---|
-| TTD-AUD-01 | La fecha «Cuándo» no aparece en las filas y «Mañana» sale vacía | Crítica | Tareas y fechas | Corregido en main (PR #60), pendiente de verificar | — |
-| TTD-AUD-02 | La entrada rápida no interpreta rangos horarios («09:00-09:30») | Alta | Tareas y fechas | Corregido en main (PR #61), pendiente de verificar | — |
-| TTD-AUD-03 | Se añade 09:00 al elegir solo un día | Media | Tareas y fechas | Abierto | 01 |
-| TTD-AUD-04 | El detalle no muestra bien «Cuándo», no hay hora de fin y la duración no se refleja | Media | Tareas y fechas | Abierto | 01, 03 |
-| TTD-AUD-05 | Menú «Más acciones» estrecho, con scroll horizontal y textos cortados | Alta | Detalle de tarea | Abierto | 64 (Popover común) |
-| TTD-AUD-06 | «Guardando…» durante segundos y «Creando…» al abrir una tarea | Media | Detalle de tarea | Abierto | — |
-| TTD-AUD-07 | Ticky está enlazado, pero dice «no disponible»; página sin margen | Alta | Ticky (ttd) | Abierto | 63 |
-| TTD-AUD-08 | No existe ninguna pantalla para activar o configurar Ticky | Alta | Ticky (ttd) | Abierto | 63 |
-| TTD-AUD-09 | Completadas de la semana: 104 en Estadísticas frente a 314 en el Panel | Alta | Datos y métricas | Abierto | — |
-| TTD-AUD-10 | Tiempo de foco: «1,35 min» frente a 397 min | Alta | Datos y métricas | Abierto | — |
-| TTD-AUD-11 | El informe semanal sale vacío («Sin datos», «Fecha de cálculo no disponible») | Alta | Datos y métricas | Corregido en main (PR #67), pendiente de verificar | — |
-| TTD-AUD-12 | «15 Atrasado» parece un recuento, pero es una puntuación | Media | Datos y métricas | Abierto | — |
-| TTD-AUD-13 | /filters usa controles nativos sin estilo y etiquetas erróneas | Media | Listas, filtros y navegación | Abierto | — |
-| TTD-AUD-14 | /matrix: «Ámbito» desalineado, una «i» suelta y un cuadrante cortado | Media | Listas, filtros y navegación | Abierto | 62 |
-| TTD-AUD-15 | Papelera: acciones a la izquierda del título y la barra de confirmación lo tapa | Media | Listas, filtros y navegación | Abierto | — |
-| TTD-AUD-16 | Papelera: tras «Confirmar borrado» la fila y el contador no cambian | Alta | Listas, filtros y navegación | Abierto | — |
-| TTD-AUD-17 | El botón «Crear» de «Nueva lista» es nativo y no lleva estilo | Media | Listas, filtros y navegación | Abierto | — |
-| TTD-AUD-18 | Al borrar una lista se queda en /list/<id> y acaba en «No encontrado» | Media | Listas, filtros y navegación | Abierto | — |
-| TTD-AUD-19 | Una URL desconocida redirige a /today sin ningún aviso de 404 | Media | Listas, filtros y navegación | Abierto | — |
-| TTD-AUD-20 | /focus: sin anillo de temporizador y presets sin estado | Media | Foco y cuentas atrás | Abierto | — |
-| TTD-AUD-21 | /countdowns: el título se parte («Cuenta / atrás») y el emoji se corta | Media | Foco y cuentas atrás | Abierto | — |
-| TTD-AUD-22 | Modo oscuro: las tarjetas de cuenta atrás son ilegibles | Alta | Foco y cuentas atrás | Abierto | — |
-| TTD-AUD-23 | Modal «Nueva cuenta atrás» mal maquetado | Alta | Foco y cuentas atrás | Abierto | — |
-| TTD-AUD-24 | El menú «Nueva» de cuentas atrás no se cierra | Media | Foco y cuentas atrás | Abierto | — |
-| TTD-AUD-25 | Modo oscuro: contraste insuficiente en la barra de iconos, el elemento activo y el selector de tema | Media | Tema y estilos | Abierto | — |
-| TTD-AUD-26 | El botón de login usa un color fijo y no el acento | Baja | Tema y estilos | Abierto | — |
-| TTD-AUD-27 | Textos sin traducir en modo inglés | Media | Idioma (i18n) | Abierto | — |
-| TTD-AUD-28 | ~70 acciones fallan en silencio | Alta | Robustez (código) | Corregido en main (PR #66), pendiente de verificar | — |
-| TTD-AUD-29 | No hay gestión de sesión caducada (401) | Alta | Robustez (código) | Abierto | — |
-| TTD-AUD-30 | Un único ErrorBoundary global y solo en español | Media | Robustez (código) | Abierto | — |
-| TTD-AUD-31 | Pantallas sin estado de carga o de error | Media | Robustez (código) | Abierto | — |
-| TTD-AUD-32 | Detalles: «1 tareas», confirm() nativo, «Comprobando la sesión…» sin estilo | Baja | Pulido | Abierto | — |
-| TTD-AUD-33 | Menú «Más» móvil: cajón con scroll interno que corta entradas y muestra Ticky inactivo | Media | Móvil | Abierto | 63 |
-| TTD-AUD-34 | 4 errores en la consola en el login (no analizados) | Baja | Pulido | Abierto | — |
-| TTD-AUD-35 | La lista de tokens solo carga 50 filas y las renovaciones OAuth la llenan | Alta | Tokens, MCP e integraciones | Corregido en main (PR #63), pendiente de verificar | — |
-| TTD-AUD-36 | Los tokens caducados aparecen como «Activo» | Media | Tokens, MCP e integraciones | Abierto | 35 |
-| TTD-AUD-37 | Volver a autorizar una aplicación OAuth puede fallar por el nombre único del token | Alta | Tokens, MCP e integraciones | Corregido en main (PR #62), pendiente de verificar | — |
-| TTD-AUD-38 | La actividad del token no se entiende y está incompleta | Media | Tokens, MCP e integraciones | Abierto | 35 |
-| TTD-AUD-39 | Los errores al revocar no se ven y los de crear son genéricos | Media | Tokens, MCP e integraciones | Abierto | 35 |
-| TTD-AUD-40 | El secreto recién creado: el lector de pantalla lo lee y se pierde sin aviso | Media | Tokens, MCP e integraciones | Abierto | 35 |
-| TTD-AUD-41 | Permisos: «Gestionar» como «Escritura», falta «Cuenta atrás», sensibles sin marca | Media | Tokens, MCP e integraciones | Abierto | 35 |
-| TTD-AUD-42 | Consentimiento OAuth: sensibles marcados por defecto, etiquetas en crudo, sin estilo | Alta | Tokens, MCP e integraciones | Corregido en main (PR #64), pendiente de verificar | — |
-| TTD-AUD-43 | Google: «Vuelve a conectar» sin botón de reconexión; Drive desconecta todo Google | Alta | Tokens, MCP e integraciones | Corregido en main (PR #65), pendiente de verificar | 47 |
-| TTD-AUD-44 | Telegram y Correo a tarea: estados provisionales y regenerar sin confirmación | Media | Tokens, MCP e integraciones | Abierto | — |
-| TTD-AUD-45 | Webhooks y feeds: rotar secreto sin confirmación y textos reutilizados | Baja | Tokens, MCP e integraciones | Abierto | — |
-| TTD-AUD-46 | «Revocados» sin estilo y sin el nombre de la aplicación | Baja | Tokens, MCP e integraciones | Abierto | 35 |
-| TTD-AUD-47 | Google bloquea la conexión a quien no es tester («Acceso bloqueado», 403 access_denied) | Alta | Tokens, MCP e integraciones | Abierto | — |
-| TTD-AUD-48 | El MCP no permite etiquetar tareas al crear ni al editar | Alta | MCP: paridad con la app | Abierto | 54 |
-| TTD-AUD-49 | El MCP no aplica el parser de entrada rápida y no tiene herramienta de captura | Alta | MCP: paridad con la app | Abierto | 54, 48 |
-| TTD-AUD-50 | El MCP no puede borrar, enviar a la Papelera ni restaurar tareas | Media | MCP: paridad con la app | Abierto | 54 |
-| TTD-AUD-51 | El MCP no tiene comentarios, no escribe la descripción y no tiene adjuntos | Media | MCP: paridad con la app | Abierto | 54 |
-| TTD-AUD-52 | Subtareas, checklist, mover entre listas y otras diferencias entre la app y el MCP | Media | MCP: paridad con la app | Abierto | 54 |
-| TTD-AUD-53 | El MCP no puede reabrir ni cancelar; los estados de flujo no existen | Media | MCP: paridad con la app | Abierto | 54 |
-| TTD-AUD-54 | El MCP ignora en silencio los campos desconocidos o mal formados (falsos positivos) | Alta | MCP: paridad con la app | Abierto | — |
-| TTD-AUD-55 | Una fecha sin hora por MCP se guarda como 00:00 UTC, no como el día local | Alta | MCP: paridad con la app | Abierto | — |
-| TTD-AUD-56 | La duración enviada se sustituye por inicio–fin (30 → 1200) | Alta | MCP: paridad con la app | Abierto | 55 |
-| TTD-AUD-57 | Autoría: mismo created_by en todo y sin registro del agente | Media | MCP: paridad con la app | Abierto | 54 |
-| TTD-AUD-58 | Móvil: la cabecera fija de Hoy flota con un hueco por el que se ve el contenido | Alta | Móvil | Abierto | — |
-| TTD-AUD-59 | Opciones de vista: no se guardan, «Ocultar completadas» confunde e «Imprimir» sale cortado | Media | Vistas de tareas | Abierto | — |
-| TTD-AUD-60 | Escritorio: no hay panel de detalle fijo; varias pantallas sacan al usuario al abrir una tarea | Media | Shell y navegación | Abierto | 61 |
-| TTD-AUD-61 | La barra lateral es siempre la de Tareas: falta barra secundaria por sección | Media | Shell y navegación | Abierto | — |
-| TTD-AUD-62 | /matrix: soltar reescribe o borra la fecha, ignora las reglas y faltan opciones | Alta | Listas, filtros y navegación | Abierto | 14 |
-| TTD-AUD-63 | Ticky no se puede desactivar y aparece en toda la interfaz aunque esté inactivo | Alta | Ticky (ttd) | Abierto | — |
-| TTD-AUD-64 | Modal «Nueva tarea»: maquetación rota, estrecho y opciones escondidas | Alta | Nueva tarea (composer) | Abierto | — |
-| TTD-AUD-65 | El historial de actividad guarda copias anidadas de sí mismo (crece exponencialmente) | Crítica | Datos (historial) | Abierto | — |
-| TTD-AUD-66 | Cambiar de vista (lista, kanban, timeline) es incoherente y casi imposible de encontrar | Alta | Vistas de tareas | Abierto | 59 |
-| TTD-AUD-67 | Bandeja sin menú de vista ni opciones para ordenar o agrupar | Media | Vistas de tareas | Abierto | 66 |
-| TTD-AUD-68 | Kanban en listas inteligentes: una sola columna «Sin sección» | Media | Vistas de tareas | Abierto | 66 |
-| TTD-AUD-69 | Timeline estrecho: zoom en inglés, columnas de unos 100 px y tarjetas cortadas | Media | Vistas de tareas | Abierto | 66 |
-| TTD-AUD-70 | Móvil: la cabecera de las listas se parte en varias líneas | Media | Móvil | Abierto | 58, 66 |
-| TTD-AUD-71 | Móvil: calendario mensual con solo puntos, barra que se pierde y «Calendario» abre la agenda | Media | Móvil | Abierto | 58, 61 |
-| TTD-AUD-72 | Móvil: en /matrix los chips de cuadrante se cortan y no hay cabecera fija | Media | Móvil | Abierto | 58, 62 |
-| TTD-AUD-73 | Destello de esqueleto al entrar en /matrix y /countdowns | Baja | Robustez (código) | Abierto | 31 |
+| ID         | Título                                                                                              | Severidad | Área                         | Estado                                             | Depende de         |
+| ---------- | --------------------------------------------------------------------------------------------------- | --------- | ---------------------------- | -------------------------------------------------- | ------------------ |
+| TTD-AUD-01 | La fecha «Cuándo» no aparece en las filas y «Mañana» sale vacía                                     | Crítica   | Tareas y fechas              | Corregido en main (PR #60), pendiente de verificar | —                  |
+| TTD-AUD-02 | La entrada rápida no interpreta rangos horarios («09:00-09:30»)                                     | Alta      | Tareas y fechas              | Corregido en main (PR #61), pendiente de verificar | —                  |
+| TTD-AUD-03 | Se añade 09:00 al elegir solo un día                                                                | Media     | Tareas y fechas              | Abierto                                            | 01                 |
+| TTD-AUD-04 | El detalle no muestra bien «Cuándo», no hay hora de fin y la duración no se refleja                 | Media     | Tareas y fechas              | Abierto                                            | 01, 03             |
+| TTD-AUD-05 | Menú «Más acciones» estrecho, con scroll horizontal y textos cortados                               | Alta      | Detalle de tarea             | Abierto                                            | 64 (Popover común) |
+| TTD-AUD-06 | «Guardando…» durante segundos y «Creando…» al abrir una tarea                                       | Media     | Detalle de tarea             | Abierto                                            | —                  |
+| TTD-AUD-07 | Ticky está enlazado, pero dice «no disponible»; página sin margen                                   | Alta      | Ticky (ttd)                  | Abierto                                            | 63                 |
+| TTD-AUD-08 | No existe ninguna pantalla para activar o configurar Ticky                                          | Alta      | Ticky (ttd)                  | Abierto                                            | 63                 |
+| TTD-AUD-09 | Completadas de la semana: 104 en Estadísticas frente a 314 en el Panel                              | Alta      | Datos y métricas             | Abierto                                            | —                  |
+| TTD-AUD-10 | Tiempo de foco: «1,35 min» frente a 397 min                                                         | Alta      | Datos y métricas             | Abierto                                            | —                  |
+| TTD-AUD-11 | El informe semanal sale vacío («Sin datos», «Fecha de cálculo no disponible»)                       | Alta      | Datos y métricas             | Corregido en main (PR #67), pendiente de verificar | —                  |
+| TTD-AUD-12 | «15 Atrasado» parece un recuento, pero es una puntuación                                            | Media     | Datos y métricas             | Abierto                                            | —                  |
+| TTD-AUD-13 | /filters usa controles nativos sin estilo y etiquetas erróneas                                      | Media     | Listas, filtros y navegación | Abierto                                            | —                  |
+| TTD-AUD-14 | /matrix: «Ámbito» desalineado, una «i» suelta y un cuadrante cortado                                | Media     | Listas, filtros y navegación | Abierto                                            | 62                 |
+| TTD-AUD-15 | Papelera: acciones a la izquierda del título y la barra de confirmación lo tapa                     | Media     | Listas, filtros y navegación | Abierto                                            | —                  |
+| TTD-AUD-16 | Papelera: tras «Confirmar borrado» la fila y el contador no cambian                                 | Alta      | Listas, filtros y navegación | Abierto                                            | —                  |
+| TTD-AUD-17 | El botón «Crear» de «Nueva lista» es nativo y no lleva estilo                                       | Media     | Listas, filtros y navegación | Abierto                                            | —                  |
+| TTD-AUD-18 | Al borrar una lista se queda en /list/<id> y acaba en «No encontrado»                               | Media     | Listas, filtros y navegación | Abierto                                            | —                  |
+| TTD-AUD-19 | Una URL desconocida redirige a /today sin ningún aviso de 404                                       | Media     | Listas, filtros y navegación | Abierto                                            | —                  |
+| TTD-AUD-20 | /focus: sin anillo de temporizador y presets sin estado                                             | Media     | Foco y cuentas atrás         | Abierto                                            | —                  |
+| TTD-AUD-21 | /countdowns: el título se parte («Cuenta / atrás») y el emoji se corta                              | Media     | Foco y cuentas atrás         | Abierto                                            | —                  |
+| TTD-AUD-22 | Modo oscuro: las tarjetas de cuenta atrás son ilegibles                                             | Alta      | Foco y cuentas atrás         | Abierto                                            | —                  |
+| TTD-AUD-23 | Modal «Nueva cuenta atrás» mal maquetado                                                            | Alta      | Foco y cuentas atrás         | Abierto                                            | —                  |
+| TTD-AUD-24 | El menú «Nueva» de cuentas atrás no se cierra                                                       | Media     | Foco y cuentas atrás         | Abierto                                            | —                  |
+| TTD-AUD-25 | Modo oscuro: contraste insuficiente en la barra de iconos, el elemento activo y el selector de tema | Media     | Tema y estilos               | Abierto                                            | —                  |
+| TTD-AUD-26 | El botón de login usa un color fijo y no el acento                                                  | Baja      | Tema y estilos               | Abierto                                            | —                  |
+| TTD-AUD-27 | Textos sin traducir en modo inglés                                                                  | Media     | Idioma (i18n)                | Abierto                                            | —                  |
+| TTD-AUD-28 | ~70 acciones fallan en silencio                                                                     | Alta      | Robustez (código)            | Corregido en main (PR #66), pendiente de verificar | —                  |
+| TTD-AUD-29 | No hay gestión de sesión caducada (401)                                                             | Alta      | Robustez (código)            | Abierto                                            | —                  |
+| TTD-AUD-30 | Un único ErrorBoundary global y solo en español                                                     | Media     | Robustez (código)            | Abierto                                            | —                  |
+| TTD-AUD-31 | Pantallas sin estado de carga o de error                                                            | Media     | Robustez (código)            | Abierto                                            | —                  |
+| TTD-AUD-32 | Detalles: «1 tareas», confirm() nativo, «Comprobando la sesión…» sin estilo                         | Baja      | Pulido                       | Abierto                                            | —                  |
+| TTD-AUD-33 | Menú «Más» móvil: cajón con scroll interno que corta entradas y muestra Ticky inactivo              | Media     | Móvil                        | Abierto                                            | 63                 |
+| TTD-AUD-34 | 4 errores en la consola en el login (no analizados)                                                 | Baja      | Pulido                       | Abierto                                            | —                  |
+| TTD-AUD-35 | La lista de tokens solo carga 50 filas y las renovaciones OAuth la llenan                           | Alta      | Tokens, MCP e integraciones  | Corregido en main (PR #63), pendiente de verificar | —                  |
+| TTD-AUD-36 | Los tokens caducados aparecen como «Activo»                                                         | Media     | Tokens, MCP e integraciones  | Abierto                                            | 35                 |
+| TTD-AUD-37 | Volver a autorizar una aplicación OAuth puede fallar por el nombre único del token                  | Alta      | Tokens, MCP e integraciones  | Corregido en main (PR #62), pendiente de verificar | —                  |
+| TTD-AUD-38 | La actividad del token no se entiende y está incompleta                                             | Media     | Tokens, MCP e integraciones  | Abierto                                            | 35                 |
+| TTD-AUD-39 | Los errores al revocar no se ven y los de crear son genéricos                                       | Media     | Tokens, MCP e integraciones  | Abierto                                            | 35                 |
+| TTD-AUD-40 | El secreto recién creado: el lector de pantalla lo lee y se pierde sin aviso                        | Media     | Tokens, MCP e integraciones  | Abierto                                            | 35                 |
+| TTD-AUD-41 | Permisos: «Gestionar» como «Escritura», falta «Cuenta atrás», sensibles sin marca                   | Media     | Tokens, MCP e integraciones  | Abierto                                            | 35                 |
+| TTD-AUD-42 | Consentimiento OAuth: sensibles marcados por defecto, etiquetas en crudo, sin estilo                | Alta      | Tokens, MCP e integraciones  | Corregido en main (PR #64), pendiente de verificar | —                  |
+| TTD-AUD-43 | Google: «Vuelve a conectar» sin botón de reconexión; Drive desconecta todo Google                   | Alta      | Tokens, MCP e integraciones  | Corregido en main (PR #65), pendiente de verificar | 47                 |
+| TTD-AUD-44 | Telegram y Correo a tarea: estados provisionales y regenerar sin confirmación                       | Media     | Tokens, MCP e integraciones  | Abierto                                            | —                  |
+| TTD-AUD-45 | Webhooks y feeds: rotar secreto sin confirmación y textos reutilizados                              | Baja      | Tokens, MCP e integraciones  | Abierto                                            | —                  |
+| TTD-AUD-46 | «Revocados» sin estilo y sin el nombre de la aplicación                                             | Baja      | Tokens, MCP e integraciones  | Abierto                                            | 35                 |
+| TTD-AUD-47 | Google bloquea la conexión a quien no es tester («Acceso bloqueado», 403 access_denied)             | Alta      | Tokens, MCP e integraciones  | Abierto                                            | —                  |
+| TTD-AUD-48 | El MCP no permite etiquetar tareas al crear ni al editar                                            | Alta      | MCP: paridad con la app      | Abierto                                            | 54                 |
+| TTD-AUD-49 | El MCP no aplica el parser de entrada rápida y no tiene herramienta de captura                      | Alta      | MCP: paridad con la app      | Abierto                                            | 54, 48             |
+| TTD-AUD-50 | El MCP no puede borrar, enviar a la Papelera ni restaurar tareas                                    | Media     | MCP: paridad con la app      | Abierto                                            | 54                 |
+| TTD-AUD-51 | El MCP no tiene comentarios, no escribe la descripción y no tiene adjuntos                          | Media     | MCP: paridad con la app      | Abierto                                            | 54                 |
+| TTD-AUD-52 | Subtareas, checklist, mover entre listas y otras diferencias entre la app y el MCP                  | Media     | MCP: paridad con la app      | Abierto                                            | 54                 |
+| TTD-AUD-53 | El MCP no puede reabrir ni cancelar; los estados de flujo no existen                                | Media     | MCP: paridad con la app      | Abierto                                            | 54                 |
+| TTD-AUD-54 | El MCP ignora en silencio los campos desconocidos o mal formados (falsos positivos)                 | Alta      | MCP: paridad con la app      | Abierto                                            | —                  |
+| TTD-AUD-55 | Una fecha sin hora por MCP se guarda como 00:00 UTC, no como el día local                           | Alta      | MCP: paridad con la app      | Abierto                                            | —                  |
+| TTD-AUD-56 | La duración enviada se sustituye por inicio–fin (30 → 1200)                                         | Alta      | MCP: paridad con la app      | Abierto                                            | 55                 |
+| TTD-AUD-57 | Autoría: mismo created_by en todo y sin registro del agente                                         | Media     | MCP: paridad con la app      | Abierto                                            | 54                 |
+| TTD-AUD-58 | Móvil: la cabecera fija de Hoy flota con un hueco por el que se ve el contenido                     | Alta      | Móvil                        | Abierto                                            | —                  |
+| TTD-AUD-59 | Opciones de vista: no se guardan, «Ocultar completadas» confunde e «Imprimir» sale cortado          | Media     | Vistas de tareas             | Abierto                                            | —                  |
+| TTD-AUD-60 | Escritorio: no hay panel de detalle fijo; varias pantallas sacan al usuario al abrir una tarea      | Media     | Shell y navegación           | Abierto                                            | 61                 |
+| TTD-AUD-61 | La barra lateral es siempre la de Tareas: falta barra secundaria por sección                        | Media     | Shell y navegación           | Abierto                                            | —                  |
+| TTD-AUD-62 | /matrix: soltar reescribe o borra la fecha, ignora las reglas y faltan opciones                     | Alta      | Listas, filtros y navegación | Abierto                                            | 14                 |
+| TTD-AUD-63 | Ticky no se puede desactivar y aparece en toda la interfaz aunque esté inactivo                     | Alta      | Ticky (ttd)                  | Abierto                                            | —                  |
+| TTD-AUD-64 | Modal «Nueva tarea»: maquetación rota, estrecho y opciones escondidas                               | Alta      | Nueva tarea (composer)       | Abierto                                            | —                  |
+| TTD-AUD-65 | El historial de actividad guarda copias anidadas de sí mismo (crece exponencialmente)               | Crítica   | Datos (historial)            | Abierto                                            | —                  |
+| TTD-AUD-66 | Cambiar de vista (lista, kanban, timeline) es incoherente y casi imposible de encontrar             | Alta      | Vistas de tareas             | Abierto                                            | 59                 |
+| TTD-AUD-67 | Bandeja sin menú de vista ni opciones para ordenar o agrupar                                        | Media     | Vistas de tareas             | Abierto                                            | 66                 |
+| TTD-AUD-68 | Kanban en listas inteligentes: una sola columna «Sin sección»                                       | Media     | Vistas de tareas             | Abierto                                            | 66                 |
+| TTD-AUD-69 | Timeline estrecho: zoom en inglés, columnas de unos 100 px y tarjetas cortadas                      | Media     | Vistas de tareas             | Abierto                                            | 66                 |
+| TTD-AUD-70 | Móvil: la cabecera de las listas se parte en varias líneas                                          | Media     | Móvil                        | Abierto                                            | 58, 66             |
+| TTD-AUD-71 | Móvil: calendario mensual con solo puntos, barra que se pierde y «Calendario» abre la agenda        | Media     | Móvil                        | Abierto                                            | 58, 61             |
+| TTD-AUD-72 | Móvil: en /matrix los chips de cuadrante se cortan y no hay cabecera fija                           | Media     | Móvil                        | Abierto                                            | 58, 62             |
+| TTD-AUD-73 | Destello de esqueleto al entrar en /matrix y /countdowns                                            | Baja      | Robustez (código)            | Abierto                                            | 31                 |
 
 ## 2. Hoja de ruta por fases
 
@@ -175,13 +180,13 @@ Primero lo que corrompe o pierde datos. 01, 02, 11 y 28 ya están en main: solo 
 - **TTD-AUD-55** (Alta) — Una fecha sin hora por MCP se guarda como 00:00 UTC, no como el día local
 - **TTD-AUD-56** (Alta) — La duración enviada se sustituye por inicio–fin (30 → 1200)
 - **TTD-AUD-54** (Alta) — El MCP ignora en silencio los campos desconocidos o mal formados (falsos positivos)
-- **TTD-AUD-01** (Crítica) — La fecha «Cuándo» no aparece en las filas y «Mañana» sale vacía — *corregido en main, verificar*
-- **TTD-AUD-02** (Alta) — La entrada rápida no interpreta rangos horarios («09:00-09:30») — *corregido en main, verificar*
-- **TTD-AUD-11** (Alta) — El informe semanal sale vacío («Sin datos», «Fecha de cálculo no disponible») — *corregido en main, verificar*
+- **TTD-AUD-01** (Crítica) — La fecha «Cuándo» no aparece en las filas y «Mañana» sale vacía — _corregido en main, verificar_
+- **TTD-AUD-02** (Alta) — La entrada rápida no interpreta rangos horarios («09:00-09:30») — _corregido en main, verificar_
+- **TTD-AUD-11** (Alta) — El informe semanal sale vacío («Sin datos», «Fecha de cálculo no disponible») — _corregido en main, verificar_
 - **TTD-AUD-09** (Alta) — Completadas de la semana: 104 en Estadísticas frente a 314 en el Panel
 - **TTD-AUD-10** (Alta) — Tiempo de foco: «1,35 min» frente a 397 min
 - **TTD-AUD-16** (Alta) — Papelera: tras «Confirmar borrado» la fila y el contador no cambian
-- **TTD-AUD-28** (Alta) — ~70 acciones fallan en silencio — *corregido en main, verificar*
+- **TTD-AUD-28** (Alta) — ~70 acciones fallan en silencio — _corregido en main, verificar_
 - **TTD-AUD-29** (Alta) — No hay gestión de sesión caducada (401)
 
 ### Fase 1 — Paridad del MCP (orden de Ramón)
@@ -234,15 +239,15 @@ Primero la regla de cabecera fija (58), que resuelve parte de 71 y 72. Verificar
 35, 37, 42 y 43 ya están en main: solo verificar. 47 requiere acciones de Pablo en Google Cloud Console (anexo B) más los cambios de código (permisos mínimos, autorización incremental y error amable).
 
 - **TTD-AUD-47** (Alta) — Google bloquea la conexión a quien no es tester («Acceso bloqueado», 403 access_denied)
-- **TTD-AUD-43** (Alta) — Google: «Vuelve a conectar» sin botón de reconexión; Drive desconecta todo Google — *corregido en main, verificar*
-- **TTD-AUD-35** (Alta) — La lista de tokens solo carga 50 filas y las renovaciones OAuth la llenan — *corregido en main, verificar*
+- **TTD-AUD-43** (Alta) — Google: «Vuelve a conectar» sin botón de reconexión; Drive desconecta todo Google — _corregido en main, verificar_
+- **TTD-AUD-35** (Alta) — La lista de tokens solo carga 50 filas y las renovaciones OAuth la llenan — _corregido en main, verificar_
 - **TTD-AUD-36** (Media) — Los tokens caducados aparecen como «Activo»
-- **TTD-AUD-37** (Alta) — Volver a autorizar una aplicación OAuth puede fallar por el nombre único del token — *corregido en main, verificar*
+- **TTD-AUD-37** (Alta) — Volver a autorizar una aplicación OAuth puede fallar por el nombre único del token — _corregido en main, verificar_
 - **TTD-AUD-38** (Media) — La actividad del token no se entiende y está incompleta
 - **TTD-AUD-39** (Media) — Los errores al revocar no se ven y los de crear son genéricos
 - **TTD-AUD-40** (Media) — El secreto recién creado: el lector de pantalla lo lee y se pierde sin aviso
 - **TTD-AUD-41** (Media) — Permisos: «Gestionar» como «Escritura», falta «Cuenta atrás», sensibles sin marca
-- **TTD-AUD-42** (Alta) — Consentimiento OAuth: sensibles marcados por defecto, etiquetas en crudo, sin estilo — *corregido en main, verificar*
+- **TTD-AUD-42** (Alta) — Consentimiento OAuth: sensibles marcados por defecto, etiquetas en crudo, sin estilo — _corregido en main, verificar_
 - **TTD-AUD-44** (Media) — Telegram y Correo a tarea: estados provisionales y regenerar sin confirmación
 - **TTD-AUD-45** (Baja) — Webhooks y feeds: rotar secreto sin confirmación y textos reutilizados
 - **TTD-AUD-46** (Baja) — «Revocados» sin estilo y sin el nombre de la aplicación
@@ -630,7 +635,7 @@ Cada hallazgo incluye severidad, estado, dependencias, pasos, resultado esperado
 
 - No hay ninguna entrada de Ticky en Ajustes (`web/app.tsx:183-201` y `web/features/places/Places.tsx:1833-1871`).
 - En «Funciones» (`web/features/settings/FeaturesPage.tsx:11-19`) solo aparecen `countdowns, focus, matrix, when_deadline, day_load, day_closing, day_replan`.
-- Los paneles `TickySettings.tsx` (permisos y preferencias) y `TickyRoutines.tsx` (rutinas) existen, pero solo se renderizan dentro de `TickyPage` *después* del corte por «no disponible» (`TickyPage.tsx:157-158`). Por tanto, no se pueden usar.
+- Los paneles `TickySettings.tsx` (permisos y preferencias) y `TickyRoutines.tsx` (rutinas) existen, pero solo se renderizan dentro de `TickyPage` _después_ del corte por «no disponible» (`TickyPage.tsx:157-158`). Por tanto, no se pueden usar.
 
 **Causa en el código (confianza Alta):** los flags de usuario (`api/auth/feature-flags.ts:3-26` y `web/features/settings/feature-flags.ts:4-38`) no incluyen `ticky`. Los flags de Ticky son solo de entorno (`ticky-flags.ts`).
 
@@ -1578,9 +1583,9 @@ Revisión de `/settings/tokens` («Tokens y MCP»), `/oauth/consent`, `/settings
 
 **Contexto técnico necesario para leer los hallazgos**
 
-- Los tokens manuales y los *access tokens* OAuth (ChatGPT, Claude…) se guardan en la misma tabla `PersonalAccessToken`. Los de OAuth se distinguen solo por `oauthClientId` (`schema.prisma:785-786`).
-- Un *access token* OAuth caduca a la hora (`api/auth/oauth.service.ts:49`). En cada renovación se revoca el anterior y se crea una fila nueva con el mismo nombre (`oauth.service.ts:369-390`). Un cliente activo genera, por tanto, hasta unas 24 filas revocadas al día.
-- La revocación de una fila OAuth revoca en cascada toda su familia de *refresh* (`api/auth/tokens.service.ts:128-158` y `api/auth/oauth-refresh.ts:43-65`), dentro de una transacción. Esto funciona bien.
+- Los tokens manuales y los _access tokens_ OAuth (ChatGPT, Claude…) se guardan en la misma tabla `PersonalAccessToken`. Los de OAuth se distinguen solo por `oauthClientId` (`schema.prisma:785-786`).
+- Un _access token_ OAuth caduca a la hora (`api/auth/oauth.service.ts:49`). En cada renovación se revoca el anterior y se crea una fila nueva con el mismo nombre (`oauth.service.ts:369-390`). Un cliente activo genera, por tanto, hasta unas 24 filas revocadas al día.
+- La revocación de una fila OAuth revoca en cascada toda su familia de _refresh_ (`api/auth/tokens.service.ts:128-158` y `api/auth/oauth-refresh.ts:43-65`), dentro de una transacción. Esto funciona bien.
 
 #### TTD-AUD-35 — La lista de tokens solo carga 50 filas y las renovaciones OAuth la llenan: los tokens antiguos desaparecen
 
@@ -1614,7 +1619,7 @@ Revisión de `/settings/tokens` («Tokens y MCP»), `/oauth/consent`, `/settings
 
 - **API:**
   - añadir a `GET /me/tokens` un filtro `status=active|revoked`;
-  - devolver un motivo de revocación (`revoked_reason: user | rotated | reuse`) o, como mínimo, excluir de «Revocados» las filas revocadas por rotación (las que tienen un *refresh* con `rotatedAt`);
+  - devolver un motivo de revocación (`revoked_reason: user | rotated | reuse`) o, como mínimo, excluir de «Revocados» las filas revocadas por rotación (las que tienen un _refresh_ con `rotatedAt`);
   - devolver el total de revocados calculado en el servidor.
 - **UI:** paginar con `next_cursor` («Cargar más») en activos y revocados.
 
@@ -1640,13 +1645,13 @@ Revisión de `/settings/tokens` («Tokens y MCP»), `/oauth/consent`, `/settings
 
 - El estado depende solo de `revoked_at` (`TokensPage.tsx:343-356`).
 - `TokenDto` no incluye `expires_at` (`tokens.service.ts:280-291`), aunque la columna existe (`schema.prisma:784`) y la guarda ya rechaza los tokens caducados (`api/auth/api-auth.guard.ts:149-155`).
-- Todo *access token* OAuth caduca a la hora. Si el cliente deja de renovarlo (por ejemplo, porque se desconectó), la fila sigue saliendo como «Activo» para siempre.
+- Todo _access token_ OAuth caduca a la hora. Si el cliente deja de renovarlo (por ejemplo, porque se desconectó), la fila sigue saliendo como «Activo» para siempre.
 
 **Causa en el código (confianza Alta):** `tokens.service.ts:280-291` y `TokensPage.tsx:345`.
 
-**Propuesta de corrección:** exponer `expires_at` en `TokenDto` y mostrar «Caducado» (indicador neutro). Mantener «Revocar» en los caducados, porque pueden tener un *refresh* vivo.
+**Propuesta de corrección:** exponer `expires_at` en `TokenDto` y mostrar «Caducado» (indicador neutro). Mantener «Revocar» en los caducados, porque pueden tener un _refresh_ vivo.
 
-**Criterio de aceptación:** un *access token* OAuth sin renovar se ve como «Caducado» a la hora de emitirse. Un token sin caducidad sigue «Activo».
+**Criterio de aceptación:** un _access token_ OAuth sin renovar se ve como «Caducado» a la hora de emitirse. Un token sin caducidad sigue «Activo».
 
 #### TTD-AUD-37 — Volver a autorizar una aplicación OAuth puede fallar por el nombre único del token
 
@@ -1654,12 +1659,12 @@ Revisión de `/settings/tokens` («Tokens y MCP»), `/oauth/consent`, `/settings
 - **Estado:** Corregido en main, pendiente de verificar en producción — [PR #62](https://github.com/povedica/tick-tack-done/pull/62) (`d7612c1`)
 - **Depende de:** —
 - **Pantalla/URL:** flujo OAuth (`/oauth/authorize` → `/oauth/consent` → `/oauth/token`)
-- **Elemento:** emisión del *access token*
+- **Elemento:** emisión del _access token_
 
 **Pasos para reproducir (no ejecutados; requieren un cliente real)**
 
 1. Conectar ChatGPT.
-2. Antes de que se revoque el *access token* actual (o con uno caducado y sin revocar), volver a conectar ChatGPT desde la propia aplicación.
+2. Antes de que se revoque el _access token_ actual (o con uno caducado y sin revocar), volver a conectar ChatGPT desde la propia aplicación.
 
 El mismo fallo debería darse si:
 
@@ -1703,7 +1708,7 @@ El mismo fallo debería darse si:
 - **Peticiones:** cada entrada se pinta como «Acceso · Petición · hora» (`TokensPage.tsx:432-444`). Se descarta lo que la API ya devuelve en `changes`: método, ruta y resultado (`allowed`, `scope_missing` o `rate_limited`) (`api/auth/token-audit.ts:12-34`). Un 403 por falta de permiso o un 429 parecen idénticos a un acceso correcto.
 - **Ciclo de vida OAuth:** se guarda con `entity_type = 'oauth_token'` y acciones `created`, `updated` o `deleted` (`token-audit.ts:37-58`). `entityLabel` no conoce `oauth_token` (`TokensPage.tsx:626-636`), así que se ve «Eliminado · oauth_token» en lugar de «Token revocado» o «Reutilización detectada».
 - **Paginación y estados:** sin paginación (se ignora `next_cursor`, `tokens.service.ts:269-276`), sin estado de carga y sin estado de error. Solo existe el caso «vacío» (`TokensPage.tsx:428-431`).
-- **Efecto de las renovaciones:** en las aplicaciones OAuth, la actividad de una fila cubre como mucho una hora, porque el *access token* cambia cada hora. La historia queda repartida entre filas revocadas.
+- **Efecto de las renovaciones:** en las aplicaciones OAuth, la actividad de una fila cubre como mucho una hora, porque el _access token_ cambia cada hora. La historia queda repartida entre filas revocadas.
 
 **Causa en el código (confianza Alta):** las líneas citadas.
 
@@ -1850,7 +1855,7 @@ El mismo fallo debería darse si:
 
 **Resultado actual**
 
-- Google cuenta como «conectado» si hay un *refresh token* (`api/modules/integrations/integrations.controller.ts:212`).
+- Google cuenta como «conectado» si hay un _refresh token_ (`api/modules/integrations/integrations.controller.ts:212`).
 - Con Google conectado, la pantalla solo ofrece «Desconectar» (`ProductPages.tsx:442-460`). No hay reconexión: hay que desconectar y volver a conectar.
 - El enlace sale de `GoogleCalendarsCard.tsx:79-83`.
 - «Desconectar» en la fila Drive llama a `disconnectGoogle` (`ProductPages.tsx:486-496`). Desconecta también Calendar, sin confirmación y sin decirlo.
@@ -1974,19 +1979,19 @@ El mismo fallo debería darse si:
 - **Modo «Testing» del proyecto de Google Cloud:** el mensaje es el que muestra Google cuando la pantalla de consentimiento está publicada en modo «Testing» con tipo de usuario «External»:
   - solo pueden autorizar los usuarios añadidos como testers, con un máximo de 100;
   - la excepción de «solo `openid`/`email`/`profile`» no aplica, porque se pide Calendar;
-  - además, en ese modo **las autorizaciones y los *refresh tokens* caducan a los 7 días**. Por tanto, también la conexión de Pablo se cae cada semana y aparece como error de sincronización. Eso enlaza con el callejón sin salida de TTD-AUD-43.
+  - además, en ese modo **las autorizaciones y los _refresh tokens_ caducan a los 7 días**. Por tanto, también la conexión de Pablo se cae cada semana y aparece como error de sincronización. Eso enlaza con el callejón sin salida de TTD-AUD-43.
 - **Fuentes:** https://developers.google.com/identity/protocols/oauth2/production-readiness/overview · https://support.google.com/cloud/answer/10311615 · https://developers.google.com/identity/protocols/oauth2/production-readiness/sensitive-scope-verification · https://developers.google.com/workspace/guides/configure-oauth-consent
 - **Gestión del rechazo:** cuando Google bloquea así, se queda en su propia pantalla y **no vuelve a ttd**. El usuario no tiene ninguna salida desde la app. Si el usuario cancela en la pantalla de consentimiento, Google sí vuelve con `?error=access_denied`. En ese caso:
-  - el *callback* ignora el parámetro `error` y redirige a `?google=error` solo porque falta `code` (`integrations.controller.ts:277-281`);
+  - el _callback_ ignora el parámetro `error` y redirige a `?google=error` solo porque falta `code` (`integrations.controller.ts:277-281`);
   - la app muestra un genérico «Google no ha completado la conexión.» (`i18n/extra.ts:245`) sin explicar el motivo ni ofrecer qué hacer.
 - **Falta de página de privacidad:** `https://todo.reflexionia.com/privacy` devuelve la SPA (200, que acaba en `/today`), así que ttd no tiene política de privacidad publicada. Es un requisito de la verificación.
 
 **Propuesta de corrección**
 
-1. **Solución provisional (inmediata, en Google Cloud Console → Google Auth Platform → Audience):** añadir como *test users* las cuentas que tengan que probar (por ejemplo rmoya87@gmail.com). Máximo 100. Hay que avisarles de que verán un aviso de app en pruebas y de que tendrán que reconectar cada 7 días.
-2. **Pasar a producción:** cambiar el *publishing status* a «In production» y solicitar la **verificación de marca y de permisos sensibles** (Calendar). Requisitos:
+1. **Solución provisional (inmediata, en Google Cloud Console → Google Auth Platform → Audience):** añadir como _test users_ las cuentas que tengan que probar (por ejemplo rmoya87@gmail.com). Máximo 100. Hay que avisarles de que verán un aviso de app en pruebas y de que tendrán que reconectar cada 7 días.
+2. **Pasar a producción:** cambiar el _publishing status_ a «In production» y solicitar la **verificación de marca y de permisos sensibles** (Calendar). Requisitos:
    - página de inicio pública de la app en un dominio verificado en Google Search Console (`reflexionia.com` / `todo.reflexionia.com`);
-   - **política de privacidad** publicada en ese dominio, enlazada desde la página de inicio, que explique qué datos de Google se usan y para qué (cumpliendo la *Google API Services User Data Policy*, incluida la «Limited Use»); también términos de servicio;
+   - **política de privacidad** publicada en ese dominio, enlazada desde la página de inicio, que explique qué datos de Google se usan y para qué (cumpliendo la _Google API Services User Data Policy_, incluida la «Limited Use»); también términos de servicio;
    - nombre, logotipo y correo de soporte coherentes con la marca, y dominios autorizados;
    - justificación escrita de cada permiso sensible (por qué Calendar: leer la lista de calendarios y los eventos, y crear o modificar eventos de tareas en el calendario principal);
    - **vídeo de demostración** (YouTube, sin listar) con el flujo completo: consentimiento en inglés, mostrando el `client_id` en la URL, y el uso real de cada permiso dentro de la app;
@@ -1998,8 +2003,9 @@ El mismo fallo debería darse si:
      - `calendar.events` (leer y escribir eventos: `api/modules/calendar/calendar.service.ts:268-279` y `:579`).
 
      Siguen siendo sensibles, pero se justifican mejor. Hay que actualizar también la comprobación `tokenHasCalendarScope`, que exige exactamente `calendar` (`google-calendar.ts:15` y `:107-123`).
+
    - **Autorización incremental:** pedir solo `openid email` al conectar la cuenta, y Calendar o Drive cuando el usuario active cada función, con `include_granted_scopes=true`. Drive con `drive.file` no requiere verificación.
-   - **Error amable:** leer `error` y `error_description` en el *callback* y redirigir con `?google=denied` (o similar). Mostrar un texto claro, por ejemplo: «Google ha rechazado la conexión. Si ves "Acceso bloqueado", la app aún está en revisión por Google: pide al administrador que te añada como tester.». Ofrecer «Reintentar» y limpiar el parámetro de la URL (ver TTD-AUD-43).
+   - **Error amable:** leer `error` y `error_description` en el _callback_ y redirigir con `?google=denied` (o similar). Mostrar un texto claro, por ejemplo: «Google ha rechazado la conexión. Si ves "Acceso bloqueado", la app aún está en revisión por Google: pide al administrador que te añada como tester.». Ofrecer «Reintentar» y limpiar el parámetro de la URL (ver TTD-AUD-43).
    - **Caducidad semanal:** detectar `invalid_grant` al renovar y mostrar «Google desconectado: vuelve a conectar», con el botón de reconexión de TTD-AUD-43.
 
 **Relación:** la reconexión y la desconexión de Drive son TTD-AUD-43. Aquí se trata el bloqueo de Google y la gestión del rechazo.
@@ -2028,18 +2034,18 @@ Fuente: un usuario externo (Ramón, de VASS) que usa el MCP en `/api/v1/mcp`. Ha
 
 **Veredicto de lo reportado, en el orden de prioridad de Ramón**
 
-| # | Afirmación | Veredicto | Causa | Hallazgo |
-|---|---|---|---|---|
-| 1 | No se pueden asignar etiquetas (ni campo ni parser de `#`) | Confirmado | `create_task` y `update_task` no tienen campo de etiquetas (`mcp.catalog.ts:104-186`) y no se pasa `raw_text` (`mcp.service.ts:177-230`) | TTD-AUD-48 y TTD-AUD-49 |
-| 2 | No hay comentarios de tarea; la «actividad» es de solo lectura | Confirmado | La API tiene `GET` y `POST /tasks/:id/comments` (`collaboration.controller.ts:215-260`), pero el MCP no | TTD-AUD-51 |
-| 3 | Todo está «activo»; solo se puede completar: no se puede reabrir ni hay pendiente, en curso o cancelada | Parcial | Los estados existen en la base de datos (`active`, `completed`, `archived` y `cancelled`, `schema.prisma:23-28`) y la API tiene `uncomplete` y `cancel` (`tasks.controller.ts:400-426`), pero el MCP solo tiene `complete_task` y `list_tasks` fuerza `status: 'active'` (`mcp.service.ts:162`). «Pendiente» y «en curso» no existen como estados; las columnas de tablero (`Column`, `schema.prisma:387`) pueden hacer ese papel | TTD-AUD-53 |
-| 4 | No se puede borrar, enviar a la Papelera ni restaurar | Confirmado | `DELETE /tasks/:id` y `POST /trash/:id/restore` existen en la API (`tasks.controller.ts:370-379` y `:132-134`), pero no en el MCP | TTD-AUD-50 |
-| 5 | `get_task` devuelve la descripción, pero no se puede escribir; no hay adjuntos | Confirmado | No hay `content` en `create_task` ni en `update_task`. La API y la app tienen adjuntos (`POST /tasks/:id/attachments`, multipart, `tasks.controller.ts:512-530`) | TTD-AUD-51 |
-| 6 | Subtareas y checklist se pueden leer, pero no crear ni editar; no se puede mover una tarea de lista | Confirmado | No hay `parent_id` ni herramientas de checklist; `update_task` no acepta `project_id`. La API tiene `POST /tasks/:id/items` (`:457`) y `POST /tasks/:id/move` (`:428-436`) | TTD-AUD-52 |
-| 7 | Los campos desconocidos devuelven 200 y se ignoran (falsos positivos) | Confirmado | No hay validación en el servidor (`mcp.service.ts:130-150`). Corrige lo dicho antes sobre `additionalProperties` | TTD-AUD-54 |
-| 8 | `due_date: "2026-10-22"` se guarda como 00:00 UTC (02:00 en Madrid) | Confirmado | `new Date("2026-10-22")` es medianoche UTC (`tasks.service.ts:2451-2461`); `is_all_day` es `false` por defecto (`:1542`) | TTD-AUD-55 |
-| 9 | `duration_minutes: 30` se guardó como 1200 | Confirmado (mecanismo); los datos exactos de la llamada no se han visto | La duración explícita se descarta si hay inicio y fin a menos de 24 h (`packages/domain/src/tasks/duration.ts:22-27`) | TTD-AUD-56 |
-| 10 | Todas las tareas tienen el mismo `created_by` | Confirmado (mecanismo) | `createdById = user.id`, el dueño del token (`tasks.service.ts:1572`). Todo indica que Ramón usa un token o una autorización de la cuenta de Pablo | TTD-AUD-57 |
+| #   | Afirmación                                                                                              | Veredicto                                                               | Causa                                                                                                                                                                                                                                                                                                                                                                                                                             | Hallazgo                |
+| --- | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| 1   | No se pueden asignar etiquetas (ni campo ni parser de `#`)                                              | Confirmado                                                              | `create_task` y `update_task` no tienen campo de etiquetas (`mcp.catalog.ts:104-186`) y no se pasa `raw_text` (`mcp.service.ts:177-230`)                                                                                                                                                                                                                                                                                          | TTD-AUD-48 y TTD-AUD-49 |
+| 2   | No hay comentarios de tarea; la «actividad» es de solo lectura                                          | Confirmado                                                              | La API tiene `GET` y `POST /tasks/:id/comments` (`collaboration.controller.ts:215-260`), pero el MCP no                                                                                                                                                                                                                                                                                                                           | TTD-AUD-51              |
+| 3   | Todo está «activo»; solo se puede completar: no se puede reabrir ni hay pendiente, en curso o cancelada | Parcial                                                                 | Los estados existen en la base de datos (`active`, `completed`, `archived` y `cancelled`, `schema.prisma:23-28`) y la API tiene `uncomplete` y `cancel` (`tasks.controller.ts:400-426`), pero el MCP solo tiene `complete_task` y `list_tasks` fuerza `status: 'active'` (`mcp.service.ts:162`). «Pendiente» y «en curso» no existen como estados; las columnas de tablero (`Column`, `schema.prisma:387`) pueden hacer ese papel | TTD-AUD-53              |
+| 4   | No se puede borrar, enviar a la Papelera ni restaurar                                                   | Confirmado                                                              | `DELETE /tasks/:id` y `POST /trash/:id/restore` existen en la API (`tasks.controller.ts:370-379` y `:132-134`), pero no en el MCP                                                                                                                                                                                                                                                                                                 | TTD-AUD-50              |
+| 5   | `get_task` devuelve la descripción, pero no se puede escribir; no hay adjuntos                          | Confirmado                                                              | No hay `content` en `create_task` ni en `update_task`. La API y la app tienen adjuntos (`POST /tasks/:id/attachments`, multipart, `tasks.controller.ts:512-530`)                                                                                                                                                                                                                                                                  | TTD-AUD-51              |
+| 6   | Subtareas y checklist se pueden leer, pero no crear ni editar; no se puede mover una tarea de lista     | Confirmado                                                              | No hay `parent_id` ni herramientas de checklist; `update_task` no acepta `project_id`. La API tiene `POST /tasks/:id/items` (`:457`) y `POST /tasks/:id/move` (`:428-436`)                                                                                                                                                                                                                                                        | TTD-AUD-52              |
+| 7   | Los campos desconocidos devuelven 200 y se ignoran (falsos positivos)                                   | Confirmado                                                              | No hay validación en el servidor (`mcp.service.ts:130-150`). Corrige lo dicho antes sobre `additionalProperties`                                                                                                                                                                                                                                                                                                                  | TTD-AUD-54              |
+| 8   | `due_date: "2026-10-22"` se guarda como 00:00 UTC (02:00 en Madrid)                                     | Confirmado                                                              | `new Date("2026-10-22")` es medianoche UTC (`tasks.service.ts:2451-2461`); `is_all_day` es `false` por defecto (`:1542`)                                                                                                                                                                                                                                                                                                          | TTD-AUD-55              |
+| 9   | `duration_minutes: 30` se guardó como 1200                                                              | Confirmado (mecanismo); los datos exactos de la llamada no se han visto | La duración explícita se descarta si hay inicio y fin a menos de 24 h (`packages/domain/src/tasks/duration.ts:22-27`)                                                                                                                                                                                                                                                                                                             | TTD-AUD-56              |
+| 10  | Todas las tareas tienen el mismo `created_by`                                                           | Confirmado (mecanismo)                                                  | `createdById = user.id`, el dueño del token (`tasks.service.ts:1572`). Todo indica que Ramón usa un token o una autorización de la cuenta de Pablo                                                                                                                                                                                                                                                                                | TTD-AUD-57              |
 
 #### TTD-AUD-48 — El MCP no permite etiquetar tareas al crearlas ni al editarlas (prioridad 1 de Ramón)
 
@@ -2375,6 +2381,7 @@ Fuente: un usuario externo (Ramón, de VASS) que usa el MCP en `/api/v1/mcp`. Ha
    - nadie usa el token de otra persona.
 
    Con eso, `created_by` y la actividad ya identifican a la persona real. Hay que verificar que, al crear una tarea en una lista compartida ajena, `ownerId` sea el del dueño de la lista y `createdById` el del autor. Hoy ambos toman `user.id` (`tasks.service.ts:1548` y `:1572`), así que hay que revisarlo con un test.
+
 2. **Registrar el «vía»:**
    - añadir a la tarea `created_via_token_id` (y el cliente OAuth) o, como mínimo, exponer en `get_task` el `actor_kind` y el `token_id` de la actividad de creación;
    - poner `source: "api"` (o `"mcp"`) en lo creado por el MCP.
@@ -2509,7 +2516,7 @@ Ver también la sección 4.1.
 - Desde `/matrix` y `/calendar/week`, pulsar una tarea abre el detalle sin cambiar de ruta.
 - Hay un test de componente del shell con y sin `?task` y con ambos ajustes de diseño.
 
-**Referencia TickTick (REF-TICKTICK_01, _12 y _13):**
+**Referencia TickTick (REF-TICKTICK_01, \_12 y \_13):**
 
 - Panel derecho con ilustración vacía cuando no hay selección.
 - Cabecera con checkbox, chip de fecha (rojo si está vencida, con icono de repetición) y bandera de prioridad.
@@ -2937,15 +2944,15 @@ Ver también la sección 4.7.
 
 **Causa en el código**
 
-1. *(Alta)* `.sheet` es `display: grid; place-items: center` a pantalla completa (`web/styles.css:47-55`) y tiene tres hijos sueltos: `h1`, composer y «Cancelar» (`web/features/capture/components/CaptureSheet.tsx:19-33`).
+1. _(Alta)_ `.sheet` es `display: grid; place-items: center` a pantalla completa (`web/styles.css:47-55`) y tiene tres hijos sueltos: `h1`, composer y «Cancelar» (`web/features/capture/components/CaptureSheet.tsx:19-33`).
    - Las filas automáticas se estiran a un tercio de la altura cada una, así que el `h1` queda flotando sobre la cabecera del calendario y «Cancelar» abajo.
    - No hay tarjeta contenedora.
-2. *(Media-Alta)* El ítem centrado se ajusta a su contenido, y el `width: min(32rem, 100%)` de `.sheet form` (`styles.css:57-65`) se calcula contra ese ancho. Resultado: el composer queda estrecho y el placeholder se corta. Además, `.sheet form { overflow: auto }` puede añadir scroll.
-3. *(Media)* `Popover` impone en línea `width: 260` (`web/components/Popover.tsx:37-40`) y `maxHeight` igual a `scrollHeight` (`:41`, `:52`).
+2. _(Media-Alta)_ El ítem centrado se ajusta a su contenido, y el `width: min(32rem, 100%)` de `.sheet form` (`styles.css:57-65`) se calcula contra ese ancho. Resultado: el composer queda estrecho y el placeholder se corta. Además, `.sheet form { overflow: auto }` puede añadir scroll.
+3. _(Media)_ `Popover` impone en línea `width: 260` (`web/components/Popover.tsx:37-40`) y `maxHeight` igual a `scrollHeight` (`:41`, `:52`).
    - Con el borde de 1 px de `.composer-menu` (`web/features/tasks/composer.css:146-148`) y `box-sizing: border-box`, faltan 2 px y aparece la barra de scroll interna.
    - El menú se alinea al borde derecho del chevron (`box.right - width`), así que tapa el propio composer.
    - Los estilos base de `.popover` están en `today.css:590-604`, dentro de una funcionalidad concreta.
-4. *(Media)* El efecto «fantasma» viene de que `:focus-within` del formulario cambia el fondo a `--surface-3` al perder el foco (`composer.css:5-15`), sobre el fondo semitransparente de `.sheet`.
+4. _(Media)_ El efecto «fantasma» viene de que `:focus-within` del formulario cambia el fondo a `--surface-3` al perder el foco (`composer.css:5-15`), sobre el fondo semitransparente de `.sheet`.
 5. `.composer-submit` está oculto salvo con foco (`composer.css:91-97`).
 6. «Abrir detalle» no abre el detalle: solo muestra un textarea (`TaskComposer.tsx:464-475`) y usa el mismo icono que «Convertir en nota».
 7. Las plantillas solo están en localStorage (`tick-tack-done.templates`, `TaskComposer.tsx:607`; `TaskDetail.tsx:36`).
@@ -3194,12 +3201,12 @@ Referencia: capturas `REF-TICKTICK_*` (TickTick web, 21/10/2026). Objetivo: **to
 - **Layout de escritorio:** `rail | barra secundaria (opcional, plegable) | contenido | panel de detalle (rutas de tareas)`.
 - **Barra secundaria por sección:**
 
-| Sección | Barra secundaria |
-|---|---|
-| Tareas | Todas, Hoy, Mañana, Próximos 7 días, Asignadas a mí, Bandeja, Resumen · Listas (carpetas plegables) y «Archivadas» · Filtros · Etiquetas · Calendarios suscritos · abajo: Completadas, No haré, Papelera |
-| Calendario | Propia y plegable: mini-mes con números de semana y puntos; casillas «Todo», Listas, Filtros, Etiquetas y Calendarios suscritos |
-| Matriz, Enfoque, Hábitos, Cuenta atrás | **Ninguna**; el contenido usa todo el ancho |
-| Estadísticas, Búsqueda, Ajustes | Ninguna (Ajustes mantiene su navegación interna) |
+| Sección                                | Barra secundaria                                                                                                                                                                                         |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tareas                                 | Todas, Hoy, Mañana, Próximos 7 días, Asignadas a mí, Bandeja, Resumen · Listas (carpetas plegables) y «Archivadas» · Filtros · Etiquetas · Calendarios suscritos · abajo: Completadas, No haré, Papelera |
+| Calendario                             | Propia y plegable: mini-mes con números de semana y puntos; casillas «Todo», Listas, Filtros, Etiquetas y Calendarios suscritos                                                                          |
+| Matriz, Enfoque, Hábitos, Cuenta atrás | **Ninguna**; el contenido usa todo el ancho                                                                                                                                                              |
+| Estadísticas, Búsqueda, Ajustes        | Ninguna (Ajustes mantiene su navegación interna)                                                                                                                                                         |
 
 - **Panel de detalle:**
   - Con «Panel lateral» y 1280 px o más, la columna está siempre visible. Sin selección, ilustración y «Pulsa una tarea para ver los detalles».
@@ -3360,10 +3367,10 @@ Ramón puso fechas y duración (8 y 9) en último lugar, pero **son datos incorr
 
 **Acciones de Pablo (no de Codex), en Google Cloud Console → Google Auth Platform**
 
-1. **Inmediato:** en «Audience», añadir como *test users* las cuentas que tengan que probar (por ejemplo rmoya87@gmail.com), con un máximo de 100. Avisarles de que verán el aviso de app en pruebas y de que la conexión caduca cada 7 días.
+1. **Inmediato:** en «Audience», añadir como _test users_ las cuentas que tengan que probar (por ejemplo rmoya87@gmail.com), con un máximo de 100. Avisarles de que verán el aviso de app en pruebas y de que la conexión caduca cada 7 días.
 2. **Preparar la verificación:**
    - verificar el dominio (`reflexionia.com` / `todo.reflexionia.com`) en Search Console;
-   - publicar la **política de privacidad** y los términos, enlazados desde la página de inicio (cumpliendo la *Google API Services User Data Policy* y su «Limited Use»);
+   - publicar la **política de privacidad** y los términos, enlazados desde la página de inicio (cumpliendo la _Google API Services User Data Policy_ y su «Limited Use»);
    - configurar el nombre, el logotipo, el correo de soporte y los dominios autorizados.
 3. **Pasar a «In production»** y solicitar la verificación de marca y de **permisos sensibles** (Calendar):
    - justificación escrita de cada permiso;
@@ -3374,7 +3381,7 @@ Ramón puso fechas y duración (8 y 9) en último lugar, pero **son datos incorr
 
 - Permisos mínimos: `calendar.calendarlist.readonly` y `calendar.events` en lugar de `calendar`, actualizando `tokenHasCalendarScope`.
 - Autorización incremental con `include_granted_scopes=true`: primero `openid email`, y Calendar o Drive (`drive.file`) al activar cada función.
-- En el *callback*, leer `error` y `error_description`; redirigir con `?google=denied`, mostrar un mensaje claro y ofrecer «Reintentar».
+- En el _callback_, leer `error` y `error_description`; redirigir con `?google=denied`, mostrar un mensaje claro y ofrecer «Reintentar».
 - Detectar `invalid_grant` al renovar y mostrar el aviso de reconexión (TTD-AUD-43, ya en main).
 
 ### C. Revisión de la propuesta «Tokens, MCP e Integraciones»
@@ -3383,7 +3390,7 @@ El documento completo está en `revision-propuesta-tokens-mcp.md` (incluido en e
 
 - **54 afirmaciones revisadas:** 40 confirmadas, 8 parciales, 2 no confirmadas y 4 incorrectas.
 - **El diagnóstico de fondo es correcto:** los tokens OAuth y los manuales están mezclados, no hay una vista de aplicaciones conectadas, la actividad es pobre y el consentimiento no tiene estilo.
-- **La propuesta no tiene en cuenta un hecho que lo condiciona todo:** el *access token* OAuth caduca a la hora y cada renovación crea una fila nueva y revoca la anterior (`api/auth/oauth.service.ts:49` y `:369-390`). Eso explica los «Revocados (24)», deja fuera de la lista los tokens antiguos (solo se cargan 50 filas) y hace que la actividad por token de una aplicación dure como mucho una hora.
+- **La propuesta no tiene en cuenta un hecho que lo condiciona todo:** el _access token_ OAuth caduca a la hora y cada renovación crea una fila nueva y revoca la anterior (`api/auth/oauth.service.ts:49` y `:369-390`). Eso explica los «Revocados (24)», deja fuera de la lista los tokens antiguos (solo se cargan 50 filas) y hace que la actividad por token de una aplicación dure como mucho una hora.
 - **Incorporado a la especificación** como **TTD-AUD-35 a TTD-AUD-46** (4 Alta, 6 Media, 2 Baja), con una subsección de valoración de la propuesta y los bocetos.
 
 **Lagunas de la propuesta**
@@ -3415,7 +3422,7 @@ El documento completo está en `revision-propuesta-tokens-mcp.md` (incluido en e
 
 - Lista con separadores finos y filas que se despliegan, en lugar de tarjetas; indicador de estado como punto + texto. Encaja con las listas de tareas y con `tokens.css`: `--content-max` (46rem) y `--tap` (2,75rem) existen (`tokens.css:97` y `:99`), y los cortes a 639, 699, 800 y 900 px y el de 1024 px (`min-width`) también.
 - Actividad con método, ruta y resultado, y entradas de ciclo de vida traducidas (TTD-AUD-38).
-- Instrucciones por modo de conexión: *bearer* para Cursor, OAuth para ChatGPT y Claude.
+- Instrucciones por modo de conexión: _bearer_ para Cursor, OAuth para ChatGPT y Claude.
 - Reglas del secreto: no meterlo en `role="status"` y avisar antes de cerrar la banda (TTD-AUD-40).
 - Errores en la propia fila y mensaje específico para el 409 (TTD-AUD-39).
 - Consentimiento con los componentes de la app (TTD-AUD-42).
@@ -3423,17 +3430,17 @@ El documento completo está en `revision-propuesta-tokens-mcp.md` (incluido en e
 
 **Necesita trabajo de backend antes de poder pintarse**
 
-| Dato del boceto | Situación hoy | Qué hace falta |
-|---|---|---|
-| «Último uso» por token | Existe (`last_used_at`, con precisión de 1 min, `api-auth.guard.ts:37` y `:263-277`) | Nada |
-| «Último uso» y «Autorizada el…» por aplicación | No existe | Agregar por `oauthClientId` en `GET /me/oauth/grants` (nuevo) |
-| «1 token activo», «1 renovación vigente» | No existe; además los caducados se cuentan como activos | `expires_at` en el DTO y recuento de familias de *refresh* en el servidor |
-| «Caduca / Caducado el…» | La columna existe; crear no la acepta y el DTO no la devuelve | `expires_in_days` en `POST /me/tokens` y `expires_at` en `TokenDto` |
-| Alias editable («nota de ejemplo») | No existe | Columna nueva y `PATCH /me/tokens/{id}`. **Valor dudoso:** el nombre ya es texto libre; se puede aplazar |
-| «Origen no disponible» / «Otros accesos» | No existe | **No recomendado** (ver riesgos) |
-| «Revocados (24)» | El recuento es solo de la página cargada y mezcla rotaciones | Recuento y motivo en el servidor (TTD-AUD-35) |
-| Actividad por token con «×12» y «Sin permiso» | Los datos existen en `changes` | Solo frontend. Por aplicación, filtro por cliente en la API |
-| «Revocar acceso» de una aplicación entera | Revocar una fila ya corta su familia de *refresh*, pero no otras autorizaciones del mismo cliente | `POST /me/oauth/grants/{clientId}/revoke` (nuevo, en transacción, verificando el propietario) |
+| Dato del boceto                                | Situación hoy                                                                                     | Qué hace falta                                                                                           |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| «Último uso» por token                         | Existe (`last_used_at`, con precisión de 1 min, `api-auth.guard.ts:37` y `:263-277`)              | Nada                                                                                                     |
+| «Último uso» y «Autorizada el…» por aplicación | No existe                                                                                         | Agregar por `oauthClientId` en `GET /me/oauth/grants` (nuevo)                                            |
+| «1 token activo», «1 renovación vigente»       | No existe; además los caducados se cuentan como activos                                           | `expires_at` en el DTO y recuento de familias de _refresh_ en el servidor                                |
+| «Caduca / Caducado el…»                        | La columna existe; crear no la acepta y el DTO no la devuelve                                     | `expires_in_days` en `POST /me/tokens` y `expires_at` en `TokenDto`                                      |
+| Alias editable («nota de ejemplo»)             | No existe                                                                                         | Columna nueva y `PATCH /me/tokens/{id}`. **Valor dudoso:** el nombre ya es texto libre; se puede aplazar |
+| «Origen no disponible» / «Otros accesos»       | No existe                                                                                         | **No recomendado** (ver riesgos)                                                                         |
+| «Revocados (24)»                               | El recuento es solo de la página cargada y mezcla rotaciones                                      | Recuento y motivo en el servidor (TTD-AUD-35)                                                            |
+| Actividad por token con «×12» y «Sin permiso»  | Los datos existen en `changes`                                                                    | Solo frontend. Por aplicación, filtro por cliente en la API                                              |
+| «Revocar acceso» de una aplicación entera      | Revocar una fila ya corta su familia de _refresh_, pero no otras autorizaciones del mismo cliente | `POST /me/oauth/grants/{clientId}/revoke` (nuevo, en transacción, verificando el propietario)            |
 
 **Riesgos y correcciones a la propuesta**
 

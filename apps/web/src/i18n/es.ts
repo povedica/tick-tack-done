@@ -154,7 +154,8 @@ export const es = {
   settingsTitle: 'Ajustes',
   loginTitle: 'Entrar',
   sessionChecking: 'Comprobando la sesión…',
-  sessionNetworkError: 'No se ha podido comprobar la sesión. Revisa la conexión e inténtalo de nuevo.',
+  sessionNetworkError:
+    'No se ha podido comprobar la sesión. Revisa la conexión e inténtalo de nuevo.',
   registerTitle: 'Crear cuenta',
   forgotTitle: 'Recuperar contraseña',
   smartListsLink: 'Listas inteligentes',

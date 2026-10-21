@@ -58,7 +58,11 @@ export function RequireSession() {
   const messages = useMessages();
   const location = useLocation();
   const status = useSyncExternalStore(subscribeSession, sessionStatus, sessionStatus);
-  const unreachable = useSyncExternalStore(subscribeSession, sessionUnreachable, sessionUnreachable);
+  const unreachable = useSyncExternalStore(
+    subscribeSession,
+    sessionUnreachable,
+    sessionUnreachable,
+  );
   if (status === 'unknown' && unreachable) {
     return (
       <div className="session-retry" role="alert">

@@ -156,7 +156,9 @@ export function Board({
   readonly enabled?: boolean | undefined;
   readonly createProjectId?: string | undefined;
   readonly createViewDay?: ViewDay | null | undefined;
-  readonly columns?: readonly { readonly id: string; readonly name: string; readonly wip_limit?: number | null }[] | undefined;
+  readonly columns?:
+    | readonly { readonly id: string; readonly name: string; readonly wip_limit?: number | null }[]
+    | undefined;
   readonly notice?: string | undefined;
   readonly note?: boolean | undefined;
   readonly viewKey: string;

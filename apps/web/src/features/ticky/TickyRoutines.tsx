@@ -147,7 +147,8 @@ export function TickyRoutines() {
                     : ''}
                 </strong>
                 <p>
-                  {hourValue(routine.local_hour)} · {routine.timezone} · {routine.window_minutes} min
+                  {hourValue(routine.local_hour)} · {routine.timezone} · {routine.window_minutes}{' '}
+                  min
                 </p>
                 <p>{routine.enabled ? nextRun(routine.next_at) : messages.tickyRoutinePaused}</p>
                 {issue === null ? null : <p role="alert">{issue}</p>}
@@ -183,9 +184,7 @@ export function TickyRoutines() {
       </ul>
       {canWrite ? (
         <form className="ticky-routine-form" onSubmit={submit}>
-          <h3>
-            {editing === null ? messages.tickyRoutineCreate : messages.tickyRoutineEditTitle}
-          </h3>
+          <h3>{editing === null ? messages.tickyRoutineCreate : messages.tickyRoutineEditTitle}</h3>
           <label>
             {messages.tickyRoutineType}{' '}
             <select

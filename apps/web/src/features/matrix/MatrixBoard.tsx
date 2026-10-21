@@ -1,10 +1,6 @@
 import { runAction } from '../../components/run-action';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  defaultQuadrant,
-  minimalQuadrantPatch,
-  type MatrixQuadrant,
-} from '@reflexionia/domain';
+import { defaultQuadrant, minimalQuadrantPatch, type MatrixQuadrant } from '@reflexionia/domain';
 import { CircleHelp, MoreHorizontal } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router';
@@ -140,9 +136,7 @@ export function MatrixBoard({
   const groups = useMemo(() => {
     const next: Record<MatrixQuadrant, Task[]> = { do: [], schedule: [], delegate: [], drop: [] };
     for (const task of tasks.data ?? []) {
-      next[defaultQuadrant({ priority: task.priority, dueDate: task.due_date }, nowIso)].push(
-        task,
-      );
+      next[defaultQuadrant({ priority: task.priority, dueDate: task.due_date }, nowIso)].push(task);
     }
     return next;
   }, [nowIso, tasks.data]);
@@ -152,10 +146,7 @@ export function MatrixBoard({
     if (task === undefined) {
       return;
     }
-    const current = defaultQuadrant(
-      { priority: task.priority, dueDate: task.due_date },
-      nowIso,
-    );
+    const current = defaultQuadrant({ priority: task.priority, dueDate: task.due_date }, nowIso);
     if (current === quadrant) {
       setMenuId(null);
       return;

@@ -424,7 +424,12 @@ function TaskRow({
         ) : null}
       </span>
       {trash ? null : (
-        <button type="button" className="task-more" aria-label={messages.openDetail} onClick={onOpen}>
+        <button
+          type="button"
+          className="task-more"
+          aria-label={messages.openDetail}
+          onClick={onOpen}
+        >
           <MoreHorizontal size={16} aria-hidden="true" />
         </button>
       )}
@@ -937,10 +942,7 @@ function dateBucketOf(row: RowModel, now: Date): string {
   if (due === today) {
     return 'today';
   }
-  const tomorrow = calendarDay(
-    new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(),
-    zone,
-  );
+  const tomorrow = calendarDay(new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(), zone);
   if (due === tomorrow) {
     return 'tomorrow';
   }

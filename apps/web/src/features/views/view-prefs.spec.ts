@@ -1,10 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  DEFAULT_VIEW_PREFS,
-  patchViewPrefs,
-  readViewPrefs,
-  writeViewPrefs,
-} from './view-prefs';
+import { DEFAULT_VIEW_PREFS, patchViewPrefs, readViewPrefs, writeViewPrefs } from './view-prefs';
 
 const store = new Map<string, string>();
 

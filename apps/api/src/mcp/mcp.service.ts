@@ -354,8 +354,7 @@ export class McpService {
           items: await this.tasks.listAttachments(user, requiredUuid(args, 'task_id')),
         };
       case 'move_task': {
-        const moveColumnId =
-          args.column_id === null ? null : uuidOrEmpty(args.column_id);
+        const moveColumnId = args.column_id === null ? null : uuidOrEmpty(args.column_id);
         return enrichTask(
           await this.tasks.move(user, requiredUuid(args, 'id'), {
             project_id: requiredUuid(args, 'project_id'),
@@ -471,8 +470,7 @@ export class McpService {
           schedule.due_date !== undefined ? schedule.due_date : (existing.due_date ?? null);
         const recurrence = recurrenceFields(args, dueForAnchor, existing.repeat_rule);
         let tagIds = await this.resolveUpdateTags(user, args, existing.tag_ids);
-        let title =
-          typeof args.title === 'string' ? requiredString(args, 'title', 500) : undefined;
+        let title = typeof args.title === 'string' ? requiredString(args, 'title', 500) : undefined;
         let parsedSchedule = schedule;
         if (args.parse === true && title !== undefined) {
           const parsed = parseQuickAdd(title, 'es', {
@@ -695,11 +693,7 @@ export class McpService {
       case 'unarchive_countdown':
         return this.countdowns.archive(user, requiredUuid(args, 'id'), false);
       case 'search': {
-        const result = await this.search.search(
-          user,
-          requiredString(args, 'q', 200),
-          undefined,
-        );
+        const result = await this.search.search(user, requiredString(args, 'q', 200), undefined);
         return {
           text: result.text,
           list: result.list,

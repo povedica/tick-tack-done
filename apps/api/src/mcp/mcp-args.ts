@@ -4,8 +4,7 @@
  */
 
 export type McpArgsValidation =
-  | { readonly ok: true }
-  | { readonly ok: false; readonly message: string };
+  { readonly ok: true } | { readonly ok: false; readonly message: string };
 
 interface JsonSchema {
   readonly type?: string | readonly string[];
@@ -23,13 +22,9 @@ interface JsonSchema {
   readonly description?: string;
 }
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export function validateMcpArgs(
-  schema: unknown,
-  args: Record<string, unknown>,
-): McpArgsValidation {
+export function validateMcpArgs(schema: unknown, args: Record<string, unknown>): McpArgsValidation {
   const errors: string[] = [];
   validateNode(schema as JsonSchema, args, '', errors);
   if (errors.length === 0) {
@@ -38,16 +33,9 @@ export function validateMcpArgs(
   return { ok: false, message: errors.join('; ') };
 }
 
-function validateNode(
-  schema: JsonSchema,
-  value: unknown,
-  path: string,
-  errors: string[],
-): void {
+function validateNode(schema: JsonSchema, value: unknown, path: string, errors: string[]): void {
   if (schema.type !== undefined) {
-    const types: readonly string[] = Array.isArray(schema.type)
-      ? schema.type
-      : [schema.type];
+    const types: readonly string[] = Array.isArray(schema.type) ? schema.type : [schema.type];
     if (!types.some((type) => matchesType(type, value))) {
       errors.push(`${label(path)} must be ${types.join(' | ')}`);
       return;
@@ -78,7 +66,10 @@ function validateNode(
     }
   }
   if (typeof value === 'number') {
-    if (schema.type === 'integer' || (Array.isArray(schema.type) && schema.type.includes('integer'))) {
+    if (
+      schema.type === 'integer' ||
+      (Array.isArray(schema.type) && schema.type.includes('integer'))
+    ) {
       if (!Number.isInteger(value)) {
         errors.push(`${label(path)} must be an integer`);
       }

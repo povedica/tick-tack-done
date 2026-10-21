@@ -370,8 +370,7 @@ export class TasksService {
       const inferredAllDay =
         (dto.start_date !== undefined && startParsed.dateOnly) ||
         (dto.due_date !== undefined && dueParsed.dateOnly);
-      const isAllDay =
-        dto.is_all_day ?? (inferredAllDay ? true : current.isAllDay);
+      const isAllDay = dto.is_all_day ?? (inferredAllDay ? true : current.isAllDay);
       this.assertTimed(due, isAllDay, timeZone);
       this.assertTimed(start, isAllDay, timeZone);
       const duration = this.duration(
@@ -1145,8 +1144,7 @@ export class TasksService {
         dto.due_date === undefined
           ? null
           : this.nextDate(current.dueDate, dto.due_date, 'due_date', itemZone);
-      const inferredAllDay =
-        (startParsed?.dateOnly ?? false) || (dueParsed?.dateOnly ?? false);
+      const inferredAllDay = (startParsed?.dateOnly ?? false) || (dueParsed?.dateOnly ?? false);
       const row = await tx.checklistItem.update({
         where: { id: itemId },
         data: {

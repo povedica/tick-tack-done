@@ -17,10 +17,7 @@ export function parseTaskInstant(value: string, timeZone: string): ParsedTaskIns
     const year = Number(dateOnly[1]);
     const month = Number(dateOnly[2]);
     const day = Number(dateOnly[3]);
-    const iso = instantFromWall(
-      { year, month, day, hour: 0, minute: 0, second: 0 },
-      timeZone,
-    );
+    const iso = instantFromWall({ year, month, day, hour: 0, minute: 0, second: 0 }, timeZone);
     if (iso === null) {
       return { ok: false, reason: 'invalid_date' };
     }

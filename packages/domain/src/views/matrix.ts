@@ -132,10 +132,7 @@ function targetNeedsImportant(quadrant: MatrixQuadrant): boolean {
 }
 
 function todayAllDay(nowIso: string, timeZone: string): string {
-  const parsed = parseTaskInstant(
-    civilDateKey(nowIso, timeZone) ?? nowIso.slice(0, 10),
-    timeZone,
-  );
+  const parsed = parseTaskInstant(civilDateKey(nowIso, timeZone) ?? nowIso.slice(0, 10), timeZone);
   return parsed.ok ? parsed.iso : nowIso;
 }
 

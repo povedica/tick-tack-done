@@ -31,9 +31,7 @@ describe('taskEventSnapshot (TTD-AUD-65)', () => {
     const snap = taskEventSnapshot(detail);
     expect(snap).not.toHaveProperty('activity');
     expect(JSON.stringify(snap)).not.toContain('"activity"');
-    expect(snap.items).toEqual([
-      { id: '44444444-4444-4444-8444-444444444444', status: 'active' },
-    ]);
+    expect(snap.items).toEqual([{ id: '44444444-4444-4444-8444-444444444444', status: 'active' }]);
     expect(snap.subtasks).toEqual([
       {
         id: '55555555-5555-4555-8555-555555555555',

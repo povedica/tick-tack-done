@@ -64,9 +64,7 @@ describe('MCP tool catalog', () => {
     expect(read).toContain('list_task_reminders');
     expect(read).not.toContain('add_task_reminder');
     const write = visibleTools(['reminders:write']).map((tool) => tool.name);
-    expect(write).toEqual(
-      expect.arrayContaining(['add_task_reminder', 'delete_task_reminder']),
-    );
+    expect(write).toEqual(expect.arrayContaining(['add_task_reminder', 'delete_task_reminder']));
   });
 
   it('RF-2532: calendar tools follow calendar scopes', () => {

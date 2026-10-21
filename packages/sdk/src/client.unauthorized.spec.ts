@@ -19,6 +19,8 @@ describe('createApiClient onUnauthorized (TTD-AUD-29)', () => {
     await expect(client.getTask('11111111-1111-4111-8111-111111111111')).rejects.toBeInstanceOf(
       ApiError,
     );
-    expect(onUnauthorized).toHaveBeenCalledWith('/api/v1/tasks/11111111-1111-4111-8111-111111111111');
+    expect(onUnauthorized).toHaveBeenCalledWith(
+      '/api/v1/tasks/11111111-1111-4111-8111-111111111111',
+    );
   });
 });

@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  defaultQuadrant,
-  minimalQuadrantPatch,
-  quadrantOf,
-  type MatrixTask,
-} from './matrix';
+import { defaultQuadrant, minimalQuadrantPatch, quadrantOf, type MatrixTask } from './matrix';
 
 const now = '2026-10-18T12:00:00.000Z';
 

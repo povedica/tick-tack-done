@@ -384,10 +384,7 @@ describe('McpService recurrence mapping', () => {
         arguments: { id: '33333333-3333-4333-8333-333333333333' },
       },
     });
-    expect(tasks.uncomplete).toHaveBeenCalledWith(
-      user,
-      '33333333-3333-4333-8333-333333333333',
-    );
+    expect(tasks.uncomplete).toHaveBeenCalledWith(user, '33333333-3333-4333-8333-333333333333');
     await service.handle(user, {
       jsonrpc: '2.0',
       id: 12,
@@ -412,10 +409,7 @@ describe('McpService recurrence mapping', () => {
         arguments: { id: '33333333-3333-4333-8333-333333333333' },
       },
     });
-    expect(tasks.remove).toHaveBeenCalledWith(
-      trashUser,
-      '33333333-3333-4333-8333-333333333333',
-    );
+    expect(tasks.remove).toHaveBeenCalledWith(trashUser, '33333333-3333-4333-8333-333333333333');
     expect(JSON.parse(toolText(result))).toEqual({ deleted: true, trashed: true });
   });
 

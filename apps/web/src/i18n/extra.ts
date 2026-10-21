@@ -131,7 +131,8 @@ export const extraEs = {
   telegramLink: 'Vincular',
   telegramPairingHint: 'En Telegram envía /start {code} al bot. El código caduca pronto.',
   telegramPairingFailed: 'No se ha podido crear el código de vinculación.',
-  inboundRegenerateBody: 'La dirección actual deja de crear tareas. Se muestra una nueva una sola vez.',
+  inboundRegenerateBody:
+    'La dirección actual deja de crear tareas. Se muestra una nueva una sola vez.',
   restore: 'Restaurar',
   purge: 'Eliminar',
   noteBadge: 'Nota',
@@ -1153,8 +1154,7 @@ export const extraEn = {
   telegramLink: 'Link',
   telegramPairingHint: 'In Telegram send /start {code} to the bot. The code expires soon.',
   telegramPairingFailed: 'The pairing code could not be created.',
-  inboundRegenerateBody:
-    'The current address stops creating tasks. A new one is shown only once.',
+  inboundRegenerateBody: 'The current address stops creating tasks. A new one is shown only once.',
   restore: 'Restore',
   purge: 'Delete',
   noteBadge: 'Note',
@@ -2027,7 +2027,8 @@ export const extraEn = {
   tickyConversationDeleted: 'Conversation deleted.',
   tickyDeletePending: 'Delete requested; some runs or checkpoints are still pending.',
   tickyDeleteFailed: 'Could not confirm deletion. Check history before retrying.',
-  tickyHistoryFailed: 'History could not be loaded. Do not retry an action without checking status.',
+  tickyHistoryFailed:
+    'History could not be loaded. Do not retry an action without checking status.',
   tickyRecoverPending: 'Recover pending query',
   tickyRecoverFailed: 'Could not recover the query. Check its status before retrying.',
   tickyModel: 'Model',

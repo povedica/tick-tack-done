@@ -121,19 +121,21 @@ export function CountdownsPage() {
                 }}
               >
                 <div className="countdown-menu" role="menu">
-                  {(Object.entries(TYPE_LABEL) as [CountdownType, string][]).map(([type, label]) => (
-                    <button
-                      type="button"
-                      key={type}
-                      role="menuitem"
-                      onClick={() => {
-                        setNewOpen(false);
-                        setDialog({ type });
-                      }}
-                    >
-                      {label}
-                    </button>
-                  ))}
+                  {(Object.entries(TYPE_LABEL) as [CountdownType, string][]).map(
+                    ([type, label]) => (
+                      <button
+                        type="button"
+                        key={type}
+                        role="menuitem"
+                        onClick={() => {
+                          setNewOpen(false);
+                          setDialog({ type });
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ),
+                  )}
                 </div>
               </Popover>
             </>

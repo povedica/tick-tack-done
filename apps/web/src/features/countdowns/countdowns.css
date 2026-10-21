@@ -143,10 +143,7 @@
   color: var(--countdown-black-ink, #fff);
 }
 .countdown-card[data-color='rainbow'] {
-  background: var(
-    --countdown-rainbow-bg,
-    linear-gradient(135deg, #eaf1ff, #ffedf5, #fff4d9)
-  );
+  background: var(--countdown-rainbow-bg, linear-gradient(135deg, #eaf1ff, #ffedf5, #fff4d9));
   color: var(--countdown-rainbow-ink, inherit);
 }
 .countdown-card header {

@@ -419,15 +419,8 @@ export function TokensPage() {
                   </div>
                   {confirmId === token.id ? (
                     <div className="token-confirm">
-                      <p>
-                        {fill(
-                          messages.tokenRevokeBody,
-                          token.client_name ?? token.name,
-                        )}
-                      </p>
-                      {revokeError !== null ? (
-                        <p role="alert">{revokeError}</p>
-                      ) : null}
+                      <p>{fill(messages.tokenRevokeBody, token.client_name ?? token.name)}</p>
+                      {revokeError !== null ? <p role="alert">{revokeError}</p> : null}
                       <span className="token-actions">
                         <Button
                           type="button"
