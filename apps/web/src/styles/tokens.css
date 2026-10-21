@@ -13,6 +13,7 @@
   --today-size-picker-mobile: 2rem;
   --today-size-year: 1.25rem;
 
+  --mobile-sidebar-w: 88vw;
   --shell-drawer-z: 40;
   --shell-scrim-z: 35;
   --shell-scrim-bg: color-mix(in srgb, var(--ink) 40%, transparent);
@@ -176,6 +177,7 @@
   --today-size-picker-mobile: 2rem;
   --today-size-year: 1.25rem;
 
+  --mobile-sidebar-w: 88vw;
   --shell-drawer-z: 40;
   --shell-scrim-z: 35;
   --shell-scrim-bg: rgb(0 0 0 / 0.4);

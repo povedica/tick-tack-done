@@ -241,3 +241,26 @@ la declaración de cierre funcional completo de 77 hasta validar esta revisión.
 - Incidencia del entorno: se restablece Vite en 4173 como proceso independiente
   de Playwright. `/smart/tomorrow` responde HTTP 200 y `/api/v1/health` devuelve
   `status: ok` por el proxy; el servidor queda arrancado para validar.
+
+
+### Feedback adicional registrado — pendiente, sin desviar 75–79
+
+A petición de Pablo se registran estos ajustes, manteniendo el foco en el alcance
+75–79. No están implementados ni se dan por verificados:
+
+- Cabecera de Hoy: retirar el texto de fecha y el selector visible Lista/Matriz;
+  mover las vistas a «⋯ → Vistas → Lista / Kanban / Matriz», conservando una fila
+  limpia en móvil. Kanban debe tener comportamiento real, no solo una entrada.
+  Evidencia del chat: `codex-clipboard-8d607a64-ddd6-465e-9712-306df6badac7.png`.
+- Plan del día en móvil: ocultar el resumen de capacidad («0 min de 9 h») y
+  mantener título y acción «Planificar» alineados, con objetivo táctil adecuado.
+  Evidencia del chat: `codex-clipboard-c0de6043-531e-4d5b-aaa8-e81c61c9f7fa.png`.
+
+La revisión de 77 queda en `ab15f2b`; se retoma 75.10. Estas observaciones no se
+mezclan con el commit de los menús ni se cierran basándose en lecturas de código.
+
+
+Ajuste posterior de 77 solicitado por Pablo: ambos sidebars móviles pasan al 88 %
+del ancho del viewport mediante `--mobile-sidebar-w` en claro/oscuro. Se conserva
+la franja exterior para cerrar. Sustituye el límite anterior de 240 px; el drawer
+no depende ya del ancho del sidebar de escritorio.

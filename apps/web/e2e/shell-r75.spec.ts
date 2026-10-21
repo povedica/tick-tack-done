@@ -46,7 +46,7 @@ for (const mobile of [false, true]) {
         await page.locator('.bottom-bar').getByRole('button', { name: /Más/ }).click();
         const drawer = page.locator('.sidebar');
         await expect.poll(() => drawer.evaluate((node) => node.getBoundingClientRect().x)).toBe(0);
-        expect((await drawer.boundingBox())!.width).toBeLessThan(390);
+        expect((await drawer.boundingBox())!.width).toBeCloseTo(390 * 0.88, 0);
         expect((await drawer.boundingBox())!.height).toBe(844);
         await expect(drawer.locator('.mobile-more-grid .nav-link').first()).toHaveCSS(
           'flex-direction',

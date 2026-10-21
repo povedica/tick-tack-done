@@ -510,7 +510,7 @@
     top: 0;
     bottom: 0;
     left: 0;
-    width: min(var(--sidebar-w), 88vw);
+    width: var(--mobile-sidebar-w);
     transform: translateX(-105%);
     transition: transform var(--dur-base) var(--ease);
     visibility: hidden;
