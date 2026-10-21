@@ -1,17 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { bucketWeek } from './week-metrics.js';
+import { bucketWeek } from './week-metrics';
 
 describe('bucketWeek', () => {
-  it('counts created and completed tasks on the day they happened', () => {
-    const start = new Date('2026-10-12T00:00:00.000Z');
+  it('RF-2201: counts created and completed tasks on the day they happened', () => {
+    const start = '2026-10-12T00:00:00.000Z';
     const days = bucketWeek(start, [
       {
-        createdAt: new Date('2026-10-12T09:00:00.000Z'),
-        completedAt: new Date('2026-10-13T18:00:00.000Z'),
+        createdAt: '2026-10-12T09:00:00.000Z',
+        completedAt: '2026-10-13T18:00:00.000Z',
       },
       {
-        createdAt: new Date('2026-10-01T09:00:00.000Z'),
-        completedAt: new Date('2026-10-12T11:00:00.000Z'),
+        createdAt: '2026-10-01T09:00:00.000Z',
+        completedAt: '2026-10-12T11:00:00.000Z',
       },
     ]);
     expect(days[0]).toEqual({ date: '2026-10-12', completed: 1, created: 1 });
@@ -22,13 +22,13 @@ describe('bucketWeek', () => {
 
 it('RF-2201 / RF-604: buckets use local days at midnight and DST boundaries', () => {
   const days = bucketWeek(
-    new Date('2026-10-19T00:00:00Z'),
+    '2026-10-19T00:00:00Z',
     [
       {
-        createdAt: new Date('2026-10-18T22:30:00Z'),
-        completedAt: new Date('2026-10-24T22:30:00Z'),
+        createdAt: '2026-10-18T22:30:00Z',
+        completedAt: '2026-10-24T22:30:00Z',
       },
-      { createdAt: new Date('2026-10-25T23:30:00Z'), completedAt: null },
+      { createdAt: '2026-10-25T23:30:00Z', completedAt: null },
     ],
     'Europe/Madrid',
   );
@@ -39,15 +39,15 @@ it('RF-2201 / RF-604: buckets use local days at midnight and DST boundaries', ()
 
 it('RF-2201: a task created before the cutoff does not count its future completion', () => {
   const days = bucketWeek(
-    new Date('2026-10-19T00:00:00Z'),
+    '2026-10-19T00:00:00Z',
     [
       {
-        createdAt: new Date('2026-10-19T08:00:00Z'),
-        completedAt: new Date('2026-10-23T08:00:00Z'),
+        createdAt: '2026-10-19T08:00:00Z',
+        completedAt: '2026-10-23T08:00:00Z',
       },
     ],
     'Europe/Madrid',
-    new Date('2026-10-20T12:00:00Z'),
+    '2026-10-20T12:00:00Z',
   );
   expect(days.reduce((sum, day) => sum + day.created, 0)).toBe(1);
   expect(days.reduce((sum, day) => sum + day.completed, 0)).toBe(0);

@@ -701,6 +701,11 @@ En `token.created@v1` y `token.revoked@v1`, la representación `token` incluye
 los campos aditivos `oauth_client_id` y `expires_at` (ambos anulables), iguales
 al DTO público. Identifican la aplicación y la caducidad; nunca contienen el secreto.
 
+En `report.generated@v1`, la semana (`week` en automatizaciones, `report.week`
+en generación manual) es la fecha civil del lunes en la zona del propietario.
+Ambos productores guardan el mismo payload verificable `metrics_version=2`, con
+siete días y `calculated_at`; los históricos no se recalculan al leerlos.
+
 Payload ejemplo:
 
 ```json

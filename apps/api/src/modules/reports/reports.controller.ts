@@ -13,13 +13,7 @@ import {
 import { ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsArray, IsIn, IsOptional, IsString, Matches } from 'class-validator';
 import type { Request, Response } from 'express';
-import {
-  isReportTone,
-  dayKey,
-  parseDayBounds,
-  addCalendarDays,
-  type ReportTone,
-} from '@reflexionia/domain';
+import type { ReportTone } from '@reflexionia/domain';
 import { actorOf, type AuthUser } from '../../auth/auth-user.js';
 import { CurrentUser } from '../../auth/current-user.decorator.js';
 import { Scopes } from '../../auth/scopes.decorator.js';
@@ -29,9 +23,12 @@ import { asJson } from '../../http/json.js';
 import { DomainException } from '../../http/domain.exception.js';
 import { respondJson } from '../../http/respond.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { loadDashboardSnapshot } from '../../reading/snapshot.js';
+import {
+  readWeeklyReport,
+  normalizeReportSettings as normalizeSettings,
+  type ReportSettings,
+} from '../../reading/weekly-report.js';
 import { MetricsService } from '../metrics/metrics.service.js';
-import { bucketWeek } from './week-metrics.js';
 
 class ReportSettingsDto {
   @ApiProperty({ required: false, example: 'sunday' })
@@ -168,87 +165,12 @@ export class ReportsController {
 
   /** Used by the automation engine. Deterministic text, no model. */
   async compose(user: AuthUser, now: Date) {
-    const settings = normalizeSettings(
-      (
-        await this.prisma.user.findFirst({
-          where: { id: user.id },
-          select: { weeklyReportSettings: true },
-        })
-      )?.weeklyReportSettings,
-    );
-    const local = dayKey(now.toISOString(), user.timeZone) ?? now.toISOString().slice(0, 10);
-    const weekday = new Date(`${local}T12:00:00Z`).getUTCDay();
-    const monday = addCalendarDays(local, -(weekday === 0 ? 6 : weekday - 1)) ?? local;
-    const range = parseDayBounds(monday, addCalendarDays(monday, 6) ?? monday, user.timeZone);
-    const week = new Date(`${monday}T00:00:00Z`);
-    const periodStart = new Date(range?.startIso ?? week.toISOString());
-    const snapshot = await loadDashboardSnapshot(this.prisma, user.id, now);
-    const focusMinutes = await this.metrics.focusMinutes(user.id, periodStart, now);
-    const focusRows = await this.metrics.focusRows(user.id, periodStart, now);
-    const habits = await this.metrics.activeHabitsExpectedDays(
-      user.id,
-      periodStart,
+    const { week, settings, payload } = await readWeeklyReport(
+      this.prisma,
+      this.metrics,
+      user,
       now,
-      user.timeZone,
     );
-    const countdowns = await this.prisma.countdown.findMany({
-      where: { ownerId: user.id, deletedAt: null, archivedAt: null },
-      select: { id: true, title: true, emoji: true, targetDate: true },
-    });
-    const upcomingCountdowns = countdowns.filter(
-      (countdown) =>
-        countdown.targetDate >= now &&
-        countdown.targetDate <= new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
-    );
-    const reachedCountdowns = countdowns.filter(
-      (countdown) =>
-        countdown.targetDate >= new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) &&
-        countdown.targetDate < now,
-    );
-    const closingLine = await this.closingLine(user.id, week);
-    const touched = await this.prisma.task.findMany({
-      where: {
-        ownerId: user.id,
-        deletedAt: null,
-        OR: [
-          { createdAt: { gte: periodStart, lt: now } },
-          { completedAt: { gte: periodStart, lt: now } },
-        ],
-      },
-      select: { createdAt: true, completedAt: true },
-    });
-    const days = bucketWeek(week, touched, user.timeZone, now);
-    const completed = days.reduce((sum, day) => sum + day.completed, 0);
-    const created = days.reduce((sum, day) => sum + day.created, 0);
-    const payload = {
-      calculated_at: now.toISOString(),
-      time_zone: user.timeZone,
-      metrics_version: 2,
-      summary: `${String(completed)} tareas completadas y ${String(created)} creadas. ${closingLine}`,
-      observations: [],
-      snapshot: { ...snapshot, completed, created, trend: null },
-      completed,
-      created,
-      overdue: snapshot.overdue,
-      focus_minutes: focusRows.some((session) => session.type === 'focus') ? focusMinutes : null,
-      habits_done: habits.done,
-      habits_expected: habits.expected,
-      trend: null,
-      trend_label: null,
-      days,
-      countdowns: {
-        upcoming: upcomingCountdowns.map((countdown) => ({
-          id: countdown.id,
-          title: countdown.title,
-          emoji: countdown.emoji,
-        })),
-        reached: reachedCountdowns.map((countdown) => ({
-          id: countdown.id,
-          title: countdown.title,
-          emoji: countdown.emoji,
-        })),
-      },
-    };
     const row = await this.prisma.$transaction(async (tx) => {
       const saved = await tx.weeklyReport.upsert({
         where: { ownerId_weekStart: { ownerId: user.id, weekStart: week } },
@@ -273,30 +195,6 @@ export class ReportsController {
     });
     return { id: row.id, week: week.toISOString().slice(0, 10), ...payload, tone: settings.tone };
   }
-
-  private async closingLine(ownerId: string, week: Date): Promise<string> {
-    const sessions = await this.prisma.planSession.findMany({
-      where: {
-        ownerId,
-        kind: 'shutdown',
-        state: 'applied',
-        updatedAt: { gte: week, lt: new Date(week.getTime() + 7 * 24 * 60 * 60 * 1000) },
-      },
-      select: { decisions: { select: { decision: true } } },
-    });
-    const moved = sessions.reduce(
-      (sum, session) =>
-        sum +
-        session.decisions.filter(
-          (decision) =>
-            decision.decision === 'plan_day' ||
-            decision.decision === 'later' ||
-            decision.decision === 'someday',
-        ).length,
-      0,
-    );
-    return `Cerraste el día ${String(sessions.length)} de 7 días; moviste ${String(moved)} tareas en los cierres.`;
-  }
 }
 
 function respond(req: Request, res: Response, body: unknown): void {
@@ -309,27 +207,5 @@ function strip(dto: ReportSettingsDto): Partial<ReportSettings> {
     ...(dto.time !== undefined ? { time: dto.time } : {}),
     ...(dto.tone !== undefined ? { tone: dto.tone } : {}),
     ...(dto.channels !== undefined ? { channels: dto.channels } : {}),
-  };
-}
-
-interface ReportSettings {
-  day: string;
-  time: string;
-  tone: ReportTone;
-  channels: string[];
-}
-
-function normalizeSettings(value: unknown): ReportSettings {
-  const record =
-    typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
-  const tone =
-    typeof record.tone === 'string' && isReportTone(record.tone) ? record.tone : 'honesto';
-  return {
-    day: typeof record.day === 'string' ? record.day : 'sunday',
-    time: typeof record.time === 'string' ? record.time : '20:00',
-    tone,
-    channels: Array.isArray(record.channels)
-      ? record.channels.filter((item): item is string => typeof item === 'string')
-      : ['email'],
   };
 }

@@ -21,7 +21,6 @@ import {
   automationMatches,
   parseAutomationAction,
   renderTemplate,
-  weeklyNarrative,
   type FilterRules,
   type FilterSubject,
 } from '@reflexionia/domain';
@@ -38,7 +37,8 @@ import { asJson } from '../../http/json.js';
 import { DomainException } from '../../http/domain.exception.js';
 import { respondJson } from '../../http/respond.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { loadDashboardSnapshot } from '../../reading/snapshot.js';
+import { readWeeklyReport } from '../../reading/weekly-report.js';
+import { MetricsService } from '../metrics/metrics.service.js';
 
 export class AutomationDto {
   @ApiProperty()
@@ -78,6 +78,7 @@ export class AutomationEngine implements OnModuleInit {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
     @Inject(EventRouter) private readonly router: EventRouter,
+    @Inject(MetricsService) private readonly metrics: MetricsService,
   ) {}
 
   onModuleInit(): void {
@@ -297,11 +298,15 @@ export class AutomationEngine implements OnModuleInit {
   }
 
   private async writeReport(ownerId: string, actor: EventActor): Promise<string> {
-    const now = new Date();
-    const snapshot = await loadDashboardSnapshot(this.prisma, ownerId, now);
-    const narrative = weeklyNarrative(snapshot, 'honesto', null);
-    const week = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - now.getUTCDay()),
+    const owner = await this.prisma.user.findUniqueOrThrow({
+      where: { id: ownerId },
+      select: { id: true, timeZone: true },
+    });
+    const { week, settings, payload } = await readWeeklyReport(
+      this.prisma,
+      this.metrics,
+      owner,
+      new Date(),
     );
     await this.prisma.$transaction(async (tx) => {
       const saved = await tx.weeklyReport.upsert({
@@ -309,12 +314,12 @@ export class AutomationEngine implements OnModuleInit {
         create: {
           ownerId,
           weekStart: week,
-          payload: asJson({ summary: narrative.summary, observations: narrative.observations }),
-          tone: 'honesto',
+          payload: asJson(payload),
+          tone: settings.tone,
         },
         update: {
-          payload: asJson({ summary: narrative.summary, observations: narrative.observations }),
-          tone: 'honesto',
+          payload: asJson(payload),
+          tone: settings.tone,
         },
       });
       await this.events.record(tx, actor, {
@@ -326,7 +331,7 @@ export class AutomationEngine implements OnModuleInit {
         previous: null,
       });
     });
-    return narrative.summary.slice(0, 80);
+    return payload.summary.slice(0, 80);
   }
 
   private async subject(ownerId: string): Promise<FilterSubject | null> {

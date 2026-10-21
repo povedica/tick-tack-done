@@ -409,3 +409,5 @@ export { gardenProjectContext, type GardenProjectInput } from './dashboard/proje
 export { overdueAgeGroups } from './dashboard/kpis';
 
 export { gardenHabits, uniqueGardenEvents, gardenTagActivity } from './dashboard/executive';
+
+export { bucketWeek, type WeekDayMetric } from './reports/week-metrics';
