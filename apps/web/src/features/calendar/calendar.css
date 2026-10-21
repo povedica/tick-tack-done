@@ -333,9 +333,6 @@
   .calendar-page .year-board.is-quarter {
     grid-template-columns: 1fr;
   }
-  .calendar-week .hour-board > * {
-    min-width: calc(3.5rem + 7 * 92px);
-  }
   .calendar-week .hour-board {
     scroll-behavior: smooth;
     scrollbar-width: thin;
@@ -369,15 +366,28 @@
 .calendar-day-sheet {
   position: fixed;
   inset: auto 16px 16px;
-  margin-inline: auto;
+  margin: 0 auto;
+  max-width: 100%;
   width: min(680px, calc(100% - 32px));
   max-height: 75dvh;
-  overflow: auto;
+  overflow: hidden;
   padding: 20px;
   border: 1px solid var(--border-strong);
   border-radius: 12px;
   background: var(--surface);
   color: var(--ink);
+}
+.calendar-day-sheet[open] {
+  display: flex;
+  flex-direction: column;
+}
+.calendar-day-sheet > .ui-button {
+  align-self: flex-end;
+  flex-shrink: 0;
+}
+.calendar-day-sheet > .agenda {
+  min-height: 0;
+  overflow: auto;
 }
 .calendar-day-sheet::backdrop {
   background: color-mix(in srgb, var(--ink) 25%, transparent);
@@ -552,6 +562,7 @@
 }
 
 .calendar-page .hour-board {
+  overflow-anchor: none;
   display: block;
   position: relative;
   max-height: calc(100dvh - 190px);
@@ -614,7 +625,7 @@
 }
 @media (max-width: 700px) {
   .calendar-page .hour-board {
-    max-height: calc(100dvh - 220px);
+    max-height: calc(100dvh - 250px);
   }
   .calendar-week .hour-board::before {
     content: attr(data-scroll-hint);
@@ -848,4 +859,16 @@
   font-size: 11px;
   color: var(--ink-2);
   margin: 0;
+}
+
+@media (max-width: 700px) {
+  .calendar-page .hour-board {
+    --hour-columns: var(--hour-mobile-columns);
+  }
+  .calendar-page .hour-board > :is(.hour-headers, .hour-allday, .hour-scroll) {
+    min-width: var(--hour-mobile-width);
+  }
+  .calendar-page .hour-block {
+    hyphens: auto;
+  }
 }

@@ -3,7 +3,13 @@ test.use({ timezoneId: 'Europe/Madrid' });
 const views = ['day', 'week', 'month', 'agenda', 'year', 'quarter', 'multi-week', 'multi-day'];
 async function fixture(
   page: Page,
-  options: { count?: number; delayed?: boolean; error?: boolean; startOnly?: boolean } = {},
+  options: {
+    count?: number;
+    delayed?: boolean;
+    error?: boolean;
+    startOnly?: boolean;
+    bars?: number;
+  } = {},
 ) {
   const task = {
     id: 'task',
@@ -34,7 +40,7 @@ async function fixture(
     time_zone: 'Europe/Madrid',
     description: null,
     location: null,
-    color: '#4772fa',
+    color: '#0f766e',
     is_all_day: false,
   };
   const external = [
@@ -48,6 +54,7 @@ async function fixture(
     {
       ...base,
       id: 'overlap',
+      color: '#c2410c',
       title: 'Evento simultáneo',
       starts_at: '2026-10-20T08:30:00Z',
       ends_at: '2026-10-20T09:30:00Z',
@@ -70,6 +77,7 @@ async function fixture(
   ];
   await page.clock.install({ time: new Date('2026-10-20T10:00:00Z') });
   await page.addInitScript(() => localStorage.setItem('tick-tack-done.account-prefs', '1'));
+  const completed = new Set<string>();
   await page.route('**/api/v1/**', async (route) => {
     const path = new URL(route.request().url()).pathname.replace('/api/v1', '');
     let body: unknown = { items: [], next_cursor: null };
@@ -90,7 +98,7 @@ async function fixture(
           {
             ...task,
             id: 'all-task',
-            title: 'Tarea de todo el día',
+            title: 'Cumpleaños sintético: tarea de todo el día',
             is_all_day: true,
             due_date: '2026-10-19T22:00:00Z',
           },
@@ -140,6 +148,15 @@ async function fixture(
       };
     if (path === '/calendar/events' && options.count !== undefined)
       body = { external: [], tasks: [] };
+    if (options.bars !== undefined && path === '/calendar/events')
+      body = {
+        tasks: [],
+        external: Array.from({ length: options.bars }, (_, index) => ({
+          ...external[2],
+          id: `bar-${index}`,
+          title: `Barra ${index + 1} con título multilínea que ocupa su altura natural sin pisar las otras barras del calendario`,
+        })),
+      };
     if (options.startOnly && path === '/calendar/events')
       body = {
         external: [],
@@ -161,6 +178,14 @@ async function fixture(
         json: { code: 'unavailable', message: 'Prueba sintética' },
       });
       return;
+    }
+    if (path === '/tasks/task/complete') {
+      completed.add('task');
+      body = { ...task, status: 'completed' };
+    }
+    if (path === '/tasks' && completed.size) {
+      const result = body as { items: { id: string }[] };
+      result.items = result.items.filter((item) => !completed.has(item.id));
     }
     await route.fulfill({ json: body });
   });
@@ -189,7 +214,7 @@ for (const width of [1440, 390, 320])
           await expect(page.locator('.hour-col')).toHaveCount(7);
           await expect
             .poll(() => page.locator('.hour-board').evaluate((node) => node.scrollTop))
-            .toBeGreaterThan(0);
+            .toBeGreaterThanOrEqual(8 * 48);
           await expect(page.locator('.hour-span')).toHaveCount(1);
           await expect(page.locator('.hour-span')).toHaveCSS('grid-column-end', 'span 3');
           if (width < 700)
@@ -338,7 +363,7 @@ test('RF-1101 range selector, stable useful scroll and sticky hourly axis', asyn
   await page.goto('/calendar/week?date=2026-10-20');
   await expect
     .poll(() => page.locator('.hour-board').evaluate((n) => n.scrollTop))
-    .toBeGreaterThan(0);
+    .toBeGreaterThanOrEqual(8 * 48);
   const board = page.locator('.hour-board');
   await board.evaluate((n) => {
     n.scrollLeft = n.scrollWidth;
@@ -366,4 +391,137 @@ test('RF-1101 remote loading and failure never announce an empty calendar', asyn
   await expect(page.getByText('No hay tareas con fecha en este periodo.')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Reintentar' })).toBeVisible({ timeout: 15000 });
   await expect(page.getByText('No hay tareas con fecha en este periodo.')).toHaveCount(0);
+});
+
+test('RF-1903 tablet, narrow mobile and 200% zoom composition', async ({ page }) => {
+  test.setTimeout(90_000);
+  await fixture(page);
+  for (const [width, zoom, sample] of [
+    [360, 1, ['agenda', 'quarter', 'week']],
+    [768, 1, views],
+    [1440, 2, views],
+  ] as const) {
+    await page.setViewportSize({ width, height: 1000 });
+    for (const view of sample) {
+      await page.goto(`/calendar/${view}?date=2026-10-20`);
+      await expect(page.locator('.calendar-page .ui-skeleton')).toHaveCount(0);
+      await page.evaluate((zoom) => {
+        document.body.style.zoom = String(zoom);
+      }, zoom);
+      await expect(page.locator('h1')).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
+      );
+      await page.screenshot({
+        path: `../../docs/reviews/assets/calendar-remediation-2026-10-21/${view}-${width}-zoom${zoom}.png`,
+      });
+    }
+  }
+});
+
+test('RF-1103 midnight, exclusive all-day end and complete day detail', async ({ page }) => {
+  await fixture(page);
+  await page.goto('/calendar/month?date=2026-10-20');
+  await page.locator('[data-day="2026-10-21"] strong button').click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.locator('.agenda-day')).toHaveCount(1);
+  await expect(dialog.locator('.agenda-day-head strong')).toHaveText('21');
+  await expect(dialog.getByText('Evento de tres días', { exact: true })).toBeVisible();
+  await expect(
+    dialog
+      .locator('.agenda-row')
+      .filter({ hasText: 'Evento con hora entre dos días' })
+      .locator('time'),
+  ).toHaveText('00:00 – 01:00');
+  await page.keyboard.press('Escape');
+  await page.locator('[data-day="2026-10-22"] strong button').click();
+  await expect(
+    page.getByRole('dialog').getByText('Evento de tres días', { exact: true }),
+  ).toHaveCount(0);
+});
+
+test('RF-1102 completion and visibility only mutate synthetic records', async ({ page }) => {
+  await fixture(page);
+  await page.goto('/calendar/agenda?date=2026-10-20');
+  const row = page.locator('.agenda-row').filter({ hasText: 'Tarea sintética' });
+  await expect(row).toBeVisible();
+  await row.getByRole('checkbox').check();
+  await expect(row).toHaveCount(0);
+  await page.getByRole('button', { name: 'Opciones del calendario' }).click();
+  await page.getByRole('checkbox', { name: 'Tareas', exact: true }).uncheck();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.agenda-row input[type=checkbox]')).toHaveCount(0);
+  await expect(page.locator('.agenda-row .calendar-event-mark')).toHaveCount(6);
+});
+
+test('RF-1103 spanning bars measure multiline heights and exact hidden totals', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await fixture(page, { count: 0, bars: 10 });
+  await page.goto('/calendar/month?date=2026-10-20');
+  await expect(page.locator('.calendar-month-span')).toHaveCount(10);
+  const bars = page.locator('.calendar-month-span');
+  const visible = await bars.evaluateAll((nodes) =>
+    nodes
+      .filter((n) => getComputedStyle(n).visibility === 'visible')
+      .map((n) => n.getBoundingClientRect().toJSON()),
+  );
+  for (let index = 1; index < visible.length; index++)
+    expect(visible[index]!.top).toBeGreaterThanOrEqual(visible[index - 1]!.bottom);
+  const cell = page.locator('[data-day="2026-10-20"]');
+  await expect(cell.locator('.calendar-overflow')).toHaveText(`+${10 - visible.length} más`);
+  await cell.locator('.calendar-overflow').click();
+  await expect(page.getByRole('dialog').locator('.agenda-row')).toHaveCount(10);
+  await page.screenshot({
+    path: '../../docs/reviews/assets/calendar-remediation-2026-10-21/spanning-detail.png',
+  });
+});
+
+test('RF-1101 late responses keep the selected period and birthday tasks keep checkboxes', async ({
+  page,
+}) => {
+  await fixture(page, { delayed: true });
+  await page.goto('/calendar/agenda?date=2026-10-20');
+  const birthday = page.locator('.agenda-row').filter({ hasText: 'Cumpleaños sintético' });
+  await expect(birthday.getByRole('checkbox')).toHaveCount(1);
+  await page.goto('/calendar/month?date=2026-10-20');
+  await page.locator('.calendar-period > button').click();
+  await page.getByLabel('Fecha', { exact: true }).fill('2027-01-03');
+  await expect(page.locator('h1')).toContainText('enero de 2027');
+  await expect(page.locator('.cal-cell')).toHaveCount(42);
+  await expect(page.locator('.calendar-cell-items .cal-pill')).toHaveCount(0);
+  await expect(page).toHaveURL(/date=2027-01-03/);
+});
+
+test('RF-1902 visual evidence of mini-calendar, options and long mobile day sheet', async ({
+  page,
+}) => {
+  await fixture(page, { count: 30 });
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.goto('/calendar/month?date=2026-10-20');
+  await page.locator('.calendar-period > button').click();
+  await expect(page.locator('.calendar-jump-grid button')).toHaveCount(42);
+  await page.screenshot({
+    path: '../../docs/reviews/assets/calendar-remediation-2026-10-21/mini-calendar-320.png',
+  });
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Opciones del calendario' }).click();
+  await page.screenshot({
+    path: '../../docs/reviews/assets/calendar-remediation-2026-10-21/options-320.png',
+  });
+  await page.keyboard.press('Escape');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('[data-day="2026-10-20"] strong button').click();
+  await expect(page.getByRole('dialog').locator('.agenda-row')).toHaveCount(30);
+  await page.screenshot({
+    path: '../../docs/reviews/assets/calendar-remediation-2026-10-21/day-sheet-390.png',
+  });
+  await page.getByRole('dialog').locator('.agenda-row').last().scrollIntoViewIfNeeded();
+  await expect(page.getByRole('dialog').locator('.agenda-row').last()).toBeVisible();
+  await page.screenshot({
+    path: '../../docs/reviews/assets/calendar-remediation-2026-10-21/day-sheet-bottom-390.png',
+  });
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
 });

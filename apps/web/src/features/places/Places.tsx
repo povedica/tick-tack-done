@@ -586,7 +586,7 @@ export function CalendarPage() {
       ) : null}
       {tasks.isError || externalQuery.isError || startTasks.isError ? (
         <ErrorState
-          title={messages.loadFailed}
+          title={fill(messages.loadFailed, messages.calendarTitle)}
           retryLabel={messages.retry}
           onRetry={() => {
             void tasks.refetch();

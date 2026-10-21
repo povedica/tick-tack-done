@@ -3,8 +3,12 @@ import type { ExternalEventView } from '../calendar/ExternalEvent';
 import { localDateParam } from './month';
 
 /** iCalendar's end is exclusive, including all-day and midnight-ending events. */
-export function eventDayRange(event: ExternalEventView): { start: string; end: string } {
-  const zone = event.time_zone ?? 'Europe/Madrid';
+export function eventDayRange(
+  event: ExternalEventView,
+  timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone,
+): { start: string; end: string } {
+  // All-day records keep their civil dates; timed records follow the viewer's zone.
+  const zone = event.is_all_day ? (event.time_zone ?? 'Europe/Madrid') : timeZone;
   const end =
     event.ends_at !== null && Date.parse(event.ends_at) > Date.parse(event.starts_at)
       ? new Date(Date.parse(event.ends_at) - 1).toISOString()

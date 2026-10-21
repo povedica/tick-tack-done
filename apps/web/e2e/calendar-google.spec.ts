@@ -137,14 +137,14 @@ async function mockApi(page: import('@playwright/test').Page, subscribed: boolea
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ items: [] }),
+        body: JSON.stringify({ items: [], next_cursor: null }),
       });
       return;
     }
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ items: [] }),
+      body: JSON.stringify({ items: [], next_cursor: null }),
     });
   });
 }

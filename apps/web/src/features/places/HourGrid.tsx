@@ -1,6 +1,6 @@
 import type { Task } from '@reflexionia/sdk';
 import { CalendarDays } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router';
 import { eventDayRange, eventSpan } from './event-span';
 import { chipStyle, type ExternalEventView } from '../calendar/ExternalEvent';
@@ -61,7 +61,45 @@ export function HourGrid({
     (_, index) => GRID_START_HOUR + index,
   );
   const today = localKey(new Date());
-  const columns = { gridTemplateColumns: `3.5rem repeat(${String(days.length)},minmax(0,1fr))` };
+  const widths = days.map((day) => {
+    const key = localKey(day);
+    const intervals = [
+      ...tasksOnCell(tasks, day)
+        .filter((task) => !task.is_all_day && task.due_date)
+        .map((task) => {
+          const start = minutesInZone(task.due_date ?? '', task.time_zone);
+          return { id: task.id, start, end: start + (task.duration_minutes ?? 30) };
+        }),
+      ...events
+        .filter(
+          (event) =>
+            !event.is_all_day &&
+            key >= eventDayRange(event).start &&
+            key <= eventDayRange(event).end,
+        )
+        .map((event) => {
+          const range = eventDayRange(event);
+          const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+          const start = key > range.start ? 0 : minutesInZone(event.starts_at, zone);
+          const end =
+            key < range.end
+              ? 1440
+              : event.ends_at
+                ? minutesInZone(event.ends_at, zone) || 1440
+                : start + 60;
+          return { id: event.id, start, end };
+        }),
+    ];
+    const lanes = Math.max(1, ...layoutHourItems(intervals).map((item) => item.lanes));
+    return days.length === 1 ? 0 : Math.max(92, lanes * 72);
+  });
+  const columns = {
+    gridTemplateColumns: `var(--hour-columns, 3.5rem repeat(${String(days.length)},minmax(0,1fr)))`,
+  };
+  const mobileStyle = {
+    '--hour-mobile-columns': `3.5rem ${widths.map((width) => `minmax(${String(width)}px,1fr)`).join(' ')}`,
+    '--hour-mobile-width': `${String(56 + widths.reduce((sum, width) => sum + width, 0))}px`,
+  } as CSSProperties;
   const clock = (iso: string) =>
     new Date(iso).toLocaleTimeString(locale, {
       hour: '2-digit',
@@ -71,6 +109,7 @@ export function HourGrid({
   return (
     <div
       ref={board}
+      style={mobileStyle}
       className="hour-board"
       data-columns={days.length}
       data-scroll-hint={`${messages.calendarSwipe} ↔`}
@@ -159,7 +198,7 @@ export function HourGrid({
               }),
               ...dayEvents.map((event) => {
                 const range = eventDayRange(event);
-                const zone = event.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+                const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
                 const start = key > range.start ? 0 : minutesInZone(event.starts_at, zone);
                 let end =
                   key < range.end
