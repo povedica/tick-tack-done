@@ -50,11 +50,10 @@ export class TokensController {
     @Query('limit') limit: string | undefined,
     @Query('cursor') cursor: string | undefined,
     @Query('status') status: string | undefined,
-    @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
     res.setHeader('Cache-Control', 'no-store');
-    respondJson(req, res, 200, await this.tokens.list(user, limit, cursor, status), false);
+    res.status(200).json(await this.tokens.list(user, limit, cursor, status));
   }
 
   @Post('tokens')
@@ -66,10 +65,9 @@ export class TokensController {
   async create(
     @CurrentUser() user: AuthUser,
     @Body() dto: CreateTokenDto,
-    @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    respondJson(req, res, 201, await this.tokens.create(user, dto.name, dto.scopes), false);
+    res.status(201).json(await this.tokens.create(user, dto.name, dto.scopes));
   }
 
   @Get('tokens/:id/activity')

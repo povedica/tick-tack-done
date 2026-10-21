@@ -130,3 +130,7 @@ Validación de TTD-AUD-35/36: typecheck y lint completos; 281 tests de dominio,
 CodeQL detectó una ruta desde metadatos OAuth hacia el hash de ETag. El listado
 selecciona solo campos públicos del DTO y no calcula ETag para esta respuesta
 sensible (`Cache-Control: no-store`); un test comprueba la cabecera.
+
+La traza SARIF identifica `oauth_client_id` (UUID público) como origen de la alerta.
+Listado y creación devuelven JSON directamente, sin pasar por el helper de ETag
+cuya rama desactivada seguía apareciendo en el análisis estático. No se suprime la alerta.
