@@ -14,6 +14,8 @@ import {
   Plus,
   Mic,
   Send,
+  MoreHorizontal,
+  X,
 } from 'lucide-react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -42,6 +44,7 @@ export function TaskComposer({
   initialDraft,
   calendar = false,
   onDraftChange,
+  onBusyChange,
   onExpand,
   viewDay = null,
   inputRef,
@@ -54,7 +57,8 @@ export function TaskComposer({
   readonly initialDraft?: CaptureDraft | undefined;
   readonly calendar?: boolean;
   readonly onDraftChange?: (dirty: boolean) => void;
-  readonly onExpand?: (draft: CaptureDraft) => void;
+  readonly onBusyChange?: ((busy: boolean) => void) | undefined;
+  readonly onExpand?: ((draft: CaptureDraft) => void) | undefined;
   readonly initialText?: string;
   readonly autoFocus?: boolean;
   readonly onDismiss?: () => void;
@@ -106,6 +110,9 @@ export function TaskComposer({
   const [details, setDetails] = useState(calendar || (initialDraft?.content?.length ?? 0) > 0);
   const [files, setFiles] = useState<File[]>(initialDraft?.files ?? []);
   const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    onBusyChange?.(busy);
+  }, [busy, onBusyChange]);
   const lock = useRef(false);
   const attempt = useRef<{ fingerprint: string; mutation: ReturnType<typeof newMutation> } | null>(
     null,
@@ -220,7 +227,12 @@ export function TaskComposer({
   function close() {
     setPanel(null);
     requestAnimationFrame(() => {
-      field.current?.focus();
+      // A user may already have moved to the description before this frame.
+      if (
+        document.activeElement !== descriptionInput.current &&
+        document.activeElement !== field.current
+      )
+        field.current?.focus();
     });
   }
   async function submit() {
@@ -338,6 +350,18 @@ export function TaskComposer({
     <div className={calendar ? 'task-composer is-calendar' : 'task-composer'}>
       <form
         className="quick-add task-composer-form"
+        aria-busy={busy}
+        onKeyDown={(event) => {
+          if (
+            event.key === 'Enter' &&
+            (event.ctrlKey || event.metaKey) &&
+            !event.nativeEvent.isComposing
+          ) {
+            event.preventDefault();
+            event.stopPropagation();
+            runAction(submit());
+          }
+        }}
         onSubmit={(event) => {
           event.preventDefault();
           runAction(submit());
@@ -457,6 +481,8 @@ export function TaskComposer({
               if (
                 calendar &&
                 event.key === 'Enter' &&
+                !event.ctrlKey &&
+                !event.metaKey &&
                 !event.shiftKey &&
                 !event.nativeEvent.isComposing
               ) {
@@ -537,8 +563,18 @@ export function TaskComposer({
                 setPanel('more');
               }}
             >
-              …
+              <MoreHorizontal size={16} aria-hidden="true" />
             </button>
+            {onDismiss ? (
+              <button
+                type="button"
+                disabled={frozen}
+                aria-label={messages.cancel}
+                onClick={onDismiss}
+              >
+                <X size={18} aria-hidden="true" />
+              </button>
+            ) : null}
             <button
               type="submit"
               aria-label={messages.calendarQuickAdd}

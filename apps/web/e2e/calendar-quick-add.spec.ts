@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 // The account zone must win over the browser's zone.
 test.use({ timezoneId: 'America/New_York', hasTouch: true });
 
-async function fixture(page: Page) {
+async function fixture(page: Page, failFirst = false) {
   const posts: Record<string, unknown>[] = [];
   const tasks: Record<string, unknown>[] = [];
   await page.clock.install({ time: new Date('2026-10-21T10:00:00Z') });
@@ -32,6 +32,14 @@ async function fixture(page: Page) {
     if (path === '/tags') body = { items: [{ id: 'tag', name: 'trabajo' }], next_cursor: null };
     if (path === '/tasks') {
       if (route.request().method() === 'POST') {
+        if (failFirst) {
+          failFirst = false;
+          await route.fulfill({
+            status: 500,
+            json: { error: { code: 'failed', message: 'Failed' } },
+          });
+          return;
+        }
         const input = route.request().postDataJSON() as Record<string, unknown>;
         posts.push(input);
         const created = {
@@ -190,7 +198,7 @@ test('TTD-AUD-74: More options preserves content and dates in the full composer'
   await page.goto('/calendar/day?date=2026-10-24&project_id=context');
   const position = await point(page, '2026-10-24', 9);
   await page.touchscreen.tap(position.x, position.y);
-  const dialog = page.locator('.calendar-quick-add');
+  const dialog = page.locator('.calendar-quick-add:not(.is-centered)');
   await dialog.getByRole('textbox', { name: 'Añadir tarea', exact: true }).fill('Revisar');
   await dialog.locator('textarea').fill('Descripción conservada');
   await dialog.getByRole('button', { name: 'Prioridad', exact: true }).click();
@@ -206,7 +214,7 @@ test('TTD-AUD-74: More options preserves content and dates in the full composer'
   await dialog.getByRole('button', { name: 'Más', exact: true }).click();
   await page.getByRole('button', { name: 'Más opciones', exact: true }).click();
   await expect(dialog).toHaveCount(0);
-  const sheet = page.locator('.sheet');
+  const sheet = page.locator('.calendar-quick-add.is-centered');
   await expect(sheet.locator('input[name="title"]')).toHaveValue('Revisar');
   await expect(sheet.locator('textarea')).toHaveValue('Descripción conservada');
   await expect(sheet).toContainText('nota.txt');
@@ -515,4 +523,113 @@ test('RF-202: description slash commands insert Markdown and keep the draft', as
   await dialog.getByRole('button', { name: 'Añadir', exact: true }).click();
   await expect.poll(() => posts.length).toBe(1);
   expect(posts[0]?.content).toBe('```\ncode\n```');
+});
+
+for (const width of [1280, 390]) {
+  test(`76 global N uses the calendar card and protects its draft ${width}`, async ({ page }) => {
+    const posts = await fixture(page);
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto('/calendar/agenda?date=2026-10-21');
+    await expect(page.locator('.calendar-toolbar')).toBeVisible();
+    await page.keyboard.press('n');
+    const card = page.locator('.calendar-quick-add.is-centered');
+    await expect(card).toBeVisible();
+    await expect(card.getByRole('button', { name: 'Bandeja', exact: true })).toBeVisible();
+    await expect(card.getByRole('button', { name: 'Etiqueta', exact: true })).toBeVisible();
+    await expect(card.getByRole('textbox', { name: 'Añadir descripción' })).toBeVisible();
+    const title = card.locator('input[name=title]');
+    await expect(title).toBeFocused();
+    await title.fill('Borrador compartido');
+    await title.press('Escape');
+    await expect(card.getByRole('alertdialog')).toBeVisible();
+    await card.getByRole('button', { name: 'Seguir editando' }).click();
+    await expect(title).toHaveValue('Borrador compartido');
+    await card.getByRole('button', { name: 'Bandeja', exact: true }).click();
+    await page.getByRole('button', { name: 'Trabajo', exact: true }).click();
+    await expect(card.getByRole('button', { name: 'Trabajo', exact: true })).toBeVisible();
+    const description = card.locator('textarea');
+    await description.fill('Descripción');
+    await description.press('Shift+Enter');
+    await expect(description).toHaveValue('Descripción\n');
+    await page.screenshot({ path: `/tmp/composer-unified-${width}.png` });
+    await description.press('Control+Enter');
+    await expect.poll(() => posts.length).toBe(1);
+    expect(posts[0]).toMatchObject({ project_id: 'context', content: 'Descripción\n' });
+    await expect(card).toHaveCount(0);
+    await page.keyboard.press('n');
+    await page.locator('.calendar-quick-add input[name=title]').fill('Descartar');
+    await page
+      .locator('.calendar-quick-add')
+      .getByRole('button', { name: 'Cancelar', exact: true })
+      .click();
+    await page.getByRole('button', { name: 'Descartar', exact: true }).click();
+    await expect(card).toHaveCount(0);
+    await page.keyboard.press('n');
+    await expect(page.locator('.calendar-quick-add input[name=title]')).toHaveValue('');
+  });
+}
+
+for (const width of [1280, 390]) {
+  test(`76 plus opens the same card and follows the visible keyboard viewport ${width}`, async ({
+    page,
+  }) => {
+    await fixture(page);
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto('/calendar/agenda?date=2026-10-21');
+    // Use the accessible name shared by the desktop rail and the mobile plus.
+    const plus = page
+      .getByRole('button', { name: 'Nueva tarea', exact: true })
+      .filter({ visible: true });
+    await expect(plus).toBeVisible();
+    await plus.click();
+    const card = page.locator('.calendar-quick-add.is-centered');
+    await expect(card.getByRole('button', { name: 'Etiqueta', exact: true })).toBeVisible();
+    await expect(card.locator('.composer-calendar-footer button')).toHaveCount(5);
+    if (width < 700) {
+      await page.evaluate(() => {
+        Object.defineProperty(window.visualViewport!, 'height', { configurable: true, value: 400 });
+        Object.defineProperty(window.visualViewport!, 'offsetTop', {
+          configurable: true,
+          value: 30,
+        });
+        window.visualViewport!.dispatchEvent(new Event('resize'));
+      });
+      await expect.poll(async () => (await card.boundingBox())!.height).toBeCloseTo(400 * 0.69, 0);
+      const footer = await card.locator('.composer-calendar-footer').boundingBox();
+      expect(footer!.y + footer!.height).toBeLessThanOrEqual(430);
+      await page.screenshot({ path: '/tmp/composer-visible-keyboard-390.png' });
+      await card.locator('input[name=title]').fill('Conservar con gesto');
+      await card.locator('.composer-swipe-handle').evaluate((node) => {
+        const touch = (y: number) => new Touch({ identifier: 1, target: node, clientY: y });
+        node.dispatchEvent(new TouchEvent('touchstart', { bubbles: true, touches: [touch(10)] }));
+        node.dispatchEvent(
+          new TouchEvent('touchend', { bubbles: true, changedTouches: [touch(100)] }),
+        );
+      });
+      await expect(card.getByRole('alertdialog')).toBeVisible();
+      await card.getByRole('button', { name: 'Seguir editando' }).click();
+      await expect(card.locator('input[name=title]')).toHaveValue('Conservar con gesto');
+      await card.locator('input[name=title]').fill('');
+    }
+    await card.getByRole('button', { name: 'Cancelar', exact: true }).click();
+    await expect(card).toHaveCount(0);
+    await expect(plus).toBeFocused();
+  });
+}
+
+test('76 global editor preserves its draft after a failed save and retries once', async ({
+  page,
+}) => {
+  const posts = await fixture(page, true);
+  await page.goto('/calendar/agenda?date=2026-10-21');
+  await expect(page.locator('.calendar-toolbar')).toBeVisible();
+  await page.keyboard.press('n');
+  const card = page.locator('.calendar-quick-add');
+  await card.locator('input[name=title]').fill('Guardar sin perder');
+  await card.getByRole('button', { name: 'Añadir', exact: true }).click();
+  await expect(card.getByRole('alert')).toBeVisible();
+  await expect(card.locator('input[name=title]')).toHaveValue('Guardar sin perder');
+  await card.getByRole('button', { name: 'Añadir', exact: true }).click();
+  await expect.poll(() => posts.length).toBe(1);
+  await expect(card).toHaveCount(0);
 });

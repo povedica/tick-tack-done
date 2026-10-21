@@ -94,13 +94,8 @@ export const useCaptureOpen = create<CaptureOpenState>((set) => ({
   },
 }));
 
-/** The list composer is the TickTick field. The sheet is only the fallback. */
+/** Global shortcuts always open the same task card used by calendar capture. */
 export function openTaskComposer(text: string | CaptureDraft = ''): void {
-  const field = document.querySelector<HTMLInputElement>('.quick-add input, .inline-add input');
-  if (field !== null && typeof text === 'string' && text.length === 0) {
-    field.scrollIntoView({ block: 'center' });
-    field.focus();
-    return;
-  }
+  if (useCaptureOpen.getState().open) return;
   useCaptureOpen.getState().show(text);
 }

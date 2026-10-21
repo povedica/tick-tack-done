@@ -225,7 +225,7 @@ test('RF-101/102: global capture uses the same composer, retains shared text and
   await page.goto('/quick-add?text=Comprar%20pan');
   const field = page.locator('.task-composer input[name=title]');
   await expect(field).toHaveValue('Comprar pan');
-  await page.getByRole('button', { name: 'Opciones de tarea', exact: true }).click();
+  await page.getByRole('button', { name: 'Prioridad', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Opciones de tarea' })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(field).toBeFocused();

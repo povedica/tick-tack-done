@@ -62,6 +62,10 @@
   width: 100% !important;
   margin: var(--sp-2) 0;
   min-height: 64px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  resize: none;
 }
 .composer-calendar-footer {
   display: flex;
@@ -119,16 +123,61 @@
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
-@media (max-width: 639px) {
+/* Global capture uses the same card, centered over a modal backdrop. */
+.calendar-quick-add.is-centered {
+  width: min(34rem, calc(100vw - 24px));
+  position: fixed;
+  left: 50%;
+  top: calc(var(--composer-viewport-top, 0px) + var(--composer-viewport-height, 100dvh) / 2);
+  transform: translate(-50%, -50%);
+  margin: 0;
+}
+.calendar-quick-add-backdrop.is-centered {
+  position: fixed;
+  inset: 0;
+  z-index: 1899;
+  background: var(--overlay-backdrop-bg);
+  -webkit-backdrop-filter: blur(var(--overlay-backdrop-blur));
+  backdrop-filter: blur(var(--overlay-backdrop-blur));
+}
+.composer-discard {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border);
+}
+.composer-discard p {
+  flex-basis: 100%;
+  margin: 0;
+}
+.composer-discard button {
+  border: 0;
+  border-radius: var(--radius-sm);
+  min-height: var(--tap);
+  padding: var(--sp-2);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font: inherit;
+  cursor: pointer;
+}
+.composer-discard button:last-child {
+  color: var(--danger);
+  background: transparent;
+}
+@media (max-width: 700px) {
   .calendar-quick-add {
     position: fixed !important;
     left: 12px !important;
-    top: 15.5dvh !important;
+    top: calc(
+      var(--composer-viewport-top, 0px) + var(--composer-viewport-height, 100dvh) * 0.155
+    ) !important;
     bottom: auto;
     transform: none !important;
     width: calc(100vw - 24px);
-    height: 69dvh;
-    max-height: 69dvh;
+    height: calc(var(--composer-viewport-height, 100dvh) * 0.69);
+    max-height: calc(var(--composer-viewport-height, 100dvh) * 0.69);
     border: 0;
     border-radius: var(--radius-lg);
     padding-bottom: calc(var(--sp-3) + env(safe-area-inset-bottom));
@@ -164,5 +213,38 @@
   .composer-calendar-footer button {
     min-height: 44px;
     box-shadow: none;
+  }
+}
+
+@media (max-width: 700px) {
+  .calendar-quick-add:has(.composer-discard) .task-composer-form {
+    height: auto;
+  }
+  .calendar-quick-add:has(.composer-discard) .composer-content {
+    flex: none;
+    height: 48px;
+  }
+}
+
+.composer-swipe-handle {
+  display: none;
+}
+@media (max-width: 700px) {
+  .composer-swipe-handle {
+    display: grid;
+    place-items: center;
+    position: absolute;
+    top: 0;
+    left: calc(50% - 40px);
+    width: 80px;
+    height: 18px;
+    touch-action: none;
+  }
+  .composer-swipe-handle span {
+    width: 36px;
+    height: 4px;
+    border-radius: var(--radius-full);
+    background: var(--ink-3);
+    opacity: 0.4;
   }
 }

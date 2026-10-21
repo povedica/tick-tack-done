@@ -1,11 +1,20 @@
 import { autoUpdate, flip, offset, shift, useFloating } from '@floating-ui/react';
 import { createPortal } from 'react-dom';
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react';
 import { useMessages } from '../../../i18n';
 import { bindPopover, dismissPopover } from '../../../components/popover-stack';
 import { TaskComposer } from '../../tasks/TaskComposer';
 import type { CalendarSlot, SlotAnchor } from '../calendar-slot';
-import { openTaskComposer } from '../notice';
+import { openTaskComposer, type CaptureDraft } from '../notice';
+import { useComposerCopy } from '../../tasks/composer-text';
 import type { CaptureNotice } from '../notice';
 import './quick-add-popover.css';
 
@@ -13,20 +22,57 @@ export function QuickAddPopover({
   slot,
   anchor,
   defaultProjectId,
+  initialDraft,
+  initialText = '',
   onClose,
   onCreated,
 }: {
-  readonly slot: CalendarSlot;
-  readonly anchor: SlotAnchor;
+  readonly slot?: CalendarSlot | undefined;
+  readonly anchor?: SlotAnchor | undefined;
   readonly defaultProjectId?: string | undefined;
+  readonly initialDraft?: CaptureDraft | undefined;
+  readonly initialText?: string;
   readonly onClose: () => void;
   readonly onCreated: (notice: CaptureNotice) => void;
 }) {
   const messages = useMessages();
   const titleId = useId();
+  const labels = useComposerCopy();
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [viewport, setViewport] = useState({
+    height: window.visualViewport?.height ?? window.innerHeight,
+    top: window.visualViewport?.offsetTop ?? 0,
+  });
+  const previousFocus = useRef(
+    document.activeElement instanceof HTMLElement ? document.activeElement : null,
+  );
   const [dirty, setDirty] = useState(false);
   const node = useRef<HTMLDivElement | null>(null);
   const expanding = useRef(false);
+  const swipeStart = useRef<number | null>(null);
+  const requestClose = useCallback(() => {
+    if (busy) return;
+    if (dirty) setConfirmDiscard(true);
+    else onClose();
+  }, [busy, dirty, onClose]);
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const update = () => {
+      setViewport({
+        height: viewport?.height ?? window.innerHeight,
+        top: viewport?.offsetTop ?? 0,
+      });
+    };
+    viewport?.addEventListener('resize', update);
+    viewport?.addEventListener('scroll', update);
+    window.addEventListener('resize', update);
+    return () => {
+      viewport?.removeEventListener('resize', update);
+      viewport?.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+    };
+  }, []);
   const { refs, floatingStyles } = useFloating({
     strategy: 'fixed',
     placement: 'bottom-start',
@@ -34,6 +80,7 @@ export function QuickAddPopover({
     whileElementsMounted: autoUpdate,
   });
   useLayoutEffect(() => {
+    if (!anchor) return;
     const box = anchor.element.getBoundingClientRect();
     const dx = anchor.x - box.left;
     const dy = anchor.y - box.top;
@@ -45,12 +92,12 @@ export function QuickAddPopover({
       },
     });
   }, [anchor, refs]);
-  useEffect(() => bindPopover(onClose), [onClose]);
+  useEffect(() => bindPopover(requestClose), [requestClose, confirmDiscard]);
   useEffect(() => {
     node.current?.querySelector<HTMLInputElement>('input[name="title"]')?.focus();
     return () => {
-      if (!expanding.current && anchor.element.isConnected)
-        anchor.element.focus({ preventScroll: true });
+      const target = anchor?.element ?? previousFocus.current;
+      if (!expanding.current && target?.isConnected) target.focus({ preventScroll: true });
     };
   }, [anchor]);
   useEffect(() => {
@@ -60,7 +107,11 @@ export function QuickAddPopover({
       if (event.key === 'Escape') {
         event.preventDefault();
         event.stopImmediatePropagation();
-        dismissPopover();
+        if (busy) return;
+        if (confirmDiscard) {
+          setConfirmDiscard(false);
+          node.current?.querySelector<HTMLInputElement>('input[name="title"]')?.focus();
+        } else dismissPopover();
       }
       if (event.key === 'Tab' && node.current) {
         const items = [
@@ -81,13 +132,17 @@ export function QuickAddPopover({
     }
     function outside(event: PointerEvent) {
       if (
-        dirty ||
         !(event.target instanceof Element) ||
         node.current?.contains(event.target) ||
         event.target.closest('[role="dialog"]') ||
-        anchor.element.contains(event.target)
+        anchor?.element.contains(event.target)
       )
         return;
+      if (busy || dirty) {
+        event.preventDefault();
+        node.current?.querySelector<HTMLInputElement>('input[name="title"]')?.focus();
+        return;
+      }
       onClose();
     }
     function keepDraft(event: MouseEvent) {
@@ -96,7 +151,7 @@ export function QuickAddPopover({
         event.target instanceof Element &&
         !node.current?.contains(event.target) &&
         !event.target.closest('[role="dialog"]') &&
-        !anchor.element.contains(event.target)
+        !anchor?.element.contains(event.target)
       ) {
         event.preventDefault();
         event.stopImmediatePropagation();
@@ -110,36 +165,85 @@ export function QuickAddPopover({
       document.removeEventListener('pointerdown', outside);
       document.removeEventListener('click', keepDraft, true);
     };
-  }, [anchor, dirty, onClose]);
+  }, [anchor, busy, confirmDiscard, dirty, onClose]);
   return createPortal(
     <>
-      <div className="calendar-quick-add-backdrop" aria-hidden="true" />
+      <div
+        className={
+          anchor ? 'calendar-quick-add-backdrop' : 'calendar-quick-add-backdrop is-centered'
+        }
+        aria-hidden="true"
+      />
       <div
         ref={(value) => {
           node.current = value;
           refs.setFloating(value);
         }}
-        style={floatingStyles}
-        className="calendar-quick-add"
+        style={
+          {
+            ...(anchor ? floatingStyles : {}),
+            '--composer-viewport-height': `${String(viewport.height)}px`,
+            '--composer-viewport-top': `${String(viewport.top)}px`,
+          } as CSSProperties
+        }
+        className={anchor ? 'calendar-quick-add' : 'calendar-quick-add is-centered'}
         role="dialog"
-        aria-modal="false"
+        aria-modal={!anchor || window.innerWidth <= 700 ? 'true' : 'false'}
         aria-labelledby={titleId}
       >
         <h2 id={titleId} className="sr-only">
           {messages.calendarQuickTitle}
         </h2>
+        <div
+          className="composer-swipe-handle"
+          aria-hidden="true"
+          onTouchStart={(event) => {
+            swipeStart.current = event.touches[0]?.clientY ?? null;
+          }}
+          onTouchEnd={(event) => {
+            const end = event.changedTouches[0]?.clientY;
+            if (swipeStart.current !== null && end !== undefined && end - swipeStart.current > 60)
+              requestClose();
+            swipeStart.current = null;
+          }}
+        >
+          <span />
+        </div>
         <TaskComposer
           calendar
-          initialDraft={{ text: '', slot, defaultProjectId }}
+          initialDraft={initialDraft ?? { text: initialText, slot, defaultProjectId }}
           onDraftChange={setDirty}
-          onDismiss={onClose}
+          onDismiss={requestClose}
+          onBusyChange={setBusy}
           onCaptured={onCreated}
-          onExpand={(draft) => {
-            expanding.current = true;
-            onClose();
-            openTaskComposer(draft);
-          }}
+          onExpand={
+            anchor
+              ? (draft) => {
+                  expanding.current = true;
+                  onClose();
+                  openTaskComposer(draft);
+                }
+              : undefined
+          }
         />
+        {confirmDiscard ? (
+          <div className="composer-discard" role="alertdialog" aria-label={labels.discardTitle}>
+            <p>{labels.discardTitle}</p>
+            <button
+              type="button"
+              autoFocus
+              onClick={() => {
+                setConfirmDiscard(false);
+                node.current?.querySelector<HTMLInputElement>('input[name="title"]')?.focus();
+              }}
+            >
+              {labels.keepEditing}
+            </button>
+            <button type="button" disabled={busy} onClick={onClose}>
+              {labels.discard}
+            </button>
+          </div>
+        ) : null}
       </div>
     </>,
     document.body,

@@ -283,7 +283,9 @@ function CaptureHotkey() {
       }
       event.preventDefault();
       if (window.location.pathname === '/quick-add' || useCaptureOpen.getState().open) {
-        document.getElementById('capture-input')?.focus();
+        document
+          .querySelector<HTMLInputElement>('.calendar-quick-add input[name="title"]')
+          ?.focus();
         return;
       }
       openTaskComposer();

@@ -56,7 +56,7 @@ código actual. Las decisiones posteriores prevalecen sobre los diseños inicial
 | 75.9 Paneles secundarios | Columna derecha retirada fuera de Tareas el 22/10 | Repaso visual de desktop; drawer móvil ya corregido |
 | 75.10 Todo el día | Adaptado y probado | Revisión final global; el límite de dos y DaySheet sustituyen la expansión de franja del diseño inicial |
 | 75.11 Navegador compartido | Excluido por el usuario (22/10) | No implementar. Calendario conserva su selector actual; no compartir el selector del Reporte semanal |
-| 76 Composer único | Parcial | Unificar alta global y calendario en TaskCard; CaptureSheet aún mantiene su estructura y variante propia; comprobar teclado virtual y todos los accesos |
+| 76 Composer único | Implementado; pendiente validación móvil real | Alta global (+/N), URL compartida y calendario usan la misma tarjeta y botonera. Borrador protegido, descarte, atajos y adaptación a visualViewport comprobados con API simulada; confirmar teclado en dispositivo real |
 | 77 Avatar/progreso | Implementado, validado con API simulada | Recorrido con sesión/datos reales y cierre de aceptación |
 | 78 Foco/Pomodoro | Pendiente de rediseño completo | Pomo/Cronómetro, pausa/continuar, progreso, presets por sesión, Resumen/Registro, distribución móvil/escritorio y endpoints indicados en la spec |
 | 79 Tokens/MCP | Pendiente de rediseño y nuevas APIs | Aplicaciones OAuth por cliente, revocación conjunta, caducidad de PAT, actividad por aplicación, filas plegables, permisos resumidos/sensibles e instrucciones por cliente |
@@ -85,7 +85,7 @@ funcionalidad salvo instrucciones definidas que se hayan omitido. Queda repasar
 las vistas de escritorio. Los puntos 75 pendientes de la tabla son instrucciones
 anteriores detectadas, no propuestas nuevas ni una autorización para añadirlas
 automáticamente en este cierre. Contrastar su vigencia durante ese repaso.
-Después quedan la unificación del composer (76), Hoy/Plan del día, Foco (78),
+Después quedan la validación móvil real del composer (76), Hoy/Plan del día, Foco (78),
 Tokens/MCP (79) y validación con datos reales. No se declara cumplimiento global.
 
 ## Validación de este cierre

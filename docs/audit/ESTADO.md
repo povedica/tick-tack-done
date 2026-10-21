@@ -752,3 +752,33 @@ navegación táctil anual correctos. Sin cambios de API; OpenAPI sin diff.
 Lint y typecheck generales correctos. 605 unitarios correctos por paquetes;
 lint interrumpido por recursos y un timeout de API en el primer pase concurrente
 se resuelven al repetir lint y los 117 tests de API de forma aislada.
+
+
+## 2026-10-22 — 76: alta homogénea global y de calendario
+
+RF-101/102, RF-201/202, RF-1102 y RF-1902. CaptureSheet delega en la misma
+tarjeta que QuickAddPopover: cabecera con fecha/prioridad, título, descripción
+sin caja, etiquetas/adjuntos y pie con lista, etiquetas, más, cierre y enviar
+azul. Global (+/N y URL de captura) usa tarjeta centrada con fondo oscuro
+desenfocado; calendario conserva anclaje en escritorio. Móvil conserva el
+modal amplio ya aprobado por el usuario, con el mismo contenido en ambos casos.
+El alta en línea de Tareas mantiene su patrón de barra. N ya no la enfoca en
+lugar de abrir la tarjeta global. Más opciones transfiere todos los campos.
+
+Escape/cierre con borrador pide confirmación en línea; Seguir editando o Escape
+en esa confirmación conserva el borrador. Clic fuera vacío cierra; con borrador
+se conserva e impide acciones accidentales detrás. Envío bloquea cierre.
+Ctrl/Cmd+Enter guarda desde el formulario; Enter guarda y Mayús+Enter añade
+línea en descripción; IME respetado. Foco inicial, Tab contenido y retorno al
+acceso de origen. Asa móvil permite cierre por gesto con la misma protección.
+
+visualViewport ajusta altura/posición al teclado, tanto global como calendario.
+Prueba con viewport visible de 400px y offset de 30px verifica pie visible.
+Es simulación: queda comprobar teclado virtual en dispositivo real. Capturas
+sólo /tmp con datos simulados. Sin APIs, modelo o eventos nuevos.
+
+Validación final: 30/30 Playwright de altas globales/calendario y composer en
+línea; 605 unitarios correctos, lint/typecheck generales correctos y verificación
+final web. OpenAPI regenerado sin diff. Corregida carrera de retorno de foco
+al cerrar menús: restaura el título salvo si ya se está escribiendo en la
+descripción. Comprobaciones de N repetidas en 1280/390px correctas.
