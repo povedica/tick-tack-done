@@ -160,7 +160,7 @@ reclasifica como verificado por las pruebas de este corte. Ticky F1–F10 queda 
   de esos montajes. El avatar móvil de «Más» abre el mismo contenido.
 - Menú de 256 px anclado con Floating UI (right-start, offset 8, flip/shift),
   cabecera de identidad y progreso en dos columnas; número neutro y etiqueta/barra
-  según estado. Punto de racha en el avatar. Datos, carga, vacío y error con reintento.
+  según estado. Punto de racha en el avatar (retirado en la revisión posterior solicitada por Pablo). Datos, carga, vacío y error con reintento.
 - Botón con aria-haspopup/expanded/controls, roles menu/menuitem, flechas,
   Inicio/Fin, Escape y devolución de foco, Tab para cerrar. En móvil hoja inferior
   con filas de al menos 44 px. Nuevos tokens en claro/oscuro e i18n es/en.
@@ -205,3 +205,39 @@ reclasifica como verificado por las pruebas de este corte. Ticky F1–F10 queda 
   igual al regenerado del corte anterior. No se declara validado el backend real
   ni el Reporte semanal en navegador: WeekPicker usa el componente compartido,
   pero el navegador compartido completo sigue pendiente en 75.11.
+
+
+### Revisión de 77 tras validación del usuario — 21/10/2026
+
+El usuario detectó regresiones móviles que el corte anterior no acreditaba:
+Listas quedaba bajo el scrim y «Más» debía usar el sidebar izquierdo de Listas.
+Las capturas aportadas en el chat son la evidencia de la reapertura. Se retira
+la declaración de cierre funcional completo de 77 hasta validar esta revisión.
+
+- Causa contrastada: el sidebar de Listas estaba en z-index 30 y el scrim en 35;
+  «Más» tenía una excepción a 40. La nueva prueba con un clic real en un enlace
+  de Listas falló antes de corregirlo: `scrim intercepts pointer events`.
+  Ver un elemento con `toBeVisible` no acreditaba que recibiera los clics.
+- Reparación: ambos menús usan el mismo drawer izquierdo y filas de al menos
+  44 px. Sidebar 40 por encima del scrim 35 mediante tokens en ambos temas;
+  scrim oscuro en tema oscuro. Se elimina la excepción de «Más» como hoja/grid.
+  Esta decisión aplica la aclaración explícita del usuario y sustituye el diseño
+  previo de TTD-AUD-33; el menú del avatar sigue siendo hoja en móvil.
+- Punto amarillo del avatar eliminado, incluyendo CSS y token específicos.
+- Progreso compacto: padding de 8 px, cifra de 18 px, estado junto a la cifra y
+  barra en segunda fila, con al menos 8 px de separación respecto al valor.
+  La tarjeta queda por debajo de 68 px de alto; «Tu progreso» sigue como texto
+  accesible sin ocupar otra línea visible.
+- Cuatro recorridos existentes ampliados, sin añadir una batería de cobertura:
+  1280×800 / 390×844, claro/oscuro. Clic real en enlaces de Listas y Más, cierre
+  del drawer al navegar, posición x=0 y alto completo del menú Más, filas
+  horizontales, avatar sin punto, tarjeta compacta, separación cifra/barra y
+  navegación por teclado del menú. Los cuatro pasan; también los cuatro tests
+  de componente de AccountMenu. Revisión visual de escritorio claro, sidebar
+  Más claro y avatar móvil oscuro mediante PNG temporales, sin publicarlos.
+- Lint, typecheck y suite de unitarios completos correctos en esta revisión
+  (web: 170; API: 117). OpenAPI regenerado sin diff. Sin cambios en API/modelo/eventos. La prueba con datos de usuario sigue pendiente: navegador
+  con API interceptada; solo se comprueba salud real de la API local.
+- Incidencia del entorno: se restablece Vite en 4173 como proceso independiente
+  de Playwright. `/smart/tomorrow` responde HTTP 200 y `/api/v1/health` devuelve
+  `status: ok` por el proxy; el servidor queda arrancado para validar.

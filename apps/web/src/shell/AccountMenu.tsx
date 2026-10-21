@@ -117,13 +117,6 @@ export function AccountMenu() {
         <span className="account-avatar" aria-hidden="true">
           {name.slice(0, 1).toUpperCase()}
         </span>
-        {!progress.isPending && !progress.isError && progress.streak > 0 ? (
-          <span
-            className="account-streak-dot"
-            role="img"
-            aria-label={messages.streakActiveDot.replace('{days}', days)}
-          />
-        ) : null}
       </button>
       {open ? (
         <FloatingPortal>
@@ -149,7 +142,7 @@ export function AccountMenu() {
                   <span>{me.data?.email}</span>
                 </div>
               </div>
-              <p className="account-progress-heading">{messages.accountProgress}</p>
+              <p className="sr-only">{messages.accountProgress}</p>
               {progress.isPending ? (
                 <div className="account-progress-loading" role="status" aria-label={t('loading')}>
                   <span />
@@ -187,7 +180,7 @@ export function AccountMenu() {
                     <small>{days}</small>
                   </span>
                   <span className="account-progress-score">
-                    <span>
+                    <span className="account-progress-value">
                       <strong>{score === null ? '—' : number(score)}</strong>
                       <small>/100</small>
                     </span>

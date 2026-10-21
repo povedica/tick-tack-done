@@ -25,15 +25,6 @@
   font-size: var(--fs-sm);
   font-weight: 600;
 }
-.account-streak-dot {
-  position: absolute;
-  top: var(--sp-1);
-  right: var(--sp-1);
-  width: var(--account-dot-size);
-  height: var(--account-dot-size);
-  border-radius: 50%;
-  background: var(--warning);
-}
 .account-menu-popover {
   z-index: var(--account-menu-z);
   box-sizing: border-box;
@@ -78,18 +69,13 @@
   font-size: var(--fs-xs);
   color: var(--ink-3);
 }
-.account-progress-heading {
-  margin: var(--sp-2) var(--sp-3);
-  font-size: var(--fs-xs);
-  color: var(--ink-3);
-}
 .account-progress,
 .account-progress-loading {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--sp-3);
   margin: 0 var(--sp-2);
-  padding: var(--sp-3);
+  padding: var(--sp-2);
   background: var(--surface-2);
   border-radius: var(--radius-md);
 }
@@ -112,6 +98,8 @@
   grid-template-columns: auto 1fr;
   align-items: center;
   column-gap: var(--sp-1);
+  row-gap: var(--sp-2);
+  align-content: start;
 }
 .account-progress-streak > svg {
   color: var(--warning);
@@ -120,7 +108,8 @@
   grid-column: 1 / -1;
 }
 .account-progress strong {
-  font-size: var(--fs-lg);
+  font-size: var(--account-progress-value-fs);
+  line-height: var(--lh-tight);
   font-weight: 700;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
@@ -131,7 +120,22 @@
 }
 .account-progress-score {
   display: grid;
-  gap: var(--sp-1);
+  grid-template-columns: auto minmax(0, 1fr);
+  align-content: start;
+  align-items: baseline;
+  column-gap: var(--sp-1);
+  row-gap: var(--sp-2);
+}
+.account-progress-value {
+  display: flex;
+  align-items: baseline;
+  gap: var(--account-progress-value-gap);
+}
+.account-progress-score > progress {
+  display: block;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  margin: 0;
 }
 .account-progress-score progress {
   appearance: none;
@@ -155,7 +159,11 @@
   border-radius: var(--radius-full);
 }
 .account-progress-score .account-progress-label {
+  grid-column: 2;
+  grid-row: 1;
   color: var(--score-color);
+  text-align: right;
+  font-size: var(--account-progress-label-fs);
 }
 .account-progress-loading > span {
   height: var(--account-loading-h);

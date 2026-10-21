@@ -13,6 +13,12 @@
   --today-size-picker-mobile: 2rem;
   --today-size-year: 1.25rem;
 
+  --shell-drawer-z: 40;
+  --shell-scrim-z: 35;
+  --shell-scrim-bg: color-mix(in srgb, var(--ink) 40%, transparent);
+  --account-progress-value-fs: 1.125rem;
+  --account-progress-label-fs: 0.6875rem;
+  --account-progress-value-gap: 0.125rem;
   --account-menu-w: 16rem;
   --account-menu-z: 2000;
   --account-sheet-max-h: 85dvh;
@@ -21,7 +27,6 @@
   --account-row-h: 2rem;
   --account-avatar-size: 1.75rem;
   --account-identity-avatar: 2rem;
-  --account-dot-size: 0.5rem;
   --account-progress-track: 0.25rem;
   --account-loading-h: 2.5rem;
 
@@ -171,6 +176,12 @@
   --today-size-picker-mobile: 2rem;
   --today-size-year: 1.25rem;
 
+  --shell-drawer-z: 40;
+  --shell-scrim-z: 35;
+  --shell-scrim-bg: rgb(0 0 0 / 0.4);
+  --account-progress-value-fs: 1.125rem;
+  --account-progress-label-fs: 0.6875rem;
+  --account-progress-value-gap: 0.125rem;
   --account-menu-w: 16rem;
   --account-menu-z: 2000;
   --account-sheet-max-h: 85dvh;
@@ -179,7 +190,6 @@
   --account-row-h: 2rem;
   --account-avatar-size: 1.75rem;
   --account-identity-avatar: 2rem;
-  --account-dot-size: 0.5rem;
   --account-progress-track: 0.25rem;
   --account-loading-h: 2.5rem;
 

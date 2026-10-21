@@ -214,7 +214,7 @@ export function Sidebar({
       ) : null}
       <nav>
         {mobileSection === 'more' ? (
-          <ul className="mobile-more-grid" aria-label={messages.navMore}>
+          <ul className="nav-list mobile-more-grid" aria-label={messages.navMore}>
             {flags.navigation_order
               .filter(
                 (key) =>

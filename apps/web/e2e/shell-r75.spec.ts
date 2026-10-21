@@ -33,14 +33,42 @@ for (const mobile of [false, true]) {
       await page.goto('/today');
       await page.evaluate((theme) => (document.documentElement.dataset.theme = theme), theme);
       await expect(page.locator('.control-chip, .mobile-control-bar')).toHaveCount(0);
-      if (mobile) await page.locator('.bottom-bar').getByRole('button', { name: /Más/ }).click();
+      if (mobile) {
+        await page
+          .locator('.bottom-bar')
+          .getByRole('button', { name: 'Listas', exact: true })
+          .click();
+        // Visibility alone misses a scrim painted above the links: actually tap one.
+        await page.locator('.sidebar a[href="/filters"]').first().click({ timeout: 3000 });
+        await expect(page).toHaveURL(/\/filters$/);
+        await expect(page.locator('.shell')).toHaveAttribute('data-drawer', 'closed');
+        await page.goto('/today');
+        await page.locator('.bottom-bar').getByRole('button', { name: /Más/ }).click();
+        const drawer = page.locator('.sidebar');
+        await expect.poll(() => drawer.evaluate((node) => node.getBoundingClientRect().x)).toBe(0);
+        expect((await drawer.boundingBox())!.width).toBeLessThan(390);
+        expect((await drawer.boundingBox())!.height).toBe(844);
+        await expect(drawer.locator('.mobile-more-grid .nav-link').first()).toHaveCSS(
+          'flex-direction',
+          'row',
+        );
+        // Más must also be tappable, rather than merely visible under the scrim.
+        await drawer.getByRole('link', { name: 'Filtros', exact: true }).click();
+        await expect(page).toHaveURL(/\/filters$/);
+        await expect(page.locator('.shell')).toHaveAttribute('data-drawer', 'closed');
+        await page.goto('/today');
+        await page.locator('.bottom-bar').getByRole('button', { name: /Más/ }).click();
+        await expect.poll(() => drawer.evaluate((node) => node.getBoundingClientRect().x)).toBe(0);
+        await page.screenshot({ path: `/tmp/ttd-r75-77-more-${theme}.png` });
+      }
+      await expect(page.locator('.account-streak-dot')).toHaveCount(0);
       const avatar = page.getByRole('button', { name: 'Menú de cuenta' }).filter({ visible: true });
       await avatar.click();
       const menu = page.getByRole('menu', { name: 'Menú de cuenta' });
       await expect(
         menu.getByRole('menuitem', { name: /Racha 2 días. Control 14 de 100/ }),
       ).toBeVisible();
-      await expect(menu.getByText('Tu progreso')).toBeVisible();
+      await expect(menu.getByRole('menuitem', { name: /Racha 2 días/ })).toBeVisible();
       const box = await menu.boundingBox();
       expect(box).not.toBeNull();
       if (mobile) {
@@ -53,6 +81,11 @@ for (const mobile of [false, true]) {
       await page.screenshot({
         path: `/tmp/ttd-r75-77-${mobile ? 'mobile' : 'desktop'}-${theme}.png`,
       });
+      const progressCard = menu.locator('.account-progress');
+      expect((await progressCard.boundingBox())!.height).toBeLessThanOrEqual(68);
+      const scoreBox = await menu.locator('.account-progress-value').boundingBox();
+      const trackBox = await menu.locator('progress').boundingBox();
+      expect(trackBox!.y - scoreBox!.y - scoreBox!.height).toBeGreaterThanOrEqual(7);
       await menu.press('End');
       await expect(menu.getByRole('menuitem', { name: 'Cerrar sesión' })).toBeFocused();
       await menu.press('Escape');
