@@ -192,12 +192,14 @@ describe('sdk', () => {
 
     const created = await client.createToken({ name: 'Cursor', scopes: ['tasks:read'] });
     const listed = await client.listTokens();
+    await client.listTokens({ limit: 10, cursor: 'next', status: 'revoked' });
 
     expect(created.token).toBe('rfx_pat_secret');
     expect(listed.items[0]?.name).toBe('Cursor');
     expect(requests.map((item) => `${item.method ?? ''} ${item.url}`)).toEqual([
       'POST http://api.test/api/v1/me/tokens',
       'GET http://api.test/api/v1/me/tokens',
+      'GET http://api.test/api/v1/me/tokens?limit=10&cursor=next&status=revoked',
     ]);
   });
 
