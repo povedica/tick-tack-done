@@ -884,3 +884,11 @@ públicos existentes, incluido moveTask para cambios de lista.
 Validación: lint y typecheck generales, 606 unitarios y OpenAPI sin diff.
 Pruebas Playwright de clic en padding, hover aislado y arrastre nativo entre
 prioridades y secciones con persistencia simulada en API.
+
+
+### Densidad de la vista lista (22 oct 2026)
+
+RF-1001: filas desktop de 40 a 34 px (15 % menos de altura), con mínimo de
+32 px al elegir densidad compacta. Texto, checkbox y metadatos conservan tamaño
+y alineación. Ajuste compartido por Hoy y las listas que usan TaskList; móvil
+y tarjetas Kanban mantienen sus dimensiones.
