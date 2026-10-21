@@ -32,6 +32,8 @@
   --account-progress-track: 0.25rem;
   --account-loading-h: 2.5rem;
 
+  --cal-two-weeks-cell-h: clamp(8rem, 22dvh, 12rem);
+  --cal-two-weeks-cell-h-mobile: clamp(5.5rem, 14dvh, 7rem);
   --calendar-quick-width: 19rem;
   --ghost-bg: var(--accent-soft);
   --ghost-border: var(--accent);
@@ -164,6 +166,8 @@
 }
 
 [data-theme='dark'] {
+  --cal-two-weeks-cell-h: clamp(8rem, 22dvh, 12rem);
+  --cal-two-weeks-cell-h-mobile: clamp(5.5rem, 14dvh, 7rem);
   --today-mark-bg: color-mix(in srgb, var(--accent) 88%, black);
   --today-mark-ink: var(--on-accent);
   --today-mark-hover-bg: color-mix(in srgb, var(--today-mark-bg) 90%, white);

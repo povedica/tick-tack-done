@@ -647,12 +647,12 @@
 .calendar-page .calendar-month-span {
   overflow-wrap: break-word;
 }
-.calendar-page.calendar-multi-week .cal-month {
+.calendar-page.calendar-two-weeks .cal-month {
   min-height: 0;
-  grid-template-rows: none;
+  grid-template-rows: auto repeat(2, minmax(0, 1fr));
 }
-.calendar-multi-week .cal-cell {
-  height: 180px;
+.calendar-two-weeks .cal-cell {
+  height: var(--cal-two-weeks-cell-h);
 }
 .calendar-range {
   display: flex;
@@ -669,8 +669,8 @@
   .calendar-page .cal-cell {
     height: 74px;
   }
-  .calendar-multi-week .cal-cell {
-    height: 88px;
+  .calendar-two-weeks .cal-cell {
+    height: var(--cal-two-weeks-cell-h-mobile);
   }
   .calendar-page .calendar-overflow {
     display: none;

@@ -268,3 +268,39 @@ no depende ya del ancho del sidebar de escritorio.
 El fondo exterior del drawer recibe además desenfoque de 4 px y opacidad más
 oscura (55 % en claro / 60 % en oscuro), mediante tokens de ambos temas y
 backdrop-filter con prefijo Safari. El sidebar permanece por encima y nítido.
+
+
+### Aclaración vinculante de 75.11 — referencia del Reporte semanal
+
+Pablo confirma que el selector que le gusta es el **existente en Reporte semanal**.
+Debe reutilizarse ese mismo componente UI en el calendario, conservándolo como
+referencia visual y funcional del proyecto. No se construirá un segundo selector
+ni una reinterpretación visual independiente. La adaptación común debe admitir
+los periodos necesarios sin duplicar estructura ni estilos.
+
+También se registra la apertura inestable observada por el usuario: al montarse,
+el selector actual cambia de posición hasta recolocarse. Criterio de aceptación:
+el contenido debe aparecer ya en su posición y tamaño definitivos, desde su
+primera apertura; sin flash en otra posición ni salto de recolocación visible.
+Esta aclaración prevalece sobre la interpretación anterior de 75.11 que proponía
+rediseñar el selector del Reporte para adaptarlo a otro popover. La explicación
+previa de 264 px/no modal no se considera una decisión aceptada por el usuario.
+Pendiente de implementación y comprobación; no se declara corregido todavía.
+
+
+### Ajuste solicitado — Dos semanas sustituye Varias semanas
+
+Se elimina la vista de longitud variable y su selector de cantidad. La nueva vista
+«Dos semanas» muestra siempre 14 días, respeta el inicio de semana y navega en
+saltos de 14 días. Los enlaces antiguos `multi-week` y la preferencia guardada se
+convierten a `two-weeks`; se retira el parámetro obsoleto `weeks` conservando los
+demás filtros. Etiquetas es/en y alturas mediante tokens en ambos temas.
+
+Evidencia: siete unitarios del calendario, incluidos inicio de semana y cambio
+de horario de octubre; dos Playwright dirigidos en 390×844 y escritorio, con API
+simulada. Comprueban 14 celdas, migración, navegación, persistencia, límites del
+grid móvil y captura contextual. Lint y typecheck web correctos. Esto no acredita
+la sesión real del usuario ni cierra el resto de 75 (incluido 75.11 pendiente).
+
+Cierre técnico de este ajuste: lint, typecheck y test del monorepo en verde
+(598 pruebas). OpenAPI regenerado sin cambios en API/SDK. Sin cambios de API.

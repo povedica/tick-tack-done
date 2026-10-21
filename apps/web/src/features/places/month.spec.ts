@@ -18,9 +18,19 @@ describe('calendar view windows', () => {
     expect(days[6]?.getDate()).toBe(25);
   });
 
-  it('multi-day is three days and multi-week is fourteen', () => {
+  it('RF-1101: multi-day is three days and two-weeks is fixed at fourteen', () => {
     expect(viewDays('multi-day', monday, 'monday')).toHaveLength(3);
-    expect(viewDays('multi-week', monday, 'monday')).toHaveLength(14);
+    expect(viewDays('two-weeks', monday, 'monday')).toHaveLength(14);
+  });
+
+  it('RF-1101: two-week navigation respects week start and calendar days across DST', () => {
+    const cursor = new Date(2026, 9, 21);
+    const days = viewDays('two-weeks', cursor, 'sunday');
+    expect(days[0]).toEqual(new Date(2026, 9, 18));
+    expect(days.at(-1)).toEqual(new Date(2026, 9, 31));
+    const next = shiftView(cursor, 'two-weeks', 1, 'monday');
+    expect(next).toEqual(new Date(2026, 10, 2));
+    expect(shiftView(next, 'two-weeks', -1, 'monday')).toEqual(monday);
   });
 
   it('quarter is October–December and the next step is January', () => {

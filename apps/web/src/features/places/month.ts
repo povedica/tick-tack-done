@@ -46,7 +46,7 @@ export function viewDays(view: string, cursor: Date, weekStart: 'monday' | 'sund
   if (view === 'multi-day') {
     return spanDays(day, 3);
   }
-  if (view === 'multi-week') {
+  if (view === 'two-weeks') {
     return spanDays(startOfWeek(day, weekStart), 14);
   }
   if (view === 'quarter') {
@@ -76,12 +76,12 @@ export function shiftView(
       ? 30
       : view === 'week'
         ? 7
-        : view === 'multi-week'
+        : view === 'two-weeks'
           ? 14
           : view === 'multi-day'
             ? 3
             : 1;
-  const origin = view === 'week' || view === 'multi-week' ? startOfWeek(cursor, weekStart) : cursor;
+  const origin = view === 'week' || view === 'two-weeks' ? startOfWeek(cursor, weekStart) : cursor;
   return new Date(origin.getFullYear(), origin.getMonth(), origin.getDate() + delta * step);
 }
 

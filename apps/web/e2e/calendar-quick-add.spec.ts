@@ -239,7 +239,7 @@ test('TTD-AUD-74: parser date, priority, tags and list override the clicked slot
     expect(posts[0]).not.toHaveProperty(key);
 });
 
-test('TTD-AUD-74: all-day row, multi-week, and Tab focus containment', async ({ page }) => {
+test('TTD-AUD-74: all-day row, two-weeks, and Tab focus containment', async ({ page }) => {
   const posts = await fixture(page);
   await page.goto('/calendar/day?date=2026-10-24');
   const row = page.locator('.hour-allday-cell');
@@ -254,7 +254,7 @@ test('TTD-AUD-74: all-day row, multi-week, and Tab focus containment', async ({ 
   await dialog.locator('input[name="title"]').press('Enter');
   await expect.poll(() => posts.length).toBe(1);
   expect(posts[0]).toMatchObject({ due_date: '2026-10-23T22:00:00.000Z', is_all_day: true });
-  await page.goto('/calendar/multi-week?date=2026-10-24');
+  await page.goto('/calendar/two-weeks?date=2026-10-24');
   const cell = page.locator('.cal-cell[data-day="2026-10-24"]');
   await cell.focus();
   await page.keyboard.press('Enter');

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 test.use({ timezoneId: 'Europe/Madrid' });
-const views = ['day', 'week', 'month', 'agenda', 'year', 'quarter', 'multi-week', 'multi-day'];
+const views = ['day', 'week', 'month', 'agenda', 'year', 'quarter', 'two-weeks', 'multi-day'];
 async function fixture(
   page: Page,
   options: {
@@ -352,16 +352,30 @@ test('RF-1902 menu dismissal, keyboard date jump, year URL and working weekends'
   await expect(page.locator('h1')).toContainText('26');
 });
 
-test('RF-1101 range selector, stable useful scroll and sticky hourly axis', async ({ page }) => {
+test('RF-1101 fixed two-week window, legacy links and sticky hourly axis', async ({ page }) => {
   await fixture(page);
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/calendar/multi-week?date=2026-10-20');
-  await page.getByLabel('Número de semanas').selectOption('4');
-  await expect(page.locator('.cal-cell')).toHaveCount(28);
+  await page.addInitScript(() =>
+    localStorage.setItem('tick-tack-done.calendar.view', 'multi-week'),
+  );
+  await page.goto('/today');
+  await expect(page.locator('.bottom-bar a[href="/calendar/two-weeks"]')).toHaveCount(1);
+  await page.goto('/calendar/multi-week?date=2026-10-20&weeks=6&project_id=list');
+  await expect(page).toHaveURL(/\/calendar\/two-weeks\?/);
+  await expect(page).not.toHaveURL(/weeks=/);
+  await expect(page).toHaveURL(/project_id=list/);
+  await expect(page.locator('.cal-cell')).toHaveCount(14);
+  await expect(page.getByLabel('Número de semanas')).toHaveCount(0);
+  await expect(page.getByRole('option', { name: 'Dos semanas', exact: true })).toHaveCount(1);
   await page.getByRole('button', { name: 'Periodo siguiente' }).click();
-  await expect(page).toHaveURL(/date=2026-11-17/);
+  await expect(page).toHaveURL(/date=2026-11-02/);
   await page.reload();
-  await expect(page.getByLabel('Número de semanas')).toHaveValue('4');
+  await expect(page.locator('.cal-cell')).toHaveCount(14);
+  await expect(page.locator('.calendar-mobile-view')).toHaveValue('two-weeks');
+  const grid = await page.locator('.cal-month').boundingBox();
+  expect(grid!.x).toBeGreaterThanOrEqual(0);
+  expect(grid!.x + grid!.width).toBeLessThanOrEqual(390);
+  expect(grid!.y + grid!.height).toBeLessThanOrEqual(844 - 44);
   await page.goto('/calendar/week?date=2026-10-20');
   await expect
     .poll(() => page.locator('.hour-board').evaluate((n) => n.scrollTop))

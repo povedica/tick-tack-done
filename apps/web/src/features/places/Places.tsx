@@ -72,8 +72,6 @@ import {
   overflowHref,
   quarterMonths,
   shiftView,
-  spanDays,
-  startOfWeek,
   tasksOnCell,
   viewDays,
   yearQueryRange,
@@ -94,7 +92,7 @@ const CAL_VIEWS = [
   'day',
   'week',
   'multi-day',
-  'multi-week',
+  'two-weeks',
   'month',
   'quarter',
   'year',
@@ -355,19 +353,31 @@ export function CalendarPage() {
   const createAt = (slot: CalendarSlot, anchor: SlotAnchor) => {
     if (draft === null) setDraft({ slot, anchor });
   };
-  const knownView = CAL_VIEWS.includes(view as (typeof CAL_VIEWS)[number]);
-  const current = knownView ? view : 'month';
+  const requestedView = view === 'multi-week' ? 'two-weeks' : view;
+  const knownView = CAL_VIEWS.includes(requestedView as (typeof CAL_VIEWS)[number]);
+  const current = knownView ? requestedView : 'month';
   const weekStart = usePreferences((state) => state.weekStart);
   const [cursor, setCursor] = useState(
     () => dayFromParam(params.get('date') ?? '') ?? localToday(new Date()),
   );
 
   useEffect(() => {
-    // CAL-0: unknown calendar routes redirect instead of silently rendering month.
-    if (view !== undefined && !knownView) {
+    // Preserve shared links while retiring the variable-length view.
+    if (view === 'multi-week' || (current === 'two-weeks' && params.has('weeks'))) {
+      const query = new URLSearchParams(params);
+      query.delete('weeks');
+      runAction(
+        Promise.resolve(
+          navigate(
+            { pathname: '/calendar/two-weeks', search: query.toString() },
+            { replace: true },
+          ),
+        ),
+      );
+    } else if (view !== undefined && !knownView) {
       runAction(Promise.resolve(navigate('/calendar/month', { replace: true })));
     }
-  }, [view, knownView, navigate]);
+  }, [view, current, knownView, navigate, params]);
   useEffect(() => {
     if (typeof current === 'string') {
       rememberCalendarView(current);
@@ -380,11 +390,7 @@ export function CalendarPage() {
   const [workweek, setWorkweek] = useState(
     () => localStorage.getItem('tick-tack-done.calendar-workweek') === 'true',
   );
-  const weekCount = Math.max(2, Math.min(6, Number(params.get('weeks')) || 2));
-  const allCells =
-    current === 'multi-week'
-      ? spanDays(startOfWeek(cursor, weekStart), weekCount * 7)
-      : viewDays(current ?? 'month', cursor, weekStart);
+  const allCells = viewDays(current ?? 'month', cursor, weekStart);
   const filteredCells =
     workweek && (current === 'week' || current === 'multi-day')
       ? allCells.filter((day) => day.getDay() !== 0 && day.getDay() !== 6)
@@ -451,14 +457,7 @@ export function CalendarPage() {
     : [];
   const title = calendarTitle(locale, current ?? 'month', cursor, cells);
   const move = (delta: number): void => {
-    const next =
-      current === 'multi-week'
-        ? new Date(
-            cursor.getFullYear(),
-            cursor.getMonth(),
-            cursor.getDate() + delta * weekCount * 7,
-          )
-        : shiftView(cursor, current ?? 'month', delta, weekStart);
+    const next = shiftView(cursor, current ?? 'month', delta, weekStart);
     setCursor(next);
     {
       const query = new URLSearchParams(params);
@@ -533,26 +532,6 @@ export function CalendarPage() {
             setParams(query);
           }}
         />
-        {current === 'multi-week' ? (
-          <label className="calendar-range">
-            {messages.calendarWeeks}
-            <select
-              aria-label={messages.calendarWeekCount}
-              value={weekCount}
-              onChange={(event) => {
-                const query = new URLSearchParams(params);
-                query.set('weeks', event.target.value);
-                setParams(query);
-              }}
-            >
-              {[2, 3, 4, 5, 6].map((count) => (
-                <option key={count} value={count}>
-                  {count}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : null}
         {current === 'week' || current === 'multi-day' ? (
           <span className="calendar-week-number">S{isoWeek(cells[0] ?? cursor)}</span>
         ) : null}
@@ -569,7 +548,7 @@ export function CalendarPage() {
           <CalendarMenu label={messages.calendarMoreViews}>
             {(close) => (
               <div className="calendar-view-links">
-                {['year', 'quarter', 'multi-week', 'multi-day'].map((item) => (
+                {['year', 'quarter', 'two-weeks', 'multi-day'].map((item) => (
                   <Link
                     key={item}
                     onClick={close}
@@ -737,7 +716,7 @@ export function CalendarPage() {
               timeZone={timeZone}
             />
           ) : null}
-          {current === 'multi-week' || current === 'month' ? (
+          {current === 'two-weeks' || current === 'month' ? (
             <>
               <DayGrid
                 days={current === 'month' ? monthCells(startOfMonth(cursor), weekStart) : cells}
@@ -835,7 +814,7 @@ function calendarTitle(locale: string, view: string, cursor: Date, cells: readon
   }
   const first = cells[0] ?? cursor;
   const last = cells.at(-1) ?? cursor;
-  if (view === 'week' || view === 'multi-day' || view === 'multi-week' || view === 'agenda') {
+  if (view === 'week' || view === 'multi-day' || view === 'two-weeks' || view === 'agenda') {
     const sameMonth = first.getMonth() === last.getMonth();
     const start = new Intl.DateTimeFormat(
       locale,
@@ -1687,8 +1666,8 @@ function labelView(messages: Messages, view: string): string {
       return messages.calWeek;
     case 'multi-day':
       return messages.calMultiDay;
-    case 'multi-week':
-      return messages.calMultiWeek;
+    case 'two-weeks':
+      return messages.calTwoWeeks;
     case 'quarter':
       return messages.calQuarter;
     case 'year':
@@ -1709,7 +1688,7 @@ function calendarShiftLabel(messages: Messages, view: string, delta: number): st
     case 'week':
       return next ? messages.calNextWeek : messages.calPrevWeek;
     case 'multi-day':
-    case 'multi-week':
+    case 'two-weeks':
     case 'agenda':
       return next ? messages.calNextPeriod : messages.calPrevPeriod;
     case 'year':

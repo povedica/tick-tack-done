@@ -7,7 +7,8 @@ const CALENDAR_VIEW_KEY = 'tick-tack-done.calendar.view';
 
 export function lastCalendarPath(): string {
   try {
-    const stored = window.localStorage.getItem(CALENDAR_VIEW_KEY);
+    const previous = window.localStorage.getItem(CALENDAR_VIEW_KEY);
+    const stored = previous === 'multi-week' ? 'two-weeks' : previous;
     if (
       stored === 'day' ||
       stored === 'week' ||
@@ -15,7 +16,7 @@ export function lastCalendarPath(): string {
       stored === 'agenda' ||
       stored === 'year' ||
       stored === 'quarter' ||
-      stored === 'multi-week' ||
+      stored === 'two-weeks' ||
       stored === 'multi-day'
     ) {
       return `/calendar/${stored}`;
