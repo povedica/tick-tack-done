@@ -126,6 +126,7 @@ export class ReviewController {
       recurring: row.repeatRule !== null || row.seriesId !== null,
       title: row.title,
       priority: row.priority,
+      startDate: row.startDate?.toISOString() ?? null,
       dueDate: row.dueDate?.toISOString() ?? null,
       listId: row.projectId,
       listName: row.project.name,

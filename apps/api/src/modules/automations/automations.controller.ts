@@ -346,6 +346,7 @@ export class AutomationEngine implements OnModuleInit {
     return {
       listId: task.projectId,
       tagNames: task.tags.map((link) => link.tag.name),
+      startDate: task.startDate?.toISOString() ?? null,
       dueDate: task.dueDate?.toISOString() ?? null,
       isAllDay: task.isAllDay,
       timeZone: task.timeZone,

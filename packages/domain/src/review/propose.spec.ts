@@ -24,6 +24,19 @@ function task(overrides: Partial<ReviewCandidate>): ReviewCandidate {
 }
 
 describe('review', () => {
+  it('TTD-AUD-01 RF-904: custom date filters receive the candidate start', () => {
+    const candidate = { ...task({ priority: 'high' }), startDate: '2026-10-19T09:00:00Z' };
+    const proposal = proposeDaily(
+      [candidate],
+      now,
+      {
+        combinator: 'AND',
+        groups: [{ combinator: 'AND', conditions: [{ field: 'date', op: 'tomorrow' }] }],
+      },
+      { now, timeZone: 'Europe/Madrid' },
+    );
+    expect(proposal.task_ids).toEqual(['task-1']);
+  });
   it('RF-2301: overdue outranks a later low-priority task and the list stays at most 7', () => {
     const tasks = [
       task({ id: 'later', priority: 'low', dueDate: '2026-11-01T00:00:00.000Z' }),
