@@ -8,11 +8,13 @@ describe('createApiClient onUnauthorized (TTD-AUD-29)', () => {
     const client = createApiClient({
       baseUrl: 'http://example.test',
       onUnauthorized,
-      fetchImpl: async () =>
-        new Response(JSON.stringify({ error: { code: 'unauthorized', message: 'gone' } }), {
-          status: 401,
-          headers: { 'content-type': 'application/json' },
-        }),
+      fetchImpl: () =>
+        Promise.resolve(
+          new Response(JSON.stringify({ error: { code: 'unauthorized', message: 'gone' } }), {
+            status: 401,
+            headers: { 'content-type': 'application/json' },
+          }),
+        ),
     });
     await expect(client.getTask('11111111-1111-4111-8111-111111111111')).rejects.toBeInstanceOf(
       ApiError,

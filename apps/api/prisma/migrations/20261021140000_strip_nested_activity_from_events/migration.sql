@@ -1,4 +1,4 @@
--- TTD-AUD-65: compact inflated activity_log / outbox_event payloads that nested
+-- TTD-AUD-65: compact inflated activity_log / outbox_events payloads that nested
 -- task.activity inside themselves. Idempotent: safe to run twice.
 
 CREATE OR REPLACE FUNCTION ttd_strip_activity_json(value jsonb)
@@ -43,7 +43,7 @@ WHERE deleted_at IS NULL
   AND entity_type IN ('task', 'note')
   AND changes::text LIKE '%"activity"%';
 
-UPDATE outbox_event
+UPDATE outbox_events
 SET
   data = ttd_strip_activity_json(data),
   previous = CASE
