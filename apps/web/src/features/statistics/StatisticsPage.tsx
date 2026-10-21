@@ -1,3 +1,4 @@
+import { runAction } from '../../components/run-action';
 import {
   createContext,
   useContext,
@@ -144,7 +145,11 @@ export function StatisticsPage() {
         fallback !== 'overview' &&
         TABS.includes(fallback as Tab)
       ) {
-        void navigate(`${path(fallback as Tab)}?${copy.toString()}`, { replace: true });
+        runAction(
+          Promise.resolve(
+            navigate(`${path(fallback as Tab)}?${copy.toString()}`, { replace: true }),
+          ),
+        );
       } else setSearch(copy, { replace: true });
     } else writeStatsState(search.toString());
   }, [search, bounds.from, bounds.to, rangeKey, tz, setSearch, waitingForTimeZone]);
@@ -210,7 +215,7 @@ export function StatisticsPage() {
   ]);
   useEffect(() => {
     const refresh = () => {
-      void client.invalidateQueries({ queryKey: ['stats'] });
+      runAction(client.invalidateQueries({ queryKey: ['stats'] }));
     };
     window.addEventListener('focus', refresh);
     return () => {
@@ -340,7 +345,9 @@ export function StatisticsPage() {
                       key={format}
                       type="button"
                       disabled={exporting || invalid}
-                      onClick={() => void exportFile(format)}
+                      onClick={() => {
+                        runAction(exportFile(format));
+                      }}
                     >
                       {format.toUpperCase()}
                     </button>
@@ -372,7 +379,12 @@ export function StatisticsPage() {
           {exportError ? (
             <p role="alert">
               {t('error')}{' '}
-              <button type="button" onClick={() => void exportFile('csv')}>
+              <button
+                type="button"
+                onClick={() => {
+                  runAction(exportFile('csv'));
+                }}
+              >
                 {t('retry')}
               </button>
             </p>
@@ -471,7 +483,9 @@ export function StatisticsPage() {
               tabIndex={tab === key ? 0 : -1}
               key={key}
               className={tab === key ? 'is-active' : undefined}
-              onClick={() => void navigate(`${path(key)}?${source.toString()}`)}
+              onClick={() => {
+                runAction(Promise.resolve(navigate(`${path(key)}?${source.toString()}`)));
+              }}
             >
               {t(key)}
             </button>
@@ -522,7 +536,12 @@ export function StatisticsPage() {
           ) : query.isError ? (
             <div className="stats-error" role="alert">
               {t('error')}
-              <button type="button" onClick={() => void query.refetch()}>
+              <button
+                type="button"
+                onClick={() => {
+                  runAction(query.refetch());
+                }}
+              >
                 {t('retry')}
               </button>
             </div>
@@ -531,7 +550,9 @@ export function StatisticsPage() {
               {tab === 'overview' ? (
                 <Overview
                   data={query.data}
-                  open={(next) => void navigate(`${path(next)}?${source.toString()}`)}
+                  open={(next) => {
+                    runAction(Promise.resolve(navigate(`${path(next)}?${source.toString()}`)));
+                  }}
                 />
               ) : null}
               {tab === 'tasks' ? <Tasks data={query.data} /> : null}

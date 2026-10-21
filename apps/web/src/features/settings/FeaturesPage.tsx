@@ -1,3 +1,4 @@
+import { runAction } from '../../components/run-action';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ArrowDown, ArrowUp, GripVertical } from 'lucide-react';
@@ -120,10 +121,12 @@ export function FeaturesPage() {
               role="switch"
               checked={achievements.data?.enabled === true}
               onChange={(event) => {
-                void api.setAchievements(event.target.checked).then(() => {
-                  void queryClient.invalidateQueries({ queryKey: ['achievements'] });
-                  void queryClient.invalidateQueries({ queryKey: ['stats'] });
-                });
+                runAction(
+                  api.setAchievements(event.target.checked).then(() => {
+                    runAction(queryClient.invalidateQueries({ queryKey: ['achievements'] }));
+                    runAction(queryClient.invalidateQueries({ queryKey: ['stats'] }));
+                  }),
+                );
               }}
             />
           </label>

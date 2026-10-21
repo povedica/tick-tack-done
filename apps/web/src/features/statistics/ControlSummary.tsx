@@ -1,3 +1,4 @@
+import { runAction } from '../../components/run-action';
 import { addCalendarDays } from '@reflexionia/domain';
 import { useQuery } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
@@ -160,7 +161,7 @@ export function ControlChip({ compact = false }: { readonly compact?: boolean })
                     <button
                       type="button"
                       onClick={() => {
-                        void query.refetch();
+                        runAction(query.refetch());
                       }}
                     >
                       {t('retry')}

@@ -1,3 +1,4 @@
+import { runAction } from '../../components/run-action';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   applyQuadrantDrop,
@@ -135,10 +136,12 @@ export function MatrixBoard({
   function move(taskId: string, quadrant: MatrixQuadrant): void {
     const patch = applyQuadrantDrop(DEFAULT_QUADRANT_EFFECTS[quadrant], new Date().toISOString());
     setMenuId(null);
-    void api.patchTask(taskId, { priority: patch.priority, due_date: patch.dueDate }).then(() => {
-      void tasks.refetch();
-      void refreshTaskSurfaces(queryClient);
-    });
+    runAction(
+      api.patchTask(taskId, { priority: patch.priority, due_date: patch.dueDate }).then(() => {
+        runAction(tasks.refetch());
+        runAction(refreshTaskSurfaces(queryClient));
+      }),
+    );
   }
 
   const quads = QUADRANTS.map((key) => ({

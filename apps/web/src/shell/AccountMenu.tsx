@@ -1,3 +1,4 @@
+import { runAction } from '../components/run-action';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router';
 import { useEffect, useRef } from 'react';
@@ -66,10 +67,12 @@ export function AccountMenu() {
         <button
           type="button"
           onClick={() => {
-            void api.logout().then(() => {
-              cache.clear();
-              void navigate('/login', { replace: true });
-            });
+            runAction(
+              api.logout().then(() => {
+                cache.clear();
+                runAction(Promise.resolve(navigate('/login', { replace: true })));
+              }),
+            );
           }}
         >
           <LogOut size={16} aria-hidden="true" />

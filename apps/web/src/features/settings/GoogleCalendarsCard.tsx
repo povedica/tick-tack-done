@@ -1,3 +1,4 @@
+import { runAction } from '../../components/run-action';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link } from 'react-router';
@@ -51,9 +52,9 @@ export function GoogleCalendarsCard() {
   const calendars = Array.isArray(remote.data) ? remote.data.filter(isRemote) : [];
   const subscriptions = itemsOf(local.data).filter(isLocal);
   const refresh = (): void => {
-    void queryClient.invalidateQueries({ queryKey: ['google-calendars'] });
-    void queryClient.invalidateQueries({ queryKey: ['calendar-subscriptions'] });
-    void queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+    runAction(queryClient.invalidateQueries({ queryKey: ['google-calendars'] }));
+    runAction(queryClient.invalidateQueries({ queryKey: ['calendar-subscriptions'] }));
+    runAction(queryClient.invalidateQueries({ queryKey: ['calendar-events'] }));
   };
   const sync = useMutation({
     mutationFn: (id: string) => api.refreshCalendarSubscription(id),
@@ -148,9 +149,9 @@ export function GoogleCalendarsCard() {
                       if (summary.length === 0 || summary === subscription.summary) {
                         return;
                       }
-                      void api
-                        .updateCalendarSubscription(subscription.id, { summary })
-                        .then(refresh);
+                      runAction(
+                        api.updateCalendarSubscription(subscription.id, { summary }).then(refresh),
+                      );
                     }}
                   />
                 )}
@@ -176,11 +177,13 @@ export function GoogleCalendarsCard() {
                     type="checkbox"
                     checked={subscription.visible}
                     onChange={() => {
-                      void api
-                        .updateCalendarSubscription(subscription.id, {
-                          visible: !subscription.visible,
-                        })
-                        .then(refresh);
+                      runAction(
+                        api
+                          .updateCalendarSubscription(subscription.id, {
+                            visible: !subscription.visible,
+                          })
+                          .then(refresh),
+                      );
                     }}
                   />
                   {messages.showOnCalendar}
@@ -212,9 +215,11 @@ export function GoogleCalendarsCard() {
                     style={dotStyle(swatch)}
                     aria-label={swatch}
                     onClick={() => {
-                      void api
-                        .updateCalendarSubscription(subscription.id, { color: swatch })
-                        .then(refresh);
+                      runAction(
+                        api
+                          .updateCalendarSubscription(subscription.id, { color: swatch })
+                          .then(refresh),
+                      );
                     }}
                   />
                 ))}
@@ -229,10 +234,12 @@ export function GoogleCalendarsCard() {
                   type="button"
                   size="sm"
                   onClick={() => {
-                    void api.deleteCalendarSubscription(subscription.id).then(() => {
-                      setConfirmId(null);
-                      refresh();
-                    });
+                    runAction(
+                      api.deleteCalendarSubscription(subscription.id).then(() => {
+                        setConfirmId(null);
+                        refresh();
+                      }),
+                    );
                   }}
                 >
                   {messages.remove}

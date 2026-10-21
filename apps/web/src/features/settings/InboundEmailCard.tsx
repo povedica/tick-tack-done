@@ -1,3 +1,4 @@
+import { runAction } from '../../components/run-action';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api } from '../../api';
@@ -40,11 +41,13 @@ export function InboundEmailCard() {
           type="button"
           size="sm"
           onClick={() => {
-            void api.rotateInboundEmail().then((created) => {
-              setAddress(created.address);
-              setConfirmMail(false);
-              void queryClient.invalidateQueries({ queryKey: ['inbound'] });
-            });
+            runAction(
+              api.rotateInboundEmail().then((created) => {
+                setAddress(created.address);
+                setConfirmMail(false);
+                runAction(queryClient.invalidateQueries({ queryKey: ['inbound'] }));
+              }),
+            );
           }}
         >
           {messages.regenerate}
@@ -81,11 +84,13 @@ export function InboundEmailCard() {
               size="sm"
               variant="danger"
               onClick={() => {
-                void api.revokeInboundEmail().then(() => {
-                  setAddress(null);
-                  setConfirmMail(false);
-                  void queryClient.invalidateQueries({ queryKey: ['inbound'] });
-                });
+                runAction(
+                  api.revokeInboundEmail().then(() => {
+                    setAddress(null);
+                    setConfirmMail(false);
+                    runAction(queryClient.invalidateQueries({ queryKey: ['inbound'] }));
+                  }),
+                );
               }}
             >
               {messages.revoke}

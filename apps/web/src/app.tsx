@@ -1,3 +1,4 @@
+import { runAction } from './components/run-action';
 import { useEffect, useState, type ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useNavigate, useSearchParams } from 'react-router';
 import { CaptureSheet } from './features/capture/components/CaptureSheet';
@@ -237,11 +238,11 @@ function QuickAddRoute() {
       key={initialText}
       initialText={initialText}
       onClose={() => {
-        void navigate('/today');
+        runAction(Promise.resolve(navigate('/today')));
       }}
       onCreated={(created) => {
         setNotice(created);
-        void navigate('/today');
+        runAction(Promise.resolve(navigate('/today')));
       }}
     />
   );

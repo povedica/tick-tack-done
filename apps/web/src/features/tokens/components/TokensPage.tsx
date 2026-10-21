@@ -1,3 +1,4 @@
+import { runAction } from '../../../components/run-action';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router';
@@ -131,7 +132,7 @@ export function TokensPage() {
             type="button"
             size="sm"
             onClick={() => {
-              void copyText('url', endpoint);
+              runAction(copyText('url', endpoint));
             }}
           >
             {copied === 'url' ? messages.copied : messages.mcpCopyUrl}
@@ -158,7 +159,7 @@ export function TokensPage() {
               type="button"
               size="sm"
               onClick={() => {
-                void copyText('snippet', snippet);
+                runAction(copyText('snippet', snippet));
               }}
             >
               {copied === 'snippet' ? messages.copied : messages.mcpCopyConfig}
@@ -175,7 +176,7 @@ export function TokensPage() {
             type="button"
             size="sm"
             onClick={() => {
-              void copyText('secret', secret);
+              runAction(copyText('secret', secret));
             }}
           >
             {copied === 'secret' ? messages.copied : messages.tokenCopySecret}
@@ -283,7 +284,7 @@ export function TokensPage() {
             <Button
               type="button"
               onClick={() => {
-                void tokens.refetch();
+                runAction(tokens.refetch());
               }}
             >
               {messages.retry}
@@ -416,7 +417,7 @@ export function TokensPage() {
             type="button"
             loading={tokens.isFetchingNextPage}
             onClick={() => {
-              void tokens.fetchNextPage();
+              runAction(tokens.fetchNextPage());
             }}
           >
             {messages.tokenLoadMore}
@@ -428,7 +429,7 @@ export function TokensPage() {
             <Button
               type="button"
               onClick={() => {
-                void revokedTokens.refetch();
+                runAction(revokedTokens.refetch());
               }}
             >
               {messages.retry}
@@ -456,7 +457,7 @@ export function TokensPage() {
                 type="button"
                 loading={revokedTokens.isFetchingNextPage}
                 onClick={() => {
-                  void revokedTokens.fetchNextPage();
+                  runAction(revokedTokens.fetchNextPage());
                 }}
               >
                 {messages.tokenLoadMore}

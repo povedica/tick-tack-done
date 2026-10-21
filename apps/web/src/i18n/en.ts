@@ -159,6 +159,7 @@ export const en = {
   googleDisconnectBody:
     'Google Calendar and Drive will be disconnected. You will need to connect Google again to use them.',
   googleDisconnectFailed: 'Could not disconnect Google. Try again.',
+  actionFailed: 'Could not complete the action. Try again.',
   tokenScopes: 'Scopes',
   tokenCreate: 'Create token',
   tokenSaving: 'Creating…',

@@ -1,3 +1,4 @@
+import { runAction } from '../../components/run-action';
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
 import { createApiClient } from '@reflexionia/sdk';
@@ -26,7 +27,7 @@ export function LoginPage() {
       const session = await sessionApi.login({ email, password });
       markSession('authenticated', session.csrf_token);
       followOauthNext(next, () => {
-        void navigate('/today');
+        runAction(Promise.resolve(navigate('/today')));
       });
     } catch {
       setError(messages.loginFailed);
@@ -46,7 +47,7 @@ export function LoginPage() {
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          void submit();
+          runAction(submit());
         }}
       >
         <label>
@@ -98,7 +99,7 @@ export function RegisterPage() {
     try {
       const session = await sessionApi.register({ email, password, display_name: name });
       markSession('authenticated', session.csrf_token);
-      void navigate('/today');
+      runAction(Promise.resolve(navigate('/today')));
     } catch {
       setError(messages.registerFailed);
     }
@@ -126,7 +127,7 @@ export function RegisterPage() {
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          void submit();
+          runAction(submit());
         }}
       >
         <label>

@@ -1,3 +1,4 @@
+import { runAction } from '../components/run-action';
 import type { Me } from '@reflexionia/sdk';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
@@ -74,14 +75,16 @@ export function AccountPreferenceSync() {
     const look = usePreferences.getState();
     const theme: ThemePreference = useThemePreference.getState().preference;
     const locale = useLocale.getState().choice;
-    void pushUpload({
-      theme,
-      density: look.density,
-      accent: look.accent,
-      week_start: look.weekStart,
-      locale,
-      nlp_language: look.parser,
-    });
+    runAction(
+      pushUpload({
+        theme,
+        density: look.density,
+        accent: look.accent,
+        week_start: look.weekStart,
+        locale,
+        nlp_language: look.parser,
+      }),
+    );
   }, [me.data]);
   return null;
 }

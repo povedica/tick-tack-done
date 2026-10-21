@@ -1,3 +1,4 @@
+import { runAction } from '../components/run-action';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router';
@@ -18,7 +19,7 @@ export function GlobalKeys({ onHelp }: { readonly onHelp: () => void }) {
       }
       if (event.key === '.' && !typing && !event.metaKey && !event.ctrlKey) {
         event.preventDefault();
-        void queryClient.invalidateQueries();
+        runAction(queryClient.invalidateQueries());
         return;
       }
       if (typing) {
@@ -34,7 +35,7 @@ export function GlobalKeys({ onHelp }: { readonly onHelp: () => void }) {
         const path = GO_PATHS[event.key.toLowerCase()];
         if (path !== undefined) {
           event.preventDefault();
-          void navigate(path);
+          runAction(Promise.resolve(navigate(path)));
         }
       }
     }

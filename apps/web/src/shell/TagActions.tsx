@@ -1,3 +1,4 @@
+import { runAction } from '../components/run-action';
 import { useRef, useState, type RefObject } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -169,16 +170,18 @@ export function TagActions({
               type="button"
               role="menuitem"
               onClick={() => {
-                void run(() =>
-                  api.updateTag(tag.id, {
-                    parent_id: tag.parent_id ?? null,
-                    before_id:
-                      tags.find(
-                        (item) =>
-                          item.id !== tag.id &&
-                          (item.parent_id ?? null) === (tag.parent_id ?? null),
-                      )?.id ?? null,
-                  }),
+                runAction(
+                  run(() =>
+                    api.updateTag(tag.id, {
+                      parent_id: tag.parent_id ?? null,
+                      before_id:
+                        tags.find(
+                          (item) =>
+                            item.id !== tag.id &&
+                            (item.parent_id ?? null) === (tag.parent_id ?? null),
+                        )?.id ?? null,
+                    }),
+                  ),
                 );
               }}
               disabled={pending}
@@ -244,11 +247,11 @@ export function TagActions({
             onSubmit={(event) => {
               event.preventDefault();
               if (mode === 'delete') {
-                void run(() => api.deleteTag(tag.id));
+                runAction(run(() => api.deleteTag(tag.id)));
                 return;
               }
               if (mode === 'merge') {
-                if (target) void run(() => api.mergeTags(tag.id, target));
+                if (target) runAction(run(() => api.mergeTags(tag.id, target)));
                 return;
               }
               const normalized = normalizeTagName(name);
@@ -257,13 +260,15 @@ export function TagActions({
                 field.current?.focus();
                 return;
               }
-              void run(() =>
-                mode === 'subtag'
-                  ? api.createTag(
-                      { name: normalized, color, parent_id: parent || null },
-                      idempotency.current,
-                    )
-                  : api.updateTag(tag.id, { name: normalized, color, parent_id: parent || null }),
+              runAction(
+                run(() =>
+                  mode === 'subtag'
+                    ? api.createTag(
+                        { name: normalized, color, parent_id: parent || null },
+                        idempotency.current,
+                      )
+                    : api.updateTag(tag.id, { name: normalized, color, parent_id: parent || null }),
+                ),
               );
             }}
           >

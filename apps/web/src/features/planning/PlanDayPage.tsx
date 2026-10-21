@@ -1,3 +1,4 @@
+import { runAction } from '../../components/run-action';
 import { displayTitle } from '../tasks/displayTitle';
 import { ApiError } from '@reflexionia/sdk';
 import { useEffect, useState } from 'react';
@@ -296,7 +297,7 @@ export function PlanDayPage() {
                           disabled={busy}
                           aria-label={`${text.reset}: ${displayTitle(card.title)}`}
                           onClick={() => {
-                            void reset(card);
+                            runAction(reset(card));
                           }}
                         >
                           {text.decisions[decision.decision]} ×
@@ -337,7 +338,7 @@ export function PlanDayPage() {
                 variant="primary"
                 disabled={busy}
                 onClick={() => {
-                  void apply();
+                  runAction(apply());
                 }}
               >
                 {text.apply}
@@ -349,7 +350,7 @@ export function PlanDayPage() {
               variant="primary"
               disabled={busy}
               onClick={() => {
-                void apply();
+                runAction(apply());
               }}
             >
               {text.apply}
@@ -361,7 +362,7 @@ export function PlanDayPage() {
               <Button
                 disabled={busy}
                 onClick={() => {
-                  void choose('done');
+                  runAction(choose('done'));
                 }}
               >
                 <Check size={16} />
@@ -370,7 +371,7 @@ export function PlanDayPage() {
               <Button
                 disabled={busy}
                 onClick={() => {
-                  void choose('plan_day');
+                  runAction(choose('plan_day'));
                 }}
               >
                 <Sun size={16} />
@@ -379,7 +380,7 @@ export function PlanDayPage() {
               <Button
                 disabled={busy}
                 onClick={() => {
-                  void choose('later');
+                  runAction(choose('later'));
                 }}
               >
                 <CalendarDays size={16} />
@@ -388,7 +389,7 @@ export function PlanDayPage() {
               <Button
                 disabled={busy}
                 onClick={() => {
-                  void choose('cancel');
+                  runAction(choose('cancel'));
                 }}
               >
                 <Ban size={16} />

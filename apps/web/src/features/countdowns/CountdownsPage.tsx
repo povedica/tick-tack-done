@@ -1,3 +1,4 @@
+import { runAction } from '../../components/run-action';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MoreHorizontal, Plus } from 'lucide-react';
 import { useState } from 'react';
@@ -62,7 +63,7 @@ export function CountdownsPage() {
             setDialog({ type: item.type, countdown: item });
           }}
           onPin={() => {
-            void countdownsApi.update(item.id, { pinned: !item.pinned }).then(refresh);
+            runAction(countdownsApi.update(item.id, { pinned: !item.pinned }).then(refresh));
           }}
           onArchive={() => {
             archive.mutate({ item, restore: archived });
@@ -134,7 +135,12 @@ export function CountdownsPage() {
       {rows.isError ? (
         <p className="error">
           No se han podido cargar las cuentas atrás.{' '}
-          <button type="button" onClick={() => void rows.refetch()}>
+          <button
+            type="button"
+            onClick={() => {
+              runAction(rows.refetch());
+            }}
+          >
             Reintentar
           </button>
         </p>
@@ -194,12 +200,14 @@ export function CountdownsPage() {
         onUndo={(id) => {
           const item = deleted.find((entry) => entry.id === id);
           if (item !== undefined) {
-            void countdownsApi
-              .create(
-                { ...item.countdown, targetDate: item.countdown.targetDate.slice(0, 10) },
-                crypto.randomUUID(),
-              )
-              .then(refresh);
+            runAction(
+              countdownsApi
+                .create(
+                  { ...item.countdown, targetDate: item.countdown.targetDate.slice(0, 10) },
+                  crypto.randomUUID(),
+                )
+                .then(refresh),
+            );
             setDeleted((current) => current.filter((entry) => entry.id !== id));
           }
         }}

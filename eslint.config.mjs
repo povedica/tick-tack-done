@@ -33,6 +33,13 @@ export default tseslint.config(
     },
   },
   {
+    files: ['apps/web/src/**/*.ts', 'apps/web/src/**/*.tsx'],
+    ignores: ['apps/web/src/sw.ts'],
+    rules: {
+      '@typescript-eslint/no-floating-promises': ['error', { ignoreVoid: false }],
+    },
+  },
+  {
     files: ['packages/domain/**/*.ts'],
     rules: {
       'no-restricted-imports': [

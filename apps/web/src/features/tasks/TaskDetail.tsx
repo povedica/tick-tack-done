@@ -1,3 +1,4 @@
+import { runAction } from '../../components/run-action';
 import { type CreateTaskBody, type TaskDetail as Detail } from '@reflexionia/sdk';
 import { describeRepeatRule, parseTrigger } from '@reflexionia/domain';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -134,7 +135,7 @@ export function TaskDetail({
         <p role="alert">{fill(messages.loadFailed, messages.taskTitle)}</p>
         <Button
           onClick={() => {
-            void detail.refetch();
+            runAction(detail.refetch());
           }}
         >
           {messages.retry}
@@ -241,14 +242,14 @@ export function TaskDetail({
 
   function complete(): void {
     if (task.status === 'completed') {
-      void api.uncompleteTask(task.id, crypto.randomUUID()).then(refresh);
+      runAction(api.uncompleteTask(task.id, crypto.randomUUID()).then(refresh));
       return;
     }
     if (activeChildren.length > 0) {
       setChildren(true);
       return;
     }
-    void finish(undefined);
+    runAction(finish(undefined));
   }
 
   async function finish(mode: 'complete' | 'leave' | undefined): Promise<void> {
@@ -518,26 +519,26 @@ export function TaskDetail({
         }}
         onToggleItem={(id, done) => {
           if (!done) {
-            void api.completeChecklistItem(task.id, id).then(refresh);
+            runAction(api.completeChecklistItem(task.id, id).then(refresh));
           }
         }}
         onAddItem={(title) => {
-          void api.createChecklistItem(task.id, title, crypto.randomUUID()).then(refresh);
+          runAction(api.createChecklistItem(task.id, title, crypto.randomUUID()).then(refresh));
         }}
         onEditItem={(id, title) => {
-          void patchChecklistItem(task.id, id, { title }).then(refresh);
+          runAction(patchChecklistItem(task.id, id, { title }).then(refresh));
         }}
         onDeleteItem={(id) => {
-          void api.deleteChecklistItem(task.id, id).then(refresh);
+          runAction(api.deleteChecklistItem(task.id, id).then(refresh));
         }}
         onReorderItem={(id, beforeId) => {
-          void patchChecklistItem(task.id, id, { before_id: beforeId }).then(refresh);
+          runAction(patchChecklistItem(task.id, id, { before_id: beforeId }).then(refresh));
         }}
         onToggleSubtask={(id, done) => {
           const run = done
             ? api.uncompleteTask(id, crypto.randomUUID())
             : api.completeTask(id, completeBody(), crypto.randomUUID());
-          void run.then(refresh);
+          runAction(run.then(refresh));
         }}
         onDeleteAttachment={(id) => {
           void deleteAttachment(task.id, id)
@@ -563,9 +564,11 @@ export function TaskDetail({
           if (reminder === undefined) {
             return;
           }
-          void api.deleteReminder(task.id, reminder.id).then(() => {
-            void queryClient.invalidateQueries({ queryKey: ['reminders', taskId] });
-          });
+          runAction(
+            api.deleteReminder(task.id, reminder.id).then(() => {
+              runAction(queryClient.invalidateQueries({ queryKey: ['reminders', taskId] }));
+            }),
+          );
         }}
         onClearRepeat={() => {
           save.mutate({ repeat_rule: null });
@@ -653,9 +656,11 @@ export function TaskDetail({
             type="button"
             size="sm"
             onClick={() => {
-              void api.finishFocus(focus.id).then(() => {
-                void queryClient.invalidateQueries({ queryKey: ['focus-sessions'] });
-              });
+              runAction(
+                api.finishFocus(focus.id).then(() => {
+                  runAction(queryClient.invalidateQueries({ queryKey: ['focus-sessions'] }));
+                }),
+              );
             }}
           >
             {messages.focusFinish}
@@ -665,9 +670,11 @@ export function TaskDetail({
             size="sm"
             variant="ghost"
             onClick={() => {
-              void api.abortFocus(focus.id).then(() => {
-                void queryClient.invalidateQueries({ queryKey: ['focus-sessions'] });
-              });
+              runAction(
+                api.abortFocus(focus.id).then(() => {
+                  runAction(queryClient.invalidateQueries({ queryKey: ['focus-sessions'] }));
+                }),
+              );
             }}
           >
             {messages.focusCancel}
@@ -713,7 +720,7 @@ export function TaskDetail({
         }}
         onMove={(projectId) => {
           setListOpen(false);
-          void api.moveTask(task.id, projectId).then(refresh);
+          runAction(api.moveTask(task.id, projectId).then(refresh));
         }}
         onComments={() => {
           setCommentsOpen((current) => !current);
@@ -730,16 +737,18 @@ export function TaskDetail({
           setMenuOpen(false);
         }}
         onAddSubtask={() => {
-          void api
-            .createTask(
-              {
-                title: messages.subtaskTitle,
-                project_id: task.project_id,
-                parent_id: task.id,
-              } as unknown as CreateTaskBody,
-              crypto.randomUUID(),
-            )
-            .then(refresh);
+          runAction(
+            api
+              .createTask(
+                {
+                  title: messages.subtaskTitle,
+                  project_id: task.project_id,
+                  parent_id: task.id,
+                } as unknown as CreateTaskBody,
+                crypto.randomUUID(),
+              )
+              .then(refresh),
+          );
         }}
         onLinkParent={() => {
           setParentOpen(true);
@@ -751,10 +760,12 @@ export function TaskDetail({
           showToast(next.includes(task.id) ? messages.pinnedToast : messages.unpinnedToast);
         }}
         onDiscard={() => {
-          void api.snoozeTask(task.id, 'next_week').then(() => {
-            onClose();
-            return refresh();
-          });
+          runAction(
+            api.snoozeTask(task.id, 'next_week').then(() => {
+              onClose();
+              return refresh();
+            }),
+          );
         }}
         onTags={() => {
           setTagsOpen(true);
@@ -780,16 +791,18 @@ export function TaskDetail({
           showToast(messages.templateSaved);
         }}
         onDuplicate={() => {
-          void api.duplicateTask(task.id, crypto.randomUUID()).then((copy) => {
-            const next = new URLSearchParams(window.location.search);
-            next.set('task', copy.id);
-            setParams(next, { replace: true });
-            showToast(messages.duplicated);
-            return refreshTaskSurfaces(queryClient);
-          });
+          runAction(
+            api.duplicateTask(task.id, crypto.randomUUID()).then((copy) => {
+              const next = new URLSearchParams(window.location.search);
+              next.set('task', copy.id);
+              setParams(next, { replace: true });
+              showToast(messages.duplicated);
+              return refreshTaskSurfaces(queryClient);
+            }),
+          );
         }}
         onCopy={() => {
-          void navigator.clipboard.writeText(`${window.location.origin}/task/${task.id}`);
+          runAction(navigator.clipboard.writeText(`${window.location.origin}/task/${task.id}`));
           showToast(messages.copyLink);
         }}
         onConvert={() => {
@@ -806,7 +819,7 @@ export function TaskDetail({
             .cancelTask(task.id)
             .then(() => {
               showToast(messages.wontDoDone);
-              void refreshTaskSurfaces(queryClient);
+              runAction(refreshTaskSurfaces(queryClient));
               onClose();
             })
             .catch((caught: unknown) => {
@@ -815,13 +828,15 @@ export function TaskDetail({
         }}
         onDelete={() => {
           const id = task.id;
-          void api.deleteTask(id).then(() => {
-            showToast(messages.movedToTrash, () => {
-              void api.restoreTask(id).then(() => refreshTaskSurfaces(queryClient));
-            });
-            void refreshTaskSurfaces(queryClient);
-            onClose();
-          });
+          runAction(
+            api.deleteTask(id).then(() => {
+              showToast(messages.movedToTrash, () => {
+                runAction(api.restoreTask(id).then(() => refreshTaskSurfaces(queryClient)));
+              });
+              runAction(refreshTaskSurfaces(queryClient));
+              onClose();
+            }),
+          );
         }}
       />
       <input
@@ -844,7 +859,7 @@ export function TaskDetail({
           <Button
             onClick={() => {
               setChildren(false);
-              void finish('complete');
+              runAction(finish('complete'));
             }}
           >
             {messages.completeChildren}
@@ -853,7 +868,7 @@ export function TaskDetail({
             variant="ghost"
             onClick={() => {
               setChildren(false);
-              void finish('leave');
+              runAction(finish('leave'));
             }}
           >
             {messages.leaveChildren}
@@ -867,7 +882,7 @@ export function TaskDetail({
             onClick={() => {
               const due = series;
               setSeries(null);
-              void api.detachOccurrence(task.id, due).then(refresh);
+              runAction(api.detachOccurrence(task.id, due).then(refresh));
             }}
           >
             {messages.thisOccurrence}

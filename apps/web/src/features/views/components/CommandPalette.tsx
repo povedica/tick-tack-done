@@ -1,3 +1,4 @@
+import { runAction } from '../../../components/run-action';
 import type { SearchResponse } from '@reflexionia/sdk';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useId, useState } from 'react';
@@ -61,7 +62,11 @@ export function CommandPalette({ onClose }: { readonly onClose: () => void }) {
                   params.set('text', text);
                 }
                 const suffix = params.toString();
-                void navigate(suffix.length === 0 ? '/quick-add' : `/quick-add?${suffix}`);
+                runAction(
+                  Promise.resolve(
+                    navigate(suffix.length === 0 ? '/quick-add' : `/quick-add?${suffix}`),
+                  ),
+                );
                 onClose();
               }}
             >
@@ -74,28 +79,28 @@ export function CommandPalette({ onClose }: { readonly onClose: () => void }) {
               <CommandItem
                 label={messages.commandToday}
                 onRun={() => {
-                  void navigate('/today');
+                  runAction(Promise.resolve(navigate('/today')));
                   onClose();
                 }}
               />
               <CommandItem
                 label={messages.commandInbox}
                 onRun={() => {
-                  void navigate('/inbox');
+                  runAction(Promise.resolve(navigate('/inbox')));
                   onClose();
                 }}
               />
               <CommandItem
                 label={messages.commandSettings}
                 onRun={() => {
-                  void navigate('/settings/appearance');
+                  runAction(Promise.resolve(navigate('/settings/appearance')));
                   onClose();
                 }}
               />
               <CommandItem
                 label={messages.commandSync}
                 onRun={() => {
-                  void navigate('/today');
+                  runAction(Promise.resolve(navigate('/today')));
                   onClose();
                 }}
               />
@@ -107,7 +112,7 @@ export function CommandPalette({ onClose }: { readonly onClose: () => void }) {
                   <button
                     type="button"
                     onClick={() => {
-                      void navigate(`/lists/${project.id}`);
+                      runAction(Promise.resolve(navigate(`/lists/${project.id}`)));
                       onClose();
                     }}
                   >

@@ -1,3 +1,4 @@
+import { runAction } from '../../components/run-action';
 import { displayTitle } from '../tasks/displayTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowUpDown, Lightbulb, Menu, Sprout } from 'lucide-react';
@@ -183,14 +184,16 @@ export function TodayPage() {
         : `${messages.created}: ${notice.title}`,
     );
     clearNotice();
-    void queryClient.invalidateQueries({ queryKey: ['today-tasks'] });
+    runAction(queryClient.invalidateQueries({ queryKey: ['today-tasks'] }));
   }, [clearNotice, messages, notice, queryClient, showToast]);
 
   useEffect(() => {
     function onOnline(): void {
-      void flushOfflineQueue().then(() => {
-        void queryClient.invalidateQueries({ queryKey: ['today-tasks'] });
-      });
+      runAction(
+        flushOfflineQueue().then(() => {
+          runAction(queryClient.invalidateQueries({ queryKey: ['today-tasks'] }));
+        }),
+      );
     }
     window.addEventListener('online', onOnline);
     onOnline();
@@ -387,16 +390,18 @@ export function TodayPage() {
   }
 
   function patchTask(id: string, body: Parameters<typeof api.patchTask>[1]): void {
-    void api.patchTask(id, body).then(() => refreshTaskSurfaces(queryClient));
+    runAction(api.patchTask(id, body).then(() => refreshTaskSurfaces(queryClient)));
   }
 
   function removeTask(id: string): void {
-    void api.deleteTask(id).then(() => {
-      showToast(messages.movedToTrash, () => {
-        void api.restoreTask(id).then(() => refreshTaskSurfaces(queryClient));
-      });
-      void refreshTaskSurfaces(queryClient);
-    });
+    runAction(
+      api.deleteTask(id).then(() => {
+        showToast(messages.movedToTrash, () => {
+          runAction(api.restoreTask(id).then(() => refreshTaskSurfaces(queryClient)));
+        });
+        runAction(refreshTaskSurfaces(queryClient));
+      }),
+    );
   }
 
   function chooseSelect(id: string, mode: 'toggle' | 'range' | 'plain'): void {
@@ -449,7 +454,7 @@ export function TodayPage() {
           setHidden((current) => dropId(current, task.id));
           setLeaving((current) => dropId(current, task.id));
         } else {
-          void refreshTaskSurfaces(queryClient);
+          runAction(refreshTaskSurfaces(queryClient));
         }
       })
       .catch(() => {
@@ -670,7 +675,7 @@ export function TodayPage() {
                 type="button"
                 className="text-button"
                 onClick={() => {
-                  void tasks.refetch();
+                  runAction(tasks.refetch());
                 }}
               >
                 {messages.retry}
@@ -730,7 +735,7 @@ export function TodayPage() {
             type="button"
             className="text-button"
             onClick={() => {
-              void habits.refetch();
+              runAction(habits.refetch());
             }}
           >
             {messages.retry}
@@ -777,16 +782,18 @@ export function TodayPage() {
           <button
             type="button"
             onClick={() => {
-              void Promise.all(
-                [...selected].map((id) =>
-                  runOrQueue(newMutation('complete', id, completeBody()), (key) =>
-                    tasksApi.completeTask(id, completeBody(), key),
+              runAction(
+                Promise.all(
+                  [...selected].map((id) =>
+                    runOrQueue(newMutation('complete', id, completeBody()), (key) =>
+                      tasksApi.completeTask(id, completeBody(), key),
+                    ),
                   ),
-                ),
-              ).then(() => {
-                setSelected(new Set());
-                return refreshTaskSurfaces(queryClient);
-              });
+                ).then(() => {
+                  setSelected(new Set());
+                  return refreshTaskSurfaces(queryClient);
+                }),
+              );
             }}
           >
             {messages.completeLabel.replace(' «{name}»', '')}
@@ -794,10 +801,12 @@ export function TodayPage() {
           <button
             type="button"
             onClick={() => {
-              void api.batchTasks({ action: 'delete', ids: [...selected] }).then(() => {
-                setSelected(new Set());
-                return refreshTaskSurfaces(queryClient);
-              });
+              runAction(
+                api.batchTasks({ action: 'delete', ids: [...selected] }).then(() => {
+                  setSelected(new Set());
+                  return refreshTaskSurfaces(queryClient);
+                }),
+              );
             }}
           >
             {messages.batchDelete}
@@ -832,13 +841,15 @@ export function TodayPage() {
             patchTask(menuTask.id, { priority });
           }}
           onSubtask={() => {
-            void api.createTask(
-              {
-                title: messages.subtaskTitle,
-                project_id: menuTask.projectId,
-                parent_id: menuTask.id,
-              } as unknown as CreateTaskBody,
-              crypto.randomUUID(),
+            runAction(
+              api.createTask(
+                {
+                  title: messages.subtaskTitle,
+                  project_id: menuTask.projectId,
+                  parent_id: menuTask.id,
+                } as unknown as CreateTaskBody,
+                crypto.randomUUID(),
+              ),
             );
           }}
           onPin={() => {
@@ -847,21 +858,27 @@ export function TodayPage() {
             localStorage.setItem(PIN_KEY, JSON.stringify(next));
           }}
           onMove={(projectId) => {
-            void api.moveTask(menuTask.id, projectId).then(() => refreshTaskSurfaces(queryClient));
+            runAction(
+              api.moveTask(menuTask.id, projectId).then(() => refreshTaskSurfaces(queryClient)),
+            );
           }}
           onTags={() => {
             openTask(menuTask.id);
           }}
           onFocus={() => {
-            void api.startFocus({ task_id: menuTask.id }).then(() => navigate('/focus'));
+            runAction(api.startFocus({ task_id: menuTask.id }).then(() => navigate('/focus')));
           }}
           onDuplicate={() => {
-            void api
-              .duplicateTask(menuTask.id, crypto.randomUUID())
-              .then(() => refreshTaskSurfaces(queryClient));
+            runAction(
+              api
+                .duplicateTask(menuTask.id, crypto.randomUUID())
+                .then(() => refreshTaskSurfaces(queryClient)),
+            );
           }}
           onCopy={() => {
-            void navigator.clipboard.writeText(`${window.location.origin}/task/${menuTask.id}`);
+            runAction(
+              navigator.clipboard.writeText(`${window.location.origin}/task/${menuTask.id}`),
+            );
           }}
           onConvert={() => {
             patchTask(menuTask.id, { kind: 'note' });
@@ -885,7 +902,7 @@ export function TodayPage() {
               }
             : {})}
           onWontDo={() => {
-            void api.cancelTask(menuTask.id).then(() => refreshTaskSurfaces(queryClient));
+            runAction(api.cancelTask(menuTask.id).then(() => refreshTaskSurfaces(queryClient)));
           }}
           onDelete={() => {
             removeTask(menuTask.id);

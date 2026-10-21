@@ -1,3 +1,4 @@
+import { runAction } from '../../components/run-action';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { collectProjects } from '../tasks/collect';
@@ -74,7 +75,7 @@ function SettingsForm({
     mutationFn: (patch: Record<string, unknown>) => tickyApi.updateAuthority(patch),
     onSuccess: () => {
       setNotice('Permisos guardados.');
-      void queryClient.invalidateQueries({ queryKey: ['ticky'] });
+      runAction(queryClient.invalidateQueries({ queryKey: ['ticky'] }));
     },
     onError: (error: Error) => {
       setNotice(error.message);

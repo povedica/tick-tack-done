@@ -1,3 +1,4 @@
+import { runAction } from '../components/run-action';
 import { ControlChip } from '../features/statistics/ControlSummary';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState, type CSSProperties } from 'react';
@@ -246,7 +247,7 @@ function CaptureHost() {
           .join(', ');
         showToast(warning.length > 0 ? `${created.title} · ${warning}` : created.title);
         hide();
-        void refreshTaskSurfaces(queryClient);
+        runAction(refreshTaskSurfaces(queryClient));
       }}
     />
   );
@@ -255,23 +256,24 @@ function CaptureHost() {
 function ActionToast() {
   const messages = useMessages();
   const text = useActionToast((state) => state.text);
+  const tone = useActionToast((state) => state.tone);
   const undo = useActionToast((state) => state.undo);
   const clear = useActionToast((state) => state.clear);
   useEffect(() => {
     if (text === null) {
       return;
     }
-    const id = window.setTimeout(clear, 4000);
+    const id = window.setTimeout(clear, tone === 'error' ? 8000 : 4000);
     return () => {
       window.clearTimeout(id);
     };
-  }, [text, clear]);
+  }, [text, clear, tone]);
   if (text === null) {
     return null;
   }
   return (
     <div className="toast-stack">
-      <p className="toast" role="status">
+      <p className="toast" role={tone === 'error' ? 'alert' : 'status'}>
         <span>{text}</span>
         {undo === null ? null : (
           <button
