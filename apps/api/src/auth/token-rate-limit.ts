@@ -46,6 +46,10 @@ export class SlidingWindowRateLimit {
     this.hits.delete(tokenId);
   }
 
+  resetAll(): void {
+    this.hits.clear();
+  }
+
   private prune(tokenId: string, now: number): number[] {
     const start = now - this.windowMs;
     return (this.hits.get(tokenId) ?? []).filter((at) => at > start);

@@ -9,6 +9,7 @@ import {
 import type { Request, Response } from 'express';
 import { MulterError } from 'multer';
 import { oauthChallenge } from '../auth/oauth-discovery.controller.js';
+import { isOauthProtocolPath, oauthErrorBody } from '../auth/oauth-error.js';
 
 interface ApiErrorBody {
   error: {
@@ -49,7 +50,7 @@ function messageFrom(body: string | object): string {
   return 'Request failed';
 }
 
-function errorBody(exception: HttpException): ApiErrorBody {
+function errorParts(exception: HttpException): { code: string; message: string; details: unknown } {
   const status = exception.getStatus();
   const response = exception.getResponse();
   if (typeof response === 'object' && isRecord(response)) {
@@ -60,21 +61,22 @@ function errorBody(exception: HttpException): ApiErrorBody {
         ? message
         : (response.details ?? null);
     return {
-      error: {
-        code:
-          typeof explicit === 'string' ? explicit : (CODE_BY_STATUS[status] ?? 'request_failed'),
-        message: messageFrom(response),
-        details,
-      },
+      code: typeof explicit === 'string' ? explicit : (CODE_BY_STATUS[status] ?? 'request_failed'),
+      message: messageFrom(response),
+      details,
     };
   }
   return {
-    error: {
-      code: CODE_BY_STATUS[status] ?? 'request_failed',
-      message: messageFrom(response),
-      details: null,
-    },
+    code: CODE_BY_STATUS[status] ?? 'request_failed',
+    message: messageFrom(response),
+    details: null,
   };
+}
+
+function requestPath(host: ArgumentsHost): string {
+  const request = host.switchToHttp().getRequest<Request>();
+  const raw = request.originalUrl.length > 0 ? request.originalUrl : request.url;
+  return raw.split('?')[0] ?? raw;
 }
 
 function transportStatus(error: unknown): number | null {
@@ -100,9 +102,7 @@ function isParseError(error: unknown): boolean {
 }
 
 function isMcpRequest(host: ArgumentsHost): boolean {
-  const request = host.switchToHttp().getRequest<Request>();
-  const raw = request.originalUrl.length > 0 ? request.originalUrl : request.url;
-  const path = raw.split('?')[0] ?? raw;
+  const path = requestPath(host);
   return path === '/api/v1/mcp' || path.startsWith('/api/v1/mcp/');
 }
 
@@ -125,31 +125,30 @@ export class ApiExceptionFilter implements ExceptionFilter {
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const response = host.switchToHttp().getResponse<Response>();
+    const path = requestPath(host);
     if (exception instanceof MulterError && exception.code === 'LIMIT_FILE_SIZE') {
-      response.status(HttpStatus.PAYLOAD_TOO_LARGE).json({
-        error: {
-          code: 'payload_too_large',
-          message: 'Attachment exceeds the size limit',
-          details: null,
-        },
-      } satisfies ApiErrorBody);
+      this.sendApiError(response, path, HttpStatus.PAYLOAD_TOO_LARGE, {
+        code: 'payload_too_large',
+        message: 'Attachment exceeds the size limit',
+        details: null,
+      });
       return;
     }
     const transport = transportStatus(exception);
     if (transport === HttpStatus.PAYLOAD_TOO_LARGE) {
-      response.status(HttpStatus.PAYLOAD_TOO_LARGE).json({
-        error: {
-          code: 'payload_too_large',
-          message: 'Request body is too large',
-          details: null,
-        },
-      } satisfies ApiErrorBody);
+      this.sendApiError(response, path, HttpStatus.PAYLOAD_TOO_LARGE, {
+        code: 'payload_too_large',
+        message: 'Request body is too large',
+        details: null,
+      });
       return;
     }
     if (transport === HttpStatus.BAD_REQUEST && isParseError(exception)) {
-      response.status(HttpStatus.BAD_REQUEST).json({
-        error: { code: 'validation_failed', message: 'Request body is invalid', details: null },
-      } satisfies ApiErrorBody);
+      this.sendApiError(response, path, HttpStatus.BAD_REQUEST, {
+        code: 'validation_failed',
+        message: 'Request body is invalid',
+        details: null,
+      });
       return;
     }
     if (exception instanceof HttpException) {
@@ -162,12 +161,30 @@ export class ApiExceptionFilter implements ExceptionFilter {
       if (exception.getStatus() === 401 && isMcpRequest(host)) {
         response.setHeader('WWW-Authenticate', oauthChallenge());
       }
-      response.status(exception.getStatus()).json(errorBody(exception));
+      const parts = errorParts(exception);
+      this.sendApiError(response, path, exception.getStatus(), parts);
       return;
     }
     this.logger.error(exception instanceof Error ? exception.message : 'Unhandled error');
-    response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-      error: { code: 'internal_error', message: 'Internal server error', details: null },
+    this.sendApiError(response, path, HttpStatus.INTERNAL_SERVER_ERROR, {
+      code: 'internal_error',
+      message: 'Internal server error',
+      details: null,
+    });
+  }
+
+  private sendApiError(
+    response: Response,
+    path: string,
+    status: number,
+    parts: { code: string; message: string; details: unknown },
+  ): void {
+    if (isOauthProtocolPath(path)) {
+      response.status(status).json(oauthErrorBody(parts.code, parts.message, path, status));
+      return;
+    }
+    response.status(status).json({
+      error: { code: parts.code, message: parts.message, details: parts.details },
     } satisfies ApiErrorBody);
   }
 }

@@ -293,10 +293,14 @@ describe('MCP server', () => {
         .set('Origin', 'https://chatgpt.com');
       expect(closed.headers['access-control-allow-origin']).toBeUndefined();
 
-      await request(server)
+      const evil = await request(server)
         .post('/api/v1/oauth/register')
-        .send({ redirect_uris: ['https://evil.example/cb'], client_name: 'Nope' })
-        .expect(400);
+        .send({ redirect_uris: ['https://evil.example/cb'], client_name: 'Nope' });
+      expect(evil.status).toBe(400);
+      expect(evil.body).toEqual({
+        error: 'invalid_redirect_uri',
+        error_description: 'redirect_uri is not allowed',
+      });
 
       const registered = await request(server)
         .post('/api/v1/oauth/register')
@@ -334,7 +338,22 @@ describe('MCP server', () => {
         code_challenge_method: 'plain',
         resource,
       });
-      expect(plain.status).toBe(400);
+      expect(plain.status).toBe(302);
+      const plainRedirect = new URL(plain.headers.location as string);
+      expect(plainRedirect.origin + plainRedirect.pathname).toBe(redirectUri);
+      expect(plainRedirect.searchParams.get('error')).toBe('invalid_request');
+      expect(plainRedirect.searchParams.get('state')).toBe('state-oauth-1');
+
+      const unknownClient = await request(server).get('/oauth/authorize').query({
+        client_id: '00000000-0000-4000-8000-000000000000',
+        redirect_uri: redirectUri,
+        state: 'state-oauth-1',
+        code_challenge: challenge,
+        code_challenge_method: 'S256',
+        resource,
+      });
+      expect(unknownClient.status).toBe(400);
+      expect(unknownClient.headers.location).toBeUndefined();
 
       const consent = await request(server)
         .post('/api/v1/oauth/authorize')
@@ -438,6 +457,39 @@ describe('MCP server', () => {
         client_id: clientId,
       });
       expect(reuse.status).toBe(400);
+      expect(typeof reuse.body.error).toBe('string');
+      expect(reuse.body.error).toBe('invalid_grant');
+      expect(typeof reuse.body.error_description).toBe('string');
+
+      const badVerifier = await request(server)
+        .post('/api/v1/oauth/authorize')
+        .set('X-Dev-User-Email', owner.email)
+        .send({
+          client_id: clientId,
+          redirect_uri: redirectUri,
+          scope: 'tasks:read',
+          state: 'state-oauth-3',
+          code_challenge: challenge,
+          code_challenge_method: 'S256',
+          allow: true,
+          resource,
+        })
+        .expect(201);
+      const badCode = new URL(badVerifier.body.redirect_to as string).searchParams.get('code');
+      const mismatched = await request(server).post('/api/v1/oauth/token').send({
+        grant_type: 'authorization_code',
+        code: badCode,
+        redirect_uri: redirectUri,
+        client_id: clientId,
+        code_verifier: 'b'.repeat(43),
+        resource,
+      });
+      expect(mismatched.status).toBe(400);
+      expect(mismatched.body).toEqual({
+        error: 'invalid_grant',
+        error_description: 'PKCE verification failed',
+      });
+
       const spent = await prisma.oauthRefreshToken.findFirst({
         where: { tokenHash: hashPersonalAccessToken(rotated.body.refresh_token as string) },
       });

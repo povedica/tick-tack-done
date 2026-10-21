@@ -25,6 +25,11 @@ import {
   grantApprovedScopes,
   resolveRequestedScopes,
 } from './oauth-grants.js';
+import {
+  authorizeErrorCode,
+  authorizeErrorDescription,
+  oauthAuthorizeErrorRedirect,
+} from './oauth-error.js';
 import { classifyRefresh, revokeRefreshFamily } from './oauth-refresh.js';
 import { acceptsPkceMethod, pkceMatches } from './pkce.js';
 import { publicOrigin } from './public-origin.js';
@@ -85,21 +90,21 @@ export class OauthService {
     if (dto.redirect_uris.some((uri) => !isDynamicRedirectUri(uri))) {
       throw new DomainException(
         HttpStatus.BAD_REQUEST,
-        'validation_failed',
+        'invalid_redirect_uri',
         'redirect_uri is not allowed',
       );
     }
     if (dto.grant_types?.length === 0) {
       throw new DomainException(
         HttpStatus.BAD_REQUEST,
-        'validation_failed',
+        'invalid_client_metadata',
         'grant_types is invalid',
       );
     }
     if (dto.response_types?.length === 0) {
       throw new DomainException(
         HttpStatus.BAD_REQUEST,
-        'validation_failed',
+        'invalid_client_metadata',
         'response_types is invalid',
       );
     }
@@ -133,10 +138,22 @@ export class OauthService {
     cookieHeader: string | undefined,
     ip: string,
   ): Promise<string> {
-    await this.attempts.assertAllowed(ip, `oauth-authorize:${query.client_id}`);
-    await this.attempts.recordAttempt(ip);
-    this.assertAuthorizeShape(query);
+    // Validate redirect_uri before any error redirect (RFC 6749 §3.1.2 / §4.1.2.1).
     await this.requirePublicClient(query.client_id, query.redirect_uri);
+    try {
+      await this.limitAuthorize(ip, query.client_id);
+      this.assertAuthorizeShape(query);
+    } catch (cause) {
+      if (cause instanceof DomainException) {
+        return oauthAuthorizeErrorRedirect(
+          query.redirect_uri,
+          query.state,
+          authorizeErrorCode(cause),
+          authorizeErrorDescription(cause),
+        );
+      }
+      throw cause;
+    }
     const params = authorizeParams(query);
     if (!(await this.hasBrowserSession(cookieHeader))) {
       return `/login?next=${encodeURIComponent(`/oauth/authorize?${params}`)}`;
@@ -189,8 +206,8 @@ export class OauthService {
       );
     }
     const clientId = dto.client_id ?? 'unknown';
-    await this.attempts.assertAllowed(ip, `oauth:${clientId}`);
-    await this.attempts.recordAttempt(ip);
+    await this.attempts.assertOauthAllowed(ip, `oauth:${clientId}`);
+    await this.attempts.recordOauthAttempt(ip);
     if (dto.grant_type === 'refresh_token') {
       return this.refresh(dto);
     }
@@ -198,8 +215,8 @@ export class OauthService {
   }
 
   async revokePresented(token: string, ip: string): Promise<void> {
-    await this.attempts.assertAllowed(ip, 'oauth-revoke');
-    await this.attempts.recordAttempt(ip);
+    await this.attempts.assertOauthAllowed(ip, 'oauth-revoke');
+    await this.attempts.recordOauthAttempt(ip);
     const hash = hashPersonalAccessToken(token);
     const access = await this.prisma.personalAccessToken.findFirst({
       where: { tokenHash: hash, deletedAt: null },
@@ -522,8 +539,8 @@ export class OauthService {
   }
 
   private async limitAuthorize(subject: string, clientId: string): Promise<void> {
-    await this.attempts.assertAllowed(subject, `oauth-authorize:${clientId}`);
-    await this.attempts.recordAttempt(subject);
+    await this.attempts.assertOauthAllowed(subject, `oauth-authorize:${clientId}`);
+    await this.attempts.recordOauthAttempt(subject);
   }
 
   private assertAuthorizeShape(query: ConsentQuery): void {
