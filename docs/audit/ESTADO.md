@@ -708,3 +708,23 @@ Alt, auto-scroll, error/rollback/Reintentar, Deshacer, recurrencia y DST. API
 simulada, navegador en America/New_York/cuenta Madrid; sin sesión real. Capturas
 visuales de sombra y hora repetida sólo /tmp. Sin cambio de semana automático
 al acercarse al borde horizontal (opcional en la especificación).
+
+## 2026-10-22 — estilo compartido de pastillas de calendario (75.4)
+
+RF-1101/1102 y RF-1903. Mes/Dos semanas, horario, Todo el día y Semana
+móvil comparten superficie, borde lateral de color, radio, tipografía y tamaño
+de casilla/icono mediante `calendar-chip`. En Mes el fondo y el color de lista
+se aplican al contenedor completo: check dentro, título con elipsis y hora a
+la derecha en su propio `time`. Eventos usan la misma superficie con icono.
+Se mantiene el título rojo de tareas vencidas, confirmado por el usuario,
+y se aplica también a las otras cuadrículas. Agenda conserva su formato de lista.
+
+Validación: lint y typecheck generales correctos, 605 tests unitarios correctos;
+OpenAPI regenerado sin cambios. Dos pruebas Playwright nuevas en claro/oscuro
+verifican superficie compartida entre Mes, Dos semanas, Día y Semana, casilla
+dentro de la caja, título vencido rojo y hora separada sin desbordamiento.
+Capturas revisadas en /tmp; datos simulados, sin validación de sesión real.
+
+Las 75 regresiones existentes de calendario, captura y arrastre pasan. En el
+primer pase amplio una prueba nueva comparaba antes de cargar el color de la
+lista; ahora espera ese estilo y las dos pruebas finales pasan (claro/oscuro).

@@ -1697,3 +1697,75 @@
 [data-calendar-task] > a {
   cursor: inherit;
 }
+
+/* Shared surface for calendar tasks and external events, independent of the grid. */
+.calendar-page .calendar-chip {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  min-width: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  box-shadow: inset 3px 0 0 var(--accent);
+  color: var(--ink);
+  font-size: var(--calendar-allday-font);
+  font-weight: 400;
+  line-height: 1.2;
+  text-align: start;
+  text-decoration: none;
+  padding: 0 var(--sp-1);
+}
+.calendar-page .calendar-chip .calendar-task-mark .task-check-hit {
+  width: var(--calendar-allday-row-height);
+  min-width: var(--calendar-allday-row-height);
+  height: var(--calendar-allday-row-height);
+  min-height: var(--calendar-allday-row-height);
+  padding: 0;
+}
+.calendar-page .calendar-chip .task-check-svg {
+  width: var(--calendar-allday-check-size);
+  height: var(--calendar-allday-check-size);
+}
+.calendar-page .calendar-chip > :is(a, span:not(.calendar-task-mark)) {
+  flex: 1;
+  min-width: 0;
+  color: inherit;
+  font-weight: inherit;
+  text-decoration: none;
+}
+.calendar-page .calendar-chip > .cal-pill {
+  border: 0;
+  background: transparent;
+  margin: 0;
+}
+.calendar-page .calendar-chip > a.is-overdue {
+  color: var(--danger);
+}
+.calendar-page .calendar-chip > .calendar-event-mark,
+.calendar-page .calendar-chip > svg {
+  flex: 0 0 auto;
+  width: var(--calendar-allday-check-size);
+  height: var(--calendar-allday-check-size);
+  margin: calc((var(--calendar-allday-row-height) - var(--calendar-allday-check-size)) / 2);
+  color: var(--accent);
+}
+.calendar-page .calendar-chip time {
+  flex-shrink: 0;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--calendar-allday-row-height);
+  margin-inline-start: var(--sp-1);
+}
+.calendar-page .calendar-cell-items .calendar-chip {
+  width: 100%;
+  align-items: center;
+  min-height: var(--calendar-allday-row-height);
+}
+.calendar-page .calendar-cell-items .calendar-chip > :is(a, span:not(.calendar-task-mark)) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0;
+  line-height: var(--calendar-allday-row-height);
+}

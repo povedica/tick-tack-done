@@ -1358,7 +1358,8 @@ for (const width of [1280, 390]) {
       await expect(fold).toHaveCount(1);
       await expect(fold).toHaveAttribute('aria-controls', 'section-sidebar');
       await expect(page.locator('.rail-toggle')).toHaveCount(0);
-      if (path.startsWith('/calendar/month')) await page.screenshot({ path: `/tmp/ttd-fold-${width}.png` });
+      if (path.startsWith('/calendar/month'))
+        await page.screenshot({ path: `/tmp/ttd-fold-${width}.png` });
       const expanded = await fold.getAttribute('aria-expanded');
       await fold.click();
       await expect(fold).toHaveAttribute('aria-expanded', expanded === 'true' ? 'false' : 'true');
@@ -1377,6 +1378,89 @@ for (const width of [1280, 390]) {
         await page.keyboard.press('[');
         await expect(fold).toHaveAttribute('aria-expanded', expanded === 'true' ? 'false' : 'true');
         await page.keyboard.press('[');
+      }
+    }
+  });
+}
+
+for (const theme of ['light', 'dark']) {
+  test(`RF-1101/1903 calendar chips share a surface with the checkbox inside, ${theme}`, async ({
+    page,
+  }) => {
+    await fixture(page);
+    await page.clock.setSystemTime(new Date('2026-10-21T10:00:00Z'));
+    await page.setViewportSize({ width: 1440, height: 960 });
+    let expectedSkin: unknown;
+    for (const view of ['month', 'two-weeks', 'day', 'week']) {
+      await page.goto(`/calendar/${view}?date=2026-10-20`);
+      await page.evaluate(
+        (value) => document.documentElement.setAttribute('data-theme', value),
+        theme,
+      );
+      const chip = page
+        .locator('.calendar-chip')
+        .filter({ has: page.getByRole('link', { name: /Tarea sintética/ }) })
+        .first();
+      await expect(chip).toBeVisible();
+      await expect(chip).toHaveAttribute('style', /background:/);
+      const skin = await chip.evaluate((node) => {
+        const style = getComputedStyle(node);
+        const box = node.getBoundingClientRect();
+        const check = node.querySelector('.task-check-hit')!.getBoundingClientRect();
+        return {
+          skin: [
+            style.backgroundColor,
+            style.boxShadow,
+            style.borderWidth,
+            style.borderRadius,
+            style.fontSize,
+            style.fontWeight,
+          ],
+          inside:
+            check.left >= box.left &&
+            check.right <= box.right &&
+            check.top >= box.top &&
+            check.bottom <= box.bottom,
+        };
+      });
+      expect(skin.inside).toBe(true);
+      if (expectedSkin) expect(skin.skin).toEqual(expectedSkin);
+      expectedSkin = skin.skin;
+      await expect(chip.locator('a')).toHaveClass(/is-overdue/);
+      const danger = await chip.evaluate((node) =>
+        getComputedStyle(node).getPropertyValue('--danger').trim(),
+      );
+      // Resolve the theme token through a real element instead of assuming an RGB format.
+      const resolvedDanger = await chip.evaluate((node, color) => {
+        const probe = document.createElement('span');
+        probe.style.color = color;
+        node.append(probe);
+        const value = getComputedStyle(probe).color;
+        probe.remove();
+        return value;
+      }, danger);
+      await expect(chip.locator('a')).toHaveCSS('color', resolvedDanger);
+      const external = page.locator('button.calendar-chip:visible').first();
+      await expect(external).toBeVisible();
+      await expect(external).toHaveCSS('border-width', '0px');
+      await expect(external).toHaveCSS(
+        'border-radius',
+        await chip.evaluate((node) => getComputedStyle(node).borderRadius),
+      );
+      if (view === 'month') {
+        await expect(chip.locator('time')).toHaveText('10:00');
+        await expect(chip.locator('a')).not.toContainText('10:00');
+        const timesInside = await page
+          .locator('.calendar-cell-items .calendar-chip:visible time')
+          .evaluateAll((nodes) =>
+            nodes.every((node) => {
+              const time = node.getBoundingClientRect();
+              const chip = node.closest('.calendar-chip')!.getBoundingClientRect();
+              return time.left >= chip.left && time.right <= chip.right;
+            }),
+          );
+        expect(timesInside).toBe(true);
+        await page.screenshot({ path: `/tmp/calendar-shared-chips-${theme}.png` });
       }
     }
   });

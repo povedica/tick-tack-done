@@ -29,7 +29,7 @@ import { CalendarTaskMark } from '../calendar/CalendarTaskMark';
 import type { Messages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
 import { taskQueryHref } from '../../shell/use-open-task';
-import { calendarTaskLabel, tasksOnCell } from './month';
+import { calendarTaskLabel, isCalendarOverdue, tasksOnCell } from './month';
 import { GRID_END_HOUR, GRID_START_HOUR, HOUR_PX, hourBlock, layoutHourItems } from './hour';
 
 export function HourGrid({
@@ -289,12 +289,16 @@ export function HourGrid({
                   <div
                     key={task.id}
                     {...drag.bindTask(task)}
-                    className="calendar-cell-task"
+                    className="calendar-cell-task calendar-chip"
                     style={chipStyle(colors.get(task.project_id))}
                   >
                     <CalendarTaskMark task={task} />
                     <Link
-                      className="cal-pill"
+                      className={
+                        isCalendarOverdue(task.due_date, task.time_zone, new Date())
+                          ? 'cal-pill is-overdue'
+                          : 'cal-pill'
+                      }
                       to={taskQueryHref(location.pathname, location.search, task.id)}
                     >
                       {calendarTaskLabel(
@@ -349,7 +353,7 @@ export function HourGrid({
                 key={`${event.id}-${String(run.start)}`}
                 type="button"
                 {...drag.external}
-                className="cal-pill hour-span"
+                className="cal-pill hour-span calendar-chip"
                 style={{
                   ...chipStyle(event.color),
                   width: days
@@ -375,7 +379,7 @@ export function HourGrid({
                 }}
               >
                 <CalendarDays size={13} className="calendar-event-mark" aria-hidden="true" />
-                {event.title}
+                <span>{event.title}</span>
               </button>
             ));
           })}
@@ -612,7 +616,7 @@ export function HourGrid({
                   <div
                     key={task.id}
                     {...drag.bindTask(task)}
-                    className="hour-block calendar-hour-task"
+                    className="hour-block calendar-hour-task calendar-chip"
                     style={
                       {
                         ...chipStyle(colors.get(task.project_id)),
@@ -624,7 +628,14 @@ export function HourGrid({
                     }
                   >
                     <CalendarTaskMark task={task} />
-                    <Link to={taskQueryHref(location.pathname, location.search, task.id)}>
+                    <Link
+                      className={
+                        isCalendarOverdue(task.due_date, task.time_zone, new Date())
+                          ? 'is-overdue'
+                          : undefined
+                      }
+                      to={taskQueryHref(location.pathname, location.search, task.id)}
+                    >
                       {calendarTaskLabel(
                         task.title,
                         task.due_date,
@@ -645,7 +656,7 @@ export function HourGrid({
                     key={event.id}
                     type="button"
                     {...drag.external}
-                    className="hour-block"
+                    className="hour-block calendar-chip"
                     style={{ ...chipStyle(event.color), ...style(`event:${event.id}`) }}
                     onClick={() => {
                       onOpenEvent(event);

@@ -1396,12 +1396,12 @@ function DayGrid({
                           <div
                             key={chip.task.id}
                             {...drag.bindTask(chip.task, true)}
-                            className="calendar-cell-task"
+                            className="calendar-cell-task calendar-chip"
+                            style={chipStyle(colors.get(chip.task.project_id))}
                           >
                             <CalendarTaskMark task={chip.task} />
                             <Link
                               title={chipLabel(chip.task, messages.untitled, locale)}
-                              style={chipStyle(colors.get(chip.task.project_id))}
                               className={
                                 isCalendarOverdue(
                                   chip.task.due_date,
@@ -1413,8 +1413,18 @@ function DayGrid({
                               }
                               to={taskQueryHref(location.pathname, location.search, chip.task.id)}
                             >
-                              {chipLabel(chip.task, messages.untitled, locale)}
+                              {calendarTaskLabel(
+                                chip.task.title,
+                                chip.task.due_date,
+                                chip.task.time_zone,
+                                messages.untitled,
+                              )}
                             </Link>
+                            {!chip.task.is_all_day && chip.task.due_date ? (
+                              <time dateTime={chip.task.due_date}>
+                                {formatDueTime(chip.task.due_date, chip.task.time_zone, locale)}
+                              </time>
+                            ) : null}
                           </div>
                         ) : (
                           <button
@@ -1422,7 +1432,7 @@ function DayGrid({
                             {...drag.external}
                             title={chip.event.title}
                             type="button"
-                            className="cal-pill"
+                            className="cal-pill calendar-chip"
                             style={chipStyle(chip.event.color)}
                             onClick={() => {
                               onOpenEvent?.(chip.event);
@@ -1433,10 +1443,14 @@ function DayGrid({
                               aria-hidden="true"
                               className="calendar-event-mark"
                             />
-                            {chip.event.is_all_day
-                              ? ''
-                              : `${localKey(day) > eventDayRange(chip.event).start ? '00:00' : clockLabel(chip.event.starts_at, locale)} `}
-                            {chip.event.title}
+                            <span>{chip.event.title}</span>
+                            {!chip.event.is_all_day ? (
+                              <time dateTime={chip.event.starts_at}>
+                                {localKey(day) > eventDayRange(chip.event).start
+                                  ? '00:00'
+                                  : clockLabel(chip.event.starts_at, locale)}
+                              </time>
+                            ) : null}
                           </button>
                         ),
                       )}
@@ -1457,7 +1471,7 @@ function DayGrid({
                 key={`${bar.event.id}-${String(bar.weekIndex)}`}
                 {...drag.external}
                 type="button"
-                className="cal-pill calendar-month-span"
+                className="cal-pill calendar-month-span calendar-chip"
                 data-week={bar.weekIndex}
                 data-column={bar.position.column}
                 data-span={bar.position.span}
@@ -1471,7 +1485,7 @@ function DayGrid({
                 }}
               >
                 <CalendarDays size={13} aria-hidden="true" />
-                {bar.event.title}
+                <span>{bar.event.title}</span>
               </button>
             );
           })
@@ -1657,7 +1671,7 @@ function MobileWeekBoard({
                     <button
                       type="button"
                       {...drag.external}
-                      className="mobile-week-chip"
+                      className="mobile-week-chip calendar-chip"
                       key={`event-${event.id}`}
                       style={chipStyle(event.color)}
                       onClick={() => {
@@ -1676,12 +1690,19 @@ function MobileWeekBoard({
                 return (
                   <div
                     {...drag.bindTask(task, true)}
-                    className="mobile-week-chip"
+                    className="mobile-week-chip calendar-chip"
                     key={task.id}
                     style={chipStyle(colors.get(task.project_id))}
                   >
                     <CalendarTaskMark task={task} />
-                    <Link to={taskQueryHref(location.pathname, location.search, task.id)}>
+                    <Link
+                      className={
+                        isCalendarOverdue(task.due_date, task.time_zone, new Date())
+                          ? 'is-overdue'
+                          : undefined
+                      }
+                      to={taskQueryHref(location.pathname, location.search, task.id)}
+                    >
                       {displayTitle(task.title)}
                     </Link>
                     {!task.is_all_day && task.due_date ? (
