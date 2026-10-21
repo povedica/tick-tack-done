@@ -179,10 +179,12 @@ async function fixture(
       });
       return;
     }
-    if (path === '/tasks/task/complete') {
-      completed.add('task');
+    if (path === '/tasks/task/complete' || path === '/tasks/start-only/complete') {
+      completed.add(path.includes('start-only') ? 'start-only' : 'task');
       body = { ...task, status: 'completed' };
     }
+    if (path === '/calendar/events' && options.startOnly && completed.has('start-only'))
+      body = { external: [], tasks: [] };
     if (path === '/tasks' && completed.size) {
       const result = body as { items: { id: string }[] };
       result.items = result.items.filter((item) => !completed.has(item.id));
@@ -383,6 +385,9 @@ test('RF-1102 start-only task uses the existing calendar contract', async ({ pag
   await expect(
     page.locator('.agenda-row').filter({ hasText: 'Tarea solo con inicio' }),
   ).toBeVisible();
+  const row = page.locator('.agenda-row').filter({ hasText: 'Tarea solo con inicio' });
+  await row.getByRole('checkbox').check();
+  await expect(row).toHaveCount(0);
 });
 
 test('RF-1101 remote loading and failure never announce an empty calendar', async ({ page }) => {
