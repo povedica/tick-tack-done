@@ -155,6 +155,10 @@ export const en = {
   tokensHint: 'One token per agent, with only the scopes it needs.',
   tokenName: 'Agent',
   scopeSensitive: 'Sensitive permission',
+  googleReconnect: 'Reconnect Google',
+  googleDisconnectBody:
+    'Google Calendar and Drive will be disconnected. You will need to connect Google again to use them.',
+  googleDisconnectFailed: 'Could not disconnect Google. Try again.',
   tokenScopes: 'Scopes',
   tokenCreate: 'Create token',
   tokenSaving: 'Creating…',
