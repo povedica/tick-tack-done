@@ -112,33 +112,36 @@ export function QuickAddPopover({
     };
   }, [anchor, dirty, onClose]);
   return createPortal(
-    <div
-      ref={(value) => {
-        node.current = value;
-        refs.setFloating(value);
-      }}
-      style={floatingStyles}
-      className="calendar-quick-add"
-      role="dialog"
-      aria-modal="false"
-      aria-labelledby={titleId}
-    >
-      <h2 id={titleId} className="sr-only">
-        {messages.calendarQuickTitle}
-      </h2>
-      <TaskComposer
-        calendar
-        initialDraft={{ text: '', slot, defaultProjectId }}
-        onDraftChange={setDirty}
-        onDismiss={onClose}
-        onCaptured={onCreated}
-        onExpand={(draft) => {
-          expanding.current = true;
-          onClose();
-          openTaskComposer(draft);
+    <>
+      <div className="calendar-quick-add-backdrop" aria-hidden="true" />
+      <div
+        ref={(value) => {
+          node.current = value;
+          refs.setFloating(value);
         }}
-      />
-    </div>,
+        style={floatingStyles}
+        className="calendar-quick-add"
+        role="dialog"
+        aria-modal="false"
+        aria-labelledby={titleId}
+      >
+        <h2 id={titleId} className="sr-only">
+          {messages.calendarQuickTitle}
+        </h2>
+        <TaskComposer
+          calendar
+          initialDraft={{ text: '', slot, defaultProjectId }}
+          onDraftChange={setDirty}
+          onDismiss={onClose}
+          onCaptured={onCreated}
+          onExpand={(draft) => {
+            expanding.current = true;
+            onClose();
+            openTaskComposer(draft);
+          }}
+        />
+      </div>
+    </>,
     document.body,
   );
 }

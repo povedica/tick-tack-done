@@ -1,6 +1,8 @@
 import { runAction } from '../../components/run-action';
 import {
   CalendarDays,
+  Bell,
+  Repeat2,
   ChevronDown,
   Check,
   Flag,
@@ -13,7 +15,7 @@ import {
   Mic,
   Send,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CreateTaskBody } from '@reflexionia/sdk';
 import { api } from '../../api';
@@ -73,6 +75,16 @@ export function TaskComposer({
   const dateButton = useRef<HTMLButtonElement>(null);
   const menuButton = useRef<HTMLButtonElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const descriptionInput = useRef<HTMLTextAreaElement>(null);
+  const [slashAt, setSlashAt] = useState<number | null>(null);
+  const firstCommand = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (slashAt === null) return;
+    const frame = requestAnimationFrame(() => firstCommand.current?.focus());
+    return () => {
+      cancelAnimationFrame(frame);
+    };
+  }, [slashAt]);
   const [text, setText] = useState(initialDraft?.text ?? initialText);
   const speech = useSpeech(captureLanguage(locale), setText);
   const [panel, setPanel] = useState<'date' | 'more' | 'lists' | 'tags' | 'templates' | null>(null);
@@ -84,6 +96,13 @@ export function TaskComposer({
   const [tags, setTags] = useState<string[] | null>(initialDraft?.tags ?? null);
   const [kind, setKind] = useState<'task' | 'note'>(initialDraft?.kind ?? 'task');
   const [content, setContent] = useState(initialDraft?.content ?? '');
+  const descriptionCaret = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    if (descriptionCaret.current === null) return;
+    descriptionInput.current?.focus();
+    descriptionInput.current?.setSelectionRange(descriptionCaret.current, descriptionCaret.current);
+    descriptionCaret.current = null;
+  }, [content]);
   const [details, setDetails] = useState(calendar || (initialDraft?.content?.length ?? 0) > 0);
   const [files, setFiles] = useState<File[]>(initialDraft?.files ?? []);
   const [busy, setBusy] = useState(false);
@@ -173,6 +192,23 @@ export function TaskComposer({
           empty: messages.noDate,
           today: messages.dateToday,
         }).text;
+  const endInstant =
+    dateValue.dueDate !== null && !dateValue.allDay && dateValue.durationMinutes !== null
+      ? new Date(Date.parse(dateValue.dueDate) + dateValue.durationMinutes * 60_000)
+      : null;
+  const dateRangeLabel =
+    endInstant === null
+      ? dateLabel
+      : `${dateLabel} – ${new Intl.DateTimeFormat(locale, {
+          timeZone: zone,
+          ...(calendarDay(endInstant.toISOString(), zone) !==
+          calendarDay(dateValue.dueDate ?? endInstant.toISOString(), zone)
+            ? { day: 'numeric' as const, month: 'short' as const }
+            : {}),
+          hour: '2-digit',
+          minute: '2-digit',
+          hourCycle: 'h23',
+        }).format(endInstant)}`;
   const priorities = {
     high: messages.priorityHigh,
     medium: messages.priorityMedium,
@@ -359,7 +395,13 @@ export function TaskComposer({
                 : 'composer-date'
             }
             type="button"
-            aria-label={messages.kindDate}
+            aria-label={[
+              messages.kindDate,
+              dateValue.repeatRule ? messages.repeatRow : null,
+              dateValue.reminder ? messages.reminderRow : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
             aria-expanded={panel === 'date'}
             disabled={frozen}
             onClick={() => {
@@ -367,7 +409,17 @@ export function TaskComposer({
             }}
           >
             <CalendarDays size={15} aria-hidden="true" />
-            <span>{dateLabel}</span>
+            <span>{dateRangeLabel}</span>
+            {dateValue.repeatRule ? (
+              <span className="composer-date-indicator" title={messages.repeatRow}>
+                <Repeat2 size={15} aria-hidden="true" />
+              </span>
+            ) : null}
+            {dateValue.reminder ? (
+              <span className="composer-date-indicator" title={messages.reminderRow}>
+                <Bell size={15} aria-hidden="true" />
+              </span>
+            ) : null}
           </button>
           <button
             ref={menuButton}
@@ -397,6 +449,7 @@ export function TaskComposer({
         </div>
         {details ? (
           <textarea
+            ref={descriptionInput}
             className="composer-content"
             aria-label={messages.addDescription}
             placeholder={calendar ? messages.calendarQuickDescription : undefined}
@@ -414,7 +467,12 @@ export function TaskComposer({
             value={content}
             disabled={frozen}
             onChange={(event) => {
-              setContent(event.target.value);
+              const next = event.target.value;
+              const caret = event.target.selectionStart;
+              setContent(next);
+              if (next[caret - 1] === '/' && (caret === 1 || next[caret - 2] === '\n')) {
+                setSlashAt(caret - 1);
+              }
             }}
           />
         ) : null}
@@ -481,8 +539,12 @@ export function TaskComposer({
             >
               …
             </button>
-            <button type="submit" disabled={busy || !request.parsed.title.trim()}>
-              {messages.calendarQuickAdd}
+            <button
+              type="submit"
+              aria-label={messages.calendarQuickAdd}
+              disabled={busy || !request.parsed.title.trim()}
+            >
+              <Send size={22} aria-hidden="true" />
             </button>
           </div>
         ) : null}
@@ -498,6 +560,48 @@ export function TaskComposer({
           event.target.value = '';
         }}
       />
+      {slashAt !== null ? (
+        <Popover
+          open
+          anchor={descriptionInput}
+          label={messages.commands}
+          className="popover description-commands"
+          onClose={() => {
+            setSlashAt(null);
+          }}
+        >
+          <div role="menu" aria-label={messages.commands}>
+            {[
+              { label: messages.descriptionHeading, prefix: '## ', suffix: '' },
+              { label: messages.descriptionList, prefix: '- ', suffix: '' },
+              { label: messages.descriptionChecklist, prefix: '- [ ] ', suffix: '' },
+              { label: messages.descriptionQuote, prefix: '> ', suffix: '' },
+              { label: messages.descriptionCode, prefix: '```\n', suffix: '\n```' },
+            ].map((command) => (
+              <button
+                key={command.label}
+                ref={command.label === messages.descriptionHeading ? firstCommand : undefined}
+                type="button"
+                role="menuitem"
+                className="popover-row"
+                onClick={() => {
+                  descriptionCaret.current = slashAt + command.prefix.length;
+                  setContent(
+                    (current) =>
+                      current.slice(0, slashAt) +
+                      command.prefix +
+                      command.suffix +
+                      current.slice(slashAt + 1),
+                  );
+                  setSlashAt(null);
+                }}
+              >
+                {command.label}
+              </button>
+            ))}
+          </div>
+        </Popover>
+      ) : null}
       {panel === 'date' ? (
         <DatePopover
           open

@@ -329,6 +329,10 @@ export function DatePopover({
               onChange={(event) => {
                 const key = dayKey.length === 0 ? todayKey : dayKey;
                 setDay(key, false, event.target.value);
+                setDraft((current) => ({
+                  ...current,
+                  durationMinutes: current.durationMinutes ?? 30,
+                }));
               }}
             />
           ) : null}

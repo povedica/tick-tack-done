@@ -20,7 +20,7 @@
 }
 .is-calendar .composer-main {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   padding: 0;
   gap: var(--sp-2);
 }
@@ -35,6 +35,16 @@
   grid-row: 1;
   grid-column: 1;
   justify-content: start;
+}
+.is-calendar .composer-date {
+  min-width: 0;
+}
+.is-calendar .composer-date span {
+  max-width: none;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  text-align: left;
 }
 .is-calendar .composer-options {
   grid-row: 1;
@@ -65,21 +75,22 @@
   gap: var(--sp-1);
   min-height: 36px;
   max-width: 100%;
-  background: var(--surface-2);
+  background: transparent;
   color: var(--ink);
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: var(--radius-sm);
   padding: var(--sp-1) var(--sp-2);
   font: inherit;
   cursor: pointer;
 }
 .composer-calendar-footer button:first-child {
-  flex: 1;
+  flex: 0 1 auto;
   overflow: hidden;
 }
 .composer-calendar-footer button[type='submit'] {
-  color: var(--accent-ink);
-  background: var(--accent-soft);
+  color: var(--accent);
+  background: transparent;
+  margin-left: auto;
 }
 .is-calendar .composer-date.is-past {
   color: var(--danger);
@@ -111,16 +122,47 @@
 @media (max-width: 639px) {
   .calendar-quick-add {
     position: fixed !important;
-    left: 0 !important;
-    top: auto !important;
-    bottom: 0;
+    left: 12px !important;
+    top: 15.5dvh !important;
+    bottom: auto;
     transform: none !important;
-    width: 100%;
-    max-height: 65dvh;
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    width: calc(100vw - 24px);
+    height: 69dvh;
+    max-height: 69dvh;
+    border: 0;
+    border-radius: var(--radius-lg);
     padding-bottom: calc(var(--sp-3) + env(safe-area-inset-bottom));
+  }
+  .calendar-quick-add-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1899;
+    background: var(--overlay-backdrop-bg);
+    -webkit-backdrop-filter: blur(var(--overlay-backdrop-blur));
+    backdrop-filter: blur(var(--overlay-backdrop-blur));
+  }
+  .calendar-quick-add .task-composer,
+  .calendar-quick-add .task-composer-form {
+    height: 100%;
+    min-height: 0;
+  }
+  .calendar-quick-add .task-composer-form {
+    display: flex;
+    flex-direction: column;
+  }
+  .calendar-quick-add .composer-content {
+    flex: 1;
+    min-height: 0;
+    border: 0;
+    box-shadow: none;
+    resize: none;
+  }
+  .composer-calendar-footer {
+    gap: var(--sp-1);
+    flex-wrap: nowrap;
   }
   .composer-calendar-footer button {
     min-height: 44px;
+    box-shadow: none;
   }
 }

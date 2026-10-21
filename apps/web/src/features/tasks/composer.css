@@ -285,3 +285,9 @@
 .task-composer > input[type='file'][hidden] {
   display: none !important;
 }
+
+.composer-date .composer-date-indicator {
+  display: inline-flex;
+  flex-shrink: 0;
+  overflow: visible;
+}
