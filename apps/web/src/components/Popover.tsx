@@ -164,7 +164,8 @@ export function Popover({
     );
     (first ?? ref.current).focus();
     return () => {
-      if (!anchor && previous instanceof HTMLElement && previous.isConnected) previous.focus();
+      if (anchor?.current?.isConnected) anchor.current.focus();
+      else if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
     };
   }, [open, anchor]);
   useEffect(() => {

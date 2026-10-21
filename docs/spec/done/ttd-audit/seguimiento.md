@@ -28,7 +28,7 @@ siguen el orden de prioridad de la petición; no se consideran cerrados.
 | TTD-AUD-21 | corregido | [#73](https://github.com/povedica/tick-tack-done/pull/73)                                                            | Cabecera de escritorio en una línea y ancho de selector acotado. Regresión Chromium fallaba con dos líneas. El recorte de emoji no se reprodujo en inspección local.        |
 | TTD-AUD-22 | corregido | [#73](https://github.com/povedica/tick-tack-done/pull/73)                                                            | Fondos por tokens con variantes oscuras; texto y número legibles en las 13 variantes y 6 acentos. Contraste calculado en Chromium ≥4,5:1, incluidos fondos del degradado.   |
 | TTD-AUD-23 | corregido | [#73](https://github.com/povedica/tick-tack-done/pull/73)                                                            | Checkbox/radio en fila; fecha civil ES/EN editable con formato explícito, valida días imposibles y envía ISO sin zona. Selects y modal conservan el estilo común.           |
-| TTD-AUD-24 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
+| TTD-AUD-24 | corregido | [#73](https://github.com/povedica/tick-tack-done/pull/73)                                                            | Popover controlado: elegir, Escape, clic fuera y reemplazar por menú de tarjeta cierran el anterior; foco restaurado; icono de agrupar distinguible.                        |
 | TTD-AUD-25 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
 | TTD-AUD-26 | corregido | [#73](https://github.com/povedica/tick-tack-done/pull/73)                                                            | Botón de acceso usa var(--accent); regresiones violeta y verde que fallaban antes. Registro comparte selector CSS; formulario deshabilitado en este entorno.                |
 | TTD-AUD-27 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
@@ -303,3 +303,10 @@ Validación del bloque 21/22/23/26: typecheck y suites completas (289 dominio,
 117 web, 101 API y 9 SDK); lint global comprobado y corrección localizada del
 parser civil verificada con lint dirigido. Siete tests de fecha civil y seis
 regresiones Chromium en verde. Inspección visual del diálogo a 360 px.
+
+## TTD-AUD-24: menús de cuentas atrás
+
+- Regresión previa confirmada: Escape conservaba el details de Nueva abierto.
+- Estado único para crear/tarjeta; ambos usan Popover con ancla, flechas y Escape. Elegir tipo abre el diálogo y cierra el menú; un menú reemplaza al otro y clic fuera lo cierra.
+- Escape restaura foco en el disparador; botón común admite ref de React 19 para el ancla. Regresiones del menú de tareas y del diálogo de fecha conservadas. Icono de agrupación cambiado a ListFilter.
+- RF-2452, RF-2454 y RF-1902. Sin cambios de API ni de acciones de cuenta atrás.

@@ -2,6 +2,7 @@ import { extraEn } from './extra';
 import type { es } from './es';
 
 export const en = {
+  countdownTypeMenu: 'Countdown type',
   countdownDatePlaceholder: 'mm/dd/yyyy',
   countdownInvalidDate: 'Enter a valid date using the indicated format.',
   dashboardWeekLabel: 'this week',

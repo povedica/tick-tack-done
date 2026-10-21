@@ -1,7 +1,7 @@
 import { runAction } from '../../components/run-action';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { MoreHorizontal, Plus } from 'lucide-react';
-import { useState } from 'react';
+import { ListFilter, Plus } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { Button, EmptyState } from '../../components/ui';
 import { UndoToastStack } from '../../components/UndoToast';
 import { newMutation, runOrQueue } from '../offline/client';
@@ -10,8 +10,13 @@ import { CountdownDialog } from './CountdownDialog';
 import { countdownsApi, type Countdown, type CountdownDraft, type CountdownType } from './api';
 import { groupCountdowns, TYPE_LABEL } from './presentation';
 import './countdowns.css';
+import { Popover } from '../../components/Popover';
+import { useMessages } from '../../i18n';
 
 export function CountdownsPage() {
+  const messages = useMessages();
+  const newAnchor = useRef<HTMLButtonElement>(null);
+  const [menu, setMenu] = useState<string | null>(null);
   const client = useQueryClient();
   const [archived, setArchived] = useState(false);
   const [grouped, setGrouped] = useState(false);
@@ -59,16 +64,27 @@ export function CountdownsPage() {
           key={item.id}
           countdown={item}
           archived={archived}
+          menuOpen={menu === item.id}
+          onToggleMenu={() => {
+            setMenu((current) => (current === item.id ? null : item.id));
+          }}
+          onCloseMenu={() => {
+            setMenu(null);
+          }}
           onEdit={() => {
+            setMenu(null);
             setDialog({ type: item.type, countdown: item });
           }}
           onPin={() => {
+            setMenu(null);
             runAction(countdownsApi.update(item.id, { pinned: !item.pinned }).then(refresh));
           }}
           onArchive={() => {
+            setMenu(null);
             archive.mutate({ item, restore: archived });
           }}
           onDelete={() => {
+            setMenu(null);
             if (window.confirm(`¿Eliminar «${item.title}»?`)) {
               setDeleted((current) => [
                 ...current,
@@ -99,24 +115,43 @@ export function CountdownsPage() {
         </div>
         <div className="countdown-toolbar">
           {!archived ? (
-            <details>
-              <summary>
+            <>
+              <Button
+                ref={newAnchor}
+                className="countdown-new"
+                variant="primary"
+                aria-haspopup="menu"
+                aria-expanded={menu === 'create'}
+                onClick={() => {
+                  setMenu((current) => (current === 'create' ? null : 'create'));
+                }}
+              >
                 <Plus size={18} /> Nueva
-              </summary>
-              <div className="countdown-menu">
+              </Button>
+              <Popover
+                open={menu === 'create'}
+                label={messages.countdownTypeMenu}
+                onClose={() => {
+                  setMenu(null);
+                }}
+                anchor={newAnchor}
+                className="popover countdown-menu"
+              >
                 {(Object.entries(TYPE_LABEL) as [CountdownType, string][]).map(([type, label]) => (
                   <button
                     type="button"
+                    role="menuitem"
                     key={type}
                     onClick={() => {
                       setDialog({ type });
+                      setMenu(null);
                     }}
                   >
                     {label}
                   </button>
                 ))}
-              </div>
-            </details>
+              </Popover>
+            </>
           ) : null}
           <button
             type="button"
@@ -126,7 +161,7 @@ export function CountdownsPage() {
               setGrouped((current) => !current);
             }}
           >
-            <MoreHorizontal size={20} />
+            <ListFilter size={20} />
             <span className="sr-only">Agrupar por tipo</span>
           </button>
         </div>

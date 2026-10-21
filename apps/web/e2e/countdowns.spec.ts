@@ -20,11 +20,16 @@ const item = {
   reminders: [],
 };
 
-async function emptyCountdowns(page: Page, onCreate: (body: Record<string, unknown>) => void) {
+async function emptyCountdowns(
+  page: Page,
+  onCreate: (body: Record<string, unknown>) => void,
+  items: (typeof item)[] = [],
+) {
   await page.addInitScript(() => localStorage.setItem('tick-tack-done.account-prefs', '1'));
   await page.route('**/api/v1/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
     let body: unknown = { items: [] };
+    if (path === '/api/v1/countdowns') body = { items, next_cursor: null };
     if (path === '/api/v1/auth/session')
       body = {
         id: 'audit',
@@ -49,6 +54,36 @@ async function emptyCountdowns(page: Page, onCreate: (body: Record<string, unkno
     await route.fulfill({ json: body });
   });
 }
+
+test('TTD-AUD-24: countdown menus close on selection, Escape, outside click and replacement', async ({
+  page,
+}) => {
+  await emptyCountdowns(page, () => {}, [item]);
+  await page.goto('/countdowns');
+  const create = page.getByText('Nueva', { exact: true });
+  const menus = page.locator('.countdown-menu:visible');
+  await create.click();
+  await expect(menus).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  await expect(menus).toHaveCount(0);
+  await create.click();
+  await page.getByText('Aniversario', { exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Nueva cuenta atrás' })).toBeVisible();
+  await expect(menus).toHaveCount(0);
+  await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
+  await create.click();
+  const actions = page
+    .locator('.countdown-actions')
+    .locator('summary, button[aria-haspopup="menu"]');
+  await actions.click();
+  await expect(menus).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  await expect(menus).toHaveCount(0);
+  await expect(actions).toBeFocused();
+  await create.click();
+  await page.getByRole('heading', { name: 'Cuenta atrás', exact: true }).click();
+  await expect(menus).toHaveCount(0);
+});
 
 test('TTD-AUD-21: desktop countdown heading stays on one line', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });

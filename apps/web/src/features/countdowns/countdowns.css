@@ -32,6 +32,10 @@
 .countdown-toolbar {
   flex-shrink: 0;
 }
+.countdown-toolbar .countdown-new {
+  display: flex;
+  gap: var(--sp-1);
+}
 .countdown-toolbar > button,
 .countdown-toolbar summary,
 .countdown-actions button,

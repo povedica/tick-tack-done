@@ -1,6 +1,7 @@
 import { extraEs } from './extra';
 
 export const es = {
+  countdownTypeMenu: 'Tipo de cuenta atrás',
   countdownDatePlaceholder: 'dd/mm/aaaa',
   countdownInvalidDate: 'Escribe una fecha válida con el formato indicado.',
   dashboardWeekLabel: 'esta semana',

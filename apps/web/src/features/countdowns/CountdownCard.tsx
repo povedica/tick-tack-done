@@ -1,10 +1,16 @@
 import { MoreHorizontal, Pin } from 'lucide-react';
 import type { Countdown } from './api';
 import { dateLabel, countdownNumber } from './presentation';
+import { useRef } from 'react';
+import { Popover } from '../../components/Popover';
+import { useMessages } from '../../i18n';
 
 export function CountdownCard({
   countdown,
   archived,
+  menuOpen,
+  onToggleMenu,
+  onCloseMenu,
   onEdit,
   onArchive,
   onDelete,
@@ -12,11 +18,16 @@ export function CountdownCard({
 }: {
   readonly countdown: Countdown;
   readonly archived: boolean;
+  readonly menuOpen: boolean;
+  readonly onToggleMenu: () => void;
+  readonly onCloseMenu: () => void;
   readonly onEdit: () => void;
   readonly onArchive: () => void;
   readonly onDelete: () => void;
   readonly onPin: () => void;
 }) {
+  const messages = useMessages();
+  const anchor = useRef<HTMLButtonElement>(null);
   return (
     <article
       className="countdown-card"
@@ -41,29 +52,42 @@ export function CountdownCard({
               <Pin size={15} fill={countdown.pinned ? 'currentColor' : 'none'} />
             </button>
           ) : null}
-          <details>
-            <summary aria-label="Abrir acciones">
+          <>
+            <button
+              type="button"
+              ref={anchor}
+              aria-label={messages.moreActions}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              onClick={onToggleMenu}
+            >
               <MoreHorizontal size={18} />
-            </summary>
-            <div className="countdown-menu">
+            </button>
+            <Popover
+              open={menuOpen}
+              onClose={onCloseMenu}
+              label={messages.moreActions}
+              anchor={anchor}
+              className="popover countdown-menu"
+            >
               {!archived ? (
-                <button type="button" onClick={onEdit}>
+                <button type="button" role="menuitem" onClick={onEdit}>
                   Editar
                 </button>
               ) : null}
               {!archived ? (
-                <button type="button" onClick={onPin}>
+                <button type="button" role="menuitem" onClick={onPin}>
                   {countdown.pinned ? 'Desfijar' : 'Fijar'}
                 </button>
               ) : null}
-              <button type="button" onClick={onArchive}>
+              <button type="button" role="menuitem" onClick={onArchive}>
                 {archived ? 'Desarchivar' : 'Archivar'}
               </button>
-              <button type="button" className="is-danger" onClick={onDelete}>
+              <button type="button" role="menuitem" className="is-danger" onClick={onDelete}>
                 Eliminar
               </button>
-            </div>
-          </details>
+            </Popover>
+          </>
         </div>
       </header>
       <strong className="countdown-number">{countdownNumber(countdown)}</strong>
