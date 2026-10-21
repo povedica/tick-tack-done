@@ -47,7 +47,7 @@ siguen el orden de prioridad de la petición; no se consideran cerrados.
 | TTD-AUD-40 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                           |
 | TTD-AUD-41 | corregido | [#64](https://github.com/povedica/tick-tack-done/pull/64) | Utilidad compartida: Gestionar separado de Escritura, Cuenta atrás en formulario y marca de permisos sensibles.                                                   |
 | TTD-AUD-42 | corregido | [#64](https://github.com/povedica/tick-tack-done/pull/64) | Sensibles desmarcados, defaults sin webhooks/automatizaciones, internos excluidos, etiquetas ES/EN, componentes y estados de la app.                              |
-| TTD-AUD-43 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                           |
+| TTD-AUD-43 | corregido | pendiente de publicación                                  | Reconectar con cuenta conectada; confirmación compartida Google/Drive informa de Calendar y Drive; errores visibles y parámetro de retorno eliminado.             |
 | TTD-AUD-44 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                           |
 | TTD-AUD-45 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                           |
 | TTD-AUD-46 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                           |
@@ -153,3 +153,20 @@ cuya rama desactivada seguía apareciendo en el análisis estático. No se supri
 
 Validación de TTD-AUD-41/42: typecheck, lint y tests completos (281 dominio,
 100 web, 104 API, 9 SDK); integración: 123 pasan, 2 omitidos; OpenAPI sin diff.
+
+## TTD-AUD-43: criterios de aceptación
+
+- Test de componente que fallaba antes del arreglo: Google conectado no ofrecía
+  «Reconectar Google». Ahora lo ofrece en ambas tarjetas.
+- Desconectar desde Google o Drive abre confirmación inline que explica que
+  afecta a Google Calendar y Drive; la API solo se invoca al confirmar.
+- Un fallo mantiene la confirmación y muestra el error en ella; reconectar muestra
+  error también si la API devuelve una URL inválida, sin navegar a otros hosts.
+- Las acciones se bloquean durante el envío y se invalidan ambas tarjetas y los
+  calendarios después de desconectar.
+- El parámetro `google=connected|error` se limpia con replace tras capturar el aviso,
+  conservando otros parámetros; recargar no repite la nota.
+- Textos ES/EN, componentes y confirmación de la app; sin cambios de backend.
+- Pendiente real: desde Calendar, reconectar en dos clics y probar la desconexión
+  tras comprobar el aviso de que afecta a ambos servicios.
+- RF cubiertos: RF-1103, RF-2004, RF-2005 y RF-2006.

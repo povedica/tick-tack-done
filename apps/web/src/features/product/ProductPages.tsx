@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
 import { Button } from '../../components/ui';
+import {
+  GoogleAccessActions,
+  googleAuthorizationUrl,
+  googleCallbackNotice,
+} from './GoogleAccessActions';
 import { InboundEmailCard } from '../settings/InboundEmailCard';
 import { GoogleCalendarsCard } from '../settings/GoogleCalendarsCard';
 import { useMessages } from '../../i18n';
@@ -388,8 +393,16 @@ export function CalendarSettings() {
 
 export function IntegrationSettings() {
   const messages = useMessages();
-  const [params] = useSearchParams();
-  const googleFlag = params.get('google');
+  const queryClient = useQueryClient();
+  const [params, setParams] = useSearchParams();
+  const [googleFlag, setGoogleFlag] = useState(params.get('google'));
+  const [confirmGoogle, setConfirmGoogle] = useState<'google' | 'drive' | null>(null);
+  useEffect(() => {
+    const callback = googleCallbackNotice(params);
+    if (callback === null) return;
+    setGoogleFlag(callback.notice);
+    setParams(callback.params, { replace: true });
+  }, [params, setParams]);
   const telegram = useQuery({
     queryKey: ['telegram'],
     queryFn: () => api.integrationStatus('telegram'),
@@ -399,13 +412,25 @@ export function IntegrationSettings() {
   const googleOn = flag(google.data, 'connected');
   const googleReady = flag(google.data, 'configured');
   const account = text(google.data?.account);
-  function connectGoogle(): void {
-    void api.googleConnect().then((body) => {
-      const url = text(body.url);
-      if (url.startsWith('https://accounts.google.com/')) {
-        window.location.assign(url);
-      }
-    });
+  const connectGoogle = useMutation({
+    mutationFn: async () => googleAuthorizationUrl((await api.googleConnect()).url),
+    onSuccess: (url) => {
+      window.location.assign(url);
+    },
+  });
+  const disconnectGoogle = useMutation({
+    mutationFn: () => api.disconnectGoogle(),
+    onSuccess: () => {
+      setConfirmGoogle(null);
+      void google.refetch();
+      void drive.refetch();
+      void queryClient.invalidateQueries({ queryKey: ['google-calendars'] });
+    },
+  });
+  const busy = connectGoogle.isPending || disconnectGoogle.isPending;
+  function requestDisconnect(source: 'google' | 'drive'): void {
+    disconnectGoogle.reset();
+    setConfirmGoogle(source);
   }
   const voice = flag(telegram.data, 'voice');
   const photo = flag(telegram.data, 'photo');
@@ -422,6 +447,7 @@ export function IntegrationSettings() {
           {messages.googleConnectedNote}
         </p>
       ) : null}
+      {connectGoogle.isError ? <p role="alert">{messages.googleErrorNote}</p> : null}
       {googleFlag === 'error' ? <p role="alert">{messages.googleErrorNote}</p> : null}
 
       <section className="token-panel" aria-labelledby="google-title">
@@ -430,7 +456,7 @@ export function IntegrationSettings() {
             <h2 id="google-title">Google</h2>
             <p>{messages.googleHint}</p>
           </div>
-          {google.isFetched ? (
+          {google.isSuccess ? (
             <StatusPill
               on={googleOn}
               onLabel={messages.integrationConnected}
@@ -439,26 +465,39 @@ export function IntegrationSettings() {
           ) : null}
         </div>
         {account.length > 0 ? <p className="token-meta">{account}</p> : null}
-        {googleReady && !googleOn ? (
-          <Button type="button" variant="primary" size="sm" onClick={connectGoogle}>
-            {messages.googleConnect}
-          </Button>
-        ) : null}
-        {googleOn ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              void api.disconnectGoogle().then(() => {
+        {google.isError ? (
+          <p role="alert">
+            {messages.googleErrorNote}
+            <Button
+              type="button"
+              onClick={() => {
                 void google.refetch();
-                void drive.refetch();
-              });
-            }}
-          >
-            {messages.googleDisconnect}
-          </Button>
+              }}
+            >
+              {messages.retry}
+            </Button>
+          </p>
         ) : null}
+        <GoogleAccessActions
+          messages={messages}
+          connected={googleOn}
+          configured={googleReady}
+          confirming={confirmGoogle === 'google'}
+          busy={busy}
+          error={disconnectGoogle.isError ? messages.googleDisconnectFailed : null}
+          onConnect={() => {
+            connectGoogle.mutate();
+          }}
+          onRequestDisconnect={() => {
+            requestDisconnect('google');
+          }}
+          onCancel={() => {
+            setConfirmGoogle(null);
+          }}
+          onConfirm={() => {
+            disconnectGoogle.mutate();
+          }}
+        />
       </section>
 
       <section className="token-panel" aria-labelledby="drive-title">
@@ -467,7 +506,7 @@ export function IntegrationSettings() {
             <h2 id="drive-title">Drive</h2>
             <p>{messages.driveNeedsGoogle}</p>
           </div>
-          {drive.isFetched ? (
+          {drive.isSuccess ? (
             <StatusPill
               on={flag(drive.data, 'connected')}
               onLabel={messages.integrationConnected}
@@ -477,26 +516,39 @@ export function IntegrationSettings() {
             />
           ) : null}
         </div>
-        {flag(drive.data, 'configured') && !flag(drive.data, 'connected') ? (
-          <Button type="button" variant="primary" size="sm" onClick={connectGoogle}>
-            {messages.googleConnect}
-          </Button>
-        ) : null}
-        {flag(drive.data, 'connected') ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              void api.disconnectGoogle().then(() => {
-                void google.refetch();
+        {drive.isError ? (
+          <p role="alert">
+            {messages.googleErrorNote}
+            <Button
+              type="button"
+              onClick={() => {
                 void drive.refetch();
-              });
-            }}
-          >
-            {messages.googleDisconnect}
-          </Button>
+              }}
+            >
+              {messages.retry}
+            </Button>
+          </p>
         ) : null}
+        <GoogleAccessActions
+          messages={messages}
+          connected={flag(drive.data, 'connected')}
+          configured={flag(drive.data, 'configured')}
+          confirming={confirmGoogle === 'drive'}
+          busy={busy}
+          error={disconnectGoogle.isError ? messages.googleDisconnectFailed : null}
+          onConnect={() => {
+            connectGoogle.mutate();
+          }}
+          onRequestDisconnect={() => {
+            requestDisconnect('drive');
+          }}
+          onCancel={() => {
+            setConfirmGoogle(null);
+          }}
+          onConfirm={() => {
+            disconnectGoogle.mutate();
+          }}
+        />
       </section>
 
       <section className="token-panel" aria-labelledby="telegram-title">

@@ -154,6 +154,10 @@ export const es = {
   tokensHint: 'Un token por agente, con los permisos justos.',
   tokenName: 'Agente',
   scopeSensitive: 'Permiso sensible',
+  googleReconnect: 'Reconectar Google',
+  googleDisconnectBody:
+    'Se desconectarán Google Calendar y Drive. Para volver a usarlos tendrás que conectar Google de nuevo.',
+  googleDisconnectFailed: 'No se ha podido desconectar Google. Inténtalo de nuevo.',
   tokenScopes: 'Permisos',
   tokenCreate: 'Crear token',
   tokenSaving: 'Creando…',
