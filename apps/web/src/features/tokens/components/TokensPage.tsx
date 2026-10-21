@@ -55,6 +55,7 @@ export function TokensPage() {
   const [error, setError] = useState<string | null>(null);
   const [revokeError, setRevokeError] = useState<string | null>(null);
   const [secretCopied, setSecretCopied] = useState(false);
+  const [confirmDismissSecret, setConfirmDismissSecret] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
   const activity = useQuery({
     queryKey: ['token-activity', selected],
@@ -126,12 +127,11 @@ export function TokensPage() {
   }
 
   function dismissSecret() {
-    if (!secretCopied && secret !== null) {
-      const ok = window.confirm(messages.tokenSecret);
-      if (!ok) {
-        return;
-      }
+    if (!secretCopied && secret !== null && !confirmDismissSecret) {
+      setConfirmDismissSecret(true);
+      return;
     }
+    setConfirmDismissSecret(false);
     setSecret(null);
     setSecretCopied(false);
   }
@@ -216,9 +216,27 @@ export function TokensPage() {
           >
             {copied === 'secret' ? messages.copied : messages.tokenCopySecret}
           </Button>
-          <Button type="button" size="sm" variant="ghost" onClick={dismissSecret}>
-            {messages.tokenDismissSecret}
-          </Button>
+          {confirmDismissSecret ? (
+            <span className="token-confirm" role="alertdialog">
+              <p>{messages.tokenSecret}</p>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  setConfirmDismissSecret(false);
+                }}
+              >
+                {messages.cancel}
+              </Button>
+              <Button type="button" size="sm" variant="danger" onClick={dismissSecret}>
+                {messages.tokenDismissSecret}
+              </Button>
+            </span>
+          ) : (
+            <Button type="button" size="sm" variant="ghost" onClick={dismissSecret}>
+              {messages.tokenDismissSecret}
+            </Button>
+          )}
         </div>
       ) : null}
 

@@ -87,7 +87,7 @@ Base: `origin/main` @ arranque de la rama.
 
 ### Fase 1 — MCP casi cerrada en #71
 - Corregidos: 48, 49, 50, 51, 53.
-- Corregido 52 (reminders + filtros list_tasks). Parcial: 57 (ops + UI «vía» pendiente).
+- Corregido 52 (reminders + filtros list_tasks) y 57 (created_via MCP + vía en actividad).
 
 ### Fases 0–5 — cerradas en #71 (salvo ops/manual)
 - Código de auditoría implementado en esta PR.
