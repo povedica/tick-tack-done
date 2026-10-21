@@ -52,6 +52,12 @@
   --calendar-outside-day-ink: color-mix(in srgb, var(--ink-3) 65%, var(--surface));
   --calendar-outside-day-weight: 400;
   --calendar-day-sheet-height-mobile: 92dvh;
+  --calendar-drag-highlight-width: 0.125rem;
+  --calendar-drag-ghost-bg: var(--accent-soft);
+  --calendar-drag-ghost-border: var(--accent);
+  --calendar-drag-lift-shadow: var(--shadow-lg);
+  --calendar-resize-handle-height: 0.375rem;
+  --calendar-resize-handle-height-touch: 1rem;
   --overlay-backdrop-bg: rgb(0 0 0 / 45%);
   --overlay-backdrop-blur: 0.25rem;
   --calendar-day-sheet-close-ink: #000;
@@ -221,6 +227,12 @@
   --calendar-outside-day-ink: color-mix(in srgb, var(--ink-3) 65%, var(--surface));
   --calendar-outside-day-weight: 400;
   --calendar-day-sheet-height-mobile: 92dvh;
+  --calendar-drag-highlight-width: 0.125rem;
+  --calendar-drag-ghost-bg: var(--accent-soft);
+  --calendar-drag-ghost-border: var(--accent);
+  --calendar-drag-lift-shadow: var(--shadow-lg);
+  --calendar-resize-handle-height: 0.375rem;
+  --calendar-resize-handle-height-touch: 1rem;
   --overlay-backdrop-bg: rgb(0 0 0 / 45%);
   --overlay-backdrop-blur: 0.25rem;
   --calendar-day-sheet-close-ink: #000;

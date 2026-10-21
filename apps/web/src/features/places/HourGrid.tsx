@@ -1,3 +1,6 @@
+import { calendarRepeatedHour, calendarAxisMinute, calendarDragPatch } from '@reflexionia/domain';
+import { useCalendarDrag } from './use-calendar-drag';
+import type { CalendarTaskChange } from './use-calendar-task-change';
 import { TodayMark } from '../../components/period/TodayMark';
 import { useCalendarToday } from '../../components/period/useCalendarToday';
 import {
@@ -10,7 +13,15 @@ import {
 import { calendarDay } from '../today/groups';
 import type { Task } from '@reflexionia/sdk';
 import { CalendarDays } from 'lucide-react';
-import { Fragment, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import {
+  Fragment,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react';
 import { Link, useLocation } from 'react-router';
 import { eventDayRange } from './event-span';
 import { chipStyle, type ExternalEventView } from '../calendar/ExternalEvent';
@@ -19,14 +30,7 @@ import type { Messages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
 import { taskQueryHref } from '../../shell/use-open-task';
 import { calendarTaskLabel, tasksOnCell } from './month';
-import {
-  GRID_END_HOUR,
-  GRID_START_HOUR,
-  HOUR_PX,
-  hourBlock,
-  minutesInZone,
-  layoutHourItems,
-} from './hour';
+import { GRID_END_HOUR, GRID_START_HOUR, HOUR_PX, hourBlock, layoutHourItems } from './hour';
 
 export function HourGrid({
   days,
@@ -36,10 +40,12 @@ export function HourGrid({
   messages,
   onOpenEvent,
   onOpenDay,
+  onTaskChange,
   onCreateAt,
   draftSlot,
   timeZone = 'Europe/Madrid',
 }: {
+  readonly onTaskChange?: CalendarTaskChange | undefined;
   readonly onOpenDay?: ((day: string) => void) | undefined;
   readonly onCreateAt?: ((slot: CalendarSlot, anchor: SlotAnchor) => void) | undefined;
   readonly draftSlot?: CalendarSlot | null | undefined;
@@ -70,12 +76,22 @@ export function HourGrid({
     },
     [],
   );
-  const ghost = selection ?? draftSlot;
+
   const interactive = (target: EventTarget) =>
     target instanceof Element &&
     target.closest('a, button, input, textarea, select, .hour-block, .calendar-cell-task');
   const location = useLocation();
   const board = useRef<HTMLDivElement>(null);
+  const drag = useCalendarDrag(board, timeZone, onTaskChange);
+  const moved = drag.preview?.patch;
+  const ghost = moved
+    ? {
+        start: moved.start_date ?? moved.due_date ?? '',
+        end: moved.start_date ? (moved.due_date ?? null) : null,
+        allDay: !!moved.is_all_day,
+        timeZone,
+      }
+    : (selection ?? draftSlot);
   const header = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const node = board.current;
@@ -101,7 +117,10 @@ export function HourGrid({
     // Choose a stable entry hour before paint; remote results never reset manual scrolling.
     const now = new Date();
     const hour = periodKey.includes(calendarDay(now.toISOString(), timeZone))
-      ? Math.max(0, Math.floor(minutesInZone(now.toISOString(), timeZone) / 60) - 1)
+      ? Math.max(
+          0,
+          Math.floor(calendarAxisMinute(now.toISOString(), timeZone, repeatedHour) / 60) - 1,
+        )
       : 8;
     node.scrollTop = hour * HOUR_PX;
     return () => {
@@ -109,10 +128,35 @@ export function HourGrid({
     };
   }, [periodKey, timeZone]);
   const locale = useAppLocale();
+  const repeatedHour = useMemo(
+    () =>
+      days
+        .map((day) => calendarRepeatedHour(localKey(day), timeZone))
+        .find((hour) => hour !== null) ?? null,
+    [periodKey, timeZone],
+  );
   const hours = Array.from(
     { length: GRID_END_HOUR - GRID_START_HOUR },
-    (_, index) => GRID_START_HOUR + index,
-  );
+    (_, index) => index,
+  ).flatMap((hour) => (hour === repeatedHour ? [hour, hour] : [hour]));
+  const repeatedZoneLabel = (later: boolean) => {
+    const day = days.find(
+      (item) => calendarRepeatedHour(localKey(item), timeZone) === repeatedHour,
+    );
+    if (!day || repeatedHour === null) return '';
+    const first = calendarDragPatch(
+      { start_date: null, due_date: null, is_all_day: false, duration_minutes: 60 },
+      { day: localKey(day), minute: repeatedHour * 60, laterOccurrence: later },
+      timeZone,
+    ).start_date;
+    return first
+      ? (new Intl.DateTimeFormat('en-GB', { timeZone, timeZoneName: 'short' })
+          .formatToParts(new Date(first))
+          .find((part) => part.type === 'timeZoneName')?.value ?? '')
+      : '';
+  };
+  const axis = (iso: string) => calendarAxisMinute(iso, timeZone, repeatedHour);
+  const block = (start: number, end: number) => hourBlock(start, end, hours.length * 60);
   const today = useCalendarToday(timeZone);
   const widths = days.map((day) => {
     const key = localKey(day);
@@ -120,7 +164,7 @@ export function HourGrid({
       ...tasksOnCell(tasks, day)
         .filter((task) => !task.is_all_day && (task.start_date ?? task.due_date))
         .map((task) => {
-          const start = minutesInZone(task.start_date ?? task.due_date ?? '', task.time_zone);
+          const start = axis(task.start_date ?? task.due_date ?? '');
           return { id: task.id, start, end: start + (task.duration_minutes ?? 30) };
         }),
       ...events
@@ -132,13 +176,12 @@ export function HourGrid({
         )
         .map((event) => {
           const range = eventDayRange(event);
-          const zone = timeZone;
-          const start = key > range.start ? 0 : minutesInZone(event.starts_at, zone);
+          const start = key > range.start ? 0 : axis(event.starts_at);
           const end =
             key < range.end
-              ? 1440
+              ? hours.length * 60
               : event.ends_at
-                ? minutesInZone(event.ends_at, zone) || 1440
+                ? axis(event.ends_at) || 1440
                 : start + 60;
           return { id: event.id, start, end };
         }),
@@ -167,10 +210,17 @@ export function HourGrid({
       style={mobileStyle}
       className="hour-board"
       data-columns={days.length}
+      data-calendar-repeated-hour={repeatedHour ?? undefined}
       data-scroll-hint={`${messages.calendarSwipe} ↔`}
       tabIndex={0}
       aria-label={messages.calendarTitle}
     >
+      <span id={drag.helpId} className="sr-only">
+        {messages.calendarDragHelp}
+      </span>
+      <span role="status" aria-live="polite" className="sr-only">
+        {drag.announcement}
+      </span>
       <div ref={header} className="hour-headers" style={columns}>
         <span />
         {days.map((day) => (
@@ -199,6 +249,8 @@ export function HourGrid({
               className={`hour-allday-cell${allDayTasks(day).length + allDayEvents(day).length > 2 ? ' has-overflow' : ''}`}
               style={{ gridColumn: index + 2, gridRow: '1 / span 2' }}
               data-day={localKey(day)}
+              data-calendar-drop-day={localKey(day)}
+              data-calendar-drop-kind="allday"
               tabIndex={onCreateAt ? 0 : undefined}
               role={onCreateAt ? 'gridcell' : undefined}
               aria-label={
@@ -236,6 +288,7 @@ export function HourGrid({
                 .map((task) => (
                   <div
                     key={task.id}
+                    {...drag.bindTask(task)}
                     className="calendar-cell-task"
                     style={chipStyle(colors.get(task.project_id))}
                   >
@@ -295,6 +348,7 @@ export function HourGrid({
               <button
                 key={`${event.id}-${String(run.start)}`}
                 type="button"
+                {...drag.external}
                 className="cal-pill hour-span"
                 style={{
                   ...chipStyle(event.color),
@@ -329,9 +383,10 @@ export function HourGrid({
       <div className="hour-scroll">
         <div className="hour-grid" style={columns}>
           <div className="hour-gutter">
-            {hours.map((hour) => (
-              <span key={hour} style={{ height: HOUR_PX }}>
+            {hours.map((hour, index) => (
+              <span key={index} style={{ height: HOUR_PX }}>
                 {String(hour).padStart(2, '0')}:00
+                {hour === repeatedHour ? ` ${repeatedZoneLabel(index !== hour)}` : ''}
               </span>
             ))}
           </div>
@@ -346,18 +401,28 @@ export function HourGrid({
             });
             const timed = [
               ...dayTasks.map((task) => {
-                const start = minutesInZone(task.start_date ?? task.due_date ?? '', task.time_zone);
-                return { id: `task:${task.id}`, start, end: start + (task.duration_minutes ?? 30) };
+                const start = axis(task.start_date ?? task.due_date ?? '');
+                const endInstant = new Date(
+                  Date.parse(task.start_date ?? task.due_date ?? '') +
+                    (task.duration_minutes ?? 30) * 60000,
+                ).toISOString();
+                return {
+                  id: `task:${task.id}`,
+                  start,
+                  end:
+                    calendarDay(endInstant, timeZone) === key
+                      ? axis(endInstant)
+                      : hours.length * 60,
+                };
               }),
               ...dayEvents.map((event) => {
                 const range = eventDayRange(event);
-                const zone = timeZone;
-                const start = key > range.start ? 0 : minutesInZone(event.starts_at, zone);
+                const start = key > range.start ? 0 : axis(event.starts_at);
                 let end =
                   key < range.end
-                    ? 1440
+                    ? hours.length * 60
                     : event.ends_at
-                      ? minutesInZone(event.ends_at, zone)
+                      ? axis(event.ends_at)
                       : start + 60;
                 if (end === 0 || end <= start) end = 1440;
                 return { id: `event:${event.id}`, start, end };
@@ -368,8 +433,8 @@ export function HourGrid({
               const item = layout.find((item) => item.id === id);
               return item
                 ? {
-                    top: hourBlock(item.start, item.end).top,
-                    height: hourBlock(item.start, item.end).height,
+                    top: block(item.start, item.end).top,
+                    height: block(item.start, item.end).height,
                     left: `${String((item.lane / item.lanes) * 100)}%`,
                     width: `${String(100 / item.lanes)}%`,
                   }
@@ -381,6 +446,8 @@ export function HourGrid({
                 className={key === today ? 'hour-col is-today' : 'hour-col'}
                 style={{ height: HOUR_PX * hours.length }}
                 data-day={key}
+                data-calendar-drop-day={key}
+                data-calendar-drop-kind="hour"
                 tabIndex={onCreateAt ? 0 : undefined}
                 role={onCreateAt ? 'gridcell' : undefined}
                 aria-label={
@@ -410,12 +477,19 @@ export function HourGrid({
                   if (['Enter', ' '].includes(event.key)) {
                     event.preventDefault();
                     const box = event.currentTarget.getBoundingClientRect();
-                    const y = box.top + (keyboardMinute / 60) * HOUR_PX;
-                    onCreateAt(slotFromPoint({ day: key, clientY: y, top: box.top, timeZone }), {
-                      x: box.left + box.width / 2,
-                      y,
-                      element: event.currentTarget,
-                    });
+                    const axisMinute =
+                      repeatedHour !== null && keyboardMinute >= (repeatedHour + 1) * 60
+                        ? keyboardMinute + 60
+                        : keyboardMinute;
+                    const y = box.top + (axisMinute / 60) * HOUR_PX;
+                    onCreateAt(
+                      slotFromPoint({ day: key, clientY: y, top: box.top, timeZone, repeatedHour }),
+                      {
+                        x: box.left + box.width / 2,
+                        y,
+                        element: event.currentTarget,
+                      },
+                    );
                   }
                 }}
                 onContextMenu={(event) => {
@@ -446,7 +520,13 @@ export function HourGrid({
                         state.active = true;
                         node.setPointerCapture(id);
                         setSelection(
-                          slotFromPoint({ day: key, clientY: state.y, top: state.top, timeZone }),
+                          slotFromPoint({
+                            day: key,
+                            clientY: state.y,
+                            top: state.top,
+                            timeZone,
+                            repeatedHour,
+                          }),
                         );
                       }
                     }, 350);
@@ -468,6 +548,7 @@ export function HourGrid({
                       endY: event.clientY,
                       top: drag.top,
                       timeZone,
+                      repeatedHour,
                     }),
                   );
                 }}
@@ -484,6 +565,7 @@ export function HourGrid({
                     clientY: drag.y,
                     top: drag.top,
                     timeZone,
+                    repeatedHour,
                     ...(drag.moved ? { endY: event.clientY } : {}),
                   });
                   onCreateAt?.(slot, { x: event.clientX, y: event.clientY, element: drag.node });
@@ -494,18 +576,18 @@ export function HourGrid({
                   setSelection(null);
                 }}
               >
-                {hours.map((hour) => (
-                  <i key={hour} style={{ top: (hour - GRID_START_HOUR) * HOUR_PX }} />
+                {hours.map((hour, index) => (
+                  <i key={index} style={{ top: index * HOUR_PX }} />
                 ))}
-                {key === today ? <NowLine timeZone={timeZone} /> : null}
+                {key === today ? <NowLine timeZone={timeZone} repeatedHour={repeatedHour} /> : null}
                 {ghost && !ghost.allDay && calendarDay(ghost.start, timeZone) === key ? (
                   <div
                     className="hour-ghost"
-                    style={hourBlock(
-                      minutesInZone(ghost.start, timeZone),
+                    style={block(
+                      axis(ghost.start),
                       ghost.end && calendarDay(ghost.end, timeZone) === key
-                        ? minutesInZone(ghost.end, timeZone)
-                        : 1440,
+                        ? axis(ghost.end)
+                        : hours.length * 60,
                     )}
                   >
                     {new Date(ghost.start).toLocaleTimeString(locale, {
@@ -513,6 +595,7 @@ export function HourGrid({
                       hour: '2-digit',
                       minute: '2-digit',
                       hourCycle: 'h23',
+                      ...(moved ? { timeZoneName: 'short' as const } : {}),
                     })}
                     –
                     {ghost.end
@@ -528,13 +611,17 @@ export function HourGrid({
                 {dayTasks.map((task) => (
                   <div
                     key={task.id}
+                    {...drag.bindTask(task)}
                     className="hour-block calendar-hour-task"
-                    style={{
-                      ...chipStyle(colors.get(task.project_id)),
-                      ...style(`task:${task.id}`),
-                      height: 'auto',
-                      maxHeight: style(`task:${task.id}`).height,
-                    }}
+                    style={
+                      {
+                        ...chipStyle(colors.get(task.project_id)),
+                        ...style(`task:${task.id}`),
+                        height: 'auto',
+                        maxHeight: style(`task:${task.id}`).height,
+                        '--calendar-task-duration-height': `${String(style(`task:${task.id}`).height ?? 24)}px`,
+                      } as CSSProperties & { '--calendar-task-duration-height': string }
+                    }
                   >
                     <CalendarTaskMark task={task} />
                     <Link to={taskQueryHref(location.pathname, location.search, task.id)}>
@@ -545,12 +632,19 @@ export function HourGrid({
                         messages.untitled,
                       )}
                     </Link>
+                    <button
+                      type="button"
+                      data-calendar-resize
+                      className="calendar-resize-handle"
+                      aria-label={messages.calendarResize}
+                    />
                   </div>
                 ))}
                 {dayEvents.map((event) => (
                   <button
                     key={event.id}
                     type="button"
+                    {...drag.external}
                     className="hour-block"
                     style={{ ...chipStyle(event.color), ...style(`event:${event.id}`) }}
                     onClick={() => {
@@ -569,7 +663,13 @@ export function HourGrid({
     </div>
   );
 }
-function NowLine({ timeZone }: { readonly timeZone: string }) {
+function NowLine({
+  timeZone,
+  repeatedHour,
+}: {
+  readonly timeZone: string;
+  readonly repeatedHour: number | null;
+}) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -584,8 +684,9 @@ function NowLine({ timeZone }: { readonly timeZone: string }) {
       className="hour-now"
       style={{
         top: hourBlock(
-          minutesInZone(now.toISOString(), timeZone),
-          minutesInZone(now.toISOString(), timeZone) + 1,
+          calendarAxisMinute(now.toISOString(), timeZone, repeatedHour),
+          calendarAxisMinute(now.toISOString(), timeZone, repeatedHour) + 1,
+          repeatedHour === null ? 1440 : 1500,
         ).top,
       }}
       aria-hidden="true"

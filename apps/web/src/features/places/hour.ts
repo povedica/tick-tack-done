@@ -20,9 +20,10 @@ export function minutesInZone(iso: string, timeZone: string): number {
 export function hourBlock(
   startMinutes: number,
   endMinutes: number,
+  limitMinutes = GRID_END_HOUR * 60,
 ): { readonly top: number; readonly height: number } {
   const start = GRID_START_HOUR * 60;
-  const end = GRID_END_HOUR * 60;
+  const end = limitMinutes;
   const from = Math.min(end, Math.max(start, startMinutes));
   const rawEnd = endMinutes <= startMinutes ? end : endMinutes;
   const to = Math.min(end, Math.max(from + 15, rawEnd));

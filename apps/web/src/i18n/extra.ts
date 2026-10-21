@@ -1,4 +1,16 @@
 export const extraEs = {
+  calendarMovedTo: 'Movida a {date}',
+  calendarMovedOccurrence: 'Solo se ha movido esta repetición',
+  calendarMoveFailed: 'No se ha podido mover la tarea.',
+  calendarDragCancelled: 'Movimiento cancelado',
+  calendarDragKeyboardStart:
+    'Moviendo {title}. Usa las flechas; Espacio para soltar o Escape para cancelar.',
+  calendarDragHelp:
+    'Espacio para mover, A para alternar todo el día, flechas para cambiar hora o día, Mayús y arriba/abajo para duración; Enter para guardar y Escape para cancelar.',
+  calendarDraggableRole: 'bloque arrastrable',
+  calendarResize: 'Cambiar duración',
+  calendarExternalReadonly: 'Los eventos externos se editan en su calendario de origen',
+
   descriptionHeading: 'Encabezado',
   descriptionList: 'Lista con viñetas',
   descriptionChecklist: 'Lista de tareas',
@@ -1032,6 +1044,17 @@ export const extraEs = {
 } as const;
 
 export const extraEn = {
+  calendarMovedTo: 'Moved to {date}',
+  calendarMovedOccurrence: 'Only this occurrence was moved',
+  calendarMoveFailed: 'Could not move the task.',
+  calendarDragCancelled: 'Move cancelled',
+  calendarDragKeyboardStart: 'Moving {title}. Use arrows; Space to drop or Escape to cancel.',
+  calendarDragHelp:
+    'Space to move, A to toggle all-day, arrows to change time or day, Shift and up/down to resize; Enter to save and Escape to cancel.',
+  calendarDraggableRole: 'draggable block',
+  calendarResize: 'Resize duration',
+  calendarExternalReadonly: 'External events are edited in their source calendar',
+
   descriptionHeading: 'Heading',
   descriptionList: 'Bullet list',
   descriptionChecklist: 'Checklist',

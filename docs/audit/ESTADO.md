@@ -665,3 +665,46 @@ ocho vistas a ambos anchos. Dos regresiones de Agenda correctas antes del ajuste
 final de orden visual; repetición final de plegado 2/2 correcta. 171 unitarios
 web, lint web y typecheck correctos. Inspección visual 1280/390, capturas sólo
 /tmp y API simulada. Sin cambios de API/modelo/eventos.
+
+
+## 75.5 — mover y redimensionar tareas (22/10/2026)
+
+RF-1102 / RF-604 / RF-1902. Reglas puras nuevas en domain/calendar/drag.ts;
+Pointer Events compartidos en use-calendar-drag para horario, Mes/Dos semanas y
+Semana móvil. Agenda/Año/Trimestre siguen sin arrastre. Sólo tareas activas:
+checkbox conserva su acción y eventos externos siguen siendo de lectura; una
+pulsación larga anuncia que se editan en el calendario de origen.
+
+Ratón: umbral 4px, mover con duración conservada, snap 15min (Alt:5), sombra y
+celda destino. Asa inferior cambia duración con mínimo 15min y límite de la
+medianoche local. Todo el día limpia inicio/duración y conserva fecha local;
+volver a horario asigna 60min. Celdas vacías de todo el día mantienen zona de
+soltado. Mes/Dos semanas y Semana móvil conservan hora al cambiar de día.
+Teclado: Espacio levanta; flechas cambian franja/día (Mes: filas de siete días),
+Mayús arriba/abajo cambia duración, A alterna todo el día, Enter/Espacio guarda,
+Escape cancela. Ayuda accesible y anuncios localizados. Táctil: 400ms para
+levantar, selección conserva asa visible para redimensionar; scroll bloqueado
+sólo al arrastrar. Auto-scroll vertical en borde del horario; soltar fuera cancela.
+
+PATCH existente, sin nuevas APIs/migraciones/eventos: actualización optimista de
+cachés de calendario, rollback y Reintentar ante error. Deshacer durante 5s
+restaura campos originales. No se modifica repeat_rule; el aviso aclara que
+sólo cambia la repetición actual. Evita guardar cuando no cambian fechas/duración.
+
+DST: el 25/10 Madrid ofrece dos filas 02:00 CEST/CET y posiciones separadas;
+la conversión predeterminada elige la primera y se puede soltar explícitamente
+en la segunda. Duración sigue siendo tiempo transcurrido. Captura nueva respeta
+el eje ampliado y conserva sus saltos de 30min. Claves y geometría existentes se
+actualizan en las pruebas para tener en cuenta esa fila, sin cambiar contratos.
+
+Validación: 605 unitarios correctos (305 dominio, 172 web, 117 API, 11 SDK).
+Cobertura dominio 89,59 %; módulo drag 97,96 % de sentencias. Lint/typecheck
+generales correctos, más repetición dirigida tras afinado final. OpenAPI generado
+sin diff. Pase completo Playwright 74/75; el único fallo era un punto de clic
+fuera del enlace circular de Trimestre: corregido a un punto interior y pasa.
+Siete pruebas finales correctas: seis de arrastre y la de Trimestre. Cubren mover,
+redimensionar ratón/táctil, ambos sentidos de todo el día, teclado/cancelación,
+Alt, auto-scroll, error/rollback/Reintentar, Deshacer, recurrencia y DST. API
+simulada, navegador en America/New_York/cuenta Madrid; sin sesión real. Capturas
+visuales de sombra y hora repetida sólo /tmp. Sin cambio de semana automático
+al acercarse al borde horizontal (opcional en la especificación).

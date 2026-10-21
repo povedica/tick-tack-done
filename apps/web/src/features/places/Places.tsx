@@ -1,3 +1,5 @@
+import { useCalendarDrag } from './use-calendar-drag';
+import { useCalendarTaskChange, type CalendarTaskChange } from './use-calendar-task-change';
 import { SidebarFoldButton } from '../../shell/SidebarFoldButton';
 import { DayWeekStrip } from '../calendar/DayWeekStrip';
 import { CalendarFilterRow } from '../calendar/CalendarFilterRow';
@@ -360,6 +362,7 @@ function ProcessCard({
 }
 
 export function CalendarPage() {
+  const taskChange = useCalendarTaskChange();
   const [draft, setDraft] = useState<{ slot: CalendarSlot; anchor: SlotAnchor } | null>(null);
   const [createdNotice, setCreatedNotice] = useState('');
   const closeDraft = useCallback(() => {
@@ -972,6 +975,7 @@ export function CalendarPage() {
           ) : null}
           {current === 'week' && mobile ? (
             <MobileWeekBoard
+              onTaskChange={taskChange.change}
               onCreateDay={createOnDay}
               days={cells}
               cursor={cursor}
@@ -985,6 +989,7 @@ export function CalendarPage() {
             />
           ) : current === 'day' || current === 'week' || current === 'multi-day' ? (
             <HourGrid
+              onTaskChange={taskChange.change}
               onOpenDay={setPicked}
               days={cells}
               tasks={dated}
@@ -1000,6 +1005,7 @@ export function CalendarPage() {
           {current === 'two-weeks' || current === 'month' ? (
             <>
               <DayGrid
+                onTaskChange={taskChange.change}
                 days={current === 'month' ? monthCells(startOfMonth(cursor), weekStart) : cells}
                 columns={7}
                 tasks={dated}
@@ -1019,6 +1025,7 @@ export function CalendarPage() {
           ) : null}
         </>
       ) : null}
+      {taskChange.feedback}
       {picked !== null ? (
         <DaySheet
           dayKey={picked}
@@ -1105,6 +1112,7 @@ function calendarTitle(locale: string, view: string, cursor: Date, cells: readon
 }
 
 function DayGrid({
+  onTaskChange,
   days,
   columns,
   tasks,
@@ -1121,6 +1129,7 @@ function DayGrid({
   draftingDay,
   timeZone = 'Europe/Madrid',
 }: {
+  readonly onTaskChange?: CalendarTaskChange | undefined;
   readonly onCreateAt?: ((slot: CalendarSlot, anchor: SlotAnchor) => void) | undefined;
   readonly draftingDay?: string | null;
   readonly timeZone?: string;
@@ -1141,6 +1150,7 @@ function DayGrid({
   const locale = useAppLocale();
   const verticalNavigation = useVerticalCalendarNavigation(onNavigate);
   const grid = useRef<HTMLDivElement>(null);
+  const drag = useCalendarDrag(grid, timeZone, onTaskChange);
   const [overflow, setOverflow] = useState<Record<string, number>>({});
   useLayoutEffect(() => {
     const node = grid.current;
@@ -1246,6 +1256,12 @@ function DayGrid({
         gridTemplateColumns: `${dots ? '' : '2rem '}repeat(${String(columns)}, minmax(0, 1fr))`,
       }}
     >
+      <span id={drag.helpId} className="sr-only">
+        {messages.calendarDragHelp}
+      </span>
+      <span role="status" aria-live="polite" className="sr-only">
+        {drag.announcement}
+      </span>
       {!dots ? (
         <div className="cal-head" aria-label={messages.calWeekNumber}>
           S
@@ -1317,6 +1333,8 @@ function DayGrid({
                   });
                 }
               }}
+              data-calendar-drop-day={key}
+              data-calendar-drop-kind="day"
               data-day={key}
               data-week={Math.floor(index / columns)}
               data-column={(index % columns) + 2}
@@ -1375,7 +1393,11 @@ function DayGrid({
                       )
                       .map((chip) =>
                         chip.kind === 'task' ? (
-                          <div key={chip.task.id} className="calendar-cell-task">
+                          <div
+                            key={chip.task.id}
+                            {...drag.bindTask(chip.task, true)}
+                            className="calendar-cell-task"
+                          >
                             <CalendarTaskMark task={chip.task} />
                             <Link
                               title={chipLabel(chip.task, messages.untitled, locale)}
@@ -1397,6 +1419,7 @@ function DayGrid({
                         ) : (
                           <button
                             key={chip.event.id}
+                            {...drag.external}
                             title={chip.event.title}
                             type="button"
                             className="cal-pill"
@@ -1432,6 +1455,7 @@ function DayGrid({
             return (
               <button
                 key={`${bar.event.id}-${String(bar.weekIndex)}`}
+                {...drag.external}
                 type="button"
                 className="cal-pill calendar-month-span"
                 data-week={bar.weekIndex}
@@ -1481,6 +1505,7 @@ function createInDaySpace(
 }
 
 function MobileWeekBoard({
+  onTaskChange,
   days,
   cursor,
   tasks,
@@ -1492,6 +1517,7 @@ function MobileWeekBoard({
   onOpenEvent,
   onCreateDay,
 }: {
+  readonly onTaskChange?: CalendarTaskChange | undefined;
   readonly onCreateDay?: ((day: string, anchor: SlotAnchor) => void) | undefined;
   days: readonly Date[];
   cursor: Date;
@@ -1507,6 +1533,8 @@ function MobileWeekBoard({
   const messages = useMessages();
   const today = useCalendarToday();
   const location = useLocation();
+  const board = useRef<HTMLDivElement>(null);
+  const drag = useCalendarDrag(board, timeZone, onTaskChange);
   const gesture = useRef<{ x: number; y: number; at: number } | null>(null);
   const suppressClick = useRef(0);
   const mini = monthCells(cursor, weekStart);
@@ -1514,6 +1542,7 @@ function MobileWeekBoard({
   const time = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', timeZone });
   return (
     <div
+      ref={board}
       className={`mobile-week-board${days.length === 5 ? ' is-workweek' : ''}`}
       tabIndex={0}
       aria-label={messages.calWeek}
@@ -1558,6 +1587,12 @@ function MobileWeekBoard({
         }
       }}
     >
+      <span id={drag.helpId} className="sr-only">
+        {messages.calendarDragHelp}
+      </span>
+      <span role="status" aria-live="polite" className="sr-only">
+        {drag.announcement}
+      </span>
       <div className="mobile-week-mini" aria-label={messages.calendarSidebarTitle}>
         {mini.slice(0, 7).map((day) => (
           <span className="mobile-week-dow" key={localKey(day)}>
@@ -1591,6 +1626,8 @@ function MobileWeekBoard({
         return (
           <section
             className="mobile-week-day"
+            data-calendar-drop-day={key}
+            data-calendar-drop-kind="day"
             tabIndex={onCreateDay ? 0 : undefined}
             onKeyDown={(event) => {
               createInDaySpaceWithKey(event, key, onCreateDay);
@@ -1619,6 +1656,7 @@ function MobileWeekBoard({
                   return (
                     <button
                       type="button"
+                      {...drag.external}
                       className="mobile-week-chip"
                       key={`event-${event.id}`}
                       style={chipStyle(event.color)}
@@ -1637,6 +1675,7 @@ function MobileWeekBoard({
                 const task = item.task;
                 return (
                   <div
+                    {...drag.bindTask(task, true)}
                     className="mobile-week-chip"
                     key={task.id}
                     style={chipStyle(colors.get(task.project_id))}

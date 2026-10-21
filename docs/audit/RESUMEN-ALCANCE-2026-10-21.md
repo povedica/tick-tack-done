@@ -49,7 +49,7 @@ código actual. Las decisiones posteriores prevalecen sobre los diseños inicial
 | 75.2 Panel fijo sólo en Tareas | Implementado el 22/10 | Sólo tasks mantiene columna; otras secciones abren detalle centrado y móvil conserva hoja |
 | 75.3 Plegado en cabecera | Implementado el 22/10 | Compartido Calendario/Hoy/Tareas, rail sin duplicado, ARIA/atajo y drawer móvil probados |
 | 75.4 Tarjetas/horas | Muy avanzado | Revisar consistencia final por vista; por decisión posterior no se repite hora dentro de tarjetas con franja horaria |
-| 75.5 Mover/redimensionar | Pendiente | Arrastrar tareas existentes, redimensionar, pasar a/desde todo el día, optimismo/Deshacer, teclado/táctil y DST; crear seleccionando rango no cubre esto |
+| 75.5 Mover/redimensionar | Implementado el 22/10 | Ratón/táctil/teclado, duración, todo el día, Deshacer, rollback/Reintentar y DST probados con API simulada; validación real pendiente |
 | 75.6 TaskPeek/evento anclado | Parcial | TaskPeek junto a tarjeta y evento externo anclado; el detalle actual no acredita ese patrón |
 | 75.7 Hoy circular | Implementado y probado | Validación real final; no confundir con navegador de periodo compartido |
 | 75.8 Cabecera | Adaptada y probada según feedback | Cierre visual/funcional final de escritorio; no restaurar «⋯» ni la antigua navegación dentro del selector móvil |

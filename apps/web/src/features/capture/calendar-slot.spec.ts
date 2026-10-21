@@ -115,3 +115,22 @@ describe('TTD-AUD-74: calendar slots', () => {
     });
   });
 });
+
+it('maps both repeated wall-hour rows without changing elapsed duration', () => {
+  const early = slotFromPoint({
+    day: '2026-10-25',
+    top: 0,
+    clientY: 2.5 * 48,
+    timeZone: 'Europe/Madrid',
+    repeatedHour: 2,
+  });
+  const late = slotFromPoint({
+    day: '2026-10-25',
+    top: 0,
+    clientY: 3.5 * 48,
+    timeZone: 'Europe/Madrid',
+    repeatedHour: 2,
+  });
+  expect(early.start).toBe('2026-10-25T00:30:00.000Z');
+  expect(late.start).toBe('2026-10-25T01:30:00.000Z');
+});

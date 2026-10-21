@@ -415,3 +415,7 @@ export { overdueAgeGroups } from './dashboard/kpis';
 export { gardenHabits, uniqueGardenEvents, gardenTagActivity } from './dashboard/executive';
 
 export { bucketWeek, type WeekDayMetric } from './reports/week-metrics';
+
+export { calendarDragPatch, DRAG_SNAP_MINUTES, type CalendarDragTarget } from './calendar/drag';
+
+export { calendarRepeatedHour, calendarAxisMinute, calendarAxisTarget } from './calendar/drag';

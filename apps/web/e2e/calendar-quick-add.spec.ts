@@ -79,7 +79,9 @@ async function point(page: Page, day: string, hour: number) {
       );
   const box = await column.boundingBox();
   if (!box) throw new Error('Missing calendar column');
-  return { x: box.x + box.width / 2, y: box.y + hour * 48 };
+  const repeated = await page.locator('.hour-board').getAttribute('data-calendar-repeated-hour');
+  const axisHour = repeated !== null && hour >= Number(repeated) + 1 ? hour + 1 : hour;
+  return { x: box.x + box.width / 2, y: box.y + axisHour * 48 };
 }
 
 for (const view of ['week', 'day', 'multi-day']) {
@@ -107,7 +109,13 @@ for (const view of ['week', 'day', 'multi-day']) {
     });
     await expect(page.locator('.hour-ghost')).toHaveCount(0);
     await expect(page.locator('.calendar-hour-task')).toContainText('Comprar pan');
-    await expect(page.locator('.calendar-hour-task')).toHaveCSS('top', '648px');
+    const repeatedHour = await page
+      .locator('.hour-board')
+      .getAttribute('data-calendar-repeated-hour');
+    await expect(page.locator('.calendar-hour-task')).toHaveCSS(
+      'top',
+      `${(13.5 + (repeatedHour === null ? 0 : 1)) * 48}px`,
+    );
   });
 }
 
@@ -449,7 +457,13 @@ for (const view of ['week', 'month', 'year', 'quarter', 'agenda']) {
                 (await target.getAttribute('href')) ?? '',
                 'http://localhost',
               ).searchParams.get('date');
-    await target.click({ position: { x: 2, y: 2 } });
+    const targetBox = await target.boundingBox();
+    await target.click({
+      position:
+        view === 'quarter' && targetBox
+          ? { x: targetBox.width / 2, y: targetBox.height - 3 }
+          : { x: 2, y: 2 },
+    });
     await expect(page.locator('.calendar-quick-add')).toBeVisible();
     await page.locator('.calendar-quick-add input[name="title"]').fill('Nueva tarea');
     await page

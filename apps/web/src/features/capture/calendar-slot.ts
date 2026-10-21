@@ -1,3 +1,4 @@
+import { calendarAxisTarget, calendarDragPatch } from '@reflexionia/domain';
 import { calendarDay, zonedWallTime } from '../today/groups';
 import { HOUR_PX, minutesInZone } from '../places/hour';
 
@@ -39,23 +40,32 @@ export function slotFromPoint(input: {
   readonly top: number;
   readonly timeZone: string;
   readonly endY?: number;
+  readonly repeatedHour?: number | null;
 }): CalendarSlot {
-  const at = (y: number) => snapToSlot(((y - input.top) / HOUR_PX) * 60);
+  const total = input.repeatedHour == null ? 1440 : 1500;
+  const at = (y: number) =>
+    Math.max(0, Math.min(total - 30, Math.floor(((y - input.top) / HOUR_PX) * 2) * 30));
+  const instantAt = (axis: number) => {
+    if (input.repeatedHour == null) return wallInstant(input.day, axis, input.timeZone);
+    if (axis === total) return wallInstant(input.day, 1440, input.timeZone);
+    const patch = calendarDragPatch(
+      { start_date: null, due_date: null, duration_minutes: 30, is_all_day: false },
+      calendarAxisTarget(input.day, axis, input.repeatedHour, input.timeZone),
+      input.timeZone,
+    );
+    return patch.start_date ?? patch.due_date;
+  };
   const first = at(input.clientY);
   const last =
     input.endY === undefined
       ? first
-      : Math.max(0, Math.min(1440, Math.floor(((input.endY - input.top) / HOUR_PX) * 2) * 30));
-  const start = wallInstant(input.day, Math.min(first, last), input.timeZone);
+      : Math.max(0, Math.min(total, Math.floor(((input.endY - input.top) / HOUR_PX) * 2) * 30));
+  const start = instantAt(Math.min(first, last));
   // A click is 30 elapsed minutes; a drag ends at the selected half-hour boundary.
   const end =
     input.endY === undefined
       ? new Date(Date.parse(start) + 30 * 60_000).toISOString()
-      : wallInstant(
-          input.day,
-          Math.min(1440, Math.max(Math.min(first, last) + 30, Math.max(first, last))),
-          input.timeZone,
-        );
+      : instantAt(Math.min(total, Math.max(Math.min(first, last) + 30, Math.max(first, last))));
   return { start, end, allDay: false, timeZone: input.timeZone };
 }
 
