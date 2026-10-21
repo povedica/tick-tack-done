@@ -572,11 +572,19 @@
 
   .outlet,
   .settings-main {
-    padding-bottom: calc(var(--bottombar-h) + env(safe-area-inset-bottom) + var(--sp-8));
+    /* TTD-AUD-58: no top padding (sticky headers) and no double bottom reserve */
+    padding-top: 0;
+    padding-bottom: var(--sp-8);
   }
 
-  .outlet {
-    padding-top: var(--sp-5);
+  .mobile-control-bar {
+    padding-top: calc(6px + env(safe-area-inset-top));
+  }
+
+  .screen-page > :first-child,
+  .today > :first-child,
+  .stats-page > :first-child {
+    padding-top: var(--sp-3);
   }
 
   .today-header h1,

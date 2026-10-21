@@ -1,17 +1,18 @@
 import { runAction } from '../../components/run-action';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  applyQuadrantDrop,
-  DEFAULT_QUADRANT_EFFECTS,
+  defaultQuadrant,
+  minimalQuadrantPatch,
   type MatrixQuadrant,
 } from '@reflexionia/domain';
-import { MoreHorizontal } from 'lucide-react';
+import { CircleHelp, MoreHorizontal } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router';
 import { taskQueryHref } from '../../shell/use-open-task';
 import type { Task } from '@reflexionia/sdk';
 import { api } from '../../api';
 import { PriorityCheck } from '../../components/PriorityCheck';
+import { useActionToast } from '../../components/action-toast';
 import { displayTitle } from '../tasks/displayTitle';
 import { EmptyState } from '../../components/ui';
 import { useMessages, type Messages } from '../../i18n';
@@ -19,7 +20,6 @@ import { useAppLocale } from '../../i18n/locale';
 import { refreshTaskSurfaces } from '../tasks/refresh';
 import { completeBody } from '../tasks/complete-body';
 import { newMutation, runOrQueue } from '../offline/client';
-import { quadrantOf } from '../tasks/model';
 import { formatDueChip } from '../today/groups';
 import { loadMatrixTasks } from './load';
 import type { MatrixLayout } from './layout';
@@ -101,12 +101,22 @@ export function MatrixBoard({
   const locale = useAppLocale();
   const location = useLocation();
   const queryClient = useQueryClient();
+  const showToast = useActionToast((state) => state.show);
   const narrow = useNarrowViewport();
   const [info, setInfo] = useState(false);
   const [active, setActive] = useState<MatrixQuadrant>('do');
   const [menuId, setMenuId] = useState<string | null>(null);
   const [completing, setCompleting] = useState<ReadonlySet<string>>(new Set());
   const [completeError, setCompleteError] = useState<string | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 60_000);
+    return () => {
+      window.clearInterval(id);
+    };
+  }, []);
   const projects = useQuery({
     queryKey: ['projects'],
     queryFn: () => api.listProjects(),
@@ -126,23 +136,69 @@ export function MatrixBoard({
       ),
     [projects.data?.items, messages.smartInbox],
   );
-  const now = useMemo(() => new Date(), []);
+  const nowIso = new Date(nowMs).toISOString();
   const groups = useMemo(() => {
     const next: Record<MatrixQuadrant, Task[]> = { do: [], schedule: [], delegate: [], drop: [] };
     for (const task of tasks.data ?? []) {
-      next[quadrantOf(task.priority, task.due_date, now)].push(task);
+      next[defaultQuadrant({ priority: task.priority, dueDate: task.due_date }, nowIso)].push(
+        task,
+      );
     }
     return next;
-  }, [now, tasks.data]);
+  }, [nowIso, tasks.data]);
 
   function move(taskId: string, quadrant: MatrixQuadrant): void {
-    const patch = applyQuadrantDrop(DEFAULT_QUADRANT_EFFECTS[quadrant], new Date().toISOString());
+    const task = (tasks.data ?? []).find((row) => row.id === taskId);
+    if (task === undefined) {
+      return;
+    }
+    const current = defaultQuadrant(
+      { priority: task.priority, dueDate: task.due_date },
+      nowIso,
+    );
+    if (current === quadrant) {
+      setMenuId(null);
+      return;
+    }
+    const previous = {
+      priority: task.priority,
+      due_date: task.due_date,
+      is_all_day: task.is_all_day,
+    };
+    const patch = minimalQuadrantPatch(
+      {
+        priority: task.priority,
+        dueDate: task.due_date,
+        isAllDay: task.is_all_day,
+        timeZone: task.time_zone,
+      },
+      quadrant,
+      nowIso,
+    );
+    if (patch.unchanged) {
+      setMenuId(null);
+      return;
+    }
     setMenuId(null);
     runAction(
-      api.patchTask(taskId, { priority: patch.priority, due_date: patch.dueDate }).then(() => {
-        runAction(tasks.refetch());
-        runAction(refreshTaskSurfaces(queryClient));
-      }),
+      api
+        .patchTask(taskId, {
+          priority: patch.priority,
+          due_date: patch.dueDate,
+          is_all_day: patch.isAllDay,
+        })
+        .then(() => {
+          runAction(tasks.refetch());
+          runAction(refreshTaskSurfaces(queryClient));
+          showToast(messages.saved, () => {
+            runAction(
+              api.patchTask(taskId, previous).then(() => {
+                runAction(tasks.refetch());
+                runAction(refreshTaskSurfaces(queryClient));
+              }),
+            );
+          });
+        }),
     );
   }
 
@@ -171,11 +227,13 @@ export function MatrixBoard({
               >
                 <option value="all">{messages.matrixAll}</option>
                 <option value="today">{messages.navToday}</option>
-                {(projects.data?.items ?? []).map((project) => (
-                  <option key={project.id} value={`list/${project.id}`}>
-                    {project.is_inbox ? messages.smartInbox : project.name}
-                  </option>
-                ))}
+                {(projects.data?.items ?? [])
+                  .filter((project) => project.kind !== 'NOTE')
+                  .map((project) => (
+                    <option key={project.id} value={`list/${project.id}`}>
+                      {project.is_inbox ? messages.smartInbox : project.name}
+                    </option>
+                  ))}
               </select>
             </label>
           ) : null}
@@ -188,7 +246,7 @@ export function MatrixBoard({
               setInfo((current) => !current);
             }}
           >
-            i
+            <CircleHelp size={18} aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -241,7 +299,7 @@ export function MatrixBoard({
                   task.due_date,
                   task.time_zone,
                   task.is_all_day,
-                  now,
+                  new Date(nowMs),
                   locale,
                   { empty: messages.noDate, today: messages.navToday },
                 );

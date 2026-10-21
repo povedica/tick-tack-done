@@ -19,7 +19,7 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-11 | 0 | verificado en tests | #67 | Test: weekly-automation.e2e-spec.ts |
 | TTD-AUD-12 | 5 | pendiente | — | |
 | TTD-AUD-13 | 5 | pendiente | — | |
-| TTD-AUD-14 | 2 | en curso | #71 | Con 62 (detalle sin salir); UI scope pendiente |
+| TTD-AUD-14 | 2 | corregido (parcial) | #71 | Botón info icono; ámbito filtra NOTE |
 | TTD-AUD-15 | 5 | pendiente | — | |
 | TTD-AUD-16 | 0 | corregido | #71 | Purga optimista + rollback; contador trash |
 | TTD-AUD-17 | 5 | pendiente | — | |
@@ -41,7 +41,7 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-33 | 3 | pendiente | — | Depende de 63 |
 | TTD-AUD-34 | 5 | pendiente | — | |
 | TTD-AUD-35 | 4 | verificado en main | #63 | Paginación tokens; no reimplementar |
-| TTD-AUD-36 | 4 | pendiente | — | Depende de 35 |
+| TTD-AUD-36 | 4 | verificado en tests | #71 | tokenExpired + UI pill; token-groups.spec |
 | TTD-AUD-37 | 4 | verificado en main | #62 | OAuth name conflicts; no reimplementar |
 | TTD-AUD-38 | 4 | pendiente | — | Depende de 35 |
 | TTD-AUD-39 | 4 | pendiente | — | Depende de 35 |
@@ -63,11 +63,11 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-55 | 0 | corregido | #71 | parseTaskInstant YYYY-MM-DD → medianoche local + is_all_day |
 | TTD-AUD-56 | 0 | corregido | #71 | deriveDurationMinutes rechaza mismatch; no pisa explicit |
 | TTD-AUD-57 | 1 | corregido (parcial) | #71 | source=api en MCP; created_via en get_task; assign_task; cuentas por persona = ops |
-| TTD-AUD-58 | 3 | pendiente | — | |
+| TTD-AUD-58 | 3 | corregido | #71 | outlet sin padding-top; sticky bajo cabecera; viewport-fit |
 | TTD-AUD-59 | 2 | corregido (parcial) | #71 | ViewPrefs local + print CSS + hideCompleted fijo; sync servidor pendiente |
 | TTD-AUD-60 | 2 | corregido | #71 | Detalle fijo + abrir tarea en ruta actual (matrix/calendar/plan/focus) |
 | TTD-AUD-61 | 2 | corregido (parcial) | #71 | sectionOf + ocultar sidebar; CalendarSidebar stub (mini-mes pendiente) |
-| TTD-AUD-62 | 2 | corregido (parcial) | #71 | Abrir tarea sin salir; drop/reglas pendientes |
+| TTD-AUD-62 | 2 | corregido | #71 | minimalQuadrantPatch; skip mismo cuadrante; undo; no clear en drop |
 | TTD-AUD-63 | 2 | corregido | #71 | Flag ticky + useTickyAvailable; FeatureRoute; server-off bloquea switch |
 | TTD-AUD-64 | 2 | corregido (parcial) | #71 | CaptureSheet tarjeta + Popover width/align; menú composer pendiente de pulido |
 | TTD-AUD-65 | 0 | corregido | #71 | taskEventSnapshot + migración strip activity |

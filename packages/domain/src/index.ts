@@ -211,12 +211,15 @@ export {
   isImportant,
   isUrgent,
   MATRIX_QUADRANTS,
+  minimalQuadrantPatch,
   quadrantOf,
 } from './views/matrix';
 export type {
   DueEffect,
   MatrixQuadrant,
   MatrixTask,
+  MinimalQuadrantPatch,
+  MinimalQuadrantTask,
   QuadrantEffect,
   QuadrantPatch,
   QuadrantRule,

@@ -3,6 +3,7 @@ import {
   applyQuadrantDrop,
   defaultQuadrant,
   DEFAULT_QUADRANT_EFFECTS,
+  minimalQuadrantPatch,
   quadrantOf,
   type MatrixTask,
 } from './matrix';
@@ -105,5 +106,52 @@ describe('matrix', () => {
     expect(applyQuadrantDrop(DEFAULT_QUADRANT_EFFECTS.do, 'not-a-date').dueDate).toBe(
       '2026-01-01T01:00:00.000Z',
     );
+  });
+
+  it('TTD-AUD-62: low tomorrow all-day to do becomes high today all-day', () => {
+    const tomorrow = '2026-10-19T22:00:00.000Z'; // Madrid midnight 20th? use parse
+    const patch = minimalQuadrantPatch(
+      {
+        priority: 'low',
+        dueDate: tomorrow,
+        isAllDay: true,
+        timeZone: 'Europe/Madrid',
+      },
+      'do',
+      now,
+    );
+    expect(patch.priority).toBe('high');
+    expect(patch.isAllDay).toBe(true);
+    expect(patch.dueDate).not.toBeNull();
+    expect(patch.unchanged).toBe(false);
+  });
+
+  it('TTD-AUD-62: drop never clears the due date', () => {
+    const patch = minimalQuadrantPatch(
+      {
+        priority: 'high',
+        dueDate: '2026-10-18T10:00:00.000Z',
+        isAllDay: false,
+        timeZone: 'Europe/Madrid',
+      },
+      'drop',
+      now,
+    );
+    expect(patch.dueDate).toBe('2026-10-18T10:00:00.000Z');
+    expect(patch.priority).toBe('none');
+  });
+
+  it('TTD-AUD-62: same-state patch is unchanged', () => {
+    const patch = minimalQuadrantPatch(
+      {
+        priority: 'high',
+        dueDate: '2026-10-18T10:00:00.000Z',
+        isAllDay: false,
+        timeZone: 'Europe/Madrid',
+      },
+      'do',
+      now,
+    );
+    expect(patch.unchanged).toBe(true);
   });
 });
