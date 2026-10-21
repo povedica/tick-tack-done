@@ -39,8 +39,8 @@ siguen el orden de prioridad de la petición; no se consideran cerrados.
 | TTD-AUD-32 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                           |
 | TTD-AUD-33 | aplazado  | —                                                         | Pendiente de reproducción antes de modificar el código.                                                                                                           |
 | TTD-AUD-34 | aplazado  | —                                                         | Pendiente de reproducción antes de modificar el código.                                                                                                           |
-| TTD-AUD-35 | corregido | pendiente de publicación                                  | Activos y revocados paginados; agrupación por ID de aplicación; recuento del servidor excluye rotaciones automáticas. Reproducido con 80 rotaciones y 56 activos. |
-| TTD-AUD-36 | corregido | pendiente de publicación                                  | Caducidad expuesta desde el modelo existente; estado Caducado en la UI, sin perder la opción de revocar.                                                          |
+| TTD-AUD-35 | corregido | [#63](https://github.com/povedica/tick-tack-done/pull/63) | Activos y revocados paginados; agrupación por ID de aplicación; recuento del servidor excluye rotaciones automáticas. Reproducido con 80 rotaciones y 56 activos. |
+| TTD-AUD-36 | corregido | [#63](https://github.com/povedica/tick-tack-done/pull/63) | Caducidad expuesta desde el modelo existente; estado Caducado en la UI, sin perder la opción de revocar.                                                          |
 | TTD-AUD-37 | corregido | [#62](https://github.com/povedica/tick-tack-done/pull/62) | Reproducido PostgreSQL 25P02; nombre interno OAuth único antes del INSERT, sin reintentos en transacción abortada. Tests de reautorización y choque manual.       |
 | TTD-AUD-38 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                           |
 | TTD-AUD-39 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                           |
@@ -123,3 +123,6 @@ completa: 122 pasan, 2 omitidos. OpenAPI regenerado sin diferencias.
 - Caducidad: campos existentes expuestos en DTO/SDK, etiqueta neutra «Caducado»;
   un token sin caducidad sigue «Activo». Actualización del reloj cada 30 segundos.
 - RF cubierto: RF-2002. Sin cambios de modelo, migraciones ni eventos nuevos.
+
+Validación de TTD-AUD-35/36: typecheck y lint completos; 281 tests de dominio,
+97 web, 102 API y 9 SDK. Integración completa: 123 pasan, 2 omitidos.
