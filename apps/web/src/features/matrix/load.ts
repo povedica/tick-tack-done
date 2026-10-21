@@ -1,6 +1,6 @@
 import type { ListTasksQuery, Task, TaskPage } from '@reflexionia/sdk';
 import { collectTasks, toTodayTask } from '../today/board';
-import { partitionToday } from '../today/groups';
+import { calendarDay, shiftDayKey, partitionToday } from '../today/groups';
 import type { MatrixScope } from './scope';
 
 const PAGE_LIMIT = 100;
@@ -10,6 +10,14 @@ export function tasksForMatrixScope(tasks: readonly Task[], scope: MatrixScope, 
   const cards = tasks.filter(
     (task) => task.kind === 'task' && task.parent_id === null && task.status === 'active',
   );
+  if (scope.kind === 'tomorrow') {
+    return cards.filter(
+      (task) =>
+        task.due_date !== null &&
+        calendarDay(task.due_date, task.time_zone) ===
+          shiftDayKey(calendarDay(now.toISOString(), task.time_zone), 1),
+    );
+  }
   if (scope.kind !== 'today') {
     return cards;
   }
@@ -24,7 +32,7 @@ export async function loadMatrixTasks(
   now: Date,
 ): Promise<Task[]> {
   const tasks =
-    scope.kind === 'today'
+    scope.kind === 'today' || scope.kind === 'tomorrow'
       ? await loadTodayWindow(list, now)
       : await collectTasks(list, {
           status: 'active',

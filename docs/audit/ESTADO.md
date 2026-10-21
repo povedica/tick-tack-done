@@ -823,3 +823,24 @@ Esta indicación sustituye la propuesta previa de panel gris y acciones a la der
 Validación conjunta: 35 Playwright correctos, cuatro repeticiones finales de
 confirmación/teclado correctas. Lint/typecheck generales y 606 unitarios correctos;
 OpenAPI regenerado sin diff. Capturas locales revisadas en /tmp.
+
+
+## 2026-10-22 — Hoy: alta ligera y vistas por iconos compartidos
+
+RF-301/304, RF-502 y RF-1902/1903. Alta en línea común con fondo reducido al
+35% de surface-3 y borde suave del sistema. Se retira la bombilla de Hoy.
+Controles de Lista/Matriz/Kanban por iconos, con tooltip, nombre accesible y
+estado pulsado. Compartidos con las páginas de listas, Mañana y vistas de tareas
+equivalentes; Matriz sólo se ofrece en contextos que soportan su alcance.
+
+Hoy Kanban distribuye las agrupaciones existentes en columnas, conservando
+acciones/completado/orden; Hábitos es la última columna a la derecha y respeta
+su opción de ocultar. No introduce nuevas columnas de dominio ni estados.
+Mañana permite Lista/Kanban existentes y Matriz filtrada por el día siguiente
+en la zona de cada tarea, mediante API de tareas existente. Preferencias locales
+y URL de las vistas conservadas. Selector de alcance Matriz admite Mañana.
+
+Validación: dos Playwright a 1280/390px comprueban controles, tarjeta legible,
+orden de Hábitos y cambios de vista en Mañana. Pase conjunto 35/35 correcto.
+606 unitarios, incluidos alcance Mañana, lint/typecheck generales y OpenAPI sin
+diff correctos; comprobación web final adicional. Capturas sólo /tmp, API simulada.

@@ -56,6 +56,15 @@ describe('tasksForMatrixScope', () => {
     ]);
   });
 
+  it('tomorrow only includes tasks on the next local day', () => {
+    const tasks = [
+      row({ id: 'next', title: 'Mañana', due_date: '2026-10-18' }),
+      row({ id: 'today', title: 'Hoy', due_date: '2026-10-17' }),
+    ];
+    expect(tasksForMatrixScope(tasks, { kind: 'tomorrow' }, now).map((task) => task.id)).toEqual([
+      'next',
+    ]);
+  });
   it('keeps overdue tasks and tasks due today', () => {
     const scope: MatrixScope = { kind: 'today' };
     expect(tasksForMatrixScope(tasks, scope, now).map((task) => task.id)).toEqual(['task', 'late']);

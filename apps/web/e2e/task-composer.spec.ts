@@ -62,6 +62,7 @@ async function fixture(page: Page, fail = false) {
         tags: [],
         project_name: 'Bandeja',
         column_id: null,
+        parent_id: null,
         completed_at: null,
         created_at: '2026-10-20T10:00:00Z',
         repeat_rule: null,
@@ -234,3 +235,54 @@ test('RF-101/102: global capture uses the same composer, retains shared text and
   expect(creations).toHaveLength(1);
   expect(creations[0]?.raw_text).toBe('Comprar pan');
 });
+
+for (const width of [1280, 390]) {
+  test(`Today uses shared view icons and keeps habits in the last Kanban column ${width}`, async ({
+    page,
+  }) => {
+    await fixture(page);
+    await page.setViewportSize({ width, height: 850 });
+    await page.goto('/today');
+    const controls = page.locator('.task-view-toggle');
+    await expect(controls.getByRole('button', { name: 'Lista', exact: true })).toBeVisible();
+    await expect(controls.getByRole('button', { name: 'Matriz', exact: true })).toBeVisible();
+    await expect(controls.getByRole('button', { name: 'Kanban', exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Sugerencias', exact: true })).toHaveCount(0);
+    const field = page.locator('.today .task-composer input[name=title]');
+    await field.fill('Preparar informe');
+    await field.press('Enter');
+    await expect(page.locator('.today-task-groups .task-row').first()).toBeVisible();
+    await controls.getByRole('button', { name: 'Kanban', exact: true }).click();
+    await expect(page.locator('.today-layout')).toHaveClass(/is-kanban/);
+    await expect(page.locator('.today-task-groups .task-row').first()).toBeVisible();
+    await expect(
+      page
+        .locator('.today-task-groups')
+        .getByRole('button', { name: 'Preparar informe', exact: true }),
+    ).toBeVisible();
+    const columns = page.locator('.today-layout');
+    const order = await columns.evaluate((node) => {
+      const task = node.querySelector('.today-task-groups .task-group')!.getBoundingClientRect();
+      const habits = node.querySelector('.today-habits-column')!.getBoundingClientRect();
+      return habits.left >= task.right;
+    });
+    expect(order).toBe(true);
+    await page.screenshot({ path: `/tmp/today-kanban-${width}.png`, fullPage: true });
+    await controls.getByRole('button', { name: 'Lista', exact: true }).click();
+    await expect(page.locator('.today-layout')).not.toHaveClass(/is-kanban/);
+    await page.goto('/smart/tomorrow');
+    await expect(
+      page.locator('.task-view-toggle').getByRole('button', { name: 'Matriz', exact: true }),
+    ).toBeVisible();
+    await page
+      .locator('.task-view-toggle')
+      .getByRole('button', { name: 'Kanban', exact: true })
+      .click();
+    await expect(page).toHaveURL(/view=kanban/);
+    await page
+      .locator('.task-view-toggle')
+      .getByRole('button', { name: 'Matriz', exact: true })
+      .click();
+    await expect(page.locator('.matrix-board')).toBeVisible();
+  });
+}

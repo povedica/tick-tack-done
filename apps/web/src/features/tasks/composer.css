@@ -4,9 +4,9 @@
 }
 .task-composer .task-composer-form {
   margin: 0;
-  border: 1px solid var(--border-strong);
-  border-radius: 10px;
-  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-3) 35%, var(--surface));
 }
 .task-composer-form:focus-within {
   border-color: var(--accent);

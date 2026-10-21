@@ -1371,3 +1371,40 @@ a.task-title {
   justify-content: flex-end;
   gap: 8px;
 }
+
+.today-layout.is-kanban {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-4);
+  overflow-x: auto;
+  padding-bottom: var(--sp-3);
+  min-width: 0;
+}
+.today-layout.is-kanban .today-task-groups {
+  display: contents;
+}
+.today-layout.is-kanban #overdue:not([hidden]) {
+  display: contents;
+}
+.today-layout.is-kanban .today-task-groups > .task-group,
+.today-layout.is-kanban #overdue > .task-group,
+.today-layout.is-kanban .today-task-groups > .plan,
+.today-layout.is-kanban .today-habits-column {
+  flex: 1 0 280px;
+  min-width: 280px;
+  max-width: 400px;
+  margin-top: 0;
+}
+.today-layout.is-kanban .task-group {
+  padding: var(--sp-2);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+.today-layout.is-kanban .task-row {
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--sp-2);
+  background: var(--surface);
+}
+.today-layout.is-kanban .today-habits-column {
+  margin-left: auto;
+}

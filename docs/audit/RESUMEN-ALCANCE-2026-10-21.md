@@ -63,7 +63,7 @@ código actual. Las decisiones posteriores prevalecen sobre los diseños inicial
 
 ## Otros pendientes registrados
 
-- Hoy: cabecera limpia y vistas en menú; Kanban debe funcionar realmente.
+- Hoy (22/10): alta más ligera, bombilla retirada y Lista/Matriz/Kanban visibles por iconos; Kanban con Hábitos al final. Compartido con Mañana y páginas equivalentes, probado con API simulada; pendiente revisión real del usuario. Sustituye la indicación anterior de vistas en menú.
 - Plan del día móvil: ocultar resumen de capacidad y alinear título/Planificar.
 - Año: investigar lentitud observada; no hay diagnóstico demostrado.
 - Desktop al 200 % de zoom: fallo de Agenda resuelto el 22/10 al retirar la
@@ -85,7 +85,7 @@ funcionalidad salvo instrucciones definidas que se hayan omitido. Queda repasar
 las vistas de escritorio. Los puntos 75 pendientes de la tabla son instrucciones
 anteriores detectadas, no propuestas nuevas ni una autorización para añadirlas
 automáticamente en este cierre. Contrastar su vigencia durante ese repaso.
-Después quedan la validación móvil real del composer (76), Hoy/Plan del día, Foco (78),
+Después quedan la validación móvil real del composer (76), revisión real de Hoy y Plan del día, Foco (78),
 Tokens/MCP (79) y validación con datos reales. No se declara cumplimiento global.
 
 ## Validación de este cierre

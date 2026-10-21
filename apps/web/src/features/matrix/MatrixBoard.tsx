@@ -1,7 +1,7 @@
 import { runAction } from '../../components/run-action';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { defaultQuadrant, minimalQuadrantPatch, type MatrixQuadrant } from '@reflexionia/domain';
-import { CircleHelp, MoreHorizontal } from 'lucide-react';
+import { CircleHelp, MoreHorizontal, List, Grid2X2, Columns3 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router';
 import { taskQueryHref } from '../../shell/use-open-task';
@@ -27,31 +27,37 @@ const QUADRANTS = ['do', 'schedule', 'delegate', 'drop'] as const;
 export function MatrixViewToggle({
   value,
   onChange,
+  showMatrix = true,
 }: {
   readonly value: MatrixLayout;
   readonly onChange: (next: MatrixLayout) => void;
+  readonly showMatrix?: boolean;
 }) {
   const messages = useMessages();
+  const choices = [
+    { value: 'list' as const, label: messages.viewList, Icon: List },
+    ...(showMatrix
+      ? [{ value: 'matrix' as const, label: messages.matrixTitle, Icon: Grid2X2 }]
+      : []),
+    { value: 'kanban' as const, label: messages.viewKanban, Icon: Columns3 },
+  ];
   return (
-    <div className="matrix-toggle" role="group" aria-label={messages.matrixView}>
-      <button
-        type="button"
-        aria-pressed={value === 'list'}
-        onClick={() => {
-          onChange('list');
-        }}
-      >
-        {messages.viewList}
-      </button>
-      <button
-        type="button"
-        aria-pressed={value === 'matrix'}
-        onClick={() => {
-          onChange('matrix');
-        }}
-      >
-        {messages.matrixTitle}
-      </button>
+    <div className="matrix-toggle task-view-toggle" role="group" aria-label={messages.matrixView}>
+      {choices.map(({ value: next, label, Icon }) => (
+        <button
+          key={next}
+          type="button"
+          title={label}
+          aria-label={label}
+          aria-pressed={value === next}
+          onClick={() => {
+            onChange(next);
+          }}
+        >
+          <Icon size={18} aria-hidden="true" />
+          <span>{label}</span>
+        </button>
+      ))}
     </div>
   );
 }
@@ -218,6 +224,7 @@ export function MatrixBoard({
               >
                 <option value="all">{messages.matrixAll}</option>
                 <option value="today">{messages.navToday}</option>
+                <option value="tomorrow">{messages.dateTomorrow}</option>
                 {(projects.data?.items ?? [])
                   .filter((project) => project.kind !== 'NOTE')
                   .map((project) => (

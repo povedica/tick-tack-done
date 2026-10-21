@@ -1,12 +1,13 @@
 export type MatrixScope =
   | { readonly kind: 'all' }
   | { readonly kind: 'today' }
+  | { readonly kind: 'tomorrow' }
   | { readonly kind: 'list'; readonly listId: string };
 
-/** `/matrix?scope=all|today|list/<id>`. Anything else falls back to the global matrix. */
+/** `/matrix?scope=all|today|tomorrow|list/<id>`. Anything else falls back to the global matrix. */
 export function parseMatrixScope(raw: string | null): MatrixScope {
-  if (raw === 'today') {
-    return { kind: 'today' };
+  if (raw === 'today' || raw === 'tomorrow') {
+    return { kind: raw };
   }
   if (raw?.startsWith('list/') === true) {
     const listId = raw.slice('list/'.length);
@@ -18,8 +19,8 @@ export function parseMatrixScope(raw: string | null): MatrixScope {
 }
 
 export function matrixScopeParam(scope: MatrixScope): string {
-  if (scope.kind === 'today') {
-    return 'today';
+  if (scope.kind === 'today' || scope.kind === 'tomorrow') {
+    return scope.kind;
   }
   if (scope.kind === 'list') {
     return `list/${scope.listId}`;

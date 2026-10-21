@@ -1,7 +1,7 @@
 import { runAction } from '../../components/run-action';
 import { displayTitle } from '../tasks/displayTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowUpDown, Lightbulb, Sprout } from 'lucide-react';
+import { ArrowUpDown, Sprout } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { api } from '../../api';
@@ -538,18 +538,14 @@ export function TodayPage() {
           </div>
         </div>
         <div className="page-actions">
-          {flags.matrix ? (
-            <MatrixViewToggle
-              value={matrixLayout}
-              onChange={(next) => {
-                writeMatrixLayout('today', next);
-                setMatrixLayout(next);
-              }}
-            />
-          ) : null}
-          <Link className="icon-button" to="/habits" aria-label={messages.suggestions}>
-            <Lightbulb size={20} aria-hidden="true" />
-          </Link>
+          <MatrixViewToggle
+            showMatrix={flags.matrix}
+            value={matrixLayout}
+            onChange={(next) => {
+              writeMatrixLayout('today', next);
+              setMatrixLayout(next);
+            }}
+          />
           <div className="group-popover">
             <button
               type="button"
@@ -648,92 +644,98 @@ export function TodayPage() {
           {actionError}
         </p>
       ) : null}
-      {flags.matrix && matrixLayout === 'matrix' ? (
-        <MatrixBoard scope={{ kind: 'today' }} embedded />
-      ) : (
-        <>
-          {tasks.isPending ? (
+      <div className={matrixLayout === 'kanban' ? 'today-layout is-kanban' : 'today-layout'}>
+        <div className="today-task-groups">
+          {flags.matrix && matrixLayout === 'matrix' ? (
+            <MatrixBoard scope={{ kind: 'today' }} embedded />
+          ) : (
+            <>
+              {tasks.isPending ? (
+                <div aria-hidden="true">
+                  <div className="task-skeleton is-head" />
+                  <div className="task-skeleton" />
+                  <div className="task-skeleton" />
+                  <div className="task-skeleton" />
+                </div>
+              ) : null}
+              {tasks.isError ? (
+                <div className="waiting">
+                  <p className="error">{messages.todayFailed}</p>
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() => {
+                      runAction(tasks.refetch());
+                    }}
+                  >
+                    {messages.retry}
+                  </button>
+                </div>
+              ) : null}
+              {overdueBlock.length > 0 ? (
+                <div id="overdue">
+                  {overdueBlock.map((section) => (
+                    <TaskGroup key="overdue" {...groupProps(section.id, section.tasks, true)} />
+                  ))}
+                </div>
+              ) : (
+                <div id="overdue" hidden />
+              )}
+              {sections.map((section) => (
+                <TaskGroup key={section.id} {...groupProps(section.id, section.tasks)} />
+              ))}
+              {showWhen && eveningTasks.length > 0 ? (
+                <section className="plan">
+                  <h2>{messages.eveningTitle}</h2>
+                  <p>{messages.eveningHint.replace('18:00', profile?.evening_start ?? '18:00')}</p>
+                  <TaskGroup {...groupProps('evening', eveningTasks)} />
+                </section>
+              ) : null}
+            </>
+          )}
+        </div>
+        <aside className="today-habits-column" hidden={habitsHidden}>
+          {habits.isPending ? (
             <div aria-hidden="true">
-              <div className="task-skeleton is-head" />
-              <div className="task-skeleton" />
               <div className="task-skeleton" />
               <div className="task-skeleton" />
             </div>
           ) : null}
-          {tasks.isError ? (
-            <div className="waiting">
-              <p className="error">{messages.todayFailed}</p>
+          {habits.isSuccess ? (
+            <TodayHabits
+              habits={habits.data.items}
+              hidden={habitsHidden}
+              collapsed={collapsed.has('habits')}
+              onToggle={(open) => {
+                setCollapsed((current) => {
+                  const next = new Set(current);
+                  if (open) next.delete('habits');
+                  else next.add('habits');
+                  localStorage.setItem(COLLAPSE_KEY, JSON.stringify([...next]));
+                  return next;
+                });
+              }}
+              onDismiss={() => {
+                localStorage.setItem(HABITS_DISMISS_KEY, String(Date.now()));
+                setHabitsHidden(true);
+              }}
+            />
+          ) : habits.isError ? (
+            <p className="today-habit-error" role="alert">
+              {messages.todayHabitLoadError}
               <button
                 type="button"
                 className="text-button"
                 onClick={() => {
-                  runAction(tasks.refetch());
+                  runAction(habits.refetch());
                 }}
               >
                 {messages.retry}
               </button>
-            </div>
+            </p>
           ) : null}
-          {overdueBlock.length > 0 ? (
-            <div id="overdue">
-              {overdueBlock.map((section) => (
-                <TaskGroup key="overdue" {...groupProps(section.id, section.tasks, true)} />
-              ))}
-            </div>
-          ) : (
-            <div id="overdue" hidden />
-          )}
-          {sections.map((section) => (
-            <TaskGroup key={section.id} {...groupProps(section.id, section.tasks)} />
-          ))}
-          {showWhen && eveningTasks.length > 0 ? (
-            <section className="plan">
-              <h2>{messages.eveningTitle}</h2>
-              <p>{messages.eveningHint.replace('18:00', profile?.evening_start ?? '18:00')}</p>
-              <TaskGroup {...groupProps('evening', eveningTasks)} />
-            </section>
-          ) : null}
-        </>
-      )}
-      {habits.isPending ? (
-        <div aria-hidden="true">
-          <div className="task-skeleton" />
-          <div className="task-skeleton" />
-        </div>
-      ) : null}
-      {habits.isSuccess ? (
-        <TodayHabits
-          habits={habits.data.items}
-          hidden={habitsHidden}
-          collapsed={collapsed.has('habits')}
-          onToggle={(open) => {
-            setCollapsed((current) => {
-              const next = new Set(current);
-              if (open) next.delete('habits');
-              else next.add('habits');
-              localStorage.setItem(COLLAPSE_KEY, JSON.stringify([...next]));
-              return next;
-            });
-          }}
-          onDismiss={() => {
-            localStorage.setItem(HABITS_DISMISS_KEY, String(Date.now()));
-            setHabitsHidden(true);
-          }}
-        />
-      ) : habits.isError ? (
-        <p className="today-habit-error" role="alert">
-          {messages.todayHabitLoadError}
-          <button
-            type="button"
-            className="text-button"
-            onClick={() => {
-              runAction(habits.refetch());
-            }}
-          >
-            {messages.retry}
-          </button>
-        </p>
-      ) : null}
+        </aside>
+      </div>
       {(countdowns.data?.items.length ?? 0) > 0 ? (
         <section className="countdown-upcoming">
           <h2>{messages.upcomingDates}</h2>
