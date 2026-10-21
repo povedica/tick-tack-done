@@ -20,11 +20,11 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-12 | 5 | corregido | #71 | Chip control muestra N/100 |
 | TTD-AUD-13 | 5 | pendiente | — | |
 | TTD-AUD-14 | 2 | corregido (parcial) | #71 | Botón info icono; ámbito filtra NOTE |
-| TTD-AUD-15 | 5 | pendiente | — | |
+| TTD-AUD-15 | 5 | corregido | #71 | Acciones papelera a la derecha en meta |
 | TTD-AUD-16 | 0 | corregido | #71 | Purga optimista + rollback; contador trash |
 | TTD-AUD-17 | 5 | corregido | #71 | Button primary en Nueva lista/etiqueta |
-| TTD-AUD-18 | 5 | pendiente | — | |
-| TTD-AUD-19 | 5 | pendiente | — | |
+| TTD-AUD-18 | 5 | corregido | #71 | Tras borrar lista → /inbox |
+| TTD-AUD-19 | 5 | corregido | #71 | NotFoundPage en ruta * |
 | TTD-AUD-20 | 5 | pendiente | — | |
 | TTD-AUD-21 | 3 | corregido | #71 | h1 nowrap; emoji fuera del clamp |
 | TTD-AUD-22 | 5 | corregido | #71 | Tokens dark --countdown-*-bg/ink |

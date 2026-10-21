@@ -69,6 +69,7 @@ import { TodayPage } from './features/today/TodayPage';
 import { ShortcutHelp } from './shell/ShortcutHelp';
 import { GlobalKeys } from './shell/GlobalKeys';
 import { AppShell } from './shell/AppShell';
+import { NotFoundPage } from './shell/NotFoundPage';
 import { AccountPreferenceSync } from './theme/AccountPreferenceSync';
 import { ThemeSync } from './theme/ThemeSync';
 
@@ -210,7 +211,7 @@ function Shell() {
               <Route path="shortcuts" element={<ShortcutSettings />} />
             </Route>
             <Route path="/repeat" element={<RepeatPage />} />
-            <Route path="*" element={<Navigate to="/today" replace />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Route>
       </Routes>

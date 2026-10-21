@@ -491,8 +491,16 @@
 }
 
 .task-trash-actions {
-  display: flex;
-  gap: var(--sp-2);
+  display: inline-flex;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  gap: var(--sp-1);
+  margin-left: auto;
+}
+
+.task-check-spacer {
+  width: 20px;
+  flex-shrink: 0;
 }
 
 .detail-panel li label:not(.task-check-hit) {

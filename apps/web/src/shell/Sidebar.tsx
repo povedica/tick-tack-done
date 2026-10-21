@@ -821,6 +821,8 @@ function ListMenu({
   readonly onClose: () => void;
   readonly onChanged: () => void;
 }) {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [name, setName] = useState(project.is_inbox ? messages.smartInbox : project.name);
   const [confirm, setConfirm] = useState(false);
   return (
@@ -895,6 +897,13 @@ function ListMenu({
                     api.deleteProject(project.id).then(() => {
                       onChanged();
                       onClose();
+                      if (
+                        location.pathname === `/list/${project.id}` ||
+                        location.pathname === `/lists/${project.id}` ||
+                        location.pathname === `/projects/${project.id}`
+                      ) {
+                        navigate('/inbox', { replace: true });
+                      }
                     }),
                   );
                 }}

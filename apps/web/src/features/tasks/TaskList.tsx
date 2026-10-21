@@ -307,18 +307,7 @@ function TaskRow({
         <GripVertical className="task-grip" size={12} aria-hidden="true" />
       )}
       {trash ? (
-        <TrashActions
-          restoreLabel={messages.restore}
-          purgeLabel={messages.purge}
-          confirmLabel={messages.confirmDelete}
-          cancelLabel={messages.cancel}
-          onRestore={() => {
-            runAction(api.restoreTask(row.id).then(() => refreshTaskSurfaces(queryClient)));
-          }}
-          onPurge={() => {
-            runAction(purgeTrashTask(queryClient, row.id));
-          }}
-        />
+        <span className="task-check-spacer" aria-hidden="true" />
       ) : (
         <PriorityCheck
           priority={row.priority}
@@ -419,10 +408,26 @@ function TaskRow({
               : formatTaskRowDate(row, locale, now, messages)}
           </time>
         ) : null}
+        {trash ? (
+          <TrashActions
+            restoreLabel={messages.restore}
+            purgeLabel={messages.purge}
+            confirmLabel={messages.confirmDelete}
+            cancelLabel={messages.cancel}
+            onRestore={() => {
+              runAction(api.restoreTask(row.id).then(() => refreshTaskSurfaces(queryClient)));
+            }}
+            onPurge={() => {
+              runAction(purgeTrashTask(queryClient, row.id));
+            }}
+          />
+        ) : null}
       </span>
-      <button type="button" className="task-more" aria-label={messages.openDetail} onClick={onOpen}>
-        <MoreHorizontal size={16} aria-hidden="true" />
-      </button>
+      {trash ? null : (
+        <button type="button" className="task-more" aria-label={messages.openDetail} onClick={onOpen}>
+          <MoreHorizontal size={16} aria-hidden="true" />
+        </button>
+      )}
     </div>
   );
 }
