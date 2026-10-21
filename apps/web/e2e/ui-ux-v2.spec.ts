@@ -431,7 +431,7 @@ test('garden v3: fixed KPI order and visible secondary numbers', async ({ page }
   ]);
   await expect(page.locator('[data-garden-widget="score"]')).toContainText('79');
   await expect(page.locator('[data-garden-widget="completed_today"]')).toContainText(
-    '24 en 7 días',
+    '24 esta semana',
   );
   await expect(page.locator('[data-garden-widget="overdue"]')).toContainText('12 activas');
   await expect(page.locator('.digital-garden')).not.toContainText('Ver desglose');

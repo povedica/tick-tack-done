@@ -430,7 +430,7 @@ export class McpService {
           return { id: created.id, text: created.text };
         });
       case 'dashboard_snapshot':
-        return loadDashboardSnapshot(this.prisma, user.id, new Date());
+        return loadDashboardSnapshot(this.prisma, user.id, new Date(), user.timeZone);
       case 'start_focus': {
         const minutes = typeof args.minutes === 'number' ? args.minutes : 25;
         return this.prisma.$transaction(async (tx) => {

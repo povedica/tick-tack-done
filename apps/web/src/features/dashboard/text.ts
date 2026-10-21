@@ -1,4 +1,5 @@
 import { useAppLocale } from '../../i18n/locale';
+import { useMessages } from '../../i18n';
 
 const es = {
   title: 'Jardín digital',
@@ -12,7 +13,6 @@ const es = {
   day: 'día',
   days: 'días',
   completed: 'Completadas hoy',
-  week: 'en 7 días',
   attention: 'Necesitan atención',
   active: 'activas',
   next: 'Próximos 7 días',
@@ -60,8 +60,6 @@ const es = {
   days30: '7–30 días',
   over30: '>30 días',
   calculations: 'Cómo se calculan estos datos',
-  calculationText:
-    'Hoy sigue la zona horaria de tu cuenta. Las completadas de 7 días pueden incluir cierres en lote e importaciones. Las vencidas están incluidas en las pendientes, también las subtareas. Los eventos proceden de calendarios ya sincronizados y se deduplican por identidad y ocurrencia.',
   criteria:
     'Los proyectos por revisar son proyectos abiertos sin tareas pendientes o sin cambios en sus tareas durante más de 30 días. No se dispone de una fecha de última revisión.',
   empty: 'No hay tarjetas visibles. Pulsa Personalizar para elegirlas.',
@@ -83,7 +81,6 @@ const en: Record<keyof typeof es, string> = {
   day: 'day',
   days: 'days',
   completed: 'Completed today',
-  week: 'in 7 days',
   attention: 'Need attention',
   active: 'active',
   next: 'Next 7 days',
@@ -131,8 +128,6 @@ const en: Record<keyof typeof es, string> = {
   days30: '7–30 days',
   over30: '>30 days',
   calculations: 'How these figures are calculated',
-  calculationText:
-    'Today follows your account time zone. Seven-day completions may include bulk closures and imports. Overdue tasks are part of pending tasks, including subtasks. Events come from already synced calendars, deduplicated by identity and occurrence.',
   criteria:
     'Projects to review are open projects without pending tasks or without task changes for over 30 days. Last review dates are unavailable.',
   empty: 'No visible cards. Choose them in Customize.',
@@ -144,11 +139,17 @@ const en: Record<keyof typeof es, string> = {
 };
 export function useGardenText() {
   const locale = useAppLocale();
+  const shared = useMessages();
   const messages = locale.startsWith('en') ? en : es;
   return {
-    t: (key: keyof typeof es) => messages[key],
+    t: (key: GardenTextKey) =>
+      key === 'week'
+        ? shared.dashboardWeekLabel
+        : key === 'calculationText'
+          ? shared.dashboardCalculationText
+          : messages[key],
     number: (value: number) => value.toLocaleString(locale),
     locale,
   };
 }
-export type GardenTextKey = keyof typeof es;
+export type GardenTextKey = keyof typeof es | 'week' | 'calculationText';
