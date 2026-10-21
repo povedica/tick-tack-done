@@ -26,6 +26,18 @@ const id = { type: 'string', format: 'uuid' };
 const limit = { type: 'integer', minimum: 1, maximum: 100 };
 const cursor = { type: 'string', minLength: 1 };
 const name = { type: 'string', minLength: 1 };
+const tagIds = {
+  type: 'array',
+  items: id,
+  maxItems: 50,
+  description: 'Tag UUIDs to assign (replaces the whole set when used on update_task).',
+};
+const tagNames = {
+  type: 'array',
+  items: { type: 'string', minLength: 1, maxLength: 100 },
+  maxItems: 50,
+  description: 'Tag names to assign; missing names are created (same as quick add).',
+};
 
 const weekdayEnum = {
   type: 'string',
@@ -104,12 +116,20 @@ export const MCP_TOOLS: readonly McpTool[] = [
   {
     name: 'create_task',
     description:
-      "Create a task. project_id defaults to the inbox. start_date is when you plan to do it; due_date is the deadline. someday parks it out of Today; evening_only reserves it for this evening. To make it REPEAT, pass `recurrence` (structured) — the task needs a due_date, which anchors the series. Examples: 'cada día' = {freq:'daily'}; 'cada lunes y jueves' = {freq:'weekly', weekdays:['MO','TH']}; 'cada 19 de mes' = {freq:'monthly', month_day:19}; 'el último viernes del mes' = {freq:'monthly', month_week:{setpos:-1, weekday:'FR'}}; 'cada día laborable' = {freq:'weekly', weekdays:['MO','TU','WE','TH','FR']}. Default interval is 1; 'cada 3 días' = {freq:'daily', interval:3}. End with until (date) or count (N times). repeat_from:'completion_date' repeats from when it was completed ('regar cada 3 días desde que lo hice'). Advanced: pass a raw RRULE string as repeat_rule instead. One occurrence exists at a time; the next one appears after completing the current (see complete_task).",
+      "Create a task. project_id defaults to the inbox. start_date is when you plan to do it; due_date is the deadline. someday parks it out of Today; evening_only reserves it for this evening. Pass tag_ids or tags (names; missing names are created). content is the description. parse=true runs the same quick-add parser as the app on title (#tag, ^list, !priority, natural dates). To make it REPEAT, pass `recurrence` (structured) — the task needs a due_date, which anchors the series. Examples: 'cada día' = {freq:'daily'}; 'cada lunes y jueves' = {freq:'weekly', weekdays:['MO','TH']}; 'cada 19 de mes' = {freq:'monthly', month_day:19}; 'el último viernes del mes' = {freq:'monthly', month_week:{setpos:-1, weekday:'FR'}}; 'cada día laborable' = {freq:'weekly', weekdays:['MO','TU','WE','TH','FR']}. Default interval is 1; 'cada 3 días' = {freq:'daily', interval:3}. End with until (date) or count (N times). repeat_from:'completion_date' repeats from when it was completed ('regar cada 3 días desde que lo hice'). Advanced: pass a raw RRULE string as repeat_rule instead. One occurrence exists at a time; the next one appears after completing the current (see complete_task).",
     scopes: ['tasks:write'],
     inputSchema: objectSchema(
       {
         title: { type: 'string', minLength: 1, maxLength: 500 },
         project_id: id,
+        content: { type: 'string', maxLength: 100_000 },
+        tag_ids: tagIds,
+        tags: tagNames,
+        parse: {
+          type: 'boolean',
+          description:
+            'If true, parse title with the quick-add parser (same as the capture box). Explicit fields win over the parse.',
+        },
         due_date: {
           type: 'string',
           description:
@@ -144,6 +164,19 @@ export const MCP_TOOLS: readonly McpTool[] = [
     ),
   },
   {
+    name: 'quick_add',
+    description:
+      'Capture a task from natural language (same parser as the in-app capture box): #tags, ^list, !priority, dates like «mañana 09:00-09:30».',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema(
+      {
+        text: { type: 'string', minLength: 1, maxLength: 2000 },
+        project_id: id,
+      },
+      ['text'],
+    ),
+  },
+  {
     name: 'complete_task',
     description:
       "Mark a task complete. On a repeating task the next occurrence is created by a scheduler within ~60 s unless materialize_next=true. advance controls the next date: 'one_period' (default, one period after the current due date — an overdue task may repeat in the past) or 'next_future' (first future occurrence; skipped occurrences are gone for good). Use get_task_occurrences to preview.",
@@ -168,12 +201,23 @@ export const MCP_TOOLS: readonly McpTool[] = [
   {
     name: 'update_task',
     description:
-      'Update a task. start_date is when you plan to do it; due_date is the deadline and may be cleared without changing when. someday=true clears when and keeps the deadline. To change repetition pass recurrence or repeat_rule (same rules as create_task). recurrence:null (or repeat_rule:null) removes the series; changing the rule does not regenerate past occurrences or the series_id unless you clear it.',
+      'Update a task. start_date is when you plan to do it; due_date is the deadline and may be cleared without changing when. someday=true clears when and keeps the deadline. tag_ids/tags replace the set; add_tag_ids/add_tags and remove_tag_ids/remove_tags adjust it. content updates the description. parse=true parses the new title like quick add. To change repetition pass recurrence or repeat_rule (same rules as create_task). recurrence:null (or repeat_rule:null) removes the series; changing the rule does not regenerate past occurrences or the series_id unless you clear it.',
     scopes: ['tasks:write'],
     inputSchema: objectSchema(
       {
         id,
         title: { type: 'string', minLength: 1, maxLength: 500 },
+        content: { type: ['string', 'null'], maxLength: 100_000 },
+        tag_ids: tagIds,
+        tags: tagNames,
+        add_tag_ids: tagIds,
+        add_tags: tagNames,
+        remove_tag_ids: tagIds,
+        remove_tags: tagNames,
+        parse: {
+          type: 'boolean',
+          description: 'If true, parse title with the quick-add parser. Explicit fields win.',
+        },
         due_date: {
           type: ['string', 'null'],
           description:

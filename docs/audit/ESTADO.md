@@ -53,10 +53,10 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-45 | 4 | pendiente | — | |
 | TTD-AUD-46 | 4 | pendiente | — | Depende de 35 |
 | TTD-AUD-47 | 4 | pendiente | — | Código + tarea manual en Google Cloud Console |
-| TTD-AUD-48 | 1 | pendiente | — | Depende de 54 |
-| TTD-AUD-49 | 1 | pendiente | — | Depende de 54, 48 |
+| TTD-AUD-48 | 1 | corregido | #71 | tag_ids/tags + add/remove en create/update |
+| TTD-AUD-49 | 1 | corregido | #71 | quick_add + parse=true en create/update |
 | TTD-AUD-50 | 1 | pendiente | — | Depende de 54 |
-| TTD-AUD-51 | 1 | pendiente | — | Depende de 54 |
+| TTD-AUD-51 | 1 | en curso | — | content ya en create/update; faltan comentarios/adjuntos |
 | TTD-AUD-52 | 1 | pendiente | — | Depende de 54 |
 | TTD-AUD-53 | 1 | pendiente | — | Depende de 54 |
 | TTD-AUD-54 | 0 | corregido | #71 | Validación estricta MCP con validateMcpArgs |

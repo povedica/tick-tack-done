@@ -89,4 +89,17 @@ describe('MCP tool catalog', () => {
     expect(complete?.inputSchema.properties).toHaveProperty('materialize_next');
     expect(complete?.description).toContain('next_future');
   });
+
+  it('TTD-AUD-48/49: create_task exposes tags and quick_add is listed', () => {
+    const create = MCP_TOOLS.find((item) => item.name === 'create_task');
+    expect(create?.inputSchema.properties).toHaveProperty('tag_ids');
+    expect(create?.inputSchema.properties).toHaveProperty('tags');
+    expect(create?.inputSchema.properties).toHaveProperty('parse');
+    expect(create?.inputSchema.properties).toHaveProperty('content');
+    const update = MCP_TOOLS.find((item) => item.name === 'update_task');
+    expect(update?.inputSchema.properties).toHaveProperty('add_tag_ids');
+    expect(update?.inputSchema.properties).toHaveProperty('remove_tag_ids');
+    expect(MCP_TOOLS.some((tool) => tool.name === 'quick_add')).toBe(true);
+    expect(visibleTools(['tasks:write']).map((tool) => tool.name)).toContain('quick_add');
+  });
 });

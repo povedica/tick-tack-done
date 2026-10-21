@@ -10,14 +10,14 @@ describe('validateMcpArgs (TTD-AUD-54)', () => {
     expect(update).toBeDefined();
     const result = validateMcpArgs(update!.inputSchema, {
       id: '11111111-1111-4111-8111-111111111111',
-      tag_ids: ['22222222-2222-4222-8222-222222222222'],
       status: 'completed',
+      parent_id: '22222222-2222-4222-8222-222222222222',
     });
     expect(result.ok).toBe(false);
     if (result.ok) {
       return;
     }
-    expect(result.message).toContain('Campos no admitidos: tag_ids, status');
+    expect(result.message).toContain('Campos no admitidos: status, parent_id');
     expect(result.message).toContain('Campos válidos:');
   });
 

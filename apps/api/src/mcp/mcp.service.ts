@@ -5,6 +5,7 @@ import {
   describeRepeatRule,
   firstAfter,
   HABIT_WEEKDAYS,
+  parseQuickAdd,
   parseRepeatRule,
   proposeDaily,
   type PlanDecisionKind,
@@ -182,15 +183,36 @@ export class McpService {
       case 'create_task': {
         const schedule = taskSchedule(args);
         const recurrence = recurrenceFields(args, schedule.due_date ?? null, null);
+        const tagIds = await this.resolveCreateTags(user, args);
+        const title = requiredString(args, 'title', 500);
+        const parse = args.parse === true;
         return enrichTask(
           (
             await this.tasks.create(
               user,
               {
-                title: requiredString(args, 'title', 500),
+                ...(parse ? { raw_text: title } : { title }),
                 project_id: await this.projectId(user, args),
+                ...(typeof args.content === 'string' ? { content: args.content } : {}),
+                ...(tagIds === undefined ? {} : { tag_ids: tagIds }),
                 ...schedule,
                 ...recurrence,
+              },
+              undefined,
+            )
+          ).body,
+        );
+      }
+      case 'quick_add': {
+        return enrichTask(
+          (
+            await this.tasks.create(
+              user,
+              {
+                raw_text: requiredString(args, 'text', 2000),
+                ...(args.project_id === undefined
+                  ? {}
+                  : { project_id: await this.projectId(user, args) }),
               },
               undefined,
             )
@@ -222,12 +244,47 @@ export class McpService {
         const dueForAnchor =
           schedule.due_date !== undefined ? schedule.due_date : (existing.due_date ?? null);
         const recurrence = recurrenceFields(args, dueForAnchor, existing.repeat_rule);
+        let tagIds = await this.resolveUpdateTags(user, args, existing.tag_ids ?? []);
+        let title =
+          typeof args.title === 'string' ? requiredString(args, 'title', 500) : undefined;
+        let parsedSchedule = schedule;
+        if (args.parse === true && title !== undefined) {
+          const parsed = parseQuickAdd(title, 'es', {
+            now: new Date().toISOString(),
+            timeZone: existing.time_zone,
+          });
+          title = parsed.title.length > 0 ? parsed.title : title;
+          if (tagIds === undefined && parsed.tagNames.length > 0) {
+            tagIds = await this.ensureTagNames(user, parsed.tagNames);
+          }
+          parsedSchedule = {
+            ...schedule,
+            ...(schedule.due_date === undefined && parsed.due !== null
+              ? { due_date: parsed.due.date, is_all_day: parsed.due.isAllDay }
+              : {}),
+            ...(schedule.start_date === undefined && parsed.start !== null
+              ? { start_date: parsed.start.date }
+              : {}),
+            ...(schedule.priority === undefined &&
+            parsed.priority !== null &&
+            parsed.priority !== undefined
+              ? { priority: parsed.priority }
+              : {}),
+            ...(schedule.duration_minutes === undefined && parsed.durationMinutes !== null
+              ? { duration_minutes: parsed.durationMinutes }
+              : {}),
+          };
+        }
         return enrichTask(
           await this.tasks.update(user, id, {
-            ...(typeof args.title === 'string'
-              ? { title: requiredString(args, 'title', 500) }
-              : {}),
-            ...schedule,
+            ...(title === undefined ? {} : { title }),
+            ...(args.content === null
+              ? { content: '' }
+              : typeof args.content === 'string'
+                ? { content: args.content }
+                : {}),
+            ...(tagIds === undefined ? {} : { tag_ids: tagIds }),
+            ...parsedSchedule,
             ...recurrence,
           }),
         );
@@ -572,6 +629,105 @@ export class McpService {
     }
     return inbox.id;
   }
+
+  /** TTD-AUD-48: tag_ids + tags on create. */
+  private async resolveCreateTags(
+    user: AuthUser,
+    args: Record<string, unknown>,
+  ): Promise<string[] | undefined> {
+    if (!Array.isArray(args.tag_ids) && !Array.isArray(args.tags)) {
+      return undefined;
+    }
+    return this.collectTagIds(user, args.tag_ids, args.tags);
+  }
+
+  /** TTD-AUD-48: replace / add / remove tags on update. */
+  private async resolveUpdateTags(
+    user: AuthUser,
+    args: Record<string, unknown>,
+    existing: readonly string[],
+  ): Promise<string[] | undefined> {
+    const replace =
+      Array.isArray(args.tag_ids) || Array.isArray(args.tags)
+        ? await this.collectTagIds(user, args.tag_ids, args.tags)
+        : undefined;
+    const add =
+      Array.isArray(args.add_tag_ids) || Array.isArray(args.add_tags)
+        ? await this.collectTagIds(user, args.add_tag_ids, args.add_tags)
+        : [];
+    const remove =
+      Array.isArray(args.remove_tag_ids) || Array.isArray(args.remove_tags)
+        ? new Set(await this.collectTagIds(user, args.remove_tag_ids, args.remove_tags))
+        : null;
+    if (replace === undefined && add.length === 0 && remove === null) {
+      return undefined;
+    }
+    let ids = replace ?? [...existing];
+    ids = [...new Set([...ids, ...add])];
+    if (remove !== null) {
+      ids = ids.filter((id) => !remove.has(id));
+    }
+    return ids;
+  }
+
+  private async collectTagIds(
+    user: AuthUser,
+    idsRaw: unknown,
+    namesRaw: unknown,
+  ): Promise<string[]> {
+    const ids = uuidList(idsRaw);
+    const names = stringList(namesRaw);
+    if (names.length === 0) {
+      return ids;
+    }
+    const ensured = await this.ensureTagNames(user, names);
+    return [...new Set([...ids, ...ensured])];
+  }
+
+  private async ensureTagNames(user: AuthUser, names: readonly string[]): Promise<string[]> {
+    const ids: string[] = [];
+    for (const raw of names) {
+      const name = raw.trim();
+      if (name.length === 0) {
+        continue;
+      }
+      const existing = await this.prisma.tag.findFirst({
+        where: {
+          ownerId: user.id,
+          deletedAt: null,
+          name: { equals: name, mode: 'insensitive' },
+        },
+        select: { id: true },
+      });
+      if (existing !== null) {
+        ids.push(existing.id);
+        continue;
+      }
+      const created = await this.tags.create(user, { name }, undefined);
+      ids.push(created.body.id);
+    }
+    return ids;
+  }
+}
+
+function uuidList(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const out: string[] = [];
+  for (const item of value) {
+    if (typeof item === 'string' && UUID.test(item)) {
+      out.push(item);
+    }
+  }
+  return out;
+}
+
+function stringList(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
 }
 
 function exceptionCode(error: DomainException): string {

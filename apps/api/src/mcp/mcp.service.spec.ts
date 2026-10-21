@@ -31,23 +31,34 @@ describe('McpService recurrence mapping', () => {
       items: [{ id: '22222222-2222-4222-8222-222222222222', is_inbox: true }],
     }),
   };
+  const tags = {
+    create: vi.fn().mockResolvedValue({
+      body: { id: '44444444-4444-4444-8444-444444444444', name: 'Instinct' },
+    }),
+  };
+  const prisma = {
+    tag: {
+      findFirst: vi.fn().mockResolvedValue(null),
+    },
+  };
 
   let service: McpService;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    prisma.tag.findFirst.mockResolvedValue(null);
     service = new McpService(
       tasks as never,
       {} as never,
       lists as never,
+      tags as never,
       {} as never,
       {} as never,
       {} as never,
       {} as never,
       {} as never,
       {} as never,
-      {} as never,
-      {} as never,
+      prisma as never,
       {} as never,
     );
   });
@@ -266,7 +277,6 @@ describe('McpService recurrence mapping', () => {
         name: 'update_task',
         arguments: {
           id: '33333333-3333-4333-8333-333333333333',
-          tag_ids: ['22222222-2222-4222-8222-222222222222'],
           status: 'completed',
         },
       },
@@ -274,7 +284,65 @@ describe('McpService recurrence mapping', () => {
     expect(tasks.update).not.toHaveBeenCalled();
     const body = result as { result: { isError: true; content: { text: string }[] } };
     expect(body.result.isError).toBe(true);
-    expect(toolText(result)).toContain('Campos no admitidos: tag_ids, status');
+    expect(toolText(result)).toContain('Campos no admitidos: status');
+  });
+
+  it('TTD-AUD-48: create_task with tags creates missing names and passes tag_ids', async () => {
+    tasks.create.mockResolvedValue({
+      body: {
+        id: '33333333-3333-4333-8333-333333333333',
+        title: 'Asignar',
+        tag_ids: ['44444444-4444-4444-8444-444444444444'],
+      },
+      statusCode: 201,
+      replayed: false,
+    });
+    await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 9,
+      method: 'tools/call',
+      params: {
+        name: 'create_task',
+        arguments: { title: 'Asignar', tags: ['Instinct'] },
+      },
+    });
+    expect(tags.create).toHaveBeenCalled();
+    expect(tasks.create).toHaveBeenCalledWith(
+      user,
+      expect.objectContaining({
+        title: 'Asignar',
+        tag_ids: ['44444444-4444-4444-8444-444444444444'],
+      }),
+      undefined,
+    );
+  });
+
+  it('TTD-AUD-49: quick_add forwards raw_text to TasksService', async () => {
+    tasks.create.mockResolvedValue({
+      body: {
+        id: '33333333-3333-4333-8333-333333333333',
+        title: 'Prueba parser',
+        tag_ids: ['44444444-4444-4444-8444-444444444444'],
+      },
+      statusCode: 201,
+      replayed: false,
+    });
+    await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 10,
+      method: 'tools/call',
+      params: {
+        name: 'quick_add',
+        arguments: { text: 'Prueba parser #Instinct mañana 09:00-09:30' },
+      },
+    });
+    expect(tasks.create).toHaveBeenCalledWith(
+      user,
+      expect.objectContaining({
+        raw_text: 'Prueba parser #Instinct mañana 09:00-09:30',
+      }),
+      undefined,
+    );
   });
 });
 
