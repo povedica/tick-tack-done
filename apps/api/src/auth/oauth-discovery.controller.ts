@@ -1,6 +1,6 @@
 import { Controller, Get, Header } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
-import { API_SCOPES } from './scopes.js';
+import { OAUTH_SCOPES } from './scopes.js';
 import { Public } from './scopes.decorator.js';
 import { mcpResourceUrl, protectedResourceMetadataUrl, publicOrigin } from './public-origin.js';
 
@@ -63,7 +63,7 @@ export class OauthDiscoveryController {
     return {
       resource: mcpResourceUrl(),
       authorization_servers: [origin],
-      scopes_supported: [...API_SCOPES],
+      scopes_supported: [...OAUTH_SCOPES],
       bearer_methods_supported: ['header'],
     };
   }
@@ -84,7 +84,7 @@ export class OauthDiscoveryController {
       grant_types_supported: ['authorization_code', 'refresh_token'],
       code_challenge_methods_supported: ['S256'],
       token_endpoint_auth_methods_supported: ['none'],
-      scopes_supported: [...API_SCOPES],
+      scopes_supported: [...OAUTH_SCOPES],
       authorization_response_iss_parameter_supported: true,
     };
   }

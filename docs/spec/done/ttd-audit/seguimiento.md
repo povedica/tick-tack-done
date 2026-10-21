@@ -45,8 +45,8 @@ siguen el orden de prioridad de la petición; no se consideran cerrados.
 | TTD-AUD-38 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                           |
 | TTD-AUD-39 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                           |
 | TTD-AUD-40 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                           |
-| TTD-AUD-41 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                           |
-| TTD-AUD-42 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                           |
+| TTD-AUD-41 | corregido | pendiente de publicación                                  | Utilidad compartida: Gestionar separado de Escritura, Cuenta atrás en formulario y marca de permisos sensibles.                                                   |
+| TTD-AUD-42 | corregido | pendiente de publicación                                  | Sensibles desmarcados, defaults sin webhooks/automatizaciones, internos excluidos, etiquetas ES/EN, componentes y estados de la app.                              |
 | TTD-AUD-43 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                           |
 | TTD-AUD-44 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                           |
 | TTD-AUD-45 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                           |
@@ -134,3 +134,19 @@ sensible (`Cache-Control: no-store`); un test comprueba la cabecera.
 La traza SARIF identifica `oauth_client_id` (UUID público) como origen de la alerta.
 Listado y creación devuelven JSON directamente, sin pasar por el helper de ETag
 cuya rama desactivada seguía apareciendo en el análisis estático. No se suprime la alerta.
+
+## TTD-AUD-41/42: criterios de aceptación
+
+- El test de permisos por defecto fallaba antes del arreglo con `webhooks:manage`.
+- Defaults OAuth sin webhooks/automatizaciones; sensibles explícitos desmarcados
+  inicialmente y marcados visualmente (también en el formulario manual).
+- Descubrimiento y concesión externa excluyen `ticky:*` y `notifications:self:write`.
+  Se mantiene el techo de `grantApprovedScopes` y se prueba el rechazo de internos.
+- Etiquetas legibles de todos los permisos públicos en ES/EN mediante utilidad
+  compartida, sin identificadores crudos. «Gestionar» conserva su nivel propio.
+- Formulario manual permite `countdowns:write`.
+- Consentimiento usa el idioma de la app, botones y tokens visuales comunes,
+  carga, error con reintento, y bloquea decisión/casillas durante el envío.
+- RF cubierto: RF-2002. Sin cambios de modelo ni migraciones.
+- Pendiente visual: consentimiento claro/oscuro, ES/EN y navegación por teclado con
+  una petición real de ChatGPT que solicite permisos sensibles.

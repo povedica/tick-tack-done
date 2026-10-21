@@ -154,6 +154,7 @@ export const en = {
   tokensTitle: 'Agent tokens',
   tokensHint: 'One token per agent, with only the scopes it needs.',
   tokenName: 'Agent',
+  scopeSensitive: 'Sensitive permission',
   tokenScopes: 'Scopes',
   tokenCreate: 'Create token',
   tokenSaving: 'Creating…',

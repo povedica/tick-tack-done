@@ -2865,3 +2865,29 @@ a.link:hover {
   margin: 0;
   font-size: 1rem;
 }
+
+.oauth-consent .consent-scopes {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  margin: 1rem 0;
+}
+.screen-page.oauth-consent .consent-scopes label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+}
+.oauth-consent .consent-scopes input {
+  flex: 0 0 auto;
+  width: auto;
+  accent-color: var(--accent);
+}
+.consent-sensitive {
+  color: var(--ink-2);
+  font-size: 0.875rem;
+}
+.consent-redirect {
+  overflow-wrap: anywhere;
+}

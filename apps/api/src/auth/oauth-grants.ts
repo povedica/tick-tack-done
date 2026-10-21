@@ -1,6 +1,6 @@
 import { HttpStatus } from '@nestjs/common';
 import { DomainException } from '../http/domain.exception.js';
-import { isApiScope, OAUTH_DEFAULT_SCOPES } from './scopes.js';
+import { isOauthScope, OAUTH_DEFAULT_SCOPES } from './scopes.js';
 import { mcpResourceUrl } from './public-origin.js';
 
 export function splitScopes(raw: string): string[] {
@@ -17,7 +17,7 @@ export function resolveRequestedScopes(raw: string | undefined): string[] {
     return [...OAUTH_DEFAULT_SCOPES];
   }
   const scopes = splitScopes(raw);
-  if (scopes.length === 0 || scopes.some((scope) => !isApiScope(scope))) {
+  if (scopes.length === 0 || scopes.some((scope) => !isOauthScope(scope))) {
     throw new DomainException(
       HttpStatus.BAD_REQUEST,
       'validation_failed',
@@ -36,7 +36,7 @@ export function grantApprovedScopes(
   approvedRaw: string,
 ): string[] {
   const approved = splitScopes(approvedRaw);
-  if (approved.length === 0 || approved.some((scope) => !isApiScope(scope))) {
+  if (approved.length === 0 || approved.some((scope) => !isOauthScope(scope))) {
     throw new DomainException(
       HttpStatus.BAD_REQUEST,
       'validation_failed',

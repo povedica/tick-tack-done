@@ -23,3 +23,19 @@ describe('oauth grants', () => {
     expect(() => grantApprovedScopes(undefined, '')).toThrow(DomainException);
   });
 });
+
+it('TTD-AUD-42 RF-2002: defaults exclude sensitive permissions and external OAuth rejects internal ones', () => {
+  const defaults = resolveRequestedScopes(undefined);
+  for (const scope of ['webhooks:manage', 'automations:manage', 'profile:write']) {
+    expect(defaults).not.toContain(scope);
+    expect(grantApprovedScopes(scope, scope)).toEqual([scope]);
+  }
+  for (const scope of [
+    'ticky:proposals:read',
+    'ticky:routines:write',
+    'notifications:self:write',
+  ]) {
+    expect(() => resolveRequestedScopes(scope)).toThrow(DomainException);
+    expect(() => grantApprovedScopes(undefined, scope)).toThrow(DomainException);
+  }
+});

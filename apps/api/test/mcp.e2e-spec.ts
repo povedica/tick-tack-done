@@ -266,6 +266,10 @@ describe('MCP server', () => {
       expect(protectedMeta.body.authorization_servers).toEqual([origin]);
       expect(protectedMeta.body.scopes_supported).toContain('tasks:read');
       expect(protectedMeta.body.scopes_supported).not.toContain('account:admin');
+      expect(protectedMeta.body.scopes_supported).not.toContain('notifications:self:write');
+      expect(
+        protectedMeta.body.scopes_supported.some((scope: string) => scope.startsWith('ticky:')),
+      ).toBe(false);
 
       const serverMeta = await request(server)
         .get('/.well-known/oauth-authorization-server')
