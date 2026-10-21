@@ -80,6 +80,28 @@ export function Popover({
     }
     function onKey(event: KeyboardEvent): void {
       const node = ref.current;
+      if (
+        node?.contains(document.activeElement) &&
+        document.activeElement?.matches('button[role="menuitem"]') &&
+        ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)
+      ) {
+        const items = [
+          ...node.querySelectorAll<HTMLButtonElement>('button[role="menuitem"]:not(:disabled)'),
+        ];
+        if (items.length > 0) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          const current = items.findIndex((item) => item === document.activeElement);
+          const next =
+            event.key === 'Home'
+              ? 0
+              : event.key === 'End'
+                ? items.length - 1
+                : (current + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+          items[next]?.focus();
+          return;
+        }
+      }
       if (event.key === 'Tab' && node !== null) {
         const items = [
           ...node.querySelectorAll<HTMLElement>(

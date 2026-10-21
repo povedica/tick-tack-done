@@ -1322,6 +1322,32 @@ a.task-title {
   padding-top: 4px;
 }
 
+.detail-menu {
+  top: auto;
+  width: min(280px, calc(100vw - 24px));
+  overflow-x: hidden;
+}
+
+.detail-menu .menu-group {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+}
+
+.detail-menu .popover-row {
+  min-width: 0;
+}
+
+.detail-menu .popover-row svg {
+  flex-shrink: 0;
+}
+
+.detail-menu .popover-row span {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 699px) {
   .detail-back {
     display: grid;
