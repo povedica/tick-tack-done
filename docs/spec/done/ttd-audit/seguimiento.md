@@ -45,8 +45,8 @@ siguen el orden de prioridad de la petición; no se consideran cerrados.
 | TTD-AUD-38 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                           |
 | TTD-AUD-39 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                           |
 | TTD-AUD-40 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                           |
-| TTD-AUD-41 | corregido | pendiente de publicación                                  | Utilidad compartida: Gestionar separado de Escritura, Cuenta atrás en formulario y marca de permisos sensibles.                                                   |
-| TTD-AUD-42 | corregido | pendiente de publicación                                  | Sensibles desmarcados, defaults sin webhooks/automatizaciones, internos excluidos, etiquetas ES/EN, componentes y estados de la app.                              |
+| TTD-AUD-41 | corregido | [#64](https://github.com/povedica/tick-tack-done/pull/64) | Utilidad compartida: Gestionar separado de Escritura, Cuenta atrás en formulario y marca de permisos sensibles.                                                   |
+| TTD-AUD-42 | corregido | [#64](https://github.com/povedica/tick-tack-done/pull/64) | Sensibles desmarcados, defaults sin webhooks/automatizaciones, internos excluidos, etiquetas ES/EN, componentes y estados de la app.                              |
 | TTD-AUD-43 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                           |
 | TTD-AUD-44 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                           |
 | TTD-AUD-45 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                           |
@@ -150,3 +150,6 @@ cuya rama desactivada seguía apareciendo en el análisis estático. No se supri
 - RF cubierto: RF-2002. Sin cambios de modelo ni migraciones.
 - Pendiente visual: consentimiento claro/oscuro, ES/EN y navegación por teclado con
   una petición real de ChatGPT que solicite permisos sensibles.
+
+Validación de TTD-AUD-41/42: typecheck, lint y tests completos (281 dominio,
+100 web, 104 API, 9 SDK); integración: 123 pasan, 2 omitidos; OpenAPI sin diff.
