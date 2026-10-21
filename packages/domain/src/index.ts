@@ -324,7 +324,7 @@ export type {
   FocusStats,
 } from './focus/cycle';
 export { controlScore, FOCUS_WEEKLY_TARGET } from './achievements/score';
-export type { ControlInput, ControlScore } from './achievements/score';
+export type { ControlInput, ControlScore, ControlDeductionReason } from './achievements/score';
 export {
   ageOnComplete,
   buildDayBuckets,

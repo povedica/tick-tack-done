@@ -8810,7 +8810,19 @@ export interface operations {
                                         windowDays: number;
                                     };
                                 } | null;
+                                /**
+                                 * @deprecated
+                                 * @description Legacy Spanish text. Use topDeductionReason for localized presentation.
+                                 */
                                 topDeduction: string | null;
+                                topDeductionReason: {
+                                    /** @enum {string} */
+                                    code: "overdue" | "on_time" | "habits" | "focus" | "usage";
+                                    /** @description overdue: count, oldCount, points; other codes: actual, target. */
+                                    params: {
+                                        [key: string]: number;
+                                    };
+                                } | null;
                                 history: {
                                     /** Format: date */
                                     date: string;
@@ -9234,7 +9246,19 @@ export interface operations {
                                 windowDays: number;
                             };
                         } | null;
+                        /**
+                         * @deprecated
+                         * @description Legacy Spanish text. Use topDeductionReason for localized presentation.
+                         */
                         topDeduction: string | null;
+                        topDeductionReason: {
+                            /** @enum {string} */
+                            code: "overdue" | "on_time" | "habits" | "focus" | "usage";
+                            /** @description overdue: count, oldCount, points; other codes: actual, target. */
+                            params: {
+                                [key: string]: number;
+                            };
+                        } | null;
                         history: {
                             /** Format: date */
                             date: string;
@@ -9344,7 +9368,19 @@ export interface operations {
                                             windowDays: number;
                                         };
                                     } | null;
+                                    /**
+                                     * @deprecated
+                                     * @description Legacy Spanish text. Use topDeductionReason for localized presentation.
+                                     */
                                     topDeduction: string | null;
+                                    topDeductionReason: {
+                                        /** @enum {string} */
+                                        code: "overdue" | "on_time" | "habits" | "focus" | "usage";
+                                        /** @description overdue: count, oldCount, points; other codes: actual, target. */
+                                        params: {
+                                            [key: string]: number;
+                                        };
+                                    } | null;
                                     history: {
                                         /** Format: date */
                                         date: string;
@@ -10697,7 +10733,76 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        enabled: boolean;
+                        score: number | null;
+                        label: string | null;
+                        components: {
+                            tasks: {
+                                earned: number;
+                                max: number;
+                                configured: boolean;
+                                cumplimiento: {
+                                    earned: number;
+                                    max: number;
+                                    onTime: number;
+                                    planned: number;
+                                };
+                                atrasadas: {
+                                    earned: number;
+                                    max: number;
+                                    open: number;
+                                    penalty: number;
+                                    byAge: {
+                                        under7: number;
+                                        d8to30: number;
+                                        over30: number;
+                                    };
+                                };
+                            };
+                            habits: {
+                                earned: number;
+                                max: number;
+                                configured: boolean;
+                                done: number;
+                                expected: number;
+                            };
+                            focus: {
+                                earned: number;
+                                max: number;
+                                configured: boolean;
+                                pomodoros: number;
+                                target: number;
+                            };
+                            usage: {
+                                earned: number;
+                                max: number;
+                                configured: boolean;
+                                days: number;
+                                windowDays: number;
+                            };
+                        } | null;
+                        /**
+                         * @deprecated
+                         * @description Legacy Spanish text. Use topDeductionReason for localized presentation.
+                         */
+                        topDeduction: string | null;
+                        topDeductionReason: {
+                            /** @enum {string} */
+                            code: "overdue" | "on_time" | "habits" | "focus" | "usage";
+                            /** @description overdue: count, oldCount, points; other codes: actual, target. */
+                            params: {
+                                [key: string]: number;
+                            };
+                        } | null;
+                        history: {
+                            /** Format: date */
+                            date: string;
+                            score: number | null;
+                        }[];
+                    };
+                };
             };
         };
     };

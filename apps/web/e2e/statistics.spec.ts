@@ -232,10 +232,13 @@ for (const width of [1280, 390])
           await expect(page.locator('[role=tabpanel]')).not.toHaveAttribute('aria-busy', 'true');
           await expect(page.locator('.stats-skeleton')).toHaveCount(0);
           if (tab === 'overview') {
-            const columns = await page
-              .locator('.stats-kpi-grid')
-              .evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(' ').length);
-            expect(columns).toBe(width === 390 ? 2 : 3);
+            await expect
+              .poll(() =>
+                page
+                  .locator('.stats-kpi-grid')
+                  .evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(' ').length),
+              )
+              .toBe(width === 390 ? 2 : 3);
             if (empty) {
               await expect(page.getByRole('button', { name: 'Hábitos cumplidos —' })).toBeVisible();
               await expect(page.locator('.stats-delta.is-down')).toHaveCount(0);
@@ -245,10 +248,11 @@ for (const width of [1280, 390])
           if (empty && tab === 'tasks') await expect(page.getByText('Tarde 100 %')).toHaveCount(0);
           if (!empty && tab === 'focus')
             await expect(page.locator('.stats-timeline rect').first()).toBeVisible();
-          const overflow = await page
-            .locator('.stats-page')
-            .evaluate((el) => el.scrollWidth > el.clientWidth + 1);
-          expect(overflow).toBe(false);
+          await expect
+            .poll(() =>
+              page.locator('.stats-page').evaluate((el) => el.scrollWidth > el.clientWidth + 1),
+            )
+            .toBe(false);
           await page.screenshot({
             path: `test-results/statistics-${width}-${theme}-${empty ? 'empty' : 'data'}-${tab}.png`,
             fullPage: true,
@@ -286,7 +290,7 @@ test('RF-2324 export downloads query data and RF-2321 primary rail precedes Sear
   await page.goto('/statistics');
   await expect(page.locator('.stats-kpi-grid')).toBeVisible();
   const targets = await page
-    .locator('.icon-rail a')
+    .locator('.icon-rail > a')
     .evaluateAll((links) => links.map((link) => link.getAttribute('href')));
   expect(targets.indexOf('/statistics')).toBeLessThan(targets.indexOf('/search'));
   expect(targets.indexOf('/dashboard')).toBe(targets.indexOf('/statistics') + 1);

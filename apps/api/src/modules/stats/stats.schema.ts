@@ -50,7 +50,21 @@ export const achievementSchema = object({
       usage: object({ ...component, days: integer, windowDays: integer }),
     }),
   ),
-  topDeduction: nullable(string),
+  topDeduction: {
+    ...nullable(string),
+    deprecated: true,
+    description: 'Legacy Spanish text. Use topDeductionReason for localized presentation.',
+  },
+  topDeductionReason: nullable(
+    object({
+      code: { type: 'string', enum: ['overdue', 'on_time', 'habits', 'focus', 'usage'] },
+      params: {
+        type: 'object',
+        additionalProperties: number,
+        description: 'overdue: count, oldCount, points; other codes: actual, target.',
+      },
+    }),
+  ),
   history: array(object({ date, score: nullable(number) })),
 });
 export const overviewSchema = object({

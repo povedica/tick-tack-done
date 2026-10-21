@@ -487,7 +487,7 @@ Decisión de Pablo (sección 21): los hábitos entran en fase 1 con sus recordat
 ### 9.16 Estadísticas y logros — V2
 
 - RF-1601: Panel de productividad: completadas por periodo, focus acumulado, hábitos, tareas creadas vs completadas.
-- RF-1602: Puntuación de logros (niveles por consistencia). Opcional y desactivable.
+- RF-1602: Puntuación de logros (niveles por consistencia). Opcional y desactivable. La razón principal de pérdida de Control se expone como `topDeductionReason: {code, params}` (o `null`), con códigos `overdue`, `on_time`, `habits`, `focus` y `usage` y parámetros numéricos. La UI traduce el código en su idioma; `topDeduction` se mantiene como texto legado deprecado para compatibilidad.
 
 ### 9.17 Exportación y backup — MVP; importación aplazada
 

@@ -1,6 +1,34 @@
 import { expect, test, type Page } from '@playwright/test';
 import { renderedContrast } from './contrast';
 
+test('TTD-AUD-27: Control translates reason codes independently of the legacy sentence', async ({
+  page,
+}) => {
+  await fixtures(page, { locale: 'en' });
+  await page.route('**/api/v1/stats/overview?*', (route) =>
+    route.fulfill({
+      json: {
+        summary: {
+          streak_current: 1,
+          achievement: {
+            enabled: true,
+            score: 50,
+            components: {},
+            history: [],
+            topDeduction: 'Texto nuevo del servidor sin vocabulario anterior',
+            topDeductionReason: { code: 'focus', params: { actual: 6, target: 10 } },
+          },
+        },
+      },
+    }),
+  );
+  await page.goto('/today');
+  await page.locator('.control-chip').first().click();
+  const dialog = page.getByRole('dialog', { name: 'Control score', exact: true });
+  await expect(dialog).toContainText('Focus: 6/10 pomodoros this week');
+  await expect(dialog).not.toContainText('Texto nuevo');
+});
+
 test('TTD-AUD-31: rail shows unavailable overdue count and retries', async ({ page }) => {
   await fixtures(page);
   let fail = true;
@@ -903,7 +931,7 @@ test('SEM-1/3, CAL-1/2: one clipped span, no overflow and a persistent workweek'
   expect(
     await page.locator('.hour-board').evaluate((node) => node.scrollWidth <= node.clientWidth),
   ).toBe(true);
-  await page.locator('.calendar-options>summary').click();
+  await page.getByRole('button', { name: 'Opciones del calendario', exact: true }).click();
   await page.getByRole('checkbox', { name: 'Solo semana laboral (L–V)' }).check();
   await expect(page.locator('.hour-col')).toHaveCount(5);
   await page.reload();

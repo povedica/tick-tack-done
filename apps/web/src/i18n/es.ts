@@ -121,6 +121,13 @@ export const es = {
   projectPendingMany: 'pendientes',
   projectStale: 'Sin actividad en más de {name} días.',
   projectReviewComplete: 'Sin tareas pendientes; revisa si está terminado.',
+  controlReasonOverdue: '{count} vencidas: -{points} en Tareas',
+  controlReasonOverdueOld: '{count} vencidas de más de 30 días: -{points} en Tareas',
+  controlReasonOnTime: 'Tareas a tiempo: {actual}/{target} en los últimos 14 días',
+  controlReasonHabits: 'Hábitos: {actual}/{target} días cumplidos',
+  controlReasonFocus: 'Foco: {actual}/{target} pomodoros esta semana',
+  controlReasonUsage: 'Uso: {actual}/{target} días registrados',
+  controlReasonFallback: 'Consulta el desglose para ver qué reduce tu puntuación.',
   tickyStatusError: 'No se ha podido comprobar la disponibilidad de Ticky.',
   tickyMinutes: '{name} min',
   tickyKillStatus:
