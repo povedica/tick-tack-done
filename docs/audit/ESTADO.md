@@ -6,17 +6,17 @@ Base: `origin/main` @ arranque de la rama.
 
 | ID | Fase | Estado | PR | Notas |
 |---|---|---|---|---|
-| TTD-AUD-01 | 0 | pendiente verificar | — | Corregido en main (PR #60); no reimplementar |
-| TTD-AUD-02 | 0 | pendiente verificar | — | Corregido en main (PR #61); no reimplementar |
+| TTD-AUD-01 | 0 | verificado en tests | #60 | Tests: filters.spec, row-date.spec, automation-dates.e2e, matrix/propose |
+| TTD-AUD-02 | 0 | verificado en tests | #61 | Tests: nlp/parse.spec time ranges; task-composer.e2e |
 | TTD-AUD-03 | 5 | pendiente | — | Depende de 01 |
 | TTD-AUD-04 | 5 | pendiente | — | Depende de 01, 03 |
-| TTD-AUD-05 | 5 | pendiente | — | Depende de 64 |
+| TTD-AUD-05 | 2 | verificado en main | #68 | Menú acciones; verificar tras 64 si hace falta pulido |
 | TTD-AUD-06 | 5 | pendiente | — | |
-| TTD-AUD-07 | 2 | pendiente | — | Depende de 63 |
+| TTD-AUD-07 | 2 | verificado en main | #69 | Gate Ticky + layout; 63 puede ampliar el interruptor |
 | TTD-AUD-08 | 2 | pendiente | — | Depende de 63 |
-| TTD-AUD-09 | 0 | pendiente | — | |
-| TTD-AUD-10 | 0 | pendiente | — | |
-| TTD-AUD-11 | 0 | pendiente verificar | — | Corregido en main (PR #67); no reimplementar |
+| TTD-AUD-09 | 0 | verificado en main | #72 | Ya en main: semana calendario local; no reimplementar |
+| TTD-AUD-10 | 0 | corregido | #71 | formatFocusDuration redondea; /focus etiquetado como total |
+| TTD-AUD-11 | 0 | verificado en tests | #67 | Test: weekly-automation.e2e-spec.ts |
 | TTD-AUD-12 | 5 | pendiente | — | |
 | TTD-AUD-13 | 5 | pendiente | — | |
 | TTD-AUD-14 | 2 | pendiente | — | Depende de 62 |
@@ -33,22 +33,22 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-25 | 5 | pendiente | — | |
 | TTD-AUD-26 | 5 | pendiente | — | |
 | TTD-AUD-27 | 5 | pendiente | — | |
-| TTD-AUD-28 | 0 | pendiente verificar | — | Corregido en main (PR #66); no reimplementar |
+| TTD-AUD-28 | 0 | verificado en tests | #66 | Tests: run-action.spec.ts, query-client.spec.ts |
 | TTD-AUD-29 | 0 | pendiente | — | |
 | TTD-AUD-30 | 5 | pendiente | — | |
 | TTD-AUD-31 | 5 | pendiente | — | |
 | TTD-AUD-32 | 5 | pendiente | — | |
 | TTD-AUD-33 | 3 | pendiente | — | Depende de 63 |
 | TTD-AUD-34 | 5 | pendiente | — | |
-| TTD-AUD-35 | 4 | pendiente verificar | — | Corregido en main (PR #63); no reimplementar |
+| TTD-AUD-35 | 4 | verificado en main | #63 | Paginación tokens; no reimplementar |
 | TTD-AUD-36 | 4 | pendiente | — | Depende de 35 |
-| TTD-AUD-37 | 4 | pendiente verificar | — | Corregido en main (PR #62); no reimplementar |
+| TTD-AUD-37 | 4 | verificado en main | #62 | OAuth name conflicts; no reimplementar |
 | TTD-AUD-38 | 4 | pendiente | — | Depende de 35 |
 | TTD-AUD-39 | 4 | pendiente | — | Depende de 35 |
 | TTD-AUD-40 | 4 | pendiente | — | Depende de 35 |
 | TTD-AUD-41 | 4 | pendiente | — | Depende de 35 |
-| TTD-AUD-42 | 4 | pendiente verificar | — | Corregido en main (PR #64); no reimplementar |
-| TTD-AUD-43 | 4 | pendiente verificar | — | Corregido en main (PR #65); depende de 47 |
+| TTD-AUD-42 | 4 | verificado en main | #64 | Consentimiento OAuth; no reimplementar |
+| TTD-AUD-43 | 4 | verificado en main | #65 | Reconexión Google; depende de 47 para testing |
 | TTD-AUD-44 | 4 | pendiente | — | |
 | TTD-AUD-45 | 4 | pendiente | — | |
 | TTD-AUD-46 | 4 | pendiente | — | Depende de 35 |
