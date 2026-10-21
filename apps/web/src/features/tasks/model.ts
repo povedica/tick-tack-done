@@ -5,6 +5,9 @@ export interface RowModel {
   readonly title: string;
   readonly priority: 'none' | 'low' | 'medium' | 'high';
   readonly dueDate: string | null;
+  readonly startDate: string | null;
+  readonly durationMinutes: number | null;
+  readonly isAllDay: boolean;
   readonly timeZone: string;
   readonly projectId: string;
   readonly projectName: string;
@@ -47,6 +50,9 @@ export function rowFromTask(
     title: task.title,
     priority: task.priority,
     dueDate: task.due_date,
+    startDate: task.start_date,
+    durationMinutes: task.duration_minutes,
+    isAllDay: task.is_all_day,
     timeZone: task.time_zone,
     projectId: task.project_id,
     projectName: names.get(task.project_id) ?? '',
@@ -70,6 +76,9 @@ export function rowFromView(task: ViewTask): RowModel {
     title: task.title,
     priority: task.priority,
     dueDate: task.due_date,
+    startDate: task.start_date,
+    durationMinutes: task.duration_minutes,
+    isAllDay: task.is_all_day,
     timeZone: task.time_zone,
     projectId: task.project_id,
     projectName: task.project_name,

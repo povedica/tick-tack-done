@@ -14,6 +14,7 @@ import { refreshTaskSurfaces } from './refresh';
 import { displayTitle } from './displayTitle';
 import { completeBody } from './complete-body';
 import { TaskComposer } from './TaskComposer';
+import { formatTaskRowDate } from './row-date';
 import { isOverdue, isSameDay, type RowModel } from './model';
 
 export function TaskList({
@@ -236,7 +237,7 @@ function TaskRow({
   const queryClient = useQueryClient();
   const done = row.status === 'completed';
   const overdue = !done && isOverdue(row.dueDate, now);
-  const today = !done && isSameDay(row.dueDate, now, row.timeZone);
+  const today = !done && isSameDay(row.startDate ?? row.dueDate, now, row.timeZone);
   const dateClass = overdue ? 'task-date is-overdue' : today ? 'task-date is-today' : 'task-date';
   const named = row.tags.filter((tag) => tag.name.length > 0 && tag.name !== tag.id);
   const shown = named.slice(0, 2);
@@ -245,7 +246,7 @@ function TaskRow({
     ? (row.deletedAt ?? null)
     : done && row.completedAt !== null
       ? row.completedAt
-      : row.dueDate;
+      : (row.startDate ?? row.dueDate);
   return (
     <div
       className={`task-row${open ? ' is-selected' : ''}${selected ? ' is-batch' : ''}${done ? ' is-done' : ''}`}
@@ -395,11 +396,13 @@ function TaskRow({
                       year: 'numeric',
                     }),
                   )
-                : new Date(when).toLocaleString(locale)
+                : new Date(when).toLocaleString(locale, { timeZone: row.timeZone })
             }
           >
             {trash ? `${messages.deletedOn} ` : ''}
-            {formatRowDate(when, locale, now, done, messages)}
+            {trash || done
+              ? formatRowDate(when, locale, now, done, messages)
+              : formatTaskRowDate(row, locale, now, messages)}
           </time>
         ) : null}
       </span>
@@ -529,9 +532,9 @@ function Kanban({
                     {row.tags.slice(0, 2).map((tag) => (
                       <TagChip key={tag.id} label={tag.name} color={tag.color} />
                     ))}
-                    {row.dueDate !== null ? (
-                      <time dateTime={row.dueDate}>
-                        {formatRowDate(row.dueDate, locale, new Date(), false, messages)}
+                    {(row.startDate ?? row.dueDate) !== null ? (
+                      <time dateTime={row.startDate ?? row.dueDate ?? undefined}>
+                        {formatTaskRowDate(row, locale, new Date(), messages)}
                       </time>
                     ) : null}
                   </p>

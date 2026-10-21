@@ -28,6 +28,9 @@ describe('task view helpers', () => {
       title: 'Mañana',
       priority: 'none',
       due_date: null,
+      start_date: '2026-10-22T07:00:00.000Z',
+      duration_minutes: 30,
+      is_all_day: false,
       time_zone: 'Europe/Madrid',
       project_id: 'inbox',
       project_name: 'Bandeja',
@@ -36,6 +39,11 @@ describe('task view helpers', () => {
       status: 'active',
       checklist_progress: null,
     } as unknown as ViewPage['groups'][number]['tasks'][number];
+    expect(rowFromView(task)).toMatchObject({
+      startDate: task.start_date,
+      durationMinutes: 30,
+      isAllDay: false,
+    });
     expect(rowFromView(task).repeat).toBe(false);
     expect(rowFromView(task).tags).toEqual([]);
     const page = { groups: [{ tasks: [task] }] } as ViewPage;

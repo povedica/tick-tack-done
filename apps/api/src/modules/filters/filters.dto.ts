@@ -194,6 +194,12 @@ export class ViewTaskDto {
   @ApiProperty({ nullable: true, type: String })
   due_date!: string | null;
 
+  @ApiProperty({ nullable: true, type: String })
+  start_date!: string | null;
+
+  @ApiProperty({ nullable: true, type: Number })
+  duration_minutes!: number | null;
+
   @ApiProperty()
   is_all_day!: boolean;
 

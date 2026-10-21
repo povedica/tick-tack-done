@@ -446,3 +446,34 @@ describe('search query', () => {
     });
   });
 });
+
+describe('TTD-AUD-01 effective task date', () => {
+  it('RF-601 RF-904: date filters prefer start over deadline, including all-day tasks', () => {
+    const input = { clock, assigneeId: 'user-1', inboxProjectId: 'list-1' };
+    const tomorrow = '2026-10-18T07:00:00.000Z';
+    for (const isAllDay of [false, true]) {
+      const task = subject({ startDate: tomorrow, dueDate: null, isAllDay });
+      expect(matchesSmartList('tomorrow', task, input)).toBe(true);
+      expect(matchesSmartList('next_7_days', task, input)).toBe(true);
+      expect(matchesSmartList('no_date', task, input)).toBe(false);
+      expect(matchesSmartList('today', task, input)).toBe(false);
+      expect(matchesSmartList('tomorrow', subject({ ...task, dueDate: clock.now }), input)).toBe(
+        true,
+      );
+    }
+    expect(matchesSmartList('tomorrow', subject({ dueDate: tomorrow }), input)).toBe(true);
+    expect(
+      matchesSmartList('today', subject({ startDate: clock.now, dueDate: tomorrow }), input),
+    ).toBe(true);
+    const rules = {
+      combinator: 'AND',
+      groups: [
+        {
+          combinator: 'AND',
+          conditions: [{ field: 'date', op: 'between', value: ['2026-10-18', '2026-10-18'] }],
+        },
+      ],
+    } as const;
+    expect(matchesFilter(rules, subject({ startDate: tomorrow, dueDate: null }), clock)).toBe(true);
+  });
+});
