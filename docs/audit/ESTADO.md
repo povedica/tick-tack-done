@@ -19,7 +19,7 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-11 | 0 | verificado en tests | #67 | Test: weekly-automation.e2e-spec.ts |
 | TTD-AUD-12 | 5 | pendiente | — | |
 | TTD-AUD-13 | 5 | pendiente | — | |
-| TTD-AUD-14 | 2 | pendiente | — | Depende de 62 |
+| TTD-AUD-14 | 2 | en curso | #71 | Con 62 (detalle sin salir); UI scope pendiente |
 | TTD-AUD-15 | 5 | pendiente | — | |
 | TTD-AUD-16 | 0 | corregido | #71 | Purga optimista + rollback; contador trash |
 | TTD-AUD-17 | 5 | pendiente | — | |
@@ -64,15 +64,15 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-56 | 0 | corregido | #71 | deriveDurationMinutes rechaza mismatch; no pisa explicit |
 | TTD-AUD-57 | 1 | corregido (parcial) | #71 | source=api en MCP; created_via en get_task; assign_task; cuentas por persona = ops |
 | TTD-AUD-58 | 3 | pendiente | — | |
-| TTD-AUD-59 | 2 | pendiente | — | |
-| TTD-AUD-60 | 2 | corregido (parcial) | #71 | Panel detalle fijo + DetailEmpty en escritorio; falta no navegar fuera desde matrix/calendar |
+| TTD-AUD-59 | 2 | corregido (parcial) | #71 | ViewPrefs local + print CSS + hideCompleted fijo; sync servidor pendiente |
+| TTD-AUD-60 | 2 | corregido | #71 | Detalle fijo + abrir tarea en ruta actual (matrix/calendar/plan/focus) |
 | TTD-AUD-61 | 2 | corregido (parcial) | #71 | sectionOf + ocultar sidebar; CalendarSidebar stub (mini-mes pendiente) |
-| TTD-AUD-62 | 2 | pendiente | — | Depende de 14 |
+| TTD-AUD-62 | 2 | corregido (parcial) | #71 | Abrir tarea sin salir; drop/reglas pendientes |
 | TTD-AUD-63 | 2 | corregido | #71 | Flag ticky + useTickyAvailable; FeatureRoute; server-off bloquea switch |
 | TTD-AUD-64 | 2 | corregido (parcial) | #71 | CaptureSheet tarjeta + Popover width/align; menú composer pendiente de pulido |
 | TTD-AUD-65 | 0 | corregido | #71 | taskEventSnapshot + migración strip activity |
-| TTD-AUD-66 | 2 | pendiente | — | Depende de 59 |
-| TTD-AUD-67 | 2 | pendiente | — | Depende de 66 |
+| TTD-AUD-66 | 2 | corregido (parcial) | #71 | ViewMenu + prefs por vista; cabecera unificada vía Board |
+| TTD-AUD-67 | 2 | corregido | #71 | Inbox usa Board + ViewMenu; Procesar todo se mantiene |
 | TTD-AUD-68 | 2 | pendiente | — | Depende de 66 |
 | TTD-AUD-69 | 2 | pendiente | — | Depende de 66 |
 | TTD-AUD-70 | 3 | pendiente | — | Depende de 58, 66 |

@@ -961,3 +961,46 @@
 .sidebar-more-footer button.nav-link:hover {
   background: var(--surface-2);
 }
+
+/* TTD-AUD-59: print the task list without chrome */
+@media print {
+  .icon-rail,
+  .sidebar,
+  .scrim,
+  .detail-slot,
+  .detail-panel,
+  .bottom-bar,
+  .mobile-control-bar,
+  .offline-banner,
+  .page-actions,
+  .composer,
+  .capture-card,
+  .sheet,
+  .skip-link {
+    display: none !important;
+  }
+
+  .shell,
+  .shell[data-detail='open'],
+  .shell[data-sidebar='collapsed'],
+  .shell[data-sidebar='collapsed'][data-detail='open'] {
+    display: block;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    grid-template-columns: none;
+  }
+
+  .center,
+  .outlet {
+    display: block;
+    overflow: visible;
+    height: auto;
+    max-height: none;
+  }
+
+  .screen-page,
+  .today-header {
+    break-inside: avoid;
+  }
+}

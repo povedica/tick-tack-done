@@ -9,10 +9,11 @@ import { Button } from '../../components/ui';
 import { refreshTaskSurfaces } from '../tasks/refresh';
 import '../product/weekly.css';
 import { useWeeklyCopy } from '../product/weekly-text';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import { api } from '../../api';
 import { closingRequest } from '../closing/api';
 import { useAppLocale } from '../../i18n/locale';
+import { taskQueryHref } from '../../shell/use-open-task';
 import './planning.css';
 
 type Decision = 'done' | 'plan_day' | 'later' | 'someday' | 'cancel' | 'trash' | 'skip';
@@ -62,6 +63,7 @@ interface AppliedPlan {
 
 export function PlanDayPage() {
   const locale = useAppLocale();
+  const location = useLocation();
   const text: Copy = locale.startsWith('en') ? english : spanish;
   const weekly = useWeeklyCopy();
   const cache = useQueryClient();
@@ -282,7 +284,7 @@ export function PlanDayPage() {
                     />
                     <Link
                       className="weekly-task-title"
-                      to={`/list/${card.project_id}?task=${card.task_id}`}
+                      to={taskQueryHref(location.pathname, location.search, card.task_id)}
                       title={card.title}
                     >
                       {displayTitle(card.title)}

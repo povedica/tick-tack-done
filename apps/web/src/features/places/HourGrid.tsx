@@ -1,12 +1,13 @@
 import type { Task } from '@reflexionia/sdk';
 import { CalendarDays } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import { eventDayRange, eventSpan } from './event-span';
 import { chipStyle, type ExternalEventView } from '../calendar/ExternalEvent';
 import { CalendarTaskMark } from '../calendar/CalendarTaskMark';
 import type { Messages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
+import { taskQueryHref } from '../../shell/use-open-task';
 import { calendarTaskLabel, tasksOnCell } from './month';
 import {
   GRID_END_HOUR,
@@ -32,6 +33,7 @@ export function HourGrid({
   messages: Messages;
   onOpenEvent: (event: ExternalEventView) => void;
 }) {
+  const location = useLocation();
   const board = useRef<HTMLDivElement>(null);
   const header = useRef<HTMLDivElement>(null);
   const periodKey = days.map(localKey).join(',');
@@ -138,7 +140,10 @@ export function HourGrid({
                   style={chipStyle(colors.get(task.project_id))}
                 >
                   <CalendarTaskMark task={task} />
-                  <Link className="cal-pill" to={`/list/${task.project_id}?task=${task.id}`}>
+                  <Link
+                    className="cal-pill"
+                    to={taskQueryHref(location.pathname, location.search, task.id)}
+                  >
                     {calendarTaskLabel(
                       task.title,
                       task.due_date,
@@ -242,7 +247,7 @@ export function HourGrid({
                     }}
                   >
                     <CalendarTaskMark task={task} />
-                    <Link to={`/list/${task.project_id}?task=${task.id}`}>
+                    <Link to={taskQueryHref(location.pathname, location.search, task.id)}>
                       <small>{clock(task.due_date ?? '')}</small>
                       {calendarTaskLabel(
                         task.title,

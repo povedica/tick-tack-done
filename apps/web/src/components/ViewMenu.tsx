@@ -121,7 +121,8 @@ export function ViewMenu({
             }}
           >
             <EyeOff size={16} aria-hidden="true" />
-            {hideCompleted ? messages.hideCompleted : messages.showCompleted}
+            <span className="menu-item-label">{messages.hideCompleted}</span>
+            {hideCompleted ? <span aria-hidden="true">✓</span> : null}
           </button>
           <button
             type="button"

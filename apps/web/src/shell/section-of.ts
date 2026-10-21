@@ -64,5 +64,12 @@ export function sectionShowsSidebar(section: ShellSection): boolean {
 
 /** Task-family routes keep a fixed detail column on desktop (TTD-AUD-60). */
 export function sectionShowsDetailPane(section: ShellSection): boolean {
-  return section === 'tasks' || section === 'calendar' || section === 'matrix';
+  return (
+    section === 'tasks' ||
+    section === 'calendar' ||
+    section === 'matrix' ||
+    section === 'search' ||
+    section === 'focus' ||
+    section === 'stats'
+  );
 }

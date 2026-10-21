@@ -7,7 +7,8 @@ import {
 } from '@reflexionia/domain';
 import { MoreHorizontal } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link, useLocation, useSearchParams } from 'react-router';
+import { taskQueryHref } from '../../shell/use-open-task';
 import type { Task } from '@reflexionia/sdk';
 import { api } from '../../api';
 import { PriorityCheck } from '../../components/PriorityCheck';
@@ -98,6 +99,7 @@ export function MatrixBoard({
 }) {
   const messages = useMessages();
   const locale = useAppLocale();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const narrow = useNarrowViewport();
   const [info, setInfo] = useState(false);
@@ -274,7 +276,10 @@ export function MatrixBoard({
                             });
                         }}
                       />
-                      <Link className="task-title" to={`/list/${task.project_id}?task=${task.id}`}>
+                      <Link
+                        className="task-title"
+                        to={taskQueryHref(location.pathname, location.search, task.id)}
+                      >
                         {displayTitle(task.title)}
                       </Link>
                       <span className="task-meta">

@@ -1,6 +1,6 @@
 import { runAction } from '../../components/run-action';
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link, useLocation, useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
 import { Button } from '../../components/ui';
@@ -13,6 +13,7 @@ import { InboundEmailCard } from '../settings/InboundEmailCard';
 import { GoogleCalendarsCard } from '../settings/GoogleCalendarsCard';
 import { useMessages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
+import { taskQueryHref } from '../../shell/use-open-task';
 
 function itemsOf(value: unknown): readonly Record<string, unknown>[] {
   if (typeof value !== 'object' || value === null || !('items' in value)) {
@@ -44,6 +45,7 @@ export { ReportsPage, ReviewPage } from './WeeklyPages';
 
 export function FocusPage() {
   const messages = useMessages();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const sessions = useQuery({
     queryKey: ['focus-sessions'],
@@ -104,7 +106,7 @@ export function FocusPage() {
       <p className="ui-muted">{messages.focusLifetime}</p>
       {focused.data !== undefined ? (
         <p>
-          <Link to={`/list/${focused.data.project_id}?task=${focused.data.id}`}>
+          <Link to={taskQueryHref(location.pathname, location.search, focused.data.id)}>
             {focused.data.title}
           </Link>
         </p>
