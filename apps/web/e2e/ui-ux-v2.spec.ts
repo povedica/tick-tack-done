@@ -1,4 +1,47 @@
 import { expect, test, type Page } from '@playwright/test';
+import { renderedContrast } from './contrast';
+
+for (const theme of ['light', 'dark'] as const) {
+  for (const accent of ['indigo', 'violet', 'teal', 'amber', 'rose', 'slate']) {
+    test(`TTD-AUD-25: navigation and theme selection retain contrast (${theme}, ${accent})`, async ({
+      page,
+    }) => {
+      await fixtures(page, { theme, accent });
+      await page.route('**/api/v1/smart-lists', (route) =>
+        route.fulfill({
+          json: {
+            items: ['today', 'tomorrow'].map((key, i) => ({
+              id: key,
+              key,
+              enabled: true,
+              task_count: 1,
+              sort_order: String(i + 1),
+            })),
+          },
+        }),
+      );
+      await page.goto('/today');
+      await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+      const selected = page.locator('.sidebar .nav-link.is-active').first();
+      await expect(selected).toBeVisible();
+      expect(await selected.evaluate(renderedContrast)).toBeGreaterThanOrEqual(4.5);
+      const other = page.locator('.sidebar .nav-link:not(.is-active)').first();
+      await other.hover({ timeout: 3000 });
+      expect(await other.evaluate(renderedContrast)).toBeGreaterThanOrEqual(4.5);
+      const icon = page.locator('.icon-rail > a[href="/today"]');
+      expect(await icon.evaluate(renderedContrast)).toBeGreaterThanOrEqual(3);
+      await icon.hover({ timeout: 3000 });
+      expect(await icon.evaluate(renderedContrast)).toBeGreaterThanOrEqual(3);
+      await page.goto('/settings/appearance');
+      const chosenTheme = page.getByRole('button', {
+        name: theme === 'dark' ? 'Oscuro' : 'Claro',
+        exact: true,
+      });
+      await expect(chosenTheme).toHaveAttribute('aria-pressed', 'true');
+      expect(await chosenTheme.evaluate(renderedContrast)).toBeGreaterThanOrEqual(4.5);
+    });
+  }
+}
 
 for (const width of [1280, 360]) {
   test(`TTD-AUD-07: disabled Ticky has no navigation or task entry (${width}px)`, async ({
@@ -135,6 +178,7 @@ async function fixtures(
     title?: string;
     density?: string;
     accent?: string;
+    theme?: 'light' | 'dark';
     configured?: boolean;
     todayCount?: number;
     reviewCount?: number;
@@ -209,6 +253,7 @@ async function fixtures(
         locale: 'es',
         density: options.density ?? 'comfortable',
         accent: options.accent ?? 'indigo',
+        ...(options.theme === undefined ? {} : { theme: options.theme }),
         features: { navigation_order: order },
       };
     }

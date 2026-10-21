@@ -29,7 +29,7 @@ siguen el orden de prioridad de la petición; no se consideran cerrados.
 | TTD-AUD-22 | corregido | [#73](https://github.com/povedica/tick-tack-done/pull/73)                                                            | Fondos por tokens con variantes oscuras; texto y número legibles en las 13 variantes y 6 acentos. Contraste calculado en Chromium ≥4,5:1, incluidos fondos del degradado.   |
 | TTD-AUD-23 | corregido | [#73](https://github.com/povedica/tick-tack-done/pull/73)                                                            | Checkbox/radio en fila; fecha civil ES/EN editable con formato explícito, valida días imposibles y envía ISO sin zona. Selects y modal conservan el estilo común.           |
 | TTD-AUD-24 | corregido | [#73](https://github.com/povedica/tick-tack-done/pull/73)                                                            | Popover controlado: elegir, Escape, clic fuera y reemplazar por menú de tarjeta cierran el anterior; foco restaurado; icono de agrupar distinguible.                        |
-| TTD-AUD-25 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
+| TTD-AUD-25 | corregido | [#73](https://github.com/povedica/tick-tack-done/pull/73)                                                            | Tokens de lateral y rail por tema; selección, hover e iconos legibles. Doce combinaciones tema/acento verificadas en Chromium, incluido selector de tema.                   |
 | TTD-AUD-26 | corregido | [#73](https://github.com/povedica/tick-tack-done/pull/73)                                                            | Botón de acceso usa var(--accent); regresiones violeta y verde que fallaban antes. Registro comparte selector CSS; formulario deshabilitado en este entorno.                |
 | TTD-AUD-27 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
 | TTD-AUD-28 | corregido | [#66](https://github.com/povedica/tick-tack-done/pull/66)                                                            | runAction común aplicado a promesas UI sin rechazo; MutationCache global, avisos accesibles ES/EN, rollback y respaldo unhandledrejection; lint no admite void como escape. |
@@ -310,3 +310,10 @@ regresiones Chromium en verde. Inspección visual del diálogo a 360 px.
 - Estado único para crear/tarjeta; ambos usan Popover con ancla, flechas y Escape. Elegir tipo abre el diálogo y cierra el menú; un menú reemplaza al otro y clic fuera lo cierra.
 - Escape restaura foco en el disparador; botón común admite ref de React 19 para el ancla. Regresiones del menú de tareas y del diálogo de fecha conservadas. Icono de agrupación cambiado a ListFilter.
 - RF-2452, RF-2454 y RF-1902. Sin cambios de API ni de acciones de cuenta atrás.
+
+## TTD-AUD-25: contraste de navegación
+
+- Reproducción confirmada: selección lateral oscura 2,36:1.
+- Fondos de hover/selección y tinta del rail pasan a tokens; claro conserva el lateral y el rail oscurece su hover para mantener contraste. Oscuro usa fondo de selección del acento y tinta clara en iconos.
+- Doce combinaciones (dos temas, seis acentos): texto lateral seleccionado/hover y botón de tema ≥4,5:1; iconos activos/hover ≥3:1. Medición Chromium compone los fondos semitransparentes sobre sus ancestros.
+- Los tokens accent-ink/soft oscuros de los acentos alternativos se corrigieron en el bloque TTD-AUD-22. RF-1903. Sin cambiar estructura ni destinos de navegación.
