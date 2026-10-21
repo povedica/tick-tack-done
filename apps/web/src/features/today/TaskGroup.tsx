@@ -177,7 +177,6 @@ export function TaskGroup({
               }}
               onClick={(event) => {
                 if (
-                  onCreate &&
                   event.target instanceof Element &&
                   !event.target.closest('button, a, input, label')
                 )

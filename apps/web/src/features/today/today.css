@@ -113,6 +113,9 @@
 }
 
 .task-list > li {
+  display: block;
+  padding: 0;
+  border: 0;
   position: relative;
 }
 
@@ -133,6 +136,9 @@
 
 .task-row {
   --task-line-height: 24px;
+  width: 100%;
+  box-sizing: border-box;
+  cursor: pointer;
   position: relative;
   display: flex;
   align-items: flex-start;
@@ -163,8 +169,8 @@
   min-height: var(--task-row-height, var(--row-h));
 }
 
-.task-row:hover {
-  background: var(--surface-2);
+.task-list > li:hover > .task-row {
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface));
 }
 
 .task-row.is-selected,
@@ -1576,6 +1582,6 @@ a.task-title {
 
 @media (min-width: 640px) {
   .task-list {
-    --task-row-height: clamp(2rem, calc(var(--row-h) - 0.375rem), 2.125rem);
+    --task-row-height: min(var(--row-h), 2.5rem);
   }
 }

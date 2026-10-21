@@ -892,3 +892,15 @@ RF-1001: filas desktop de 40 a 34 px (15 % menos de altura), con mínimo de
 32 px al elegir densidad compacta. Texto, checkbox y metadatos conservan tamaño
 y alineación. Ajuste compartido por Hoy y las listas que usan TaskList; móvil
 y tarjetas Kanban mantienen sus dimensiones.
+
+
+Corrección de densidad: se elimina además el padding heredado de 8 px por lado
+y el borde duplicado de los li. Altura efectiva de fila desktop verificada en
+34 px, incluido su contenedor. Clic en espacio vacío abre detalle en Hoy y
+TaskList; hover suave ocupa el ancho completo, manteniendo acciones de botones.
+
+Medición directa de Hoy en TickTick: filas consecutivas de 40 px, margen y
+padding vertical cero; texto 14 px, área de texto 40 px y padding derecho 20 px.
+Se ajusta TTD a 40 px efectivos (densidad compacta conserva 32 px), en vez de
+los 34 px interiores del primer ajuste. La reducción real proviene de retirar
+los 16 px verticales heredados y el borde duplicado del contenedor.

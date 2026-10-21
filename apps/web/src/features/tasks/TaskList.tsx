@@ -111,7 +111,16 @@ export function TaskList({
         data-search={highlightQuery.length > 0 ? 'true' : undefined}
       >
         {visible.map((row) => (
-          <li key={row.id}>
+          <li
+            key={row.id}
+            onClick={(event) => {
+              if (
+                event.target instanceof Element &&
+                !event.target.closest('button, a, input, label')
+              )
+                open(row.id);
+            }}
+          >
             <TaskRow
               messages={messages}
               row={row}

@@ -464,3 +464,37 @@ test('Kanban drag between list columns persists the destination column', async (
     target.getByRole('button', { name: 'Mover entre secciones', exact: true }),
   ).toBeVisible();
 });
+
+for (const path of ['/today?view=list', '/list/work?view=list']) {
+  test(`Desktop list rows are compact, hover across their width and open detail from empty space ${path}`, async ({
+    page,
+  }) => {
+    await fixture(page);
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await page.goto(path);
+    const field = page.locator('.task-composer input[name=title]');
+    await field.fill('Revisar propuesta');
+    await field.press('Enter');
+    const row = page.locator('.task-list .task-row').filter({ hasText: 'Revisar propuesta' });
+    await expect(row).toBeVisible();
+    const metrics = await row.evaluate((node) => ({
+      row: node.getBoundingClientRect().height,
+      parent: node.parentElement!.getBoundingClientRect().height,
+      width: node.getBoundingClientRect().width,
+    }));
+    expect(metrics.row).toBe(40);
+    expect(metrics.parent).toBe(40);
+    await page.mouse.move(0, 0);
+    await expect(row).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    await row.hover({ position: { x: metrics.width - 100, y: 5 } });
+    await expect(row).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    await row.click({ position: { x: metrics.width - 100, y: 5 } });
+    await expect(page.locator('.detail-slot')).toBeVisible();
+    await page.screenshot({
+      path: path.startsWith('/today')
+        ? '/tmp/ttd-compact-list-detail.png'
+        : '/tmp/ttd-list-detail.png',
+      fullPage: true,
+    });
+  });
+}
