@@ -1,8 +1,15 @@
 export type DurationDerivation =
   | { readonly ok: true; readonly durationMinutes: number | null }
-  | { readonly ok: false; readonly reason: 'invalid_date' | 'due_before_start' };
+  | {
+      readonly ok: false;
+      readonly reason: 'invalid_date' | 'due_before_start' | 'duration_mismatch';
+    };
 
-/** When both instants exist, duration is the elapsed minutes. Time zones do not apply. */
+/**
+ * TTD-AUD-56: never silently replace an explicit duration with start→due span.
+ * When both ends exist and an explicit value is set, they must agree (≤24h window)
+ * or the call fails; beyond 24h the span is when/deadline and explicit wins.
+ */
 export function deriveDurationMinutes(input: {
   readonly startDate: string | null;
   readonly dueDate: string | null;
@@ -24,5 +31,8 @@ export function deriveDurationMinutes(input: {
   if (span > 24 * 60) {
     return { ok: true, durationMinutes: input.explicit };
   }
-  return { ok: true, durationMinutes: span };
+  if (input.explicit !== null && input.explicit !== span) {
+    return { ok: false, reason: 'duration_mismatch' };
+  }
+  return { ok: true, durationMinutes: input.explicit ?? span };
 }

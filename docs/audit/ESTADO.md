@@ -59,9 +59,9 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-51 | 1 | pendiente | — | Depende de 54 |
 | TTD-AUD-52 | 1 | pendiente | — | Depende de 54 |
 | TTD-AUD-53 | 1 | pendiente | — | Depende de 54 |
-| TTD-AUD-54 | 0 | en curso | — | Validación estricta MCP |
-| TTD-AUD-55 | 0 | en curso | — | Fechas date-only → all-day local |
-| TTD-AUD-56 | 0 | en curso | — | Depende de 55; duración explícita |
+| TTD-AUD-54 | 0 | corregido | #71 | Validación estricta MCP con validateMcpArgs |
+| TTD-AUD-55 | 0 | corregido | #71 | parseTaskInstant YYYY-MM-DD → medianoche local + is_all_day |
+| TTD-AUD-56 | 0 | corregido | #71 | deriveDurationMinutes rechaza mismatch; no pisa explicit |
 | TTD-AUD-57 | 1 | pendiente | — | Depende de 54 |
 | TTD-AUD-58 | 3 | pendiente | — | |
 | TTD-AUD-59 | 2 | pendiente | — | |
@@ -70,7 +70,7 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-62 | 2 | pendiente | — | Depende de 14 |
 | TTD-AUD-63 | 2 | pendiente | — | |
 | TTD-AUD-64 | 2 | pendiente | — | |
-| TTD-AUD-65 | 0 | en curso | — | Historial anidado (crítica) |
+| TTD-AUD-65 | 0 | corregido | #71 | taskEventSnapshot + migración strip activity |
 | TTD-AUD-66 | 2 | pendiente | — | Depende de 59 |
 | TTD-AUD-67 | 2 | pendiente | — | Depende de 66 |
 | TTD-AUD-68 | 2 | pendiente | — | Depende de 66 |
@@ -83,7 +83,10 @@ Base: `origin/main` @ arranque de la rama.
 ## Resumen por fase
 
 ### Fase 0 — en curso
-Arranque: docs de auditoría + ESTADO. Siguiente: 65 → 55/56 → 54 → verificar 01/02/11/28 → 09/10/16/29.
+- Corregidos: 65 (snapshot + migración), 55/56 (fechas/duración), 54 (validación MCP).
+- Pendiente: verificar 01/02/11/28; corregir 09/10/16/29.
 
 ### Comprobaciones manuales pendientes
-(Se rellenan al cerrar cada fase.)
+- Tras desplegar: editar una tarea 10+ veces y confirmar que `activity_log.changes` no anida `activity`.
+- MCP `create_task` con `due_date: "YYYY-MM-DD"` → all-day en Europe/Madrid.
+- MCP `update_task` con campo inventado → `isError: true`.

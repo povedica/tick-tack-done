@@ -53,18 +53,39 @@ describe('tasks', () => {
     });
   });
 
-  it('derives duration from start and due, and keeps an explicit value otherwise', () => {
+  it('TTD-AUD-56: derives duration from span, keeps explicit alone, rejects mismatch', () => {
+    expect(
+      deriveDurationMinutes({
+        startDate: '2026-10-17T09:00:00.000Z',
+        dueDate: '2026-10-17T10:30:00.000Z',
+        explicit: null,
+      }),
+    ).toEqual({ ok: true, durationMinutes: 90 });
+    expect(
+      deriveDurationMinutes({
+        startDate: '2026-10-17T09:00:00.000Z',
+        dueDate: '2026-10-17T10:30:00.000Z',
+        explicit: 90,
+      }),
+    ).toEqual({ ok: true, durationMinutes: 90 });
     expect(
       deriveDurationMinutes({
         startDate: '2026-10-17T09:00:00.000Z',
         dueDate: '2026-10-17T10:30:00.000Z',
         explicit: 5,
       }),
-    ).toEqual({ ok: true, durationMinutes: 90 });
+    ).toEqual({ ok: false, reason: 'duration_mismatch' });
     expect(deriveDurationMinutes({ startDate: null, dueDate: null, explicit: 25 })).toEqual({
       ok: true,
       durationMinutes: 25,
     });
+    expect(
+      deriveDurationMinutes({
+        startDate: null,
+        dueDate: '2026-10-17T10:00:00.000Z',
+        explicit: 30,
+      }),
+    ).toEqual({ ok: true, durationMinutes: 30 });
     expect(
       deriveDurationMinutes({
         startDate: '2026-10-17T11:00:00.000Z',

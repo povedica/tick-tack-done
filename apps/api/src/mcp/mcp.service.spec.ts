@@ -256,6 +256,26 @@ describe('McpService recurrence mapping', () => {
       'invalid_zone: time_zone must be an IANA name like Europe/Madrid',
     );
   });
+
+  it('TTD-AUD-54: rejects unknown update_task fields without calling the service', async () => {
+    const result = await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 8,
+      method: 'tools/call',
+      params: {
+        name: 'update_task',
+        arguments: {
+          id: '33333333-3333-4333-8333-333333333333',
+          tag_ids: ['22222222-2222-4222-8222-222222222222'],
+          status: 'completed',
+        },
+      },
+    });
+    expect(tasks.update).not.toHaveBeenCalled();
+    const body = result as { result: { isError: true; content: { text: string }[] } };
+    expect(body.result.isError).toBe(true);
+    expect(toolText(result)).toContain('Campos no admitidos: tag_ids, status');
+  });
 });
 
 function toolText(body: unknown): string {

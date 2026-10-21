@@ -15,6 +15,7 @@ import {
   nextOccurrence,
   normalizeTaskTitle,
   occurrencesBetween,
+  parseTaskInstant,
   resolveSubtaskProject,
   parseTrigger,
   reminderFireAt,
@@ -37,6 +38,7 @@ import { EventRecorder } from '../../events/event-recorder.js';
 import { DomainException } from '../../http/domain.exception.js';
 import { asJson } from '../../http/json.js';
 import { readClocks, selectPatch, stampTerminal } from './field-clocks.js';
+import { taskEventSnapshot } from './task-event-snapshot.js';
 import { normalizeIdempotencyKey, requestFingerprint } from '../../idempotency/fingerprint.js';
 import { IdempotencyService } from '../../idempotency/idempotency.service.js';
 import { placementPlan } from '../../ordering/placement.js';
@@ -191,10 +193,10 @@ export class TasksService {
               dueDate: {
                 ...(query.dueBefore === undefined
                   ? {}
-                  : { lt: this.instant(query.dueBefore, 'due_before') }),
+                  : { lt: this.instant(query.dueBefore, 'due_before', 'UTC').date }),
                 ...(query.dueAfter === undefined
                   ? {}
-                  : { gt: this.instant(query.dueAfter, 'due_after') }),
+                  : { gt: this.instant(query.dueAfter, 'due_after', 'UTC').date }),
               },
             }),
         isSomeday: query.someday === true,
@@ -354,10 +356,19 @@ export class TasksService {
       const title = dto.title === undefined ? current.title : this.title(dto.title);
       const timeZone = dto.time_zone === undefined ? current.timeZone : this.zone(dto.time_zone);
       const someday = dto.someday ?? current.isSomeday;
-      const start = someday ? null : this.nextDate(current.startDate, dto.start_date, 'start_date');
-      const due = this.nextDate(current.dueDate, dto.due_date, 'due_date');
-      const isAllDay = dto.is_all_day ?? current.isAllDay;
+      const startParsed = someday
+        ? { date: null as Date | null, dateOnly: false }
+        : this.nextDate(current.startDate, dto.start_date, 'start_date', timeZone);
+      const dueParsed = this.nextDate(current.dueDate, dto.due_date, 'due_date', timeZone);
+      const start = startParsed.date;
+      const due = dueParsed.date;
+      const inferredAllDay =
+        (dto.start_date !== undefined && startParsed.dateOnly) ||
+        (dto.due_date !== undefined && dueParsed.dateOnly);
+      const isAllDay =
+        dto.is_all_day ?? (inferredAllDay ? true : current.isAllDay);
       this.assertTimed(due, isAllDay, timeZone);
+      this.assertTimed(start, isAllDay, timeZone);
       const duration = this.duration(
         start,
         due,
@@ -442,8 +453,8 @@ export class TasksService {
         entityType: detail.kind === 'note' ? 'note' : 'task',
         entityId: id,
         action: 'updated',
-        data: { task: asJson(detail) },
-        previous: asJson(previous),
+        data: { task: asJson(taskEventSnapshot(detail)) },
+        previous: asJson(taskEventSnapshot(previous)),
       });
       return this.load(tx, user, id, false);
     });
@@ -481,7 +492,7 @@ export class TasksService {
         entityType: 'task',
         entityId: id,
         action: 'updated',
-        data: { task: asJson(detail) },
+        data: { task: asJson(taskEventSnapshot(detail)) },
         previous: { status: current.status },
       });
       return detail;
@@ -519,7 +530,7 @@ export class TasksService {
         entityType: 'task',
         entityId: id,
         action: 'deleted',
-        data: { task: asJson(detail) },
+        data: { task: asJson(taskEventSnapshot(detail)) },
         previous: null,
       });
     });
@@ -579,7 +590,7 @@ export class TasksService {
         entityType: 'task',
         entityId: id,
         action: 'updated',
-        data: { task: asJson(detail) },
+        data: { task: asJson(taskEventSnapshot(detail)) },
         previous: { status: 'completed' },
       });
       return detail;
@@ -626,7 +637,7 @@ export class TasksService {
         entityType: 'task',
         entityId: id,
         action: 'updated',
-        data: { task: asJson(detail), snoozed_to: preset },
+        data: { task: asJson(taskEventSnapshot(detail)), snoozed_to: preset },
         previous: { due_date: current.dueDate?.toISOString() ?? null },
       });
       return detail;
@@ -692,7 +703,7 @@ export class TasksService {
           'due_date is invalid',
         );
       }
-      const target = this.instant(dueDate, 'due_date');
+      const target = this.instant(dueDate, 'due_date', current.timeZone).date;
       const currentDue = current.dueDate?.getTime() ?? Number.NaN;
       const detachesCurrent = Math.abs(currentDue - target.getTime()) < 1000;
       if (detachesCurrent) {
@@ -724,7 +735,7 @@ export class TasksService {
           entityType: 'task',
           entityId: id,
           action: 'updated',
-          data: { task: asJson(detail), detached: true },
+          data: { task: asJson(taskEventSnapshot(detail)), detached: true },
           previous: { repeat_rule: current.repeatRule },
         });
         return detail;
@@ -775,7 +786,7 @@ export class TasksService {
         entityType: created.kind === 'note' ? 'note' : 'task',
         entityId: copyId,
         action: 'created',
-        data: { task: asJson(created), detached_from: id },
+        data: { task: asJson(taskEventSnapshot(created)), detached_from: id },
         previous: null,
       });
       return created;
@@ -838,7 +849,7 @@ export class TasksService {
         entityType: 'task',
         entityId: id,
         action: 'updated',
-        data: { task: asJson(detail) },
+        data: { task: asJson(taskEventSnapshot(detail)) },
         previous: { project_id: current.projectId, column_id: current.columnId },
       });
       return detail;
@@ -927,7 +938,9 @@ export class TasksService {
         }
       } else if (dto.action === 'due') {
         const due =
-          dto.due_date === undefined ? null : this.nextDate(null, dto.due_date, 'due_date');
+          dto.due_date === undefined
+            ? null
+            : this.nextDate(null, dto.due_date, 'due_date', user.timeZone).date;
         await tx.task.updateMany({
           where: { ownerId: user.id, id: { in: dto.ids } },
           data: { dueDate: due },
@@ -999,7 +1012,7 @@ export class TasksService {
         entityType: 'task',
         entityId: id,
         action: 'updated',
-        data: { task: asJson(detail) },
+        data: { task: asJson(taskEventSnapshot(detail)) },
         previous: { deleted_at: current.deletedAt.toISOString() },
       });
       return detail;
@@ -1066,16 +1079,20 @@ export class TasksService {
             data: { sortOrder: update.sortOrder },
           });
         }
+        const itemZone = dto.time_zone === undefined ? user.timeZone : this.zone(dto.time_zone);
+        const startParsed = this.nextDate(null, dto.start_date, 'start_date', itemZone);
+        const dueParsed = this.nextDate(null, dto.due_date, 'due_date', itemZone);
+        const inferredAllDay = startParsed.dateOnly || dueParsed.dateOnly;
         const row = await tx.checklistItem.create({
           data: {
             ownerId: user.id,
             taskId,
             title: this.title(dto.title),
             sortOrder: plan.movingSortOrder,
-            startDate: this.nextDate(null, dto.start_date, 'start_date'),
-            dueDate: this.nextDate(null, dto.due_date, 'due_date'),
-            isAllDay: dto.is_all_day ?? false,
-            timeZone: dto.time_zone === undefined ? user.timeZone : this.zone(dto.time_zone),
+            startDate: startParsed.date,
+            dueDate: dueParsed.date,
+            isAllDay: dto.is_all_day ?? (inferredAllDay ? true : false),
+            timeZone: itemZone,
           },
         });
         const body = toChecklistJson(taskId, row);
@@ -1114,18 +1131,29 @@ export class TasksService {
           });
         }
       }
+      const itemZone = dto.time_zone === undefined ? current.timeZone : this.zone(dto.time_zone);
+      const startParsed =
+        dto.start_date === undefined
+          ? null
+          : this.nextDate(current.startDate, dto.start_date, 'start_date', itemZone);
+      const dueParsed =
+        dto.due_date === undefined
+          ? null
+          : this.nextDate(current.dueDate, dto.due_date, 'due_date', itemZone);
+      const inferredAllDay =
+        (startParsed?.dateOnly ?? false) || (dueParsed?.dateOnly ?? false);
       const row = await tx.checklistItem.update({
         where: { id: itemId },
         data: {
           ...(dto.title !== undefined ? { title: this.title(dto.title) } : {}),
-          ...(dto.start_date !== undefined
-            ? { startDate: this.nextDate(current.startDate, dto.start_date, 'start_date') }
-            : {}),
-          ...(dto.due_date !== undefined
-            ? { dueDate: this.nextDate(current.dueDate, dto.due_date, 'due_date') }
-            : {}),
-          ...(dto.is_all_day !== undefined ? { isAllDay: dto.is_all_day } : {}),
-          ...(dto.time_zone !== undefined ? { timeZone: this.zone(dto.time_zone) } : {}),
+          ...(startParsed !== null ? { startDate: startParsed.date } : {}),
+          ...(dueParsed !== null ? { dueDate: dueParsed.date } : {}),
+          ...(dto.is_all_day !== undefined
+            ? { isAllDay: dto.is_all_day }
+            : inferredAllDay
+              ? { isAllDay: true }
+              : {}),
+          ...(dto.time_zone !== undefined ? { timeZone: itemZone } : {}),
           ...(plan !== null ? { sortOrder: plan.movingSortOrder } : {}),
         },
       });
@@ -1360,7 +1388,7 @@ export class TasksService {
             absoluteAt:
               dto.absolute_at === undefined || dto.absolute_at === null
                 ? null
-                : this.instant(dto.absolute_at, 'absolute_at'),
+                : this.instant(dto.absolute_at, 'absolute_at', task.timeZone).date,
             channel: dto.channel ?? 'push',
             constant: dto.constant ?? false,
             constantIntervalMinutes:
@@ -1519,12 +1547,15 @@ export class TasksService {
     }
     const capturedStart = dto.start_date !== undefined ? dto.start_date : captured?.startDate;
     const someday = dto.someday ?? captured?.someday ?? false;
-    const start = this.nextDate(null, someday ? null : capturedStart, 'start_date');
-    const due = this.nextDate(
+    const startParsed = this.nextDate(null, someday ? null : capturedStart, 'start_date', timeZone);
+    const dueParsed = this.nextDate(
       null,
       dto.due_date !== undefined ? dto.due_date : captured?.dueDate,
       'due_date',
+      timeZone,
     );
+    const start = startParsed.date;
+    const due = dueParsed.date;
     const sortOrder = await this.planTaskSort(
       tx,
       user.id,
@@ -1539,8 +1570,10 @@ export class TasksService {
       due,
       timeZone,
     );
-    const isAllDay = dto.is_all_day ?? captured?.isAllDay ?? false;
+    const inferredAllDay = startParsed.dateOnly || dueParsed.dateOnly;
+    const isAllDay = dto.is_all_day ?? captured?.isAllDay ?? (inferredAllDay ? true : false);
     this.assertTimed(due, isAllDay, timeZone);
+    this.assertTimed(start, isAllDay, timeZone);
     const id = randomUUID();
     const row = await tx.task.create({
       data: {
@@ -1596,7 +1629,7 @@ export class TasksService {
       entityType: detail.kind === 'note' ? 'note' : 'task',
       entityId: row.id,
       action: 'created',
-      data: { task: asJson(detail) },
+      data: { task: asJson(taskEventSnapshot(detail)) },
       previous: null,
     });
     const created = await this.load(tx, user, row.id, false);
@@ -1719,7 +1752,7 @@ export class TasksService {
       entityType: 'task',
       entityId: id,
       action: 'completed',
-      data: { task: asJson(detail) },
+      data: { task: asJson(taskEventSnapshot(detail)) },
       previous: { status: current.status },
     });
 
@@ -1900,7 +1933,7 @@ export class TasksService {
       entityId: id,
       action: 'created',
       data: {
-        task: asJson(detail),
+        task: asJson(taskEventSnapshot(detail)),
         materialized_from: source.id,
       },
       previous: null,
@@ -1993,7 +2026,7 @@ export class TasksService {
       entityType: 'task',
       entityId: copy.id,
       action: 'created',
-      data: { task: asJson(detail), duplicated_from: source.id },
+      data: { task: asJson(taskEventSnapshot(detail)), duplicated_from: source.id },
       previous: null,
     });
     return copy.id;
@@ -2082,7 +2115,7 @@ export class TasksService {
       entityType: 'task',
       entityId: id,
       action: 'updated',
-      data: { task: asJson(detail) },
+      data: { task: asJson(taskEventSnapshot(detail)) },
       previous: null,
     });
   }
@@ -2316,8 +2349,8 @@ export class TasksService {
     return row;
   }
 
-  private assertTimed(due: Date | null, isAllDay: boolean, timeZone: string): void {
-    if (allDayClockConflict(due === null ? null : due.toISOString(), isAllDay, timeZone)) {
+  private assertTimed(value: Date | null, isAllDay: boolean, timeZone: string): void {
+    if (allDayClockConflict(value === null ? null : value.toISOString(), isAllDay, timeZone)) {
       throw new DomainException(
         HttpStatus.BAD_REQUEST,
         'validation_failed',
@@ -2448,30 +2481,35 @@ export class TasksService {
     return listOverdueTaskIds(this.prisma, ownerId);
   }
 
-  private instant(value: string, field: string): Date {
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) {
+  private instant(
+    value: string,
+    field: string,
+    timeZone: string,
+  ): { date: Date; dateOnly: boolean } {
+    const parsed = parseTaskInstant(value, timeZone);
+    if (!parsed.ok) {
       throw new DomainException(
         HttpStatus.BAD_REQUEST,
         'validation_failed',
         `${field} is not a valid date`,
       );
     }
-    return parsed;
+    return { date: new Date(parsed.iso), dateOnly: parsed.dateOnly };
   }
 
   private nextDate(
     current: Date | null,
     incoming: string | null | undefined,
     field: string,
-  ): Date | null {
+    timeZone: string,
+  ): { date: Date | null; dateOnly: boolean } {
     if (incoming === undefined) {
-      return current;
+      return { date: current, dateOnly: false };
     }
     if (incoming === null) {
-      return null;
+      return { date: null, dateOnly: false };
     }
-    return this.instant(incoming, field);
+    return this.instant(incoming, field, timeZone);
   }
 
   private duration(start: Date | null, due: Date | null, explicit: number | null): number | null {
@@ -2481,6 +2519,13 @@ export class TasksService {
       explicit,
     });
     if (!derived.ok) {
+      if (derived.reason === 'duration_mismatch') {
+        throw new DomainException(
+          HttpStatus.BAD_REQUEST,
+          'validation_failed',
+          'duration_minutes does not match start_date/due_date',
+        );
+      }
       throw new DomainException(
         HttpStatus.UNPROCESSABLE_ENTITY,
         'deadline_before_when',

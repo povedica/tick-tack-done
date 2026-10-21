@@ -29,6 +29,7 @@ import { TagsService } from '../modules/tags/tags.service.js';
 import { DayClosingService } from '../modules/planning/day-closing.service.js';
 import { TasksService } from '../modules/tasks/tasks.service.js';
 import { CalendarService } from '../modules/calendar/calendar.service.js';
+import { validateMcpArgs } from './mcp-args.js';
 import { findTool, visibleTools } from './mcp.catalog.js';
 
 const PROTOCOL = '2025-03-26';
@@ -145,6 +146,10 @@ export class McpService {
       return toolError(`scope_missing: ${missing.join(', ')}`);
     }
     const args = isRecord(params.arguments) ? params.arguments : {};
+    const validation = validateMcpArgs(tool.inputSchema, args);
+    if (!validation.ok) {
+      return toolError('validation_failed', validation.message);
+    }
     const data = await this.run(user, tool.name, args);
     return { content: [{ type: 'text', text: JSON.stringify(data) }], isError: false };
   }

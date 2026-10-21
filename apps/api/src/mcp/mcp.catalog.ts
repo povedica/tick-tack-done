@@ -110,10 +110,24 @@ export const MCP_TOOLS: readonly McpTool[] = [
       {
         title: { type: 'string', minLength: 1, maxLength: 500 },
         project_id: id,
-        due_date: { type: 'string' },
-        start_date: { type: 'string' },
+        due_date: {
+          type: 'string',
+          description:
+            'YYYY-MM-DD = all-day in the task time zone; YYYY-MM-DDTHH:mm±hh:mm = timed instant.',
+        },
+        start_date: {
+          type: 'string',
+          description:
+            'YYYY-MM-DD = all-day in the task time zone; YYYY-MM-DDTHH:mm±hh:mm = timed instant.',
+        },
         is_all_day: { type: 'boolean' },
-        duration_minutes: { type: 'integer', minimum: 0, maximum: 1440 },
+        duration_minutes: {
+          type: 'integer',
+          minimum: 0,
+          maximum: 1440,
+          description:
+            'Kept as given. If start_date and due_date are both set within 24h, must match their span.',
+        },
         priority: { type: 'string', enum: ['none', 'low', 'medium', 'high'] },
         someday: { type: 'boolean' },
         evening_only: { type: 'boolean' },
@@ -160,10 +174,24 @@ export const MCP_TOOLS: readonly McpTool[] = [
       {
         id,
         title: { type: 'string', minLength: 1, maxLength: 500 },
-        due_date: { type: ['string', 'null'] },
-        start_date: { type: ['string', 'null'] },
+        due_date: {
+          type: ['string', 'null'],
+          description:
+            'YYYY-MM-DD = all-day in the task time zone; YYYY-MM-DDTHH:mm±hh:mm = timed instant; null clears.',
+        },
+        start_date: {
+          type: ['string', 'null'],
+          description:
+            'YYYY-MM-DD = all-day in the task time zone; YYYY-MM-DDTHH:mm±hh:mm = timed instant; null clears.',
+        },
         is_all_day: { type: 'boolean' },
-        duration_minutes: { type: ['integer', 'null'], minimum: 0, maximum: 1440 },
+        duration_minutes: {
+          type: ['integer', 'null'],
+          minimum: 0,
+          maximum: 1440,
+          description:
+            'Kept as given. If start_date and due_date are both set within 24h, must match their span.',
+        },
         priority: { type: 'string', enum: ['none', 'low', 'medium', 'high'] },
         someday: { type: 'boolean' },
         evening_only: { type: 'boolean' },
