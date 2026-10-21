@@ -1,9 +1,11 @@
 import { runAction } from '../../components/run-action';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { MoreHorizontal, Plus } from 'lucide-react';
-import { useState } from 'react';
+import { LayoutGrid, Plus } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Popover } from '../../components/Popover';
 import { Button, EmptyState } from '../../components/ui';
 import { UndoToastStack } from '../../components/UndoToast';
+import { fill, useMessages } from '../../i18n';
 import { newMutation, runOrQueue } from '../offline/client';
 import { CountdownCard } from './CountdownCard';
 import { CountdownDialog } from './CountdownDialog';
@@ -12,9 +14,13 @@ import { groupCountdowns, TYPE_LABEL } from './presentation';
 import './countdowns.css';
 
 export function CountdownsPage() {
+  const messages = useMessages();
   const client = useQueryClient();
   const [archived, setArchived] = useState(false);
   const [grouped, setGrouped] = useState(false);
+  const [newOpen, setNewOpen] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<Countdown | null>(null);
+  const newAnchor = useRef<HTMLButtonElement>(null);
   const [dialog, setDialog] = useState<{ type: CountdownType; countdown?: Countdown } | null>(null);
   const [deleted, setDeleted] = useState<
     readonly { id: string; title: string; countdown: Countdown }[]
@@ -39,6 +45,7 @@ export function CountdownsPage() {
     },
     onSuccess: async () => {
       setDialog(null);
+      setNewOpen(false);
       await refresh();
     },
   });
@@ -69,13 +76,7 @@ export function CountdownsPage() {
             archive.mutate({ item, restore: archived });
           }}
           onDelete={() => {
-            if (window.confirm(`¿Eliminar «${item.title}»?`)) {
-              setDeleted((current) => [
-                ...current,
-                { id: crypto.randomUUID(), title: item.title, countdown: item },
-              ]);
-              remove.mutate(item);
-            }
+            setPendingDelete(item);
           }}
         />
       ))}
@@ -85,74 +86,89 @@ export function CountdownsPage() {
     <main className="countdowns screen-page">
       <header className="countdown-header">
         <div className="countdown-title-select">
-          <h1>Cuenta atrás</h1>
+          <h1>{messages.navCountdowns}</h1>
           <select
-            aria-label="Vista de cuentas atrás"
+            aria-label={messages.countdownViewLabel}
             value={archived ? 'archived' : 'active'}
             onChange={(event) => {
               setArchived(event.target.value === 'archived');
             }}
           >
-            <option value="active">Activos</option>
-            <option value="archived">Archivados</option>
+            <option value="active">{messages.countdownActive}</option>
+            <option value="archived">{messages.countdownArchived}</option>
           </select>
         </div>
         <div className="countdown-toolbar">
           {!archived ? (
-            <details>
-              <summary>
-                <Plus size={18} /> Nueva
-              </summary>
-              <div className="countdown-menu">
-                {(Object.entries(TYPE_LABEL) as [CountdownType, string][]).map(([type, label]) => (
-                  <button
-                    type="button"
-                    key={type}
-                    onClick={() => {
-                      setDialog({ type });
-                    }}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </details>
+            <>
+              <button
+                ref={newAnchor}
+                type="button"
+                aria-expanded={newOpen}
+                aria-haspopup="menu"
+                onClick={() => {
+                  setNewOpen((current) => !current);
+                }}
+              >
+                <Plus size={18} /> {messages.countdownNew}
+              </button>
+              <Popover
+                open={newOpen}
+                label={messages.countdownNew}
+                anchor={newAnchor}
+                onClose={() => {
+                  setNewOpen(false);
+                }}
+              >
+                <div className="countdown-menu" role="menu">
+                  {(Object.entries(TYPE_LABEL) as [CountdownType, string][]).map(([type, label]) => (
+                    <button
+                      type="button"
+                      key={type}
+                      role="menuitem"
+                      onClick={() => {
+                        setNewOpen(false);
+                        setDialog({ type });
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </Popover>
+            </>
           ) : null}
           <button
             type="button"
             aria-pressed={grouped}
-            title="Agrupar por tipo"
+            title={messages.countdownGroupByType}
             onClick={() => {
               setGrouped((current) => !current);
             }}
           >
-            <MoreHorizontal size={20} />
-            <span className="sr-only">Agrupar por tipo</span>
+            <LayoutGrid size={20} />
+            <span className="sr-only">{messages.countdownGroupByType}</span>
           </button>
         </div>
       </header>
-      {rows.isPending ? <p>Cargando cuentas atrás…</p> : null}
+      {rows.isPending ? <p>{messages.countdownLoading}</p> : null}
       {rows.isError ? (
         <p className="error">
-          No se han podido cargar las cuentas atrás.{' '}
+          {messages.countdownLoadFailed}{' '}
           <button
             type="button"
             onClick={() => {
               runAction(rows.refetch());
             }}
           >
-            Reintentar
+            {messages.retry}
           </button>
         </p>
       ) : null}
       {!rows.isPending && items.length === 0 ? (
         <EmptyState
-          title={archived ? 'Nada archivado' : 'Crea tu primera cuenta atrás'}
-          body={
-            archived
-              ? 'Las cuentas atrás archivadas aparecerán aquí.'
-              : 'Sigue las fechas importantes desde un solo lugar.'
-          }
+          title={archived ? messages.countdownEmptyArchived : messages.countdownEmptyTitle}
+          body={archived ? messages.countdownEmptyArchivedBody : messages.countdownEmptyBody}
           action={
             !archived ? (
               <Button
@@ -161,7 +177,7 @@ export function CountdownsPage() {
                   setDialog({ type: 'countdown' });
                 }}
               >
-                Crear cuenta atrás
+                {messages.countdownCreate}
               </Button>
             ) : undefined
           }
@@ -175,6 +191,39 @@ export function CountdownsPage() {
               {renderCards(entries)}
             </section>
           ))}
+      {pendingDelete !== null ? (
+        <div className="token-confirm countdown-confirm" role="alertdialog">
+          <p>{fill(messages.countdownDeleteConfirm, pendingDelete.title)}</p>
+          <span className="token-actions">
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setPendingDelete(null);
+              }}
+            >
+              {messages.cancel}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="danger"
+              onClick={() => {
+                const item = pendingDelete;
+                setPendingDelete(null);
+                setDeleted((current) => [
+                  ...current,
+                  { id: crypto.randomUUID(), title: item.title, countdown: item },
+                ]);
+                remove.mutate(item);
+              }}
+            >
+              {messages.purge}
+            </Button>
+          </span>
+        </div>
+      ) : null}
       {dialog !== null ? (
         <CountdownDialog
           type={dialog.type}
@@ -192,8 +241,8 @@ export function CountdownsPage() {
       ) : null}
       <UndoToastStack
         items={deleted}
-        message="Se ha eliminado «{name}»"
-        undoLabel="Deshacer"
+        message={messages.countdownDeleted}
+        undoLabel={messages.undo}
         onExpire={(id) => {
           setDeleted((current) => current.filter((item) => item.id !== id));
         }}

@@ -29,15 +29,15 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-21 | 3 | corregido | #71 | h1 nowrap; emoji fuera del clamp |
 | TTD-AUD-22 | 5 | corregido | #71 | Tokens dark --countdown-*-bg/ink |
 | TTD-AUD-23 | 5 | corregido (parcial) | #71 | Labels checkbox/radio flex; date/select nativos pendientes |
-| TTD-AUD-24 | 5 | pendiente | — | |
+| TTD-AUD-24 | 5 | corregido | #71 | Popover Nueva + LayoutGrid; confirm inline |
 | TTD-AUD-25 | 5 | corregido (parcial) | #71 | Active/hover tokens + rail oscuro; theme switch pendiente |
 | TTD-AUD-26 | 5 | corregido | #71 | Login submit usa --accent |
-| TTD-AUD-27 | 5 | corregido (parcial) | #71 | Due hoy/mañana i18n; countdowns/ticky pendientes |
+| TTD-AUD-27 | 5 | corregido (parcial) | #71 | Due hoy + página countdowns i18n; ticky/dialog pendientes |
 | TTD-AUD-28 | 0 | verificado en tests | #66 | Tests: run-action.spec.ts, query-client.spec.ts |
 | TTD-AUD-29 | 0 | corregido | #71 | onUnauthorized → login?next=; red ≠ logout |
 | TTD-AUD-30 | 5 | pendiente | — | |
 | TTD-AUD-31 | 5 | pendiente | — | |
-| TTD-AUD-32 | 5 | corregido (parcial) | #71 | Plural 1 tarea + boot sesión; confirm() nativo pendiente |
+| TTD-AUD-32 | 5 | corregido (parcial) | #71 | Plural + boot; confirm countdowns; hábitos/plan pendientes |
 | TTD-AUD-33 | 3 | corregido | #71 | Hoja inferior «Más»; Ticky filtrado; scrim encima |
 | TTD-AUD-34 | 5 | pendiente | — | |
 | TTD-AUD-35 | 4 | verificado en main | #63 | Paginación tokens; no reimplementar |
@@ -66,7 +66,7 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-58 | 3 | corregido | #71 | outlet sin padding-top; sticky bajo cabecera; viewport-fit |
 | TTD-AUD-59 | 2 | corregido (parcial) | #71 | ViewPrefs local + print CSS + hideCompleted fijo; sync servidor pendiente |
 | TTD-AUD-60 | 2 | corregido | #71 | Detalle fijo + abrir tarea en ruta actual (matrix/calendar/plan/focus) |
-| TTD-AUD-61 | 2 | corregido (parcial) | #71 | sectionOf + ocultar sidebar; CalendarSidebar stub (mini-mes pendiente) |
+| TTD-AUD-61 | 2 | corregido | #71 | sectionOf + CalendarSidebar mini-mes; fuentes casillas pendientes |
 | TTD-AUD-62 | 2 | corregido | #71 | minimalQuadrantPatch; skip mismo cuadrante; undo; no clear en drop |
 | TTD-AUD-63 | 2 | corregido | #71 | Flag ticky + useTickyAvailable; FeatureRoute; server-off bloquea switch |
 | TTD-AUD-64 | 2 | corregido (parcial) | #71 | CaptureSheet tarjeta + Popover width/align; menú composer pendiente de pulido |
@@ -87,7 +87,7 @@ Base: `origin/main` @ arranque de la rama.
 
 ### Fase 1 — MCP casi cerrada en #71
 - Corregidos: 48, 49, 50, 51, 53.
-- Parcial: 52 (faltan recordatorios y más filtros), 57 (ops + UI «vía» pendiente).
+- Corregido 52 (reminders + filtros list_tasks). Parcial: 57 (ops + UI «vía» pendiente).
 
 ### Fase 2 — en curso en #71
 - Corregidos: 08, 63; 64 parcial (tarjeta captura + Popover).
