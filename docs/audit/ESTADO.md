@@ -324,3 +324,307 @@ en primera celda y siete días ordenados. Deslizar horizontalmente avanza o
 retrocede una semana; no debe impedir el scroll vertical. Referencias del chat:
 `codex-clipboard-7e1f432b-608e-469d-b90b-a81d48eb9213.jpg` y
 `codex-clipboard-0e245194-1530-462c-9e44-8c489f73950f.jpg`.
+
+
+### Relevo de sesión — cambios locales aún sin commit (21/10)
+
+Decisiones posteriores de Pablo, vinculantes:
+- Cabecera simplificada en todas las vistas: retirar todos los botones «⋯».
+- Selector de vistas con icono de la vista activa; cambia al seleccionar otra.
+- Botón de filtros en escritorio/móvil: panel flotante con listas, filtros
+  guardados, etiquetas y calendarios activos (Google e iCal). Se traslada ahí
+  la opción de semana laboral; navegación móvil dentro del selector de vistas.
+- Semana móvil en dos columnas: minicalendario primero y siete celdas de día,
+  horas a la derecha; gesto horizontal para cambiar semanas.
+- Año: gesto vertical (arriba siguiente año, abajo anterior); conservar los
+  doce meses dentro del viewport. Pablo ha validado favorablemente la maquetación
+  anual, pero observa lentitud al cargar (pendiente de analizar, sin diagnóstico).
+- Acercar nombres de meses a los días y separar algo más los números.
+- Suavizar SOLO las siglas de los días de semana (peso 400/color secundario).
+  No suavizar los números: corrección explícita del usuario incorporada.
+- Desplegable de vistas sin salto de tamaño/posición al abrir por primera vez.
+
+Implementación en curso en Places.tsx, calendar.css, tokens.css, extra.ts,
+CalendarControls.tsx, Popover.tsx y calendar-v2.spec.ts. No está commiteada ni
+se declara completo el alcance 75. Filtros en URL y vía endpoints existentes,
+sin cambios API. Visibilidad de calendarios con estado optimista mientras se
+actualiza y recarga la consulta. Popover anclado oculto durante medición inicial.
+
+Última comprobación de la versión local: cinco Playwright dirigidos pasan
+(minicalendario, teclado/cierre de menús, Dos semanas, Semana móvil y Año táctil).
+Los dos gestos usan entrada táctil de Chromium/CDP; se espera a que exista la
+cuadrícula antes del gesto. Datos API simulados, sin sesión real del usuario.
+Antes habían pasado pruebas de viewport Año 390/1280 claro/oscuro, filtros
+390/1280 y estabilidad del primer popover; repetir solo lo afectado tras cambios.
+
+Última comprobación general: typecheck y 598 tests verdes antes de los últimos
+ajustes. Lint detectó expresiones void y borrado dinámico de una propiedad;
+corregidos, pero falta una ejecución final de lint/typecheck en el estado actual.
+OpenAPI regenerado sin cambios. No se ha probado la sesión backend del usuario.
+No se han publicado imágenes nuevas: las vistas inspeccionadas están en /tmp.
+
+Commits publicados: 8a5676a (Dos semanas) y a4c226a (Año en viewport).
+Falta revisar diff, cerrar checks finales, actualizar evidencia de PR y guardar
+el corte en la misma PR 73. No incluir documentos locales ajenos al agente.
+
+
+### Ajustes móviles de calendario — RF-1101 (21/10)
+
+Días ajenos al mes con números de menor peso y contraste en móvil. Agenda del
+día en panel de 92dvh, scroll interior y X negra arriba a la derecha con nombre
+accesible. Fondo oscuro y difuminado mediante tokens compartidos con diálogos y
+paneles laterales. Navegación vertical compartida entre Mes y Año: arriba avanza,
+abajo retrocede; se suprime el clic posterior al gesto.
+
+Evidencia con API simulada: Playwright del panel (altura, scroll y cierre) y dos
+pruebas táctiles Mes/Año en verde. Typecheck web correcto tras extraer el gesto.
+Lint y tests generales pasaron antes de esa extracción; no acredita sesión real.
+
+
+### Agenda continua — RF-1101 (21/10)
+
+Sustituida ventana fija por ampliación de 30 días al acercarse a los extremos
+del scroll, hacia pasado y futuro. Incluye días vacíos y conserva el día visible
+al anteponer fechas. Consultas existentes ampliadas, sin cambios de API.
+Playwright con API simulada verifica ampliación más allá de septiembre y
+noviembre y cruce a 2027; panel de día sin regresión. Typecheck web correcto.
+
+
+### Barra inferior móvil independiente de la sección — RF-1902 / UI-103
+
+Listas abre el Sidebar general (listas, filtros y etiquetas); Más abre navegación
+principal en todas las secciones, incluido Calendario. Escritorio conserva su
+CalendarSidebar. La barra inferior permanece pulsable sobre el fondo del drawer;
+se reserva su altura al pie para no tapar los enlaces finales.
+Playwright con API simulada verifica alternancia Listas/Más desde Calendario,
+navegación, cierre y minicalendario de escritorio. Typecheck web correcto.
+
+
+### Corrección posterior de Agenda — navegación mensual manual (RF-1101)
+
+La petición posterior sustituye la ampliación automática anterior: no se cargan
+meses por scroll. Agenda compacta desde hoy por defecto, sin filas para todos los
+días vacíos (se conserva hoy como ancla). Botones «Ver mes anterior» y «Ver mes
+siguiente» en los extremos amplían un mes natural únicamente al pulsarlos.
+Se conserva acceso por fecha explícita. Dos Playwright con API simulada en verde:
+posición inicial en hoy, scroll sin peticiones nuevas, botones cargan más datos y
+panel del día sin regresión. No acredita sesión backend real.
+
+
+### Agenda: cabecera mínima y tres meses iniciales — RF-1101
+
+Petición posterior: cabecera sólo con iconos de vistas y filtros, en móvil y
+escritorio; sin selector de fecha, navegación, alta ni texto auxiliar. Carga
+inicial: mes anterior, actual y siguiente, con hoy visible al abrir. Botones
+sutiles para ampliar un mes, visibles únicamente en el extremo correspondiente.
+Sin carga automática por scroll. Dos Playwright con API simulada verifican rango
+septiembre–noviembre, hoy visible, botones ocultos entre extremos, carga manual
+y cabecera de escritorio. Typecheck web correcto.
+
+
+### Agenda: transición a diciembre y meses vacíos — RF-1101
+
+Al ampliar manualmente, se lleva el scroll al mes recién cargado y se recalculan
+los extremos tras cambiar datos, sin depender de un evento scroll adicional.
+Los meses sin elementos conservan cabecera y estado vacío, sin crear filas por
+día. Prueba con API simulada: evento en diciembre visible y continuación por
+enero/febrero vacíos; prueba de tres meses iniciales y carga manual también pasa.
+Typecheck web correcto. No se ha inspeccionado backend/sesión real del usuario.
+
+
+### Panel de filtros: coherencia visual — RF-1101 / RF-1902
+
+Sustituidos campos de formulario prominentes por filas reutilizables con icono,
+etiqueta, selección secundaria y chevron, conservando selects accesibles y
+contratos existentes. Ajustes de calendario como fila sin enlace morado;
+separación sutil de fuentes. Contenedores y botones compartidos del calendario
+usan radios, colores y espaciados de tokens. Tres Playwright dirigidos en verde:
+filtros 390/1280, selección/persistencia/visibilidad, Escape/foco y apertura de
+vistas estable. Inspección visual clara/oscura con API simulada y capturas sólo
+en /tmp. Lint y typecheck web correctos; no acredita sesión real.
+
+
+### Orden estable de acciones del calendario — RF-1101 / RF-1902
+
+Filtros a la izquierda y vista a la derecha en todas las vistas, incluida Agenda;
+mismo orden en DOM/teclado y pantalla. Agenda conserva la cuadrícula compartida
+de cabecera móvil. Dos Playwright con API simulada recorren las ocho vistas a
+390 y 1280, comparando posiciones con tolerancia inferior a 2 px y orden DOM.
+Ambos pasan.
+
+
+### Filtros: calendario sin enlace a ajustes — RF-1103
+
+El panel muestra «Calendario» como título, sin navegación a Ajustes. Debajo,
+«No hay calendarios suscritos» cuando no hay fuentes; si las hay, se enumeran
+con sus controles de visibilidad. Tareas permanece como control independiente.
+Texto es/en. Tres Playwright con API simulada correctos: vacío sin enlace y
+fuentes/selección/persistencia a 390 y 1280.
+
+
+### Día: franja semanal fija y navegación — RF-1101 / RF-1902
+
+Siete días con siglas fijas y selección numérica, respetando inicio de semana.
+Pulsar cambia fecha y horario; deslizar horizontalmente salta siete días
+conservando columna y día de semana, incluido cambio de año. Hoy seleccionado
+por defecto y diferenciado al seleccionar otra fecha. Franja fuera del scroll
+del horario; sin duplicar la cabecera de día. Alternativa PageUp/PageDown.
+Playwright táctil con API simulada verifica selección, ambos gestos, octubre/DST,
+diciembre–enero, columna estable y posición fija con scroll. Otras dos pruebas
+verifican filtros/vistas en todas las vistas móvil/escritorio. Inspección visual
+390 px, captura temporal en /tmp. Typecheck y lint de archivos afectados en verde.
+
+
+### Día: hora actual roja y cabecera compacta — RF-1101
+
+NowLine compartida recupera el rojo semántico; calcula minutos en zona de cuenta,
+igual que la posición de eventos y la hora de entrada al horario (ya sin tope
+artificial de las 18). Actualización por minuto y sólo en columna de hoy.
+Reducidos huecos superiores y tamaño del número seleccionado a token 2rem;
+objetivos táctiles conservados y etiqueta Todo el día en una línea.
+Playwright con navegador America/New_York/cuenta Europe/Madrid verifica 12:00,
+rojo, actualización 12:01, ausencia en otro día y geometría 390×844: horario
+comienza antes del 22 % del viewport y supera el 65 % de altura. También pasa
+prueba de franja/gestos. API simulada, captura temporal /tmp; lint y tipos web
+correctos antes del ajuste final de coherencia horaria de eventos.
+
+
+### Horario: afinado de línea, horas y todo el día — RF-1101
+
+Tokens compartidos claro/oscuro: línea 1px/punto 4px, horas 11px, columna horaria
+3rem y tarjetas de todo el día con texto 11px, menor padding/alto/checkbox.
+Etiqueta Todo el día alineada arriba con separación lateral, sin solaparse con
+las tarjetas; admite dos líneas para estrechar la columna. Inspección visual
+con cuatro tareas (tres títulos largos) a 390×844. Tres Playwright dirigidos
+correctos: línea/actualización/zona, franja/gestos, cuatro tareas sin solapamiento.
+Typecheck web correcto; API simulada y capturas sólo en /tmp.
+
+
+### Todo el día: dos elementos y agenda completa — RF-1101/1102
+
+Franja limitada a dos elementos por día contando tareas y eventos; «+N» abre el
+DaySheet compartido con la agenda completa del día. Se conservan spans de eventos
+entre días visibles. Tarjetas compactas de una línea en la franja, menor padding;
+checkbox y texto alineados. Tarjetas con hora ajustadas al intervalo (height,
+sin crecimiento fuera del día), hora junto al título y checkbox sin ocupar media
+columna. Prueba a 23:00 con solapamiento confirma altura 48px y límite de día.
+Prueba mixta con cuatro tareas y un evento confirma dos visibles, +3 y agenda
+completa. Ambas pasan con API simulada; inspección de capturas temporales /tmp.
+Typecheck y lint de archivos afectados correctos antes del último afinado CSS.
+
+
+### Vistas sólo escritorio — RF-1101 (petición posterior)
+
+Trimestre y Dos semanas se retiran del selector móvil. Enlaces directos y
+preferencias heredadas se normalizan en móvil a Mes y Semana respectivamente,
+conservando fecha y filtros. Ambas vistas siguen disponibles en escritorio.
+Playwright específico móvil/escritorio correcto con API simulada.
+
+
+### Semana móvil: tarjetas compactas — RF-1101
+
+Tarjetas de una línea con altura mínima 20px, padding vertical cero, peso 400,
+check compartido de 13px y marca lateral de color. Hora se conserva a la derecha
+(al no existir franja horaria en esta vista). Eliminados objetivos mínimos de
+44px en enlaces interiores que inflaban cada card. Scroll por celda conservado.
+Playwright densidad con doce tareas: caben al menos cuatro completas por celda,
+altura <=24px; prueba previa de gestos/selector también correcta. Inspección visual
+390×844 con API simulada, captura sólo /tmp.
+
+
+### Selector de vistas móvil: sólo vistas — RF-1101
+
+Retirada la fila anterior/Hoy/siguiente del menú compartido de vistas a petición
+del usuario: termina en Día en móvil. Eliminados sus estilos sin uso. Typecheck
+web y comprobación ESLint del componente ejecutados; prueba dirigida del selector
+actualizada para verificar seis vistas y ausencia de botones de navegación.
+Resultado: ESLint y typecheck correctos; Playwright dirigido correcto (1/1),
+con API simulada.
+
+
+### Alta desde calendario móvil: modal amplio y acciones — RF-1102 / RF-1902
+
+Modal móvil de 86dvh con margen exterior y fondo oscuro/desenfocado mediante
+tokens compartidos. Descripción flexible, sin borde decorativo; conserva foco
+visible accesible. Botonera sin fondos grises, bordes ni sombras, etiqueta junto
+a Bandeja y envío con icono Send en color accent. Nombre accesible conservado.
+Typecheck web y ESLint de componentes correctos. Playwright dirigido correcto
+(1/1): geometría móvil, blur, envío con icono y ajuste desktop al viewport.
+Inspección visual a 390×844 con API simulada; captura sólo /tmp.
+
+Ajuste posterior: altura móvil reducida de 86dvh a 69dvh (aprox. 20 %),
+centrada con margen 15.5dvh. Fecha sin límite fijo de ancho ni elipsis;
+aprovecha el espacio hasta la prioridad y permite salto si hace falta.
+Playwright dirigido correcto (1/1), API simulada: altura y fecha sin truncado.
+
+
+### Hora final por defecto — RF-601
+
+Al configurar Hora en DatePopover compartido, la duración vacía se inicializa
+a 30 minutos y Hasta se calcula automáticamente. Duraciones ya elegidas se
+conservan. Playwright dirigido correcto (1/1), API simulada: 23:45 → 00:15
+y conservación de duración personalizada al cambiar inicio. Typecheck web correcto.
+
+Cabecera del composer compartido: muestra inicio y fin cuando hay duración,
+y fecha del fin si cruza de día, respetando zona de cuenta y locale.
+Typecheck correcto; prueba dirigida verifica rango 12:00–13:00 tras confirmar.
+
+### Indicadores junto a fecha — RF-701 / RF-801
+
+Composer compartido muestra iconos de repetición y campana junto al rango
+cuando están configurados. Tooltips y nombre accesible en es/en. Typecheck
+correcto y Playwright dirigido (1/1) con API simulada verifica ambos indicadores
+tras configurar recordatorio de cinco minutos y repetición diaria.
+
+
+### Alta desde huecos en todas las vistas — RF-1102 / RF-1902
+
+Semana móvil conecta los huecos de cada día al QuickAddPopover compartido.
+Agenda (incluidos meses vacíos), Año y Trimestre abren también alta desde
+espacios asociados a una fecha; números de día conservan navegación. No se
+interceptan tarjetas ni controles, y el gesto de semana suprime clic posterior.
+Enter/Espacio disponibles en los huecos de Semana/Agenda.
+Cinco Playwright verifican apertura y fecha de tarea creada en Semana móvil,
+Mes, Año, Trimestre y Agenda. Otros cinco verifican franja horaria en Día,
+Semana escritorio y Varios días, Dos semanas y gestos móviles. Todos correctos
+con API simulada: las franjas conservan hora pulsada y duración inicial 30 min;
+sin horario se crea todo el día. Typecheck, ESLint y diff --check correctos.
+
+
+### Agenda: controles de continuación por mes — RF-1101
+
+Sustituidos textos genéricos por nombre del mes/año que se cargará y chevrons
+arriba/abajo según dirección de la lista. Botones ghost compartidos, color accent,
+tamaño y espaciado con tokens, objetivo táctil conservado; nombres accesibles
+es/en anteriores conservados. Sin carga automática. Typecheck correcto; dos
+Playwright con API simulada verifican navegación manual y meses vacíos.
+
+
+### Comandos slash en descripción del alta — RF-202 / RF-1902
+
+El placeholder anunciaba una función inexistente. TaskComposer compartido ahora
+abre menú al escribir / al comienzo de una línea: encabezado, viñetas, checklist,
+cita y código. Inserta Markdown sin perder el texto alrededor, devuelve foco y
+coloca el cursor para continuar. Reutiliza Popover y sus flechas/Enter/Escape;
+Escape cierra sólo el menú y conserva borrador. URLs con / no disparan menú.
+Etiquetas es/en. Playwright dirigido correcto (1/1), API simulada: teclado,
+selección táctil/clic, cursor, cierre, URL y contenido enviado.
+
+
+## Guardado de avances y alcance pendiente — cierre del 21/10/2026
+
+Se guarda el corte móvil y alta en la PR 73, sin merge. Resumen vigente en
+[RESUMEN-ALCANCE-2026-10-21.md](RESUMEN-ALCANCE-2026-10-21.md), que distingue
+implementado, instrucciones pendientes y decisiones posteriores del usuario.
+Calendario móvil queda cerrado a nuevos ajustes salvo instrucciones omitidas;
+queda repaso de escritorio. No se implementan aquí otros puntos del alcance.
+
+Validación final: lint general correcto (primer intento concurrente terminó en
+137, repetición sola correcta); typecheck general correcto; 598 unitarios pasan.
+OpenAPI regenerado sin diff. Playwright: 64/66 en el pase completo, y uno de los
+dos fallos pasa al corregir expectativa/carga de eventos: acumulado 65 correctos,
+un fallo pendiente de escritorio al 200 % de zoom (Agenda con ancho cero entre
+paneles). Queda registrado para el repaso desktop, sin ocultar el fallo.
+API simulada; no se acredita sesión real. Capturas temporales /tmp; los seis
+PNG que la prueba antigua había regenerado se restauraron a su estado limpio.
+Documentos locales del usuario excluidos de los commits.
