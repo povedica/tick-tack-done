@@ -23,7 +23,7 @@ export function InboundEmailCard() {
         </div>
         {inbound.isFetched ? (
           <span className={active ? 'token-pill' : 'token-pill is-revoked'}>
-            {active ? messages.inboundActive : messages.inboundStopped}
+            {messages.stateLabel}: {active ? messages.inboundActive : messages.inboundStopped}
           </span>
         ) : null}
       </div>

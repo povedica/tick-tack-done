@@ -14,4 +14,10 @@ describe('collapseRepeatedContent', () => {
     const note = 'Compra leche y pan. Luego llama a Ana.';
     expect(collapseRepeatedContent(note)).toBe(note);
   });
+  it('DET-5: repair is idempotent and keeps internal repeated sections', () => {
+    const repaired = collapseRepeatedContent('hola que tal '.repeat(20));
+    expect(collapseRepeatedContent(repaired)).toBe(repaired);
+    const note = `Introducción\n${'lista de compra\n'.repeat(6)}Conclusión diferente`;
+    expect(collapseRepeatedContent(note)).toBe(note);
+  });
 });

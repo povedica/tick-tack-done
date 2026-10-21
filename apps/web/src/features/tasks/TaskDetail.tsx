@@ -1,7 +1,7 @@
 import { type CreateTaskBody, type TaskDetail as Detail } from '@reflexionia/sdk';
 import { describeRepeatRule, parseTrigger } from '@reflexionia/domain';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, CalendarDays, Clock, Flag, Repeat } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { api } from '../../api';
@@ -26,8 +26,9 @@ import { FormatBar } from './FormatBar';
 import { DetailHeader } from './DetailHeader';
 import { DetailMenu } from './DetailMenu';
 import { refreshTaskSurfaces } from './refresh';
-import { collapseRepeatedContent } from './collapse-repeated';
+import { PriorityCheck } from '../../components/PriorityCheck';
 import { completeBody } from './complete-body';
+import { displayTitle } from './displayTitle';
 import { createComment, deleteAttachment, listComments, patchChecklistItem } from './task-http';
 
 const MAX_ATTACHMENT = 25 * 1024 * 1024;
@@ -271,6 +272,7 @@ export function TaskDetail({
         <ArrowLeft size={20} aria-hidden="true" />
       </button>
       <DetailHeader
+        taskId={task.id}
         title={task.title}
         priority={task.priority}
         completed={task.status === 'completed'}
@@ -294,11 +296,6 @@ export function TaskDetail({
         }}
         onClose={onClose}
       />
-      <p className="detail-ticky-help">
-        <Link className="app-link" to={`/ticky?task=${encodeURIComponent(task.id)}`}>
-          {messages.tickyHelpTask}
-        </Link>
-      </p>
       <div className="detail-pop-anchor">
         {dateOpen ? (
           <DatePopover
@@ -318,6 +315,13 @@ export function TaskDetail({
                 return;
               }
               applyDate(next);
+            }}
+            onSomeday={() => {
+              const someday = (task as Detail & { is_someday?: boolean }).is_someday;
+              save.mutate({
+                someday: !someday,
+                ...(someday ? {} : { start_date: null }),
+              } as Parameters<typeof api.patchTask>[1]);
             }}
             onNotice={setNotice}
             {...((me.data as { features?: { when_deadline?: boolean } } | undefined)?.features
@@ -383,46 +387,81 @@ export function TaskDetail({
           {notice}
         </p>
       ) : null}
-      {(me.data as { features?: { when_deadline?: boolean } } | undefined)?.features
-        ?.when_deadline !== false &&
-      (task.start_date !== null || task.due_date !== null) ? (
-        <p className="plan-line">
-          <button
-            type="button"
-            className="text-button"
-            onClick={() => {
-              setDateSlot('when');
-              setDateOpen(true);
-            }}
-          >
-            {messages.whenField}
-          </button>
-          <button
-            type="button"
-            className="text-button"
-            onClick={() => {
-              setDateSlot('due');
-              setDateOpen(true);
-            }}
-          >
-            {messages.deadlineField}
-          </button>
-          <button
-            type="button"
-            className="text-button"
-            onClick={() => {
-              const someday = (task as Detail & { is_someday?: boolean }).is_someday;
-              save.mutate({
-                someday: !someday,
-                ...(someday ? {} : { start_date: null }),
-              } as Parameters<typeof api.patchTask>[1]);
-            }}
-          >
-            {messages.somedayAction}
-          </button>
-        </p>
-      ) : null}
       <DetailBody
+        titleLeading={
+          <PriorityCheck
+            priority={task.priority}
+            label={fill(
+              task.status === 'completed' ? messages.reopenLabel : messages.completeLabel,
+              task.title,
+            )}
+            checked={task.status === 'completed'}
+            onChange={complete}
+          />
+        }
+        metadata={
+          <div className="detail-metadata">
+            <button
+              type="button"
+              className="detail-meta-chip"
+              onClick={() => {
+                setDateSlot('when');
+                setDateOpen(true);
+              }}
+            >
+              <CalendarDays size={14} aria-hidden="true" />
+              {task.start_date === null
+                ? messages.whenField
+                : formatDueChip(
+                    task.start_date,
+                    task.time_zone,
+                    task.is_all_day,
+                    new Date(),
+                    locale,
+                    { empty: messages.noDate, today: messages.dateToday },
+                  ).text}
+            </button>
+            {repeatText !== null && (task.start_date !== null || task.due_date !== null) ? (
+              <button
+                type="button"
+                className="detail-meta-chip"
+                onClick={() => {
+                  setDateSlot('due');
+                  setDateOpen(true);
+                }}
+              >
+                <Repeat size={14} aria-hidden="true" />
+                {repeatText}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="detail-meta-chip"
+              data-empty={task.duration_minutes === null}
+              onClick={() => {
+                setDateSlot('due');
+                setDateOpen(true);
+              }}
+            >
+              <Clock size={14} aria-hidden="true" />
+              {task.duration_minutes === null
+                ? messages.durationTab
+                : `${String(task.duration_minutes)} min`}
+            </button>
+            <button
+              type="button"
+              className={`detail-meta-chip is-${chip.tone}`}
+              data-empty={task.due_date === null}
+              onClick={() => {
+                setDateSlot('due');
+                setDateOpen(true);
+              }}
+            >
+              <Flag size={14} aria-hidden="true" />
+              {task.due_date === null ? messages.deadlineField : chip.text}
+            </button>
+          </div>
+        }
         title={task.title}
         content={task.content}
         titleLabel={messages.titlePreview}
@@ -430,6 +469,7 @@ export function TaskDetail({
         contentLabel={messages.contentLabel}
         contentHint={messages.contentHint}
         contentRef={contentRef}
+        editRequested={formatOpen}
         checklistLabel={messages.checklist}
         checklistAdd={messages.checklistAdd}
         checklistEdit={messages.checklistEdit}
@@ -460,7 +500,7 @@ export function TaskDetail({
         attachmentDelete={messages.attachmentDelete}
         attachmentDrop={messages.attachmentDrop}
         onTitle={(value) => {
-          if (value !== task.title) {
+          if (value !== displayTitle(task.title)) {
             save.mutate({ title: value });
           }
         }}
@@ -471,7 +511,7 @@ export function TaskDetail({
           }
         }}
         onContent={(value) => {
-          const next = collapseRepeatedContent(value);
+          const next = value;
           if (next !== task.content) {
             save.mutate({ content: next });
           }
@@ -645,7 +685,7 @@ export function TaskDetail({
             year: 'numeric',
           }).format(new Date())}
           onCommit={(value) => {
-            const next = collapseRepeatedContent(value);
+            const next = value;
             if (next !== task.content) {
               save.mutate({ content: next });
             }

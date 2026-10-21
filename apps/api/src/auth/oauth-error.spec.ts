@@ -19,21 +19,19 @@ describe('oauth error format', () => {
   });
 
   it('serializes RFC 6749 §5.2 bodies with error as a string', () => {
-    expect(oauthErrorBody('invalid_grant', 'Authorization code is invalid', '/api/v1/oauth/token', 400)).toEqual(
-      {
-        error: 'invalid_grant',
-        error_description: 'Authorization code is invalid',
-      },
-    );
+    expect(
+      oauthErrorBody('invalid_grant', 'Authorization code is invalid', '/api/v1/oauth/token', 400),
+    ).toEqual({
+      error: 'invalid_grant',
+      error_description: 'Authorization code is invalid',
+    });
   });
 
   it('maps rate_limited to temporarily_unavailable on OAuth protocol paths', () => {
     expect(oauthProtocolError('rate_limited', '/api/v1/oauth/token', 429)).toBe(
       'temporarily_unavailable',
     );
-    expect(
-      oauthErrorBody('rate_limited', 'Too many requests', '/oauth/token', 429),
-    ).toEqual({
+    expect(oauthErrorBody('rate_limited', 'Too many requests', '/oauth/token', 429)).toEqual({
       error: 'temporarily_unavailable',
       error_description: 'Too many requests',
     });

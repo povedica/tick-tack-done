@@ -68,7 +68,11 @@ describe('ApiExceptionFilter OAuth protocol bodies', () => {
     const filter = new ApiExceptionFilter();
     const { host, statusCode, body } = hostFor('/api/v1/oauth/register');
     filter.catch(
-      new DomainException(HttpStatus.BAD_REQUEST, 'invalid_redirect_uri', 'redirect_uri is not allowed'),
+      new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'invalid_redirect_uri',
+        'redirect_uri is not allowed',
+      ),
       host,
     );
     expect(statusCode.value).toBe(400);

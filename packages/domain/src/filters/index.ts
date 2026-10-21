@@ -18,6 +18,7 @@ export {
   matchesSmartList,
   RECENT_WINDOW_DAYS,
   SMART_LIST_KEYS,
+  FIXED_SMART_LIST_KEYS,
   smartListClause,
 } from './smart-list';
 export type { SmartListInput } from './smart-list';

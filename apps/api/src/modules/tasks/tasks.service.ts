@@ -1,3 +1,4 @@
+import { listOverdueTaskIds } from '../../reading/overdue.js';
 import { randomUUID } from 'node:crypto';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { Prisma, type Task } from '@prisma/client';
@@ -293,6 +294,17 @@ export class TasksService {
   }
 
   create(user: AuthUser, dto: CreateTaskDto, keyRaw: string | undefined): Promise<Saved> {
+    if (
+      dto.reminder_trigger !== undefined &&
+      dto.reminder_trigger !== null &&
+      !parseTrigger(dto.reminder_trigger).ok
+    ) {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'invalid_reminder',
+        'Reminder trigger is invalid',
+      );
+    }
     const key = normalizeIdempotencyKey(keyRaw);
     return this.idempotency.run({
       ownerId: user.id,
@@ -1563,15 +1575,18 @@ export class TasksService {
       },
     });
     await this.linkTags(tx, row.id, tagIds);
-    await this.ensureDefaultReminder(
-      tx,
-      user.id,
-      project.id,
-      row.id,
-      due,
-      row.kind,
-      captured?.reminderTrigger ?? null,
-    );
+    if (dto.reminder_trigger !== null) {
+      await this.ensureDefaultReminder(
+        tx,
+        user.id,
+        project.id,
+        row.id,
+        due,
+        row.kind,
+        dto.reminder_trigger ?? captured?.reminderTrigger ?? null,
+      );
+    }
+
     if (extracted !== null) {
       await this.materializeExtract(tx, user, row, extracted.items, dto.extract_as ?? 'checklist');
     }
@@ -2430,21 +2445,7 @@ export class TasksService {
   }
 
   private async overdueIds(ownerId: string): Promise<string[]> {
-    const rows = await this.prisma.$queryRaw<{ id: string }[]>`
-      SELECT id FROM tasks
-      WHERE owner_id = CAST(${ownerId} AS uuid)
-        AND deleted_at IS NULL
-        AND status = 'active'::"TaskStatus"
-        AND due_date IS NOT NULL
-        AND (
-          (is_all_day = false AND due_date < NOW())
-          OR (
-            is_all_day = true
-            AND (due_date AT TIME ZONE time_zone)::date < (NOW() AT TIME ZONE time_zone)::date
-          )
-        )
-    `;
-    return rows.map((row) => row.id);
+    return listOverdueTaskIds(this.prisma, ownerId);
   }
 
   private instant(value: string, field: string): Date {

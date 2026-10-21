@@ -48,35 +48,41 @@ describe('OAuth protocol error shape and isolated rate limit', () => {
       expect(badRegister.body.error).toBe('invalid_redirect_uri');
       expect(typeof badRegister.body.error_description).toBe('string');
 
-      const first = await request(server).post('/api/v1/oauth/token').send({
-        grant_type: 'authorization_code',
-        code: 'missing',
-        redirect_uri: 'http://127.0.0.1:9/cb',
-        client_id: 'unknown',
-        code_verifier: 'a'.repeat(43),
-      });
+      const first = await request(server)
+        .post('/api/v1/oauth/token')
+        .send({
+          grant_type: 'authorization_code',
+          code: 'missing',
+          redirect_uri: 'http://127.0.0.1:9/cb',
+          client_id: 'unknown',
+          code_verifier: 'a'.repeat(43),
+        });
       expect(first.status).toBe(400);
       expect(first.body).toEqual({
         error: 'invalid_grant',
         error_description: expect.any(String),
       });
 
-      const second = await request(server).post('/api/v1/oauth/token').send({
-        grant_type: 'authorization_code',
-        code: 'missing-2',
-        redirect_uri: 'http://127.0.0.1:9/cb',
-        client_id: 'unknown',
-        code_verifier: 'a'.repeat(43),
-      });
+      const second = await request(server)
+        .post('/api/v1/oauth/token')
+        .send({
+          grant_type: 'authorization_code',
+          code: 'missing-2',
+          redirect_uri: 'http://127.0.0.1:9/cb',
+          client_id: 'unknown',
+          code_verifier: 'a'.repeat(43),
+        });
       expect(second.status).toBe(400);
 
-      const blocked = await request(server).post('/api/v1/oauth/token').send({
-        grant_type: 'authorization_code',
-        code: 'missing-3',
-        redirect_uri: 'http://127.0.0.1:9/cb',
-        client_id: 'unknown',
-        code_verifier: 'a'.repeat(43),
-      });
+      const blocked = await request(server)
+        .post('/api/v1/oauth/token')
+        .send({
+          grant_type: 'authorization_code',
+          code: 'missing-3',
+          redirect_uri: 'http://127.0.0.1:9/cb',
+          client_id: 'unknown',
+          code_verifier: 'a'.repeat(43),
+        });
       expect(blocked.status).toBe(429);
       expect(blocked.headers['retry-after']).toMatch(/^\d+$/);
       expect(blocked.body).toEqual({
@@ -84,7 +90,9 @@ describe('OAuth protocol error shape and isolated rate limit', () => {
         error_description: 'Too many requests',
       });
 
-      const revoke = await request(server).post('/api/v1/oauth/revoke').send({ token: 'x'.repeat(40) });
+      const revoke = await request(server)
+        .post('/api/v1/oauth/revoke')
+        .send({ token: 'x'.repeat(40) });
       expect(revoke.status).toBe(429);
       expect(typeof revoke.body.error).toBe('string');
 

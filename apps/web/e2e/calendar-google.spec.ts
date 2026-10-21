@@ -59,11 +59,11 @@ test('RF-2541: la vista mes pinta el evento externo y el popover es de solo lect
   await expect(page.getByRole('button', { name: 'Quitar' })).toHaveCount(0);
 });
 
-test('RF-2542: Hoy muestra la agenda del día', async ({ page }) => {
+test('RF-2542: Hoy conserva el acceso al plan sin la agenda retirada', async ({ page }) => {
   await mockApi(page, true);
   await page.goto('/today');
-  await expect(page.getByRole('heading', { name: 'Agenda de hoy' })).toBeVisible();
-  await expect(page.getByText('Reunión de equipo')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Agenda de hoy' })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Plan del día' })).toBeVisible();
 });
 
 async function mockApi(page: import('@playwright/test').Page, subscribed: boolean): Promise<void> {
@@ -71,6 +71,20 @@ async function mockApi(page: import('@playwright/test').Page, subscribed: boolea
   await page.route('**/api/v1/**', async (route) => {
     const url = route.request().url();
     const method = route.request().method();
+    if (url.includes('/auth/session') || url.endsWith('/me')) {
+      await route.fulfill({
+        json: {
+          id: 'user',
+          email: 'test@example.test',
+          display_name: 'Prueba',
+          csrf_token: 'test',
+          locale: 'es',
+          time_zone: 'Europe/Madrid',
+          features: {},
+        },
+      });
+      return;
+    }
     if (url.includes('/integrations/google') && method === 'GET') {
       await route.fulfill({
         status: 200,
@@ -123,14 +137,14 @@ async function mockApi(page: import('@playwright/test').Page, subscribed: boolea
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ items: [] }),
+        body: JSON.stringify({ items: [], next_cursor: null }),
       });
       return;
     }
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ items: [] }),
+      body: JSON.stringify({ items: [], next_cursor: null }),
     });
   });
 }

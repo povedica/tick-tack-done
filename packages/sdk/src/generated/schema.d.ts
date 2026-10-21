@@ -960,7 +960,10 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Enable and reorder system smart lists (RF-901) */
+        /**
+         * Enable and reorder system smart lists (RF-901)
+         * @description Core navigation lists always remain enabled: today, tomorrow, next_7_days, all, inbox, no_date, recently_added and someday. Their order remains customizable; visibility preferences apply to the other lists.
+         */
         patch: operations["SmartListsController_update"];
         trace?: never;
     };
@@ -1909,7 +1912,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Open a day-planning session. Nothing is changed yet. */
+        /**
+         * Open a day-planning session. Nothing is changed yet.
+         * @description Sources can restrict the session to today only. Today includes active start/deadline ranges, excluding overdue tasks when overdue=false. Cards expose start_date and recurring (null for legacy snapshots); clients disable bulk actions when recurrence safety is unknown or recurring=true.
+         */
         post: operations["PlanningController_start"];
         delete?: never;
         options?: never;
@@ -1976,7 +1982,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Tasks the user planned for a local date */
+        /**
+         * Tasks the user planned for a local date
+         * @description Includes server-persisted initial_applied_at, last_applied_at and adjustment_count derived from applied plan/replan operations. First save is not an adjustment; later unchanged operations and replays do not count. Shutdown operations are excluded.
+         */
         get: operations["PlansController_day"];
         put?: never;
         post?: never;
@@ -2320,7 +2329,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** KPI for one widget (RF-2102, RF-2104) */
+        /**
+         * KPI for one widget (RF-2102, RF-2104)
+         * @description Without widget, returns widgets, generated_at and period (from, to, time_zone). Activity covers the trailing seven days; completed_today uses the account time zone. Habits include total active habits. Calendar counts today and the next seven days, deduplicated by shared UID and occurrence start; previews include up to three events. Habits expose daily scheduled done/expected today, pending_today names and complete (all active habits have a recognized model), plus this calendar week to date. Weekly habits are not daily obligations. Load includes total_active, including subtasks. Focus exposes today/week seconds, active session and null goal_seconds (no goal in schema). Tags count unique active tasks per tag and current linked task creation/completion over 90 days; recent_activity is true or null (history unavailable), and assignment history is unavailable. Integration booleans reflect the authenticated account connection, not only server configuration. Includes overdue_by_list with disjoint calendar-age buckets under_7, days_7_30 and over_30, based on the same canonical overdue set as the count. Habits, calendar and next_countdowns expose configured independently of current activity. Projects exclude the inbox and include open/closed lists plus all accessible soft deletions, seven-day task activity and review signals (no pending tasks or no task changes for 30 days), excluding note lists and closed projects from suggestions.
+         */
         get: operations["DashboardController_data"];
         put?: never;
         post?: never;
@@ -2355,10 +2367,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Weekly report history (RF-2204) */
+        /**
+         * Weekly report history (RF-2204)
+         * @description Returns stored payloads unchanged. Legacy reports may use trailing-seven-day totals; clients should derive consistent totals from saved days and disclose legacy coverage. No live recalculation on GET.
+         */
         get: operations["ReportsController_list"];
         put?: never;
-        /** Build this week’s honest report (RF-2201, RF-2203) */
+        /**
+         * Build this week’s report (RF-2201, RF-2203)
+         * @description Explicitly rebuilds the current local Monday–Sunday week through calculated_at. metrics_version=2; completed and created are independent sums of local days. focus_minutes is null without focus records. habits_done/expected cover elapsed days. trend/trend_label are null without a comparable cutoff. Historical reports are unchanged.
+         */
         post: operations["ReportsController_build"];
         delete?: never;
         options?: never;
@@ -2530,7 +2548,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Guided weekly review (RF-2302, RF-2303) */
+        /**
+         * Guided weekly review (RF-2302, RF-2303)
+         * @description Read-only candidates with listName and dueDate context. recurring=true if repeatRule or seriesId is present; clients must disable bulk actions on these tasks. Selection alone never mutates tasks.
+         */
         get: operations["ReviewController_weekly"];
         put?: never;
         post?: never;
@@ -3366,6 +3387,7 @@ export interface components {
             recovery_code?: string;
         };
         FeatureFlagsDto: {
+            navigation_order?: ("calendar" | "matrix" | "countdowns" | "focus" | "habits" | "ticky" | "statistics" | "dashboard" | "reports" | "review" | "search")[];
             countdowns?: boolean;
             focus?: boolean;
             matrix?: boolean;
@@ -3735,6 +3757,7 @@ export interface components {
             met: boolean;
         };
         HabitResponseDto: {
+            challenge_days: number | null;
             id: string;
             name: string;
             icon: string | null;
@@ -3754,6 +3777,7 @@ export interface components {
             next_cursor: string | null;
         };
         CreateHabitDto: {
+            challenge_days?: number | null;
             name: string;
             icon?: string | null;
             color?: string | null;
@@ -3764,6 +3788,11 @@ export interface components {
             motivation_note?: string | null;
             before_id?: string | null;
             move_to_end?: boolean;
+        };
+        HabitLogDto: {
+            date: string;
+            count: number;
+            note: string | null;
         };
         HabitCompletionDto: {
             week: number;
@@ -3781,6 +3810,10 @@ export interface components {
             met: number;
         };
         HabitStatsDto: {
+            total_checkins: number;
+            month_checkins: number;
+            completed_days: number;
+            logs: components["schemas"]["HabitLogDto"][];
             streak_current: number;
             streak_best: number;
             completion_percent: components["schemas"]["HabitCompletionDto"];
@@ -3803,6 +3836,7 @@ export interface components {
             streak_broken: boolean;
         };
         UpdateHabitDto: {
+            challenge_days?: number | null;
             name?: string;
             icon?: string | null;
             color?: string | null;
@@ -4160,6 +4194,11 @@ export interface components {
             /** @description Quick add text. The server parses it (RF-102). A missing ^list or #tag is created. Explicit fields in this body override the parse and do not create the parsed list or tags. */
             raw_text?: string;
             content?: string;
+            /**
+             * @description Explicit relative reminder for quick add. Null disables parsed and default reminders. Stored atomically with the task.
+             * @enum {string|null}
+             */
+            reminder_trigger?: "TRIGGER:-PT0M" | "TRIGGER:-PT5M" | "TRIGGER:-PT15M" | "TRIGGER:-PT30M" | "TRIGGER:-PT1H" | "TRIGGER:-P1D" | null;
             /** @enum {string} */
             kind?: "task" | "note";
             /** @enum {string} */
@@ -4390,6 +4429,8 @@ export interface components {
             expected_revision: number;
         };
         SessionDateDto: {
+            /** @description When false, suggestions remain informational; only explicit decisions are applied. Defaults to true for existing clients. */
+            apply_suggestions?: boolean;
             /** @example 2026-10-20 */
             local_date: string;
             /** @example Europe/Madrid */
@@ -8712,32 +8753,53 @@ export interface operations {
                             achievement: {
                                 enabled: boolean;
                                 score: number | null;
-                                level: string | null;
-                                level_index: number | null;
-                                next_threshold: number | null;
-                                progress_to_next: number | null;
-                                formula: {
-                                    on_time_points: number;
-                                    late_points: number;
-                                    priority_points: number;
-                                    pomodoro_points: number;
-                                    habit_points: number;
-                                    overdue_penalty: number;
-                                    weights: {
-                                        on_time_base: number;
-                                        late_base: number;
-                                        priority_high_bonus: number;
-                                        priority_medium_bonus: number;
-                                        priority_low_bonus: number;
-                                        pomodoro: number;
-                                        habit_check_in: number;
-                                        overdue_penalty: number;
+                                label: string | null;
+                                components: {
+                                    tasks: {
+                                        earned: number;
+                                        max: number;
+                                        configured: boolean;
+                                        cumplimiento: {
+                                            earned: number;
+                                            max: number;
+                                            onTime: number;
+                                            planned: number;
+                                        };
+                                        atrasadas: {
+                                            earned: number;
+                                            max: number;
+                                            open: number;
+                                            penalty: number;
+                                            byAge: {
+                                                under7: number;
+                                                d8to30: number;
+                                                over30: number;
+                                            };
+                                        };
+                                    };
+                                    habits: {
+                                        earned: number;
+                                        max: number;
+                                        configured: boolean;
+                                        done: number;
+                                        expected: number;
+                                    };
+                                    focus: {
+                                        earned: number;
+                                        max: number;
+                                        configured: boolean;
+                                        pomodoros: number;
+                                        target: number;
+                                    };
+                                    usage: {
+                                        earned: number;
+                                        max: number;
+                                        configured: boolean;
+                                        days: number;
+                                        windowDays: number;
                                     };
                                 } | null;
-                                levels: {
-                                    id: string;
-                                    threshold: number;
-                                }[];
+                                topDeduction: string | null;
                                 history: {
                                     /** Format: date */
                                     date: string;
@@ -9115,32 +9177,53 @@ export interface operations {
                     "application/json": {
                         enabled: boolean;
                         score: number | null;
-                        level: string | null;
-                        level_index: number | null;
-                        next_threshold: number | null;
-                        progress_to_next: number | null;
-                        formula: {
-                            on_time_points: number;
-                            late_points: number;
-                            priority_points: number;
-                            pomodoro_points: number;
-                            habit_points: number;
-                            overdue_penalty: number;
-                            weights: {
-                                on_time_base: number;
-                                late_base: number;
-                                priority_high_bonus: number;
-                                priority_medium_bonus: number;
-                                priority_low_bonus: number;
-                                pomodoro: number;
-                                habit_check_in: number;
-                                overdue_penalty: number;
+                        label: string | null;
+                        components: {
+                            tasks: {
+                                earned: number;
+                                max: number;
+                                configured: boolean;
+                                cumplimiento: {
+                                    earned: number;
+                                    max: number;
+                                    onTime: number;
+                                    planned: number;
+                                };
+                                atrasadas: {
+                                    earned: number;
+                                    max: number;
+                                    open: number;
+                                    penalty: number;
+                                    byAge: {
+                                        under7: number;
+                                        d8to30: number;
+                                        over30: number;
+                                    };
+                                };
+                            };
+                            habits: {
+                                earned: number;
+                                max: number;
+                                configured: boolean;
+                                done: number;
+                                expected: number;
+                            };
+                            focus: {
+                                earned: number;
+                                max: number;
+                                configured: boolean;
+                                pomodoros: number;
+                                target: number;
+                            };
+                            usage: {
+                                earned: number;
+                                max: number;
+                                configured: boolean;
+                                days: number;
+                                windowDays: number;
                             };
                         } | null;
-                        levels: {
-                            id: string;
-                            threshold: number;
-                        }[];
+                        topDeduction: string | null;
                         history: {
                             /** Format: date */
                             date: string;
@@ -9204,32 +9287,53 @@ export interface operations {
                                 achievement: {
                                     enabled: boolean;
                                     score: number | null;
-                                    level: string | null;
-                                    level_index: number | null;
-                                    next_threshold: number | null;
-                                    progress_to_next: number | null;
-                                    formula: {
-                                        on_time_points: number;
-                                        late_points: number;
-                                        priority_points: number;
-                                        pomodoro_points: number;
-                                        habit_points: number;
-                                        overdue_penalty: number;
-                                        weights: {
-                                            on_time_base: number;
-                                            late_base: number;
-                                            priority_high_bonus: number;
-                                            priority_medium_bonus: number;
-                                            priority_low_bonus: number;
-                                            pomodoro: number;
-                                            habit_check_in: number;
-                                            overdue_penalty: number;
+                                    label: string | null;
+                                    components: {
+                                        tasks: {
+                                            earned: number;
+                                            max: number;
+                                            configured: boolean;
+                                            cumplimiento: {
+                                                earned: number;
+                                                max: number;
+                                                onTime: number;
+                                                planned: number;
+                                            };
+                                            atrasadas: {
+                                                earned: number;
+                                                max: number;
+                                                open: number;
+                                                penalty: number;
+                                                byAge: {
+                                                    under7: number;
+                                                    d8to30: number;
+                                                    over30: number;
+                                                };
+                                            };
+                                        };
+                                        habits: {
+                                            earned: number;
+                                            max: number;
+                                            configured: boolean;
+                                            done: number;
+                                            expected: number;
+                                        };
+                                        focus: {
+                                            earned: number;
+                                            max: number;
+                                            configured: boolean;
+                                            pomodoros: number;
+                                            target: number;
+                                        };
+                                        usage: {
+                                            earned: number;
+                                            max: number;
+                                            configured: boolean;
+                                            days: number;
+                                            windowDays: number;
                                         };
                                     } | null;
-                                    levels: {
-                                        id: string;
-                                        threshold: number;
-                                    }[];
+                                    topDeduction: string | null;
                                     history: {
                                         /** Format: date */
                                         date: string;

@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { api } from '../api';
 import { fill, useMessages } from '../i18n';
 import { Popover } from './Popover';
+import { TagIcon } from './TagIcon';
 
 export interface TagOption {
   readonly id: string;
@@ -74,10 +75,7 @@ export function TagPicker({
                     onToggle(tag.id);
                   }}
                 />
-                <span
-                  className="tag-dot"
-                  style={tag.color === null ? undefined : { background: tag.color }}
-                />
+                <TagIcon color={tag.color} />
                 <span className="tag-name">{tag.name}</span>
               </label>
             </li>

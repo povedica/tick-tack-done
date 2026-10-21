@@ -1,4 +1,6 @@
 import { randomInt, randomUUID } from 'node:crypto';
+import { dayKey } from '@reflexionia/domain';
+import { newPersonalAccessToken } from '../src/auth/token-secret.js';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaClient } from '@prisma/client';
@@ -62,6 +64,60 @@ describe('V1 and V2 product', () => {
     }
     await wipe(userId);
     await prisma.$disconnect();
+  });
+
+  it('Control v3: concurrent session requests record one local daily_use without extra data or backfill', async () => {
+    await prisma.activityLog.deleteMany({ where: { ownerId: userId, entityType: 'daily_use' } });
+    await prisma.user.update({ where: { id: userId }, data: { timeZone: 'Europe/Madrid' } });
+    await Promise.all(Array.from({ length: 8 }, () => session().get('/api/v1/me').expect(200)));
+    const logs = await prisma.activityLog.findMany({
+      where: { ownerId: userId, entityType: 'daily_use' },
+    });
+    expect(logs).toHaveLength(1);
+    expect(logs[0]).toMatchObject({
+      ownerId: userId,
+      actorId: userId,
+      entityId: userId,
+      action: 'accessed',
+      changes: { date: dayKey(new Date().toISOString(), 'Europe/Madrid') },
+    });
+    expect(Object.keys(logs[0]?.changes as object)).toEqual(['date']);
+    const result = await session()
+      .get('/api/v1/stats/overview?from=2026-10-19&to=2026-10-25&tz=Europe%2FMadrid')
+      .expect(200);
+    expect(result.body.summary.streak_current).toBe(1);
+    expect(result.body.summary.achievement.components.usage.days).toBe(1);
+    expect(result.body.summary.achievement.history).toHaveLength(1);
+  });
+
+  it('Control v3: API tokens and development headers never create daily_use', async () => {
+    const user = await prisma.user.create({
+      data: { email: `no-use-${randomUUID()}@reflexionia.test`, displayName: 'Token only' },
+    });
+    const token = newPersonalAccessToken();
+    try {
+      await prisma.personalAccessToken.create({
+        data: {
+          ownerId: user.id,
+          name: 'Read',
+          tokenHash: token.hash,
+          tokenPrefix: token.prefix,
+          scopes: ['tasks:read'],
+        },
+      });
+      await request(server).get('/api/v1/me').set('X-Dev-User-Email', user.email).expect(200);
+      await request(server)
+        .get('/api/v1/tasks')
+        .set('Authorization', `Bearer ${token.token}`)
+        .expect(200);
+      expect(
+        await prisma.activityLog.count({ where: { ownerId: user.id, entityType: 'daily_use' } }),
+      ).toBe(0);
+    } finally {
+      await prisma.activityLog.deleteMany({ where: { ownerId: user.id } });
+      await prisma.personalAccessToken.deleteMany({ where: { ownerId: user.id } });
+      await wipe(user.id);
+    }
   });
 
   it('RF-1002: a column refuses a card past its WIP limit', async () => {
@@ -139,6 +195,183 @@ describe('V1 and V2 product', () => {
     expect(data.body.widgets).toEqual(
       expect.objectContaining({ completed_today: expect.any(Number) }),
     );
+    expect(data.body.widgets.habits.total).toBe(0);
+    expect(data.body.widgets.integrations).toEqual({
+      telegram: false,
+      google: false,
+      drive: false,
+    });
+    expect(data.body.period.time_zone).toBe('Europe/Madrid');
+    expect(Date.parse(data.body.generated_at as string)).not.toBeNaN();
+    expect(data.body.widgets.habits.configured).toBe(false);
+    expect(data.body.widgets.habits.today).toEqual({ done: 0, expected: 0 });
+    expect(data.body.widgets.focus.goal_seconds).toBeNull();
+    expect(data.body.widgets.focus.week_seconds).toEqual(expect.any(Number));
+    expect(data.body.widgets.tags.assignment_history).toBe(false);
+    expect(data.body.widgets.habits.complete).toBe(true);
+    expect(data.body.widgets.habits.pending_today).toEqual([]);
+    expect(data.body.widgets.load.total_active).toBe(
+      await prisma.task.count({
+        where: { ownerId: userId, deletedAt: null, status: 'active' },
+      }),
+    );
+  });
+
+  it('garden KISS: canonical overdue count equals the disjoint age groups and excludes completed/trash', async () => {
+    const project = await prisma.project.create({ data: { ownerId: userId, name: 'Antigüedad' } });
+    const start = new Date();
+    start.setUTCHours(0, 0, 0, 0);
+    await prisma.task.createMany({
+      data: [0, 6, 7, 30, 31].map((days) => ({
+        ownerId: userId,
+        createdById: userId,
+        projectId: project.id,
+        title: `Edad ${String(days)}`,
+        timeZone: 'UTC',
+        isAllDay: days !== 0,
+        dueDate:
+          days === 0 ? new Date(Date.now() - 1000) : new Date(start.getTime() - days * 86_400_000),
+      })),
+    });
+    await prisma.task.createMany({
+      data: [
+        { status: 'completed' as const, deletedAt: null },
+        { status: 'active' as const, deletedAt: new Date() },
+      ].map((extra) => ({
+        ownerId: userId,
+        createdById: userId,
+        projectId: project.id,
+        title: 'Excluida',
+        timeZone: 'UTC',
+        dueDate: new Date(start.getTime() - 31 * 86_400_000),
+        ...extra,
+      })),
+    });
+    const response = await session().get('/api/v1/dashboard/data').expect(200);
+    const groups = response.body.widgets.overdue_by_list as {
+      list_id: string;
+      total: number;
+      under_7: number;
+      days_7_30: number;
+      over_30: number;
+    }[];
+    expect(groups.find((group) => group.list_id === project.id)).toMatchObject({
+      total: 5,
+      under_7: 2,
+      days_7_30: 2,
+      over_30: 1,
+    });
+    expect(groups.reduce((sum, item) => sum + item.total, 0)).toBe(response.body.widgets.overdue);
+    expect(
+      groups.every((item) => item.total === item.under_7 + item.days_7_30 + item.over_30),
+    ).toBe(true);
+  });
+
+  it('RF-2103: saves widget visibility, ordering and size per account and emits an event', async () => {
+    const widgets = [
+      { widget_key: 'flow', position: 0, size: 'l', config: {} },
+      { widget_key: 'overdue', position: 1, size: 's', config: {} },
+    ];
+    await session()
+      .patch('/api/v1/me/dashboard')
+      .send({ name: 'Mi jardín', is_default: true, widgets })
+      .expect(200);
+    const saved = await session().get('/api/v1/me/dashboard').expect(200);
+    expect(saved.body.widgets).toEqual(widgets);
+    expect(
+      await prisma.outboxEvent.count({ where: { ownerId: userId, type: 'dashboard.updated@v1' } }),
+    ).toBeGreaterThan(0);
+  });
+
+  it('RF-2102: contextualizes lists with inactivity, new projects and recent deletions', async () => {
+    const old = new Date(Date.now() - 60 * 86_400_000);
+    const stale = await prisma.project.create({
+      data: { ownerId: userId, name: 'Sin movimiento', createdAt: old },
+    });
+    await prisma.task.create({
+      data: {
+        ownerId: userId,
+        projectId: stale.id,
+        createdById: userId,
+        title: 'Siguiente paso',
+        createdAt: old,
+        updatedAt: old,
+      },
+    });
+    const fresh = await prisma.project.create({ data: { ownerId: userId, name: 'Nuevo' } });
+    const deleted = await prisma.project.create({
+      data: { ownerId: userId, name: 'Eliminado', createdAt: old, deletedAt: new Date() },
+    });
+    const oldDeleted = await prisma.project.create({
+      data: { ownerId: userId, name: 'Borrado antiguo', createdAt: old, deletedAt: old },
+    });
+    const response = await session().get('/api/v1/dashboard/data').expect(200);
+    const projects = response.body.widgets.projects;
+    expect(projects.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: stale.id,
+          state: 'stale',
+          needs_review: true,
+          active_tasks: 1,
+        }),
+        expect.objectContaining({ id: fresh.id, state: 'new', needs_review: false }),
+        expect.objectContaining({ id: deleted.id, state: 'deleted', needs_review: false }),
+        expect.objectContaining({ id: oldDeleted.id, state: 'deleted', needs_review: false }),
+      ]),
+    );
+    expect(projects.items.some((item: { id: string }) => item.id === projectId)).toBe(false);
+  });
+
+  it('RF-2102: limits upcoming external events to the next seven days', async () => {
+    const subscription = await prisma.calendarSubscription.create({ data: { ownerId: userId } });
+    const now = Date.now();
+    await prisma.externalEvent.createMany({
+      data: [1, 30].map((days) => ({
+        ownerId: userId,
+        subscriptionId: subscription.id,
+        externalUid: `garden-${String(days)}`,
+        title: `Evento ${String(days)}`,
+        startsAt: new Date(now + days * 86_400_000),
+      })),
+    });
+    await prisma.externalEvent.create({
+      data: {
+        ownerId: userId,
+        subscriptionId: subscription.id,
+        externalUid: 'garden-cancelled',
+        title: 'Cancelado',
+        startsAt: new Date(now + 86_400_000),
+        status: 'cancelled',
+      },
+    });
+    const hidden = await prisma.calendarSubscription.create({
+      data: { ownerId: userId, visible: false },
+    });
+    await prisma.externalEvent.create({
+      data: {
+        ownerId: userId,
+        subscriptionId: hidden.id,
+        externalUid: 'garden-hidden',
+        title: 'Oculto',
+        startsAt: new Date(now + 86_400_000),
+      },
+    });
+    const duplicate = await prisma.calendarSubscription.create({ data: { ownerId: userId } });
+    await prisma.externalEvent.create({
+      data: {
+        ownerId: userId,
+        subscriptionId: duplicate.id,
+        externalUid: 'garden-1',
+        title: 'Mismo evento en otro calendario',
+        startsAt: new Date(now + 86_400_000),
+      },
+    });
+    const response = await session().get('/api/v1/dashboard/data').expect(200);
+    expect(response.body.widgets.calendar.upcoming).toBe(1);
+    expect(response.body.widgets.calendar.items).toEqual([
+      expect.objectContaining({ title: 'Evento 1' }),
+    ]);
   });
 
   it('RF-2201: the weekly report is deterministic and stored', async () => {
@@ -503,6 +736,62 @@ describe('V1 and V2 product', () => {
     expect(denied.body.error.code).toBe('google_not_configured');
   });
 
+  it('DAT-1: badge, dashboard and review count the same overdue tasks including children', async () => {
+    const parent = await session()
+      .post('/api/v1/tasks')
+      .send({ project_id: projectId, title: 'Parent overdue', due_date: '2020-01-01T08:00:00Z' })
+      .expect(201);
+    await session()
+      .post('/api/v1/tasks')
+      .send({
+        project_id: projectId,
+        parent_id: parent.body.id as string,
+        title: 'Child overdue',
+        due_date: '2020-01-02T08:00:00Z',
+      })
+      .expect(201);
+    const badge = await session()
+      .get('/api/v1/tasks?status=active&overdue=true&flat=true&limit=100')
+      .expect(200);
+    const dashboard = await session().get('/api/v1/dashboard/data').expect(200);
+    const review = await session().get('/api/v1/review/weekly').expect(200);
+    expect(badge.body.items.length).toBeGreaterThanOrEqual(2);
+    expect(dashboard.body.widgets.overdue).toBe(badge.body.items.length);
+    expect(review.body.overdue_ids.length).toBe(badge.body.items.length);
+  });
+
+  it('account navigation order persists and a flag patch does not reset it', async () => {
+    const saved = await session()
+      .patch('/api/v1/me')
+      .send({ features: { navigation_order: ['statistics', 'dashboard', 'calendar'] } })
+      .expect(200);
+    expect(saved.body.features.navigation_order.slice(0, 3)).toEqual([
+      'statistics',
+      'dashboard',
+      'calendar',
+    ]);
+    await session()
+      .patch('/api/v1/me')
+      .send({ features: { focus: false } })
+      .expect(200);
+    const me = await session().get('/api/v1/me').expect(200);
+    expect(me.body.features.navigation_order).toEqual(saved.body.features.navigation_order);
+    expect(me.body.features.focus).toBe(false);
+  });
+
+  it('DET-5: saving the same description twice replaces the buffer without concatenating it', async () => {
+    const created = await session()
+      .post('/api/v1/tasks')
+      .send({ project_id: projectId, title: 'Autosave audit', content: 'Original note' })
+      .expect(201);
+    const path = `/api/v1/tasks/${created.body.id as string}`;
+    const content = '# Notas\n\nContenido editado una sola vez.';
+    await session().patch(path).send({ content }).expect(200);
+    await session().patch(path).send({ content }).expect(200);
+    const saved = await session().get(path).expect(200);
+    expect(saved.body.content).toBe(content);
+  });
+
   function session() {
     return {
       get: (url: string) =>
@@ -534,6 +823,7 @@ async function wipe(id: string | undefined): Promise<void> {
   await prisma.focusSession.deleteMany({ where: { ownerId: id } });
   await prisma.stickyNote.deleteMany({ where: { ownerId: id } });
   await prisma.weeklyReport.deleteMany({ where: { ownerId: id } });
+  await prisma.dashboardLayout.deleteMany({ where: { ownerId: id } });
   await prisma.externalEvent.deleteMany({ where: { ownerId: id } });
   await prisma.calendarSubscription.deleteMany({ where: { ownerId: id } });
   await prisma.attachment.deleteMany({ where: { ownerId: id } });

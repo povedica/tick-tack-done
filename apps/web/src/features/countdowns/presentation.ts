@@ -1,3 +1,4 @@
+import { humanDate } from '@reflexionia/domain';
 import type { Countdown, CountdownKind, CountdownType } from './api';
 
 export const TYPE_LABEL: Record<CountdownType, string> = {
@@ -8,10 +9,7 @@ export const TYPE_LABEL: Record<CountdownType, string> = {
 };
 
 export function dateLabel(value: string): string {
-  const [year, month, day] = value.slice(0, 10).split('-');
-  return year === undefined || month === undefined || day === undefined
-    ? value
-    : `${day}/${month}/${year}`;
+  return humanDate(value.slice(0, 10));
 }
 
 export function countdownLabel(kind: CountdownKind, days: number, effectiveDate: string): string {

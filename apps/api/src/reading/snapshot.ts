@@ -8,6 +8,7 @@ export async function loadDashboardSnapshot(
   prisma: PrismaService,
   ownerId: string,
   now: Date,
+  timeZone = 'UTC',
 ): Promise<DashboardSnapshot> {
   const tasks = await prisma.task.findMany({
     where: { ownerId, deletedAt: null },
@@ -45,7 +46,7 @@ export async function loadDashboardSnapshot(
       count: log.count,
     })),
   }));
-  const snapshot = dashboardSnapshot(mappedTasks, mappedHabits, now.toISOString());
+  const snapshot = dashboardSnapshot(mappedTasks, mappedHabits, now.toISOString(), timeZone);
   // DAT-1: overdue matches the badge SQL (all-day uses the calendar day in the task zone).
   const overdue = await countOverdueTasks(prisma, ownerId);
   return { ...snapshot, overdue };

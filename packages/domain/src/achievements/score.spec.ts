@@ -1,49 +1,67 @@
 import { describe, expect, it } from 'vitest';
-import { achievementScore, ACHIEVEMENT_LEVELS } from './score';
+import { controlScore, type ControlInput } from './score';
 import { parsePluginManifest, pluginMay } from '../plugins/manifest';
 import { allows, parseMentions } from '../collaboration/access';
 import { isRasterImage } from '../attachments/image';
 import { parseTelegramCommand } from '../integrations/telegram';
 import { completionRate, parseDayBounds } from '../stats/aggregate';
 
-describe('achievements', () => {
-  it('RF-1602: a disabled score stays empty', () => {
-    expect(
-      achievementScore({ enabled: false, completedWeek: 10, habitPercent: 100, focusDays: 5 })
-        .score,
-    ).toBeNull();
+const base: ControlInput = {
+  planned: 0,
+  onTime: 0,
+  overdue: { under7: 0, d8to30: 0, over30: 0 },
+  habitDone: 0,
+  habitExpected: 0,
+  pomodoros: 0,
+  lifetimePomodoros: 0,
+  usageDays: 0,
+};
+describe('RF-1602 Control v3', () => {
+  it('returns no score without observed data or when disabled', () => {
+    expect(controlScore(base).score).toBeNull();
+    expect(controlScore({ ...base, enabled: false, usageDays: 7 }).score).toBeNull();
   });
-
-  it('RF-1602: an enabled score names a level', () => {
-    expect(
-      achievementScore({ enabled: true, completedWeek: 1, habitPercent: 0, focusDays: 0 }).level,
-    ).toBe('inicio');
-    expect(
-      achievementScore({ enabled: true, completedWeek: 20, habitPercent: 80, focusDays: 4 }).level,
-    ).toBe('constante');
-    expect(
-      achievementScore({ enabled: true, completedWeek: 8, habitPercent: 0, focusDays: 0 }).level,
-    ).toBe('en marcha');
-    expect(
-      achievementScore({ enabled: true, completedWeek: 2, habitPercent: 0, focusDays: 0 }).level,
-    ).toBe('arranque');
+  it.each([
+    [{ planned: 3, onTime: 3, usageDays: 1 }, 79],
+    [{ planned: 1, onTime: 1, usageDays: 7 }, 90],
+    [
+      {
+        planned: 20,
+        onTime: 12,
+        overdue: { under7: 0, d8to30: 0, over30: 58 },
+        habitDone: 5,
+        habitExpected: 7,
+        pomodoros: 6,
+        lifetimePomodoros: 6,
+        usageDays: 7,
+      },
+      51,
+    ],
+    [
+      {
+        planned: 20,
+        onTime: 12,
+        habitDone: 5,
+        habitExpected: 7,
+        pomodoros: 6,
+        lifetimePomodoros: 6,
+        usageDays: 7,
+      },
+      76,
+    ],
+    [{ planned: 20, onTime: 18, overdue: { under7: 5, d8to30: 0, over30: 0 }, usageDays: 5 }, 81],
+  ])('matches the approved formula for %j', (patch, expected) => {
+    expect(controlScore({ ...base, ...patch }).score).toBe(expected);
   });
-
-  it('RF-2321: exposes twelve levels and a public formula breakdown', () => {
-    expect(ACHIEVEMENT_LEVELS).toHaveLength(12);
-    const score = achievementScore({
-      enabled: true,
-      completedOnTime: 2,
-      completedLate: 1,
-      priorityPoints: 15,
-      pomodoros: 1,
-      habitCheckIns: 2,
-      overdueCount: 1,
-    });
-    // 2*10 + 1*5 + 15 + 15 + 2*8 - 5 = 66
-    expect(score.score).toBe(66);
-    expect(score.formula?.weights.pomodoro).toBe(15);
-    expect(score.progress_to_next).not.toBeNull();
+  it('excludes unused focus but includes previously used focus and empty recent cohorts', () => {
+    expect(controlScore({ ...base, usageDays: 7 }).components?.focus.configured).toBe(false);
+    expect(
+      controlScore({ ...base, usageDays: 7, lifetimePomodoros: 1 }).components?.focus,
+    ).toMatchObject({ configured: true, earned: 0 });
+    expect(
+      controlScore({ ...base, overdue: { under7: 0, d8to30: 1, over30: 0 } }).components?.tasks
+        .cumplimiento.earned,
+    ).toBe(25);
   });
 });
 

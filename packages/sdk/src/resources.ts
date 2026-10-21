@@ -22,6 +22,7 @@ export interface UpdateMeBody {
   readonly deadline_soon_days?: number;
   readonly evening_start?: string;
   readonly features?: {
+    readonly navigation_order?: readonly string[];
     readonly countdowns?: boolean;
     readonly focus?: boolean;
     readonly matrix?: boolean;
@@ -184,7 +185,10 @@ export interface ResourceClient {
   revokeInboundEmail(): Promise<void>;
   listTags(query?: PageQuery): Promise<TagPage>;
   createTag(body: NamedWrite, idempotencyKey: string): Promise<Tag>;
-  updateTag(id: string, body: Partial<NamedWrite>): Promise<Tag>;
+  updateTag(
+    id: string,
+    body: Partial<NamedWrite> & { before_id?: string | null; move_to_end?: boolean },
+  ): Promise<Tag>;
   deleteTag(id: string): Promise<void>;
   mergeTags(sourceId: string, targetId: string): Promise<Tag>;
   listFolders(): Promise<FolderPage>;
@@ -237,6 +241,12 @@ export interface ResourceClient {
   listAttachments(id: string): Promise<AttachmentPage>;
   uploadAttachment(id: string, file: Blob, fileName: string): Promise<Attachment>;
   dashboardData(): Promise<JsonObject>;
+  dashboardLayout(): Promise<JsonObject>;
+  saveDashboardLayout(body: {
+    name: string;
+    is_default: boolean;
+    widgets: readonly { widget_key: string; position: number; size: string; config: JsonObject }[];
+  }): Promise<JsonObject>;
   statsOverview(query: string): Promise<StatsOverview>;
   statsTasks(query: string): Promise<StatsTasks>;
   statsFocus(query: string): Promise<StatsFocus>;
@@ -244,6 +254,7 @@ export interface ResourceClient {
   statsAchievement(): Promise<StatsAchievement>;
   statsExport(query: string): Promise<Blob>;
   weeklyReports(): Promise<JsonObject>;
+  weeklyReport(week: string): Promise<JsonObject>;
   buildWeeklyReport(): Promise<JsonObject>;
   reviewDaily(): Promise<JsonObject>;
   reviewWeekly(): Promise<JsonObject>;
@@ -462,6 +473,9 @@ export function resourceMethods(http: Http): ResourceClient {
       ask('GET', `/api/v1/tasks/${id}/attachments`, undefined, undefined, isAttachmentPage),
     uploadAttachment: (id, file, fileName) => upload(http, id, file, fileName),
     dashboardData: () => ask('GET', '/api/v1/dashboard/data', undefined, undefined, isJsonObject),
+    dashboardLayout: () => ask('GET', '/api/v1/me/dashboard', undefined, undefined, isJsonObject),
+    saveDashboardLayout: (body) =>
+      ask('PATCH', '/api/v1/me/dashboard', body, undefined, isJsonObject),
     statsOverview: (query) =>
       ask('GET', `/api/v1/stats/overview?${query}`, undefined, undefined, isStatsOverview),
     statsTasks: (query) =>
@@ -474,6 +488,14 @@ export function resourceMethods(http: Http): ResourceClient {
     statsAchievement: () =>
       ask('GET', '/api/v1/stats/achievement', undefined, undefined, isStatsAchievement),
     weeklyReports: () => ask('GET', '/api/v1/reports/weekly', undefined, undefined, isJsonObject),
+    weeklyReport: (week) =>
+      ask(
+        'GET',
+        `/api/v1/reports/weekly/${encodeURIComponent(week)}`,
+        undefined,
+        undefined,
+        isJsonObject,
+      ),
     buildWeeklyReport: () =>
       ask('POST', '/api/v1/reports/weekly', undefined, undefined, isJsonObject),
     reviewDaily: () => ask('GET', '/api/v1/review/daily', undefined, undefined, isJsonObject),

@@ -70,6 +70,7 @@ export class PlanningService {
         title: row.title,
         priority: row.priority,
         dueDate: row.dueDate?.toISOString() ?? null,
+        startDate: row.startDate?.toISOString() ?? null,
         isAllDay: row.isAllDay,
         timeZone: row.timeZone,
         status: row.status,
@@ -81,6 +82,7 @@ export class PlanningService {
         updatedAt: row.updatedAt.toISOString(),
         createdAt: row.createdAt.toISOString(),
         isSomeday: row.isSomeday,
+        recurring: row.repeatRule !== null || row.seriesId !== null,
       })),
       input,
     );
@@ -155,6 +157,21 @@ export class PlanningService {
     expectedRevision: number,
     key: string | undefined,
   ): Promise<Record<string, unknown>> {
+    return this.prisma.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${user.id}))`;
+        return this.applyLocked(user, sessionId, expectedRevision, key);
+      },
+      { timeout: 60_000 },
+    );
+  }
+
+  private async applyLocked(
+    user: AuthUser,
+    sessionId: string,
+    expectedRevision: number,
+    key: string | undefined,
+  ): Promise<Record<string, unknown>> {
     if (key === undefined || key.trim() === '') {
       throw new DomainException(
         HttpStatus.BAD_REQUEST,
@@ -224,6 +241,10 @@ export class PlanningService {
         ownerId_localDate_timeZone: { ownerId: user.id, localDate, timeZone },
       },
       include: {
+        sessions: {
+          where: { state: 'applied', kind: { in: ['plan', 'replan'] } },
+          include: { operations: { where: { status: 'applied' }, orderBy: { updatedAt: 'asc' } } },
+        },
         members: {
           orderBy: { rank: 'asc' },
           include: {
@@ -246,7 +267,22 @@ export class PlanningService {
     const members = (plan?.members ?? []).filter(
       (member) => member.task.deletedAt === null && member.task.status === 'active',
     );
+    const saves = (plan?.sessions ?? [])
+      .flatMap((session) =>
+        session.operations.map((operation) => ({
+          at: operation.updatedAt.toISOString(),
+          changed: readResult(operation.result).applied.some(
+            (effect) => effect.effect !== 'unchanged' && effect.effect !== 'skipped',
+          ),
+        })),
+      )
+      .sort((a, b) => a.at.localeCompare(b.at));
+    const first = saves[0];
+    const changes = saves.slice(1).filter((save) => save.changed);
     return {
+      initial_applied_at: first?.at ?? null,
+      last_applied_at: changes.at(-1)?.at ?? first?.at ?? null,
+      adjustment_count: changes.length,
       id: plan?.id ?? null,
       local_date: localDate,
       time_zone: timeZone,
@@ -294,6 +330,10 @@ export class PlanningService {
       return 'trashed';
     }
     if (decision.decision === 'plan_day') {
+      const existing = await this.prisma.planMember.findUnique({
+        where: { planId_taskId: { planId: session.planId, taskId: decision.taskId } },
+      });
+      if (existing !== null) return 'unchanged';
       await this.place(
         user.id,
         session.plan.localDate,
@@ -314,6 +354,16 @@ export class PlanningService {
     }
     if (decision.decision === 'later') {
       const target = decision.targetDate ?? nextCivil(session.plan.localDate);
+      const existing = await this.prisma.planMember.findFirst({
+        where: {
+          taskId: decision.taskId,
+          plan: { ownerId: user.id, localDate: target, timeZone: session.plan.timeZone },
+        },
+      });
+      const current = await this.prisma.planMember.findUnique({
+        where: { planId_taskId: { planId: session.planId, taskId: decision.taskId } },
+      });
+      if (existing !== null && current === null) return 'unchanged';
       await this.prisma.planMember.deleteMany({
         where: {
           taskId: decision.taskId,
@@ -501,12 +551,14 @@ export class PlanningService {
         reason_text: card.reasonText,
         priority: card.priority,
         due_date: card.dueDate,
+        start_date: card.startDate ?? null,
         is_all_day: card.isAllDay,
         time_zone: card.timeZone,
         project_id: card.projectId,
         project_name: card.projectName,
         updated_at: card.updatedAt,
         rank: card.rank,
+        recurring: card.recurring ?? null,
       })),
       decisions: decisions.map((decision) => ({
         task_id: decision.taskId,

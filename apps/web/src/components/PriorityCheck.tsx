@@ -4,11 +4,13 @@ export function PriorityCheck({
   priority,
   label,
   checked,
+  disabled,
   onChange,
 }: {
   readonly priority: 'none' | 'low' | 'medium' | 'high';
   readonly label: string;
   readonly checked?: boolean | undefined;
+  readonly disabled?: boolean | undefined;
   readonly onChange: (event: ChangeEvent<HTMLInputElement>) => void;
 }) {
   return (
@@ -17,6 +19,7 @@ export function PriorityCheck({
         type="checkbox"
         className="task-check"
         aria-label={label}
+        disabled={disabled}
         onChange={onChange}
         {...(checked === undefined ? {} : { checked })}
       />

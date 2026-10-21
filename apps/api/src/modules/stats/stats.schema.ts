@@ -27,34 +27,30 @@ const day = object({
   pomodoros: integer,
   habit_percent: nullable(number),
 });
+const component = { earned: number, max: number, configured: { type: 'boolean' } as const };
 export const achievementSchema = object({
   enabled: { type: 'boolean' },
-  score: nullable(number),
-  level: nullable(string),
-  level_index: nullable(integer),
-  next_threshold: nullable(number),
-  progress_to_next: nullable(number),
-  formula: nullable(
+  score: nullable({ ...integer, minimum: 0, maximum: 100 }),
+  label: nullable(string),
+  components: nullable(
     object({
-      on_time_points: number,
-      late_points: number,
-      priority_points: number,
-      pomodoro_points: number,
-      habit_points: number,
-      overdue_penalty: number,
-      weights: object({
-        on_time_base: number,
-        late_base: number,
-        priority_high_bonus: number,
-        priority_medium_bonus: number,
-        priority_low_bonus: number,
-        pomodoro: number,
-        habit_check_in: number,
-        overdue_penalty: number,
+      tasks: object({
+        ...component,
+        cumplimiento: object({ earned: number, max: number, onTime: integer, planned: integer }),
+        atrasadas: object({
+          earned: number,
+          max: number,
+          open: integer,
+          penalty: number,
+          byAge: object({ under7: integer, d8to30: integer, over30: integer }),
+        }),
       }),
+      habits: object({ ...component, done: integer, expected: integer }),
+      focus: object({ ...component, pomodoros: integer, target: integer }),
+      usage: object({ ...component, days: integer, windowDays: integer }),
     }),
   ),
-  levels: array(object({ id: string, threshold: integer })),
+  topDeduction: nullable(string),
   history: array(object({ date, score: nullable(number) })),
 });
 export const overviewSchema = object({

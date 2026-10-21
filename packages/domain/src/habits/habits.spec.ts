@@ -424,3 +424,51 @@ describe('habits', () => {
     expect(stats?.completionPercent.week).toBe(100);
   });
 });
+
+describe('RF-1303 historical schedules', () => {
+  it('frequency and quantity edits preserve previous completion and allow correcting its count', () => {
+    const old = { period: 'day' as const, timesPerPeriod: 1, targetCount: 1 };
+    const goal = { period: 'day' as const, timesPerPeriod: 8, targetCount: 8 };
+    const history = [
+      { from: '1970-01-01', goal: old, days: WEEK },
+      { from: '2026-10-17', goal, days: ['saturday' as const] },
+    ];
+    const logs = [
+      { date: '2026-10-15', count: 1 },
+      { date: '2026-10-16', count: 1 },
+    ];
+    const stats = habitStats({
+      goal,
+      days: ['saturday'],
+      history,
+      logs,
+      timeZone: MADRID,
+      now: NOW,
+      year: 2026,
+    });
+    expect(stats?.heatmap.find((cell) => cell.date === '2026-10-16')).toMatchObject({
+      scheduled: true,
+      met: true,
+    });
+    expect(stats?.streakCurrent).toBe(2);
+    const corrected = assessCheckIn({
+      goal,
+      days: ['saturday'],
+      history,
+      logs,
+      date: '2026-10-16',
+      count: 2,
+      timeZone: MADRID,
+      now: NOW,
+    });
+    expect(corrected.ok).toBe(true);
+    const aggregate = aggregateHeatmap({
+      year: 2026,
+      habits: [{ goal, days: ['saturday'], history, logs }],
+    });
+    expect(aggregate?.find((cell) => cell.date === '2026-10-16')).toMatchObject({
+      scheduled: 1,
+      met: 1,
+    });
+  });
+});

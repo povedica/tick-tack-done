@@ -21,6 +21,7 @@ export interface RowModel {
   readonly source: string;
   readonly content: string;
   readonly completedAt: string | null;
+  readonly deletedAt?: string | null;
 }
 
 type ViewTask = ViewPage['groups'][number]['tasks'][number];
@@ -58,6 +59,7 @@ export function rowFromTask(
     source: task.source,
     content: task.content,
     completedAt: task.completed_at,
+    deletedAt: task.deleted_at,
   };
 }
 
@@ -80,6 +82,7 @@ export function rowFromView(task: ViewTask): RowModel {
     source: typeof task.source === 'string' ? task.source : '',
     content: typeof task.content === 'string' ? task.content : '',
     completedAt: task.completed_at,
+    deletedAt: task.deleted_at,
   };
 }
 

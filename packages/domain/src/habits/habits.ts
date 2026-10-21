@@ -52,7 +52,15 @@ export type HabitDraftFailure = 'invalid_goal' | 'invalid_frequency' | 'invalid_
 export type CheckInFailure =
   'inactive_day' | 'future_date' | 'invalid_count' | 'invalid_date' | 'invalid_zone';
 
+export interface HabitHistory {
+  readonly from: string;
+  readonly to?: string;
+  readonly goal: HabitGoal;
+  readonly days: readonly HabitWeekday[];
+}
 export interface NormalizedHabit {
+  readonly history?: readonly HabitHistory[];
+
   readonly goal: HabitGoal;
   readonly days: readonly HabitWeekday[];
   readonly reminderTime: string | null;
@@ -67,6 +75,7 @@ interface Model {
   readonly goal: HabitGoal;
   readonly days: ReadonlySet<HabitWeekday>;
   readonly logs: ReadonlyMap<string, number>;
+  readonly history: readonly HabitHistory[];
   readonly today: string;
 }
 
@@ -157,12 +166,56 @@ export function readStoredHabit(
     days,
     reminderTime,
   });
-  return parsed.ok ? parsed.habit : null;
+  if (!parsed.ok) return null;
+  const raw = (goal as { schedule_history?: unknown }).schedule_history;
+  const history: HabitHistory[] = Array.isArray(raw)
+    ? raw.flatMap((item: unknown) => {
+        if (!item || typeof item !== 'object') return [];
+        const row = item as { from?: unknown; to?: unknown; goal?: unknown; days?: unknown };
+        if (
+          typeof row.from !== 'string' ||
+          parseIsoDate(row.from) === null ||
+          !Array.isArray(row.days) ||
+          !row.goal ||
+          typeof row.goal !== 'object'
+        )
+          return [];
+        const days = normalizeDays(
+          row.days.filter((day): day is string => typeof day === 'string'),
+        );
+        const values = row.goal as {
+          timesPerPeriod?: unknown;
+          period?: unknown;
+          targetCount?: unknown;
+        };
+        if (
+          !days ||
+          typeof values.timesPerPeriod !== 'number' ||
+          typeof values.targetCount !== 'number' ||
+          !isPeriod(String(values.period))
+        )
+          return [];
+        return [
+          {
+            from: row.from,
+            ...(typeof row.to === 'string' ? { to: row.to } : {}),
+            days,
+            goal: {
+              timesPerPeriod: values.timesPerPeriod,
+              targetCount: values.targetCount,
+              period: values.period as HabitPeriod,
+            },
+          },
+        ];
+      })
+    : [];
+  return { ...parsed.habit, history };
 }
 
 /** RF-1302 and RF-1305. A goal is met only when this check-in crosses the threshold. */
 export function assessCheckIn(input: {
   readonly goal: HabitGoal;
+  readonly history?: readonly HabitHistory[];
   readonly days: readonly HabitWeekday[];
   readonly logs: readonly HabitLogEntry[];
   readonly date: string;
@@ -180,18 +233,19 @@ export function assessCheckIn(input: {
   if (parseIsoDate(input.date) === null) {
     return { ok: false, reason: 'invalid_date' };
   }
+  const effective = effectiveHabit(input.goal, input.days, input.history ?? [], input.date);
   const weekday = weekdayOf(input.date);
-  if (weekday === null || !input.days.includes(weekday)) {
+  if (weekday === null || !effective.days.includes(weekday)) {
     return { ok: false, reason: 'inactive_day' };
   }
   if (input.date > today) {
     return { ok: false, reason: 'future_date' };
   }
-  const before = modelOf(input.goal, input.days, input.logs, today);
+  const before = modelOf(input.goal, input.days, input.logs, today, input.history);
   const afterLogs = input.logs
     .filter((log) => log.date !== input.date)
     .concat([{ date: input.date, count: input.count }]);
-  const after = modelOf(input.goal, input.days, afterLogs, today);
+  const after = modelOf(input.goal, input.days, afterLogs, today, input.history);
   return {
     ok: true,
     assessment: {
@@ -204,6 +258,7 @@ export function assessCheckIn(input: {
 /** RF-1303. Percents use elapsed active days. The heatmap covers the whole year. */
 export function habitStats(input: {
   readonly goal: HabitGoal;
+  readonly history?: readonly HabitHistory[];
   readonly days: readonly HabitWeekday[];
   readonly logs: readonly HabitLogEntry[];
   readonly timeZone: string;
@@ -215,7 +270,7 @@ export function habitStats(input: {
   if (today === null || dates === null) {
     return null;
   }
-  const model = modelOf(input.goal, input.days, input.logs, today);
+  const model = modelOf(input.goal, input.days, input.logs, today, input.history);
   const monday = mondayOf(today);
   const monthStart = `${today.slice(0, 7)}-01`;
   const monthEnd = formatDate(
@@ -238,6 +293,7 @@ export function habitStats(input: {
 export function aggregateHeatmap(input: {
   readonly habits: readonly {
     readonly goal: HabitGoal;
+    readonly history?: readonly HabitHistory[];
     readonly days: readonly HabitWeekday[];
     readonly logs: readonly HabitLogEntry[];
   }[];
@@ -251,13 +307,14 @@ export function aggregateHeatmap(input: {
     let scheduled = 0;
     let met = 0;
     for (const habit of input.habits) {
+      const effective = effectiveHabit(habit.goal, habit.days, habit.history ?? [], date);
       const weekday = weekdayOf(date);
-      if (weekday === null || !habit.days.includes(weekday)) {
+      if (weekday === null || !effective.days.includes(weekday)) {
         continue;
       }
       scheduled += 1;
       const count = countOn(habit.logs, date);
-      if (count >= habit.goal.targetCount) {
+      if (count >= effective.goal.targetCount) {
         met += 1;
       }
     }
@@ -271,6 +328,7 @@ export function aggregateHeatmap(input: {
  */
 export function streakBreakOn(input: {
   readonly goal: HabitGoal;
+  readonly history?: readonly HabitHistory[];
   readonly days: readonly HabitWeekday[];
   readonly logs: readonly HabitLogEntry[];
   readonly timeZone: string;
@@ -280,7 +338,7 @@ export function streakBreakOn(input: {
   if (today === null) {
     return null;
   }
-  const model = modelOf(input.goal, input.days, input.logs, today);
+  const model = modelOf(input.goal, input.days, input.logs, today, input.history);
   if (input.goal.period === 'week') {
     const missedMonday = addDays(mondayOf(today), -7);
     const priorMonday = addDays(missedMonday, -7);
@@ -292,11 +350,11 @@ export function streakBreakOn(input: {
     }
     return null;
   }
-  const missed = previousActive(today, model.days);
+  const missed = previousScheduled(model, today);
   if (missed === null || metOn(model, missed)) {
     return null;
   }
-  const prior = previousActive(missed, model.days);
+  const prior = previousScheduled(model, missed);
   if (prior === null || !metOn(model, prior)) {
     return null;
   }
@@ -352,6 +410,7 @@ function modelOf(
   days: readonly HabitWeekday[],
   logs: readonly HabitLogEntry[],
   today: string,
+  history: readonly HabitHistory[] = [],
 ): Model {
   const counts = new Map<string, number>();
   for (const log of logs) {
@@ -359,7 +418,7 @@ function modelOf(
       counts.set(log.date, log.count);
     }
   }
-  return { goal, days: new Set(days), logs: counts, today };
+  return { goal, days: new Set(days), logs: counts, today, history };
 }
 
 function currentStreak(model: Model): number {
@@ -458,6 +517,7 @@ function bestWeekStreak(model: Model): number {
 /** RF-1303 / RF-2323: arbitrary ranges use the same elapsed-day/weekly-goal model. */
 export function habitRangeSummary(input: {
   readonly goal: HabitGoal;
+  readonly history?: readonly HabitHistory[];
   readonly days: readonly HabitWeekday[];
   readonly logs: readonly HabitLogEntry[];
   readonly from: string;
@@ -465,7 +525,7 @@ export function habitRangeSummary(input: {
   readonly today: string;
 }): { done: number; expected: number; percent: number } {
   return rangeSummary(
-    modelOf(input.goal, input.days, input.logs, input.today),
+    modelOf(input.goal, input.days, input.logs, input.today, input.history),
     input.from,
     input.to,
   );
@@ -487,7 +547,12 @@ function rangeSummary(model: Model, start: string, end: string) {
     if (metOn(model, date)) done += 1;
   }
   if (model.goal.period === 'week') {
-    expected = model.goal.timesPerPeriod * weeks.size;
+    expected = [...weeks].reduce(
+      (sum, monday) =>
+        sum +
+        effectiveHabit(model.goal, [...model.days], model.history, monday).goal.timesPerPeriod,
+      0,
+    );
     done = Math.min(done, expected);
   }
   return { done, expected, percent: ratio(done, expected) };
@@ -516,10 +581,15 @@ function classifyWeek(monday: string, model: Model): WeekState {
       remaining += 1;
     }
   }
-  if (met >= model.goal.timesPerPeriod) {
+  if (
+    met >= effectiveHabit(model.goal, [...model.days], model.history, monday).goal.timesPerPeriod
+  ) {
     return 'met';
   }
-  if (met + remaining >= model.goal.timesPerPeriod) {
+  if (
+    met + remaining >=
+    effectiveHabit(model.goal, [...model.days], model.history, monday).goal.timesPerPeriod
+  ) {
     return 'open';
   }
   return 'missed';
@@ -528,25 +598,35 @@ function classifyWeek(monday: string, model: Model): WeekState {
 function heatCell(model: Model, date: string): HabitHeatCell {
   const scheduled = isScheduled(model, date);
   const count = model.logs.get(date) ?? 0;
-  return { date, count, scheduled, met: scheduled && count >= model.goal.targetCount };
+  return {
+    date,
+    count,
+    scheduled,
+    met:
+      scheduled &&
+      count >= effectiveHabit(model.goal, [...model.days], model.history, date).goal.targetCount,
+  };
 }
 
 function metOn(model: Model, date: string): boolean {
-  return (model.logs.get(date) ?? 0) >= model.goal.targetCount;
+  return (
+    (model.logs.get(date) ?? 0) >=
+    effectiveHabit(model.goal, [...model.days], model.history, date).goal.targetCount
+  );
 }
 
 function isScheduled(model: Model, date: string): boolean {
   const weekday = weekdayOf(date);
-  return weekday !== null && model.days.has(weekday);
+  return (
+    weekday !== null &&
+    effectiveHabit(model.goal, [...model.days], model.history, date).days.includes(weekday)
+  );
 }
 
-function previousActive(date: string, days: ReadonlySet<HabitWeekday>): string | null {
+function previousScheduled(model: Model, date: string): string | null {
   let cursor = addDays(date, -1);
-  for (let guard = 0; guard < 7; guard += 1) {
-    const weekday = weekdayOf(cursor);
-    if (weekday !== null && days.has(weekday)) {
-      return cursor;
-    }
+  for (let guard = 0; guard < 366; guard += 1) {
+    if (isScheduled(model, cursor)) return cursor;
     cursor = addDays(cursor, -1);
   }
   return null;
@@ -702,4 +782,17 @@ function isLeap(year: number): boolean {
 
 function formatDate(year: number, month: number, day: number): string {
   return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+function effectiveHabit(
+  goal: HabitGoal,
+  days: readonly HabitWeekday[],
+  history: readonly HabitHistory[],
+  date: string,
+): { goal: HabitGoal; days: readonly HabitWeekday[] } {
+  // Dated snapshots are appended after periods so an existing record keeps its effective settings.
+  const match = [...history]
+    .reverse()
+    .find((item) => item.from <= date && (item.to === undefined || item.to >= date));
+  return match ?? { goal, days };
 }

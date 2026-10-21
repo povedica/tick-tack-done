@@ -1,423 +1,238 @@
 import { YearHeatmap } from '../../statistics/YearHeatmap';
-import type { Habit, HabitStats } from '@reflexionia/sdk';
-import { HABIT_WEEKDAYS, type HabitWeekday } from '@reflexionia/domain';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Link } from 'react-router';
-import { Button, EmptyState } from '../../../components/ui';
-import { useMessages, type Messages } from '../../../i18n';
-import { habitsApi } from '../api';
-import { HABIT_SUGGESTIONS, buildHabitBody, canCreateHabit, type HabitDraft } from '../suggestions';
-
-const DAY_LABEL: Record<HabitWeekday, keyof Messages> = {
-  monday: 'dayMonday',
-  tuesday: 'dayTuesday',
-  wednesday: 'dayWednesday',
-  thursday: 'dayThursday',
-  friday: 'dayFriday',
-  saturday: 'daySaturday',
-  sunday: 'daySunday',
-};
-
-const EMPTY_DRAFT: HabitDraft = {
-  name: '',
-  period: 'day',
-  times: 1,
-  days: HABIT_WEEKDAYS,
-  reminderTime: '',
-};
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { Habit, CreateHabitBody } from '@reflexionia/sdk';
+import { api } from '../../../api';
+import { Button } from '../../../components/ui';
+import { useActionToast } from '../../../components/action-toast';
+import { useMessages } from '../../../i18n';
+import { useAppLocale } from '../../../i18n/locale';
+import { HABIT_SUGGESTIONS, buildHabitBody } from '../suggestions';
+import { useHabitCopy } from '../copy';
+import { HabitEditor } from './HabitEditor';
+import { HabitCard } from './HabitCard';
+import '../habits.css';
 
 export function HabitsPage() {
-  const messages = useMessages();
-  const queryClient = useQueryClient();
-  const habits = useQuery({
-    queryKey: ['habits'],
-    queryFn: () => habitsApi.listHabits(),
-  });
-  const [picked, setPicked] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
-  const [confirmArchive, setConfirmArchive] = useState<string | null>(null);
-  const [draft, setDraft] = useState<HabitDraft>(EMPTY_DRAFT);
-  const [error, setError] = useState<string | null>(null);
+  const m = useMessages();
+  const t = useHabitCopy();
+  const locale = useAppLocale();
+  const cache = useQueryClient();
+  const toast = useActionToast((state) => state.show);
+  const habits = useQuery({ queryKey: ['habits'], queryFn: () => api.listHabits() });
+  const [editor, setEditor] = useState<Habit | 'new' | null>(null);
+  const [error, setError] = useState(false);
   const active = (habits.data?.items ?? []).filter((habit) => !habit.archived);
   const archived = (habits.data?.items ?? []).filter((habit) => habit.archived);
-  const selected = picked ?? active[0]?.id ?? null;
-  const stats = useQuery({
-    queryKey: ['habit-stats', selected],
-    queryFn: () => {
-      if (selected === null) {
-        throw new Error('habit');
-      }
-      const today = active.find((habit) => habit.id === selected)?.today.date ?? '';
-      const year = Number(today.slice(0, 4));
-      return habitsApi.habitStats(selected, Number.isInteger(year) && year > 0 ? year : undefined);
-    },
-    enabled: selected !== null,
+  const today =
+    active[0]?.today.date ??
+    new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(
+      new Date(),
+    );
+  const monday = new Date(`${today}T12:00:00`);
+  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+  const week = Array.from({ length: 7 }, (_, i) => {
+    const day = new Date(monday);
+    day.setDate(day.getDate() + i);
+    return `${String(day.getFullYear())}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
   });
-
-  const refresh = async (): Promise<void> => {
-    await queryClient.invalidateQueries({ queryKey: ['habits'] });
-    await queryClient.invalidateQueries({ queryKey: ['habit-stats'] });
-    await queryClient.invalidateQueries({ queryKey: ['stats'] });
-    await queryClient.invalidateQueries({ queryKey: ['achievements'] });
+  const aggregate = useQuery({
+    queryKey: ['habit-stats', active[0]?.id, Number(today.slice(0, 4))],
+    queryFn: () => api.habitStats(active[0]?.id ?? '', Number(today.slice(0, 4))),
+    enabled: active.length > 0,
+  });
+  const refresh = async () => {
+    for (const key of ['habits', 'habit-stats', 'stats', 'achievements', 'dashboard'])
+      await cache.invalidateQueries({ queryKey: [key] });
   };
-
-  const create = useMutation({
-    mutationFn: (body: HabitDraft) =>
-      habitsApi.createHabit(buildHabitBody(body), crypto.randomUUID()),
-    onSuccess: async (created) => {
-      setDraft(EMPTY_DRAFT);
-      setAdding(false);
-      setPicked(created.id);
-      setError(null);
+  const mutation = useMutation({
+    mutationFn: async (action: () => Promise<unknown>) => action(),
+    onSuccess: async () => {
+      setError(false);
       await refresh();
     },
     onError: () => {
-      setError(messages.habitFailed);
+      setError(true);
     },
   });
-
-  const checkIn = useMutation({
-    mutationFn: (input: { habit: Habit; count: number; note?: string }) =>
-      habitsApi.checkInHabit(
-        input.habit.id,
-        {
-          date: input.habit.today.date,
-          count: input.count,
-          ...(input.note === undefined ? {} : { note: input.note }),
-        },
-        crypto.randomUUID(),
-      ),
-    onSuccess: async () => {
-      setError(null);
-      await refresh();
-    },
-    onError: () => {
-      setError(messages.habitFailed);
-    },
-  });
-
-  const archive = useMutation({
-    mutationFn: (id: string) => habitsApi.updateHabit(id, { archived: true }),
-    onSuccess: async () => {
-      setPicked(null);
-      await refresh();
-    },
-  });
-
-  const week = weekDays(new Date());
+  const archive = (habit: Habit) => {
+    mutation.mutate(async () => {
+      await api.updateHabit(habit.id, { archived: !habit.archived });
+      toast(habit.archived ? t.recovered : t.archived, () => {
+        mutation.mutate(() => api.updateHabit(habit.id, { archived: habit.archived }));
+      });
+    });
+  };
+  const remove = (habit: Habit) => {
+    if (window.confirm(t.confirmDelete)) mutation.mutate(() => api.deleteHabit(habit.id));
+  };
+  const save = (body: CreateHabitBody) => {
+    mutation.mutate(async () => {
+      if (editor && editor !== 'new') await api.updateHabit(editor.id, body);
+      else await api.createHabit(body, crypto.randomUUID());
+      setEditor(null);
+    });
+  };
   return (
-    <main className="habits screen-page">
+    <main className="screen-page habits-v2">
       <header className="habit-head">
-        <div>
-          <h1>{messages.habitsTitle}</h1>
-          <p className="lede">{messages.habitsHint}</p>
-        </div>
+        <h1>{m.habitsTitle}</h1>
         <Button
           variant="primary"
           onClick={() => {
-            setAdding((current) => !current);
+            setEditor('new');
           }}
         >
-          {messages.habitCreate}
+          {m.habitCreate}
         </Button>
       </header>
-      <ol className="habit-week">
-        {week.map((day) => (
-          <li key={day.key} data-today={day.today ? 'true' : undefined}>
-            <span>{day.label}</span>
-            <i />
-          </li>
-        ))}
+      {error || habits.isError ? <p role="alert">{t.failed}</p> : null}
+      <ol className="habit-summary-week">
+        {week.map((date) => {
+          const cell = aggregate.data?.aggregate_heatmap.find((cell) => cell.date === date);
+          const done = cell?.met ?? 0;
+          const total = cell?.scheduled ?? 0;
+          return (
+            <li key={date} data-today={date === today}>
+              <span>
+                {new Date(`${date}T12:00:00`).toLocaleDateString(locale, { weekday: 'narrow' })}
+              </span>
+              <i
+                className={
+                  total && done === total ? 'is-done' : total && date < today ? 'is-missed' : ''
+                }
+                style={
+                  {
+                    '--habit-progress': `${String(total ? (done / total) * 100 : 0)}%`,
+                  } as React.CSSProperties
+                }
+                aria-label={`${date}: ${String(done)}/${String(total)}`}
+              >
+                {total && done === total ? '✓' : new Date(`${date}T12:00:00`).getDate()}
+              </i>
+            </li>
+          );
+        })}
       </ol>
-      {error !== null ? <p className="error">{error}</p> : null}
-      {stats.data !== undefined ? (
-        <Heatmap
-          title={messages.aggregateHeat}
-          cells={stats.data.aggregate_heatmap.map((cell) => ({
-            date: cell.date,
-            level: aggregateLevel(cell),
-          }))}
+      {editor ? (
+        <HabitEditor
+          key={editor === 'new' ? 'new' : editor.id}
+          {...(editor === 'new' ? {} : { habit: editor })}
+          busy={mutation.isPending}
+          onSave={save}
+          onCancel={() => {
+            setEditor(null);
+          }}
         />
       ) : null}
-
-      <section className="habit-suggest">
-        <h2>{messages.suggestions}</h2>
-        <ul>
-          {HABIT_SUGGESTIONS.map((suggestion) => (
-            <li key={suggestion.id}>
-              <button
-                type="button"
-                disabled={create.isPending}
-                onClick={() => {
-                  const body: HabitDraft = {
-                    name: messages[suggestion.label],
-                    period: suggestion.period,
-                    times: suggestion.times,
-                    days: suggestion.days,
-                    reminderTime: suggestion.reminderTime,
-                  };
-                  setDraft(body);
-                  create.mutate(body);
-                }}
-              >
-                {messages[suggestion.label]}
-              </button>
-            </li>
-          ))}
-        </ul>
-        {adding ? (
-          <>
-            <form
-              className="habit-form"
-              onSubmit={(event) => {
-                event.preventDefault();
-                if (canCreateHabit(draft)) {
-                  create.mutate(draft);
-                }
-              }}
-            >
-              <label>
-                {messages.habitName}
-                <input
-                  value={draft.name}
-                  onChange={(event) => {
-                    setDraft({ ...draft, name: event.target.value });
-                  }}
-                />
-              </label>
-              <label>
-                {messages.habitPeriod}
-                <select
-                  value={draft.period}
-                  onChange={(event) => {
-                    const period = event.target.value === 'week' ? 'week' : 'day';
-                    setDraft({ ...draft, period });
-                  }}
-                >
-                  <option value="day">{messages.periodDay}</option>
-                  <option value="week">{messages.periodWeek}</option>
-                </select>
-              </label>
-              <label>
-                {messages.habitTimes}
-                <input
-                  type="number"
-                  min={1}
-                  value={draft.times}
-                  onChange={(event) => {
-                    setDraft({ ...draft, times: Number(event.target.value) });
-                  }}
-                />
-              </label>
-              <fieldset>
-                <legend>{messages.habitDays}</legend>
-                {HABIT_WEEKDAYS.map((day) => (
-                  <label key={day}>
-                    <input
-                      type="checkbox"
-                      checked={draft.days.includes(day)}
-                      onChange={() => {
-                        const days = draft.days.includes(day)
-                          ? draft.days.filter((item) => item !== day)
-                          : [...draft.days, day];
-                        setDraft({ ...draft, days });
-                      }}
-                    />
-                    {messages[DAY_LABEL[day]]}
-                  </label>
-                ))}
-              </fieldset>
-              <label>
-                {messages.habitReminder}
-                <input
-                  type="time"
-                  value={draft.reminderTime}
-                  onChange={(event) => {
-                    setDraft({ ...draft, reminderTime: event.target.value });
-                  }}
-                />
-              </label>
+      {habits.isPending ? <p role="status">{m.habitSaving}</p> : null}
+      {!active.length && !habits.isPending ? (
+        <section className="habit-empty-v2">
+          <p>{m.habitEmpty}</p>
+          <div className="habit-actions">
+            {HABIT_SUGGESTIONS.map((suggestion) => (
               <Button
-                type="submit"
-                variant="primary"
-                disabled={!canCreateHabit(draft) || create.isPending}
-              >
-                {create.isPending ? messages.habitSaving : messages.habitCreate}
-              </Button>
-            </form>
-          </>
-        ) : null}
-      </section>
-
-      {habits.isPending ? <p>{messages.habitSaving}</p> : null}
-      {active.length === 0 && !habits.isPending ? (
-        <EmptyState title={messages.habitsTitle} body={messages.habitEmpty} />
-      ) : null}
-      <ul className="habit-list">
-        {active.map((habit) => (
-          <li key={habit.id} className="habit-card">
-            <Link to={`/habits/${habit.id}`}>{habit.name}</Link>
-            <button
-              type="button"
-              className={habit.id === selected ? 'selected' : undefined}
-              onClick={() => {
-                setPicked(habit.id);
-              }}
-            >
-              {messages.habitOpen}
-            </button>
-            <p>
-              {habit.today.count}/{habit.goal.target_count}
-              {habit.goal.period === 'week' ? ` · ${String(habit.goal.times_per_period)}` : ''}
-            </p>
-            <button
-              type="button"
-              className={
-                habit.today.count >= habit.goal.target_count ? 'habit-check is-done' : 'habit-check'
-              }
-              aria-label={messages.checkIn}
-              onClick={() => {
-                checkIn.mutate({ habit, count: habit.today.count + 1 });
-              }}
-            />
-            <label>
-              {messages.habitNote}
-              <input
-                defaultValue={habit.today.note ?? ''}
-                key={`${habit.id}-${habit.today.note ?? ''}`}
-                onBlur={(event) => {
-                  const note = event.target.value;
-                  if (note !== (habit.today.note ?? '')) {
-                    checkIn.mutate({ habit, count: habit.today.count, note });
-                  }
+                key={suggestion.id}
+                disabled={mutation.isPending}
+                onClick={() => {
+                  mutation.mutate(() =>
+                    api.createHabit(
+                      {
+                        ...buildHabitBody({ name: m[suggestion.label], ...suggestion }),
+                        icon:
+                          (
+                            { water: '💧', walk: '🚶', read: '📖', exercise: '🏃' } as Record<
+                              string,
+                              string
+                            >
+                          )[suggestion.id] ?? null,
+                      },
+                      crypto.randomUUID(),
+                    ),
+                  );
                 }}
-              />
-            </label>
-            <button
-              type="button"
-              onClick={() => {
-                if (confirmArchive !== habit.id) {
-                  setConfirmArchive(habit.id);
-                  return;
-                }
-                archive.mutate(habit.id);
-                setConfirmArchive(null);
-              }}
-            >
-              {confirmArchive === habit.id ? messages.confirmArchive : messages.archive}
-            </button>
-          </li>
+              >
+                {m[suggestion.label]}
+              </Button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+      <ul className="habit-cards-v2">
+        {active.map((habit) => (
+          <HabitCard
+            key={habit.id}
+            habit={habit}
+            week={week}
+            busy={mutation.isPending}
+            onEdit={() => {
+              setEditor(habit);
+            }}
+            onArchive={() => {
+              archive(habit);
+            }}
+            onDelete={() => {
+              remove(habit);
+            }}
+            onCheck={(date, count, note) => {
+              mutation.mutate(() =>
+                api.checkInHabit(
+                  habit.id,
+                  { date, count, ...(note === undefined ? {} : { note }) },
+                  crypto.randomUUID(),
+                ),
+              );
+            }}
+          />
         ))}
       </ul>
-      {archived.length > 0 ? (
-        <section>
-          <h2>{messages.habitArchived}</h2>
+      {aggregate.data ? (
+        <details className="habit-existing-heatmap">
+          <summary>{m.aggregateHeat}</summary>
+          <YearHeatmap
+            cells={aggregate.data.aggregate_heatmap.map((cell) => ({
+              date: cell.date,
+              count: cell.met,
+              level: cell.scheduled === 0 ? 0 : Math.round((cell.met / cell.scheduled) * 4),
+            }))}
+          />
+        </details>
+      ) : null}
+      {archived.length ? (
+        <details className="habit-archived">
+          <summary>
+            {m.habitArchived} · {archived.length}
+          </summary>
           <ul>
             {archived.map((habit) => (
               <li key={habit.id}>
-                {habit.name}
-                <button
-                  type="button"
+                <span>
+                  {habit.icon} {habit.name}
+                </span>
+                <Button
+                  size="sm"
+                  disabled={mutation.isPending}
                   onClick={() => {
-                    void habitsApi.updateHabit(habit.id, { archived: false }).then(() => refresh());
+                    archive(habit);
                   }}
                 >
-                  {messages.habitUnarchive}
-                </button>
+                  {m.habitUnarchive}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={mutation.isPending}
+                  onClick={() => {
+                    remove(habit);
+                  }}
+                >
+                  {t.remove}
+                </Button>
               </li>
             ))}
           </ul>
-        </section>
-      ) : null}
-      {stats.data !== undefined && selected !== null ? (
-        <StatsPanel messages={messages} stats={stats.data} />
+        </details>
       ) : null}
     </main>
-  );
-}
-
-function StatsPanel({ messages, stats }: { messages: Messages; stats: HabitStats }) {
-  return (
-    <section>
-      <p>
-        {messages.streakCurrent}: {stats.streak_current}
-      </p>
-      <p>
-        {messages.streakBest}: {stats.streak_best}
-      </p>
-      <p>
-        {messages.weekPercent}: {stats.completion_percent.week}%
-      </p>
-      <p>
-        {messages.monthPercent}: {stats.completion_percent.month}%
-      </p>
-      <Heatmap
-        title={messages.heatmap}
-        cells={stats.heatmap.map((cell) => ({
-          date: cell.date,
-          level: habitLevel(cell),
-        }))}
-      />
-    </section>
-  );
-}
-
-function weekDays(now: Date): { key: string; label: string; today: boolean }[] {
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const shift = (start.getDay() + 6) % 7;
-  start.setDate(start.getDate() - shift);
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toDateString();
-  return Array.from({ length: 7 }, (_, index) => {
-    const day = new Date(start.getFullYear(), start.getMonth(), start.getDate() + index);
-    return {
-      key: day.toDateString(),
-      label: new Intl.DateTimeFormat('es', { weekday: 'narrow' }).format(day),
-      today: day.toDateString() === today,
-    };
-  });
-}
-
-function habitLevel(cell: { scheduled: boolean; met: boolean }): 'off' | 'miss' | 'met' {
-  if (!cell.scheduled) {
-    return 'off';
-  }
-  return cell.met ? 'met' : 'miss';
-}
-
-function aggregateLevel(cell: {
-  scheduled: number;
-  met: number;
-}): 'off' | 'miss' | 'partial' | 'met' {
-  if (cell.scheduled === 0) {
-    return 'off';
-  }
-  if (cell.met === 0) {
-    return 'miss';
-  }
-  if (cell.met >= cell.scheduled) {
-    return 'met';
-  }
-  return 'partial';
-}
-
-function Heatmap({
-  title,
-  cells,
-}: {
-  title: string;
-  cells: readonly { date: string; level: 'off' | 'miss' | 'partial' | 'met' }[];
-}) {
-  return (
-    <section>
-      <h2>{title}</h2>
-      <YearHeatmap
-        cells={cells.map((cell) => ({
-          date: cell.date,
-          count: cell.level === 'met' ? 1 : 0,
-          level: cell.level === 'met' ? 4 : cell.level === 'partial' ? 2 : 0,
-        }))}
-      />
-    </section>
   );
 }

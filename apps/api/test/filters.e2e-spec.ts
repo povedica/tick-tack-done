@@ -157,6 +157,46 @@ describe('filters, smart lists and search', () => {
     await api.get('/api/v1/smart-lists/missing/tasks').expect(404);
   });
 
+  it('RF-901: fixed navigation survives legacy hidden flags and cannot be hidden by updates', async () => {
+    const api = authed(owner.email);
+    await prisma.smartList.updateMany({
+      where: { ownerId: owner.id, key: 'today' },
+      data: { enabled: false },
+    });
+    const listed = await api.get('/api/v1/smart-lists').expect(200);
+    expect(listed.body.items.find((item: { key: string }) => item.key === 'today').enabled).toBe(
+      true,
+    );
+    const updated = await api
+      .patch('/api/v1/smart-lists')
+      .send({
+        items: listed.body.items.map((item: { key: string }) => ({
+          key: item.key,
+          enabled: false,
+        })),
+      })
+      .expect(200);
+    for (const key of [
+      'today',
+      'tomorrow',
+      'next_7_days',
+      'all',
+      'inbox',
+      'no_date',
+      'recently_added',
+      'someday',
+    ])
+      expect(updated.body.items.find((item: { key: string }) => item.key === key).enabled).toBe(
+        true,
+      );
+    expect(
+      updated.body.items.find((item: { key: string }) => item.key === 'assigned_to_me').enabled,
+    ).toBe(false);
+    expect(
+      await prisma.smartList.findFirst({ where: { ownerId: owner.id, key: 'today' } }),
+    ).toMatchObject({ enabled: true });
+  });
+
   it('RF-902 RF-904 RF-903: previews, saves and deletes a filter', async () => {
     const api = authed(owner.email);
     const rules = {

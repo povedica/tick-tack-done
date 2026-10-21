@@ -1,4 +1,4 @@
-import { isSmartListKey, SMART_LIST_KEYS } from '@reflexionia/domain';
+import { isSmartListKey, SMART_LIST_KEYS, FIXED_SMART_LIST_KEYS } from '@reflexionia/domain';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   CalendarDays,
@@ -61,7 +61,12 @@ export function SmartListsPage() {
   const generation = useRef(0);
   const items = orderedSmartLists(lists.data?.items ?? []);
   const keys = order ?? items.map((item) => item.key);
-  const flags = enabled ?? Object.fromEntries(items.map((item) => [item.key, item.enabled]));
+  const flags = Object.fromEntries(
+    items.map((item) => [
+      item.key,
+      FIXED_SMART_LIST_KEYS.includes(item.key) || (enabled?.[item.key] ?? item.enabled),
+    ]),
+  );
   const sidebarKeys = keys.filter((key) => key !== PINNED);
   const menuId = useId();
 
@@ -353,47 +358,51 @@ function SmartRow({
         </Link>
         {pinned ? <span className="smart-settings-caption">{messages.smartPinned}</span> : null}
       </span>
-      <div className="smart-visibility" ref={menuRef}>
-        <button
-          type="button"
-          className="smart-visibility-btn"
-          aria-haspopup="menu"
-          aria-expanded={open}
-          aria-controls={menuId}
-          onClick={onOpen}
-        >
-          {visibility}
-          <ChevronDown size={14} aria-hidden="true" />
-        </button>
-        {open ? (
-          <div className="smart-visibility-menu" id={menuId} role="menu" aria-label={label}>
-            <button
-              type="button"
-              role="menuitemradio"
-              aria-checked={enabled}
-              className="smart-settings-option"
-              onClick={() => {
-                onEnabled(true);
-              }}
-            >
-              {messages.smartShow}
-              {enabled ? <Check size={14} aria-hidden="true" /> : <span />}
-            </button>
-            <button
-              type="button"
-              role="menuitemradio"
-              aria-checked={!enabled}
-              className="smart-settings-option"
-              onClick={() => {
-                onEnabled(false);
-              }}
-            >
-              {messages.smartHide}
-              {enabled ? <span /> : <Check size={14} aria-hidden="true" />}
-            </button>
-          </div>
-        ) : null}
-      </div>
+      {FIXED_SMART_LIST_KEYS.includes(listKey) ? (
+        <span className="smart-settings-caption">{messages.smartFixed}</span>
+      ) : (
+        <div className="smart-visibility" ref={menuRef}>
+          <button
+            type="button"
+            className="smart-visibility-btn"
+            aria-haspopup="menu"
+            aria-expanded={open}
+            aria-controls={menuId}
+            onClick={onOpen}
+          >
+            {visibility}
+            <ChevronDown size={14} aria-hidden="true" />
+          </button>
+          {open ? (
+            <div className="smart-visibility-menu" id={menuId} role="menu" aria-label={label}>
+              <button
+                type="button"
+                role="menuitemradio"
+                aria-checked={enabled}
+                className="smart-settings-option"
+                onClick={() => {
+                  onEnabled(true);
+                }}
+              >
+                {messages.smartShow}
+                {enabled ? <Check size={14} aria-hidden="true" /> : <span />}
+              </button>
+              <button
+                type="button"
+                role="menuitemradio"
+                aria-checked={!enabled}
+                className="smart-settings-option"
+                onClick={() => {
+                  onEnabled(false);
+                }}
+              >
+                {messages.smartHide}
+                {enabled ? <span /> : <Check size={14} aria-hidden="true" />}
+              </button>
+            </div>
+          ) : null}
+        </div>
+      )}
     </li>
   );
 }

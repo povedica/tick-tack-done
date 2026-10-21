@@ -15,7 +15,6 @@ import { IsArray, IsIn, IsOptional, IsString, Matches } from 'class-validator';
 import type { Request, Response } from 'express';
 import {
   isReportTone,
-  weeklyNarrative,
   dayKey,
   parseDayBounds,
   addCalendarDays,
@@ -67,7 +66,11 @@ export class ReportsController {
 
   @Get('reports/weekly')
   @Scopes('tasks:read')
-  @ApiOperation({ summary: 'Weekly report history (RF-2204)' })
+  @ApiOperation({
+    summary: 'Weekly report history (RF-2204)',
+    description:
+      'Returns stored payloads unchanged. Legacy reports may use trailing-seven-day totals; clients should derive consistent totals from saved days and disclose legacy coverage. No live recalculation on GET.',
+  })
   async list(
     @CurrentUser() user: AuthUser,
     @Req() req: Request,
@@ -79,18 +82,12 @@ export class ReportsController {
       take: 20,
     });
     respond(req, res, {
-      items: await Promise.all(
-        rows.map(async (row) => ({
-          week: row.weekStart.toISOString().slice(0, 10),
-          tone: row.tone,
-          sent_at: row.sentAt?.toISOString() ?? null,
-          payload: await this.normalizedPayload(
-            user,
-            row.weekStart.toISOString().slice(0, 10),
-            row.payload,
-          ),
-        })),
-      ),
+      items: rows.map((row) => ({
+        week: row.weekStart.toISOString().slice(0, 10),
+        tone: row.tone,
+        sent_at: row.sentAt?.toISOString() ?? null,
+        payload: row.payload,
+      })),
     });
   }
 
@@ -112,14 +109,18 @@ export class ReportsController {
     respond(req, res, {
       week,
       tone: row.tone,
-      payload: await this.normalizedPayload(user, week, row.payload),
+      payload: row.payload,
       sent_at: row.sentAt,
     });
   }
 
   @Post('reports/weekly')
   @Scopes('tasks:read')
-  @ApiOperation({ summary: 'Build this week’s honest report (RF-2201, RF-2203)' })
+  @ApiOperation({
+    summary: 'Build this week’s report (RF-2201, RF-2203)',
+    description:
+      'Explicitly rebuilds the current local Monday–Sunday week through calculated_at. metrics_version=2; completed and created are independent sums of local days. focus_minutes is null without focus records. habits_done/expected cover elapsed days. trend/trend_label are null without a comparable cutoff. Historical reports are unchanged.',
+  })
   async build(
     @CurrentUser() user: AuthUser,
     @Req() req: Request,
@@ -181,28 +182,14 @@ export class ReportsController {
     const range = parseDayBounds(monday, addCalendarDays(monday, 6) ?? monday, user.timeZone);
     const week = new Date(`${monday}T00:00:00Z`);
     const periodStart = new Date(range?.startIso ?? week.toISOString());
-    const weekEnd = new Date(range?.endIso ?? week.toISOString());
     const snapshot = await loadDashboardSnapshot(this.prisma, user.id, now);
-    const focusMinutes = await this.metrics.focusMinutes(user.id, periodStart, weekEnd);
+    const focusMinutes = await this.metrics.focusMinutes(user.id, periodStart, now);
+    const focusRows = await this.metrics.focusRows(user.id, periodStart, now);
     const habits = await this.metrics.activeHabitsExpectedDays(
       user.id,
       periodStart,
-      weekEnd,
+      now,
       user.timeZone,
-    );
-    const upcomingExternal = await this.prisma.externalEvent.count({
-      where: {
-        ownerId: user.id,
-        deletedAt: null,
-        startsAt: { gte: now, lt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) },
-        subscription: { deletedAt: null, visible: true },
-      },
-    });
-    const narrative = weeklyNarrative(
-      { ...snapshot, habit_percent: habits.percent },
-      settings.tone,
-      focusMinutes,
-      upcomingExternal,
     );
     const countdowns = await this.prisma.countdown.findMany({
       where: { ownerId: user.id, deletedAt: null, archivedAt: null },
@@ -224,31 +211,31 @@ export class ReportsController {
         ownerId: user.id,
         deletedAt: null,
         OR: [
-          { createdAt: { gte: periodStart, lt: weekEnd } },
-          { completedAt: { gte: periodStart, lt: weekEnd } },
+          { createdAt: { gte: periodStart, lt: now } },
+          { completedAt: { gte: periodStart, lt: now } },
         ],
       },
       select: { createdAt: true, completedAt: true },
     });
+    const days = bucketWeek(week, touched, user.timeZone, now);
+    const completed = days.reduce((sum, day) => sum + day.completed, 0);
+    const created = days.reduce((sum, day) => sum + day.created, 0);
     const payload = {
-      summary: `${narrative.summary}\n${closingLine}`,
-      observations: narrative.observations,
-      snapshot,
-      completed: snapshot.completed,
-      created: snapshot.created,
+      calculated_at: now.toISOString(),
+      time_zone: user.timeZone,
+      metrics_version: 2,
+      summary: `${String(completed)} tareas completadas y ${String(created)} creadas. ${closingLine}`,
+      observations: [],
+      snapshot: { ...snapshot, completed, created, trend: null },
+      completed,
+      created,
       overdue: snapshot.overdue,
-      focus_minutes: focusMinutes,
+      focus_minutes: focusRows.some((session) => session.type === 'focus') ? focusMinutes : null,
       habits_done: habits.done,
       habits_expected: habits.expected,
-      trend: snapshot.trend,
-      trend_label:
-        snapshot.trend === 0
-          ? 'igual que la semana anterior'
-          : snapshot.trend > 0
-            ? `+${String(snapshot.trend)} vs semana anterior`
-            : `${String(snapshot.trend)} vs semana anterior`,
-      days: bucketWeek(week, touched),
-      weak: narrative.weak,
+      trend: null,
+      trend_label: null,
+      days,
       countdowns: {
         upcoming: upcomingCountdowns.map((countdown) => ({
           id: countdown.id,
@@ -285,43 +272,6 @@ export class ReportsController {
       return saved;
     });
     return { id: row.id, week: week.toISOString().slice(0, 10), ...payload, tone: settings.tone };
-  }
-
-  private async normalizedPayload(user: AuthUser, week: string, payload: unknown) {
-    const base =
-      typeof payload === 'object' && payload !== null ? (payload as Record<string, unknown>) : {};
-    const bounds = parseDayBounds(week, addCalendarDays(week, 6) ?? week, user.timeZone);
-    if (bounds === null) return base;
-    const from = new Date(bounds.startIso);
-    const to = new Date(bounds.endIso);
-    const [focus, habits] = await Promise.all([
-      this.metrics.focusMinutes(user.id, from, to),
-      this.metrics.activeHabitsExpectedDays(user.id, from, to, user.timeZone),
-    ]);
-    const summary =
-      typeof base.summary === 'string'
-        ? base.summary
-            .replace(
-              /Tiempo de foco: [\d.,]+ minutos\./,
-              `Tiempo de foco: ${String(focus)} minutos.`,
-            )
-            .replace(
-              /Hábitos de hoy: [\d.,]+ %\./,
-              `Hábitos de la semana: ${String(habits.percent)} %.`,
-            )
-        : '';
-    const trend = typeof base.trend === 'number' ? base.trend : 0;
-    return {
-      ...base,
-      summary,
-      focus_minutes: focus,
-      habits_done: habits.done,
-      habits_expected: habits.expected,
-      trend_label:
-        trend === 0
-          ? 'igual que la semana anterior'
-          : `${trend > 0 ? '+' : ''}${String(trend)} vs semana anterior`,
-    };
   }
 
   private async closingLine(ownerId: string, week: Date): Promise<string> {

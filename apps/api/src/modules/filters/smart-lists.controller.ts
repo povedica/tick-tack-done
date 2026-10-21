@@ -29,7 +29,11 @@ export class SmartListsController {
 
   @Patch()
   @Scopes('filters:write')
-  @ApiOperation({ summary: 'Enable and reorder system smart lists (RF-901)' })
+  @ApiOperation({
+    summary: 'Enable and reorder system smart lists (RF-901)',
+    description:
+      'Core navigation lists always remain enabled: today, tomorrow, next_7_days, all, inbox, no_date, recently_added and someday. Their order remains customizable; visibility preferences apply to the other lists.',
+  })
   @ApiOkResponse({ type: SmartListPageDto })
   async update(
     @CurrentUser() user: AuthUser,

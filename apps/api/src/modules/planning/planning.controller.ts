@@ -91,7 +91,11 @@ export class PlanningController {
 
   @Post('sessions')
   @Scopes('tasks:write')
-  @ApiOperation({ summary: 'Open a day-planning session. Nothing is changed yet.' })
+  @ApiOperation({
+    summary: 'Open a day-planning session. Nothing is changed yet.',
+    description:
+      'Sources can restrict the session to today only. Today includes active start/deadline ranges, excluding overdue tasks when overdue=false. Cards expose start_date and recurring (null for legacy snapshots); clients disable bulk actions when recurrence safety is unknown or recurring=true.',
+  })
   async start(
     @CurrentUser() user: AuthUser,
     @Body() body: StartPlanDto,
@@ -193,7 +197,11 @@ export class PlansController {
 
   @Get()
   @Scopes('tasks:read')
-  @ApiOperation({ summary: 'Tasks the user planned for a local date' })
+  @ApiOperation({
+    summary: 'Tasks the user planned for a local date',
+    description:
+      'Includes server-persisted initial_applied_at, last_applied_at and adjustment_count derived from applied plan/replan operations. First save is not an adjustment; later unchanged operations and replays do not count. Shutdown operations are excluded.',
+  })
   @ApiQuery({ name: 'date', required: true })
   @ApiQuery({ name: 'time_zone', required: true })
   async day(

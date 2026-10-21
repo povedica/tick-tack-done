@@ -27,6 +27,15 @@ import { DayClosingService } from './day-closing.service.js';
 const DECISIONS = ['done', 'plan_day', 'later', 'someday', 'cancel', 'trash', 'skip'] as const;
 
 class SessionDateDto {
+  @ApiProperty({
+    required: false,
+    description:
+      'When false, suggestions remain informational; only explicit decisions are applied. Defaults to true for existing clients.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  apply_suggestions?: boolean;
+
   @ApiProperty({ example: '2026-10-20' })
   @Matches(/^\d{4}-\d{2}-\d{2}$/)
   local_date!: string;
@@ -171,7 +180,12 @@ export class DayClosingController {
       req,
       res,
       201,
-      await this.closing.startReplan(user, dto.local_date, dto.time_zone),
+      await this.closing.startReplan(
+        user,
+        dto.local_date,
+        dto.time_zone,
+        dto.apply_suggestions ?? true,
+      ),
       false,
     );
   }

@@ -1,18 +1,19 @@
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { GripVertical, MoreHorizontal } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ApiError } from '@reflexionia/sdk';
 import { Link, useSearchParams } from 'react-router';
 import { api } from '../../api';
 import { PriorityCheck } from '../../components/PriorityCheck';
+import { Highlight } from '../../components/Highlight';
 import { Button, TagChip } from '../../components/ui';
-import { captureLanguage, fill, type Messages } from '../../i18n';
-import { noticesFrom, useCaptureNotice } from '../capture/notice';
-import { quickAddRequest, type ViewDay } from '../capture/quick-add';
+import { fill, type Messages } from '../../i18n';
+import type { ViewDay } from '../capture/quick-add';
+import { collectTags } from './collect';
 import { refreshTaskSurfaces } from './refresh';
-import { newMutation, runOrQueue } from '../offline/client';
 import { displayTitle } from './displayTitle';
-import { QuickAddTools } from './QuickAddTools';
+import { completeBody } from './complete-body';
+import { TaskComposer } from './TaskComposer';
 import { isOverdue, isSameDay, type RowModel } from './model';
 
 export function TaskList({
@@ -29,6 +30,7 @@ export function TaskList({
   hideCompleted = true,
   manualOrder = false,
   trash = false,
+  highlightQuery = '',
 }: {
   readonly messages: Messages;
   readonly rows: readonly RowModel[];
@@ -45,15 +47,13 @@ export function TaskList({
   readonly hideCompleted?: boolean | undefined;
   readonly manualOrder?: boolean | undefined;
   readonly trash?: boolean | undefined;
+  readonly highlightQuery?: string;
 }) {
   const queryClient = useQueryClient();
+  const catalog = useQuery({ queryKey: ['tags'], queryFn: collectTags, staleTime: 5 * 60_000 });
+  const tagById = new Map((catalog.data?.items ?? []).map((tag) => [tag.id, tag]));
   const [params, setParams] = useSearchParams();
-  const setNotice = useCaptureNotice((state) => state.setNotice);
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
-  const [draft, setDraft] = useState('');
-  const [pending, setPending] = useState<readonly RowModel[]>([]);
-  const [createError, setCreateError] = useState<string | null>(null);
-  const addRef = useRef<HTMLInputElement>(null);
   const now = useMemo(() => new Date(), []);
 
   function open(id: string): void {
@@ -74,10 +74,15 @@ export function TaskList({
     });
   }
 
-  const visible = [
-    ...pending,
-    ...(hideCompleted ? rows.filter((row) => row.status !== 'completed') : rows),
-  ];
+  const visible = (hideCompleted ? rows.filter((row) => row.status !== 'completed') : rows).map(
+    (row) => ({
+      ...row,
+      tags: row.tags.map((tag) => {
+        const current = tagById.get(tag.id);
+        return current ? { ...tag, name: current.name, color: current.color } : tag;
+      }),
+    }),
+  );
   const detailId = params.get('task');
   const body =
     view === 'kanban' ? (
@@ -97,6 +102,7 @@ export function TaskList({
         className="task-list"
         data-details={showDetails ? 'on' : 'off'}
         data-order={manualOrder ? 'manual' : 'auto'}
+        data-search={highlightQuery.length > 0 ? 'true' : undefined}
       >
         {visible.map((row) => (
           <li key={row.id}>
@@ -107,6 +113,7 @@ export function TaskList({
               now={now}
               manualOrder={manualOrder}
               trash={trash}
+              highlightQuery={highlightQuery}
               selected={selected.has(row.id)}
               open={detailId === row.id}
               onOpen={() => {
@@ -127,93 +134,11 @@ export function TaskList({
   return (
     <div>
       {createProjectId !== undefined ? (
-        <>
-          <form
-            className="inline-add"
-            onSubmit={(event) => {
-              event.preventDefault();
-              const title = draft.trim();
-              if (title.length === 0) {
-                return;
-              }
-              const request = quickAddRequest({
-                text: title,
-                language: captureLanguage(locale),
-                now: new Date().toISOString(),
-                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                viewDay: createViewDay,
-                defaultProjectId: createProjectId,
-              });
-              const tempId = `pending-${crypto.randomUUID()}`;
-              const row: RowModel = {
-                id: tempId,
-                title: request.parsed.title.length > 0 ? request.parsed.title : title,
-                priority: request.parsed.priority ?? 'none',
-                dueDate: request.dueDate ?? request.parsed.due?.date ?? null,
-                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                projectId: createProjectId,
-                projectName: '',
-                columnId: null,
-                tags: request.parsed.tagNames.map((name) => ({ id: name, name, color: null })),
-                checklist: { completed: 0, total: 0 },
-                kind: 'task',
-                status: 'active',
-                repeat: false,
-                source: 'manual',
-                content: '',
-                completedAt: null,
-              };
-              setDraft('');
-              setCreateError(null);
-              setPending((current) => [row, ...current]);
-              addRef.current?.focus();
-              void runOrQueue(newMutation('create', tempId, { ...request.body }), (key) =>
-                api.createTask(request.body, key),
-              )
-                .then((outcome) => {
-                  if (outcome.result !== null) {
-                    const warnings = noticesFrom(outcome.result.warnings);
-                    if (warnings.length > 0) {
-                      setNotice({ title: outcome.result.title, warnings });
-                    }
-                  }
-                  if (!outcome.queued) {
-                    setPending((current) => current.filter((item) => item.id !== tempId));
-                    void refreshTaskSurfaces(queryClient);
-                  }
-                  onCreated?.();
-                })
-                .catch(() => {
-                  setPending((current) => current.filter((item) => item.id !== tempId));
-                  setDraft(title);
-                  setCreateError(messages.createFailed);
-                  addRef.current?.focus();
-                });
-            }}
-          >
-            <input
-              ref={addRef}
-              name="title"
-              value={draft}
-              aria-label={messages.addTask}
-              placeholder={`+ ${messages.addTask}`}
-              onChange={(event) => {
-                setDraft(event.target.value);
-              }}
-            />
-            <QuickAddTools
-              draft={draft}
-              onDraft={(value) => {
-                setDraft(value);
-              }}
-            />
-          </form>
-          {createError !== null ? (
-            <p className="error" role="alert">
-              {createError}
-            </p>
-          ) : null}
-        </>
+        <TaskComposer
+          defaultProjectId={createProjectId}
+          viewDay={createViewDay}
+          onCreated={onCreated}
+        />
       ) : null}
       {body}
       {selected.size > 0 ? (
@@ -223,8 +148,13 @@ export function TaskList({
           </span>
           <Button
             onClick={() => {
-              void api.batchTasks({ action: 'complete', ids: [...selected] }).then(() => {
+              void Promise.all(
+                [...selected].map((id) =>
+                  api.completeTask(id, completeBody(), crypto.randomUUID()),
+                ),
+              ).then(() => {
                 setSelected(new Set());
+                void refreshTaskSurfaces(queryClient);
                 onCreated?.();
               });
             }}
@@ -283,6 +213,7 @@ function TaskRow({
   now,
   manualOrder,
   trash = false,
+  highlightQuery = '',
   selected,
   open,
   onOpen,
@@ -295,6 +226,7 @@ function TaskRow({
   readonly now: Date;
   readonly manualOrder: boolean;
   readonly trash?: boolean | undefined;
+  readonly highlightQuery?: string;
   readonly selected: boolean;
   readonly open: boolean;
   readonly onOpen: () => void;
@@ -309,7 +241,11 @@ function TaskRow({
   const named = row.tags.filter((tag) => tag.name.length > 0 && tag.name !== tag.id);
   const shown = named.slice(0, 2);
   const extra = named.length - shown.length;
-  const when = done && row.completedAt !== null ? row.completedAt : row.dueDate;
+  const when = trash
+    ? (row.deletedAt ?? null)
+    : done && row.completedAt !== null
+      ? row.completedAt
+      : row.dueDate;
   return (
     <div
       className={`task-row${open ? ' is-selected' : ''}${selected ? ' is-batch' : ''}${done ? ' is-done' : ''}`}
@@ -371,7 +307,10 @@ function TaskRow({
       ) : (
         <PriorityCheck
           priority={row.priority}
-          label={fill(done ? messages.reopenLabel : messages.completeLabel, row.title)}
+          label={fill(
+            done ? messages.reopenLabel : messages.completeLabel,
+            displayTitle(row.title),
+          )}
           checked={done}
           onChange={(event) => {
             if (
@@ -387,13 +326,26 @@ function TaskRow({
       )}
       <button type="button" className="task-title" onClick={onOpen}>
         {row.kind === 'note' ? <span className="ui-badge">{messages.noteBadge}</span> : null}{' '}
-        {shownTitle(
-          row.title,
-          named.map((tag) => tag.name),
-          messages.untitled,
-        )}
+        <Highlight
+          query={highlightQuery}
+          text={shownTitle(
+            row.title,
+            named.map((tag) => tag.name),
+            messages.untitled,
+          )}
+        />
+        {highlightQuery.length > 0 && row.content.length > 0 ? (
+          <small className="search-snippet">
+            <Highlight text={searchSnippet(row.content, highlightQuery)} query={highlightQuery} />
+          </small>
+        ) : null}
       </button>
       <span className="task-meta">
+        {highlightQuery.length > 0 && row.repeat && row.dueDate !== null ? (
+          <span>
+            {messages.occurrenceLabel} {formatRowDate(row.dueDate, locale, now, true, messages)}
+          </span>
+        ) : null}
         {shown.map((tag) => (
           <Link
             key={tag.id}
@@ -446,6 +398,7 @@ function TaskRow({
                 : new Date(when).toLocaleString(locale)
             }
           >
+            {trash ? `${messages.deletedOn} ` : ''}
             {formatRowDate(when, locale, now, done, messages)}
           </time>
         ) : null}
@@ -554,7 +507,7 @@ function Kanban({
                   <div className="kanban-card-title">
                     <PriorityCheck
                       priority={row.priority}
-                      label={fill(messages.completeLabel, row.title)}
+                      label={fill(messages.completeLabel, displayTitle(row.title))}
                       onChange={() => {
                         onComplete(row);
                       }}
@@ -890,10 +843,16 @@ function formatRowDate(
     month: 'short',
     ...(date.getFullYear() === now.getFullYear() ? {} : { year: 'numeric' }),
   }).format(date);
-  return formatted;
+  return `${formatted}${time.length > 0 ? `,${time}` : ''}`;
 }
 
 function shownTitle(title: string, tagNames: readonly string[], untitled: string): string {
   const text = displayTitle(title, tagNames);
   return text.length === 0 ? untitled : text;
+}
+
+function searchSnippet(content: string, query: string): string {
+  const match = content.toLocaleLowerCase().indexOf(query.trim().toLocaleLowerCase());
+  const start = Math.max(0, match - 60);
+  return `${start > 0 ? '…' : ''}${content.slice(start, start + 240)}`;
 }

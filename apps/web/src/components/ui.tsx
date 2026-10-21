@@ -1,5 +1,6 @@
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from 'react';
 import './ui.css';
+import { TagIcon } from './TagIcon';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'icon';
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -53,6 +54,7 @@ export function TagChip({
           : ({ '--tag': color } as CSSProperties)
       }
     >
+      <TagIcon color={color} />
       {label}
       {onRemove !== undefined ? (
         <button type="button" className="ui-tag-x" aria-label={label} onClick={onRemove}>

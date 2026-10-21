@@ -5,6 +5,7 @@ import {
   parseTaskView,
   rebalancedSortOrders,
   SMART_LIST_KEYS,
+  FIXED_SMART_LIST_KEYS,
   smartListClause,
   type FilterClock,
   type SmartListKey,
@@ -75,12 +76,13 @@ export class SmartListsService {
         if (row === undefined || sortOrder === undefined) {
           throw new DomainException(HttpStatus.NOT_FOUND, 'not_found', 'Smart list was not found');
         }
-        if (row.enabled === item.enabled && row.sortOrder === sortOrder) {
+        const enabled = FIXED_SMART_LIST_KEYS.includes(key) || item.enabled;
+        if (row.enabled === enabled && row.sortOrder === sortOrder) {
           continue;
         }
         const updated = await tx.smartList.update({
           where: { id: row.id },
-          data: { enabled: item.enabled, sortOrder },
+          data: { enabled, sortOrder },
         });
         await this.events.record(tx, actorOf(user), {
           type: DomainEvent.smartListUpdated,
@@ -193,7 +195,7 @@ export class SmartListsService {
     return {
       id: row.id,
       key: row.key,
-      enabled: row.enabled,
+      enabled: FIXED_SMART_LIST_KEYS.includes(row.key) || row.enabled,
       sort_order: row.sortOrder.toString(),
       task_count: taskCount,
     };

@@ -1,0 +1,286 @@
+.task-composer {
+  margin: 12px 0 20px;
+  position: relative;
+}
+.task-composer .task-composer-form {
+  margin: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface-3);
+}
+.task-composer-form:focus-within {
+  border-color: var(--accent);
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--accent-soft);
+}
+.composer-main {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 42px;
+  padding: 0 6px 0 10px;
+}
+.composer-plus {
+  flex: none;
+  color: var(--ink-faint);
+}
+.composer-field {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+.task-composer .composer-field input {
+  width: 100%;
+  height: 40px;
+  padding: 0 6px !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  outline: 0 !important;
+  border-radius: 0;
+  font: inherit;
+  font-size: 14px;
+  box-shadow: none !important;
+}
+.task-composer .quick-add-mirror {
+  position: absolute;
+  inset: 0;
+  padding: 0 6px;
+  line-height: 40px;
+  white-space: pre;
+  overflow: hidden;
+  pointer-events: none;
+  font-size: 14px;
+}
+.task-composer .quick-add-mirror mark {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  border-radius: 3px;
+}
+.task-composer .composer-field input.is-mirroring {
+  color: transparent;
+  caret-color: var(--ink);
+}
+.composer-date,
+.composer-options,
+.composer-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  gap: 5px;
+  padding: 4px 6px;
+  border: 0;
+  background: transparent;
+  color: var(--accent-ink);
+  border-radius: 6px;
+  min-height: 32px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+.composer-date span {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.composer-options {
+  color: var(--ink-3);
+}
+.composer-submit {
+  display: none;
+}
+.composer-main:focus-within .composer-submit,
+.composer-main.has-draft .composer-submit {
+  display: flex;
+}
+.composer-date:hover,
+.composer-options:hover,
+.composer-submit:hover {
+  background: var(--accent-soft);
+}
+.composer-content {
+  display: block;
+  width: calc(100% - 24px) !important;
+  margin: 4px 12px 12px;
+  padding: 8px;
+  resize: vertical;
+  min-height: 70px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--ink);
+  font: inherit;
+}
+.composer-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 12px 10px;
+}
+.composer-chips button,
+.composer-chips > span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  padding: 3px 7px;
+  font-size: 11px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.composer-status,
+.composer-error {
+  font-size: 12px;
+  margin: 6px 0;
+  color: var(--ink-3);
+}
+.composer-error {
+  color: var(--danger);
+}
+.composer-menu {
+  border: 1px solid var(--border);
+}
+.composer-menu .popover-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  width: 100%;
+}
+.composer-menu .popover-row span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.composer-priorities {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 4px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.composer-priorities button {
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  width: 40px;
+  height: 36px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.composer-priorities [aria-pressed='true'] {
+  background: var(--accent-soft);
+}
+.composer-menu .popover-row input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+.task-composer :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (max-width: 640px) {
+  .composer-date,
+  .composer-options,
+  .composer-submit {
+    min-height: 44px;
+  }
+  .composer-submit {
+    display: flex;
+  }
+  .composer-date span {
+    max-width: 85px;
+  }
+  .composer-main {
+    padding-left: 8px;
+    gap: 0;
+  }
+  .composer-plus {
+    display: none;
+  }
+}
+.date-popover .cal-toolbar button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--accent-ink);
+  cursor: pointer;
+}
+.date-popover .cal-toolbar button:hover {
+  background: var(--accent-soft);
+}
+.date-popover > .popover-row {
+  justify-content: space-between;
+  padding: 8px;
+  min-height: 36px;
+}
+.date-popover > .popover-row > span + span {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+.date-popover .popover-actions {
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.today-plan-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin: 16px 0 24px;
+  background: var(--sidebar-bg);
+}
+.today-plan-entry {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  text-decoration: none;
+  color: var(--accent-ink);
+}
+.today-plan-entry > span {
+  display: grid;
+  flex: 1;
+  gap: 5px;
+  min-width: 0;
+}
+.today-plan-entry strong {
+  font-size: 14px;
+  color: var(--ink);
+}
+.today-plan-entry small {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-3);
+}
+.today-plan-entry:hover {
+  background: var(--accent-soft);
+  border-radius: 12px;
+}
+.today-plan-links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 0 16px 12px;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.today-plan-links a {
+  color: var(--accent-ink);
+  text-decoration: none;
+}
+.task-composer > input[type='file'][hidden] {
+  display: none !important;
+}

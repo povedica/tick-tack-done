@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  achievementAt,
+  controlScoreAt,
+  usageStreak,
   achievementHistory,
   addCalendarDays,
   ageOnComplete,
@@ -28,7 +29,6 @@ import {
   type StatsHabitRow,
 } from './aggregate';
 import { habitStats } from '../habits/habits';
-import { ACHIEVEMENT_LEVELS, achievementScore, priorityBonus } from '../achievements/score';
 const tz = 'Europe/Madrid';
 const task = (patch: Partial<StatsTaskRow> = {}): StatsTaskRow => ({
   id: 't',
@@ -304,44 +304,26 @@ describe('RF-2323 shared habits', () => {
     ).toEqual([100, null]);
   });
 });
-describe('RF-2321 RF-1602 achievement', () => {
-  it('RF-2321: public formula, cutoff history, all-day and no negative points', () => {
-    const tasks = [
-      task(),
-      task({ id: 'late', dueDate: '2026-10-01T12:00:00Z' }),
-      task({ id: 'future', createdAt: '2027-01-01T12:00:00Z' }),
-      task({ status: 'cancelled' }),
-      task({ id: 'undated', dueDate: null, priority: 'high' }),
-    ];
-    const score = achievementAt(
-      tasks,
-      [focus()],
-      [{ date: '2026-10-19', count: 1 }],
-      '2026-10-20T12:00:00Z',
-      tz,
+describe('RF-2321 RF-1602 Control v3', () => {
+  it('counts the dated cohort, excludes undated/bulk old completions, and uses all-day end', () => {
+    const now = '2026-10-20T12:00:00Z';
+    const usage = new Set(['2026-10-20']);
+    const normal = controlScoreAt([task()], [], [], usage, now, tz);
+    const bulk = Array.from({ length: 200 }, (_, i) =>
+      task({ id: String(i), dueDate: '2026-01-01T10:00:00Z', completedAt: now }),
     );
-    expect(score.score).toBe(63);
     expect(
-      achievementAt(
-        [task({ status: 'active', completedAt: null, dueDate: '2026-01-01T00:00:00Z' })],
+      controlScoreAt(
+        [task(), ...bulk, task({ dueDate: null }), task({ status: 'cancelled' })],
         [],
         [],
-        '2026-10-20T12:00:00Z',
+        usage,
+        now,
         tz,
       ).score,
-    ).toBe(0);
-    const history = achievementHistory(
-      tasks,
-      [],
-      [],
-      ['2026-10-18', '2026-10-20'],
-      '2026-10-20T12:00:00Z',
-      tz,
-    );
-    expect(history[1]?.score).toBe(40);
-    expect(history[0]?.score).toBe(0);
+    ).toBe(normal.score);
     expect(
-      achievementAt(
+      controlScoreAt(
         [
           task({
             isAllDay: true,
@@ -351,19 +333,25 @@ describe('RF-2321 RF-1602 achievement', () => {
         ],
         [],
         [],
+        usage,
         '2026-10-26T12:00:00Z',
         tz,
-      ).score,
-    ).toBe(10);
+      ).components?.tasks.cumplimiento.onTime,
+    ).toBe(1);
+    expect(achievementHistory([task()], [], [], usage, ['2026-10-20'], now, tz)[0]?.score).toBe(
+      normal.score,
+    );
   });
-  it('RF-2321: all twelve levels and priority weights, including terminal progress', () => {
-    for (const [index, level] of ACHIEVEMENT_LEVELS.entries()) {
-      const score = achievementScore({ enabled: true, priorityPoints: level.threshold });
-      expect(score.level_index).toBe(index);
-      expect(score.level).toBe(level.id);
-    }
-    expect(['high', 'medium', 'low', 'none'].map(priorityBonus)).toEqual([15, 5, 2, 0]);
-    expect(achievementScore({ enabled: true, priorityPoints: 10000 }).progress_to_next).toBe(100);
+  it('starts usage streaks from recorded days and accepts yesterday', () => {
+    expect(usageStreak(new Set(['2026-10-18', '2026-10-19']), '2026-10-20')).toMatchObject({
+      current: 2,
+      best_year: 2,
+    });
+    expect(usageStreak(new Set(['2026-10-20']), '2026-10-20')).toMatchObject({
+      current: 1,
+      best_year: 1,
+    });
+    expect(usageStreak(new Set(), '2026-10-20')).toMatchObject({ current: 0, best_year: 0 });
   });
 });
 

@@ -1,3 +1,4 @@
+import { displayTitle } from '../tasks/displayTitle';
 import { calendarDateKey } from '@reflexionia/domain';
 
 export interface DatedTask {
@@ -36,6 +37,9 @@ export function viewDays(view: string, cursor: Date, weekStart: 'monday' | 'sund
   if (view === 'day') {
     return [day];
   }
+  if (view === 'agenda') {
+    return spanDays(day, 60);
+  }
   if (view === 'week') {
     return spanDays(startOfWeek(day, weekStart), 7);
   }
@@ -64,12 +68,29 @@ export function shiftView(
     const start = quarterStart(cursor);
     return new Date(start.getFullYear(), start.getMonth() + delta * 3, 1);
   }
-  if (view === 'month' || view === 'agenda') {
+  if (view === 'month') {
     return new Date(cursor.getFullYear(), cursor.getMonth() + delta, 1);
   }
-  const step = view === 'week' ? 7 : view === 'multi-week' ? 14 : view === 'multi-day' ? 3 : 1;
+  const step =
+    view === 'agenda'
+      ? 30
+      : view === 'week'
+        ? 7
+        : view === 'multi-week'
+          ? 14
+          : view === 'multi-day'
+            ? 3
+            : 1;
   const origin = view === 'week' || view === 'multi-week' ? startOfWeek(cursor, weekStart) : cursor;
   return new Date(origin.getFullYear(), origin.getMonth(), origin.getDate() + delta * step);
+}
+
+/** ISO-8601: week one contains January 4, regardless of the user's grid week start. */
+export function isoWeek(day: Date): number {
+  const date = new Date(Date.UTC(day.getFullYear(), day.getMonth(), day.getDate()));
+  date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+  const year = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  return Math.ceil(((date.getTime() - year.getTime()) / 86_400_000 + 1) / 7);
 }
 
 export function monthCells(now: Date, weekStart: 'monday' | 'sunday'): Date[] {
@@ -179,7 +200,7 @@ export function calendarTaskLabel(
   timeZone: string | null | undefined,
   untitled: string,
 ): string {
-  const stripped = stripLeadingDueDate(title.trim(), dueDate, timeZone);
+  const stripped = stripLeadingDueDate(displayTitle(title), dueDate, timeZone);
   return stripped.length === 0 ? untitled : stripped;
 }
 

@@ -112,6 +112,7 @@ export {
   savedFilterClause,
   shiftLocalDays,
   SMART_LIST_KEYS,
+  FIXED_SMART_LIST_KEYS,
   smartListClause,
 } from './filters/index';
 export type {
@@ -322,13 +323,8 @@ export type {
   FocusStatSession,
   FocusStats,
 } from './focus/cycle';
-export {
-  ACHIEVEMENT_FORMULA,
-  ACHIEVEMENT_LEVELS,
-  achievementScore,
-  priorityBonus,
-} from './achievements/score';
-export type { AchievementInput, AchievementLevel, AchievementScore } from './achievements/score';
+export { controlScore, FOCUS_WEEKLY_TARGET } from './achievements/score';
+export type { ControlInput, ControlScore } from './achievements/score';
 export {
   ageOnComplete,
   buildDayBuckets,
@@ -342,7 +338,8 @@ export {
   habitRangePercent,
   averageHabitPercent,
   weakestHabitWeekday,
-  achievementAt,
+  controlScoreAt,
+  usageStreak,
   achievementHistory,
   taskSeries,
   focusSeries,
@@ -401,3 +398,14 @@ export {
   TICKY_READ_SCOPES,
 } from './ticky/read-policy';
 export type { ReadCapabilities } from './ticky/read-policy';
+export {
+  NAVIGATION_MODULES,
+  navigationOrder,
+  moveNavigationModule,
+  type NavigationModule,
+} from './navigation';
+export { humanDate } from './dates/presentation';
+export { gardenProjectContext, type GardenProjectInput } from './dashboard/projects';
+export { overdueAgeGroups } from './dashboard/kpis';
+
+export { gardenHabits, uniqueGardenEvents, gardenTagActivity } from './dashboard/executive';

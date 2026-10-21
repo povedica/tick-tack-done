@@ -1,6 +1,6 @@
 import { MoreHorizontal, Pin } from 'lucide-react';
 import type { Countdown } from './api';
-import { countdownLabel, countdownNumber } from './presentation';
+import { dateLabel, countdownNumber } from './presentation';
 
 export function CountdownCard({
   countdown,
@@ -67,7 +67,12 @@ export function CountdownCard({
         </div>
       </header>
       <strong className="countdown-number">{countdownNumber(countdown)}</strong>
-      <p>{countdownLabel(countdown.kind, countdown.days, countdown.effectiveDate)}</p>
+      <p>
+        {countdown.kind === 'today'
+          ? ''
+          : `${countdown.days === 1 ? 'día' : 'días'} · ${countdown.kind === 'until' ? 'hasta' : 'desde'} `}
+        {dateLabel(countdown.effectiveDate)}
+      </p>
     </article>
   );
 }

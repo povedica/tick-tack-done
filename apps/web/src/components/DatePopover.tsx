@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type RefObject } from 'react';
 import { fill, useMessages } from '../i18n';
 import { useAppLocale } from '../i18n/locale';
 import { calendarDay, shiftDayKey, zonedWallTime } from '../features/today/groups';
@@ -35,7 +35,10 @@ export function DatePopover({
   onApply,
   onNotice,
   onEvening,
+  onSomeday,
+  anchor,
 }: {
+  readonly anchor?: RefObject<HTMLElement | null> | undefined;
   readonly open: boolean;
   readonly value: DateDraft;
   readonly timeZone: string;
@@ -43,6 +46,7 @@ export function DatePopover({
   readonly onApply: (next: DateDraft) => void;
   readonly onNotice?: (text: string) => void;
   readonly onEvening?: () => void;
+  readonly onSomeday?: () => void;
 }) {
   const messages = useMessages();
   const locale = useAppLocale();
@@ -118,6 +122,7 @@ export function DatePopover({
   return (
     <Popover
       open={open}
+      anchor={anchor}
       label={messages.dateSet}
       onClose={onClose}
       className="popover date-popover"
@@ -128,6 +133,7 @@ export function DatePopover({
           size="sm"
           variant={tab === 'date' ? 'primary' : 'ghost'}
           aria-selected={tab === 'date'}
+          role="tab"
           onClick={() => {
             setTab('date');
           }}
@@ -139,6 +145,7 @@ export function DatePopover({
           size="sm"
           variant={tab === 'duration' ? 'primary' : 'ghost'}
           aria-selected={tab === 'duration'}
+          role="tab"
           onClick={() => {
             setTab('duration');
           }}
@@ -259,8 +266,8 @@ export function DatePopover({
             </button>
           </div>
           <div className="cal-grid">
-            {heads.map((head) => (
-              <span key={head} className="cal-head">
+            {heads.map((head, index) => (
+              <span key={index} className="cal-head">
                 {head}
               </span>
             ))}
@@ -272,7 +279,12 @@ export function DatePopover({
                 <button
                   key={key}
                   type="button"
-                  className={['cal-day', selected ? 'is-selected' : '', today ? 'is-today' : '']
+                  className={[
+                    'cal-day',
+                    date.getMonth() !== cursor.getMonth() ? 'is-outside' : '',
+                    selected ? 'is-selected' : '',
+                    today ? 'is-today' : '',
+                  ]
                     .filter((item) => item.length > 0)
                     .join(' ')}
                   onClick={() => {
@@ -500,11 +512,23 @@ export function DatePopover({
           ) : null}
         </>
       )}
+      {onSomeday === undefined ? null : (
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => {
+            onSomeday();
+            onClose();
+          }}
+        >
+          {messages.somedayAction}
+        </Button>
+      )}
       <div className="popover-actions">
         <Button
           type="button"
           size="sm"
-          variant="danger"
+          variant="ghost"
           onClick={() => {
             commit({
               ...draft,

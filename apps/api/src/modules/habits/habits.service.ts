@@ -109,6 +109,40 @@ export class HabitsService {
       if (!draft.ok) {
         throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', draft.reason);
       }
+      let history = [...(stored.history ?? [])];
+      if (dto.goal !== undefined || dto.frequency !== undefined) {
+        const changed =
+          JSON.stringify(stored.goal) !== JSON.stringify(draft.habit.goal) ||
+          JSON.stringify(stored.days) !== JSON.stringify(draft.habit.days);
+        if (changed) {
+          const today = this.today(user);
+          const logs = await tx.habitLog.findMany({
+            where: { habitId: id, deletedAt: null },
+            select: { date: true, count: true },
+          });
+          const periods = history.filter((item) => item.to === undefined);
+          if (!periods.length)
+            periods.push({ from: '1970-01-01', goal: stored.goal, days: stored.days });
+          const snapshots = history.filter((item) => item.to !== undefined);
+          for (const log of logs) {
+            const date = utcDate(log.date);
+            if (!snapshots.some((item) => item.from === date)) {
+              const effective =
+                [...history]
+                  .reverse()
+                  .find(
+                    (item) => item.from <= date && (item.to === undefined || item.to >= date),
+                  ) ?? stored;
+              snapshots.push({ from: date, to: date, goal: effective.goal, days: effective.days });
+            }
+          }
+          history = [
+            ...periods.filter((item) => item.from !== today),
+            { from: today, goal: draft.habit.goal, days: draft.habit.days },
+            ...snapshots,
+          ];
+        }
+      }
       const reorder = dto.before_id !== undefined || dto.move_to_end === true;
       const rows = await tx.habit.findMany({
         where: { ownerId: user.id, deletedAt: null },
@@ -126,11 +160,26 @@ export class HabitsService {
       const row = await tx.habit.update({
         where: { id },
         data: {
+          ...(dto.challenge_days !== undefined &&
+          dto.goal === undefined &&
+          dto.frequency === undefined
+            ? { goal: { ...goalObject(current.goal), challenge_days: dto.challenge_days } }
+            : {}),
           ...(dto.name !== undefined ? { name: this.cleanName(dto.name) } : {}),
           ...(dto.icon !== undefined ? { icon: blankToNull(dto.icon) } : {}),
           ...(dto.color !== undefined ? { color: dto.color } : {}),
           ...(dto.goal !== undefined || dto.frequency !== undefined
-            ? { goal: goalJson(draft.habit), frequency: [...draft.habit.days] }
+            ? {
+                goal: {
+                  ...goalObject(current.goal),
+                  ...goalJson(draft.habit),
+                  schedule_history: asJson(history),
+                  ...(dto.challenge_days === undefined
+                    ? {}
+                    : { challenge_days: dto.challenge_days }),
+                },
+                frequency: [...draft.habit.days],
+              }
             : {}),
           ...(dto.reminder_time !== undefined ? { reminderTime: draft.habit.reminderTime } : {}),
           ...(dto.motivation_note !== undefined
@@ -195,13 +244,16 @@ export class HabitsService {
     const year = this.year(user, yearRaw);
     const habits = await this.prisma.habit.findMany({
       where: { ownerId: user.id, deletedAt: null },
-      include: { logs: { where: { deletedAt: null }, select: { date: true, count: true } } },
+      include: {
+        logs: { where: { deletedAt: null }, select: { date: true, count: true, note: true } },
+      },
     });
     const now = new Date().toISOString();
     const mine = habits.find((habit) => habit.id === id);
     const logs = (mine?.logs ?? []).map(logEntry);
     const stats = habitStats({
       goal: stored.goal,
+      history: stored.history ?? [],
       days: stored.days,
       logs,
       timeZone: user.timeZone,
@@ -210,18 +262,42 @@ export class HabitsService {
     });
     const aggregate = aggregateHeatmap({
       year,
-      habits: habits.flatMap((habit) => {
-        const parsed = readStoredHabit(habit.goal, habit.frequency, habit.reminderTime);
-        if (parsed === null) {
-          return [];
-        }
-        return [{ goal: parsed.goal, days: parsed.days, logs: habit.logs.map(logEntry) }];
-      }),
+      habits: habits
+        .filter((habit) => !habit.archived)
+        .flatMap((habit) => {
+          const parsed = readStoredHabit(habit.goal, habit.frequency, habit.reminderTime);
+          if (parsed === null) {
+            return [];
+          }
+          return [
+            {
+              goal: parsed.goal,
+              history: parsed.history ?? [],
+              days: parsed.days,
+              logs: habit.logs.map(logEntry),
+            },
+          ];
+        }),
     });
     if (stats === null || aggregate === null) {
       throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'invalid_year');
     }
     return {
+      total_checkins: (mine?.logs ?? []).reduce((sum, log) => sum + log.count, 0),
+      month_checkins: (mine?.logs ?? [])
+        .filter((log) => utcDate(log.date).startsWith(this.today(user).slice(0, 7)))
+        .reduce((sum, log) => sum + log.count, 0),
+      completed_days: (mine?.logs ?? []).filter((log) => {
+        const date = utcDate(log.date);
+        const effective = [...(stored.history ?? [])]
+          .reverse()
+          .find((item) => item.from <= date && (item.to === undefined || item.to >= date));
+        return log.count >= (effective?.goal.targetCount ?? stored.goal.targetCount);
+      }).length,
+      logs: (mine?.logs ?? [])
+        .filter((log) => log.count > 0 || log.note !== null)
+        .map((log) => ({ date: utcDate(log.date), count: log.count, note: log.note }))
+        .sort((a, b) => b.date.localeCompare(a.date)),
       streak_current: stats.streakCurrent,
       streak_best: stats.streakBest,
       completion_percent: {
@@ -258,7 +334,7 @@ export class HabitsService {
         name: this.cleanName(dto.name),
         icon: blankToNull(dto.icon),
         color: dto.color ?? null,
-        goal: goalJson(draft.habit),
+        goal: { ...goalJson(draft.habit), challenge_days: dto.challenge_days ?? null },
         frequency: [...draft.habit.days],
         reminderTime: draft.habit.reminderTime,
         motivationNote: blankToNull(dto.motivation_note),
@@ -292,6 +368,7 @@ export class HabitsService {
     const now = new Date().toISOString();
     const assessed = assessCheckIn({
       goal: stored.goal,
+      history: stored.history ?? [],
       days: stored.days,
       logs: existingLogs.map(logEntry),
       date: dto.date,
@@ -408,6 +485,10 @@ export class HabitsService {
     const count = log === null ? 0 : log.count;
     const scheduled = stored.days.includes(weekdayName(today));
     return {
+      challenge_days:
+        typeof goalObject(row.goal).challenge_days === 'number'
+          ? Number(goalObject(row.goal).challenge_days)
+          : null,
       id: row.id,
       name: row.name,
       icon: row.icon,
@@ -489,4 +570,8 @@ function weekdayName(date: string): HabitWeekday {
     'saturday',
   ];
   return names[index] ?? 'monday';
+}
+
+function goalObject(value: Prisma.JsonValue): Prisma.InputJsonObject {
+  return value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {};
 }

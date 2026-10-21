@@ -10,9 +10,9 @@ import {
   Pin,
   Repeat,
 } from 'lucide-react';
-import type { CSSProperties } from 'react';
 import { Link } from 'react-router';
 import { PriorityCheck } from '../../components/PriorityCheck';
+import { TagChip } from '../../components/ui';
 import { displayTitle } from '../tasks/displayTitle';
 import { dragHasTask, setTaskDrag, taskDragId } from './drag';
 import { calendarDay, taskWhen, type TaskGroupKey, type TodayTask } from './groups';
@@ -156,7 +156,7 @@ export function TaskGroup({
                 <PriorityCheck
                   priority={task.priority}
                   checked={task.status === 'completed'}
-                  label={completeLabel.replace('{name}', task.title)}
+                  label={completeLabel.replace('{name}', displayTitle(task.title))}
                   onChange={() => {
                     onComplete(task);
                   }}
@@ -187,9 +187,7 @@ export function TaskGroup({
                         event.stopPropagation();
                       }}
                     >
-                      <span className="ui-tag" style={tagStyle(tagColors.get(tag.id) ?? null)}>
-                        {tag.name}
-                      </span>
+                      <TagChip label={tag.name} color={tagColors.get(tag.id) ?? null} />
                     </Link>
                   ))}
                   {namedTags.length > 2 ? (
@@ -292,11 +290,4 @@ function deadlineText(
 
 function isPriority(id: string): id is TodayTask['priority'] {
   return id === 'high' || id === 'medium' || id === 'low' || id === 'none';
-}
-
-function tagStyle(color: string | null): CSSProperties | undefined {
-  if (color === null || color.length === 0) {
-    return undefined;
-  }
-  return { '--tag': color } as CSSProperties;
 }

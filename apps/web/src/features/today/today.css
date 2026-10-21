@@ -132,6 +132,7 @@
 }
 
 .task-row {
+  --task-line-height: 24px;
   position: relative;
   display: flex;
   align-items: flex-start;
@@ -145,6 +146,21 @@
     background-color var(--dur-base) var(--ease),
     opacity 250ms var(--ease),
     max-height 250ms var(--ease);
+}
+
+/* Align the visible checkbox with the first title line in either density. */
+.task-row > .task-check-hit {
+  height: var(--row-h);
+  margin-top: 0;
+}
+
+.task-row > .task-title {
+  margin-top: calc((var(--row-h) - var(--task-line-height)) / 2);
+  line-height: var(--task-line-height);
+}
+
+.task-row > .task-meta {
+  min-height: var(--row-h);
 }
 
 .task-row:hover {
@@ -223,7 +239,7 @@
   place-items: center;
   width: 32px;
   height: 32px;
-  margin-top: 4px;
+  margin-top: 0;
   flex: none;
 }
 
@@ -398,26 +414,33 @@ a.task-title {
     padding: 6px 4px;
   }
 
-  .task-check-hit {
+  .task-row > .task-check-hit {
     grid-area: check;
     width: var(--tap);
     height: var(--tap);
+    grid-template-rows: var(--task-line-height) 1fr;
   }
 
-  .task-title {
+  .task-row > .task-check-hit .task-check-svg {
+    grid-row: 1;
+  }
+
+  .task-row > .task-title {
     grid-area: title;
     white-space: normal;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
+    margin-top: 0;
   }
 
-  .task-meta {
+  .task-row > .task-meta {
     grid-area: meta;
     max-width: 100%;
+    min-height: 0;
   }
 
-  .task-more {
+  .task-row > .task-more {
     grid-area: more;
     position: static;
     transform: none;

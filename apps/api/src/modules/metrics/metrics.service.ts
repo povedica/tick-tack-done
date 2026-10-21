@@ -160,6 +160,7 @@ export class MetricsService {
               name: row.name,
               icon: row.icon,
               color: row.color,
+              history: [...(habit.history ?? [])],
               goal: habit.goal,
               days: habit.days,
               logs: row.logs.map((log) => ({

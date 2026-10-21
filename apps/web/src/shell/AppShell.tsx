@@ -1,3 +1,4 @@
+import { ControlChip } from '../features/statistics/ControlSummary';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState, type CSSProperties } from 'react';
 import { Outlet, useSearchParams } from 'react-router';
@@ -27,6 +28,7 @@ export function AppShell() {
   const taskId = params.get('task');
   const [collapsed, setCollapsed] = useState(() => readSidebarCollapsed(localStorage));
   const [drawer, setDrawer] = useState(false);
+  const [drawerSection, setDrawerSection] = useState<'lists' | 'more'>('lists');
   const narrow = useNarrow();
   const [online, setOnline] = useState(() => navigator.onLine);
   const [detailWidth, setDetailWidth] = useState(() => readDetailWidth(localStorage));
@@ -107,6 +109,7 @@ export function AppShell() {
 
   function toggleNav(): void {
     if (narrow) {
+      setDrawerSection('lists');
       setDrawer((current) => !current);
       return;
     }
@@ -138,8 +141,8 @@ export function AppShell() {
         />
         <Sidebar
           collapsed={collapsed}
+          mobileSection={narrow ? drawerSection : undefined}
           concealed={narrow ? !drawer : collapsed}
-          onToggleCollapsed={toggleCollapsed}
           onNavigate={closeDrawer}
         />
         <a className="skip-link" href="#content">
@@ -157,6 +160,11 @@ export function AppShell() {
           }}
         />
         <div className="center">
+          {narrow ? (
+            <div className="mobile-control-bar">
+              <ControlChip />
+            </div>
+          ) : null}
           {online ? null : (
             <p className="offline-banner" role="status">
               {messages.offline}. {messages.pendingSync}.
@@ -181,8 +189,14 @@ export function AppShell() {
         ) : null}
         <FocusCloser />
         <BottomBar
+          openSection={drawer ? drawerSection : null}
           onOpenLists={() => {
-            setDrawer(true);
+            setDrawerSection('lists');
+            setDrawer(!drawer || drawerSection !== 'lists');
+          }}
+          onOpenMore={() => {
+            setDrawerSection('more');
+            setDrawer(!drawer || drawerSection !== 'more');
           }}
         />
         <ActionToast />

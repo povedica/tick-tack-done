@@ -1,17 +1,25 @@
-import { Bell, GripVertical, Paperclip, Plus, Repeat, X } from 'lucide-react';
+import { Bell, GripVertical, Paperclip, Pencil, Plus, Repeat, X } from 'lucide-react';
 import {
   useLayoutEffect,
   useState,
   type CSSProperties,
+  type ReactNode,
   type KeyboardEvent,
   type RefObject,
 } from 'react';
 import { Link } from 'react-router';
 import { PriorityCheck } from '../../components/PriorityCheck';
 import { attachmentHref } from './task-http';
+import Markdown from 'react-markdown';
+import { TagIcon } from '../../components/TagIcon';
+import { displayTitle } from './displayTitle';
+import { useMessages } from '../../i18n';
+import { collapseRepeatedContent } from './collapse-repeated';
 
 export function DetailBody({
   taskId,
+  titleLeading,
+  metadata,
   title,
   content,
   titleLabel,
@@ -19,6 +27,7 @@ export function DetailBody({
   contentLabel,
   contentHint,
   contentRef,
+  editRequested = false,
   checklistLabel,
   checklistAdd,
   checklistEdit,
@@ -52,6 +61,8 @@ export function DetailBody({
   onDropFiles,
 }: {
   readonly taskId: string;
+  readonly titleLeading?: ReactNode;
+  readonly metadata?: ReactNode;
   readonly title: string;
   readonly content: string;
   readonly titleLabel: string;
@@ -59,6 +70,7 @@ export function DetailBody({
   readonly contentLabel: string;
   readonly contentHint: string;
   readonly contentRef: RefObject<HTMLTextAreaElement | null>;
+  readonly editRequested?: boolean;
   readonly checklistLabel: string;
   readonly checklistAdd: string;
   readonly checklistEdit: string;
@@ -108,12 +120,26 @@ export function DetailBody({
   readonly onDropFiles: (files: FileList) => void;
 }) {
   const [editing, setEditing] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState(false);
+  const messages = useMessages();
+  const cleanContent = collapseRepeatedContent(content);
+  const draftKey = `tick-tack-done.description-draft.${taskId}`;
+  const draftContent = localStorage.getItem(draftKey) ?? content;
+  useLayoutEffect(() => {
+    if (localStorage.getItem(draftKey) === content) localStorage.removeItem(draftKey);
+  }, [content, draftKey]);
+  useLayoutEffect(() => {
+    setEditingContent(false);
+  }, [taskId]);
+  useLayoutEffect(() => {
+    if (editRequested) setEditingContent(true);
+  }, [editRequested]);
   useLayoutEffect(() => {
     const node = contentRef.current;
     if (node !== null) {
       fit(node);
     }
-  }, [content, contentRef, taskId]);
+  }, [content, contentRef, taskId, editingContent]);
   const done = items.filter((item) => item.done).length;
   const subtaskDone = subtasks.filter((item) => item.done).length;
   return (
@@ -140,36 +166,88 @@ export function DetailBody({
         onDropFiles(files);
       }}
     >
-      <textarea
-        className="detail-title"
-        aria-label={titleLabel}
-        defaultValue={title}
-        key={title}
-        rows={1}
-        placeholder={untitled}
-        onInput={(event) => {
-          fit(event.currentTarget);
-        }}
-        onKeyDown={onTitleKey}
-        onBlur={(event) => {
-          onTitle(event.target.value);
-        }}
-      />
-      <textarea
-        ref={contentRef}
-        className="detail-content"
-        aria-label={contentLabel}
-        placeholder={contentHint}
-        defaultValue={content}
-        key={taskId}
-        rows={3}
-        onInput={(event) => {
-          fit(event.currentTarget);
-        }}
-        onBlur={(event) => {
-          onContent(event.target.value);
-        }}
-      />
+      <div className="detail-title-row">
+        {titleLeading}
+        <textarea
+          className="detail-title"
+          aria-label={titleLabel}
+          defaultValue={displayTitle(title)}
+          key={title}
+          rows={1}
+          ref={(node) => {
+            if (node !== null) fit(node);
+          }}
+          placeholder={untitled}
+          onInput={(event) => {
+            fit(event.currentTarget);
+          }}
+          onKeyDown={onTitleKey}
+          onBlur={(event) => {
+            onTitle(event.target.value);
+          }}
+        />
+      </div>
+      {metadata}
+      {!editingContent && draftContent.length > 0 ? (
+        <section className="detail-markdown">
+          {cleanContent !== content ? (
+            <p role="status">
+              {messages.repeatedContentNotice}{' '}
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => {
+                  onContent(cleanContent);
+                }}
+              >
+                {messages.repairDescription}
+              </button>
+            </p>
+          ) : null}
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label={messages.editDescription}
+            className="detail-description-preview"
+            onClick={() => {
+              setEditingContent(true);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                setEditingContent(true);
+              }
+            }}
+          >
+            <Markdown>{draftContent}</Markdown>
+            <Pencil className="description-pencil" size={14} aria-hidden="true" />
+          </div>
+        </section>
+      ) : (
+        <textarea
+          ref={contentRef}
+          className="detail-content"
+          aria-label={contentLabel}
+          placeholder={contentHint}
+          defaultValue={draftContent}
+          key={taskId}
+          rows={3}
+          onInput={(event) => {
+            localStorage.setItem(draftKey, event.currentTarget.value);
+            fit(event.currentTarget);
+          }}
+          onBlur={(event) => {
+            if (
+              event.relatedTarget instanceof Element &&
+              event.relatedTarget.closest('.format-bar') !== null
+            )
+              return;
+            onContent(event.target.value);
+            if (!editRequested) setEditingContent(false);
+          }}
+          autoFocus={editingContent}
+        />
+      )}
       <section className="detail-block detail-checks">
         <div className="detail-block-head">
           <h3>
@@ -289,7 +367,7 @@ export function DetailBody({
               <li key={child.id}>
                 <PriorityCheck
                   priority="none"
-                  label={child.title}
+                  label={displayTitle(child.title)}
                   checked={child.done}
                   onChange={() => {
                     onToggleSubtask(child.id, child.done);
@@ -299,13 +377,14 @@ export function DetailBody({
                   className={child.done ? 'check-title is-done' : 'check-title'}
                   to={`?task=${child.id}`}
                 >
-                  {child.title}
+                  {displayTitle(child.title)}
                 </Link>
               </li>
             ))}
           </ul>
         </section>
       ) : null}
+      <h3 className="detail-section-label">{messages.tags}</h3>
       <div className="detail-tags">
         {tags.map((tag) => (
           <button
@@ -317,10 +396,7 @@ export function DetailBody({
               onRemoveTag(tag.id);
             }}
           >
-            <span
-              className="tag-dot"
-              style={tag.color === null ? undefined : { background: tag.color }}
-            />
+            <TagIcon color={tag.color} />
             {tag.name}
             <X size={12} aria-hidden="true" />
           </button>
@@ -344,7 +420,7 @@ export function DetailBody({
           </button>
         </p>
       ) : null}
-      {repeat !== null ? (
+      {metadata === undefined && repeat !== null ? (
         <p className="detail-row">
           <Repeat size={14} aria-hidden="true" />
           <span>{repeat}</span>
@@ -358,8 +434,8 @@ export function DetailBody({
           {attachmentLabel}
           {attachments.length > 0 ? ` (${String(attachments.length)})` : ''}
         </h3>
-        <p className="detail-drop">{attachmentDrop}</p>
-        <label className="detail-attach-btn">
+        <label className="detail-attach-btn detail-drop">
+          {attachmentDrop}
           <input
             type="file"
             multiple
@@ -371,7 +447,7 @@ export function DetailBody({
             }}
           />
           <Paperclip size={14} aria-hidden="true" />
-          {attachmentLabel}
+          {messages.upload}
         </label>
         <ul className="detail-files">
           {attachments.map((file) => (

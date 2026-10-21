@@ -1,7 +1,9 @@
+import { navigationOrder } from '@reflexionia/domain';
 import { describe, expect, it } from 'vitest';
 import { featureFlags } from './feature-flags.js';
 
 const ALL_ON = {
+  navigation_order: navigationOrder(undefined),
   countdowns: true,
   focus: true,
   matrix: true,

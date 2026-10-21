@@ -15,6 +15,8 @@ import { EmptyState } from '../../components/ui';
 import { useMessages, type Messages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
 import { refreshTaskSurfaces } from '../tasks/refresh';
+import { completeBody } from '../tasks/complete-body';
+import { newMutation, runOrQueue } from '../offline/client';
 import { quadrantOf } from '../tasks/model';
 import { formatDueChip } from '../today/groups';
 import { loadMatrixTasks } from './load';
@@ -100,6 +102,8 @@ export function MatrixBoard({
   const [info, setInfo] = useState(false);
   const [active, setActive] = useState<MatrixQuadrant>('do');
   const [menuId, setMenuId] = useState<string | null>(null);
+  const [completing, setCompleting] = useState<ReadonlySet<string>>(new Set());
+  const [completeError, setCompleteError] = useState<string | null>(null);
   const projects = useQuery({
     queryKey: ['projects'],
     queryFn: () => api.listProjects(),
@@ -110,8 +114,14 @@ export function MatrixBoard({
     queryFn: () => loadMatrixTasks((query) => api.listTasks(query), scope, new Date()),
   });
   const names = useMemo(
-    () => new Map((projects.data?.items ?? []).map((project) => [project.id, project.name])),
-    [projects.data?.items],
+    () =>
+      new Map(
+        (projects.data?.items ?? []).map((project) => [
+          project.id,
+          project.is_inbox ? messages.smartInbox : project.name,
+        ]),
+      ),
+    [projects.data?.items, messages.smartInbox],
   );
   const now = useMemo(() => new Date(), []);
   const groups = useMemo(() => {
@@ -140,6 +150,7 @@ export function MatrixBoard({
 
   const body = (
     <>
+      {completeError !== null ? <p role="alert">{completeError}</p> : null}
       <div className="matrix-toolbar">
         {embedded ? null : <h1>{messages.matrixTitle}</h1>}
         <div className="page-actions">
@@ -157,7 +168,7 @@ export function MatrixBoard({
                 <option value="today">{messages.navToday}</option>
                 {(projects.data?.items ?? []).map((project) => (
                   <option key={project.id} value={`list/${project.id}`}>
-                    {project.name}
+                    {project.is_inbox ? messages.smartInbox : project.name}
                   </option>
                 ))}
               </select>
@@ -242,7 +253,23 @@ export function MatrixBoard({
                         priority={task.priority}
                         label={messages.completeLabel.replace('{name}', displayTitle(task.title))}
                         checked={false}
-                        onChange={() => undefined}
+                        disabled={completing.has(task.id)}
+                        onChange={() => {
+                          setCompleting((ids) => new Set([...ids, task.id]));
+                          setCompleteError(null);
+                          void runOrQueue(newMutation('complete', task.id, completeBody()), (key) =>
+                            api.completeTask(task.id, completeBody(), key),
+                          )
+                            .then(() => refreshTaskSurfaces(queryClient))
+                            .catch(() => {
+                              setCompleteError(messages.completeFailed);
+                            })
+                            .finally(() => {
+                              setCompleting(
+                                (ids) => new Set([...ids].filter((id) => id !== task.id)),
+                              );
+                            });
+                        }}
                       />
                       <Link className="task-title" to={`/list/${task.project_id}?task=${task.id}`}>
                         {displayTitle(task.title)}

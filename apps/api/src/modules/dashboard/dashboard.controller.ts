@@ -11,22 +11,33 @@ import { asJson } from '../../http/json.js';
 import { respondJson } from '../../http/respond.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { loadDashboardSnapshot } from '../../reading/snapshot.js';
+import { loadGardenProjects } from '../../reading/garden-projects.js';
+import { listOverdueTaskRows } from '../../reading/overdue.js';
 import {
   driveConfigured,
   googleConfigured,
   telegramConfigured,
 } from '../../integrations/config.js';
 import { MetricsService } from '../metrics/metrics.service.js';
-import { dayKey, parseDayBounds } from '@reflexionia/domain';
+import {
+  dayKey,
+  parseDayBounds,
+  overdueAgeGroups,
+  gardenHabits,
+  uniqueGardenEvents,
+  gardenTagActivity,
+} from '@reflexionia/domain';
 
 export const WIDGET_KEYS = [
   'completed_today',
   'completed_week',
   'overdue',
   'next_7_days',
+  'projects',
   'flow',
   'habits',
   'load',
+  'tags',
   'calendar',
   'integrations',
   'focus',
@@ -36,7 +47,7 @@ export const WIDGET_KEYS = [
 const DEFAULT_LAYOUT = WIDGET_KEYS.map((key, index) => ({
   widget_key: key,
   position: index,
-  size: 'm',
+  size: key === 'projects' ? 'l' : index < 4 ? 's' : 'm',
   config: {},
 }));
 
@@ -86,7 +97,11 @@ export class DashboardController {
 
   @Get('dashboard/data')
   @Scopes('tasks:read')
-  @ApiOperation({ summary: 'KPI for one widget (RF-2102, RF-2104)' })
+  @ApiOperation({
+    summary: 'KPI for one widget (RF-2102, RF-2104)',
+    description:
+      'Without widget, returns widgets, generated_at and period (from, to, time_zone). Activity covers the trailing seven days; completed_today uses the account time zone. Habits include total active habits. Calendar counts today and the next seven days, deduplicated by shared UID and occurrence start; previews include up to three events. Habits expose daily scheduled done/expected today, pending_today names and complete (all active habits have a recognized model), plus this calendar week to date. Weekly habits are not daily obligations. Load includes total_active, including subtasks. Focus exposes today/week seconds, active session and null goal_seconds (no goal in schema). Tags count unique active tasks per tag and current linked task creation/completion over 90 days; recent_activity is true or null (history unavailable), and assignment history is unavailable. Integration booleans reflect the authenticated account connection, not only server configuration. Includes overdue_by_list with disjoint calendar-age buckets under_7, days_7_30 and over_30, based on the same canonical overdue set as the count. Habits, calendar and next_countdowns expose configured independently of current activity. Projects exclude the inbox and include open/closed lists plus all accessible soft deletions, seven-day task activity and review signals (no pending tasks or no task changes for 30 days), excluding note lists and closed projects from suggestions.',
+  })
   async data(
     @CurrentUser() user: AuthUser,
     @Query('widget') widget: string | undefined,
@@ -94,8 +109,10 @@ export class DashboardController {
     @Res() res: Response,
   ): Promise<void> {
     const now = new Date();
-    const snapshot = await loadDashboardSnapshot(this.prisma, user.id, now);
     const tz = user.timeZone || 'Europe/Madrid';
+    const snapshot = await loadDashboardSnapshot(this.prisma, user.id, now, tz);
+    const projects = await loadGardenProjects(this.prisma, user.id, now);
+    const overdueTasks = await listOverdueTaskRows(this.prisma, user.id);
     const today = dayKey(now.toISOString(), tz) ?? now.toISOString().slice(0, 10);
     const todayBounds = parseDayBounds(today, today, tz);
     const focusSeconds =
@@ -106,9 +123,58 @@ export class DashboardController {
             new Date(todayBounds.startIso),
             new Date(todayBounds.endIso),
           )) * 60;
-    const upcoming = await this.prisma.externalEvent.count({
-      where: { ownerId: user.id, deletedAt: null, startsAt: { gte: now } },
-    });
+    const until = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const eventWhere = {
+      ownerId: user.id,
+      deletedAt: null,
+      status: { not: 'cancelled' },
+      subscription: { visible: true, deletedAt: null },
+      startsAt: { gte: new Date(todayBounds?.startIso ?? now), lte: until },
+    };
+    const [rawEvents, habitTotal, account, telegramLink] = await Promise.all([
+      this.prisma.externalEvent.findMany({
+        where: eventWhere,
+        orderBy: { startsAt: 'asc' },
+        select: { id: true, externalUid: true, raw: true, title: true, startsAt: true },
+      }),
+      this.prisma.habit.count({ where: { ownerId: user.id, deletedAt: null, archived: false } }),
+      this.prisma.user.findUniqueOrThrow({
+        where: { id: user.id },
+        select: { googleRefreshToken: true, telegramEnabled: true },
+      }),
+      this.prisma.telegramLink.findFirst({
+        where: { ownerId: user.id, deletedAt: null },
+        select: { id: true },
+      }),
+    ]);
+    const upcomingEvents = uniqueGardenEvents(rawEvents);
+    const weekStart = new Date(`${today}T00:00:00Z`);
+    weekStart.setUTCDate(weekStart.getUTCDate() - ((weekStart.getUTCDay() + 6) % 7));
+    const from = weekStart.toISOString().slice(0, 10);
+    const weekBounds = parseDayBounds(from, today, tz);
+    const [habitRows, focusWeek, activeFocus, tags] = await Promise.all([
+      this.metrics.habitRows(user.id, tz),
+      this.metrics.focusMinutes(user.id, new Date(weekBounds?.startIso ?? now), now),
+      this.prisma.focusSession.findFirst({
+        where: { ownerId: user.id, deletedAt: null, type: 'focus', endedAt: null },
+        select: { id: true },
+      }),
+      this.prisma.tag.findMany({
+        where: { ownerId: user.id, deletedAt: null },
+        select: {
+          id: true,
+          name: true,
+          tasks: {
+            where: { task: { ownerId: user.id, deletedAt: null } },
+            select: {
+              taskId: true,
+              task: { select: { status: true, createdAt: true, completedAt: true } },
+            },
+          },
+        },
+      }),
+    ]);
+    const habitActivity = gardenHabits(habitRows, today, from);
     const countdowns = await this.prisma.countdown.findMany({
       where: {
         ownerId: user.id,
@@ -120,6 +186,11 @@ export class DashboardController {
       take: 3,
       select: { id: true, title: true, emoji: true, targetDate: true },
     });
+    const [configuredHabits, configuredCalendars, configuredCountdowns] = await Promise.all([
+      this.prisma.habit.count({ where: { ownerId: user.id, deletedAt: null } }),
+      this.prisma.calendarSubscription.count({ where: { ownerId: user.id, deletedAt: null } }),
+      this.prisma.countdown.count({ where: { ownerId: user.id, deletedAt: null } }),
+    ]);
     const values: Record<string, unknown> = {
       completed_today: snapshot.completed_today,
       completed_week: {
@@ -132,19 +203,62 @@ export class DashboardController {
               ? `+${String(snapshot.trend)} vs semana anterior`
               : `${String(snapshot.trend)} vs semana anterior`,
       },
-      overdue: snapshot.overdue,
+      overdue: overdueTasks.length,
+      overdue_by_list: overdueAgeGroups(overdueTasks),
+      projects,
       next_7_days: snapshot.next_7_days,
       flow: { created: snapshot.created, completed: snapshot.completed, net: snapshot.net },
-      habits: { percent: snapshot.habit_percent },
-      load: { by_list: snapshot.by_list, by_tag: snapshot.by_tag },
-      calendar: { upcoming, label: `${String(upcoming)} próximos eventos` },
-      integrations: {
-        telegram: telegramConfigured(),
-        google: googleConfigured(),
-        drive: driveConfigured(),
+      habits: {
+        percent: snapshot.habit_percent,
+        today: habitActivity.today,
+        pending_today: habitActivity.pending_today,
+        complete: habitRows.length === habitTotal,
+        week: habitActivity.week,
+        total: habitTotal,
+        configured: configuredHabits > 0,
       },
-      focus: { seconds: focusSeconds },
+      load: {
+        total_active: snapshot.by_list.reduce((sum, list) => sum + list.active, 0),
+        by_list: snapshot.by_list,
+        by_tag: snapshot.by_tag,
+      },
+      tags: {
+        inactivity_days: 90,
+        assignment_history: false,
+        items: tags
+          .map((tag) => ({
+            id: tag.id,
+            name: tag.name,
+            ...gardenTagActivity(tag.tasks, now),
+          }))
+          .sort((a, b) => b.active - a.active || a.name.localeCompare(b.name)),
+      },
+      calendar: {
+        configured: configuredCalendars > 0 || account.googleRefreshToken !== null,
+        today: upcomingEvents.filter((event) => dayKey(event.startsAt.toISOString(), tz) === today)
+          .length,
+        upcoming: upcomingEvents.length,
+        label: `${String(upcomingEvents.length)} eventos en los próximos 7 días`,
+        items: upcomingEvents.slice(0, 3).map((event) => ({
+          id: event.id,
+          title: event.title,
+          starts_at: event.startsAt.toISOString(),
+          starts_on: dayKey(event.startsAt.toISOString(), tz),
+        })),
+      },
+      integrations: {
+        telegram: telegramConfigured() && account.telegramEnabled && telegramLink !== null,
+        google: googleConfigured() && account.googleRefreshToken !== null,
+        drive: driveConfigured() && account.googleRefreshToken !== null,
+      },
+      focus: {
+        seconds: focusSeconds,
+        week_seconds: focusWeek * 60,
+        active: activeFocus !== null,
+        goal_seconds: null,
+      },
       next_countdowns: {
+        configured: configuredCountdowns > 0,
         items: countdowns.map((countdown) => ({
           id: countdown.id,
           title: countdown.title,
@@ -154,7 +268,21 @@ export class DashboardController {
       },
     };
     if (widget === undefined || widget.length === 0) {
-      respondJson(req, res, 200, { widgets: values }, false);
+      respondJson(
+        req,
+        res,
+        200,
+        {
+          widgets: values,
+          generated_at: now.toISOString(),
+          period: {
+            from: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+            to: now.toISOString(),
+            time_zone: tz,
+          },
+        },
+        false,
+      );
       return;
     }
     respondJson(req, res, 200, { widget, data: values[widget] ?? null }, false);

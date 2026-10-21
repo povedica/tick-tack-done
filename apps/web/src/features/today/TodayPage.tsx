@@ -1,25 +1,27 @@
+import { displayTitle } from '../tasks/displayTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowUpDown, ChevronDown, Lightbulb, Menu, Sprout } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowUpDown, Lightbulb, Menu, Sprout } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { api } from '../../api';
 import type { CreateTaskBody } from '@reflexionia/sdk';
 import { UndoToastStack } from '../../components/UndoToast';
 import { ViewMenu } from '../../components/ViewMenu';
 import { useActionToast } from '../../components/action-toast';
-import { captureLanguage, fill, useMessages, type Messages } from '../../i18n';
+import { useMessages, type Messages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
 import { warningText } from '../capture/components/CaptureSheet';
-import { noticesFrom, openTaskComposer, useCaptureNotice } from '../capture/notice';
-import { quickAddRequest } from '../capture/quick-add';
-import { HabitsEmpty } from '../habits/components/HabitsEmpty';
+import { openTaskComposer, useCaptureNotice } from '../capture/notice';
+import { TodayPlanStrip, type DayLoadBody } from './TodayPlanStrip';
+import { TodayHabits } from './TodayHabits';
+import './today-support.css';
 import { HABITS_DISMISS_KEY, habitsDismissed } from '../habits/dismiss';
 import { flushOfflineQueue, newMutation, runOrQueue } from '../offline/client';
 import { isTypingTarget } from '../../shell/shortcuts';
 import { useShellActions } from '../../shell/shell-actions';
 import { collectTags } from '../tasks/collect';
 import { completeBody } from '../tasks/complete-body';
-import { QuickAddTools, type QuickPreview } from '../tasks/QuickAddTools';
+import { TaskComposer } from '../tasks/TaskComposer';
 import { refreshTaskSurfaces } from '../tasks/refresh';
 import { closingRequest } from '../closing/api';
 import { tasksApi } from './api';
@@ -34,14 +36,12 @@ import {
 import {
   calendarDay,
   formatDayId,
-  formatDueChip,
   groupFromLocation,
   groupTasks,
   mergeForGroup,
   parseSort,
   parseSortDir,
   partitionToday,
-  planTaskIds,
   rangeIds,
   shiftDayKey,
   visibleTasks,
@@ -57,7 +57,6 @@ import { TaskContextMenu } from './TaskContextMenu';
 import { TaskGroup } from './TaskGroup';
 import { countdownsApi } from '../countdowns/api';
 import { countdownLabel } from '../countdowns/presentation';
-import { TodayAgenda } from './TodayAgenda';
 import { MatrixBoard, MatrixViewToggle } from '../matrix/MatrixBoard';
 import { readMatrixLayout, writeMatrixLayout } from '../matrix/layout';
 import { useFeatures } from '../settings/feature-flags';
@@ -66,7 +65,6 @@ const GROUP_KEY = 'tick-tack-done.today.group';
 const SORT_KEY = 'tick-tack-done.today.sort';
 const SORT_DIR_KEY = 'tick-tack-done.today.sortDir';
 const COLLAPSE_KEY = 'tick-tack-done.today.collapsed';
-const PLAN_KEY = 'tick-tack-done.plan.accepted';
 
 export function TodayPage() {
   const messages = useMessages();
@@ -77,10 +75,8 @@ export function TodayPage() {
   const location = useLocation();
   const queryClient = useQueryClient();
   const notice = useCaptureNotice((state) => state.notice);
-  const setNotice = useCaptureNotice((state) => state.setNotice);
   const clearNotice = useCaptureNotice((state) => state.clear);
   const showToast = useActionToast((state) => state.show);
-  const [draft, setDraft] = useState('');
   const addRef = useRef<HTMLInputElement>(null);
   const [params, setParams] = useSearchParams();
   const group = groupFromLocation(params.get('group'), readStored(GROUP_KEY));
@@ -104,11 +100,18 @@ export function TodayPage() {
   const [habitsHidden, setHabitsHidden] = useState(() =>
     habitsDismissed(readStored(HABITS_DISMISS_KEY), Date.now()),
   );
-  const [planAccepted, setPlanAccepted] = useState(
-    () =>
-      readStored(PLAN_KEY) ===
-      calendarDay(new Date().toISOString(), Intl.DateTimeFormat().resolvedOptions().timeZone),
-  );
+  useEffect(() => {
+    if (!habitsHidden) return;
+    const check = () => {
+      setHabitsHidden(habitsDismissed(readStored(HABITS_DISMISS_KEY), Date.now()));
+    };
+    const timer = window.setInterval(check, 60_000);
+    window.addEventListener('focus', check);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', check);
+    };
+  }, [habitsHidden]);
   const [matrixLayout, setMatrixLayout] = useState(() => readMatrixLayout('today'));
   const jobs = useRef(new Map<string, CompleteJob>());
   const leaveTimers = useRef(new Map<string, number>());
@@ -126,9 +129,8 @@ export function TodayPage() {
     | undefined;
   const showWhen = flags.when_deadline;
   const showLoad = flags.day_load;
-  const showClosing = flags.day_closing;
-  const showReplan = flags.day_replan;
   const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const timeZone = zone;
   const load = useQuery({
     queryKey: ['day-load', zone],
     enabled: showLoad,
@@ -159,16 +161,6 @@ export function TodayPage() {
     queryFn: () => countdownsApi.list(false, 7),
     refetchOnWindowFocus: false,
   });
-  const plan = useQuery({
-    queryKey: ['review-daily'],
-    queryFn: () => api.reviewDaily(),
-    refetchOnWindowFocus: false,
-  });
-  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const preview = useMemo(
-    () => buildPreview(draft, locale, timeZone, messages),
-    [draft, locale, messages, timeZone],
-  );
 
   useEffect(() => {
     if (params.get('disabled') !== '1') {
@@ -434,7 +426,7 @@ export function TodayPage() {
     const job: CompleteJob = { phase: 'inflight' };
     jobs.current.set(task.id, job);
     setLeaving((current) => new Set(current).add(task.id));
-    setToasts((current) => pushUndo(current, { id: task.id, title: task.title }));
+    setToasts((current) => pushUndo(current, { id: task.id, title: displayTitle(task.title) }));
     setActionError(null);
     const delay = completeLeaveMs(window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     const timer = window.setTimeout(() => {
@@ -477,75 +469,9 @@ export function TodayPage() {
     day: 'numeric',
     month: 'long',
   }).format(new Date());
-  const activeHabits = (habits.data?.items ?? []).filter((habit) => !habit.archived);
-  const planIds = planTaskIds(plan.data);
-  const accepted = planAccepted;
-  const planTasks = (tasks.data ?? []).filter((task) => planIds.includes(task.id)).slice(0, 5);
   const empty =
     !tasks.isPending && !tasks.isError && parts.overdue.length + parts.today.length === 0;
   const menuTask = (tasks.data ?? []).find((task) => task.id === menu?.id);
-
-  function addTask(): void {
-    const title = draft.trim();
-    if (title.length === 0) {
-      return;
-    }
-    const request = quickAddRequest({
-      text: title,
-      language: captureLanguage(locale),
-      now: new Date().toISOString(),
-      timeZone,
-      viewDay: 'today',
-    });
-    const tempId = `pending-${crypto.randomUUID()}`;
-    setDraft('');
-    setActionError(null);
-    addRef.current?.focus();
-    const due = request.dueDate ?? request.parsed.due?.date ?? null;
-    queryClient.setQueryData<TodayTask[]>(['today-tasks'], (current) => [
-      {
-        id: tempId,
-        title: request.parsed.title.length > 0 ? request.parsed.title : title,
-        priority: request.parsed.priority ?? 'none',
-        dueDate: due,
-        timeZone,
-        allDay: request.parsed.due?.isAllDay ?? due !== null,
-        hasReminder: request.parsed.reminderTrigger !== null,
-        checklistDone: 0,
-        checklistTotal: 0,
-        hasContent: false,
-        hasRepeat: request.parsed.repeatRule !== null,
-        attachmentCount: 0,
-        source: 'manual',
-        status: 'active',
-        projectId: inbox?.id ?? '',
-        tagIds: [],
-      },
-      ...(current ?? []),
-    ]);
-    void runOrQueue(newMutation('create', tempId, { ...request.body }), (key) =>
-      api.createTask(request.body, key),
-    )
-      .then(async (outcome) => {
-        if (outcome.result !== null) {
-          const warnings = noticesFrom(outcome.result.warnings);
-          if (warnings.length > 0) {
-            setNotice({ title: outcome.result.title, warnings });
-          }
-        }
-        if (!outcome.queued) {
-          await refreshTaskSurfaces(queryClient);
-        }
-      })
-      .catch(() => {
-        queryClient.setQueryData<TodayTask[]>(['today-tasks'], (current) =>
-          (current ?? []).filter((task) => task.id !== tempId),
-        );
-        setDraft(title);
-        setActionError(messages.createFailed);
-        addRef.current?.focus();
-      });
-  }
 
   function groupProps(sectionId: string, rows: readonly TodayTask[], overdueLabel = false) {
     return {
@@ -703,127 +629,12 @@ export function TodayPage() {
           </ViewMenu>
         </div>
       </header>
-      <TodayAgenda />
-      <form
-        className="quick-add"
-        onSubmit={(event) => {
-          event.preventDefault();
-          addTask();
-        }}
-      >
-        <div className="quick-add-field">
-          <div className="quick-add-mirror" aria-hidden="true">
-            {highlight(draft)}
-          </div>
-          <input
-            ref={addRef}
-            name="title"
-            value={draft}
-            className={draft.length > 0 ? 'is-mirroring' : undefined}
-            aria-label={messages.addTask}
-            aria-describedby="quick-add-summary"
-            placeholder={`+ ${fill(messages.addTaskTo, inbox?.is_inbox === true ? messages.smartInbox : (inbox?.name ?? messages.smartInbox))}`}
-            onChange={(event) => {
-              setDraft(event.target.value);
-            }}
-            onKeyDown={(event) => {
-              if (event.key === 'Escape') {
-                event.preventDefault();
-                setDraft('');
-              }
-            }}
-          />
-        </div>
-        <p id="quick-add-summary" className="sr-only">
-          {preview === null ? '' : fill(messages.quickAddSummary, preview.summary)}
-        </p>
-        <QuickAddTools
-          draft={draft}
-          preview={preview}
-          onDraft={(value) => {
-            setDraft(value);
-            addRef.current?.focus();
-          }}
-        />
-      </form>
-      {planIds.length === 0 || accepted ? (
-        <p className="plan-line">
-          <Link className="app-link" to="/plan/day">
-            {messages.planMyDay}
-          </Link>
-        </p>
-      ) : (
-        <section className="plan">
-          <h2>{messages.planTitle}</h2>
-          {showLoad && load.data?.available_minutes != null ? (
-            <p className="plan-line">
-              {load.data.status === 'overload' && showReplan ? (
-                <Link className="app-link" to="/replan">
-                  {messages.loadOver.replace(
-                    '{minutes}',
-                    String(load.data.task_minutes - load.data.available_minutes),
-                  )}
-                </Link>
-              ) : (
-                messages.loadChip
-                  .replace('{used}', hoursLabel(load.data.task_minutes))
-                  .replace('{available}', hoursLabel(load.data.available_minutes))
-                  .replace(
-                    '{status}',
-                    load.data.status === 'tight' ? messages.loadTight : messages.loadOk,
-                  )
-              )}
-              {load.data.unestimated_count > 0 ? (
-                <span
-                  title={messages.loadUnestimated
-                    .replace('{count}', String(load.data.unestimated_count))
-                    .replace('{minutes}', '30')}
-                >
-                  {' '}
-                  · {load.data.unestimated_count}
-                </span>
-              ) : null}
-            </p>
-          ) : null}
-          <p className="plan-line">
-            {showClosing ? (
-              <Link className="app-link" to="/cierre">
-                {messages.closeDay}
-                {eveningTasks.length +
-                  parts.today.filter((task) => task.eveningOnly !== true).length >
-                0
-                  ? ` (${String(parts.today.filter((task) => task.eveningOnly !== true).length)})`
-                  : ''}
-              </Link>
-            ) : null}
-            {showClosing && showReplan ? ' · ' : null}
-            {showReplan ? (
-              <Link className="app-link" to="/replan">
-                {messages.replanDay}
-              </Link>
-            ) : null}
-          </p>
-          <p>{messages.planHideHint}</p>
-          <ul>
-            {(planTasks.length > 0 ? planTasks : planIds.map((id) => ({ id, title: id }))).map(
-              (item) => (
-                <li key={item.id}>{item.title}</li>
-              ),
-            )}
-          </ul>
-          <button
-            type="button"
-            className="ui-button is-primary is-sm"
-            onClick={() => {
-              const day = calendarDay(new Date().toISOString(), timeZone);
-              localStorage.setItem(PLAN_KEY, day);
-              setPlanAccepted(true);
-            }}
-          >
-            {messages.planHide}
-          </button>
-        </section>
-      )}
+      <TaskComposer inputRef={addRef} viewDay="today" defaultProjectId={inbox?.id} />
+      <TodayPlanStrip
+        load={load.isSuccess ? load.data : undefined}
+        loading={load.isPending && showLoad}
+        showLoad={showLoad}
+      />
       {countdowns.data?.items
         .filter((item) => item.kind === 'today' && item.showInSmartList)
         .map((item) => (
@@ -893,76 +704,38 @@ export function TodayPage() {
           <div className="task-skeleton" />
         </div>
       ) : null}
-      {!habits.isPending && activeHabits.length > 0 ? (
-        <details className="task-group" open>
-          <summary>
-            <ChevronDown className="task-chevron" size={16} aria-hidden="true" />
-            <span>{messages.habitGroup}</span>
-            <span className="task-count">{activeHabits.length}</span>
-          </summary>
-          <ul className="task-list">
-            {activeHabits.map((habit) => {
-              const done = habit.today.count >= habit.goal.target_count;
-              const width =
-                habit.goal.target_count === 0
-                  ? 0
-                  : Math.min(100, Math.round((habit.today.count / habit.goal.target_count) * 100));
-              return (
-                <li key={habit.id}>
-                  <div className="task-row">
-                    <button
-                      type="button"
-                      className={done ? 'habit-check is-done' : 'habit-check'}
-                      aria-label={messages.checkIn}
-                      onClick={() => {
-                        void api
-                          .checkInHabit(
-                            habit.id,
-                            { date: habit.today.date, count: habit.today.count + 1 },
-                            crypto.randomUUID(),
-                          )
-                          .then(() => queryClient.invalidateQueries({ queryKey: ['habits'] }));
-                      }}
-                    />
-                    <Link className="task-title" to={`/habits/${habit.id}`}>
-                      {habit.name}
-                    </Link>
-                    <span className="task-meta">
-                      <span className="habit-progress" aria-hidden="true">
-                        <i style={{ width: `${String(width)}%` }} />
-                      </span>
-                      {habit.today.count}/{habit.goal.target_count}
-                      {habit.reminder_time !== null ? (
-                        <time className="task-time">{habit.reminder_time}</time>
-                      ) : null}
-                    </span>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </details>
-      ) : null}
-      {!habits.isPending && activeHabits.length === 0 && !habitsHidden ? (
-        <HabitsEmpty
-          onCreate={(body) => {
-            void api.createHabit(body, crypto.randomUUID()).then((created) => {
-              showToast(messages.habitCreated, () => {
-                void api.deleteHabit(created.id).then(() => {
-                  void queryClient.invalidateQueries({ queryKey: ['habits'] });
-                });
-              });
-              void queryClient.invalidateQueries({ queryKey: ['habits'] });
+      {habits.isSuccess ? (
+        <TodayHabits
+          habits={habits.data.items}
+          hidden={habitsHidden}
+          collapsed={collapsed.has('habits')}
+          onToggle={(open) => {
+            setCollapsed((current) => {
+              const next = new Set(current);
+              if (open) next.delete('habits');
+              else next.add('habits');
+              localStorage.setItem(COLLAPSE_KEY, JSON.stringify([...next]));
+              return next;
             });
-          }}
-          onOpen={() => {
-            void navigate('/habits');
           }}
           onDismiss={() => {
             localStorage.setItem(HABITS_DISMISS_KEY, String(Date.now()));
             setHabitsHidden(true);
           }}
         />
+      ) : habits.isError ? (
+        <p className="today-habit-error" role="alert">
+          {messages.todayHabitLoadError}
+          <button
+            type="button"
+            className="text-button"
+            onClick={() => {
+              void habits.refetch();
+            }}
+          >
+            {messages.retry}
+          </button>
+        </p>
       ) : null}
       {(countdowns.data?.items.length ?? 0) > 0 ? (
         <section className="countdown-upcoming">
@@ -1004,7 +777,13 @@ export function TodayPage() {
           <button
             type="button"
             onClick={() => {
-              void api.batchTasks({ action: 'complete', ids: [...selected] }).then(() => {
+              void Promise.all(
+                [...selected].map((id) =>
+                  runOrQueue(newMutation('complete', id, completeBody()), (key) =>
+                    tasksApi.completeTask(id, completeBody(), key),
+                  ),
+                ),
+              ).then(() => {
                 setSelected(new Set());
                 return refreshTaskSurfaces(queryClient);
               });
@@ -1226,55 +1005,6 @@ function sortName(value: TaskSortKey, messages: Messages): string {
   return messages.sortDate;
 }
 
-function buildPreview(
-  draft: string,
-  locale: string,
-  timeZone: string,
-  messages: Messages,
-): QuickPreview | null {
-  if (draft.trim().length === 0) {
-    return null;
-  }
-  const request = quickAddRequest({
-    text: draft,
-    language: captureLanguage(locale),
-    now: new Date().toISOString(),
-    timeZone,
-    viewDay: 'today',
-  });
-  const due = request.parsed.due?.date ?? request.dueDate;
-  const chip =
-    due === null
-      ? null
-      : formatDueChip(
-          due,
-          timeZone,
-          request.parsed.due?.isAllDay ?? request.dueDate !== null,
-          new Date(),
-          locale,
-          {
-            empty: messages.noDate,
-            today: messages.dateToday,
-          },
-        ).text;
-  const parts = [
-    chip,
-    request.parsed.priority,
-    ...request.parsed.tagNames,
-    request.parsed.listName,
-  ].filter((part): part is string => part !== null && part.length > 0);
-  return {
-    date: chip,
-    priority: request.parsed.priority,
-    tags: request.parsed.tagNames,
-    summary: parts.join(', '),
-  };
-}
-
-function highlight(text: string): string {
-  return text;
-}
-
 function pinFirst(tasks: readonly TodayTask[], pins: readonly string[]): TodayTask[] {
   return [...tasks].sort(
     (left, right) => Number(pins.includes(right.id)) - Number(pins.includes(left.id)),
@@ -1296,25 +1026,6 @@ function readStored(key: string): string | null {
   } catch {
     return null;
   }
-}
-
-interface DayLoadBody {
-  readonly task_minutes: number;
-  readonly available_minutes: number | null;
-  readonly unestimated_count: number;
-  readonly status: 'ok' | 'tight' | 'overload';
-}
-
-function hoursLabel(minutes: number): string {
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  if (hours === 0) {
-    return `${String(rest)} min`;
-  }
-  if (rest === 0) {
-    return `${String(hours)} h`;
-  }
-  return `${String(hours)} h ${String(rest)} min`;
 }
 
 function readList(key: string): string[] {

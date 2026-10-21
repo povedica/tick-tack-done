@@ -90,6 +90,7 @@ export class MeService {
   private async mergeFeatures(
     id: string,
     patch: Partial<{
+      navigation_order: string[];
       countdowns: boolean;
       focus: boolean;
       matrix: boolean;
@@ -108,6 +109,9 @@ export class MeService {
       )?.featureFlags,
     );
     return {
+      navigation_order: featureFlags({
+        navigation_order: patch.navigation_order ?? current.navigation_order,
+      }).navigation_order,
       countdowns: patch.countdowns ?? current.countdowns,
       focus: patch.focus ?? current.focus,
       matrix: patch.matrix ?? current.matrix,

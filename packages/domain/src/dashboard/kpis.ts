@@ -1,4 +1,13 @@
 import type { Priority } from '../types';
+import { formatInTimeZone } from 'date-fns-tz';
+
+function dayKey(iso: string, timeZone: string): string | null {
+  try {
+    return formatInTimeZone(iso, timeZone, 'yyyy-MM-dd');
+  } catch {
+    return null;
+  }
+}
 
 /** RF-2102. Inputs are already loaded. This function does not query anything. */
 export interface DashboardTask {
@@ -38,13 +47,53 @@ export interface DashboardSnapshot {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** Canonical overdue rows already classified by task-local calendar age in the API. */
+export function overdueAgeGroups(
+  tasks: readonly { list_id: string | null; name: string; days_overdue: number }[],
+) {
+  const groups = new Map<
+    string | null,
+    {
+      list_id: string | null;
+      name: string;
+      total: number;
+      under_7: number;
+      days_7_30: number;
+      over_30: number;
+    }
+  >();
+  for (const task of tasks) {
+    const group = groups.get(task.list_id) ?? {
+      list_id: task.list_id,
+      name: task.list_id === null ? 'Sin lista' : task.name,
+      total: 0,
+      under_7: 0,
+      days_7_30: 0,
+      over_30: 0,
+    };
+    group.total += 1;
+    if (task.days_overdue < 7) group.under_7 += 1;
+    else if (task.days_overdue <= 30) group.days_7_30 += 1;
+    else group.over_30 += 1;
+    groups.set(task.list_id, group);
+  }
+  return [...groups.values()].sort(
+    (a, b) =>
+      b.over_30 - a.over_30 ||
+      b.days_7_30 - a.days_7_30 ||
+      b.total - a.total ||
+      a.name.localeCompare(b.name, 'es'),
+  );
+}
+
 export function dashboardSnapshot(
   tasks: readonly DashboardTask[],
   habits: readonly DashboardHabit[],
   nowIso: string,
+  timeZone = 'UTC',
 ): DashboardSnapshot {
   const now = Date.parse(nowIso);
-  const todayKey = nowIso.slice(0, 10);
+  const todayKey = dayKey(nowIso, timeZone) ?? nowIso.slice(0, 10);
   const weekStart = now - 7 * DAY_MS;
   const previousStart = now - 14 * DAY_MS;
   let completedToday = 0;
@@ -63,7 +112,7 @@ export function dashboardSnapshot(
     }
     const completedMs = task.completedAt === null ? Number.NaN : Date.parse(task.completedAt);
     if (!Number.isNaN(completedMs)) {
-      if (task.completedAt?.slice(0, 10) === todayKey) {
+      if (task.completedAt !== null && dayKey(task.completedAt, timeZone) === todayKey) {
         completedToday += 1;
       }
       if (completedMs >= weekStart && completedMs <= now) {

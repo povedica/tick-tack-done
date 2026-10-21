@@ -4,6 +4,10 @@ import type { QueryClient } from '@tanstack/react-query';
 export async function refreshTaskSurfaces(queryClient: QueryClient): Promise<void> {
   const active = { refetchType: 'active' as const };
   await Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['overdue-count'] }),
+    queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
+    queryClient.invalidateQueries({ queryKey: ['review-weekly'] }),
+    queryClient.invalidateQueries({ queryKey: ['review-daily'] }),
     queryClient.invalidateQueries({ queryKey: ['stats'] }),
     queryClient.invalidateQueries({ queryKey: ['achievements'] }),
     queryClient.invalidateQueries({ queryKey: ['smart-lists'] }),
@@ -14,6 +18,8 @@ export async function refreshTaskSurfaces(queryClient: QueryClient): Promise<voi
     queryClient.invalidateQueries({ queryKey: ['filter-tasks'], ...active }),
     queryClient.invalidateQueries({ queryKey: ['tag-tasks'], ...active }),
     queryClient.invalidateQueries({ queryKey: ['calendar-tasks'], ...active }),
+    queryClient.invalidateQueries({ queryKey: ['calendar-start-tasks'], ...active }),
+    queryClient.invalidateQueries({ queryKey: ['calendar-events'], ...active }),
     queryClient.invalidateQueries({ queryKey: ['search'], ...active }),
     queryClient.invalidateQueries({ queryKey: ['search-page'], ...active }),
     queryClient.invalidateQueries({ queryKey: ['task'], ...active }),

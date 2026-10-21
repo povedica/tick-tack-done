@@ -44,7 +44,11 @@ export class ReviewController {
 
   @Get('weekly')
   @Scopes('tasks:read')
-  @ApiOperation({ summary: 'Guided weekly review (RF-2302, RF-2303)' })
+  @ApiOperation({
+    summary: 'Guided weekly review (RF-2302, RF-2303)',
+    description:
+      'Read-only candidates with listName and dueDate context. recurring=true if repeatRule or seriesId is present; clients must disable bulk actions on these tasks. Selection alone never mutates tasks.',
+  })
   async weekly(
     @CurrentUser() user: AuthUser,
     @Req() req: Request,
@@ -95,6 +99,7 @@ export class ReviewController {
             listId: task.listId,
             listName: task.listName,
             status: task.status,
+            recurring: task.recurring,
           })),
         lists: aligned.stale_list_ids.map((id) => ({ id, name: names.get(id) ?? id })),
       },
@@ -102,7 +107,7 @@ export class ReviewController {
     );
   }
 
-  private async candidates(user: AuthUser): Promise<ReviewCandidate[]> {
+  private async candidates(user: AuthUser): Promise<(ReviewCandidate & { recurring: boolean })[]> {
     const listFilter = projectConstraint(user.listIds);
     const rows = await this.prisma.task.findMany({
       where: {
@@ -118,6 +123,7 @@ export class ReviewController {
     });
     return rows.map((row) => ({
       id: row.id,
+      recurring: row.repeatRule !== null || row.seriesId !== null,
       title: row.title,
       priority: row.priority,
       dueDate: row.dueDate?.toISOString() ?? null,

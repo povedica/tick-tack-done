@@ -1,23 +1,11 @@
+import { ControlChip } from '../features/statistics/ControlSummary';
+import { displayTitle } from '../features/tasks/displayTitle';
+import { MODULES, moduleEnabled } from './modules';
 import { useQuery } from '@tanstack/react-query';
-import {
-  AlertTriangle,
-  BarChart3,
-  CalendarCheck,
-  CalendarDays,
-  CircleDot,
-  Grid2x2,
-  HelpCircle,
-  Hourglass,
-  LayoutDashboard,
-  ListTodo,
-  MessageSquare,
-  PanelLeft,
-  Plus,
-  Search,
-} from 'lucide-react';
+import { AlertTriangle, HelpCircle, ListTodo, PanelLeft, Plus } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router';
 import { api } from '../api';
-import { BrandMark } from '../components/BrandMark';
+import { AccountMenu } from './AccountMenu';
 import { useFeatures } from '../features/settings/feature-flags';
 import { useMessages } from '../i18n';
 import { formatClock, useActiveFocus } from './useActiveFocus';
@@ -45,10 +33,11 @@ export function IconRail({
     queryFn: async () => {
       let total = 0;
       let cursor: string | undefined;
-      for (let page = 0; page < 20; page += 1) {
+      for (;;) {
         const batch = await api.listTasks({
           status: 'active',
           overdue: true,
+          flat: true,
           limit: 100,
           ...(cursor === undefined ? {} : { cursor }),
         });
@@ -56,6 +45,7 @@ export function IconRail({
         if (batch.next_cursor === null) {
           break;
         }
+        if (batch.next_cursor === cursor) throw new Error('Overdue pagination did not advance');
         cursor = batch.next_cursor;
       }
       return total;
@@ -66,69 +56,27 @@ export function IconRail({
   const focusLabel =
     focus === null
       ? messages.navFocus
-      : `${messages.focusMini} ${formatClock(focus.remaining)}${task.data?.title ? ` · ${task.data.title}` : ''}`;
+      : `${messages.focusMini} ${formatClock(focus.remaining)}${task.data?.title ? ` · ${displayTitle(task.data.title)}` : ''}`;
 
   return (
     <nav className="icon-rail" aria-label={messages.appName}>
-      <NavLink
-        className="rail-avatar"
-        to="/settings/appearance"
-        aria-label={messages.navSettings}
-        title={messages.navSettings}
-      >
-        <BrandMark size={28} />
-      </NavLink>
+      <AccountMenu />
       <NavLink to="/today" end aria-label={messages.navToday} title={messages.navToday}>
         <ListTodo size={20} aria-hidden="true" />
       </NavLink>
-      <NavLink to="/calendar/month" aria-label={messages.navCalendar} title={messages.navCalendar}>
-        <CalendarDays size={20} aria-hidden="true" />
-      </NavLink>
-      <NavLink to="/dashboard" aria-label={messages.navDashboard} title={messages.navDashboard}>
-        <LayoutDashboard size={20} aria-hidden="true" />
-      </NavLink>
-      {flags.matrix ? (
-        <NavLink to="/matrix" aria-label={messages.navMatrix} title={messages.navMatrix}>
-          <Grid2x2 size={20} aria-hidden="true" />
-        </NavLink>
-      ) : null}
-      {flags.countdowns ? (
-        <NavLink
-          to="/countdowns"
-          aria-label={messages.navCountdowns}
-          title={messages.navCountdowns}
-        >
-          <Hourglass size={20} aria-hidden="true" />
-        </NavLink>
-      ) : null}
-      {flags.focus ? (
-        <NavLink to="/focus" aria-label={focusLabel} title={focusLabel} className="rail-focus">
-          {focus !== null ? (
-            <svg className="focus-ring" viewBox="0 0 36 36" aria-hidden="true">
-              <circle cx="18" cy="18" r="15" />
-              <circle
-                cx="18"
-                cy="18"
-                r="15"
-                style={{ strokeDashoffset: String(94 - 94 * focus.progress) }}
-              />
-            </svg>
-          ) : null}
-          <CircleDot size={20} aria-hidden="true" />
-        </NavLink>
-      ) : null}
-      <NavLink to="/habits" end aria-label={messages.navHabits} title={messages.navHabits}>
-        <CalendarCheck size={20} aria-hidden="true" />
-      </NavLink>
-      <NavLink to="/ticky" end aria-label={messages.navTicky} title={messages.navTicky}>
-        <MessageSquare size={20} aria-hidden="true" />
-      </NavLink>
-      <NavLink to="/statistics" aria-label={messages.navStatistics} title={messages.navStatistics}>
-        <BarChart3 size={20} aria-hidden="true" />
-      </NavLink>
-      <NavLink to="/search" aria-label={messages.navSearch} title={messages.navSearch}>
-        <Search size={20} aria-hidden="true" />
-      </NavLink>
+      {flags.navigation_order
+        .filter((key) => moduleEnabled(key, flags))
+        .map((key) => {
+          const module = MODULES[key];
+          const Icon = module.icon;
+          const label = key === 'focus' ? focusLabel : messages[module.label];
+          return (
+            <NavLink key={key} to={module.to} aria-label={label} title={label}>
+              <Icon size={20} aria-hidden="true" />
+            </NavLink>
+          );
+        })}
+      {collapsed ? <ControlChip compact /> : null}
       <span className="rail-spacer" />
       <button
         type="button"

@@ -16,6 +16,8 @@ import { isPaletteShortcut } from './features/views/shortcuts';
 import { draftFromShare } from './features/capture/share-target';
 import { isCaptureShortcut } from './features/capture/draft';
 import { useCaptureNotice, openTaskComposer, useCaptureOpen } from './features/capture/notice';
+import { HabitDetailPage } from './features/habits/components/HabitDetailPage';
+import { DayPlanEntry } from './features/planning/DayPlanEntry';
 import { HabitsPage } from './features/habits/components/HabitsPage';
 import { CountdownsPage } from './features/countdowns/CountdownsPage';
 import { TickyPage } from './features/ticky/TickyPage';
@@ -24,7 +26,6 @@ import {
   CalendarPage,
   CaptureSettings,
   ForgotPage,
-  HabitDetailPage,
   InboxPage,
   MatrixPage,
   NoteRoute,
@@ -59,7 +60,7 @@ import { LoginPage, RegisterPage } from './features/auth/AuthPages';
 import { RequireSession, SessionBootstrap } from './features/auth/RequireSession';
 import { RepeatPage } from './features/repeat/RepeatPage';
 import { ShutdownPage } from './features/closing/ShutdownPage';
-import { PlanDayPage, WontDoPage } from './features/planning/PlanDayPage';
+import { WontDoPage } from './features/planning/PlanDayPage';
 import { WorkdaySettings } from './features/settings/WorkdaySettings';
 import { TodayPage } from './features/today/TodayPage';
 import { ShortcutHelp } from './shell/ShortcutHelp';
@@ -167,9 +168,9 @@ function Shell() {
             <Route path="/statistics/:tab" element={<StatisticsPage />} />
             <Route path="/reports/weekly" element={<ReportsPage />} />
             <Route path="/reports/weekly/:week" element={<ReportsPage />} />
-            <Route path="/plan/day" element={<PlanDayPage />} />
+            <Route path="/plan/day" element={<DayPlanEntry />} />
             <Route path="/cierre" element={<ShutdownPage kind="shutdown" />} />
-            <Route path="/replan" element={<ShutdownPage kind="replan" />} />
+            <Route path="/replan" element={<Navigate to="/plan/day" replace />} />
             <Route path="/wont-do" element={<WontDoPage />} />
             <Route path="/review" element={<ReviewPage />} />
             <Route path="/review/daily" element={<ReviewPage />} />
