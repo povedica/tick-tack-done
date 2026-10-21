@@ -13,6 +13,7 @@ export interface FilterSubject {
   readonly listId: string | null;
   readonly tagNames: readonly string[];
   readonly dueDate: string | null;
+  readonly startDate?: string | null;
   readonly isAllDay: boolean;
   readonly timeZone: string;
   readonly priority: string;
@@ -99,12 +100,12 @@ export function matchesClause(
       return subject.listId !== null && clause.ids.includes(subject.listId);
     case 'tag_any':
       return overlaps(subject.tagNames, clause.names);
-    case 'due_range':
-      return (
-        subject.dueDate !== null && subject.dueDate >= clause.from && subject.dueDate < clause.to
-      );
+    case 'due_range': {
+      const effective = subject.startDate ?? subject.dueDate;
+      return effective !== null && effective >= clause.from && effective < clause.to;
+    }
     case 'no_date':
-      return subject.dueDate === null;
+      return (subject.startDate ?? subject.dueDate) === null;
     case 'overdue':
       return isOverdue({
         status:

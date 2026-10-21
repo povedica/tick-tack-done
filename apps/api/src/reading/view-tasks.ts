@@ -36,6 +36,8 @@ export interface ViewTaskJson {
   status: 'active' | 'completed' | 'archived' | 'cancelled';
   priority: 'none' | 'low' | 'medium' | 'high';
   due_date: string | null;
+  start_date: string | null;
+  duration_minutes: number | null;
   is_all_day: boolean;
   time_zone: string;
   project_id: string;
@@ -55,6 +57,8 @@ export interface ViewTaskJson {
 }
 
 export interface ViewTask extends ArrangedTask {
+  readonly startDate: string | null;
+  readonly durationMinutes: number | null;
   readonly content: string;
   readonly kind: 'task' | 'note';
   readonly status: 'active' | 'completed' | 'archived' | 'cancelled';
@@ -94,6 +98,8 @@ export function toViewJson(task: ViewTask): ViewTaskJson {
     status: task.status,
     priority: asPriority(task.priority),
     due_date: task.dueDate,
+    start_date: task.startDate,
+    duration_minutes: task.durationMinutes,
     is_all_day: task.isAllDay,
     time_zone: task.zone,
     project_id: task.projectId,
@@ -140,6 +146,8 @@ function toViewTask(row: TaskRow): ViewTask {
     status: row.status,
     priority: row.priority,
     dueDate,
+    startDate: iso(row.startDate),
+    durationMinutes: row.durationMinutes,
     isAllDay: row.isAllDay,
     zone: row.timeZone,
     projectId: row.projectId,
@@ -161,6 +169,7 @@ function toViewTask(row: TaskRow): ViewTask {
       listId: row.projectId,
       tagNames: tags.map((tag) => tag.name),
       dueDate,
+      startDate: iso(row.startDate),
       isAllDay: row.isAllDay,
       timeZone: row.timeZone,
       priority: row.priority,

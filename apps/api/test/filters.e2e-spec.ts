@@ -1,3 +1,4 @@
+import { shiftLocalDays } from '@reflexionia/domain';
 import { randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -155,6 +156,46 @@ describe('filters, smart lists and search', () => {
       false,
     );
     await api.get('/api/v1/smart-lists/missing/tasks').expect(404);
+  });
+
+  it('TTD-AUD-01 RF-601 RF-904: start-only tomorrow task appears in the list and sidebar count', async () => {
+    const user = await createOwner('effective-date');
+    try {
+      const api = authed(user.email);
+      const project = await prisma.project.create({
+        data: { ownerId: user.id, name: 'Inbox', isInbox: true },
+      });
+      const start = shiftLocalDays(new Date().toISOString(), 'Europe/Madrid', 1);
+      const task = await api
+        .post('/api/v1/tasks')
+        .send({
+          project_id: project.id,
+          title: 'Start only',
+          start_date: start,
+          is_all_day: false,
+          duration_minutes: 30,
+          time_zone: 'Europe/Madrid',
+        })
+        .expect(201);
+      const page = await api.get('/api/v1/smart-lists/tomorrow/tasks').expect(200);
+      expect(page.body.count).toBe(1);
+      expect(page.body.groups.flatMap((group: { tasks: unknown[] }) => group.tasks)).toEqual([
+        expect.objectContaining({
+          id: task.body.id,
+          start_date: start,
+          due_date: null,
+          duration_minutes: 30,
+        }),
+      ]);
+      const lists = await api.get('/api/v1/smart-lists').expect(200);
+      expect(
+        lists.body.items.find((item: { key: string }) => item.key === 'tomorrow').task_count,
+      ).toBe(1);
+      const undated = await api.get('/api/v1/smart-lists/no_date/tasks').expect(200);
+      expect(undated.body.count).toBe(0);
+    } finally {
+      await removeOwner(user.id);
+    }
   });
 
   it('RF-901: fixed navigation survives legacy hidden flags and cannot be hidden by updates', async () => {

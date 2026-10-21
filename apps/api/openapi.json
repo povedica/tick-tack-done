@@ -14856,6 +14856,14 @@
             "type": "string",
             "nullable": true
           },
+          "start_date": {
+            "type": "string",
+            "nullable": true
+          },
+          "duration_minutes": {
+            "type": "number",
+            "nullable": true
+          },
           "is_all_day": {
             "type": "boolean"
           },
@@ -14932,6 +14940,8 @@
           "status",
           "priority",
           "due_date",
+          "start_date",
+          "duration_minutes",
           "is_all_day",
           "time_zone",
           "project_id",

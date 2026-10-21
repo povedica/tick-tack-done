@@ -4007,6 +4007,8 @@ export interface components {
             /** @enum {string} */
             priority: "none" | "low" | "medium" | "high";
             due_date: string | null;
+            start_date: string | null;
+            duration_minutes: number | null;
             is_all_day: boolean;
             time_zone: string;
             project_id: string;

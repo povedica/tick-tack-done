@@ -35,10 +35,12 @@ export function whereFromClause(clause: FilterClause, clock?: FilterClock): Pris
               },
             },
           };
-    case 'due_range':
-      return { dueDate: { gte: new Date(clause.from), lt: new Date(clause.to) } };
+    case 'due_range': {
+      const range = { gte: new Date(clause.from), lt: new Date(clause.to) };
+      return { OR: [{ startDate: range }, { startDate: null, dueDate: range }] };
+    }
     case 'no_date':
-      return { dueDate: null };
+      return { startDate: null, dueDate: null };
     case 'overdue':
       return overdueWhere(clock);
     case 'priority_gte':

@@ -53,3 +53,13 @@ describe('whereFromClause', () => {
     });
   });
 });
+
+it('TTD-AUD-01 RF-904: SQL uses start date with deadline fallback and no-date requires both null', () => {
+  const from = '2026-10-21T22:00:00.000Z';
+  const to = '2026-10-22T22:00:00.000Z';
+  const range = { gte: new Date(from), lt: new Date(to) };
+  expect(whereFromClause({ op: 'due_range', from, to })).toEqual({
+    OR: [{ startDate: range }, { startDate: null, dueDate: range }],
+  });
+  expect(whereFromClause({ op: 'no_date' })).toEqual({ startDate: null, dueDate: null });
+});
