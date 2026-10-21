@@ -782,3 +782,27 @@ línea; 605 unitarios correctos, lint/typecheck generales correctos y verificaci
 final web. OpenAPI regenerado sin diff. Corregida carrera de retorno de foco
 al cerrar menús: restaura el título salvo si ya se está escribiendo en la
 descripción. Comprobaciones de N repetidas en 1280/390px correctas.
+
+
+## 2026-10-22 — horas editables en línea y posición del selector de fecha
+
+RF-601 / RF-1902. Hora y Hasta son campos de texto HH:mm en su propia fila,
+sin abrir panel secundario ni selector nativo. Selección del contenido al
+enfocar, Enter confirma el campo, validación de hora 24h; datos incompletos
+o inválidos se revierten al perder foco. × en Hasta borra duración; × en Hora
+conserva fecha, pasa a todo el día y borra duración. Se mantiene +30min al poner
+hora sin duración y se conservan duraciones personalizadas al cambiar inicio.
+
+DatePopover solicita desplazamiento de +16px horizontal y −16px vertical;
+Popover conserva su ajuste de lado/altura y márgenes de viewport de 12px.
+Los demás flotantes conservan desplazamiento cero. Capturas revisadas en /tmp
+en 1280/390px con API simulada. 32/32 Playwright de alta y composer correctos,
+más dos verificaciones finales de posición exacta/ajuste lateral y borrado.
+Al quitar Hasta en una captura desde hueco, se guarda realmente sin duración ni
+start_date; se elimina el fallback que reintroducía 30min al enviar desde ese
+contexto. Prueba de persistencia con POST simulado correcta.
+Aclaración posterior del usuario: conservar la edición en la misma fila, con
+placeholder HH:mm que haga explícitos los dos puntos; × conserva la acción
+Sin hora. Se añade el placeholder a ambos campos.
+Validación: 33/33 Playwright finales, 605 unitarios y typecheck generales
+correctos; lint de dominio/API y lint web corregido correctos. OpenAPI sin diff.

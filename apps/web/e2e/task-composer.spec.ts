@@ -186,7 +186,6 @@ test('RF-102/601/801: date, time, duration, recurrence, reminder and list surviv
   await calendar.getByRole('tab', { name: 'Duración', exact: true }).click();
   await calendar.getByRole('button', { name: '45 min', exact: true }).click();
   await calendar.getByRole('tab', { name: 'Fecha', exact: true }).click();
-  await calendar.getByRole('button', { name: /^Hora/ }).click();
   await calendar.getByRole('textbox', { name: 'Hora', exact: true }).fill('18:30');
   await calendar.getByRole('button', { name: /^Recordatorio/ }).click();
   await calendar.getByRole('button', { name: '15 min antes', exact: true }).click();

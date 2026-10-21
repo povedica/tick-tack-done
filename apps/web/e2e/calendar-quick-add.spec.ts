@@ -415,17 +415,11 @@ test('RF-601: picking a start time defaults Until to 30 minutes and keeps a cust
   await page.locator('[data-day="2026-10-24"]').click();
   await page.locator('.calendar-quick-add .composer-date').click();
   const date = page.locator('.date-popover');
-  await date.getByRole('button', { name: /^Hora/ }).click();
   await date.getByLabel('Hora', { exact: true }).fill('23:45');
-  await date.getByRole('button', { name: /^Hasta/ }).click();
   await expect(date.getByLabel('Hasta', { exact: true })).toHaveValue('00:15');
-  await date.getByRole('button', { name: /^Hora/ }).click();
   await date.getByLabel('Hora', { exact: true }).fill('10:00');
-  await date.getByRole('button', { name: /^Hasta/ }).click();
   await date.getByLabel('Hasta', { exact: true }).fill('11:00');
-  await date.getByRole('button', { name: /^Hora/ }).click();
   await date.getByLabel('Hora', { exact: true }).fill('12:00');
-  await date.getByRole('button', { name: /^Hasta/ }).click();
   await expect(date.getByLabel('Hasta', { exact: true })).toHaveValue('13:00');
   await date.getByRole('button', { name: /^Recordatorio/ }).click();
   await date.getByRole('button', { name: '5 min antes', exact: true }).click();
@@ -632,4 +626,70 @@ test('76 global editor preserves its draft after a failed save and retries once'
   await card.getByRole('button', { name: 'Añadir', exact: true }).click();
   await expect.poll(() => posts.length).toBe(1);
   await expect(card).toHaveCount(0);
+});
+
+for (const width of [1280, 390]) {
+  test(`RF-601 inline times are editable without a picker and can be cleared ${width}`, async ({
+    page,
+  }) => {
+    await fixture(page);
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto('/calendar/agenda?date=2026-10-21');
+    await expect(page.locator('.calendar-toolbar')).toBeVisible();
+    await page.keyboard.press('n');
+    await page.locator('.calendar-quick-add .composer-date').click();
+    const date = page.locator('.date-popover');
+    const start = date.getByRole('textbox', { name: 'Hora', exact: true });
+    await expect(start).toBeVisible();
+    await expect(start).toHaveAttribute('type', 'text');
+    await expect(start).toHaveAttribute('placeholder', 'HH:mm');
+    await start.fill('10:00');
+    const end = date.getByRole('textbox', { name: 'Hasta', exact: true });
+    await expect(end).toHaveValue('10:30');
+    await end.fill('11:15');
+    await end.press('Enter');
+    await expect(end).toHaveValue('11:15');
+    await date.getByRole('button', { name: 'Hasta: Sin hora', exact: true }).click();
+    await expect(end).toHaveValue('');
+    await expect(start).toHaveValue('10:00');
+    await start.fill('28:99');
+    await start.press('Tab');
+    await expect(start).toHaveValue('10:00');
+    await date.getByRole('button', { name: 'Hora: Sin hora', exact: true }).click();
+    await expect(start).toHaveValue('');
+    await expect(end).toHaveCount(0);
+    const bounds = await date.boundingBox();
+    expect(bounds!.x).toBeGreaterThanOrEqual(12);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width - 12);
+    const anchor = await page.locator('.calendar-quick-add .composer-date').boundingBox();
+    expect(bounds!.x).toBeCloseTo(
+      Math.max(12, Math.min(anchor!.x + 16, width - bounds!.width - 12)),
+      0,
+    );
+    expect(bounds!.y).toBeLessThanOrEqual(anchor!.y + anchor!.height - 9);
+    await page.screenshot({ path: `/tmp/date-inline-time-${width}.png` });
+  });
+}
+
+test('RF-601 clearing Until in calendar capture persists a time without an end', async ({
+  page,
+}) => {
+  const posts = await fixture(page);
+  await page.goto('/calendar/day?date=2026-10-24');
+  const pos = await point(page, '2026-10-24', 10);
+  await page.mouse.click(pos.x, pos.y);
+  const card = page.locator('.calendar-quick-add');
+  await card.locator('input[name=title]').fill('Sin hora fin');
+  await card.locator('.composer-date').click();
+  const date = page.locator('.date-popover');
+  await date.getByRole('button', { name: 'Hasta: Sin hora', exact: true }).click();
+  await date.getByRole('button', { name: 'OK', exact: true }).click();
+  await card.getByRole('button', { name: 'Añadir', exact: true }).click();
+  await expect.poll(() => posts.length).toBe(1);
+  expect(posts[0]).toMatchObject({
+    duration_minutes: null,
+    start_date: null,
+    is_all_day: false,
+    due_date: '2026-10-24T08:00:00.000Z',
+  });
 });

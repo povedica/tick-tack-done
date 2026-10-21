@@ -1,0 +1,46 @@
+.inline-time-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  min-height: var(--tap);
+  padding-inline: var(--sp-2);
+}
+.inline-time-row label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  flex: 1;
+  min-width: 0;
+}
+.date-popover .inline-time-row input {
+  width: 6rem;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  padding: var(--sp-1);
+  text-align: right;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  box-shadow: none;
+}
+.inline-time-row button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.inline-time-row button:hover {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+.inline-time-clear-space {
+  width: 28px;
+}

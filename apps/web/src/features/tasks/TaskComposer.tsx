@@ -252,22 +252,30 @@ export function TaskComposer({
           ? {}
           : date.dueDate === null
             ? { start_date: null, due_date: null, duration_minutes: null }
-            : {
-                start_date: null,
-                duration_minutes: null,
-                ...slotToTaskBody(
-                  {
-                    start: date.dueDate,
-                    end: date.allDay
-                      ? null
-                      : new Date(
-                          Date.parse(date.dueDate) + (date.durationMinutes ?? 30) * 60_000,
-                        ).toISOString(),
-                    allDay: date.allDay,
-                  },
-                  zone,
-                ),
-              };
+            : !date.allDay && date.durationMinutes === null
+              ? {
+                  start_date: null,
+                  due_date: date.dueDate,
+                  duration_minutes: null,
+                  is_all_day: false,
+                  time_zone: zone,
+                }
+              : {
+                  start_date: null,
+                  duration_minutes: null,
+                  ...slotToTaskBody(
+                    {
+                      start: date.dueDate,
+                      end: date.allDay
+                        ? null
+                        : new Date(
+                            Date.parse(date.dueDate) + (date.durationMinutes ?? 30) * 60_000,
+                          ).toISOString(),
+                      allDay: date.allDay,
+                    },
+                    zone,
+                  ),
+                };
       let queued = false;
       let notice: CaptureNotice = { title: request.parsed.title, warnings: [] };
       if (continuation.current === null) {

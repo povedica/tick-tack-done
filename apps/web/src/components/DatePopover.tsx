@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useEffect, useState, type RefObject } from 'react';
 import { fill, useMessages } from '../i18n';
 import { useAppLocale } from '../i18n/locale';
@@ -6,6 +6,7 @@ import { calendarDay, shiftDayKey, zonedWallTime } from '../features/today/group
 import { usePreferences } from '../theme/preferences';
 import { Button } from './ui';
 import { Popover } from './Popover';
+import './inline-time.css';
 
 export interface DateDraft {
   readonly dueDate: string | null;
@@ -54,7 +55,7 @@ export function DatePopover({
   const [tab, setTab] = useState<'date' | 'duration'>('date');
   const [draft, setDraft] = useState(value);
   const [cursor, setCursor] = useState(() => monthOf(value.dueDate, timeZone));
-  const [sub, setSub] = useState<'time' | 'end' | 'reminder' | 'repeat' | null>(null);
+  const [sub, setSub] = useState<'reminder' | 'repeat' | null>(null);
   const [everyDays, setEveryDays] = useState(2);
   const [everyWeeks, setEveryWeeks] = useState(2);
   const [end, setEnd] = useState<'never' | 'date' | 'count'>('never');
@@ -136,6 +137,8 @@ export function DatePopover({
     <Popover
       open={open}
       anchor={anchor}
+      offsetX={16}
+      offsetY={-16}
       label={messages.dateSet}
       onClose={onClose}
       className="popover date-popover"
@@ -309,69 +312,43 @@ export function DatePopover({
               );
             })}
           </div>
-          <button
-            type="button"
-            className="popover-row"
-            onClick={() => {
-              setSub(sub === 'time' ? null : 'time');
+          <InlineTime
+            label={messages.dueTime}
+            emptyLabel={messages.noTime}
+            value={draft.allDay || draft.dueDate === null ? '' : time}
+            onClear={() => {
+              if (dayKey) setDay(dayKey, true);
+              setDraft((current) => ({ ...current, durationMinutes: null, allDay: true }));
             }}
-          >
-            <span>{messages.dueTime}</span>
-            <span>{draft.allDay || draft.dueDate === null ? messages.noTime : time}</span>
-          </button>
-          {sub === 'time' ? (
-            <input
-              type="time"
-              lang={timeLang}
-              step={60}
-              value={time}
-              aria-label={messages.dueTime}
-              onChange={(event) => {
-                const key = dayKey.length === 0 ? todayKey : dayKey;
-                setDay(key, false, event.target.value);
+            onChange={(clock) => {
+              setDay(dayKey || todayKey, false, clock);
+              setDraft((current) => ({
+                ...current,
+                durationMinutes: current.durationMinutes ?? 30,
+              }));
+            }}
+          />
+          {draft.dueDate !== null && !draft.allDay ? (
+            <InlineTime
+              label={messages.endTime}
+              emptyLabel={messages.noTime}
+              value={endTime}
+              onClear={() => {
+                setDraft((current) => ({ ...current, durationMinutes: null }));
+              }}
+              onChange={(clock) => {
+                const [startH, startM] = time.split(':').map(Number);
+                const [endH, endM] = clock.split(':').map(Number);
+                const startMin = (startH ?? 0) * 60 + (startM ?? 0);
+                let endMin = (endH ?? 0) * 60 + (endM ?? 0);
+                if (endMin <= startMin) endMin = startMin + 15;
                 setDraft((current) => ({
                   ...current,
-                  durationMinutes: current.durationMinutes ?? 30,
+                  durationMinutes: endMin - startMin,
+                  allDay: false,
                 }));
               }}
             />
-          ) : null}
-          {draft.dueDate !== null && !draft.allDay ? (
-            <>
-              <button
-                type="button"
-                className="popover-row"
-                onClick={() => {
-                  setSub(sub === 'end' ? null : 'end');
-                }}
-              >
-                <span>{messages.endTime}</span>
-                <span>{endTime.length > 0 ? endTime : messages.noTime}</span>
-              </button>
-              {sub === 'end' ? (
-                <input
-                  type="time"
-                  lang={timeLang}
-                  step={60}
-                  value={endTime.length > 0 ? endTime : time}
-                  aria-label={messages.endTime}
-                  onChange={(event) => {
-                    const [startH, startM] = time.split(':').map(Number);
-                    const [endH, endM] = event.target.value.split(':').map(Number);
-                    const startMin = (startH ?? 0) * 60 + (startM ?? 0);
-                    let endMin = (endH ?? 0) * 60 + (endM ?? 0);
-                    if (endMin <= startMin) {
-                      endMin = startMin + 15;
-                    }
-                    setDraft((current) => ({
-                      ...current,
-                      durationMinutes: endMin - startMin,
-                      allDay: false,
-                    }));
-                  }}
-                />
-              ) : null}
-            </>
           ) : null}
           <button
             type="button"
@@ -748,4 +725,68 @@ function wallClock(due: string, timeZone: string): string {
 function localKey(date: Date): string {
   const pad = (part: number): string => String(part).padStart(2, '0');
   return `${String(date.getFullYear())}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/** Plain text avoids native pickers and accepts only complete 24-hour times. */
+function InlineTime({
+  label,
+  emptyLabel,
+  value,
+  onChange,
+  onClear,
+}: {
+  readonly label: string;
+  readonly emptyLabel: string;
+  readonly value: string;
+  readonly onChange: (value: string) => void;
+  readonly onClear: () => void;
+}) {
+  const [text, setText] = useState(value);
+  useEffect(() => {
+    setText(value);
+  }, [value]);
+  const valid = (value: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+  return (
+    <div className="inline-time-row">
+      <label>
+        {label}
+        <input
+          type="text"
+          inputMode="text"
+          autoComplete="off"
+          spellCheck={false}
+          aria-label={label}
+          placeholder="HH:mm"
+          value={text}
+          maxLength={5}
+          onFocus={(event) => {
+            event.currentTarget.select();
+          }}
+          onChange={(event) => {
+            const next = event.target.value;
+            setText(next);
+            if (valid(next)) onChange(next);
+          }}
+          onBlur={() => {
+            if (!text) onClear();
+            else if (!valid(text)) setText(value);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              event.stopPropagation();
+              event.currentTarget.blur();
+            }
+          }}
+        />
+      </label>
+      {value ? (
+        <button type="button" aria-label={`${label}: ${emptyLabel}`} onClick={onClear}>
+          <X size={14} aria-hidden="true" />
+        </button>
+      ) : (
+        <span className="inline-time-clear-space" />
+      )}
+    </div>
+  );
 }
