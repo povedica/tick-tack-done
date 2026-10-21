@@ -9,7 +9,7 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-01 | 0 | verificado en tests | #60 | Tests: filters.spec, row-date.spec, automation-dates.e2e, matrix/propose |
 | TTD-AUD-02 | 0 | verificado en tests | #61 | Tests: nlp/parse.spec time ranges; task-composer.e2e |
 | TTD-AUD-03 | 5 | corregido | #71 | Atajos de día → all-day si no había fecha |
-| TTD-AUD-04 | 5 | corregido (parcial) | #71 | Chip Cuándo = start??due; duración nowrap; fin en DatePopover pendiente |
+| TTD-AUD-04 | 5 | corregido | #71 | Chip Cuándo = start??due; duración nowrap; Hasta en DatePopover |
 | TTD-AUD-05 | 2 | verificado en main | #68 | Menú acciones; verificar tras 64 si hace falta pulido |
 | TTD-AUD-06 | 5 | corregido | #71 | save sin await refresh; carga «Cargando…» + skeleton |
 | TTD-AUD-07 | 2 | verificado en main | #69 | Gate Ticky + layout; 63 puede ampliar el interruptor |
@@ -18,26 +18,26 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-10 | 0 | corregido | #71 | formatFocusDuration redondea; /focus etiquetado como total |
 | TTD-AUD-11 | 0 | verificado en tests | #67 | Test: weekly-automation.e2e-spec.ts |
 | TTD-AUD-12 | 5 | corregido | #71 | Chip control muestra N/100 |
-| TTD-AUD-13 | 5 | pendiente | — | |
+| TTD-AUD-13 | 5 | corregido | #71 | Button + etiquetas Campo/Combinar + .condition |
 | TTD-AUD-14 | 2 | corregido (parcial) | #71 | Botón info icono; ámbito filtra NOTE |
 | TTD-AUD-15 | 5 | corregido | #71 | Acciones papelera a la derecha en meta |
 | TTD-AUD-16 | 0 | corregido | #71 | Purga optimista + rollback; contador trash |
 | TTD-AUD-17 | 5 | corregido | #71 | Button primary en Nueva lista/etiqueta |
 | TTD-AUD-18 | 5 | corregido | #71 | Tras borrar lista → /inbox |
 | TTD-AUD-19 | 5 | corregido | #71 | NotFoundPage en ruta * |
-| TTD-AUD-20 | 5 | pendiente | — | |
+| TTD-AUD-20 | 5 | corregido | #71 | Anillo SVG + presets aria-pressed + error/carga |
 | TTD-AUD-21 | 3 | corregido | #71 | h1 nowrap; emoji fuera del clamp |
 | TTD-AUD-22 | 5 | corregido | #71 | Tokens dark --countdown-*-bg/ink |
-| TTD-AUD-23 | 5 | corregido (parcial) | #71 | Labels checkbox/radio flex; date/select nativos pendientes |
+| TTD-AUD-23 | 5 | corregido | #71 | Dialog i18n; labels flex; date lang; ui-select |
 | TTD-AUD-24 | 5 | corregido | #71 | Popover Nueva + LayoutGrid; confirm inline |
-| TTD-AUD-25 | 5 | corregido (parcial) | #71 | Active/hover tokens + rail oscuro; theme switch pendiente |
+| TTD-AUD-25 | 5 | corregido | #71 | Active/hover + rail + segmented theme contraste |
 | TTD-AUD-26 | 5 | corregido | #71 | Login submit usa --accent |
-| TTD-AUD-27 | 5 | corregido (parcial) | #71 | Due hoy + página countdowns i18n; ticky/dialog pendientes |
+| TTD-AUD-27 | 5 | corregido (parcial) | #71 | Countdown dialog i18n; Ticky pendiente |
 | TTD-AUD-28 | 0 | verificado en tests | #66 | Tests: run-action.spec.ts, query-client.spec.ts |
 | TTD-AUD-29 | 0 | corregido | #71 | onUnauthorized → login?next=; red ≠ logout |
 | TTD-AUD-30 | 5 | corregido | #71 | Boundary por ruta + i18n; reset al navegar |
-| TTD-AUD-31 | 5 | pendiente | — | |
-| TTD-AUD-32 | 5 | corregido (parcial) | #71 | Plural + boot; confirm countdowns; hábitos/plan pendientes |
+| TTD-AUD-31 | 5 | corregido (parcial) | #71 | Focus/filters/matrix/countdowns ErrorState+Skeleton; resto pendiente |
+| TTD-AUD-32 | 5 | corregido | #71 | Plural; sin confirm() nativo en hábitos/plan/review |
 | TTD-AUD-33 | 3 | corregido | #71 | Hoja inferior «Más»; Ticky filtrado; scrim encima |
 | TTD-AUD-34 | 5 | pendiente | — | |
 | TTD-AUD-35 | 4 | verificado en main | #63 | Paginación tokens; no reimplementar |
@@ -78,7 +78,7 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-70 | 3 | corregido | #71 | page-title ellipsis; badge nowrap; actions shrink-0 |
 | TTD-AUD-71 | 3 | corregido | #71 | BottomBar última vista; toolbar sticky; DaySheet ya existía |
 | TTD-AUD-72 | 3 | corregido | #71 | matrix-tabs sticky + tabpanel a11y |
-| TTD-AUD-73 | 5 | pendiente | — | Depende de 31 |
+| TTD-AUD-73 | 5 | corregido | #71 | Skeleton solo si no hay data cacheada (matrix/countdowns) |
 
 ## Resumen por fase
 

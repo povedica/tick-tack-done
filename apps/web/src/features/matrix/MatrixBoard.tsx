@@ -14,8 +14,8 @@ import { api } from '../../api';
 import { PriorityCheck } from '../../components/PriorityCheck';
 import { useActionToast } from '../../components/action-toast';
 import { displayTitle } from '../tasks/displayTitle';
-import { EmptyState } from '../../components/ui';
-import { useMessages, type Messages } from '../../i18n';
+import { EmptyState, ErrorState, SkeletonRows } from '../../components/ui';
+import { fill, useMessages, type Messages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
 import { refreshTaskSurfaces } from '../tasks/refresh';
 import { completeBody } from '../tasks/complete-body';
@@ -251,6 +251,16 @@ export function MatrixBoard({
         </div>
       </div>
       {info ? <p className="matrix-info ui-muted">{messages.matrixRules}</p> : null}
+      {tasks.isPending && tasks.data === undefined ? <SkeletonRows /> : null}
+      {tasks.isError ? (
+        <ErrorState
+          title={fill(messages.loadFailed, messages.matrixTitle)}
+          retryLabel={messages.retry}
+          onRetry={() => {
+            void tasks.refetch();
+          }}
+        />
+      ) : null}
       {tasks.isSuccess && tasks.data.length === 0 ? (
         <EmptyState title={messages.matrixTitle} body={messages.matrixEmpty} />
       ) : null}

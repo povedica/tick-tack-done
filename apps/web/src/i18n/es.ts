@@ -251,6 +251,8 @@ export const es = {
   filtersHint: 'Guarda condiciones y verás cuántas tareas pendientes coinciden.',
   filterName: 'Nombre',
   filterMode: 'Modo',
+  filterField: 'Campo',
+  filterCombine: 'Combinar con',
   modeNormal: 'Normal',
   modeAdvanced: 'Avanzado',
   filterAddCondition: 'Añadir condición',

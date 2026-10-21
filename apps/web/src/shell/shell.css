@@ -782,6 +782,42 @@
   stroke-dasharray: 94;
 }
 
+/* TTD-AUD-20: large focus timer ring */
+.focus-timer {
+  position: relative;
+  width: min(220px, 70vw);
+  aspect-ratio: 1;
+  margin: 1.5rem auto;
+  display: grid;
+  place-items: center;
+}
+
+.focus-timer-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.focus-timer-ring circle {
+  fill: none;
+  stroke: color-mix(in srgb, var(--ink-3) 55%, transparent);
+  stroke-width: 8;
+}
+
+.focus-timer-ring circle + circle {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.4s ease;
+}
+
+.focus-timer-clock {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  z-index: 1;
+}
+
 .rail-badge {
   position: absolute;
   top: 0;

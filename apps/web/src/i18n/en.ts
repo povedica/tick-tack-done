@@ -251,6 +251,8 @@ export const en = {
   filtersHint: 'Save conditions and see how many open tasks match.',
   filterName: 'Name',
   filterMode: 'Mode',
+  filterField: 'Field',
+  filterCombine: 'Combine with',
   modeNormal: 'Normal',
   modeAdvanced: 'Advanced',
   filterAddCondition: 'Add condition',

@@ -1692,8 +1692,14 @@
 }
 
 .token-panel .segmented button.is-active {
-  background: var(--accent-soft);
-  color: var(--accent-ink);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+
+[data-theme='dark'] .token-panel .segmented button.is-active {
+  background: color-mix(in srgb, var(--accent) 28%, var(--surface));
+  color: var(--ink);
 }
 
 .token-panel {
@@ -2072,6 +2078,33 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+/* TTD-AUD-13: filter condition row */
+.filters-page .condition {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.filters-page .condition label {
+  flex: 0 1 10rem;
+  min-width: 8rem;
+}
+
+.filters-page .condition .ui-select,
+.filters-form .ui-select {
+  width: auto;
+  min-width: 8rem;
+  max-width: 16rem;
+}
+
+.ui-button[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .scope-list {

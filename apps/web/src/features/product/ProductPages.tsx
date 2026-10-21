@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
-import { Button } from '../../components/ui';
+import { Button, ErrorState, SkeletonRows } from '../../components/ui';
 import {
   GoogleAccessActions,
   googleAuthorizationUrl,
@@ -11,7 +11,7 @@ import {
 } from './GoogleAccessActions';
 import { InboundEmailCard } from '../settings/InboundEmailCard';
 import { GoogleCalendarsCard } from '../settings/GoogleCalendarsCard';
-import { useMessages } from '../../i18n';
+import { fill, useMessages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
 import { taskQueryHref } from '../../shell/use-open-task';
 
@@ -99,6 +99,39 @@ export function FocusPage() {
   const pomodoros = numberOf(stats.data?.completed_pomodoros);
   const minutes = Math.round(numberOf(stats.data?.focus_seconds) / 60);
   const streak = numberOf(stats.data?.streak_days);
+  const plannedSeconds = planned * 60;
+  const progress =
+    started === null || plannedSeconds <= 0
+      ? 0
+      : Math.min(1, Math.max(0, (plannedSeconds - remaining) / plannedSeconds));
+  const ring = 2 * Math.PI * 54;
+  const loading =
+    (sessions.isPending && sessions.data === undefined) ||
+    (settings.isPending && settings.data === undefined);
+  if (loading) {
+    return (
+      <section className="screen-page">
+        <h1>{messages.focusTitle}</h1>
+        <SkeletonRows />
+      </section>
+    );
+  }
+  if (sessions.isError || settings.isError) {
+    return (
+      <section className="screen-page">
+        <h1>{messages.focusTitle}</h1>
+        <ErrorState
+          title={fill(messages.loadFailed, messages.focusTitle)}
+          retryLabel={messages.retry}
+          onRetry={() => {
+            void sessions.refetch();
+            void settings.refetch();
+            void stats.refetch();
+          }}
+        />
+      </section>
+    );
+  }
   return (
     <section className="screen-page">
       <h1>{messages.focusTitle}</h1>
@@ -111,22 +144,33 @@ export function FocusPage() {
           </Link>
         </p>
       ) : null}
-      <p className="detail-title">{clock(remaining)}</p>
+      <div className="focus-timer" aria-live="polite">
+        <svg className="focus-timer-ring" viewBox="0 0 120 120" aria-hidden="true">
+          <circle cx="60" cy="60" r="54" />
+          <circle
+            cx="60"
+            cy="60"
+            r="54"
+            style={{ strokeDasharray: `${ring}`, strokeDashoffset: `${ring * (1 - progress)}` }}
+          />
+        </svg>
+        <p className="focus-timer-clock detail-title">{clock(remaining)}</p>
+      </div>
       {started === null ? (
         <div className="page-toolbar">
-          {[15, 25, 50].map((minutes) => (
+          {[15, 25, 50].map((preset) => (
             <Button
-              key={minutes}
-              aria-pressed={planned === minutes}
+              key={preset}
+              aria-pressed={planned === preset}
               onClick={() => {
                 runAction(
-                  api.updateFocusSettings({ pomodoro_minutes: minutes }).then(() => {
+                  api.updateFocusSettings({ pomodoro_minutes: preset }).then(() => {
                     runAction(queryClient.invalidateQueries({ queryKey: ['focus-settings'] }));
                   }),
                 );
               }}
             >
-              {String(minutes)} min
+              {String(preset)} min
             </Button>
           ))}
         </div>

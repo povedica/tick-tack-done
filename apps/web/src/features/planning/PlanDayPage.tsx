@@ -74,6 +74,7 @@ export function PlanDayPage() {
   const [selected, setSelected] = useState<string[]>([]);
   const [attempt, setAttempt] = useState(0);
   const [loadLine, setLoadLine] = useState<string | null>(null);
+  const [confirmApply, setConfirmApply] = useState(false);
   useEffect(() => {
     let cancelled = false;
     setError(null);
@@ -160,16 +161,16 @@ export function PlanDayPage() {
       setBusy(false);
     }
   }
-  async function apply() {
+  async function apply(force = false) {
     if (!session || busy) return;
     const irreversible = actionable.filter(
       (item) => item.decision === 'done' || item.decision === 'cancel',
     );
-    if (
-      irreversible.length &&
-      !window.confirm(text.confirmCount.replace('{count}', String(irreversible.length)))
-    )
+    if (irreversible.length && !force) {
+      setConfirmApply(true);
       return;
+    }
+    setConfirmApply(false);
     setBusy(true);
     setError(null);
     try {
@@ -345,6 +346,42 @@ export function PlanDayPage() {
               >
                 {text.apply}
               </Button>
+              {confirmApply ? (
+                <div className="token-confirm" role="alertdialog">
+                  <p>
+                    {text.confirmCount.replace(
+                      '{count}',
+                      String(
+                        actionable.filter(
+                          (item) => item.decision === 'done' || item.decision === 'cancel',
+                        ).length,
+                      ),
+                    )}
+                  </p>
+                  <span className="token-actions">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => {
+                        setConfirmApply(false);
+                      }}
+                    >
+                      {text.dismiss}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="danger"
+                      disabled={busy}
+                      onClick={() => {
+                        runAction(apply(true));
+                      }}
+                    >
+                      {text.apply}
+                    </Button>
+                  </span>
+                </div>
+              ) : null}
             </aside>
           ) : null}
           {!actionable.length ? (
@@ -560,6 +597,7 @@ const spanish = {
   reset: 'Quitar decisión',
   previewHelp: 'Revisa tus decisiones. Las tareas sin decisión se quedan como están.',
   confirmCount: 'Vas a completar o marcar como «No haré» {count} tareas. ¿Confirmas?',
+  dismiss: 'Cancelar',
   lede: 'Selecciona las tareas de hoy y decide cómo continuar. Nada cambia hasta confirmar el plan.',
   loading: 'Preparando el plan…',
   empty: 'No hay tareas para hoy.',
@@ -604,6 +642,7 @@ const english: Copy = {
   reset: 'Clear decision',
   previewHelp: 'Review your decisions. Tasks without a decision remain unchanged.',
   confirmCount: 'You will complete or mark {count} tasks as won’t do. Confirm?',
+  dismiss: 'Cancel',
   lede: 'Select today’s tasks and decide what comes next. Nothing changes until you confirm the plan.',
   loading: 'Preparing the plan…',
   empty: 'No tasks for today.',

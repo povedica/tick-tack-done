@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { LayoutGrid, Plus } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Popover } from '../../components/Popover';
-import { Button, EmptyState } from '../../components/ui';
+import { Button, EmptyState, ErrorState, SkeletonRows } from '../../components/ui';
 import { UndoToastStack } from '../../components/UndoToast';
 import { fill, useMessages } from '../../i18n';
 import { newMutation, runOrQueue } from '../offline/client';
@@ -151,21 +151,17 @@ export function CountdownsPage() {
           </button>
         </div>
       </header>
-      {rows.isPending ? <p>{messages.countdownLoading}</p> : null}
+      {rows.isPending && rows.data === undefined ? <SkeletonRows /> : null}
       {rows.isError ? (
-        <p className="error">
-          {messages.countdownLoadFailed}{' '}
-          <button
-            type="button"
-            onClick={() => {
-              runAction(rows.refetch());
-            }}
-          >
-            {messages.retry}
-          </button>
-        </p>
+        <ErrorState
+          title={messages.countdownLoadFailed}
+          retryLabel={messages.retry}
+          onRetry={() => {
+            void rows.refetch();
+          }}
+        />
       ) : null}
-      {!rows.isPending && items.length === 0 ? (
+      {!rows.isPending && !rows.isError && items.length === 0 ? (
         <EmptyState
           title={archived ? messages.countdownEmptyArchived : messages.countdownEmptyTitle}
           body={archived ? messages.countdownEmptyArchivedBody : messages.countdownEmptyBody}
