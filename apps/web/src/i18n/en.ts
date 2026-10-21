@@ -2,6 +2,8 @@ import { extraEn } from './extra';
 import type { es } from './es';
 
 export const en = {
+  countdownDatePlaceholder: 'mm/dd/yyyy',
+  countdownInvalidDate: 'Enter a valid date using the indicated format.',
   dashboardWeekLabel: 'this week',
   dashboardCalculationText:
     'Today and this week follow your account time zone. The week starts on Monday; completed and created counts exclude cancelled tasks, matching Statistics. The trend compares against the complete previous week. Bulk closures and imports may count. Overdue tasks are part of pending tasks, including subtasks. Events come from synced calendars, deduplicated by identity and occurrence.',

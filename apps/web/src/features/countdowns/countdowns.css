@@ -11,14 +11,26 @@
 
 .countdown-header {
   justify-content: space-between;
+  flex-wrap: wrap;
+}
+.countdown-title-select {
+  flex: 1;
+  min-width: 0;
 }
 .countdown-title-select h1 {
   margin: 0;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .countdown-title-select select {
   border: 0;
   color: var(--ink-2);
   background: transparent;
+  width: auto;
+  max-width: 12rem;
+}
+.countdown-toolbar {
+  flex-shrink: 0;
 }
 .countdown-toolbar > button,
 .countdown-toolbar summary,
@@ -188,6 +200,22 @@
 .countdown-dialog fieldset label {
   display: flex;
   align-items: center;
+}
+.countdown-dialog label:has(> input[type='checkbox']),
+.countdown-dialog label:has(> input[type='radio']) {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: var(--tap);
+}
+.countdown-dialog input[type='checkbox'],
+.countdown-dialog input[type='radio'] {
+  flex: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  margin: 0;
+  accent-color: var(--accent);
 }
 .countdown-dialog-actions {
   justify-content: flex-end;

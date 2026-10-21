@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 const item = {
   id: '6a1b784e-6bf6-4b79-bcee-a1513f4f5f99',
@@ -19,6 +19,98 @@ const item = {
   effective_date: '2027-01-01',
   reminders: [],
 };
+
+async function emptyCountdowns(page: Page, onCreate: (body: Record<string, unknown>) => void) {
+  await page.addInitScript(() => localStorage.setItem('tick-tack-done.account-prefs', '1'));
+  await page.route('**/api/v1/**', async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    let body: unknown = { items: [] };
+    if (path === '/api/v1/auth/session')
+      body = {
+        id: 'audit',
+        csrf_token: 'test',
+        email: 'audit@example.test',
+        display_name: 'Audit',
+      };
+    if (path === '/api/v1/me')
+      body = {
+        id: 'audit',
+        display_name: 'Audit',
+        email: 'audit@example.test',
+        locale: 'es',
+        time_zone: 'Europe/Madrid',
+        features: {},
+      };
+    if (path === '/api/v1/countdowns' && route.request().method() === 'POST') {
+      const draft = route.request().postDataJSON() as Record<string, unknown>;
+      onCreate(draft);
+      body = { ...item, ...draft };
+    }
+    await route.fulfill({ json: body });
+  });
+}
+
+test('TTD-AUD-21: desktop countdown heading stays on one line', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await emptyCountdowns(page, () => {});
+  await page.goto('/countdowns');
+  const heading = page.getByRole('heading', { name: 'Cuenta atrás', exact: true });
+  await expect(heading).toBeVisible();
+  const size = await heading.evaluate((node) => ({
+    height: node.getBoundingClientRect().height,
+    font: Number.parseFloat(getComputedStyle(node).fontSize),
+  }));
+  expect(size.height).toBeLessThan(size.font * 1.8);
+});
+
+test('TTD-AUD-23: mobile countdown form aligns controls and saves a Spanish civil date', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 360, height: 844 });
+  const saved: Record<string, unknown>[] = [];
+  await emptyCountdowns(page, (body) => saved.push(body));
+  await page.goto('/countdowns');
+  await page.getByRole('button', { name: 'Crear cuenta atrás' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Nueva cuenta atrás' });
+  expect(
+    await dialog.evaluate(
+      (node) =>
+        node.scrollWidth <= node.clientWidth && node.getBoundingClientRect().width <= innerWidth,
+    ),
+  ).toBe(true);
+  const aligned = await dialog
+    .locator('label:has(input[type="checkbox"]), label:has(input[type="radio"])')
+    .evaluateAll((labels) =>
+      labels.every((label) => {
+        const input = label.querySelector('input')!;
+        const text = [...label.childNodes].find(
+          (node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim(),
+        );
+        if (!text) return false;
+        const range = document.createRange();
+        range.selectNodeContents(text);
+        const a = input.getBoundingClientRect(),
+          b = range.getBoundingClientRect();
+        return (
+          a.right <= b.left + 1 && Math.abs((a.top + a.bottom) / 2 - (b.top + b.bottom) / 2) < 5
+        );
+      }),
+    );
+  expect(aligned).toBe(true);
+  await page.screenshot({ path: test.info().outputPath('countdown-dialog-mobile.png') });
+  const date = dialog.getByLabel('Fecha', { exact: true });
+  await expect(date).toHaveAttribute('type', 'text');
+  await expect(date).toHaveAttribute('placeholder', 'dd/mm/aaaa');
+  await dialog.getByLabel('Nombre', { exact: true }).fill('Cumpleaños');
+  await date.fill('31/02/2027');
+  await dialog.getByRole('button', { name: 'Guardar', exact: true }).click();
+  expect(saved).toHaveLength(0);
+  await date.fill('23/11/2026');
+  await dialog.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(saved).toHaveLength(1);
+  expect(saved[0]?.target_date).toBe('2026-11-23');
+});
 
 for (const theme of ['light', 'dark']) {
   test(`TTD-AUD-22: all countdown colors keep readable text (${theme})`, async ({ page }) => {

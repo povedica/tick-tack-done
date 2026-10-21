@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { Button, Modal } from '../../components/ui';
 import type { Countdown, CountdownDraft, CountdownType, RepeatRule } from './api';
 import { TYPE_LABEL } from './presentation';
+import { useAppLocale } from '../../i18n/locale';
+import { useMessages } from '../../i18n';
+import { formatCountdownDay, parseCountdownDay } from './civil-date';
 
 const REMINDERS = [
   [0, 'El mismo día (09:00)'],
@@ -55,7 +58,12 @@ export function CountdownDialog({
   readonly onClose: () => void;
   readonly onSave: (draft: CountdownDraft) => void;
 }) {
+  const locale = useAppLocale();
+  const messages = useMessages();
   const [draft, setDraft] = useState(() => draftFor(type, countdown));
+  const [dateText, setDateText] = useState(() =>
+    formatCountdownDay(countdown?.targetDate.slice(0, 10) ?? '', locale),
+  );
   const [customDays, setCustomDays] = useState('');
   const offsetDays = new Set(
     draft.reminders.filter((item) => !item.constant).map((item) => item.offsetDays),
@@ -109,11 +117,19 @@ export function CountdownDialog({
         <label>
           Fecha
           <input
-            type="date"
-            value={draft.targetDate}
+            type="text"
+            placeholder={messages.countdownDatePlaceholder}
+            value={dateText}
             required
+            aria-invalid={dateText.length > 0 && draft.targetDate.length === 0}
             onChange={(event) => {
-              setDraft({ ...draft, targetDate: event.target.value });
+              const text = event.target.value;
+              const iso = parseCountdownDay(text, locale);
+              event.target.setCustomValidity(
+                iso === null && text.length > 0 ? messages.countdownInvalidDate : '',
+              );
+              setDateText(text);
+              setDraft({ ...draft, targetDate: iso ?? '' });
             }}
           />
         </label>

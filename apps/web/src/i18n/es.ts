@@ -1,6 +1,8 @@
 import { extraEs } from './extra';
 
 export const es = {
+  countdownDatePlaceholder: 'dd/mm/aaaa',
+  countdownInvalidDate: 'Escribe una fecha válida con el formato indicado.',
   dashboardWeekLabel: 'esta semana',
   dashboardCalculationText:
     'Hoy y esta semana siguen la zona horaria de tu cuenta. La semana empieza el lunes; completadas y creadas excluyen las tareas canceladas, igual que Estadísticas. La tendencia compara con la semana anterior completa. Los cierres en lote y las importaciones pueden contar. Las vencidas están incluidas en las pendientes, también las subtareas. Los eventos proceden de calendarios sincronizados y se deduplican por identidad y ocurrencia.',

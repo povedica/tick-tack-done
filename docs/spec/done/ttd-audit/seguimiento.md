@@ -25,9 +25,9 @@ siguen el orden de prioridad de la petición; no se consideran cerrados.
 | TTD-AUD-18 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
 | TTD-AUD-19 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
 | TTD-AUD-20 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-21 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
+| TTD-AUD-21 | corregido | [#73](https://github.com/povedica/tick-tack-done/pull/73)                                                            | Cabecera de escritorio en una línea y ancho de selector acotado. Regresión Chromium fallaba con dos líneas. El recorte de emoji no se reprodujo en inspección local.        |
 | TTD-AUD-22 | corregido | [#73](https://github.com/povedica/tick-tack-done/pull/73)                                                            | Fondos por tokens con variantes oscuras; texto y número legibles en las 13 variantes y 6 acentos. Contraste calculado en Chromium ≥4,5:1, incluidos fondos del degradado.   |
-| TTD-AUD-23 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
+| TTD-AUD-23 | corregido | [#73](https://github.com/povedica/tick-tack-done/pull/73)                                                            | Checkbox/radio en fila; fecha civil ES/EN editable con formato explícito, valida días imposibles y envía ISO sin zona. Selects y modal conservan el estilo común.           |
 | TTD-AUD-24 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
 | TTD-AUD-25 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
 | TTD-AUD-26 | corregido | [#73](https://github.com/povedica/tick-tack-done/pull/73)                                                            | Botón de acceso usa var(--accent); regresiones violeta y verde que fallaban antes. Registro comparte selector CSS; formulario deshabilitado en este entorno.                |
@@ -291,3 +291,15 @@ No se reproduce un registro incorrecto de actualSeconds. RF-1204/RF-1205.
 - Se comprueban 13 colores × 6 acentos × 2 temas, texto/número/fecha, componiendo alfa sobre el fondo e incluyendo los tres colores del degradado. Umbral ≥4,5:1. Inspección visual local; sin publicar capturas.
 - Login probado con violeta/verde; registro comparte el selector, pero el formulario está desactivado por configuración y requiere comprobación si se habilita.
 - RF-1903, RF-2402 y RF-2451. Solo CSS/tokens, sin cambios de comportamiento o contrato.
+
+## TTD-AUD-21/23: cabecera y diálogo
+
+- Regresiones antes del cambio: título desktop de dos líneas y casillas apiladas en móvil. Ahora cabecera de una línea; casillas/radios junto al texto y sin desbordamiento horizontal a 360 px.
+- Fecha civil con formato explícito ES dd/mm/aaaa y EN mm/dd/yyyy, independiente de la configuración de fecha del navegador. Se rechazan 31/02, años no bisiestos y otros días imposibles; al guardar 23/11/2026 se envía 2026-11-23.
+- La API conserva el contrato target_date. Modal y selects ya usan los estilos comunes; no se modifica su comportamiento. El recorte del emoji no se reproduce en las capturas locales revisadas.
+- RF-2402, RF-2451, RF-2452 y RF-2453. Regresiones Chromium y siete casos de formato/validación civil.
+
+Validación del bloque 21/22/23/26: typecheck y suites completas (289 dominio,
+117 web, 101 API y 9 SDK); lint global comprobado y corrección localizada del
+parser civil verificada con lint dirigido. Siete tests de fecha civil y seis
+regresiones Chromium en verde. Inspección visual del diálogo a 360 px.
