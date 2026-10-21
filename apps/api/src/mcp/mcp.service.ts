@@ -786,11 +786,9 @@ function draftFromRecurrence(raw: Record<string, unknown>): RepeatDraft {
             );
           }
           return {
-            // Narrowed above; cast keeps exactOptionalPropertyTypes happy.
-            // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- setpos union
-            setpos: setpos as 1 | 2 | 3 | 4 | -1,
+            setpos,
             weekday: weekday as Weekday,
-          };
+          } satisfies NonNullable<RepeatDraft['monthWeek']>;
         })();
 
   const draft: RepeatDraft = { freq };

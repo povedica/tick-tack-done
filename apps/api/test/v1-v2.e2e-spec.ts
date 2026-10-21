@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import { dayKey } from '@reflexionia/domain';
 import { newPersonalAccessToken } from '../src/auth/token-secret.js';
 import type { INestApplication } from '@nestjs/common';
@@ -446,7 +446,7 @@ describe('V1 and V2 product', () => {
     const stamp = randomUUID().slice(0, 8);
     const title = `planta-${stamp}`;
     const chatId = Math.floor(Math.random() * 1000000000);
-    const updateBase = Date.now();
+    const updateBase = randomInt(1_000_000_000_000);
     try {
       await session()
         .post('/api/v1/integrations/telegram/link')
@@ -470,6 +470,16 @@ describe('V1 and V2 product', () => {
         })
         .expect(200);
       expect(created.body).toEqual({ called_telegram: true, action: 'text' });
+      const duplicate = await request(server)
+        .post('/api/v1/integrations/telegram/webhook')
+        .set('x-telegram-bot-api-secret-token', secret)
+        .send({
+          update_id: updateBase + 11,
+          message: { chat: { id: chatId }, text: `/capturar ${title} manana` },
+        })
+        .expect(200);
+      expect(duplicate.body.action).toBe('duplicate');
+
       const listed = await session().get(`/api/v1/tasks?q=${title}`).expect(200);
       const task = (listed.body.items as { id: string; title: string }[]).find((item) =>
         item.title.includes(stamp),

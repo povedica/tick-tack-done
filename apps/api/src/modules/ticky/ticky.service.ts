@@ -25,6 +25,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { applyAuthorizedTaskChange, parseProposalDocument } from '../tasks/ticky-task-command.js';
 import { tickyFlags } from './ticky-flags.js';
 import { signTickyJwt, type TickyAudience } from './ticky-jwt.js';
+import { pythonContext } from './python-context.js';
 
 const PROPOSAL_TOOLS: Record<string, string> = {
   'tasks.create': 'tasks:create',
@@ -69,7 +70,13 @@ export class TickyService implements OnModuleInit {
       where: { ownerId: user.id },
       include: { lists: true },
     });
-    if (authority === null || authority.revoked || user.listIds === null) {
+    if (
+      authority === null ||
+      authority.revoked ||
+      authority.paused ||
+      authority.autonomy === 0 ||
+      user.listIds === null
+    ) {
       throw new DomainException(
         HttpStatus.SERVICE_UNAVAILABLE,
         'ticky_not_ready',
@@ -89,6 +96,38 @@ export class TickyService implements OnModuleInit {
       throw new DomainException(HttpStatus.FORBIDDEN, 'scope_missing', 'Falta tasks:read.');
     }
     return { ...body };
+  }
+
+  async authority(user: AuthUser): Promise<Record<string, unknown>> {
+    requireBrowserSession(user);
+    const authority = await this.prisma.tickyAuthority.findUnique({
+      where: { ownerId: user.id },
+      include: { lists: true },
+    });
+    const owned = await this.ownedLists(user.id);
+    if (authority === null)
+      return {
+        configured: false,
+        version: null,
+        autonomy: 0,
+        paused: false,
+        revoked: false,
+        list_ids: [],
+        action_scopes: [],
+        owned_list_ids: owned,
+        workday_start: null,
+        workday_end: null,
+        inbox_list_id: null,
+        fine_scopes: [...TICKY_FINE_SCOPES],
+      };
+    return {
+      ...this.authorityView(
+        authority,
+        authority.lists.map((row) => row.listId),
+      ),
+      configured: true,
+      owned_list_ids: owned,
+    };
   }
 
   async updateAuthority(
@@ -115,6 +154,16 @@ export class TickyService implements OnModuleInit {
         'A3 y A4 no se conceden desde una preferencia.',
       );
     }
+    if (
+      (patch.list_ids !== undefined && patch.list_ids.length > 10) ||
+      (patch.autonomy !== undefined && (!Number.isInteger(patch.autonomy) || patch.autonomy < 0))
+    ) {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'authority_invalid',
+        'Revisa el nivel de ayuda y el máximo de diez listas.',
+      );
+    }
     const owned = await this.ownedLists(user.id);
     const listIds =
       patch.list_ids === undefined ? null : intersectOwnedLists(owned, patch.list_ids);
@@ -135,7 +184,11 @@ export class TickyService implements OnModuleInit {
         create: { ownerId: user.id, version: 1 },
         update: {},
       });
-      const version = current.version + 1;
+      await tx.$queryRaw(
+        Prisma.sql`SELECT id FROM ticky_authorities WHERE owner_id = ${user.id}::uuid FOR UPDATE`,
+      );
+      const locked = await tx.tickyAuthority.findUniqueOrThrow({ where: { ownerId: user.id } });
+      const version = locked.version + 1;
       const authority = await tx.tickyAuthority.update({
         where: { id: current.id },
         data: {
@@ -172,7 +225,43 @@ export class TickyService implements OnModuleInit {
           });
         }
       }
+      if (
+        [authority.workdayStart, authority.workdayEnd].some(
+          (value) => value !== null && !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value),
+        ) ||
+        (authority.workdayStart === null) !== (authority.workdayEnd === null) ||
+        (authority.workdayStart !== null &&
+          authority.workdayEnd !== null &&
+          authority.workdayEnd <= authority.workdayStart)
+      ) {
+        throw new DomainException(
+          HttpStatus.BAD_REQUEST,
+          'workday_invalid',
+          'Indica inicio y fin de jornada, con el fin posterior al inicio, o deja ambos vacíos.',
+        );
+      }
       const lists = await tx.tickyListGrant.findMany({ where: { authorityId: authority.id } });
+      if (
+        authority.inboxListId !== null &&
+        !lists.some((list) => list.listId === authority.inboxListId)
+      ) {
+        throw new DomainException(
+          HttpStatus.BAD_REQUEST,
+          'inbox_not_granted',
+          'La bandeja de captura debe ser una lista propia concedida.',
+        );
+      }
+      if (listIds !== null) {
+        // Existing dedicated reader credentials follow only the owner's explicit grants.
+        await tx.personalAccessToken.updateMany({
+          where: { ownerId: user.id, name: 'ticky-reader', revokedAt: null },
+          data: {
+            scopes: [...TICKY_READ_SCOPES],
+            listRestricted: true,
+            listIds: lists.map((list) => list.listId),
+          },
+        });
+      }
       const eventId = randomUUID();
       await this.events.record(tx, actorOf(user), {
         type: DomainEvent.tickyAuthorityUpdated,
@@ -237,8 +326,10 @@ export class TickyService implements OnModuleInit {
   async storeProposal(user: AuthUser, document: string): Promise<Record<string, unknown>> {
     requireBrowserSession(user);
     const body = await parseProposalDocument(document, user.id);
-    const row = await this.prisma.tickyProposal.create({
-      data: {
+    const row = await this.prisma.tickyProposal.upsert({
+      where: { id: body.proposal_id },
+      update: {},
+      create: {
         id: body.proposal_id,
         ownerId: user.id,
         runId: body.run_id,
@@ -249,6 +340,13 @@ export class TickyService implements OnModuleInit {
         body: asJson(body),
       },
     });
+    if (row.ownerId !== user.id || row.digest !== body.approval_digest) {
+      throw new DomainException(
+        HttpStatus.CONFLICT,
+        'proposal_conflict',
+        'La propuesta ya tiene otro contenido.',
+      );
+    }
     return {
       proposal_id: row.id,
       approval_digest: row.digest,
@@ -325,15 +423,30 @@ export class TickyService implements OnModuleInit {
 
   async context(user: AuthUser): Promise<Record<string, unknown>> {
     requireBrowserSession(user);
+    this.requireReadEnabled();
     const authority = await this.requireAuthority(user.id);
-    const subs = await this.prisma.calendarSubscription.findMany({
-      where: { ownerId: user.id, deletedAt: null },
-      select: { lastSyncedAt: true, lastError: true, visible: true },
+    const revision = await this.prisma.tickyAuthority.update({
+      where: { ownerId: user.id, version: authority.version },
+      data: { sourceRevision: { increment: 1 } },
+      select: { sourceRevision: true },
     });
-    const events = await this.prisma.externalEvent.findMany({
-      where: { ownerId: user.id, deletedAt: null },
-      select: { startsAt: true, endsAt: true, isAllDay: true, status: true, timeZone: true },
-    });
+    const calendarGranted = authority.scopes.includes('calendar:read');
+    const subs = calendarGranted
+      ? await this.prisma.calendarSubscription.findMany({
+          where: { ownerId: user.id, deletedAt: null, visible: true },
+          select: { lastSyncedAt: true, lastError: true, visible: true },
+        })
+      : [];
+    const events = calendarGranted
+      ? await this.prisma.externalEvent.findMany({
+          where: {
+            ownerId: user.id,
+            deletedAt: null,
+            subscription: { ownerId: user.id, deletedAt: null, visible: true },
+          },
+          select: { startsAt: true, endsAt: true, isAllDay: true, status: true, timeZone: true },
+        })
+      : [];
     const busy = occupiedIntervals({
       subscriptions: subs.map((row) => ({
         lastSyncedAt: row.lastSyncedAt?.toISOString() ?? null,
@@ -356,16 +469,25 @@ export class TickyService implements OnModuleInit {
         : { start: authority.workdayStart, end: authority.workdayEnd };
     const snapshot = buildContextSnapshot({
       authorityVersion: authority.version,
-      sourceRevision: authority.sourceRevision,
+      sourceRevision: revision.sourceRevision,
       issuedAt: new Date().toISOString(),
       timeZone: user.timeZone,
       workday,
-      calendar: busy === null ? null : { busy },
+      calendar: busy === null || !authority.scopes.includes('calendar:read') ? null : { busy },
       review: user.scopes.includes('tasks:read') ? null : null,
       taskEnergy: [],
       durationObservations: [],
     });
-    return { ...snapshot };
+    const canonical = pythonContext(snapshot);
+    await this.python(
+      'POST',
+      '/internal/v1/context',
+      'ticky-context',
+      user.id,
+      authority.version,
+      canonical,
+    );
+    return canonical;
   }
 
   async postMessage(
@@ -373,8 +495,10 @@ export class TickyService implements OnModuleInit {
     threadId: string,
     clientMessageId: string,
     text: string,
+    modelId?: string,
   ): Promise<{ status: number; body: Record<string, unknown> }> {
     requireBrowserSession(user);
+    this.requireReadEnabled();
     this.limit(user.id, 'chat');
     const thread = await this.prisma.tickyThread.findFirst({
       where: { id: threadId, ownerId: user.id, deletedAt: null },
@@ -386,39 +510,33 @@ export class TickyService implements OnModuleInit {
         'El hilo no es de esta cuenta.',
       );
     }
-    const fingerprint = createHash('sha256').update(text).digest('hex');
+    const fingerprint = createHash('sha256')
+      .update(modelId === undefined ? text : JSON.stringify([text, modelId]))
+      .digest('hex');
     const existing = await this.prisma.tickyClientMessage.findUnique({
       where: { ownerId_clientMessageId: { ownerId: user.id, clientMessageId } },
     });
     if (existing !== null) {
-      if (existing.fingerprint !== fingerprint) {
+      if (existing.fingerprint !== fingerprint || existing.threadId !== threadId) {
         throw new DomainException(
           HttpStatus.CONFLICT,
           'idempotency_conflict',
           'Ese mensaje ya se envió con otro texto.',
         );
       }
-      return { status: existing.statusCode, body: existing.response as Record<string, unknown> };
-    }
-    if (!tickyFlags().model) {
-      const body = {
-        type: 'guidance',
-        status: 'model_not_configured',
-        message: 'El modelo no está configurado. No se ha llamado a ningún proveedor.',
-      };
-      await this.prisma.tickyClientMessage.create({
-        data: {
-          ownerId: user.id,
-          threadId,
-          clientMessageId,
-          fingerprint,
-          statusCode: 200,
-          response: asJson(body),
-        },
-      });
-      return { status: 200, body };
+      // Python revalidates retention, authority and canonical run state on replay.
     }
     const authority = await this.requireAuthority(user.id);
+    if (modelId !== undefined && !tickyFlags().model) {
+      throw new DomainException(
+        HttpStatus.SERVICE_UNAVAILABLE,
+        'model_not_configured',
+        'La generación no está activada. Puedes consultar sin IA.',
+      );
+    }
+    if (modelId !== undefined && existing === null) {
+      await this.context(user);
+    }
     const run = await this.python(
       'POST',
       '/internal/v1/runs',
@@ -430,44 +548,169 @@ export class TickyService implements OnModuleInit {
         thread_id: threadId,
         text,
         timezone: user.timeZone,
+        ...(modelId === undefined ? {} : { model_id: modelId }),
       },
     );
-    await this.prisma.tickyClientMessage.create({
-      data: {
-        ownerId: user.id,
-        threadId,
-        clientMessageId,
-        fingerprint,
-        statusCode: run.status,
-        response: asJson(run.body),
-        ...(typeof run.body.run_id === 'string' ? { runId: run.body.run_id } : {}),
-      },
+    const projection = {
+      statusCode: run.status,
+      response: asJson(run.body),
+      ...(typeof run.body.run_id === 'string' ? { runId: run.body.run_id } : {}),
+    };
+    await this.prisma.tickyClientMessage.upsert({
+      where: { ownerId_clientMessageId: { ownerId: user.id, clientMessageId } },
+      create: { ownerId: user.id, threadId, clientMessageId, fingerprint, ...projection },
+      update: projection,
     });
     return run;
   }
 
+  async models(user: AuthUser): Promise<Record<string, unknown>> {
+    requireBrowserSession(user);
+    this.requireReadEnabled();
+    if (!tickyFlags().model) {
+      return { items: [] };
+    }
+    const authority = await this.requireAuthority(user.id);
+    return (
+      await this.python(
+        'GET',
+        '/internal/v1/models',
+        'ticky-runs',
+        user.id,
+        authority.version,
+        undefined,
+      )
+    ).body;
+  }
+
   async openThread(user: AuthUser): Promise<{ id: string }> {
     requireBrowserSession(user);
-    const id = randomUUID();
+    this.requireReadEnabled();
+    const authority = await this.requireAuthority(user.id);
+    const result = await this.python(
+      'POST',
+      '/internal/v1/threads',
+      'ticky-runs',
+      user.id,
+      authority.version,
+      undefined,
+    );
+    const id = result.body.thread_id;
+    if (
+      typeof id !== 'string' ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+    ) {
+      throw new DomainException(
+        HttpStatus.BAD_GATEWAY,
+        'ticky_invalid_response',
+        'El servicio no devolvió un hilo válido.',
+      );
+    }
     await this.prisma.tickyThread.create({ data: { id, ownerId: user.id } });
     return { id };
   }
 
-  async listThreads(user: AuthUser): Promise<{ items: { id: string }[] }> {
-    const rows = await this.prisma.tickyThread.findMany({
-      where: { ownerId: user.id, deletedAt: null },
-      select: { id: true },
-      orderBy: { createdAt: 'desc' },
-    });
-    return { items: rows };
+  async listThreads(user: AuthUser): Promise<{ items: { id: string }[]; next_before: unknown }> {
+    requireBrowserSession(user);
+    this.requireReadEnabled();
+    const authority = await this.requireAuthority(user.id);
+    const page = (
+      await this.python(
+        'GET',
+        '/internal/v1/threads',
+        'ticky-runs',
+        user.id,
+        authority.version,
+        undefined,
+      )
+    ).body;
+    if (!Array.isArray(page.threads)) {
+      throw new DomainException(
+        HttpStatus.BAD_GATEWAY,
+        'ticky_invalid_response',
+        'El historial no es válido.',
+      );
+    }
+    const items: { id: string }[] = [];
+    const rows: readonly unknown[] = page.threads;
+    for (const row of rows) {
+      if (
+        row === null ||
+        typeof row !== 'object' ||
+        !('thread_id' in row) ||
+        typeof row.thread_id !== 'string'
+      ) {
+        throw new DomainException(
+          HttpStatus.BAD_GATEWAY,
+          'ticky_invalid_response',
+          'El historial no es válido.',
+        );
+      }
+      const id = row.thread_id;
+      const existing = await this.prisma.tickyThread.findUnique({ where: { id } });
+      if (existing !== null && existing.ownerId !== user.id) {
+        throw new DomainException(
+          HttpStatus.CONFLICT,
+          'thread_owner_conflict',
+          'No se ha podido verificar el hilo.',
+        );
+      }
+      await this.prisma.tickyThread.upsert({
+        where: { id },
+        create: { id, ownerId: user.id },
+        update: {},
+      });
+      items.push({ id });
+    }
+    return { items, next_before: page.next_before ?? null };
   }
 
-  async deleteThread(user: AuthUser, id: string): Promise<void> {
+  async threadMessages(user: AuthUser, id: string): Promise<Record<string, unknown>> {
     requireBrowserSession(user);
+    this.requireReadEnabled();
+    const authority = await this.requireAuthority(user.id);
+    return (
+      await this.python(
+        'GET',
+        `/internal/v1/threads/${id}/messages`,
+        'ticky-runs',
+        user.id,
+        authority.version,
+        undefined,
+      )
+    ).body;
+  }
+
+  async deleteThread(user: AuthUser, id: string): Promise<Record<string, unknown>> {
+    requireBrowserSession(user);
+    const authority = await this.requireAuthority(user.id);
+    const result = (
+      await this.python(
+        'DELETE',
+        `/internal/v1/threads/${id}`,
+        'ticky-runs',
+        user.id,
+        authority.version,
+        undefined,
+      )
+    ).body;
+    if (result.state !== 'pending' && result.state !== 'deleted') {
+      throw new DomainException(
+        HttpStatus.BAD_GATEWAY,
+        'ticky_invalid_response',
+        'No se ha podido confirmar el borrado.',
+      );
+    }
+    // Python owns history/erasure. The local row only prevents reuse of this projection.
     await this.prisma.tickyThread.updateMany({
       where: { id, ownerId: user.id, deletedAt: null },
       data: { deletedAt: new Date() },
     });
+    await this.prisma.tickyClientMessage.updateMany({
+      where: { ownerId: user.id, threadId: id },
+      data: { response: {}, runId: null, statusCode: 410 },
+    });
+    return result;
   }
 
   async cancelRun(user: AuthUser, runId: string): Promise<Record<string, unknown>> {
@@ -492,6 +735,7 @@ export class TickyService implements OnModuleInit {
     cursor: string | undefined,
     req: { on: (event: string, listener: () => void) => void },
     res: {
+      on: (event: string, listener: () => void) => void;
       flushHeaders: () => void;
       write: (chunk: string) => void;
       end: () => void;
@@ -500,10 +744,18 @@ export class TickyService implements OnModuleInit {
   ): Promise<void> {
     requireBrowserSession(user);
     this.acquireStream(user.id);
+    const disconnected = new AbortController();
+    let released = false;
     const release = (): void => {
+      if (released) {
+        return;
+      }
+      released = true;
+      disconnected.abort();
       this.releaseStream(user.id);
     };
-    req.on('close', release);
+    res.on('close', release);
+    req.on('aborted', release);
     if (
       !tickyFlags().ui ||
       process.env.TICKY_SERVICE_URL === undefined ||
@@ -539,7 +791,7 @@ export class TickyService implements OnModuleInit {
           accept: 'text/event-stream',
           ...(cursor === undefined || cursor.length === 0 ? {} : { 'Last-Event-ID': cursor }),
         },
-        signal: AbortSignal.timeout(65_000),
+        signal: AbortSignal.any([disconnected.signal, AbortSignal.timeout(65_000)]),
       });
       if (!response.ok || response.body === null) {
         res.write(
@@ -556,74 +808,153 @@ export class TickyService implements OnModuleInit {
         if (chunk.done) {
           break;
         }
-        if (!(chunk.value instanceof Uint8Array)) throw new Error('Invalid stream chunk');
+        if (!(chunk.value instanceof Uint8Array)) {
+          throw new Error('invalid_stream_chunk');
+        }
         res.write(decoder.decode(chunk.value, { stream: true }));
       }
       res.end();
     } catch {
-      res.write(`event: failed\ndata: ${JSON.stringify({ code: 'stream_interrupted' })}\n\n`);
-      res.end();
+      if (!disconnected.signal.aborted) {
+        res.write(`event: failed\ndata: ${JSON.stringify({ code: 'stream_interrupted' })}\n\n`);
+        res.end();
+      }
     } finally {
       release();
     }
   }
 
-  async listRoutines(user: AuthUser): Promise<{
-    items: {
-      id: string;
-      version: number;
-      paused: boolean;
-      shadow: boolean;
-      window_minutes: number;
-      next_at: string | null;
-      schedule_issue: string | null;
-    }[];
-  }> {
-    const rows = await this.prisma.tickyRoutine.findMany({
-      where: { ownerId: user.id },
-      orderBy: { createdAt: 'desc' },
-    });
-    return {
-      items: rows.map((row) => ({
-        id: row.id,
-        version: row.version,
-        paused: row.paused,
-        shadow: row.shadow,
-        window_minutes: row.windowMinutes,
-        next_at: row.nextAt?.toISOString() ?? null,
-        schedule_issue: row.scheduleIssue,
-      })),
-    };
+  async listRoutines(user: AuthUser): Promise<Record<string, unknown>> {
+    requireBrowserSession(user);
+    this.requireRoutinesEnabled();
+    const authority = await this.requireAuthority(user.id);
+    return (
+      await this.python(
+        'GET',
+        '/internal/v1/routines',
+        'ticky-runs',
+        user.id,
+        authority.version,
+        undefined,
+      )
+    ).body;
+  }
+
+  async createRoutine(user: AuthUser, draft: object): Promise<Record<string, unknown>> {
+    requireBrowserSession(user);
+    this.requireRoutinesEnabled();
+    const authority = await this.requireAuthority(user.id);
+    this.requireRoutineWrite(authority.scopes);
+    return (
+      await this.python(
+        'POST',
+        '/internal/v1/routines',
+        'ticky-runs',
+        user.id,
+        authority.version,
+        draft,
+      )
+    ).body;
+  }
+
+  async updateRoutine(user: AuthUser, id: string, draft: object): Promise<Record<string, unknown>> {
+    requireBrowserSession(user);
+    this.requireRoutinesEnabled();
+    const authority = await this.requireAuthority(user.id);
+    this.requireRoutineWrite(authority.scopes);
+    return (
+      await this.python(
+        'PUT',
+        `/internal/v1/routines/${id}`,
+        'ticky-runs',
+        user.id,
+        authority.version,
+        draft,
+      )
+    ).body;
+  }
+
+  async pauseRoutine(user: AuthUser, id: string): Promise<Record<string, unknown>> {
+    requireBrowserSession(user);
+    this.requireRoutinesEnabled();
+    const authority = await this.requireAuthority(user.id);
+    this.requireRoutineWrite(authority.scopes);
+    return (
+      await this.python(
+        'POST',
+        `/internal/v1/routines/${id}/pause`,
+        'ticky-runs',
+        user.id,
+        authority.version,
+        undefined,
+      )
+    ).body;
   }
 
   async forgetMemory(user: AuthUser, id: string): Promise<void> {
     requireBrowserSession(user);
-    await this.prisma.tickyMemory.updateMany({
-      where: { id, ownerId: user.id, forgottenAt: null },
-      data: { forgottenAt: new Date() },
-    });
+    const authority = await this.requireAuthority(user.id);
+    await this.python(
+      'DELETE',
+      `/internal/v1/memory/${id}`,
+      'ticky-runs',
+      user.id,
+      authority.version,
+      undefined,
+    );
   }
 
   async remember(
     user: AuthUser,
-    body: string,
-    sourceMessageId: string | null,
+    kind: string,
+    value: string,
+    sourceMessageId: string,
   ): Promise<{ id: string }> {
     requireBrowserSession(user);
-    const row = await this.prisma.tickyMemory.create({
-      data: { ownerId: user.id, body, sourceMessageId },
-    });
-    return { id: row.id };
+    this.requireReadEnabled();
+    const authority = await this.requireAuthority(user.id);
+    const result = await this.python(
+      'POST',
+      '/internal/v1/memory',
+      'ticky-runs',
+      user.id,
+      authority.version,
+      {
+        kind,
+        value,
+        source_message_id: sourceMessageId,
+      },
+    );
+    if (typeof result.body.memory_id !== 'string') {
+      throw new DomainException(
+        HttpStatus.BAD_GATEWAY,
+        'ticky_invalid_response',
+        'La memoria no es válida.',
+      );
+    }
+    return { id: result.body.memory_id };
   }
 
-  async listMemories(
-    user: AuthUser,
-  ): Promise<{ items: { id: string; version: number; body: string }[] }> {
-    const rows = await this.prisma.tickyMemory.findMany({
-      where: { ownerId: user.id, forgottenAt: null },
-      select: { id: true, version: true, body: true },
-    });
-    return { items: rows };
+  async listMemories(user: AuthUser): Promise<Record<string, unknown>> {
+    requireBrowserSession(user);
+    this.requireReadEnabled();
+    const authority = await this.requireAuthority(user.id);
+    const result = await this.python(
+      'GET',
+      '/internal/v1/memory',
+      'ticky-runs',
+      user.id,
+      authority.version,
+      undefined,
+    );
+    if (!Array.isArray(result.body.preferences)) {
+      throw new DomainException(
+        HttpStatus.BAD_GATEWAY,
+        'ticky_invalid_response',
+        'La memoria no es válida.',
+      );
+    }
+    return { items: result.body.preferences };
   }
 
   acquireStream(ownerId: string): void {
@@ -679,6 +1010,33 @@ export class TickyService implements OnModuleInit {
     }
     try {
       return await this.prisma.$transaction(async (tx) => {
+        await tx.$queryRaw(
+          Prisma.sql`SELECT id FROM ticky_authorities WHERE owner_id = ${user.id}::uuid FOR UPDATE`,
+        );
+        const current = await tx.tickyAuthority.findUnique({
+          where: { ownerId: user.id },
+          include: { lists: true },
+        });
+        if (
+          current === null ||
+          current.revoked ||
+          current.paused ||
+          current.autonomy < 2 ||
+          current.version !== body.authority_version
+        ) {
+          throw new DomainException(
+            HttpStatus.CONFLICT,
+            'authority_revoked',
+            'La autoridad cambió. No se aplica.',
+          );
+        }
+        if (!legacyGrantsTickyScope(current.actionScopes, required)) {
+          throw new DomainException(
+            HttpStatus.FORBIDDEN,
+            'scope_missing',
+            'Esa acción ya no está concedida.',
+          );
+        }
         const prior = await tx.tickyActionLedger.findUnique({
           where: { ownerId_actionId: { ownerId: user.id, actionId } },
         });
@@ -692,7 +1050,7 @@ export class TickyService implements OnModuleInit {
           }
           return { action_id: actionId, replayed: true, result: prior.result };
         }
-        const scoped: AuthUser = { ...user, listIds: authority.listIds };
+        const scoped: AuthUser = { ...user, listIds: current.lists.map((row) => row.listId) };
         const result = await applyAuthorizedTaskChange(
           tx,
           this.events,
@@ -770,7 +1128,16 @@ export class TickyService implements OnModuleInit {
   }
 
   private authorityView(
-    authority: { version: number; autonomy: number; revoked: boolean; paused: boolean },
+    authority: {
+      version: number;
+      autonomy: number;
+      revoked: boolean;
+      paused: boolean;
+      actionScopes?: readonly string[];
+      workdayStart?: string | null;
+      workdayEnd?: string | null;
+      inboxListId?: string | null;
+    },
     listIds: readonly string[],
   ): Record<string, unknown> {
     return {
@@ -778,6 +1145,10 @@ export class TickyService implements OnModuleInit {
       autonomy: authority.autonomy,
       revoked: authority.revoked,
       paused: authority.paused,
+      action_scopes: authority.actionScopes ?? [],
+      workday_start: authority.workdayStart ?? null,
+      workday_end: authority.workdayEnd ?? null,
+      inbox_list_id: authority.inboxListId ?? null,
       list_ids: listIds,
       fine_scopes: [...TICKY_FINE_SCOPES],
       flags: tickyFlags(),
@@ -819,13 +1190,19 @@ export class TickyService implements OnModuleInit {
       });
       const response = await fetch(new URL('/internal/v1/events', base), {
         method: 'POST',
+        signal: AbortSignal.timeout(10_000),
         headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
         body: JSON.stringify({
           event_id: eventId,
           event_type: 'authority.updated',
-          scopes: [...TICKY_READ_SCOPES],
+          scopes: [
+            ...TICKY_READ_SCOPES,
+            ...authority.actionScopes.filter((scope) =>
+              ['calendar:read', 'ticky:routines:read', 'ticky:routines:write'].includes(scope),
+            ),
+          ],
           list_ids: authority.lists.map((row) => row.listId),
-          autonomy: authority.autonomy,
+          autonomy: authority.paused ? 0 : authority.autonomy,
           revoked: authority.revoked,
           version: authority.version,
           inbox_list_id: authority.inboxListId,
@@ -844,6 +1221,58 @@ export class TickyService implements OnModuleInit {
           nextRetryAt: new Date(Date.now() + 30_000),
         },
       });
+    }
+  }
+
+  private upstreamStatus(status: number): HttpStatus {
+    switch (status) {
+      case 400:
+        return HttpStatus.BAD_REQUEST;
+      case 401:
+        return HttpStatus.UNAUTHORIZED;
+      case 403:
+        return HttpStatus.FORBIDDEN;
+      case 404:
+        return HttpStatus.NOT_FOUND;
+      case 409:
+        return HttpStatus.CONFLICT;
+      case 422:
+        return HttpStatus.UNPROCESSABLE_ENTITY;
+      case 429:
+        return HttpStatus.TOO_MANY_REQUESTS;
+      default:
+        return HttpStatus.BAD_GATEWAY;
+    }
+  }
+
+  private requireReadEnabled(): void {
+    if (!tickyFlags().read) {
+      throw new DomainException(
+        HttpStatus.SERVICE_UNAVAILABLE,
+        'ticky_not_ready',
+        'La lectura de Ticky no está activada.',
+      );
+    }
+  }
+
+  private requireRoutinesEnabled(): void {
+    this.requireReadEnabled();
+    if (!tickyFlags().routines) {
+      throw new DomainException(
+        HttpStatus.SERVICE_UNAVAILABLE,
+        'ticky_routines_not_ready',
+        'La gestión de rutinas de Ticky no está activada.',
+      );
+    }
+  }
+
+  private requireRoutineWrite(scopes: readonly string[]): void {
+    if (!scopes.includes('ticky:routines:write')) {
+      throw new DomainException(
+        HttpStatus.FORBIDDEN,
+        'ticky_routine_permission_required',
+        'Concede el permiso de edición de rutinas antes de continuar.',
+      );
     }
   }
 
@@ -873,16 +1302,56 @@ export class TickyService implements OnModuleInit {
         'Falta la clave de firma del BFF.',
       );
     }
-    const response = await fetch(new URL(path, base), {
-      method,
-      headers: {
-        authorization: `Bearer ${token}`,
-        'content-type': 'application/json',
-        prefer: 'respond-async',
-      },
-      body: JSON.stringify(body),
-    });
-    const payload = (await response.json()) as Record<string, unknown>;
-    return { status: response.status, body: payload };
+    let response: Response;
+    try {
+      response = await fetch(new URL(path, base), {
+        method,
+        headers: {
+          authorization: `Bearer ${token}`,
+          'content-type': 'application/json',
+          prefer: 'respond-async',
+        },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+        signal: AbortSignal.timeout(65_000),
+      });
+    } catch {
+      throw new DomainException(
+        HttpStatus.SERVICE_UNAVAILABLE,
+        'ticky_unavailable',
+        'No se ha podido confirmar la respuesta de Ticky. Revisa el historial antes de repetir.',
+      );
+    }
+    if (!response.ok) {
+      throw new DomainException(
+        this.upstreamStatus(response.status),
+        'ticky_upstream_rejected',
+        'Ticky no ha aceptado la solicitud.',
+      );
+    }
+    let payload: unknown;
+    try {
+      payload = await response.json();
+    } catch {
+      throw new DomainException(
+        HttpStatus.BAD_GATEWAY,
+        'ticky_invalid_response',
+        'La respuesta de Ticky no es válida.',
+      );
+    }
+    if (
+      method === 'GET' &&
+      ['/internal/v1/models', '/internal/v1/routines'].includes(path) &&
+      Array.isArray(payload)
+    ) {
+      return { status: response.status, body: { items: payload } };
+    }
+    if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) {
+      throw new DomainException(
+        HttpStatus.BAD_GATEWAY,
+        'ticky_invalid_response',
+        'La respuesta de Ticky no es válida.',
+      );
+    }
+    return { status: response.status, body: payload as Record<string, unknown> };
   }
 }

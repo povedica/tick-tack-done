@@ -63,6 +63,13 @@ async function createTask(
       'La lista de destino es obligatoria.',
     );
   }
+  if (!visible(user, projectId)) {
+    throw new DomainException(
+      HttpStatus.FORBIDDEN,
+      'list_not_granted',
+      'La lista no está concedida a Ticky.',
+    );
+  }
   await assertOwnedList(tx, user.id, projectId);
   const due = dueDate(item.after) ?? null;
   const row = await tx.task.create({
@@ -113,6 +120,13 @@ async function updateTask(
     );
   }
   if (item.after.project_id !== undefined && item.after.project_id !== null) {
+    if (!visible(user, item.after.project_id)) {
+      throw new DomainException(
+        HttpStatus.FORBIDDEN,
+        'list_not_granted',
+        'La lista de destino no está concedida a Ticky.',
+      );
+    }
     await assertOwnedList(tx, user.id, item.after.project_id);
   }
   const data: {
