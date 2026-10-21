@@ -28,6 +28,24 @@ function task(overrides: Partial<MatrixTask> = {}): MatrixTask {
 }
 
 describe('matrix', () => {
+  it('TTD-AUD-01 RF-904: custom matrix filters receive the task start', () => {
+    const candidate = { ...task(), startDate: '2026-10-19T09:00:00Z' };
+    expect(
+      quadrantOf(
+        candidate,
+        [
+          {
+            quadrant: 'do',
+            rules: {
+              combinator: 'AND',
+              groups: [{ combinator: 'AND', conditions: [{ field: 'date', op: 'tomorrow' }] }],
+            },
+          },
+        ],
+        { now, timeZone: 'Europe/Madrid' },
+      ),
+    ).toBe('do');
+  });
   it('RF-1004: overdue high priority is do', () => {
     expect(
       defaultQuadrant(task({ priority: 'high', dueDate: '2026-10-18T08:00:00.000Z' }), now),

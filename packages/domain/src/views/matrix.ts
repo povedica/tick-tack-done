@@ -11,6 +11,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export interface MatrixTask {
   readonly priority: Priority;
   readonly dueDate: string | null;
+  readonly startDate?: string | null;
   readonly listId: string | null;
   readonly tagNames: readonly string[];
   readonly title: string;
@@ -120,6 +121,7 @@ function toSubject(task: MatrixTask): FilterSubject {
   return {
     listId: task.listId,
     tagNames: task.tagNames,
+    startDate: task.startDate ?? null,
     dueDate: task.dueDate,
     isAllDay: task.isAllDay,
     timeZone: task.timeZone,

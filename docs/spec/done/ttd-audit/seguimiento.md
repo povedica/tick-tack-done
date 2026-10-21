@@ -243,3 +243,20 @@ OpenAPI regenerado sin diferencias.
 Validación de TTD-AUD-07: typecheck y lint; 284 tests dominio, 110 web,
 101 API y 9 SDK; 6 pruebas Chromium (3 de disponibilidad y 3 de menú/fecha).
 OpenAPI regenerado sin diferencias.
+
+## TTD-AUD-01: complemento de adaptadores de filtros
+
+El adaptador interno de automatizaciones también debe incluir startDate al construir
+FilterSubject. Regresión PostgreSQL que fallaba antes: una tarea con inicio mañana
+y sin vencimiento no ejecutaba una regla Mañana. Ahora la ejecuta, no coincide con
+Sin fecha y sigue priorizando inicio al añadir un vencimiento para hoy.
+RF-601 y RF-904; solo se completa el mapeo, sin cambiar el motor ni el modelo.
+
+La revisión de FilterSubject localizó la misma omisión en los adaptadores de
+revisión diaria y reglas personalizadas de matriz: ambos propagan startDate,
+y el lector API de candidatos también. Dos regresiones de dominio fallaban antes.
+No se alteran la urgencia por defecto de matriz ni la puntuación de revisión.
+
+Validación del complemento TTD-AUD-01: typecheck, lint y suites completas
+(286 dominio, 110 web, 101 API, 9 SDK); integración 125 pasan y 2 omitidos;
+OpenAPI regenerado sin diferencias.

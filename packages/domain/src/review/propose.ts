@@ -8,6 +8,7 @@ export interface ReviewCandidate {
   readonly title: string;
   readonly priority: Priority;
   readonly dueDate: string | null;
+  readonly startDate?: string | null;
   readonly listId: string;
   readonly listName: string;
   readonly status: 'active' | 'completed' | 'archived' | 'cancelled';
@@ -130,6 +131,7 @@ function toSubject(task: ReviewCandidate): FilterSubject {
   return {
     listId: task.listId,
     tagNames: task.tagNames,
+    startDate: task.startDate ?? null,
     dueDate: task.dueDate,
     isAllDay: task.isAllDay,
     timeZone: task.timeZone,
