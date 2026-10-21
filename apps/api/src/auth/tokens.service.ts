@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { actorOf, type AuthUser } from './auth-user.js';
@@ -177,44 +178,31 @@ export class TokensService {
         'scopes must be a non-empty list of known scopes',
       );
     }
-    const base = input.name.trim().slice(0, 80);
+    // Pick a distinct name before INSERT: a uniqueness error aborts the caller's PostgreSQL
+    // transaction, so retrying inside it cannot recover. The UI displays the client name.
+    const name = `${input.name.trim().slice(0, 43)}-${randomUUID()}`;
     const issued = newPersonalAccessToken();
-    for (let attempt = 0; attempt < 5; attempt += 1) {
-      const name = attempt === 0 ? base : `${base.slice(0, 72)}-${attempt.toString(16)}`;
-      try {
-        const created = await tx.personalAccessToken.create({
-          data: {
-            ownerId: input.user.id,
-            name,
-            tokenHash: issued.hash,
-            tokenPrefix: issued.prefix,
-            scopes: unique,
-            expiresAt: input.expiresAt,
-            oauthClientId: input.clientId,
-          },
-        });
-        const body = toToken(created);
-        await this.events.record(tx, actorOf(input.user), {
-          type: DomainEvent.tokenCreated,
-          entityType: 'personal_access_token',
-          entityId: created.id,
-          action: 'created',
-          data: { token: asJson(body) },
-          previous: null,
-        });
-        return { id: created.id, token: issued.token };
-      } catch (error) {
-        if (isUniqueConflict(error)) {
-          continue;
-        }
-        throw error;
-      }
-    }
-    throw new DomainException(
-      HttpStatus.CONFLICT,
-      'token_name_taken',
-      'An active token with this name already exists',
-    );
+    const created = await tx.personalAccessToken.create({
+      data: {
+        ownerId: input.user.id,
+        name,
+        tokenHash: issued.hash,
+        tokenPrefix: issued.prefix,
+        scopes: unique,
+        expiresAt: input.expiresAt,
+        oauthClientId: input.clientId,
+      },
+    });
+    const body = toToken(created);
+    await this.events.record(tx, actorOf(input.user), {
+      type: DomainEvent.tokenCreated,
+      entityType: 'personal_access_token',
+      entityId: created.id,
+      action: 'created',
+      data: { token: asJson(body) },
+      previous: null,
+    });
+    return { id: created.id, token: issued.token };
   }
 
   async activity(
