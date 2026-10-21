@@ -904,3 +904,8 @@ padding vertical cero; texto 14 px, área de texto 40 px y padding derecho 20 px
 Se ajusta TTD a 40 px efectivos (densidad compacta conserva 32 px), en vez de
 los 34 px interiores del primer ajuste. La reducción real proviene de retirar
 los 16 px verticales heredados y el borde duplicado del contenedor.
+
+Checkbox en lista desktop: referencia TickTick medida con icono de 17 px y
+7 px hasta el título. TTD ajusta el área del check a 24 px, retira padding del
+título y deja 7,5 px entre icono y texto; la zona del input no invade el título.
+Validación geométrica Playwright en Hoy y lista de proyecto.

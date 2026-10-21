@@ -484,6 +484,14 @@ for (const path of ['/today?view=list', '/list/work?view=list']) {
     }));
     expect(metrics.row).toBe(40);
     expect(metrics.parent).toBe(40);
+    const checkGap = await row.evaluate((node) => {
+      const check = node.querySelector('.task-check-svg')!.getBoundingClientRect();
+      const title = node.querySelector('.task-title')!.getBoundingClientRect();
+      return title.left - check.right;
+    });
+    expect(checkGap).toBeGreaterThanOrEqual(7);
+    expect(checkGap).toBeLessThanOrEqual(8);
+
     await page.mouse.move(0, 0);
     await expect(row).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
     await row.hover({ position: { x: metrics.width - 100, y: 5 } });
