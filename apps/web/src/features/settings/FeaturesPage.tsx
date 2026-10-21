@@ -7,12 +7,15 @@ import { api } from '../../api';
 import { MODULES } from '../../shell/modules';
 import { useStatisticsText } from '../statistics/text';
 import { useMessages } from '../../i18n';
+import { useTickyAvailable } from '../ticky/useTickyAvailable';
 import { featureFlags, useFeatures, type FeatureFlags } from './feature-flags';
 
 const KEYS = [
   'countdowns',
   'focus',
   'matrix',
+  'habits',
+  'ticky',
   'when_deadline',
   'day_load',
   'day_closing',
@@ -30,10 +33,13 @@ export function FeaturesPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
+  const ticky = useTickyAvailable();
   const labels: Record<(typeof KEYS)[number], string> = {
     countdowns: messages.featureCountdowns,
     focus: messages.featureFocus,
     matrix: messages.featureMatrix,
+    habits: messages.featureHabits,
+    ticky: messages.featureTicky,
     when_deadline: messages.flagWhen,
     day_load: messages.flagLoad,
     day_closing: messages.flagClosing,
@@ -43,11 +49,19 @@ export function FeaturesPage() {
     countdowns: messages.featureCountdownsHint,
     focus: messages.featureFocusHint,
     matrix: messages.featureMatrixHint,
+    habits: messages.featureHabitsHint,
+    ticky: messages.featureTickyHint,
     when_deadline: messages.flagWhenHelp,
     day_load: messages.flagLoadHelp,
     day_closing: messages.flagClosingHelp,
     day_replan: messages.flagReplanHelp,
   };
+  const tickyBlocked =
+    ticky.kill || ticky.serverDisabled
+      ? ticky.kill
+        ? messages.featureTickyKill
+        : messages.featureTickyServerOff
+      : null;
 
   function toggle(key: (typeof KEYS)[number]): void {
     const current = flags;
@@ -92,25 +106,28 @@ export function FeaturesPage() {
         </div>
       </header>
       <ul className="feature-list">
-        {KEYS.map((key) => (
-          <li key={key}>
-            <label>
-              <span>
-                <strong>{labels[key]}</strong>
-                <small>{hints[key]}</small>
-              </span>
-              <input
-                disabled={saving || !me.isSuccess}
-                type="checkbox"
-                role="switch"
-                checked={flags[key]}
-                onChange={() => {
-                  toggle(key);
-                }}
-              />
-            </label>
-          </li>
-        ))}
+        {KEYS.map((key) => {
+          const blocked = key === 'ticky' ? tickyBlocked : null;
+          return (
+            <li key={key}>
+              <label>
+                <span>
+                  <strong>{labels[key]}</strong>
+                  <small>{blocked ?? hints[key]}</small>
+                </span>
+                <input
+                  disabled={saving || !me.isSuccess || blocked !== null}
+                  type="checkbox"
+                  role="switch"
+                  checked={flags[key] && blocked === null}
+                  onChange={() => {
+                    toggle(key);
+                  }}
+                />
+              </label>
+            </li>
+          );
+        })}
         <li>
           <label>
             <span>

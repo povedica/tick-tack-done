@@ -17,6 +17,7 @@ export function Popover({
   className,
   children,
   anchor,
+  width: widthProp,
 }: {
   readonly open: boolean;
   readonly label: string;
@@ -24,6 +25,8 @@ export function Popover({
   readonly className?: string;
   readonly children: ReactNode;
   readonly anchor?: RefObject<HTMLElement | null> | undefined;
+  /** Preferred width; omit for content-sized between 220 and 320 (TTD-AUD-64). */
+  readonly width?: number | undefined;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<CSSProperties>({});
@@ -34,23 +37,28 @@ export function Popover({
       const node = ref.current;
       if (!target || !node) return;
       const box = target.getBoundingClientRect();
-      const width = Math.min(
-        node.classList.contains('date-popover') ? 320 : 260,
-        window.innerWidth - 24,
-      );
-      const height = Math.min(node.scrollHeight, window.innerHeight - 24);
+      const preferred =
+        widthProp ??
+        (node.classList.contains('date-popover')
+          ? 320
+          : Math.min(320, Math.max(220, node.scrollWidth || 260)));
+      const width = Math.min(preferred, window.innerWidth - 24);
+      const maxHeight = Math.min(window.innerHeight * 0.7, window.innerHeight - 24);
       const below = window.innerHeight - box.bottom - 12;
       const above = box.top - 12;
       const top =
-        below >= height || below >= above ? box.bottom + 6 : Math.max(12, box.top - height - 6);
+        below >= Math.min(node.scrollHeight, maxHeight) || below >= above
+          ? box.bottom + 6
+          : Math.max(12, box.top - Math.min(node.scrollHeight, maxHeight) - 6);
       setPosition({
         position: 'fixed',
         top,
-        left: Math.max(12, Math.min(box.right - width, window.innerWidth - width - 12)),
+        left: Math.max(12, Math.min(box.left, window.innerWidth - width - 12)),
         right: 'auto',
         width,
-        maxHeight: Math.max(120, Math.min(height, window.innerHeight - top - 12)),
+        maxHeight: Math.max(120, Math.min(maxHeight, window.innerHeight - top - 12)),
         zIndex: 2000,
+        overflow: 'auto',
       });
     }
     place();
@@ -63,7 +71,7 @@ export function Popover({
       window.removeEventListener('resize', place);
       window.removeEventListener('scroll', place, true);
     };
-  }, [open, anchor]);
+  }, [open, anchor, widthProp]);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   useEffect(() => {

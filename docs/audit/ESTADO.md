@@ -13,7 +13,7 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-05 | 2 | verificado en main | #68 | Menú acciones; verificar tras 64 si hace falta pulido |
 | TTD-AUD-06 | 5 | pendiente | — | |
 | TTD-AUD-07 | 2 | verificado en main | #69 | Gate Ticky + layout; 63 puede ampliar el interruptor |
-| TTD-AUD-08 | 2 | pendiente | — | Depende de 63 |
+| TTD-AUD-08 | 2 | corregido | #71 | Interruptor en Funcionalidades (vía 63) |
 | TTD-AUD-09 | 0 | verificado en main | #72 | Ya en main: semana calendario local; no reimplementar |
 | TTD-AUD-10 | 0 | corregido | #71 | formatFocusDuration redondea; /focus etiquetado como total |
 | TTD-AUD-11 | 0 | verificado en tests | #67 | Test: weekly-automation.e2e-spec.ts |
@@ -68,8 +68,8 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-60 | 2 | corregido (parcial) | #71 | Panel detalle fijo + DetailEmpty en escritorio; falta no navegar fuera desde matrix/calendar |
 | TTD-AUD-61 | 2 | corregido (parcial) | #71 | sectionOf + ocultar sidebar; CalendarSidebar stub (mini-mes pendiente) |
 | TTD-AUD-62 | 2 | pendiente | — | Depende de 14 |
-| TTD-AUD-63 | 2 | pendiente | — | |
-| TTD-AUD-64 | 2 | pendiente | — | |
+| TTD-AUD-63 | 2 | corregido | #71 | Flag ticky + useTickyAvailable; FeatureRoute; server-off bloquea switch |
+| TTD-AUD-64 | 2 | corregido (parcial) | #71 | CaptureSheet tarjeta + Popover width/align; menú composer pendiente de pulido |
 | TTD-AUD-65 | 0 | corregido | #71 | taskEventSnapshot + migración strip activity |
 | TTD-AUD-66 | 2 | pendiente | — | Depende de 59 |
 | TTD-AUD-67 | 2 | pendiente | — | Depende de 66 |
@@ -88,8 +88,12 @@ Base: `origin/main` @ arranque de la rama.
 ### Fase 1 — MCP casi cerrada en #71
 - Corregidos: 48, 49, 50, 51, 53.
 - Parcial: 52 (faltan recordatorios y más filtros), 57 (ops + UI «vía» pendiente).
+
+### Fase 2 — en curso en #71
+- Corregidos: 08, 63; 64 parcial (tarjeta captura + Popover).
+- Parcial previos: 60, 61.
 - **Una sola PR (#71) hasta el final; no abrir PRs adicionales.**
-- Siguiente: cerrar restos de 52/57 y pasar a Fase 2 UX.
+- Siguiente: 59/66 vistas, 14/62 matrix, rematar 60/61/64.
 
 ### Comprobaciones manuales pendientes
 - Tras desplegar: editar una tarea 10+ veces y confirmar que `activity_log.changes` no anida `activity`.
