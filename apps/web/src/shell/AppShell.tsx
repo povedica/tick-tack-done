@@ -232,6 +232,7 @@ function FocusTitle() {
 function CaptureHost() {
   const open = useCaptureOpen((state) => state.open);
   const text = useCaptureOpen((state) => state.text);
+  const draft = useCaptureOpen((state) => state.draft);
   const hide = useCaptureOpen((state) => state.hide);
   const queryClient = useQueryClient();
   const showToast = useActionToast((state) => state.show);
@@ -241,6 +242,7 @@ function CaptureHost() {
   return (
     <CaptureSheet
       initialText={text}
+      initialDraft={draft}
       onClose={hide}
       onCreated={(created) => {
         const warning = created.warnings

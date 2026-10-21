@@ -1,5 +1,5 @@
 import { fill, useMessages, type Messages } from '../../../i18n';
-import type { CaptureWarningNotice } from '../notice';
+import type { CaptureDraft, CaptureWarningNotice } from '../notice';
 import { TaskComposer } from '../../tasks/TaskComposer';
 import { Button } from '../../../components/ui';
 
@@ -9,10 +9,12 @@ interface CreatedCapture {
 }
 export function CaptureSheet({
   initialText,
+  initialDraft,
   onClose,
   onCreated,
 }: {
   readonly initialText: string;
+  readonly initialDraft?: CaptureDraft | undefined;
   readonly onClose: () => void;
   readonly onCreated: (created: CreatedCapture) => void;
 }) {
@@ -22,6 +24,7 @@ export function CaptureSheet({
       <h1>{messages.captureTitle}</h1>
       <TaskComposer
         initialText={initialText}
+        initialDraft={initialDraft}
         autoFocus
         onCaptured={onCreated}
         onDismiss={onClose}

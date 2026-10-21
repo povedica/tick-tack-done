@@ -1,3 +1,5 @@
+import { QuickAddPopover } from '../capture/components/QuickAddPopover';
+import { allDaySlot, type CalendarSlot, type SlotAnchor } from '../capture/calendar-slot';
 import { runAction } from '../../components/run-action';
 import { CalendarMenu, CalendarPeriod } from '../calendar/CalendarControls';
 import { CalendarDays, Plus } from 'lucide-react';
@@ -10,6 +12,7 @@ import { ApiError, type Project, type Task } from '@reflexionia/sdk';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Fragment,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -327,11 +330,22 @@ function ProcessCard({
 }
 
 export function CalendarPage() {
+  const [draft, setDraft] = useState<{ slot: CalendarSlot; anchor: SlotAnchor } | null>(null);
+  const [createdNotice, setCreatedNotice] = useState('');
+  const closeDraft = useCallback(() => {
+    setDraft(null);
+  }, []);
+  const account = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
+  const timeZone = account.data?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
   const messages = useMessages();
   const locale = useAppLocale();
   const navigate = useNavigate();
   const { view } = useParams();
   const [params, setParams] = useSearchParams();
+  const contextProject = params.get('project_id') ?? params.get('list') ?? undefined;
+  const createAt = (slot: CalendarSlot, anchor: SlotAnchor) => {
+    if (draft === null) setDraft({ slot, anchor });
+  };
   const knownView = CAL_VIEWS.includes(view as (typeof CAL_VIEWS)[number]);
   const current = knownView ? view : 'month';
   const weekStart = usePreferences((state) => state.weekStart);
@@ -382,11 +396,7 @@ export function CalendarPage() {
     ? externalQuery.data.tasks.flatMap((value: unknown) => {
         if (typeof value !== 'object' || value === null) return [];
         const row = value as { id?: unknown; start_date?: unknown; due_date?: unknown };
-        return typeof row.id === 'string' &&
-          typeof row.start_date === 'string' &&
-          row.due_date === null
-          ? [row.id]
-          : [];
+        return typeof row.id === 'string' && typeof row.start_date === 'string' ? [row.id] : [];
       })
     : [];
   const startTasks = useQuery({
@@ -415,15 +425,15 @@ export function CalendarPage() {
     return map;
   }, [projects.data]);
   const dated = showTasks
-    ? [
-        ...(tasks.data ?? []),
-        ...(startTasks.data ?? []).map((task) => ({ ...task, due_date: task.start_date })),
-      ].filter(
-        (task, index, all) =>
-          task.due_date !== null &&
-          task.kind === 'task' &&
-          all.findIndex((other) => other.id === task.id) === index,
-      )
+    ? [...(tasks.data ?? []), ...(startTasks.data ?? [])]
+        .filter(
+          (task, index, all) =>
+            (task.start_date ?? task.due_date) !== null &&
+            (contextProject === undefined || task.project_id === contextProject) &&
+            task.kind === 'task' &&
+            all.findIndex((other) => other.id === task.id) === index,
+        )
+        .map((task) => ({ ...task, due_date: task.start_date ?? task.due_date })) // Calendar display date only; mutations still address the original task ID.
     : [];
   const title = calendarTitle(locale, current ?? 'month', cursor, cells);
   const move = (delta: number): void => {
@@ -474,6 +484,31 @@ export function CalendarPage() {
             ›
           </Button>
         </div>
+        <label className="calendar-range">
+          {messages.kindList}
+          <select
+            aria-label={messages.calendarQuickContext}
+            value={contextProject ?? ''}
+            onChange={(event) => {
+              const query = new URLSearchParams(params);
+              if (event.target.value) query.set('project_id', event.target.value);
+              else {
+                query.delete('project_id');
+                query.delete('list');
+              }
+              setParams(query);
+            }}
+          >
+            <option value="">{messages.calendarQuickAllLists}</option>
+            {projects.data?.items
+              .filter((project) => !project.closed && project.kind !== 'NOTE')
+              .map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+          </select>
+        </label>
         <CalendarPeriod
           title={title}
           date={cursor}
@@ -683,6 +718,9 @@ export function CalendarPage() {
               colors={colors}
               messages={messages}
               onOpenEvent={setOpenEvent}
+              onCreateAt={createAt}
+              draftSlot={draft?.slot}
+              timeZone={timeZone}
             />
           ) : null}
           {current === 'multi-week' || current === 'month' ? (
@@ -698,6 +736,9 @@ export function CalendarPage() {
                 cursor={cursor}
                 outsideMonth
                 onPick={setPicked}
+                onCreateAt={createAt}
+                draftingDay={draft ? calendarDay(draft.slot.start, timeZone) : null}
+                timeZone={timeZone}
               />
               {picked !== null ? (
                 <DaySheet
@@ -716,6 +757,32 @@ export function CalendarPage() {
           ) : null}
         </>
       ) : null}
+      {draft ? (
+        <QuickAddPopover
+          slot={draft.slot}
+          anchor={draft.anchor}
+          defaultProjectId={contextProject}
+          onClose={closeDraft}
+          onCreated={(notice) => {
+            setCreatedNotice(
+              messages.calendarQuickCreated.replace(
+                '{name}',
+                notice.title +
+                  ' · ' +
+                  new Date(notice.when ?? draft.slot.start).toLocaleString(locale, {
+                    timeZone,
+                    dateStyle: 'medium',
+                    ...(draft.slot.allDay ? {} : { timeStyle: 'short' }),
+                  }),
+              ),
+            );
+            setDraft(null);
+          }}
+        />
+      ) : null}
+      <p role="status" aria-live="polite" className="sr-only">
+        {createdNotice}
+      </p>
     </section>
   );
 }
@@ -778,7 +845,13 @@ function DayGrid({
   outsideMonth,
   onPick,
   dots = false,
+  onCreateAt,
+  draftingDay,
+  timeZone = 'Europe/Madrid',
 }: {
+  readonly onCreateAt?: ((slot: CalendarSlot, anchor: SlotAnchor) => void) | undefined;
+  readonly draftingDay?: string | null;
+  readonly timeZone?: string;
   readonly days: readonly Date[];
   readonly columns: number;
   readonly tasks: readonly Task[];
@@ -917,6 +990,7 @@ function DayGrid({
         const href = overflowHref(day);
         const classes = [
           'cal-cell',
+          key === draftingDay ? 'is-drafting' : '',
           weekend ? 'is-weekend' : '',
           key === todayKey ? 'is-today' : '',
           outside ? 'is-outside' : '',
@@ -935,6 +1009,38 @@ function DayGrid({
             ) : null}
             <div
               className={classes}
+              tabIndex={onCreateAt ? 0 : undefined}
+              role={onCreateAt ? 'gridcell' : undefined}
+              aria-label={
+                onCreateAt
+                  ? messages.calendarQuickCreateAt.replace(
+                      '{name}',
+                      day.toLocaleDateString(locale, { dateStyle: 'full' }),
+                    )
+                  : undefined
+              }
+              onClick={(event) => {
+                if (
+                  event.target instanceof Element &&
+                  !event.target.closest('button, a, input, .calendar-cell-task')
+                )
+                  onCreateAt?.(allDaySlot(key, timeZone), {
+                    x: event.clientX,
+                    y: event.clientY,
+                    element: event.currentTarget,
+                  });
+              }}
+              onKeyDown={(event) => {
+                if (event.target === event.currentTarget && ['Enter', ' '].includes(event.key)) {
+                  event.preventDefault();
+                  const box = event.currentTarget.getBoundingClientRect();
+                  onCreateAt?.(allDaySlot(key, timeZone), {
+                    x: box.right,
+                    y: box.top,
+                    element: event.currentTarget,
+                  });
+                }
+              }}
               data-day={key}
               data-week={Math.floor(index / columns)}
               data-column={(index % columns) + 2}

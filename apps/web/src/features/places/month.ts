@@ -134,17 +134,16 @@ export function localToday(now: Date): Date {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate());
 }
 
-export function tasksOnCell<T extends { due_date: string | null; time_zone?: string | null }>(
-  tasks: readonly T[],
-  day: Date,
-  timeZone = 'Europe/Madrid',
-): T[] {
+export function tasksOnCell<
+  T extends { due_date: string | null; start_date?: string | null; time_zone?: string | null },
+>(tasks: readonly T[], day: Date, timeZone = 'Europe/Madrid'): T[] {
   const key = localDateParam(day);
   return tasks.filter((task) => {
-    if (task.due_date === null || task.due_date.length === 0) {
+    const effective = task.start_date ?? task.due_date;
+    if (effective === null || effective.length === 0) {
       return false;
     }
-    return calendarDateKey(task.due_date, task.time_zone ?? timeZone) === key;
+    return calendarDateKey(effective, task.time_zone ?? timeZone) === key;
   });
 }
 

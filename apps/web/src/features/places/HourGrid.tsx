@@ -1,3 +1,11 @@
+import {
+  allDaySlot,
+  slotFromPoint,
+  snapToSlot,
+  type CalendarSlot,
+  type SlotAnchor,
+} from '../capture/calendar-slot';
+import { calendarDay } from '../today/groups';
 import type { Task } from '@reflexionia/sdk';
 import { CalendarDays } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
@@ -24,7 +32,13 @@ export function HourGrid({
   colors,
   messages,
   onOpenEvent,
+  onCreateAt,
+  draftSlot,
+  timeZone = 'Europe/Madrid',
 }: {
+  readonly onCreateAt?: ((slot: CalendarSlot, anchor: SlotAnchor) => void) | undefined;
+  readonly draftSlot?: CalendarSlot | null | undefined;
+  readonly timeZone?: string;
   days: readonly Date[];
   tasks: readonly Task[];
   events: readonly ExternalEventView[];
@@ -32,8 +46,41 @@ export function HourGrid({
   messages: Messages;
   onOpenEvent: (event: ExternalEventView) => void;
 }) {
+  const [selection, setSelection] = useState<CalendarSlot | null>(null);
+  const [keyboardMinute, setKeyboardMinute] = useState(9 * 60);
+  const dragging = useRef<{
+    day: string;
+    y: number;
+    x: number;
+    top: number;
+    node: HTMLElement;
+    moved: boolean;
+    active: boolean;
+    timer: number;
+    touch: boolean;
+  } | null>(null);
+  useEffect(
+    () => () => {
+      if (dragging.current) window.clearTimeout(dragging.current.timer);
+    },
+    [],
+  );
+  const ghost = selection ?? draftSlot;
+  const interactive = (target: EventTarget) =>
+    target instanceof Element &&
+    target.closest('a, button, input, textarea, select, .hour-block, .calendar-cell-task');
   const board = useRef<HTMLDivElement>(null);
   const header = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const node = board.current;
+    const holdDrag = (event: TouchEvent) => {
+      if (dragging.current?.active) event.preventDefault();
+    };
+    node?.addEventListener('touchmove', holdDrag, { passive: false });
+    return () => {
+      node?.removeEventListener('touchmove', holdDrag);
+    };
+  }, []);
   const periodKey = days.map(localKey).join(',');
   useLayoutEffect(() => {
     const node = board.current;
@@ -65,9 +112,9 @@ export function HourGrid({
     const key = localKey(day);
     const intervals = [
       ...tasksOnCell(tasks, day)
-        .filter((task) => !task.is_all_day && task.due_date)
+        .filter((task) => !task.is_all_day && (task.start_date ?? task.due_date))
         .map((task) => {
-          const start = minutesInZone(task.due_date ?? '', task.time_zone);
+          const start = minutesInZone(task.start_date ?? task.due_date ?? '', task.time_zone);
           return { id: task.id, start, end: start + (task.duration_minutes ?? 30) };
         }),
       ...events
@@ -102,6 +149,7 @@ export function HourGrid({
   } as CSSProperties;
   const clock = (iso: string) =>
     new Date(iso).toLocaleTimeString(locale, {
+      timeZone,
       hour: '2-digit',
       minute: '2-digit',
       hourCycle: 'h23',
@@ -128,7 +176,43 @@ export function HourGrid({
       <div className="hour-allday" style={columns}>
         <span className="hour-allday-label">{messages.calAllDay}</span>
         {days.map((day, index) => (
-          <div key={localKey(day)} className="hour-allday-cell" style={{ gridColumn: index + 2 }}>
+          <div
+            key={localKey(day)}
+            className="hour-allday-cell"
+            style={{ gridColumn: index + 2 }}
+            data-day={localKey(day)}
+            tabIndex={onCreateAt ? 0 : undefined}
+            role={onCreateAt ? 'gridcell' : undefined}
+            aria-label={
+              onCreateAt
+                ? messages.calendarQuickCreateAt.replace(
+                    '{name}',
+                    day.toLocaleDateString(locale, { dateStyle: 'full' }) +
+                      ' · ' +
+                      messages.calAllDay,
+                  )
+                : undefined
+            }
+            onClick={(event) => {
+              if (!interactive(event.target))
+                onCreateAt?.(allDaySlot(localKey(day), timeZone), {
+                  x: event.clientX,
+                  y: event.clientY,
+                  element: event.currentTarget,
+                });
+            }}
+            onKeyDown={(event) => {
+              if (event.target === event.currentTarget && ['Enter', ' '].includes(event.key)) {
+                event.preventDefault();
+                const box = event.currentTarget.getBoundingClientRect();
+                onCreateAt?.(allDaySlot(localKey(day), timeZone), {
+                  x: box.left,
+                  y: box.bottom,
+                  element: event.currentTarget,
+                });
+              }
+            }}
+          >
             {tasksOnCell(tasks, day)
               .filter((task) => task.is_all_day)
               .map((task) => (
@@ -185,7 +269,7 @@ export function HourGrid({
           {days.map((day) => {
             const key = localKey(day);
             const dayTasks = tasksOnCell(tasks, day).filter(
-              (task) => !task.is_all_day && task.due_date !== null,
+              (task) => !task.is_all_day && (task.start_date ?? task.due_date) !== null,
             );
             const dayEvents = events.filter((event) => {
               const range = eventDayRange(event);
@@ -193,7 +277,7 @@ export function HourGrid({
             });
             const timed = [
               ...dayTasks.map((task) => {
-                const start = minutesInZone(task.due_date ?? '', task.time_zone);
+                const start = minutesInZone(task.start_date ?? task.due_date ?? '', task.time_zone);
                 return { id: `task:${task.id}`, start, end: start + (task.duration_minutes ?? 30) };
               }),
               ...dayEvents.map((event) => {
@@ -227,11 +311,151 @@ export function HourGrid({
                 key={key}
                 className={key === today ? 'hour-col is-today' : 'hour-col'}
                 style={{ height: HOUR_PX * hours.length }}
+                data-day={key}
+                tabIndex={onCreateAt ? 0 : undefined}
+                role={onCreateAt ? 'gridcell' : undefined}
+                aria-label={
+                  onCreateAt
+                    ? messages.calendarQuickCreateAt.replace(
+                        '{name}',
+                        day.toLocaleDateString(locale, { dateStyle: 'full' }) +
+                          ' ' +
+                          String(Math.floor(keyboardMinute / 60)).padStart(2, '0') +
+                          ':' +
+                          String(keyboardMinute % 60).padStart(2, '0'),
+                      )
+                    : undefined
+                }
+                onKeyDown={(event) => {
+                  if (event.target !== event.currentTarget || !onCreateAt) return;
+                  if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+                    event.preventDefault();
+                    setKeyboardMinute(
+                      event.key === 'Home'
+                        ? 0
+                        : event.key === 'End'
+                          ? 1410
+                          : snapToSlot(keyboardMinute + (event.key === 'ArrowDown' ? 30 : -30)),
+                    );
+                  }
+                  if (['Enter', ' '].includes(event.key)) {
+                    event.preventDefault();
+                    const box = event.currentTarget.getBoundingClientRect();
+                    const y = box.top + (keyboardMinute / 60) * HOUR_PX;
+                    onCreateAt(slotFromPoint({ day: key, clientY: y, top: box.top, timeZone }), {
+                      x: box.left + box.width / 2,
+                      y,
+                      element: event.currentTarget,
+                    });
+                  }
+                }}
+                onContextMenu={(event) => {
+                  if (dragging.current?.active) event.preventDefault();
+                }}
+                onPointerDown={(event) => {
+                  if (!onCreateAt || event.button !== 0 || interactive(event.target)) return;
+                  const node = event.currentTarget;
+                  node.focus({ preventScroll: true });
+                  const touch = event.pointerType === 'touch';
+                  const id = event.pointerId;
+                  const state = {
+                    day: key,
+                    y: event.clientY,
+                    x: event.clientX,
+                    top: node.getBoundingClientRect().top,
+                    node,
+                    moved: false,
+                    active: !touch,
+                    timer: 0,
+                    touch,
+                  };
+                  dragging.current = state;
+                  if (!touch) node.setPointerCapture(id);
+                  else
+                    state.timer = window.setTimeout(() => {
+                      if (dragging.current === state) {
+                        state.active = true;
+                        node.setPointerCapture(id);
+                        setSelection(
+                          slotFromPoint({ day: key, clientY: state.y, top: state.top, timeZone }),
+                        );
+                      }
+                    }, 350);
+                }}
+                onPointerMove={(event) => {
+                  const drag = dragging.current;
+                  if (!drag) return;
+                  if (Math.hypot(event.clientY - drag.y, event.clientX - drag.x) < 6) return;
+                  if (!drag.active) {
+                    window.clearTimeout(drag.timer);
+                    dragging.current = null;
+                    return;
+                  }
+                  drag.moved = true;
+                  setSelection(
+                    slotFromPoint({
+                      day: drag.day,
+                      clientY: drag.y,
+                      endY: event.clientY,
+                      top: drag.top,
+                      timeZone,
+                    }),
+                  );
+                }}
+                onPointerUp={(event) => {
+                  const drag = dragging.current;
+                  if (!drag) return;
+                  window.clearTimeout(drag.timer);
+                  dragging.current = null;
+                  setSelection(null);
+                  if (drag.node.hasPointerCapture(event.pointerId))
+                    drag.node.releasePointerCapture(event.pointerId);
+                  const slot = slotFromPoint({
+                    day: drag.day,
+                    clientY: drag.y,
+                    top: drag.top,
+                    timeZone,
+                    ...(drag.moved ? { endY: event.clientY } : {}),
+                  });
+                  onCreateAt?.(slot, { x: event.clientX, y: event.clientY, element: drag.node });
+                }}
+                onPointerCancel={() => {
+                  if (dragging.current) window.clearTimeout(dragging.current.timer);
+                  dragging.current = null;
+                  setSelection(null);
+                }}
               >
                 {hours.map((hour) => (
                   <i key={hour} style={{ top: (hour - GRID_START_HOUR) * HOUR_PX }} />
                 ))}
                 {key === today ? <NowLine /> : null}
+                {ghost && !ghost.allDay && calendarDay(ghost.start, timeZone) === key ? (
+                  <div
+                    className="hour-ghost"
+                    style={hourBlock(
+                      minutesInZone(ghost.start, timeZone),
+                      ghost.end && calendarDay(ghost.end, timeZone) === key
+                        ? minutesInZone(ghost.end, timeZone)
+                        : 1440,
+                    )}
+                  >
+                    {new Date(ghost.start).toLocaleTimeString(locale, {
+                      timeZone,
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hourCycle: 'h23',
+                    })}
+                    –
+                    {ghost.end
+                      ? new Date(ghost.end).toLocaleTimeString(locale, {
+                          timeZone,
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hourCycle: 'h23',
+                        })
+                      : ''}
+                  </div>
+                ) : null}
                 {dayTasks.map((task) => (
                   <div
                     key={task.id}
@@ -243,7 +467,7 @@ export function HourGrid({
                   >
                     <CalendarTaskMark task={task} />
                     <Link to={`/list/${task.project_id}?task=${task.id}`}>
-                      <small>{clock(task.due_date ?? '')}</small>
+                      <small>{clock(task.start_date ?? task.due_date ?? '')}</small>
                       {calendarTaskLabel(
                         task.title,
                         task.due_date,

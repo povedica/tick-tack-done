@@ -425,3 +425,37 @@ todos los fuentes web modificados por su versión de `origin/main`, restaurados
 inmediatamente después. No es una regresión de este corte ni se ha relajado el
 umbral. Las 35 pruebas de Estadísticas pasan por bloques, y los nuevos tests 27,
 31 y 38 pasan; no se declara verde la batería ui-ux-v2 completa por ese fallo previo.
+
+## TTD-AUD-74: creación rápida desde calendario (alcance añadido)
+
+Implementado en esta misma PR por instrucción expresa del usuario. Documento de
+alcance: `docs/audit/ttd-codex-calendario-quick-add.md`. RF-1102, RF-102,
+RF-601/602/604. No cambia el contrato de API ni las reglas del servidor.
+
+| Criterio                               | Comprobación                                                                                                                                                         |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Clic Semana/Día/Varios días y fantasma | Chromium: 13:35 → 13:30; POST inicio 11:30Z, fin 12:00Z, 30 min en Europe/Madrid; tarea aparece a 648 px sin recarga                                                 |
+| Mes/Varias semanas y todo el día       | Chromium: celda y fila all-day; medianoche local, celda resaltada y chip pasado con token danger                                                                     |
+| Parser gana al hueco                   | Unitario y Chromium: fecha, prioridad, etiqueta y lista explícitas quedan para el parser, sin sobrescribir con el contexto                                           |
+| Lista de contexto                      | Selector y parámetro project_id; regresión del rango confirma project_id=context                                                                                     |
+| Arrastre                               | Chromium ratón y gesto táctil largo: 09:00–10:30 = 90 min; unitario limita cruce de día y admite selección inversa                                                   |
+| Teclado y cierre                       | Enter crea; Escape quita fantasma y devuelve foco; Tab permanece dentro; flechas mueven hora del hueco enfocado                                                      |
+| Clic fuera                             | Vacío cierra; con texto/descripción/adjuntos/metadatos conserva el formulario y evita navegación accidental                                                          |
+| Más opciones                           | Mismo TaskComposer; conserva título, descripción, fechas, duración, prioridad, lista, etiquetas y archivos. Prueba con nota.txt                                      |
+| Móvil y posición                       | Hoja 390×844 con safe area, toque y arrastre largo; prueba en cuatro esquinas y borde derecho de escritorio                                                          |
+| Zona y DST                             | Unitarios: medianoche Madrid, repetición 25/10/2026 (ocurrencia posterior), hora inexistente de marzo avanza al primer hueco válido; duración transcurrida coherente |
+| Componente                             | Dos tests con composer real: render, foco, Enter, Escape, retorno de foco y expansión del borrador                                                                   |
+
+Validación previa a integrar main: ESLint y TypeScript web; 135 tests web en verde;
+12 E2E nuevos y 5 regresiones del composer pasan. Regresión de tarea solo con inicio
+restablecida en Agenda; el resto de vistas usa fecha efectiva para mostrar las tareas.
+La prueba de clic de Semana fallaba contra Places/HourGrid anteriores, al no abrir
+ningún diálogo. `@floating-ui/react` aporta offset/flip/shift y referencia virtual.
+
+El arrastre de varios días en Mes queda fuera de este corte, como permite el
+apartado opcional del documento. La hoja admite crear día completo en ambas vistas.
+Capturas de pruebas solo locales; no se añaden imágenes/PDF/HTML a esta PR.
+
+Siguiente paso autorizado: integrar main con #71 ya fusionada, resolver conflictos
+y repetir validación conjunta. Después se aplica en un commit aparte el nuevo
+ajuste de iconos activos/inactivos del rail, conservando la segunda columna.

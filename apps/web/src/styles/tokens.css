@@ -1,4 +1,7 @@
 :root {
+  --calendar-quick-width: 19rem;
+  --ghost-bg: var(--accent-soft);
+  --ghost-border: var(--accent);
   color-scheme: light;
 
   --bg: #ffffff;
