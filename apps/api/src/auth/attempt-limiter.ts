@@ -4,19 +4,40 @@ import { DomainException } from '../http/domain.exception.js';
 import { SlidingWindowRateLimit, type RateLimitDecision } from './token-rate-limit.js';
 
 const WINDOW_MS = 15 * 60 * 1000;
-const IP_LIMIT = 10;
-const FAILURE_LIMIT = 5;
-const REGISTER_LIMIT = 5;
+/** Login and TOTP share this volume budget (S-01). */
+const DEFAULT_IP_LIMIT = 10;
+/**
+ * OAuth authorize/token/revoke volume budget (successes count). Sized so a normal
+ * ChatGPT connector flow (authorize, consent, code exchange, refresh) fits with retries.
+ */
+const DEFAULT_OAUTH_IP_LIMIT = 60;
+const DEFAULT_FAILURE_LIMIT = 5;
+const DEFAULT_REGISTER_LIMIT = 5;
+
+function envLimit(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined || raw.length === 0) {
+    return fallback;
+  }
+  const parsed = Number(raw);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
 
 /**
- * Login, registration, OAuth token and TOTP attempts (S-01).
+ * Login, registration, OAuth and TOTP attempts (S-01).
  * Redis outside Vitest, so a process restart does not clear the window.
+ * OAuth uses a separate IP bucket so connector setup does not starve web login.
  */
 @Injectable()
 export class AttemptLimiter implements OnModuleDestroy {
-  private readonly ipWindow = new SlidingWindowRateLimit(IP_LIMIT, WINDOW_MS);
-  private readonly failureWindow = new SlidingWindowRateLimit(FAILURE_LIMIT, WINDOW_MS);
-  private readonly registerWindow = new SlidingWindowRateLimit(REGISTER_LIMIT, WINDOW_MS);
+  private readonly ipLimit = envLimit('AUTH_IP_LIMIT', DEFAULT_IP_LIMIT);
+  private readonly oauthIpLimit = envLimit('AUTH_OAUTH_IP_LIMIT', DEFAULT_OAUTH_IP_LIMIT);
+  private readonly failureLimit = envLimit('AUTH_FAILURE_LIMIT', DEFAULT_FAILURE_LIMIT);
+  private readonly registerLimit = envLimit('AUTH_REGISTER_LIMIT', DEFAULT_REGISTER_LIMIT);
+  private readonly ipWindow = new SlidingWindowRateLimit(this.ipLimit, WINDOW_MS);
+  private readonly oauthIpWindow = new SlidingWindowRateLimit(this.oauthIpLimit, WINDOW_MS);
+  private readonly failureWindow = new SlidingWindowRateLimit(this.failureLimit, WINDOW_MS);
+  private readonly registerWindow = new SlidingWindowRateLimit(this.registerLimit, WINDOW_MS);
   private redis: Redis | null = null;
 
   constructor() {
@@ -46,18 +67,12 @@ export class AttemptLimiter implements OnModuleDestroy {
   }
 
   async assertAllowed(ip: string, subject: string): Promise<void> {
-    const ipDecision = await this.peek(`ip:${ip}`);
-    const failureDecision = await this.peek(`fail:${subject}`);
-    const blocked = !ipDecision.allowed
-      ? ipDecision
-      : !failureDecision.allowed
-        ? failureDecision
-        : null;
-    if (blocked !== null) {
-      throw new DomainException(HttpStatus.TOO_MANY_REQUESTS, 'rate_limited', 'Too many requests', {
-        retry_after: blocked.retryAfter,
-      });
-    }
+    await this.assertBuckets([`ip:${ip}`, `fail:${subject}`]);
+  }
+
+  /** OAuth authorize/token/revoke: own volume bucket plus the shared failure bucket. */
+  async assertOauthAllowed(ip: string, subject: string): Promise<void> {
+    await this.assertBuckets([`oauth-ip:${ip}`, `fail:${subject}`]);
   }
 
   async recordFailure(ip: string, subject: string): Promise<void> {
@@ -69,10 +84,30 @@ export class AttemptLimiter implements OnModuleDestroy {
     await this.hit(`ip:${ip}`);
   }
 
+  async recordOauthAttempt(ip: string): Promise<void> {
+    await this.hit(`oauth-ip:${ip}`);
+  }
+
   async clearSubject(subject: string): Promise<void> {
     this.failureWindow.reset(`fail:${subject}`);
     if (this.redis !== null) {
       await this.redis.del(this.key(`fail:${subject}`));
+    }
+  }
+
+  private async assertBuckets(buckets: readonly string[]): Promise<void> {
+    let blocked: RateLimitDecision | null = null;
+    for (const bucket of buckets) {
+      const decision = await this.peek(bucket);
+      if (!decision.allowed) {
+        blocked = decision;
+        break;
+      }
+    }
+    if (blocked !== null) {
+      throw new DomainException(HttpStatus.TOO_MANY_REQUESTS, 'rate_limited', 'Too many requests', {
+        retry_after: blocked.retryAfter,
+      });
     }
   }
 
@@ -81,12 +116,15 @@ export class AttemptLimiter implements OnModuleDestroy {
     readonly limit: number;
   } {
     if (bucket.startsWith('register:')) {
-      return { window: this.registerWindow, limit: REGISTER_LIMIT };
+      return { window: this.registerWindow, limit: this.registerLimit };
     }
     if (bucket.startsWith('fail:')) {
-      return { window: this.failureWindow, limit: FAILURE_LIMIT };
+      return { window: this.failureWindow, limit: this.failureLimit };
     }
-    return { window: this.ipWindow, limit: IP_LIMIT };
+    if (bucket.startsWith('oauth-ip:')) {
+      return { window: this.oauthIpWindow, limit: this.oauthIpLimit };
+    }
+    return { window: this.ipWindow, limit: this.ipLimit };
   }
 
   private async peek(bucket: string): Promise<RateLimitDecision> {
