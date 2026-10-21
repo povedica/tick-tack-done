@@ -22,6 +22,7 @@ import { DetailResizer, readDetailWidth, storeDetailWidth } from './DetailResize
 import { FocusCloser, formatClock, useActiveFocus } from './useActiveFocus';
 import { Sidebar } from './Sidebar';
 import { isSidebarShortcut, isTypingTarget } from './shortcuts';
+import { AccountPreferenceSync } from '../theme/AccountPreferenceSync';
 
 export function AppShell() {
   const messages = useMessages();
@@ -124,6 +125,7 @@ export function AppShell() {
         navLabel: collapsed ? messages.expandSidebar : messages.collapseSidebar,
       }}
     >
+      <AccountPreferenceSync />
       <div
         className="shell"
         data-sidebar={collapsed ? 'collapsed' : 'expanded'}

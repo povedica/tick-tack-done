@@ -24,7 +24,7 @@ for (const theme of ['light', 'dark'] as const) {
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
       const selected = page.locator('.sidebar .nav-link.is-active').first();
       await expect(selected).toBeVisible();
-      expect(await selected.evaluate(renderedContrast)).toBeGreaterThanOrEqual(4.5);
+      await expect.poll(() => selected.evaluate(renderedContrast)).toBeGreaterThanOrEqual(4.5);
       const other = page.locator('.sidebar .nav-link:not(.is-active)').first();
       await other.hover({ timeout: 3000 });
       expect(await other.evaluate(renderedContrast)).toBeGreaterThanOrEqual(4.5);
