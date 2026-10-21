@@ -22,6 +22,7 @@ import { readSidebarCollapsed, writeSidebarCollapsed } from './sidebar-state';
 import { ShellActionsProvider } from './shell-actions';
 import { DetailResizer, readDetailWidth, storeDetailWidth } from './DetailResizer';
 import { FocusCloser, formatClock, useActiveFocus } from './useActiveFocus';
+import { ScreenBoundary } from './ErrorBoundary';
 import { sectionOf, sectionShowsDetailPane, sectionShowsSidebar } from './section-of';
 import { Sidebar } from './Sidebar';
 import { isSidebarShortcut, isTypingTarget } from './shortcuts';
@@ -194,7 +195,9 @@ export function AppShell() {
           )}
           <LocationWatch />
           <div className="outlet" id="content">
-            <Outlet />
+            <ScreenBoundary resetKey={location.pathname}>
+              <Outlet />
+            </ScreenBoundary>
           </div>
         </div>
         {detailOpen ? (

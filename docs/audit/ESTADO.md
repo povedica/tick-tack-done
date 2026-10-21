@@ -11,18 +11,18 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-03 | 5 | corregido | #71 | Atajos de día → all-day si no había fecha |
 | TTD-AUD-04 | 5 | corregido (parcial) | #71 | Chip Cuándo = start??due; duración nowrap; fin en DatePopover pendiente |
 | TTD-AUD-05 | 2 | verificado en main | #68 | Menú acciones; verificar tras 64 si hace falta pulido |
-| TTD-AUD-06 | 5 | pendiente | — | |
+| TTD-AUD-06 | 5 | corregido | #71 | save sin await refresh; carga «Cargando…» + skeleton |
 | TTD-AUD-07 | 2 | verificado en main | #69 | Gate Ticky + layout; 63 puede ampliar el interruptor |
 | TTD-AUD-08 | 2 | corregido | #71 | Interruptor en Funcionalidades (vía 63) |
 | TTD-AUD-09 | 0 | verificado en main | #72 | Ya en main: semana calendario local; no reimplementar |
 | TTD-AUD-10 | 0 | corregido | #71 | formatFocusDuration redondea; /focus etiquetado como total |
 | TTD-AUD-11 | 0 | verificado en tests | #67 | Test: weekly-automation.e2e-spec.ts |
-| TTD-AUD-12 | 5 | pendiente | — | |
+| TTD-AUD-12 | 5 | corregido | #71 | Chip control muestra N/100 |
 | TTD-AUD-13 | 5 | pendiente | — | |
 | TTD-AUD-14 | 2 | corregido (parcial) | #71 | Botón info icono; ámbito filtra NOTE |
 | TTD-AUD-15 | 5 | pendiente | — | |
 | TTD-AUD-16 | 0 | corregido | #71 | Purga optimista + rollback; contador trash |
-| TTD-AUD-17 | 5 | pendiente | — | |
+| TTD-AUD-17 | 5 | corregido | #71 | Button primary en Nueva lista/etiqueta |
 | TTD-AUD-18 | 5 | pendiente | — | |
 | TTD-AUD-19 | 5 | pendiente | — | |
 | TTD-AUD-20 | 5 | pendiente | — | |
@@ -35,7 +35,7 @@ Base: `origin/main` @ arranque de la rama.
 | TTD-AUD-27 | 5 | corregido (parcial) | #71 | Due hoy + página countdowns i18n; ticky/dialog pendientes |
 | TTD-AUD-28 | 0 | verificado en tests | #66 | Tests: run-action.spec.ts, query-client.spec.ts |
 | TTD-AUD-29 | 0 | corregido | #71 | onUnauthorized → login?next=; red ≠ logout |
-| TTD-AUD-30 | 5 | pendiente | — | |
+| TTD-AUD-30 | 5 | corregido | #71 | Boundary por ruta + i18n; reset al navegar |
 | TTD-AUD-31 | 5 | pendiente | — | |
 | TTD-AUD-32 | 5 | corregido (parcial) | #71 | Plural + boot; confirm countdowns; hábitos/plan pendientes |
 | TTD-AUD-33 | 3 | corregido | #71 | Hoja inferior «Más»; Ticky filtrado; scrim encima |

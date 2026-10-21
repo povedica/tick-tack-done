@@ -32,7 +32,7 @@ import {
 import { useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import { Link, NavLink, useLocation, useMatch, useNavigate } from 'react-router';
 import { api } from '../api';
-import { Badge } from '../components/ui';
+import { Badge, Button } from '../components/ui';
 import { TagIcon } from '../components/TagIcon';
 import { fill, useMessages, type Messages } from '../i18n';
 import { useFeatures } from '../features/settings/feature-flags';
@@ -400,7 +400,9 @@ export function Sidebar({
                       }
                     }}
                   />
-                  <button type="submit">{messages.createLabel}</button>
+                  <Button type="submit" size="sm" variant="primary">
+                    {messages.createLabel}
+                  </Button>
                   {listError !== null ? <p className="error">{listError}</p> : null}
                 </form>
               ) : null}
@@ -591,7 +593,9 @@ export function Sidebar({
                       }
                     }}
                   />
-                  <button type="submit">{messages.createLabel}</button>
+                  <Button type="submit" size="sm" variant="primary">
+                    {messages.createLabel}
+                  </Button>
                   {tagError !== null ? <p className="error">{tagError}</p> : null}
                 </form>
               ) : null}

@@ -10,7 +10,7 @@ import { DatePopover, reminderLabel, type DateDraft } from '../../components/Dat
 import { bindPopover } from '../../components/popover-stack';
 import { PriorityMenu } from '../../components/PriorityMenu';
 import { TagPicker } from '../../components/TagPicker';
-import { Button } from '../../components/ui';
+import { Button, SkeletonRows } from '../../components/ui';
 import { useActionToast } from '../../components/action-toast';
 import { fill, useMessages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
@@ -97,11 +97,11 @@ export function TaskDetail({
   const save = useMutation({
     mutationFn: (body: Parameters<typeof api.patchTask>[1]) =>
       runOrQueue(newMutation('update', taskId, { ...body }), () => api.patchTask(taskId, body)),
-    onSuccess: async (outcome) => {
+    onSuccess: (outcome) => {
       setSaved(true);
       setError(null);
       if (!outcome.queued) {
-        await refresh();
+        void refresh();
       }
     },
     onError: (caught: unknown) => {
@@ -146,7 +146,8 @@ export function TaskDetail({
   if (detail.data === undefined) {
     return (
       <aside className="detail-panel" aria-busy="true">
-        <p>{messages.saving}</p>
+        <SkeletonRows />
+        <p className="ui-muted">{messages.detailLoading}</p>
       </aside>
     );
   }
