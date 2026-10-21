@@ -9,7 +9,7 @@ siguen el orden de prioridad de la petición; no se consideran cerrados.
 | TTD-AUD-02 | corregido | [#61](https://github.com/povedica/tick-tack-done/pull/61) | Rangos ES/EN, título limpio, inicio y duración; tests del parser y creación real por API, incluidos cambios DST.                                                            |
 | TTD-AUD-03 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                                     |
 | TTD-AUD-04 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-05 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                                     |
+| TTD-AUD-05 | corregido | pendiente de publicación                                  | Menú vertical acotado al viewport, sin desbordamiento; flechas/Inicio/Fin/Escape y retorno del foco. Regresión Chromium a 1280 y 360 px.                                    |
 | TTD-AUD-06 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                                     |
 | TTD-AUD-07 | aplazado  | —                                                         | Pendiente, según el orden de prioridad.                                                                                                                                     |
 | TTD-AUD-08 | aplazado  | —                                                         | F-1…F-10 excluidos expresamente; solo se abordarán accesos y maquetación de ttd junto a TTD-AUD-07.                                                                         |
@@ -220,3 +220,12 @@ Muestra negativa de lint rechazada por no-floating-promises; OpenAPI sin diferen
 Validación de TTD-AUD-11: typecheck, lint y suites completas en verde
 (284 dominio, 110 web, 101 API y 9 SDK); integración: 124 pasan, 2 omitidos.
 OpenAPI regenerado sin diferencias.
+
+## TTD-AUD-05: criterios de aceptación
+
+- Reproducción previa en Chromium a 1280 y 360 px: scroll horizontal y acciones en paralelo.
+- Grupos verticales, etiquetas completas con salto de línea, iconos sin comprimir y ancho limitado al viewport. El scroll vertical permite acceder a todas las acciones.
+- Flechas con recorrido circular, Inicio/Fin, Escape y foco restaurado al disparador; se evita ejecutar el atajo de la lista de fondo.
+- Regresión del diálogo de fecha y su foco atrapado también pasa. No cambia el comportamiento de las acciones.
+- RF cubiertos: RF-1001 y RF-1902. Sin API, modelo, colores fijos ni textos nuevos.
+- Validación: typecheck, lint, 284 tests de dominio, 110 web, 101 API y 9 SDK; 3 pruebas Chromium en verde.

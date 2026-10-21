@@ -1,5 +1,53 @@
 import { expect, test, type Page } from '@playwright/test';
 
+for (const width of [1280, 360]) {
+  test(`TTD-AUD-05: task actions fit vertically and support keyboard (${width}px)`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await fixtures(page);
+    await page.goto('/today?task=audit-task');
+    const trigger = page
+      .getByRole('complementary', { name: 'Tarea' })
+      .getByRole('button', { name: 'Más acciones', exact: true });
+    await trigger.click();
+    const menu = page.getByRole('dialog', { name: 'Más acciones', exact: true });
+    await expect(menu).toBeVisible();
+    const items = menu.getByRole('menuitem');
+    expect(await items.count()).toBeGreaterThan(10);
+    const dimensions = await menu.evaluate((node) => {
+      const buttons = [...node.querySelectorAll<HTMLElement>('[role="menuitem"]')];
+      const rect = node.getBoundingClientRect();
+      return {
+        overflow: node.scrollWidth > node.clientWidth,
+        left: rect.left,
+        right: rect.right,
+        vertical: buttons.every(
+          (button, index) => index === 0 || button.offsetTop > buttons[index - 1]!.offsetTop,
+        ),
+        labelsFit: buttons.every((button) => button.scrollWidth <= button.clientWidth),
+      };
+    });
+    expect(dimensions).toMatchObject({ overflow: false, vertical: true, labelsFit: true });
+    expect(dimensions.left).toBeGreaterThanOrEqual(0);
+    expect(dimensions.right).toBeLessThanOrEqual(width);
+    await expect(items.first()).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(items.nth(1)).toBeFocused();
+    await page.keyboard.press('End');
+    await expect(items.last()).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(items.first()).toBeFocused();
+    await page.keyboard.press('ArrowUp');
+    await expect(items.last()).toBeFocused();
+    await page.keyboard.press('Home');
+    await expect(items.first()).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+  });
+}
+
 const initialOrder = [
   'calendar',
   'matrix',
