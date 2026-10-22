@@ -38,7 +38,7 @@ describe('McpService recurrence mapping', () => {
   };
   const lists = {
     listProjects: vi.fn().mockResolvedValue({
-      items: [{ id: '22222222-2222-4222-8222-222222222222', is_inbox: true }],
+      items: [{ id: '22222222-2222-4222-8222-222222222222', name: 'Bandeja', is_inbox: true }],
     }),
   };
   const tags = {
@@ -484,6 +484,91 @@ describe('McpService recurrence mapping', () => {
     expect(JSON.parse(toolText(response))).toMatchObject({
       next_occurrence: '2026-10-22T22:00:00.000Z',
     });
+  });
+  it('TTD-AUD-82: parse:true resolves an existing list without case or accents', async () => {
+    lists.listProjects.mockResolvedValueOnce({
+      items: [
+        { id: '22222222-2222-4222-8222-222222222222', name: 'Bandeja', is_inbox: true },
+        { id: '55555555-5555-4555-8555-555555555555', name: 'Grókbot', is_inbox: false },
+      ],
+      next_cursor: null,
+    });
+    tasks.create.mockResolvedValue({
+      body: { id: '33333333-3333-4333-8333-333333333333', title: 'Llamar', repeat_rule: null },
+    });
+    await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 82,
+      method: 'tools/call',
+      params: { name: 'create_task', arguments: { title: 'Llamar ^grokbot', parse: true } },
+    });
+    expect(tasks.create).toHaveBeenCalledWith(
+      user,
+      expect.objectContaining({ project_id: '55555555-5555-4555-8555-555555555555' }),
+      undefined,
+      'api',
+    );
+  });
+  it('TTD-AUD-82: complete_task forwards the explicit children decision', async () => {
+    tasks.complete.mockResolvedValue({ body: { status: 'completed', repeat_rule: null } });
+    await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 82,
+      method: 'tools/call',
+      params: {
+        name: 'complete_task',
+        arguments: { id: '33333333-3333-4333-8333-333333333333', complete_children: 'complete' },
+      },
+    });
+    expect(tasks.complete).toHaveBeenCalledWith(
+      user,
+      '33333333-3333-4333-8333-333333333333',
+      expect.objectContaining({ complete_children: 'complete' }),
+      undefined,
+    );
+  });
+  it('TTD-AUD-82: exposes actionable pending child counts in tool error data', async () => {
+    tasks.complete.mockRejectedValueOnce(
+      new DomainException(HttpStatus.CONFLICT, 'children_need_decision', 'Choose children', {
+        pending_checklist: 1,
+        pending_children: 2,
+        hint: 'retry with complete_children',
+      }),
+    );
+    const result = await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 82,
+      method: 'tools/call',
+      params: { name: 'complete_task', arguments: { id: '33333333-3333-4333-8333-333333333333' } },
+    });
+    expect(result).toMatchObject({
+      result: { isError: true, data: { pending_checklist: 1, pending_children: 2 } },
+    });
+  });
+  it('TTD-AUD-82: update_task accepts and forwards parent_id:null', async () => {
+    tasks.get.mockResolvedValue({
+      id: '33333333-3333-4333-8333-333333333333',
+      repeat_rule: null,
+      tag_ids: [],
+      time_zone: 'Europe/Madrid',
+    });
+    tasks.update.mockResolvedValue({ id: '33333333-3333-4333-8333-333333333333', parent_id: null });
+    const result = await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 82,
+      method: 'tools/call',
+      params: {
+        name: 'update_task',
+        arguments: { id: '33333333-3333-4333-8333-333333333333', parent_id: null },
+      },
+    });
+    expect(result).toMatchObject({ result: { isError: false } });
+    expect(tasks.update).toHaveBeenCalledWith(
+      user,
+      '33333333-3333-4333-8333-333333333333',
+      expect.objectContaining({ parent_id: null }),
+      'mcp',
+    );
   });
 });
 

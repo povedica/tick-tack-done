@@ -2391,6 +2391,7 @@
           "schema": {
             "type": "object",
             "properties": {
+              "parent_id": { "type": "object", "nullable": true },
               "column_id": { "type": "object" },
               "title": { "type": "string", "maxLength": 500 },
               "content": { "type": "string" },

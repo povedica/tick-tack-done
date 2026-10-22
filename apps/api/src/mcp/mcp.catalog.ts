@@ -252,6 +252,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     inputSchema: objectSchema(
       {
         id,
+        complete_children: { type: 'string', enum: ['complete', 'leave'] },
         advance: {
           type: 'string',
           enum: ['one_period', 'next_future'],
@@ -269,13 +270,14 @@ export const MCP_TOOLS: readonly McpTool[] = [
   {
     name: 'reopen_task',
     description:
-      'Reopen a completed task (API uncomplete). Workflow columns are separate from status — use column_id when available (TTD-AUD-53).',
+      'Reopen a completed or cancelled task (409 not_reopenable if already active). Workflow columns are separate from status — use column_id when available (TTD-AUD-53).',
     scopes: ['tasks:write'],
     inputSchema: objectSchema({ id }, ['id']),
   },
   {
     name: 'cancel_task',
-    description: 'Cancel a task (status=cancelled). Soft-delete uses delete_task instead.',
+    description:
+      'Cancel a task (status=cancelled; hidden from lists, kept in history). Undo with reopen_task. Soft-delete is delete_task; restore with restore_task.',
     scopes: ['tasks:write'],
     inputSchema: objectSchema({ id }, ['id']),
   },
@@ -416,6 +418,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     inputSchema: objectSchema(
       {
         id,
+        parent_id: { type: ['string', 'null'], format: 'uuid' },
         title: { type: 'string', minLength: 1, maxLength: 500 },
         content: { type: ['string', 'null'], maxLength: 100_000 },
         column_id: { type: ['string', 'null'], format: 'uuid' },

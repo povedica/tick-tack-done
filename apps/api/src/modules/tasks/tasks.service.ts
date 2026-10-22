@@ -366,6 +366,30 @@ export class TasksService {
         return this.load(tx, user, id, false);
       }
       dto = selected.dto;
+      if (dto.parent_id !== undefined) {
+        const key = `task-hierarchy:${user.id}`;
+        await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtextextended(${key}, 0))`;
+        if (dto.parent_id !== null) {
+          const parent = await tx.task.findFirst({
+            where: {
+              id: dto.parent_id,
+              ownerId: user.id,
+              projectId: current.projectId,
+              deletedAt: null,
+            },
+            select: { id: true, parentId: true },
+          });
+          const children = await tx.task.count({
+            where: { parentId: id, ownerId: user.id, deletedAt: null },
+          });
+          if (parent === null || parent.id === id || parent.parentId !== null || children > 0)
+            throw new DomainException(
+              HttpStatus.BAD_REQUEST,
+              'invalid_parent',
+              'Parent must be in the same list without cycles or nested children',
+            );
+        }
+      }
       const previous = await this.load(tx, user, id, false);
       const title = dto.title === undefined ? current.title : this.title(dto.title);
       const timeZone = dto.time_zone === undefined ? current.timeZone : this.zone(dto.time_zone);
@@ -438,6 +462,7 @@ export class TasksService {
         where: { id },
         data: {
           title,
+          ...(dto.parent_id === undefined ? {} : { parentId: dto.parent_id }),
           content,
           timeZone,
           startDate: start,
@@ -590,8 +615,12 @@ export class TasksService {
   async uncomplete(user: AuthUser, id: string): Promise<TaskDetail> {
     return this.prisma.$transaction(async (tx) => {
       const current = await this.require(tx, user.id, id, false);
-      if (current.status !== 'completed') {
-        return this.load(tx, user, id, false);
+      if (current.status !== 'completed' && current.status !== 'cancelled') {
+        throw new DomainException(
+          HttpStatus.CONFLICT,
+          'not_reopenable',
+          'Only completed or cancelled tasks can be reopened',
+        );
       }
       if (current.seriesId !== null) {
         const successor = await tx.task.findFirst({
@@ -617,12 +646,12 @@ export class TasksService {
       });
       const detail = await this.load(tx, user, id, false);
       await this.events.record(tx, actorOf(user), {
-        type: DomainEvent.taskUncompleted,
+        type: DomainEvent.taskReopened,
         entityType: 'task',
         entityId: id,
         action: 'updated',
         data: { task: asJson(taskEventSnapshot(detail)) },
-        previous: { status: 'completed' },
+        previous: { status: current.status },
       });
       return detail;
     });
@@ -1525,6 +1554,10 @@ export class TasksService {
     dto: CreateTaskDto,
     source: 'manual' | 'api' = 'manual',
   ): Promise<CreatedTask> {
+    if (dto.parent_id) {
+      const key = `task-hierarchy:${user.id}`;
+      await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtextextended(${key}, 0))`;
+    }
     const captured =
       dto.raw_text === undefined
         ? null
@@ -1702,6 +1735,9 @@ export class TasksService {
         'Choose what to do with active children',
         {
           active_child_count: decision.activeChildCount,
+          pending_children: activeChildren,
+          pending_checklist: activeItems,
+          hint: 'retry with complete_children',
         },
       );
     }

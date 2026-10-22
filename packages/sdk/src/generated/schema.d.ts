@@ -4455,6 +4455,7 @@ export interface components {
             until?: Record<string, never> | null;
         };
         UpdateTaskDto: {
+            parent_id?: Record<string, never> | null;
             column_id?: Record<string, never>;
             title?: string;
             content?: string;

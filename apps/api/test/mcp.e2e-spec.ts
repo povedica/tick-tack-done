@@ -157,13 +157,25 @@ describe('MCP server', () => {
   });
 
   it('R80: captures the full tools/list contract with a synthetic owner', async () => {
-    const token = await request(server).post('/api/v1/me/tokens').set('X-Dev-User-Email', owner.email)
-      .send({ name: 'R80 catalog', scopes: [...API_SCOPES] }).expect(201);
-    const response = await rpc(server, { Authorization: `Bearer ${String(token.body.token)}` }, 'tools/list', {});
+    const token = await request(server)
+      .post('/api/v1/me/tokens')
+      .set('X-Dev-User-Email', owner.email)
+      .send({ name: 'R80 catalog', scopes: [...API_SCOPES] })
+      .expect(201);
+    const response = await rpc(
+      server,
+      { Authorization: `Bearer ${String(token.body.token)}` },
+      'tools/list',
+      {},
+    );
     expect(response.status).toBe(200);
     expect(response.body.result.tools.length).toBeGreaterThanOrEqual(61);
     const phase = process.env.R80_CAPTURE_CATALOG;
-    if (phase === 'antes' || phase === 'despues') writeFileSync(`../../docs/audit/r80/mcp-tools-${phase}.json`, JSON.stringify(response.body.result, null, 2) + '\n');
+    if (phase === 'antes' || phase === 'despues')
+      writeFileSync(
+        `../../docs/audit/r80/mcp-tools-${phase}.json`,
+        JSON.stringify(response.body.result, null, 2) + '\n',
+      );
   });
 
   it('RF-2001: GET and DELETE stay on POST until a server stream exists', async () => {
@@ -718,6 +730,126 @@ describe('MCP server', () => {
       code: 'anchor_outside_rule',
       next_matching: '2026-10-26',
     });
+  });
+  it('TTD-AUD-82: parsed lists resolve without creation and update moves the task', async () => {
+    const bearer = await tasksBearer(server, owner.email);
+    const list = await prisma.project.create({ data: { ownerId: owner.id, name: 'Grókbot' } });
+    const call = async (name: string, args: Record<string, unknown>) =>
+      JSON.parse(
+        toolText(
+          (await rpc(server, bearer, 'tools/call', { name, arguments: args })).body as unknown,
+        ),
+      ) as Record<string, unknown>;
+    const known = await call('create_task', { title: 'Llamar ^grokbot', parse: true });
+    expect(known.project_id).toBe(list.id);
+    const missing = await call('create_task', { title: 'Llamar ^NoExisteR80', parse: true });
+    expect(missing.project_id).toBe(owner.inboxId);
+    expect(missing.warnings).toContainEqual({ code: 'list_not_found', name: 'NoExisteR80' });
+    expect(await prisma.project.count({ where: { ownerId: owner.id, name: 'NoExisteR80' } })).toBe(
+      0,
+    );
+    const moved = await call('update_task', {
+      id: missing.id,
+      title: 'Actualizar ^GROKBOT',
+      parse: true,
+    });
+    expect(moved.project_id).toBe(list.id);
+  });
+  it('TTD-AUD-82: completes a pending checklist only after an explicit decision', async () => {
+    const bearer = await tasksBearer(server, owner.email);
+    const made = await rpc(server, bearer, 'tools/call', {
+      name: 'create_task',
+      arguments: { title: 'R80 checklist decision' },
+    });
+    const task = JSON.parse(toolText(made.body as unknown)) as { id: string };
+    await rpc(server, bearer, 'tools/call', {
+      name: 'add_checklist_item',
+      arguments: { task_id: task.id, title: 'Pending' },
+    });
+    const refused = await rpc(server, bearer, 'tools/call', {
+      name: 'complete_task',
+      arguments: { id: task.id },
+    });
+    expect(refused.body.result).toMatchObject({
+      isError: true,
+      data: { pending_checklist: 1, pending_children: 0, hint: 'retry with complete_children' },
+    });
+    const completed = await rpc(server, bearer, 'tools/call', {
+      name: 'complete_task',
+      arguments: { id: task.id, complete_children: 'complete' },
+    });
+    expect(JSON.parse(toolText(completed.body as unknown))).toMatchObject({
+      status: 'completed',
+      checklist_progress: { completed: 1, total: 1 },
+    });
+  });
+  it('TTD-AUD-82: cancelled tasks reopen and active tasks reject another reopen', async () => {
+    const bearer = await tasksBearer(server, owner.email);
+    const task = await prisma.task.create({
+      data: {
+        ownerId: owner.id,
+        projectId: owner.inboxId,
+        createdById: owner.id,
+        title: 'R80 reopen cancelled',
+        status: 'cancelled',
+      },
+    });
+    const opened = await rpc(server, bearer, 'tools/call', {
+      name: 'reopen_task',
+      arguments: { id: task.id },
+    });
+    expect(JSON.parse(toolText(opened.body as unknown))).toMatchObject({ status: 'active' });
+    expect(
+      await prisma.outboxEvent.count({ where: { ownerId: owner.id, type: 'task.reopened@v1' } }),
+    ).toBeGreaterThan(0);
+    const again = await rpc(server, bearer, 'tools/call', {
+      name: 'reopen_task',
+      arguments: { id: task.id },
+    });
+    expect(toolText(again.body as unknown)).toContain('not_reopenable');
+  });
+  it('TTD-AUD-82: reparents and detaches children, rejects cycles and cross-list parents', async () => {
+    const bearer = await tasksBearer(server, owner.email);
+    const first = await prisma.task.create({
+      data: {
+        ownerId: owner.id,
+        projectId: owner.inboxId,
+        createdById: owner.id,
+        title: 'R80 parent',
+      },
+    });
+    const second = await prisma.task.create({
+      data: {
+        ownerId: owner.id,
+        projectId: owner.inboxId,
+        createdById: owner.id,
+        title: 'R80 child',
+      },
+    });
+    const call = (args: Record<string, unknown>) =>
+      rpc(server, bearer, 'tools/call', { name: 'update_task', arguments: args });
+    const child = await call({ id: second.id, parent_id: first.id });
+    expect(JSON.parse(toolText(child.body as unknown))).toMatchObject({ parent_id: first.id });
+    expect(
+      toolText((await call({ id: first.id, parent_id: second.id })).body as unknown),
+    ).toContain('invalid_parent');
+    expect(
+      JSON.parse(toolText((await call({ id: second.id, parent_id: null })).body as unknown)),
+    ).toMatchObject({ parent_id: null });
+    const otherList = await prisma.project.create({
+      data: { ownerId: owner.id, name: 'R80 other' },
+    });
+    const other = await prisma.task.create({
+      data: {
+        ownerId: owner.id,
+        projectId: otherList.id,
+        createdById: owner.id,
+        title: 'Other parent',
+      },
+    });
+    expect(
+      toolText((await call({ id: second.id, parent_id: other.id })).body as unknown),
+    ).toContain('invalid_parent');
   });
 });
 

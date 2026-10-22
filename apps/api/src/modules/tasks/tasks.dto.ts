@@ -186,6 +186,11 @@ export class CreateTaskDto {
 }
 
 export class UpdateTaskDto {
+  @ApiProperty({ required: false, nullable: true })
+  @IsOptional()
+  @IsUUID()
+  parent_id?: string | null;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsUUID()

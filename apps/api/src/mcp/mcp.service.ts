@@ -6,6 +6,7 @@ import {
   civilDateKey,
   describeRepeatRule,
   nextOccurrence,
+  listNameKey,
   HABIT_WEEKDAYS,
   parseMentions,
   parseQuickAdd,
@@ -96,8 +97,14 @@ export class McpService {
         if (code === 'method_not_found') {
           return failure(id, -32601, 'Method not found');
         }
+        const response = error.getResponse();
+        const details = isRecord(response) && isRecord(response.details) ? response.details : {};
         if (body.method === 'tools/call') {
-          return { jsonrpc: '2.0', id, result: toolError(code, message) };
+          return {
+            jsonrpc: '2.0',
+            id,
+            result: toolError(code, message, { status: error.getStatus(), ...details }),
+          };
         }
         return failure(id, -32602, message.length > 0 ? `${code}: ${message}` : code);
       }
@@ -270,15 +277,26 @@ export class McpService {
         const tagIds = await this.resolveCreateTags(user, args);
         const title = requiredString(args, 'title', 500);
         const parse = args.parse === true;
+        const parsed = parse
+          ? parseQuickAdd(title, 'es', {
+              now: new Date().toISOString(),
+              timeZone: user.timeZone,
+            })
+          : null;
+        const resolution =
+          args.project_id === undefined && parsed?.listName
+            ? await this.parsedList(user, parsed.listName)
+            : null;
+        const projectId = resolution?.id ?? (await this.projectId(user, args));
         const parentId = uuidOrEmpty(args.parent_id);
         const columnId = uuidOrEmpty(args.column_id);
-        return enrichTask(
+        const created = enrichTask(
           (
             await this.tasks.create(
               user,
               {
                 ...(parse ? { raw_text: title } : { title }),
-                project_id: await this.projectId(user, args),
+                project_id: projectId,
                 ...(typeof args.content === 'string' ? { content: args.content } : {}),
                 ...(tagIds === undefined ? {} : { tag_ids: tagIds }),
                 ...(parentId === undefined ? {} : { parent_id: parentId }),
@@ -291,6 +309,9 @@ export class McpService {
             )
           ).body,
         );
+        return resolution?.warning
+          ? { ...created, warnings: [...(created.warnings ?? []), resolution.warning] }
+          : created;
       }
       case 'quick_add': {
         return enrichTask(
@@ -321,6 +342,9 @@ export class McpService {
             {
               advance,
               materialize_next: args.materialize_next === true,
+              ...(args.complete_children === 'complete' || args.complete_children === 'leave'
+                ? { complete_children: args.complete_children }
+                : {}),
             },
             undefined,
           )
@@ -507,11 +531,18 @@ export class McpService {
         let tagIds = await this.resolveUpdateTags(user, args, existing.tag_ids);
         let title = typeof args.title === 'string' ? requiredString(args, 'title', 500) : undefined;
         let parsedSchedule = schedule;
+        let listWarning: { code: 'list_not_found'; name: string } | null = null;
         if (args.parse === true && title !== undefined) {
           const parsed = parseQuickAdd(title, 'es', {
             now: new Date().toISOString(),
             timeZone: existing.time_zone,
           });
+          if (parsed.listName) {
+            const resolved = await this.parsedList(user, parsed.listName);
+            listWarning = resolved.warning;
+            if (resolved.id !== null && resolved.id !== existing.project_id)
+              await this.tasks.move(user, id, { project_id: resolved.id });
+          }
           title = parsed.title.length > 0 ? parsed.title : title;
           if (tagIds === undefined && parsed.tagNames.length > 0) {
             tagIds = await this.ensureTagNames(user, parsed.tagNames);
@@ -532,12 +563,14 @@ export class McpService {
               : {}),
           };
         }
+        const parentId = args.parent_id === null ? null : uuidOrEmpty(args.parent_id);
         const columnId = args.column_id === null ? null : uuidOrEmpty(args.column_id);
-        return enrichTask(
+        const updated = enrichTask(
           await this.tasks.update(
             user,
             id,
             {
+              ...(parentId === undefined ? {} : { parent_id: parentId }),
               ...(title === undefined ? {} : { title }),
               ...(args.content === null
                 ? { content: '' }
@@ -552,6 +585,9 @@ export class McpService {
             'mcp',
           ),
         );
+        return listWarning
+          ? { ...updated, warnings: [...(updated.warnings ?? []), listWarning] }
+          : updated;
       }
       case 'get_task_occurrences':
         return this.tasks.occurrences(
@@ -889,6 +925,20 @@ export class McpService {
     }
   }
 
+  private async parsedList(
+    user: AuthUser,
+    name: string,
+  ): Promise<{ id: string | null; warning: { code: 'list_not_found'; name: string } | null }> {
+    let cursor: string | undefined;
+    do {
+      const page = await this.lists.listProjects(user, 100, cursor, true);
+      const found = page.items.find((project) => listNameKey(project.name) === listNameKey(name));
+      if (found) return { id: found.id, warning: null };
+      cursor = page.next_cursor ?? undefined;
+    } while (cursor !== undefined);
+    return { id: null, warning: { code: 'list_not_found', name } };
+  }
+
   private async projectId(user: AuthUser, args: Record<string, unknown>): Promise<string> {
     const explicit = uuidOrEmpty(args.project_id);
     if (explicit !== undefined) {
@@ -1026,10 +1076,15 @@ function exceptionMessage(error: DomainException): string {
 function toolError(
   code: string,
   message?: string,
-): { content: { type: 'text'; text: string }[]; isError: true } {
+  data?: Record<string, unknown>,
+): { content: { type: 'text'; text: string }[]; isError: true; data?: Record<string, unknown> } {
   const text =
     message !== undefined && message.length > 0 && message !== code ? `${code}: ${message}` : code;
-  return { content: [{ type: 'text', text }], isError: true };
+  return {
+    content: [{ type: 'text', text }],
+    isError: true,
+    ...(data === undefined ? {} : { data }),
+  };
 }
 
 function enrichTask<

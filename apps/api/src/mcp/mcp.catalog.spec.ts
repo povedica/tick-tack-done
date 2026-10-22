@@ -129,3 +129,11 @@ describe('MCP tool catalog', () => {
     expect(visibleTools(['tasks:write']).map((tool) => tool.name)).toContain('quick_add');
   });
 });
+
+
+it('TTD-AUD-82: cancellation explains history, reopening and trash separately', () => {
+  const tool = MCP_TOOLS.find(tool => tool.name === 'cancel_task');
+  expect(tool?.description).toContain('hidden from lists, kept in history');
+  expect(tool?.description).toContain('reopen_task');
+  expect(tool?.description).toContain('restore_task');
+});

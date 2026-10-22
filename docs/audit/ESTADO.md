@@ -1035,7 +1035,7 @@ Base actualizada: afc9f5d. Comprobación previa en [r80/verificacion-previa.md](
 | --- | ------------------------------------------------------------- | ----------------------------------- |
 | 80  | Implementado; validación local; staging pendiente             | [OAuth](r80/80-oauth.md)            |
 | 81  | Implementado; aceptación local; copia de producción pendiente | [Recurrencia](r80/81-recurrence.md) |
-| 82  | Pendiente de implementación y aceptación                      | PR #75                              |
+| 82 | Implementado; validación local | [Tareas MCP](r80/82-tasks.md) |
 | 83  | Pendiente de implementación y aceptación                      | PR #75                              |
 | 84  | Pendiente de implementación y aceptación                      | PR #75                              |
 | 85  | Pendiente de implementación y aceptación                      | PR #75                              |
