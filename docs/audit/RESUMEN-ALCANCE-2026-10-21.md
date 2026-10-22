@@ -1,6 +1,8 @@
 # Alcance y estado al guardar los avances del 21/10/2026
 
-Rama `codex/ttd-audit-remaining`, PR #73, abierta en borrador. Este corte guarda
+Registro histórico del 21/10: rama `codex/ttd-audit-remaining`, PR #73 entonces
+abierta en borrador. La continuación y el estado operativo actual están al final.
+Este corte guardaba
 los avances de calendario y alta; no cerraba 75–79. La autorización posterior
 del 22/10 para merge y despliegue prevalece; ver la continuación al final.
 Fuentes: `ESTADO.md`, `ttd-codex-r75.md`, decisiones posteriores del usuario y
@@ -154,7 +156,7 @@ que ya existen en código.
   en los recorridos de esta continuación; no hay medición con dispositivo real.
 
 El último permiso del usuario autoriza merge y producción. El acceso específico al VPS, recuperado del historial, responde;
-backup y despliegue en preparación. No se declara un despliegue nuevo todavía. 75.11 y Ticky F1–F10 permanecen excluidos. No se ha modificado `localuser` ni
+backup previo completado y `acd7570` desplegado y comprobado en producción. 75.11 y Ticky F1–F10 permanecen excluidos. No se ha modificado `localuser` ni
 se incorporan los cambios de especificación aportados por el usuario.
 
 ### Evidencia consolidada del código
@@ -166,5 +168,42 @@ de logout e inicialización de Estadísticas y la alineación de Agenda.
 
 Commits: `0dbc0d0`, `a2674d3`, `5e14ac0`, `1132595`, `5d7d96f`; PR #73.
 Playwright completo: **262 correctas y 2 omitidas**, API simulada. CodeQL correcto.
-CI final y despliegue se registran al terminar; no convertir este inventario
-en una declaración de aceptación con datos reales.
+CI y CodeQL correctos en `be06896`; PR #73 mergeada en `acd7570`.
+El despliegue y la evidencia real se registran a continuación; las pruebas
+simuladas siguen diferenciadas de la sesión real.
+
+## Estado operativo final — 22/10/2026
+
+PR #73 mergeada en main, `acd7570`, desplegada en todo.reflexionia.com. Health
+público confirma ese commit. Backup privado previo de base/adjuntos/código e
+imágenes conservadas; main local actualizado y documentos del usuario preservados.
+
+- **78 Foco:** Pomo/Cronómetro, pausa, presets, resumen por zona y registro
+  implementados. Dominio/API reales en base temporal y navegador simulado;
+  pantallas y endpoints leídos también con cuenta real tras desplegar.
+- **79 Tokens/MCP:** aplicaciones, PAT/caducidad/revocación, actividad, permisos
+  e instrucciones implementados. PAT temporal real creado/revocado; MCP directo
+  initialize/listado/catálogo/GET y rechazo de PATCH sin permiso verificados.
+- **Transversales:** preferencias por cuenta en servidor (otro contexto de
+  navegador y PostgreSQL), carrera de logout corregida y logout real desde UI
+  correcto. Google nuevo lee nueve calendarios del propietario.
+- **Repaso 76/77 y escritorio/móvil:** 262 Playwright correctas, 2 omitidas,
+  con API simulada; diez aperturas reales (Foco, Tokens, Mes, Año, Hoy ×
+  1280/390), sin overflow ni errores JS. Editor y avatar reales comprobados.
+
+Pendientes concretos que no se ocultan:
+
+1. 76: teclado virtual en un dispositivo físico.
+2. Google Cloud: audiencia no tester, publicación/verificación y autorización
+   duradera mayor de siete días. No se ha cambiado esa configuración externa
+   ni probado Drive con adjuntos personales o un backup remoto nuevo.
+3. Conector MCP de Codex: error interno -32603, mientras HTTP directo funciona;
+   revisar/reconectar y redescubrir herramientas. Los clientes reales de terceros
+   no se acreditan por las instrucciones ni por integración local.
+4. 75.6 literal: TaskPeek compacto anclado sigue sin implementarse. Se conserva
+   el detalle flotante ya trabajado conforme a la instrucción de no añadir
+   automáticamente propuestas antiguas. No se marca ese criterio original como
+   cerrado. Consolidar overrides CSS queda deuda de mantenimiento.
+
+75.11 y Ticky F1–F10 siguen excluidos. El alcance funcional nuevo está publicado,
+pero no se declara cierre global de todos los criterios de aceptación pendientes.
