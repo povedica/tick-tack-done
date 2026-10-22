@@ -684,7 +684,7 @@ folder.created folder.updated folder.deleted
 column.created column.updated column.deleted
 tag.created tag.updated tag.deleted tag.merged
 habit.created habit.updated habit.deleted habit.checkin habit.streak_broken habit.goal_met
-filter.created filter.updated filter.deleted smart_list.updated token.created token.revoked session.created session.revoked account.deleted account.password_changed oauth.token_issued oauth.token_refreshed
+filter.created filter.updated filter.deleted smart_list.updated token.created token.revoked session.created session.revoked account.deleted account.password_changed oauth.token_issued oauth.token_refreshed oauth.refresh_reused
 focus.session_started focus.session_finished focus.session_aborted focus.session_paused focus.session_resumed focus.settings_updated
 account.view_preference_updated
 reminder.fired

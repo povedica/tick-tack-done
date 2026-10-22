@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import { HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import type { AuthUser } from './auth-user.js';
 import { actorOf } from './auth-user.js';
 import { DomainEvent } from '../events/domain-events.js';
@@ -30,7 +30,13 @@ import {
   authorizeErrorDescription,
   oauthAuthorizeErrorRedirect,
 } from './oauth-error.js';
-import { lockOauthGrant, classifyRefresh, revokeRefreshFamily } from './oauth-refresh.js';
+import { openField, sealField } from '../security/field-cipher.js';
+import {
+  OAUTH_ACCESS_OVERLAP_MS,
+  lockOauthGrant,
+  classifyRefresh,
+  revokeRefreshFamily,
+} from './oauth-refresh.js';
 import { acceptsPkceMethod, pkceMatches } from './pkce.js';
 import { publicOrigin } from './public-origin.js';
 import { isDynamicRedirectUri, isExactRedirect } from './redirect-uri.js';
@@ -50,14 +56,9 @@ const ACCESS_TTL_MS = 60 * 60 * 1000;
 const ACCESS_TTL_SECONDS = 60 * 60;
 const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
-class RefreshReuse extends Error {
-  constructor(readonly familyId: string) {
-    super('refresh reuse');
-  }
-}
-
 @Injectable()
 export class OauthService {
+  private readonly logger = new Logger(OauthService.name);
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(TokensService) private readonly tokens: TokensService,
@@ -205,13 +206,23 @@ export class OauthService {
         'Public clients have no secret',
       );
     }
-    const clientId = dto.client_id ?? 'unknown';
-    await this.attempts.assertOauthAllowed(ip, `oauth:${clientId}`);
-    await this.attempts.recordOauthAttempt(ip);
-    if (dto.grant_type === 'refresh_token') {
-      return this.refresh(dto);
+    try {
+      const clientId = dto.client_id ?? 'unknown';
+      await this.attempts.assertOauthAllowed(ip, `oauth:${clientId}`);
+      await this.attempts.recordOauthAttempt(ip);
+      return await (dto.grant_type === 'refresh_token'
+        ? this.refresh(dto)
+        : this.exchangeCode(dto));
+    } catch (error) {
+      if (error instanceof DomainException) throw error;
+      // Never convert a database/Redis outage into invalid_grant or leak internals.
+      throw new DomainException(
+        HttpStatus.SERVICE_UNAVAILABLE,
+        'temporarily_unavailable',
+        'Token service is temporarily unavailable',
+        { retry_after: 2 },
+      );
     }
-    return this.exchangeCode(dto);
   }
 
   async revokePresented(token: string, ip: string): Promise<void> {
@@ -316,93 +327,121 @@ export class OauthService {
   }
 
   private async refresh(dto: OauthTokenDto): Promise<OauthTokenResponseDto> {
-    if (dto.refresh_token === undefined || dto.client_id === undefined) {
-      throw new DomainException(
-        HttpStatus.BAD_REQUEST,
-        'invalid_grant',
-        'Refresh token is invalid',
-      );
-    }
+    const invalid = () =>
+      new DomainException(HttpStatus.BAD_REQUEST, 'invalid_grant', 'Refresh token is invalid');
+    if (dto.refresh_token === undefined || dto.client_id === undefined) throw invalid();
     const clientId = dto.client_id;
-    const hash = hashPersonalAccessToken(dto.refresh_token);
-    const row = await this.prisma.oauthRefreshToken.findFirst({
-      where: { tokenHash: hash },
-      include: { accessToken: { select: { scopes: true, oauthClientId: true } } },
-    });
-    const decision = classifyRefresh(row, new Date());
-    if (
-      row === null ||
-      decision === 'unknown' ||
-      decision === 'expired' ||
-      row.clientId !== clientId
-    ) {
-      throw new DomainException(
-        HttpStatus.BAD_REQUEST,
-        'invalid_grant',
-        'Refresh token is invalid',
-      );
-    }
-    if (decision === 'reuse') {
-      await this.revokeFamily(row.familyId, row.userId, 'reused');
-      throw new DomainException(
-        HttpStatus.BAD_REQUEST,
-        'invalid_grant',
-        'Refresh token was already used',
-      );
-    }
-    const owner = await this.loadOwner(row.userId);
-    const client = await this.prisma.oauthClient.findFirst({
-      where: { id: row.clientId, deletedAt: null },
-      select: { name: true },
-    });
-    if (client === null) {
-      throw new DomainException(
-        HttpStatus.BAD_REQUEST,
-        'invalid_grant',
-        'Refresh token is invalid',
-      );
-    }
-    const scopes =
-      dto.scope === undefined
-        ? [...row.accessToken.scopes]
-        : grantApprovedScopes(row.accessToken.scopes.join(' '), dto.scope);
-    const expiresAt = new Date(Date.now() + ACCESS_TTL_MS);
-    try {
-      return await this.prisma.$transaction(async (tx) => {
-        await lockOauthGrant(tx, row.userId, row.clientId);
-        const marked = await tx.oauthRefreshToken.updateMany({
-          where: { id: row.id, rotatedAt: null, revokedAt: null },
-          data: { rotatedAt: new Date() },
-        });
-        if (marked.count !== 1) {
-          throw new RefreshReuse(row.familyId);
-        }
-        await tx.personalAccessToken.update({
-          where: { id: row.accessTokenId },
-          data: { revokedAt: new Date() },
-        });
-        return this.issuePair(tx, {
-          owner,
-          clientId: row.clientId,
-          clientName: client.name,
-          scopes,
-          familyId: row.familyId,
-          expiresAt,
-          kind: 'refreshed',
-          event: DomainEvent.oauthTokenRefreshed,
-        });
+    const tokenHash = hashPersonalAccessToken(dto.refresh_token);
+    const identity = await this.prisma.oauthRefreshToken.findFirst({ where: { tokenHash } });
+    if (identity?.clientId !== clientId) throw invalid();
+    const result = await this.prisma.$transaction(async (tx) => {
+      await lockOauthGrant(tx, identity.userId, clientId);
+      // Read after taking the lock: a concurrent request may already have rotated this row.
+      const row = await tx.oauthRefreshToken.findUnique({
+        where: { id: identity.id },
+        include: { accessToken: true },
       });
-    } catch (error) {
-      if (error instanceof RefreshReuse) {
-        await this.revokeFamily(error.familyId, row.userId, 'reused');
-        throw new DomainException(
-          HttpStatus.BAD_REQUEST,
-          'invalid_grant',
-          'Refresh token was already used',
+      const now = new Date();
+      const decision = classifyRefresh(row, now);
+      if (row === null || decision === 'unknown' || decision === 'expired') throw invalid();
+      const revoked = await tx.oauthRefreshToken.findFirst({
+        where: { familyId: row.familyId, revokedAt: { not: null } },
+        select: { id: true },
+      });
+      if (revoked !== null) throw invalid();
+      if (decision === 'reuse' || (decision === 'replay' && row.replacementPair === null)) {
+        await this.revokeFamilyTx(tx, row.familyId, row.userId, 'reused');
+        const elapsed =
+          row.rotatedAt === null
+            ? null
+            : Math.floor((now.getTime() - row.rotatedAt.getTime()) / 1000);
+        await this.events.record(
+          tx,
+          {
+            ownerId: row.userId,
+            actorId: row.userId,
+            actorKind: 'api',
+            tokenId: row.accessTokenId,
+          },
+          {
+            type: DomainEvent.oauthRefreshReused,
+            entityType: 'oauth_client',
+            entityId: clientId,
+            action: 'updated',
+            data: { client_id: clientId, familyId: row.familyId, elapsed_seconds: elapsed },
+            previous: null,
+          },
         );
+        this.logger.warn(
+          JSON.stringify({
+            event: 'oauth.refresh_reused',
+            client_id: clientId,
+            familyId: row.familyId,
+            elapsed_seconds: elapsed,
+          }),
+        );
+        return null; // Commit the revocation before returning invalid_grant.
       }
-      throw error;
-    }
+      const owner = await this.loadOwner(row.userId);
+      const client = await tx.oauthClient.findFirst({
+        where: { id: clientId, deletedAt: null },
+        select: { name: true },
+      });
+      if (client === null) throw invalid();
+      if (decision === 'replay') {
+        if (row.replacementPair === null) throw invalid();
+        const replacement = await tx.personalAccessToken.findFirst({
+          where: {
+            id: row.replacementAccessId ?? '',
+            revokedAt: null,
+            deletedAt: null,
+            expiresAt: { gt: now },
+          },
+          select: { id: true },
+        });
+        if (replacement === null) throw invalid();
+        return JSON.parse(openField(row.replacementPair)) as OauthTokenResponseDto;
+      }
+      const scopes =
+        dto.scope === undefined
+          ? [...row.accessToken.scopes]
+          : grantApprovedScopes(row.accessToken.scopes.join(' '), dto.scope);
+      const overlapEnd = new Date(
+        Math.min(
+          row.accessToken.expiresAt?.getTime() ?? Infinity,
+          now.getTime() + OAUTH_ACCESS_OVERLAP_MS,
+        ),
+      );
+      await tx.personalAccessToken.update({
+        where: { id: row.accessTokenId },
+        data: { expiresAt: overlapEnd },
+      });
+      const pair = await this.issuePair(tx, {
+        owner,
+        clientId,
+        clientName: client.name,
+        scopes,
+        familyId: row.familyId,
+        expiresAt: new Date(now.getTime() + ACCESS_TTL_MS),
+        kind: 'refreshed',
+        event: DomainEvent.oauthTokenRefreshed,
+      });
+      const replacement = await tx.personalAccessToken.findUniqueOrThrow({
+        where: { tokenHash: hashPersonalAccessToken(pair.access_token) },
+        select: { id: true },
+      });
+      await tx.oauthRefreshToken.update({
+        where: { id: row.id },
+        data: {
+          rotatedAt: now,
+          replacementPair: sealField(JSON.stringify(pair)),
+          replacementAccessId: replacement.id,
+        },
+      });
+      return pair;
+    });
+    if (result === null) throw invalid();
+    return result;
   }
 
   private async issuePair(

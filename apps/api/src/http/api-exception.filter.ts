@@ -152,7 +152,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
       return;
     }
     if (exception instanceof HttpException) {
-      if (exception.getStatus() === 429) {
+      if (exception.getStatus() === 429 || exception.getStatus() === 503) {
         const retry = retryAfter(exception);
         if (retry !== null) {
           response.setHeader('Retry-After', String(retry));
