@@ -1,0 +1,76 @@
+# Staging: importar solo después de validar la configuración completa del proxy.
+staging-todo.reflexionia.com {
+	encode zstd gzip
+	header X-Robots-Tag "noindex, nofollow, noarchive"
+
+	@docs path /api/docs*
+	handle @docs {
+		respond 404
+	}
+
+	handle /api/* {
+		request_body {
+			max_size 26MB
+		}
+		reverse_proxy todo-staging-api:3000
+	}
+
+	handle /feeds/* {
+		reverse_proxy todo-staging-api:3000
+	}
+
+	handle /open/* {
+		reverse_proxy todo-staging-api:3000
+	}
+
+	# OAuth discovery (RFC 9728 / RFC 8414). Must run before the SPA fallback.
+	handle /.well-known/oauth-protected-resource* {
+		reverse_proxy todo-staging-api:3000
+	}
+
+	handle /.well-known/oauth-authorization-server* {
+		reverse_proxy todo-staging-api:3000
+	}
+
+	# OIDC discovery is not implemented; never return the SPA HTML shell.
+	handle /.well-known/openid-configuration* {
+		header Content-Type application/json
+		respond `{"error":{"code":"not_found","message":"OpenID Connect discovery is not supported"}}` 404
+	}
+
+	handle /oauth/authorize {
+		reverse_proxy todo-staging-api:3000
+	}
+
+	handle /oauth/token {
+		reverse_proxy todo-staging-api:3000
+	}
+
+	handle /oauth/register {
+		reverse_proxy todo-staging-api:3000
+	}
+
+	handle /oauth/revoke {
+		reverse_proxy todo-staging-api:3000
+	}
+
+	handle /manifest.json {
+		redir /manifest.webmanifest 308
+	}
+
+	handle {
+		reverse_proxy todo-staging-web:8080
+	}
+
+	header {
+		+Vary "Accept-Encoding"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		Content-Security-Policy "default-src 'self'; script-src 'self' https://apis.google.com https://accounts.google.com/gsi/; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; img-src 'self' data: blob: https://www.google.com https://*.googleusercontent.com https://www.gstatic.com; font-src 'self' data:; connect-src 'self' https://www.googleapis.com https://accounts.google.com/gsi/; frame-src https://docs.google.com https://drive.google.com https://accounts.google.com/gsi/; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+		Permissions-Policy "camera=(), microphone=(), payment=(), usb=()"
+		Cross-Origin-Opener-Policy "same-origin-allow-popups"
+		-Server
+	}
+}

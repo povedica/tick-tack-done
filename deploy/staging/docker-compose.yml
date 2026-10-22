@@ -1,0 +1,116 @@
+# Staging aislado: secretos, datos y red propios. Sin puertos publicados.
+# Solo el proxy compartido se conecta a todo_staging_edge.
+# RUNTIME_ENV_FILE debe apuntar a /etc/todo/staging.env, nunca a producción.
+name: todo-staging
+
+services:
+  staging-api:
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
+    restart: unless-stopped
+    env_file:
+      - ${RUNTIME_ENV_FILE:?Set RUNTIME_ENV_FILE}
+    environment:
+      NODE_ENV: production
+      GIT_COMMIT: ${GIT_COMMIT:-unknown}
+      BUILD_TIME: ${BUILD_TIME:-unknown}
+      AUTH_MODE: ''
+      BUS_AUTOSTART: 'true'
+      SCHEDULER_AUTOSTART: 'true'
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?connection_limit=10&pool_timeout=20
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    cpus: 0.75
+    pids_limit: 256
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      private: {}
+      edge:
+        aliases:
+          - todo-staging-api
+
+  staging-web:
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+      - /var/run
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 128m
+    cpus: 0.25
+    pids_limit: 128
+    networks:
+      private: {}
+      edge:
+        aliases:
+          - todo-staging-web
+
+  postgres:
+    image: postgres:17.6-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - private
+    mem_limit: 256m
+    cpus: 0.5
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    mem_limit: 96m
+    cpus: 0.25
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redisdata:/data
+    networks:
+      - private
+
+networks:
+  private:
+    internal: true
+  edge:
+    external: true
+    name: ${STAGING_EDGE_NETWORK:-todo_staging_edge}
+
+volumes:
+  pgdata:
+  redisdata:

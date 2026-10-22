@@ -2,6 +2,9 @@
 
 ## Sin publicar — PR75
 
+- Staging aislado con Compose, PostgreSQL/Redis, redes y secretos propios; configuración y retirada a página estática preparadas. Activación pública y aceptación externa pendientes.
+- Política de navegador corregida para las subidas directas a Drive, Google Picker y sus ventanas OAuth; prueba de regresión sobre las cuatro configuraciones.
+
 - Mayor fiabilidad OAuth y contratos MCP, recurrencias, paginación y sesiones de Foco.
 - Regresión con dos procesos API compilados: el refresh concurrente, el access anterior y la autenticación MCP sobreviven al reinicio con PostgreSQL/Redis locales reales; staging sigue pendiente.
 - Calendario, captura contextual, fuentes de planificación, estadísticas y accesibilidad móvil.

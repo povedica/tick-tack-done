@@ -1,0 +1,8 @@
+# Servir únicamente el index conservado en /etc/caddy/sites/staging-index.html.
+staging-todo.reflexionia.com {
+	header X-Robots-Tag "noindex, nofollow, noarchive"
+	header X-Content-Type-Options nosniff
+	root * /etc/caddy/sites
+	rewrite * /staging-index.html
+	file_server
+}
