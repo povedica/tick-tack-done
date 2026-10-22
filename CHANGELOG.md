@@ -3,6 +3,7 @@
 ## Sin publicar — PR75
 
 - Mayor fiabilidad OAuth y contratos MCP, recurrencias, paginación y sesiones de Foco.
+- Regresión con dos procesos API compilados: el refresh concurrente, el access anterior y la autenticación MCP sobreviven al reinicio con PostgreSQL/Redis locales reales; staging sigue pendiente.
 - Calendario, captura contextual, fuentes de planificación, estadísticas y accesibilidad móvil.
 - Adjuntos exclusivamente en Google Drive con metadatos en tick-tack-done; enlaces en tareas.
 - Ajustes de Pomodoro, sonidos locales, matriz de notificaciones y vinculación guiada de Telegram.
