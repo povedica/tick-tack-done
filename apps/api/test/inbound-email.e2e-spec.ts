@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/configure-app.js';
 import { loadRootEnv } from '../src/load-env.js';
-import { ATTACHMENT_MAX_BYTES } from '../src/modules/tasks/attachment-storage.js';
+import { ATTACHMENT_MAX_BYTES } from '../src/drive/attachment-limits.js';
 
 type SuperTestApp = Parameters<typeof request>[0];
 
@@ -126,7 +126,7 @@ describe('email-to-task', () => {
     };
   }
 
-  it('RF-105: a regenerable address creates a task from the subject and stores attachments', async () => {
+  it('RF-105: a regenerable address creates a task from the subject and warns when Drive is disconnected', async () => {
     const issued = addressOf((await authed().post('/api/v1/me/inbound-email').expect(201)).body);
     expect(issued.address).toBe(`${issued.token}@in.todo.reflexionia.com`);
     const status = await authed().get('/api/v1/me/inbound-email').expect(200);
@@ -158,16 +158,7 @@ describe('email-to-task', () => {
     expect(created.project_id).toBeTruthy();
 
     const files = await authed().get(`/api/v1/tasks/${created.id}/attachments`).expect(200);
-    expect(files.body.items).toHaveLength(1);
-    const attachmentId = (files.body.items as { id?: unknown }[])[0]?.id;
-    if (typeof attachmentId !== 'string') {
-      throw new Error('missing attachment');
-    }
-    const download = await authed()
-      .get(`/api/v1/tasks/${created.id}/attachments/${attachmentId}`)
-      .expect(200);
-    expect(download.headers['content-disposition']).toContain('attachment');
-    expect(download.text).toBe('nota');
+    expect(files.body.items).toHaveLength(0);
 
     const again = taskOf(
       (
@@ -238,6 +229,6 @@ describe('email-to-task', () => {
         contentType: 'application/octet-stream',
       })
       .expect(413);
-    expect(await prisma.task.count({ where: { ownerId: owner.id } })).toBe(before);
+    expect(await prisma.task.count({ where: { ownerId: owner.id } })).toBe(before + 1);
   });
 });

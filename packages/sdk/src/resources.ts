@@ -143,6 +143,12 @@ export interface Attachment {
   readonly file_name: string;
   readonly mime_type: string;
   readonly byte_size: number;
+  readonly drive_file_id: string | null;
+  readonly web_view_link: string;
+  readonly icon_link: string | null;
+  readonly source: string;
+  readonly drive_state: 'ok' | 'missing' | 'unknown';
+
 }
 
 export interface AttachmentPage {

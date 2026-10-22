@@ -91,3 +91,41 @@ it('TTD-AUD-85.1: preserves HTTP status, stable code and structured error body',
     },
   });
 });
+
+it('TTD-AUD-99 streams multipart encoding in bounded fragments instead of materializing a file', async () => {
+  const sizes: number[] = [];
+  request.mockReset();
+  request.mockImplementation((_options: unknown, callback: (incoming: Readable) => void) => ({
+    on: vi.fn(),
+    write: (chunk: Buffer) => {
+      sizes.push(chunk.length);
+      return true;
+    },
+    end: () => {
+      callback(
+        Object.assign(Readable.from([Buffer.from('{"id":"file"}')]), {
+          statusCode: 201,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+    },
+  }));
+  await requestPublicApi(
+    {
+      method: 'POST',
+      path: '/api/v1/tasks/task/attachments',
+      files: [
+        {
+          field: 'file',
+          filename: 'x.txt',
+          base64: Buffer.alloc(8 * 1024 * 1024 + 4, 97).toString('base64'),
+          content_type: 'text/plain',
+        },
+      ],
+    },
+    'Bearer caller',
+  );
+  expect(sizes.length).toBeGreaterThan(100);
+  expect(Math.max(...sizes)).toBeLessThanOrEqual(64 * 1024);
+  expect(request.mock.calls[0]?.[0]).toMatchObject({ headers: { 'X-TTD-Source': 'mcp' } });
+});

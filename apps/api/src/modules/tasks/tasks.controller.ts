@@ -1,4 +1,3 @@
-import { createReadStream } from 'node:fs';
 import {
   Body,
   Controller,
@@ -14,21 +13,9 @@ import {
   Query,
   Req,
   Res,
-  UploadedFile,
-  UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import {
-  ApiBody,
-  ApiConsumes,
-  ApiHeader,
-  ApiOkResponse,
-  ApiOperation,
-  ApiQuery,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiHeader, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
-import { memoryStorage } from 'multer';
 import { isPriority, type Priority } from '@reflexionia/domain';
 import type { AuthUser } from '../../auth/auth-user.js';
 import { CurrentUser } from '../../auth/current-user.decorator.js';
@@ -37,7 +24,6 @@ import { pageLimit } from '../../http/cursor.js';
 import { DomainException } from '../../http/domain.exception.js';
 import { optionalUuid } from '../../http/uuid-query.js';
 import { respondJson } from '../../http/respond.js';
-import { ATTACHMENT_MAX_BYTES } from './attachment-storage.js';
 import { parseTaskSort, type TaskSort } from './task-cursor.js';
 import type { TaskListQuery } from './tasks.service.js';
 import { TasksService } from './tasks.service.js';
@@ -532,92 +518,6 @@ export class TasksController {
     @Res() res: Response,
   ): Promise<void> {
     respondJson(req, res, 200, await this.tasks.completeItem(user, id, itemId), false);
-  }
-
-  @Post(':id/attachments')
-  @Scopes('tasks:write')
-  @ApiOperation({ summary: 'Attach a file to a task (RF-203)' })
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } },
-  })
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: memoryStorage(),
-      limits: { fileSize: ATTACHMENT_MAX_BYTES },
-    }),
-  )
-  async upload(
-    @CurrentUser() user: AuthUser,
-    @Param('id', ParseUUIDPipe) id: string,
-    @UploadedFile() file: Express.Multer.File | undefined,
-    @Req() req: Request,
-    @Res() res: Response,
-  ): Promise<void> {
-    respondJson(req, res, 201, await this.tasks.addAttachment(user, id, file), false);
-  }
-
-  @Get(':id/attachments')
-  @Scopes('tasks:read')
-  @ApiOperation({ summary: 'List attachments of a task' })
-  async listAttachments(
-    @CurrentUser() user: AuthUser,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Req() req: Request,
-    @Res() res: Response,
-  ): Promise<void> {
-    respondJson(req, res, 200, { items: await this.tasks.listAttachments(user, id) }, false);
-  }
-
-  @Get(':id/attachments/:attachmentId/thumbnail')
-  @Scopes('tasks:read')
-  @ApiOperation({ summary: 'Download the image thumbnail (RF-203)' })
-  async thumbnail(
-    @CurrentUser() user: AuthUser,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
-    @Res() res: Response,
-  ): Promise<void> {
-    const file = await this.tasks.openThumbnail(user, id, attachmentId);
-    res.setHeader('Content-Type', file.mimeType);
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader(
-      'Content-Disposition',
-      `inline; filename="thumb-${file.fileName.replace(/"/g, '')}"`,
-    );
-    createReadStream(file.absolute).pipe(res);
-  }
-
-  @Get(':id/attachments/:attachmentId')
-  @Scopes('tasks:read')
-  @ApiOperation({ summary: 'Download an attachment' })
-  async download(
-    @CurrentUser() user: AuthUser,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
-    @Res() res: Response,
-  ): Promise<void> {
-    const file = await this.tasks.openAttachment(user, id, attachmentId);
-    res.setHeader('Content-Type', file.mimeType);
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${file.fileName.replace(/"/g, '')}"`,
-    );
-    createReadStream(file.absolute).pipe(res);
-  }
-
-  @Delete(':id/attachments/:attachmentId')
-  @Scopes('tasks:write')
-  @ApiOperation({ summary: 'Delete an attachment' })
-  async deleteAttachment(
-    @CurrentUser() user: AuthUser,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
-    @Res() res: Response,
-  ): Promise<void> {
-    await this.tasks.deleteAttachment(user, id, attachmentId);
-    res.status(204).end();
   }
 
   private query(

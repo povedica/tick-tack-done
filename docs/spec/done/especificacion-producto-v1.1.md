@@ -374,7 +374,7 @@ La captura sin fricción es prioritaria: atajo global, widget, voz, email, NLP:
 
 - RF-201: CRUD completo de tareas con todos los campos de 5.1.
 - RF-202: Descripción en **Markdown** con previsualización, checklist inline `- [ ]` que se convierte en ChecklistItem (las líneas de checklist del contenido pueden convertirse en subtareas).
-- RF-203: Adjuntos múltiples por tarea (imágenes con miniatura inline).
+- RF-203: Adjuntos múltiples por tarea exclusivamente en el Google Drive del propietario; ttd conserva metadatos. Web directa resumable de hasta 100 MiB, API/correo/Telegram en streaming de hasta 25 MiB; máximo 50 por tarea. Vistas previas mediante redirección sin caché a Drive. Sin Drive, no se puede adjuntar.
 - RF-204: Duplicar, mover entre listas, mover entre columnas/secciones, convertir tarea en nota y viceversa.
 - RF-205: Dos tipos de "hijos": (a) **checklist items** (ligeros, 5.2) y (b) **subtareas completas** (Task con `parent_id`, con sus propias fechas/etiquetas/recordatorios). Se permiten ambos. UI: pestañas o secciones dentro del detalle. Una subtarea puede vivir en otra lista: se respeta el `project_id` pedido y el `parent_id`. En la lista de la hija aparece (también con `flat=true`); en el detalle del padre sigue saliendo como subtarea. Sigue siendo inválido un padre inexistente, de otro usuario, o que forme un ciclo. Una hija en la misma lista no aparece suelta salvo vista plana.
 - RF-206: Al completar un padre con hijos activos, preguntar: completar hijos también / dejarlos. Configurable.
@@ -494,7 +494,7 @@ Decisión de Pablo (sección 21): los hábitos entran en fase 1 con sus recordat
 - RF-1701 (APLAZADO, fuera del MVP: Pablo arranca desde cero, sin migración; la especificación se conserva por si se retoma más adelante): **Importador TickTick** vía su Open API: proyectos (con color, carpeta, viewMode), tareas (prioridad, fechas, RRULE, recordatorios, checklist, contenido, completadas recientes) y tags. Mapeos: `project → Project`, `column → Column`, `priority 0/1/3/5 → none/low/medium/high`, `repeatFlag → repeat_rule`, `items → ChecklistItem`, `kind NOTE → lista de notas`. Limitación documentada: la Open API de TickTick no expone hábitos, pomodoros ni filtros; el importador lo advierte y sugiere recrearlos (o export manual).
 - RF-1702: Importador CSV genérico con mapeo de columnas.
 - RF-1703: Exportación completa JSON (todo el estado del usuario, versionada por esquema) + CSV por lista + iCal por lista/filtro.
-- RF-1704: Backup automático diario de PostgreSQL (`pg_dump`) más los adjuntos, **copiado fuera de la máquina** (por defecto a Google Drive cuando exista RF-2005; antes, a cualquier almacenamiento externo configurado), con retención de 30 días configurable, restauración desde archivo y **prueba de restauración automática semanal** (restaura el último backup en un contenedor temporal y verifica su integridad; alerta si falla). Es el sistema de tareas de Pablo: perderlo no es una opción.
+- RF-1704: Backup automático diario de PostgreSQL (`pg_dump`) más los metadatos de adjuntos (nunca sus binarios), **copiado fuera de la máquina** (por defecto a Google Drive cuando exista RF-2005; antes, a cualquier almacenamiento externo configurado), con retención de 30 días configurable, restauración desde archivo y **prueba de restauración automática semanal** (restaura el último backup en un contenedor temporal y verifica su integridad; alerta si falla). Es el sistema de tareas de Pablo: perderlo no es una opción.
 - RF-1705: El export JSON es el formato de referencia para migraciones futuras: versionado `schema_version` y script de migración por versión.
 
 ### 9.18 Colaboración — V2
@@ -519,7 +519,7 @@ Decisión de Pablo (sección 21): los agentes personales (ChatGPT, Cursor, Insti
 - RF-2002 (MVP): **API REST v1 + Personal Access Tokens con scopes granulares** (10.1) como vía universal de lectura/escritura para scripts y agentes, con la documentación OpenAPI publicada para que un agente pueda descubrir la API por sí mismo.
 - RF-2003 (V1, primera integración prioritaria): **bot de Telegram**: crear tareas enviando texto (mismo pipeline NLP del quick add), voz (transcripción → NLP) o foto (adjunto); consultar ("¿qué tengo hoy?", "¿qué hay en la lista compra?"); completar tareas con botones; opción de recibir recordatorios por Telegram como canal adicional de notificación.
 - RF-2004 (V1): **Google Calendar** (RF-1103): lectura en V1; escritura two-way en V2.
-- RF-2005 (V1): **Google Drive**: adjuntar archivos de Drive a tareas (enlace o copia al almacenamiento propio) y opción de volcar el backup diario (RF-1704) a Drive.
+- RF-2005 (V1): **Google Drive**: adjuntar archivos en el Drive del propietario a tareas (enlaces verificados o subidas directas/en streaming; sin almacenamiento binario propio) y opción de volcar el backup diario (RF-1704) a Drive.
 - RF-2006: Todas las integraciones externas se implementan como consumidores de la API y los eventos existentes (secciones 10 y 11), nunca como código especial con acceso directo a la base de datos.
 
 ### 9.21 Dashboard («jardín digital») — V1
@@ -602,7 +602,7 @@ POST   /api/v1/tasks/trash/{id}/restore
 
 Checklist items: `POST/PATCH/DELETE /api/v1/tasks/{id}/items[/{itemId}]`, `POST .../items/{itemId}/complete`.
 
-Adjuntos (RF-203): `POST/GET /api/v1/tasks/{id}/attachments` (multipart `file`, 25 MB), `GET/DELETE /api/v1/tasks/{id}/attachments/{attachmentId}`. La descarga fuerza `Content-Disposition: attachment`.
+Adjuntos (RF-203): `POST/GET /api/v1/tasks/{id}/attachments` (multipart en streaming, 25 MiB), `POST …/drive-session` + PUT directo a Drive + `POST …/drive-complete` (100 MiB) y `POST …/drive-link` (Picker). GET del adjunto redirige a Drive; `GET /api/v1/attachments/{id}/preview` redirige sin caché a su miniatura. DELETE conserva el fichero salvo trash_in_drive=true; ttd no sirve ni guarda binarios.
 
 Listas y estructura:
 
@@ -938,3 +938,6 @@ _Fin del documento. Mantener versionado junto al código; cada fase cerrada actu
 
 
 Actualización r80 (RF-2001): GET autenticado con Accept: text/event-stream ofrece notificaciones de cambio del catálogo; POST sigue sin sesión. Otros GET y DELETE devuelven 405. Eventos añadidos: `occurrence.detached@v1` (tarea, actor y origen) y `plan.replan.discarded@v1` (sesión descartada).
+
+
+Eventos r80, RF-203/RF-2005: `attachment.removed@v1` (task_id y trash_in_drive) e `integration.google.reauth_required@v1` (google_status). `drive.attached@v1` contiene solo metadatos, actor y origen; ningún binario.

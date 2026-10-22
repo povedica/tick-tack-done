@@ -505,3 +505,5 @@
   --sheet-handle-h: 4px;
 }
 [data-theme='dark'] { --chip-bg: var(--surface-3); }
+
+:root { --asset-disabled-opacity: 0.55; --asset-preview-z: 20; }

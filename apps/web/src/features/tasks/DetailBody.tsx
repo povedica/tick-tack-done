@@ -1,4 +1,5 @@
-import { Bell, GripVertical, Paperclip, Pencil, Plus, Repeat, X } from 'lucide-react';
+import { AttachmentSection, type AttachmentItem } from './AttachmentSection';
+import { Bell, GripVertical, Pencil, Plus, Repeat, X } from 'lucide-react';
 import {
   useLayoutEffect,
   useState,
@@ -9,7 +10,6 @@ import {
 } from 'react';
 import { Link } from 'react-router';
 import { PriorityCheck } from '../../components/PriorityCheck';
-import { attachmentHref } from './task-http';
 import Markdown from 'react-markdown';
 import { TagIcon } from '../../components/TagIcon';
 import { displayTitle } from './displayTitle';
@@ -40,10 +40,6 @@ export function DetailBody({
   reminder,
   repeat,
   attachments,
-  attachmentLabel,
-  attachmentDownload,
-  attachmentDelete,
-  attachmentDrop,
   onTitle,
   onTitleKey,
   onContent,
@@ -94,11 +90,7 @@ export function DetailBody({
   }[];
   readonly reminder: string | null;
   readonly repeat: string | null;
-  readonly attachments: readonly {
-    readonly id: string;
-    readonly name: string;
-    readonly size: number;
-  }[];
+  readonly attachments: readonly AttachmentItem[];
   readonly attachmentLabel: string;
   readonly attachmentDownload: string;
   readonly attachmentDelete: string;
@@ -116,7 +108,7 @@ export function DetailBody({
   readonly onClearReminder: () => void;
   readonly onClearRepeat: () => void;
   readonly onToggleSubtask: (id: string, done: boolean) => void;
-  readonly onDeleteAttachment: (id: string) => void;
+  readonly onDeleteAttachment: (id: string, trash: boolean) => Promise<void>;
   readonly onDropFiles: (files: FileList) => void;
 }) {
   const [editing, setEditing] = useState<string | null>(null);
@@ -429,49 +421,12 @@ export function DetailBody({
           </button>
         </p>
       ) : null}
-      <section className="detail-block">
-        <h3>
-          {attachmentLabel}
-          {attachments.length > 0 ? ` (${String(attachments.length)})` : ''}
-        </h3>
-        <label className="detail-attach-btn detail-drop">
-          {attachmentDrop}
-          <input
-            type="file"
-            multiple
-            onChange={(event) => {
-              if (event.target.files !== null && event.target.files.length > 0) {
-                onDropFiles(event.target.files);
-                event.target.value = '';
-              }
-            }}
-          />
-          <Paperclip size={14} aria-hidden="true" />
-          {messages.upload}
-        </label>
-        <ul className="detail-files">
-          {attachments.map((file) => (
-            <li key={file.id}>
-              <Paperclip size={14} aria-hidden="true" />
-              <span className="file-name">{file.name}</span>
-              <span className="file-size">{formatSize(file.size)}</span>
-              <a href={attachmentHref(taskId, file.id)} download={file.name}>
-                {attachmentDownload}
-              </a>
-              <button
-                type="button"
-                className="icon-button"
-                aria-label={attachmentDelete}
-                onClick={() => {
-                  onDeleteAttachment(file.id);
-                }}
-              >
-                <X size={14} aria-hidden="true" />
-              </button>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <AttachmentSection
+        taskId={taskId}
+        files={attachments}
+        onFiles={onDropFiles}
+        onDelete={onDeleteAttachment}
+      />
     </div>
   );
 }
@@ -481,19 +436,7 @@ function fit(field: HTMLTextAreaElement): void {
   field.style.height = `${String(field.scrollHeight)}px`;
 }
 
-function formatSize(bytes: number): string {
-  if (bytes < 1024) {
-    return `${String(bytes)} B`;
-  }
-  if (bytes < 1024 * 1024) {
-    return `${String(Math.round(bytes / 102.4) / 10)} KB`;
-  }
-  return `${String(Math.round(bytes / 104857.6) / 10)} MB`;
-}
-
 function tagStyle(color: string | null): CSSProperties | undefined {
-  if (color === null || color.length === 0) {
-    return undefined;
-  }
+  if (color === null || color.length === 0) return undefined;
   return { background: `color-mix(in srgb, ${color} 22%, transparent)` };
 }

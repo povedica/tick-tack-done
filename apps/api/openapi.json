@@ -4755,227 +4755,6 @@
         ]
       }
     },
-    "/api/v1/tasks/{id}/attachments": {
-      "post": {
-        "operationId": "TasksController_upload",
-        "parameters": [
-          {
-            "name": "X-Dev-User-Email",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "file": {
-                    "type": "string",
-                    "format": "binary"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "summary": "Attach a file to a task (RF-203)",
-        "tags": [
-          "tasks"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ]
-      },
-      "get": {
-        "operationId": "TasksController_listAttachments",
-        "parameters": [
-          {
-            "name": "X-Dev-User-Email",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "List attachments of a task",
-        "tags": [
-          "tasks"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ]
-      }
-    },
-    "/api/v1/tasks/{id}/attachments/{attachmentId}/thumbnail": {
-      "get": {
-        "operationId": "TasksController_thumbnail",
-        "parameters": [
-          {
-            "name": "X-Dev-User-Email",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "attachmentId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Download the image thumbnail (RF-203)",
-        "tags": [
-          "tasks"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ]
-      }
-    },
-    "/api/v1/tasks/{id}/attachments/{attachmentId}": {
-      "get": {
-        "operationId": "TasksController_download",
-        "parameters": [
-          {
-            "name": "X-Dev-User-Email",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "attachmentId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Download an attachment",
-        "tags": [
-          "tasks"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ]
-      },
-      "delete": {
-        "operationId": "TasksController_deleteAttachment",
-        "parameters": [
-          {
-            "name": "X-Dev-User-Email",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "attachmentId",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Delete an attachment",
-        "tags": [
-          "tasks"
-        ],
-        "security": [
-          {
-            "bearer": []
-          }
-        ]
-      }
-    },
     "/api/v1/inbound/email": {
       "post": {
         "operationId": "InboundEmailController_receive",
@@ -5020,11 +4799,414 @@
             "description": ""
           }
         },
-        "summary": "Deliver an email-to-task message (RF-105). The recipient token authenticates the call. Content is stored and never executed.",
+        "summary": "Create an email-to-task capture (RF-105). Send recipient, subject, text and message_id fields before files. Files stream directly to the owner’s Drive (25 MiB each, 10 files); without Drive the task is saved with an attachment warning.",
         "tags": [
           "inbound"
         ],
         "security": []
+      }
+    },
+    "/api/v1/integrations/drive/picker-config": {
+      "get": {
+        "operationId": "DriveAttachmentsController_pickerConfig",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "client_id",
+                    "api_key",
+                    "app_id"
+                  ],
+                  "properties": {
+                    "client_id": {
+                      "type": "string"
+                    },
+                    "api_key": {
+                      "type": "string"
+                    },
+                    "app_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Public browser Picker configuration for the connected owner. The API never returns its Google access or refresh token.",
+        "tags": [
+          "attachments"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tasks/{taskId}/attachments/drive-session": {
+      "post": {
+        "operationId": "DriveAttachmentsController_start",
+        "parameters": [
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DriveSessionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "upload_url",
+                    "upload_id"
+                  ],
+                  "properties": {
+                    "upload_url": {
+                      "type": "string"
+                    },
+                    "upload_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Start a direct browser-to-Drive resumable upload (100 MiB/file, 50/task). Requires connected Drive; no access token is returned.",
+        "tags": [
+          "attachments"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tasks/{taskId}/attachments/drive-complete": {
+      "post": {
+        "operationId": "DriveAttachmentsController_complete",
+        "parameters": [
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DriveCompleteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriveAttachmentResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Verify a signed upload id and Drive file metadata; store metadata only.",
+        "tags": [
+          "attachments"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tasks/{taskId}/attachments/drive-link": {
+      "post": {
+        "operationId": "DriveAttachmentsController_link",
+        "parameters": [
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DriveLinkDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriveAttachmentResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Link an existing file authorized by Google Picker; metadata only, no copying.",
+        "tags": [
+          "attachments"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tasks/{taskId}/attachments": {
+      "post": {
+        "operationId": "DriveAttachmentsController_stream",
+        "parameters": [
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DriveAttachmentResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Stream multipart directly to the user’s Drive (25 MiB/file, 50/task, <=8 MiB buffered). Requires Google Drive connected; ttd stores metadata only.",
+        "tags": [
+          "attachments"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "get": {
+        "operationId": "DriveAttachmentsController_list",
+        "parameters": [
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/DriveAttachmentResponseDto"
+                      }
+                    },
+                    "next_cursor": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "List Drive attachment metadata and availability. Files remain links after disconnecting Google.",
+        "tags": [
+          "attachments"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tasks/{taskId}/attachments/{id}": {
+      "get": {
+        "operationId": "DriveAttachmentsController_open",
+        "parameters": [
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Drive webViewLink redirect."
+          }
+        },
+        "summary": "Redirect to the existing Drive web link. No binary download or cache on ttd.",
+        "tags": [
+          "attachments"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "DriveAttachmentsController_remove",
+        "parameters": [
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "trash_in_drive",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "Remove attachment metadata. Optional trash_in_drive moves the file to Drive trash first; a Drive failure keeps the metadata.",
+        "tags": [
+          "attachments"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/attachments/{id}/preview": {
+      "get": {
+        "operationId": "DriveAttachmentsController_preview",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Fresh thumbnailLink redirect with Cache-Control: no-store."
+          }
+        },
+        "summary": "Fetch only a fresh Drive thumbnail URL and redirect without caching; never downloads thumbnail bytes.",
+        "tags": [
+          "attachments"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/api/v1/ticky/flags": {
@@ -17228,6 +17410,103 @@
             "type": "boolean"
           }
         }
+      },
+      "DriveSessionDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 240
+          },
+          "mime_type": {
+            "type": "string"
+          },
+          "size": {
+            "type": "number",
+            "maximum": 104857600
+          }
+        },
+        "required": [
+          "name",
+          "mime_type",
+          "size"
+        ]
+      },
+      "DriveCompleteDto": {
+        "type": "object",
+        "properties": {
+          "drive_file_id": {
+            "type": "string"
+          },
+          "upload_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "drive_file_id",
+          "upload_id"
+        ]
+      },
+      "DriveAttachmentResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "mime_type": {
+            "type": "string"
+          },
+          "byte_size": {
+            "type": "number"
+          },
+          "drive_file_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "web_view_link": {
+            "type": "string"
+          },
+          "icon_link": {
+            "type": "string",
+            "nullable": true
+          },
+          "source": {
+            "type": "string"
+          },
+          "drive_state": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "missing",
+              "unknown"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "file_name",
+          "mime_type",
+          "byte_size",
+          "drive_file_id",
+          "web_view_link",
+          "icon_link",
+          "source",
+          "drive_state"
+        ]
+      },
+      "DriveLinkDto": {
+        "type": "object",
+        "properties": {
+          "drive_file_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "drive_file_id"
+        ]
       },
       "UpdateTickyAuthorityDto": {
         "type": "object",

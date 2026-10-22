@@ -1,4 +1,18 @@
 export const extraEs = {
+  driveConnect: 'Conectar Google Drive',
+  driveReconnect: 'Reconectar Google Drive',
+  driveRequired: 'Para adjuntar ficheros, conecta Google Drive',
+  driveMetadataOnly: 'Los ficheros se guardan en tu Drive. Hasta 100 MiB por fichero y 50 por tarea.',
+  driveMissing: 'Ya no está en Drive',
+  driveRemove: 'Quitar de la tarea',
+  driveRemoveQuestion: '¿Quitar “{name}” de la tarea?',
+  driveTrashAlso: 'Moverlo también a la papelera de Drive',
+  driveUploading: 'Subiendo a Drive: {percent} %',
+  drivePreview: 'Vista previa de {name}',
+  drivePicker: 'Añadir desde Drive',
+  drivePickerUnavailable: 'El selector de Drive no está configurado',
+  driveQuotaExceeded: 'Tu Google Drive no tiene espacio disponible',
+
   recurrenceAnchorWarning: 'La fecha no coincide con la repetición; la próxima será el {date}',
   googleReconnectHint:
     'La autorización de Google ha caducado o se ha revocado. Vuelve a conectar Google.',
@@ -1102,6 +1116,20 @@ export const extraEs = {
 } as const;
 
 export const extraEn = {
+  driveConnect: 'Connect Google Drive',
+  driveReconnect: 'Reconnect Google Drive',
+  driveRequired: 'Connect Google Drive to attach files',
+  driveMetadataOnly: 'Files are stored in your Drive. Up to 100 MiB per file and 50 per task.',
+  driveMissing: 'No longer in Drive',
+  driveRemove: 'Remove from task',
+  driveRemoveQuestion: 'Remove “{name}” from this task?',
+  driveTrashAlso: 'Also move it to Drive trash',
+  driveUploading: 'Uploading to Drive: {percent}%',
+  drivePreview: 'Preview of {name}',
+  drivePicker: 'Add from Drive',
+  drivePickerUnavailable: 'Drive Picker is not configured',
+  driveQuotaExceeded: 'Your Google Drive has no available space',
+
   recurrenceAnchorWarning: 'The date does not match the recurrence; the next occurrence is {date}',
   googleReconnectHint: 'Google authorization expired or was revoked. Reconnect Google.',
   focusShortBreak: 'Short break',

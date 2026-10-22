@@ -1504,59 +1504,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/tasks/{id}/attachments": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List attachments of a task */
-        get: operations["TasksController_listAttachments"];
-        put?: never;
-        /** Attach a file to a task (RF-203) */
-        post: operations["TasksController_upload"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/tasks/{id}/attachments/{attachmentId}/thumbnail": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Download the image thumbnail (RF-203) */
-        get: operations["TasksController_thumbnail"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/tasks/{id}/attachments/{attachmentId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Download an attachment */
-        get: operations["TasksController_download"];
-        put?: never;
-        post?: never;
-        /** Delete an attachment */
-        delete: operations["TasksController_deleteAttachment"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/inbound/email": {
         parameters: {
             query?: never;
@@ -1566,8 +1513,129 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Deliver an email-to-task message (RF-105). The recipient token authenticates the call. Content is stored and never executed. */
+        /** Create an email-to-task capture (RF-105). Send recipient, subject, text and message_id fields before files. Files stream directly to the owner’s Drive (25 MiB each, 10 files); without Drive the task is saved with an attachment warning. */
         post: operations["InboundEmailController_receive"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/drive/picker-config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Public browser Picker configuration for the connected owner. The API never returns its Google access or refresh token. */
+        get: operations["DriveAttachmentsController_pickerConfig"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{taskId}/attachments/drive-session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start a direct browser-to-Drive resumable upload (100 MiB/file, 50/task). Requires connected Drive; no access token is returned. */
+        post: operations["DriveAttachmentsController_start"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{taskId}/attachments/drive-complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verify a signed upload id and Drive file metadata; store metadata only. */
+        post: operations["DriveAttachmentsController_complete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{taskId}/attachments/drive-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Link an existing file authorized by Google Picker; metadata only, no copying. */
+        post: operations["DriveAttachmentsController_link"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{taskId}/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Drive attachment metadata and availability. Files remain links after disconnecting Google. */
+        get: operations["DriveAttachmentsController_list"];
+        put?: never;
+        /** Stream multipart directly to the user’s Drive (25 MiB/file, 50/task, <=8 MiB buffered). Requires Google Drive connected; ttd stores metadata only. */
+        post: operations["DriveAttachmentsController_stream"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{taskId}/attachments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Redirect to the existing Drive web link. No binary download or cache on ttd. */
+        get: operations["DriveAttachmentsController_open"];
+        put?: never;
+        post?: never;
+        /** Remove attachment metadata. Optional trash_in_drive moves the file to Drive trash first; a Drive failure keeps the metadata. */
+        delete: operations["DriveAttachmentsController_remove"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/attachments/{id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fetch only a fresh Drive thumbnail URL and redirect without caching; never downloads thumbnail bytes. */
+        get: operations["DriveAttachmentsController_preview"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4549,6 +4617,30 @@ export interface components {
             before_id?: Record<string, never> | null;
             move_to_end?: boolean;
         };
+        DriveSessionDto: {
+            name: string;
+            mime_type: string;
+            size: number;
+        };
+        DriveCompleteDto: {
+            drive_file_id: string;
+            upload_id: string;
+        };
+        DriveAttachmentResponseDto: {
+            id: string;
+            file_name: string;
+            mime_type: string;
+            byte_size: number;
+            drive_file_id: string | null;
+            web_view_link: string;
+            icon_link: string | null;
+            source: string;
+            /** @enum {string} */
+            drive_state: "ok" | "missing" | "unknown";
+        };
+        DriveLinkDto: {
+            drive_file_id: string;
+        };
         UpdateTickyAuthorityDto: {
             list_ids?: string[];
             autonomy?: number;
@@ -7492,121 +7584,6 @@ export interface operations {
             };
         };
     };
-    TasksController_listAttachments: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Dev-User-Email"?: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    TasksController_upload: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Dev-User-Email"?: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": {
-                    /** Format: binary */
-                    file?: string;
-                };
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    TasksController_thumbnail: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Dev-User-Email"?: string;
-            };
-            path: {
-                id: string;
-                attachmentId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    TasksController_download: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Dev-User-Email"?: string;
-            };
-            path: {
-                id: string;
-                attachmentId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    TasksController_deleteAttachment: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Dev-User-Email"?: string;
-            };
-            path: {
-                id: string;
-                attachmentId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     InboundEmailController_receive: {
         parameters: {
             query?: never;
@@ -7627,6 +7604,222 @@ export interface operations {
         };
         responses: {
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DriveAttachmentsController_pickerConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        client_id: string;
+                        api_key: string;
+                        app_id: string;
+                    };
+                };
+            };
+        };
+    };
+    DriveAttachmentsController_start: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DriveSessionDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        upload_url: string;
+                        upload_id: string;
+                    };
+                };
+            };
+        };
+    };
+    DriveAttachmentsController_complete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DriveCompleteDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriveAttachmentResponseDto"];
+                };
+            };
+        };
+    };
+    DriveAttachmentsController_link: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DriveLinkDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriveAttachmentResponseDto"];
+                };
+            };
+        };
+    };
+    DriveAttachmentsController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items?: components["schemas"]["DriveAttachmentResponseDto"][];
+                        next_cursor?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    DriveAttachmentsController_stream: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriveAttachmentResponseDto"];
+                };
+            };
+        };
+    };
+    DriveAttachmentsController_open: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Drive webViewLink redirect. */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DriveAttachmentsController_remove: {
+        parameters: {
+            query?: {
+                trash_in_drive?: boolean;
+            };
+            header?: never;
+            path: {
+                taskId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DriveAttachmentsController_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Fresh thumbnailLink redirect with Cache-Control: no-store. */
+            302: {
                 headers: {
                     [name: string]: unknown;
                 };

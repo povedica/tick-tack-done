@@ -420,6 +420,21 @@ export class McpService {
           task_id: task.id,
         };
       }
+      case 'link_drive_file':
+        return this.tasks.linkDriveFile(
+          user,
+          requiredUuid(args, 'task_id'),
+          requiredString(args, 'drive_file_id', 200),
+          'mcp',
+        );
+      case 'remove_task_attachment':
+        await this.tasks.deleteAttachment(
+          user,
+          requiredUuid(args, 'task_id'),
+          requiredUuid(args, 'attachment_id'),
+          args.trash_in_drive === true,
+        );
+        return { removed: true };
       case 'list_task_attachments':
         return {
           items: await this.tasks.listAttachments(user, requiredUuid(args, 'task_id')),
@@ -1127,18 +1142,49 @@ function toolError(
 /** Normalize legacy unpaged collections while preserving API keyset cursors and groups. */
 function summarizeActivity(value: unknown, includeActor: boolean): unknown {
   if (!isRecord(value) || !Array.isArray(value.activity)) return value;
-  const activity = collection(value.activity).filter(isRecord).map(entry => {
-    const changes = isRecord(entry.changes) ? entry.changes : {};
-    const payload = isRecord(changes.data) ? changes.data : changes;
-    const task = isRecord(payload.task) ? payload.task : {};
-    const previous = isRecord(changes.previous) ? changes.previous : {};
-    const keys = Object.keys(previous).length ? Object.keys(previous) : ['title', 'content', 'status', 'priority', 'due_date', 'start_date', 'repeat_rule'];
-    const type = typeof changes._event_type === 'string' ? changes._event_type.replace(/@v[0-9]+$/, '') : payload.detached === true ? 'occurrence.detached' : `task.${typeof entry.action === 'string' ? entry.action : 'updated'}`;
-    const source = typeof payload.source === 'string' ? payload.source : typeof task.source === 'string' ? task.source : entry.actor_kind === 'user' ? 'web' : 'api';
-    return { at: entry.created_at ?? null, type, source, changed: keys.filter(key => key !== 'updated_at' && JSON.stringify(previous[key]) !== JSON.stringify(task[key])),
-      ...(includeActor ? { actor: { id: entry.token_id ?? entry.actor_id ?? null, kind: entry.actor_kind ?? 'user', ...(entry.token_name ? { name: entry.token_name } : {}) } } : {}),
-    };
-  });
+  const activity = collection(value.activity)
+    .filter(isRecord)
+    .map((entry) => {
+      const changes = isRecord(entry.changes) ? entry.changes : {};
+      const payload = isRecord(changes.data) ? changes.data : changes;
+      const task = isRecord(payload.task) ? payload.task : {};
+      const previous = isRecord(changes.previous) ? changes.previous : {};
+      const keys = Object.keys(previous).length
+        ? Object.keys(previous)
+        : ['title', 'content', 'status', 'priority', 'due_date', 'start_date', 'repeat_rule'];
+      const type =
+        typeof changes._event_type === 'string'
+          ? changes._event_type.replace(/@v[0-9]+$/, '')
+          : payload.detached === true
+            ? 'occurrence.detached'
+            : `task.${typeof entry.action === 'string' ? entry.action : 'updated'}`;
+      const source =
+        typeof payload.source === 'string'
+          ? payload.source
+          : typeof task.source === 'string'
+            ? task.source
+            : entry.actor_kind === 'user'
+              ? 'web'
+              : 'api';
+      return {
+        at: entry.created_at ?? null,
+        type,
+        source,
+        changed: keys.filter(
+          (key) =>
+            key !== 'updated_at' && JSON.stringify(previous[key]) !== JSON.stringify(task[key]),
+        ),
+        ...(includeActor
+          ? {
+              actor: {
+                id: entry.token_id ?? entry.actor_id ?? null,
+                kind: entry.actor_kind ?? 'user',
+                ...(entry.token_name ? { name: entry.token_name } : {}),
+              },
+            }
+          : {}),
+      };
+    });
   return { ...value, activity };
 }
 

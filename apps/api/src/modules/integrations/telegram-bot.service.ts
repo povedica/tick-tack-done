@@ -1,3 +1,4 @@
+import { Readable } from 'node:stream';
 import { createHash, randomBytes } from 'node:crypto';
 import { HttpStatus, Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import {
@@ -15,7 +16,6 @@ import { asJson } from '../../http/json.js';
 import { DomainException } from '../../http/domain.exception.js';
 import { readTelegramUpdate, type TelegramIncoming } from '../../integrations/telegram-update.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { ATTACHMENT_MAX_BYTES } from '../tasks/attachment-storage.js';
 import type { TaskSummaryJson } from '../tasks/task.mapper.js';
 import { ListsService } from '../lists/lists.service.js';
 import type { CaptureWarning } from '../tasks/quick-add.js';
@@ -483,11 +483,6 @@ export class TelegramBotService implements OnModuleInit {
   }
 
   private async photo(user: AuthUser, incoming: TelegramIncoming): Promise<void> {
-    const file = await this.telegram.download(incoming.fileId);
-    if (file.bytes.length > ATTACHMENT_MAX_BYTES) {
-      await this.send(incoming.chatId, plain('La foto pasa de 25 MB.'));
-      return;
-    }
     const caption = incoming.caption.trim();
     const draft =
       caption.length > 0 ? { raw_text: caption } : await this.inboxTask(user.id, 'Foto');
@@ -496,20 +491,28 @@ export class TelegramBotService implements OnModuleInit {
       { ...draft, metadata: { capture: 'telegram' } },
       `telegram-${incoming.updateId}`,
     );
+    let lead = 'Guardada con foto';
     if (!created.replayed) {
-      const name = file.filePath.split('/').pop() ?? 'foto.jpg';
-      await this.tasks.addAttachment(user, created.body.id, {
-        originalname: name,
-        mimetype: mimeOf(name),
-        size: file.bytes.length,
-        buffer: file.bytes,
-      });
+      try {
+        await this.tasks.assertAttachmentConnected(user);
+        const file = await this.telegram.downloadStream(incoming.fileId);
+        await this.tasks.streamAttachment(
+          user,
+          created.body.id,
+          file.filePath.split('/').pop() ?? 'foto.jpg',
+          file.source,
+          'telegram',
+        );
+      } catch (error) {
+        const code =
+          error instanceof DomainException ? (error.getResponse() as { code?: string }).code : null;
+        if (code !== 'drive_not_connected' && code !== 'drive_reauth_required') throw error;
+        lead = 'No he guardado el adjunto: conecta Google Drive en Ajustes > Integraciones';
+      }
     }
     await this.send(
       incoming.chatId,
-      plain(
-        await this.confirmation(user, created.body, created.body.warnings, 'Guardada con foto'),
-      ),
+      plain(await this.confirmation(user, created.body, created.body.warnings, lead)),
     );
   }
 
@@ -789,11 +792,12 @@ export class TelegramBotService implements OnModuleInit {
         'Set TELEGRAM_VOICE_PROVIDER to a transcription URL',
       );
     }
-    const file = await this.telegram.download(fileId);
+    const file = await this.telegram.downloadStream(fileId);
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'content-type': 'application/octet-stream' },
-      body: file.bytes,
+      body: Readable.from(file.source),
+      duplex: 'half',
       signal: AbortSignal.timeout(20_000),
     });
     if (!response.ok) {
@@ -865,20 +869,6 @@ function webBase(): string {
 
 function escapeHtml(value: string): string {
   return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
-}
-
-function mimeOf(name: string): string {
-  const lower = name.toLowerCase();
-  if (lower.endsWith('.png')) {
-    return 'image/png';
-  }
-  if (lower.endsWith('.webp')) {
-    return 'image/webp';
-  }
-  if (lower.endsWith('.gif')) {
-    return 'image/gif';
-  }
-  return 'image/jpeg';
 }
 
 function failureText(error: unknown): string {

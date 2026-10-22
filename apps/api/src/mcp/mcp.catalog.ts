@@ -322,9 +322,29 @@ const CATALOG: readonly McpTool[] = [
   {
     name: 'list_task_attachments',
     description:
-      'List attachment metadata for a task (id, file_name, mime_type, byte_size). Binary upload/download stays on the REST API (TTD-AUD-51).',
+      'List Drive metadata including web_view_link, icon_link, source and drive_state (ok/missing/unknown). Requires Google Drive connected for uploads; files go to the connected Google Drive account; ttd stores metadata only. REST multipart streams to Drive (25 MiB/file, 50/task); direct web uploads allow 100 MiB.',
     scopes: ['tasks:read'],
     inputSchema: objectSchema({ task_id: id }, ['task_id']),
+  },
+  {
+    name: 'link_drive_file',
+    description:
+      'Link an existing Google Picker-authorized file to a task without copying it. Requires Google Drive connected; ttd stores metadata only (50 attachments/task).',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema(
+      { task_id: id, drive_file_id: { type: 'string', pattern: '^[a-zA-Z0-9_-]{1,200}$' } },
+      ['task_id', 'drive_file_id'],
+    ),
+  },
+  {
+    name: 'remove_task_attachment',
+    description:
+      'Remove Drive attachment metadata. By default the file stays in Drive. trash_in_drive:true moves it to Drive trash first; an upstream failure preserves the attachment.',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema(
+      { task_id: id, attachment_id: id, trash_in_drive: { type: 'boolean', default: false } },
+      ['task_id', 'attachment_id'],
+    ),
   },
   {
     name: 'move_task',
@@ -558,7 +578,13 @@ const CATALOG: readonly McpTool[] = [
       ['session_id', 'expected_revision', 'idempotency_key'],
     ),
   },
-  { name: 'discard_replan', description: 'Discard an owned draft replan without changing tasks. Applied sessions cannot be discarded.', scopes: ['tasks:write'], inputSchema: objectSchema({ session_id: id }, ['session_id']) },
+  {
+    name: 'discard_replan',
+    description:
+      'Discard an owned draft replan without changing tasks. Applied sessions cannot be discarded.',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema({ session_id: id }, ['session_id']),
+  },
   {
     name: 'replan_day',
     description:
@@ -841,12 +867,36 @@ const CATALOG: readonly McpTool[] = [
 ];
 
 /** Every listing shares paging inputs; task activity defaults to a compact summary. */
-const ACTIVITY_TOOLS = new Set(['get_task', 'create_task', 'update_task', 'quick_add', 'complete_task', 'reopen_task', 'cancel_task', 'restore_task', 'detach_occurrence']);
-export const MCP_TOOLS: readonly McpTool[] = CATALOG.map(tool => ({ ...tool, inputSchema: { ...tool.inputSchema, properties: {
-  ...(tool.name.startsWith('list_') ? { limit, cursor } : {}),
-  ...(ACTIVITY_TOOLS.has(tool.name) ? { include_activity: { type: 'string', enum: ['summary', 'full'], description: 'Default summary; full includes stored task snapshots.' } } : {}),
-  ...tool.inputSchema.properties,
-} } }));
+const ACTIVITY_TOOLS = new Set([
+  'get_task',
+  'create_task',
+  'update_task',
+  'quick_add',
+  'complete_task',
+  'reopen_task',
+  'cancel_task',
+  'restore_task',
+  'detach_occurrence',
+]);
+export const MCP_TOOLS: readonly McpTool[] = CATALOG.map((tool) => ({
+  ...tool,
+  inputSchema: {
+    ...tool.inputSchema,
+    properties: {
+      ...(tool.name.startsWith('list_') ? { limit, cursor } : {}),
+      ...(ACTIVITY_TOOLS.has(tool.name)
+        ? {
+            include_activity: {
+              type: 'string',
+              enum: ['summary', 'full'],
+              description: 'Default summary; full includes stored task snapshots.',
+            },
+          }
+        : {}),
+      ...tool.inputSchema.properties,
+    },
+  },
+}));
 
 export function findTool(name: string): McpTool | undefined {
   return MCP_TOOLS.find((tool) => tool.name === name);

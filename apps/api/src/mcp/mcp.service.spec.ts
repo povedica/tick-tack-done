@@ -35,6 +35,8 @@ describe('McpService recurrence mapping', () => {
     completeItem: vi.fn(),
     uncompleteItem: vi.fn(),
     listAttachments: vi.fn(),
+    linkDriveFile: vi.fn(),
+    deleteAttachment: vi.fn(),
     occurrences: vi.fn(),
     detach: vi.fn(),
   };
@@ -388,7 +390,11 @@ describe('McpService recurrence mapping', () => {
         arguments: { id: '33333333-3333-4333-8333-333333333333' },
       },
     });
-    expect(tasks.uncomplete).toHaveBeenCalledWith(user, '33333333-3333-4333-8333-333333333333', 'mcp');
+    expect(tasks.uncomplete).toHaveBeenCalledWith(
+      user,
+      '33333333-3333-4333-8333-333333333333',
+      'mcp',
+    );
     await service.handle(user, {
       jsonrpc: '2.0',
       id: 12,
@@ -700,29 +706,111 @@ describe('McpService recurrence mapping', () => {
     });
   });
   it('TTD-AUD-85.3: initialize advertises the versioned changing catalog', async () => {
-    const response = await service.handle(user, { jsonrpc: '2.0', id: 85, method: 'initialize', params: {} });
-    expect(response).toMatchObject({ result: { capabilities: { tools: { listChanged: true } }, serverInfo: { version: expect.stringMatching(/^0\.2\.0\+(?:[a-f0-9]{7}|unknown)$/) } } });
+    const response = await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 85,
+      method: 'initialize',
+      params: {},
+    });
+    expect(response).toMatchObject({
+      result: {
+        capabilities: { tools: { listChanged: true } },
+        serverInfo: { version: expect.stringMatching(/^0\.2\.0\+(?:[a-f0-9]{7}|unknown)$/) },
+      },
+    });
   });
   it('TTD-AUD-85.4: discard_replan forwards the owned session id', async () => {
     closing.discardReplan.mockResolvedValue({ discarded: true });
-    const response = await service.handle(user, { jsonrpc: '2.0', id: 85, method: 'tools/call', params: { name: 'discard_replan', arguments: { session_id: '33333333-3333-4333-8333-333333333333' } } });
+    const response = await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 85,
+      method: 'tools/call',
+      params: {
+        name: 'discard_replan',
+        arguments: { session_id: '33333333-3333-4333-8333-333333333333' },
+      },
+    });
     expect(response).toMatchObject({ result: { isError: false } });
-    expect(closing.discardReplan).toHaveBeenCalledWith(user, '33333333-3333-4333-8333-333333333333');
+    expect(closing.discardReplan).toHaveBeenCalledWith(
+      user,
+      '33333333-3333-4333-8333-333333333333',
+    );
   });
   it('TTD-AUD-85.8: update responses keep a compact activity summary under 2 KB', async () => {
-    const task = { id: '33333333-3333-4333-8333-333333333333', title: 'Small task', repeat_rule: null, time_zone: 'Europe/Madrid', tag_ids: [], activity: Array.from({ length: 4 }, (_, i) => ({ id: String(i), created_at: '2026-10-22T10:00:00Z', action: 'updated', changes: { _event_type: 'task.updated@v1', data: { task: { title: 'old'.repeat(3000) } }, previous: { title: 'old' } } })) };
-    tasks.get.mockResolvedValue(task); tasks.update.mockResolvedValue(task);
-    const response = await service.handle(user, { jsonrpc: '2.0', id: 85, method: 'tools/call', params: { name: 'update_task', arguments: { id: task.id, title: 'New title' } } });
+    const task = {
+      id: '33333333-3333-4333-8333-333333333333',
+      title: 'Small task',
+      repeat_rule: null,
+      time_zone: 'Europe/Madrid',
+      tag_ids: [],
+      activity: Array.from({ length: 4 }, (_, i) => ({
+        id: String(i),
+        created_at: '2026-10-22T10:00:00Z',
+        action: 'updated',
+        changes: {
+          _event_type: 'task.updated@v1',
+          data: { task: { title: 'old'.repeat(3000) } },
+          previous: { title: 'old' },
+        },
+      })),
+    };
+    tasks.get.mockResolvedValue(task);
+    tasks.update.mockResolvedValue(task);
+    const response = await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 85,
+      method: 'tools/call',
+      params: { name: 'update_task', arguments: { id: task.id, title: 'New title' } },
+    });
     expect(Buffer.byteLength(toolText(response))).toBeLessThan(2048);
     const body = JSON.parse(toolText(response)) as { activity: unknown[] };
     expect(body.activity[0]).toMatchObject({ type: 'task.updated', changed: ['title'] });
   });
   it('TTD-AUD-85.8: get_task can explicitly request full activity', async () => {
-    tasks.get.mockResolvedValue({ id: '33333333-3333-4333-8333-333333333333', repeat_rule: null, activity: [{ changes: { task: { title: 'Full snapshot' } } }] });
-    const response = await service.handle(user, { jsonrpc: '2.0', id: 85, method: 'tools/call', params: { name: 'get_task', arguments: { id: '33333333-3333-4333-8333-333333333333', include_activity: 'full' } } });
-    expect(JSON.parse(toolText(response))).toMatchObject({ activity: [{ changes: { task: { title: 'Full snapshot' } } }] });
+    tasks.get.mockResolvedValue({
+      id: '33333333-3333-4333-8333-333333333333',
+      repeat_rule: null,
+      activity: [{ changes: { task: { title: 'Full snapshot' } } }],
+    });
+    const response = await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 85,
+      method: 'tools/call',
+      params: {
+        name: 'get_task',
+        arguments: { id: '33333333-3333-4333-8333-333333333333', include_activity: 'full' },
+      },
+    });
+    expect(JSON.parse(toolText(response))).toMatchObject({
+      activity: [{ changes: { task: { title: 'Full snapshot' } } }],
+    });
   });
 
+  it('TTD-AUD-99: linking and removing Drive files preserve owner and the explicit trash choice', async () => {
+    const id = '33333333-3333-4333-8333-333333333333';
+    tasks.linkDriveFile.mockResolvedValue({
+      id: 'attachment',
+      web_view_link: 'https://drive.google.com/file/d/file/view',
+      drive_state: 'ok',
+    });
+    await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: { name: 'link_drive_file', arguments: { task_id: id, drive_file_id: 'file' } },
+    });
+    expect(tasks.linkDriveFile).toHaveBeenCalledWith(user, id, 'file', 'mcp');
+    await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 2,
+      method: 'tools/call',
+      params: {
+        name: 'remove_task_attachment',
+        arguments: { task_id: id, attachment_id: id, trash_in_drive: true },
+      },
+    });
+    expect(tasks.deleteAttachment).toHaveBeenCalledWith(user, id, id, true);
+  });
 });
 
 function toolText(body: unknown): string {

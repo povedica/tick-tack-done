@@ -1,12 +1,26 @@
 import { extraEs } from './extra';
 
 export const es = {
+
   accountProgressLabel: 'Racha {days}. Control {score}, {state}',
   calendarTodayLabel: '{date}, hoy',
   accountProgress: 'Tu progreso',
   streakActiveDot: 'Racha activa: {days}',
   controlScoreOf: '{score} de 100',
   ...extraEs,
+  driveConnect: extraEs.driveConnect,
+  driveReconnect: extraEs.driveReconnect,
+  driveRequired: extraEs.driveRequired,
+  driveMetadataOnly: extraEs.driveMetadataOnly,
+  driveMissing: extraEs.driveMissing,
+  driveRemove: extraEs.driveRemove,
+  driveRemoveQuestion: extraEs.driveRemoveQuestion,
+  driveTrashAlso: extraEs.driveTrashAlso,
+  driveUploading: extraEs.driveUploading,
+  drivePreview: extraEs.drivePreview,
+  drivePicker: extraEs.drivePicker,
+  drivePickerUnavailable: extraEs.drivePickerUnavailable,
+  driveQuotaExceeded: extraEs.driveQuotaExceeded,
   recurrenceAnchorWarning: extraEs.recurrenceAnchorWarning,
   countdownTypeMenu: 'Tipo de cuenta atrás',
   countdownDatePlaceholder: 'dd/mm/aaaa',

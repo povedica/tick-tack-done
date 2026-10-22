@@ -1,3 +1,5 @@
+import { useDriveConnection } from './use-drive-connection';
+import { uploadAttachmentToDrive, MAX_DIRECT_ATTACHMENT_BYTES } from './drive-upload';
 import { runAction } from '../../components/run-action';
 import { type CreateTaskBody, type TaskDetail as Detail } from '@reflexionia/sdk';
 import { describeRepeatRule, parseTrigger, recurrenceAnchorWarning } from '@reflexionia/domain';
@@ -32,7 +34,6 @@ import { completeBody } from './complete-body';
 import { displayTitle } from './displayTitle';
 import { createComment, deleteAttachment, listComments, patchChecklistItem } from './task-http';
 
-const MAX_ATTACHMENT = 25 * 1024 * 1024;
 const TEMPLATE_KEY = 'tick-tack-done.templates';
 
 export function TaskDetail({
@@ -43,11 +44,14 @@ export function TaskDetail({
   readonly onClose: () => void;
 }) {
   const messages = useMessages();
+  const driveConnection = useDriveConnection();
   const locale = useAppLocale();
   const contentRef = useRef<HTMLTextAreaElement>(null);
   const queryClient = useQueryClient();
   const focus = useActiveFocus();
   const [error, setError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const uploadQueue = useRef(Promise.resolve());
   const [notice, setNotice] = useState<string | null>(null);
   const [, setParams] = useSearchParams();
   const showToast = useActionToast((state) => state.show);
@@ -155,15 +159,25 @@ export function TaskDetail({
   const task = detail.data;
 
   function uploadFile(file: File): void {
-    if (file.size > MAX_ATTACHMENT) {
-      setError(messages.tooLarge);
+    if (!driveConnection.connected) {
+      setError(driveConnection.reconnect ? messages.driveReconnect : messages.driveRequired);
       return;
     }
-    void api
-      .uploadAttachment(task.id, file, file.name)
-      .then(() => queryClient.invalidateQueries({ queryKey: ['attachments', taskId] }))
+    if (file.size > MAX_DIRECT_ATTACHMENT_BYTES) {
+      setError(messages.driveMetadataOnly);
+      return;
+    }
+    uploadQueue.current = uploadQueue.current
+      .then(async () => {
+        setUploadProgress(0);
+        await uploadAttachmentToDrive(task.id, file, setUploadProgress);
+        await queryClient.invalidateQueries({ queryKey: ['attachments', taskId] });
+      })
       .catch((caught: unknown) => {
         setError(apiMessage(caught, messages));
+      })
+      .finally(() => {
+        setUploadProgress(null);
       });
   }
   const activeChildren = task.subtasks.filter((item) => item.status === 'active');
@@ -386,6 +400,17 @@ export function TaskDetail({
           {notice}
         </p>
       ) : null}
+      {uploadProgress !== null ? (
+        <progress
+          className="asset-upload-progress"
+          max={1}
+          value={uploadProgress}
+          aria-label={messages.driveUploading.replace(
+            '{percent}',
+            String(Math.round(uploadProgress * 100)),
+          )}
+        />
+      ) : null}
       <DetailBody
         titleLeading={
           <PriorityCheck
@@ -507,6 +532,9 @@ export function TaskDetail({
           id: file.id,
           name: file.file_name,
           size: file.byte_size,
+          url: file.web_view_link,
+          icon: file.icon_link,
+          state: file.drive_state,
         }))}
         attachmentLabel={messages.attachments}
         attachmentDownload={messages.attachmentDownload}
@@ -552,13 +580,11 @@ export function TaskDetail({
             : api.completeTask(id, completeBody(), crypto.randomUUID());
           runAction(run.then(refresh));
         }}
-        onDeleteAttachment={(id) => {
-          void deleteAttachment(task.id, id)
-            .then(() => queryClient.invalidateQueries({ queryKey: ['attachments', taskId] }))
-            .catch((caught: unknown) => {
-              setError(apiMessage(caught, messages));
-            });
-        }}
+        onDeleteAttachment={(id, trash) =>
+          deleteAttachment(task.id, id, trash).then(() =>
+            queryClient.invalidateQueries({ queryKey: ['attachments', taskId] }),
+          )
+        }
         onDropFiles={(files) => {
           const file = files[0];
           if (file === undefined) {

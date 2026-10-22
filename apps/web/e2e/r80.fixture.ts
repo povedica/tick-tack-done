@@ -5,6 +5,7 @@ export async function r80Fixture(
     anchorWarning?: boolean;
     count?: number;
     duration?: number;
+    drive?: boolean;
     delayed?: boolean;
     error?: boolean;
     startOnly?: boolean;
@@ -129,6 +130,9 @@ export async function r80Fixture(
         next_cursor: null,
       };
     if (path === '/filters/preview') body = { groups: [{key:'none', label:'', tasks:[task]}], count:1, group_by:'none', sort:'manual', next_cursor:null };
+    if (path === '/tasks/task/attachments' && options.drive) body = {items:[{id:'file',file_name:'informe-sintetico.pdf',mime_type:'application/pdf',byte_size:4096,has_thumbnail:false,drive_file_id:'file',drive_url:'https://drive.google.com/file/d/synthetic/view',web_view_link:'https://drive.google.com/file/d/synthetic/view',icon_link:null,source:'picker',drive_state:'ok'}],next_cursor:null};
+    if(path === '/integrations/google' || path === '/integrations/drive') body={configured:true,connected:options.drive ?? false,account:options.drive ? 'synthetic@example.test' : null,status:options.drive ? 'connected' : 'disconnected'};
+    if (path === '/integrations/status') body={google:{configured:true,connected:options.drive ?? false,account:options.drive ? 'synthetic@example.test' : null,status:options.drive ? 'connected' : 'disconnected'},drive:{configured:true,connected:options.drive ?? false},telegram:{configured:true,linked:false}};
     if (path === '/tasks/task')
       body = {
         ...task,

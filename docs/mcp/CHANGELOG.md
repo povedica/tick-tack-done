@@ -16,3 +16,10 @@
 - Actividad compacta por defecto, con origen y actor en get_task; `include_activity:full` conserva el detalle anterior.
 - `discard_replan` descarta un borrador propio sin modificar tareas. Una replanificación vacía no crea sesión.
 - Recordatorios normalizados a duración ISO; rangos NLP tienen inicio, fin y duración. Origen `mcp` explícito en capturas y aislamiento.
+
+### TTD-AUD-99 (corte de código)
+- `list_task_attachments` devuelve metadatos de Drive, enlaces, origen y disponibilidad; no binarios.
+- Nuevas `link_drive_file` y `remove_task_attachment`; quitar conserva el fichero salvo trash_in_drive:true.
+- `api_request` transmite multipart por fragmentos (25 MiB/fichero); no genera un archivo ni una copia completa del binario.
+- No Drive: 409 drive_not_connected con connect_url; token revocado: 409 drive_reauth_required.
+- GET de un adjunto redirige a Drive; miniatura binaria retirada, nueva preview 302/no-store.

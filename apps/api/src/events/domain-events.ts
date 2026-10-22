@@ -99,6 +99,8 @@ export const DomainEvent = {
   presenceUpdated: 'presence.updated@v1',
   importCompleted: 'import.completed@v1',
   driveAttached: 'drive.attached@v1',
+  attachmentRemoved:'attachment.removed@v1',
+  googleReauthRequired:'integration.google.reauth_required@v1',
   telegramLinked: 'telegram.linked@v1',
   telegramUnlinked: 'telegram.unlinked@v1',
   googleDisconnected: 'google.disconnected@v1',

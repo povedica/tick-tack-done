@@ -2,7 +2,7 @@ import { composerContextFor } from '../features/capture/context';
 import { runAction } from '../components/run-action';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState, type CSSProperties } from 'react';
-import { Outlet, useLocation, useSearchParams } from 'react-router';
+import { Outlet, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { api } from '../api';
 import { dismissPopover } from '../components/popover-stack';
 import { LocationWatch } from '../features/product/ProductPages';
@@ -32,6 +32,7 @@ export function AppShell() {
   const composerClient = useQueryClient();
   const messages = useMessages();
   const location = useLocation();
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const taskId = params.get('task');
   const [collapsed, setCollapsed] = useState(() => readSidebarCollapsed(localStorage));
@@ -44,9 +45,20 @@ export function AppShell() {
   const showSidebar = sectionShowsSidebar(section);
   const showDetailPane = sectionShowsDetailPane(section) && !narrow;
   const sidebarCollapsed = !showSidebar || collapsed;
-  const detailOpen =
-    (showDetailPane && taskId !== null) || (narrow && taskId !== null);
+  const detailOpen = (showDetailPane && taskId !== null) || (narrow && taskId !== null);
   const floatingDetail = !narrow && !sectionShowsDetailPane(section) && taskId !== null;
+
+  useEffect(() => {
+    if (
+      location.pathname !== '/settings/integrations' ||
+      new URLSearchParams(location.search).get('google') !== 'connected'
+    )
+      return;
+    const back = sessionStorage.getItem('ttd.google.return');
+    sessionStorage.removeItem('ttd.google.return');
+    if (back?.startsWith('/') && !back.startsWith('//') && !back.includes('\\'))
+      runAction(Promise.resolve(navigate(back, { replace: true })));
+  }, [location.pathname, location.search, navigate]);
 
   useEffect(() => {
     const on = (): void => {
@@ -79,9 +91,10 @@ export function AppShell() {
     const next = new URLSearchParams(params);
     next.delete('task');
     setParams(next, { replace: true });
-    if (taskId !== null) requestAnimationFrame(() => {
-      document.querySelector<HTMLElement>(`[data-task-id="${CSS.escape(taskId)}"]`)?.focus();
-    });
+    if (taskId !== null)
+      requestAnimationFrame(() => {
+        document.querySelector<HTMLElement>(`[data-task-id="${CSS.escape(taskId)}"]`)?.focus();
+      });
   }
 
   useEffect(() => {
@@ -99,7 +112,9 @@ export function AppShell() {
           const next = new URLSearchParams(params);
           next.delete('task');
           setParams(next, { replace: true });
-          requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-task-id="${CSS.escape(taskId)}"]`)?.focus());
+          requestAnimationFrame(() =>
+            document.querySelector<HTMLElement>(`[data-task-id="${CSS.escape(taskId)}"]`)?.focus(),
+          );
         }
         return;
       }

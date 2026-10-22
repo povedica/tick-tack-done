@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import {
   Body,
   Controller,
@@ -19,14 +18,8 @@ import { CurrentUser } from '../../auth/current-user.decorator.js';
 import { Public, Scopes } from '../../auth/scopes.decorator.js';
 import { DomainEvent } from '../../events/domain-events.js';
 import { EventRecorder } from '../../events/event-recorder.js';
-import {
-  driveConfigured,
-  googleConfigured,
-  telegramConfigured,
-} from '../../integrations/config.js';
-import { downloadDriveFile } from '../../integrations/google-drive.js';
+import { googleConfigured, telegramConfigured } from '../../integrations/config.js';
 import { userGoogleRefreshToken } from '../../integrations/user-google-token.js';
-import { exchangeGoogleRefreshToken } from '../../integrations/google-token.js';
 import { telegramSecretMatches } from '../../integrations/telegram-secret.js';
 import { authorizeUrl, readState, redirectFor, signState } from './google-oauth.js';
 import { TelegramBotService } from './telegram-bot.service.js';
@@ -35,7 +28,6 @@ import { DomainException } from '../../http/domain.exception.js';
 import { respondJson } from '../../http/respond.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { sealField } from '../../security/field-cipher.js';
-import { ATTACHMENT_MAX_BYTES } from '../tasks/attachment-storage.js';
 import { TasksService } from '../tasks/tasks.service.js';
 
 class LinkDto {
@@ -202,7 +194,7 @@ export class IntegrationsController {
   ): Promise<void> {
     const row = await this.prisma.user.findUnique({
       where: { id: user.id },
-      select: { googleRefreshToken: true, googleAccountEmail: true },
+      select: { googleRefreshToken: true, googleAccountEmail: true, googleStatus: true },
     });
     respondJson(
       req,
@@ -212,6 +204,12 @@ export class IntegrationsController {
         configured: googleConfigured(),
         connected: (row?.googleRefreshToken ?? '').length > 0,
         account: row?.googleAccountEmail ?? null,
+        status:
+          row?.googleStatus === 'reauth_required'
+            ? 'reauth_required'
+            : row?.googleRefreshToken
+              ? 'connected'
+              : 'disconnected',
       },
       false,
     );
@@ -224,7 +222,7 @@ export class IntegrationsController {
     await this.prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { id: user.id },
-        data: { googleRefreshToken: null, googleAccountEmail: null },
+        data: { googleRefreshToken: null, googleAccountEmail: null, googleStatus: 'disconnected' },
       });
       await this.events.record(tx, actorOf(user), {
         type: DomainEvent.googleDisconnected,
@@ -309,7 +307,11 @@ export class IntegrationsController {
     await this.prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { id: parsed.uid },
-        data: { googleRefreshToken: sealField(refreshToken), googleAccountEmail: account },
+        data: {
+          googleRefreshToken: sealField(refreshToken),
+          googleAccountEmail: account,
+          googleStatus: 'connected',
+        },
       });
       await this.events.record(
         tx,
@@ -365,81 +367,17 @@ export class IntegrationsController {
       respondJson(req, res, 201, copied, false);
       return;
     }
-    const row = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.attachment.create({
-        data: {
-          ownerId: user.id,
-          taskId: task.id,
-          fileName: dto.name,
-          mimeType: 'application/vnd.google-apps.drive',
-          byteSize: 0,
-          storageKey: `${user.id}/${randomUUID()}`,
-          driveFileId: dto.file_id,
-          driveUrl: dto.url,
-          uploadedById: user.id,
-        },
-      });
-      await this.events.record(tx, actorOf(user), {
-        type: DomainEvent.driveAttached,
-        entityType: 'attachment',
-        entityId: created.id,
-        action: 'created',
-        data: asJson({
-          drive_file_id: dto.file_id,
-          copied: false,
-          drive_configured: driveConfigured(),
-        }),
-        previous: null,
-      });
-      return created;
-    });
-    respondJson(req, res, 201, { id: row.id, drive_url: dto.url, copied: false }, false);
+    const row = await this.tasks.linkDriveFile(user, task.id, dto.file_id);
+    respondJson(req, res, 201, { ...row, copied: false }, false);
   }
 
-  private async copyDriveFile(
-    user: AuthUser,
-    taskId: string,
-    dto: DriveDto,
-  ): Promise<{ id: string; drive_url: string; copied: true }> {
+  private async copyDriveFile(user: AuthUser, taskId: string, dto: DriveDto) {
     const row = await this.prisma.user.findUnique({
       where: { id: user.id },
       select: { googleRefreshToken: true, email: true },
     });
-    const refresh = userGoogleRefreshToken(row);
-    const access = await exchangeGoogleRefreshToken(refresh);
-    const file = await downloadDriveFile(access, dto.file_id);
-    if (file.bytes.length > ATTACHMENT_MAX_BYTES) {
-      throw new DomainException(
-        HttpStatus.PAYLOAD_TOO_LARGE,
-        'payload_too_large',
-        'Drive file exceeds 25 MB',
-      );
-    }
-    const saved = await this.tasks.addAttachment(user, taskId, {
-      originalname: dto.name.length > 0 ? dto.name : file.name,
-      mimetype: file.mimeType,
-      size: file.bytes.length,
-      buffer: file.bytes,
-    });
-    await this.prisma.$transaction(async (tx) => {
-      await tx.attachment.update({
-        where: { id: saved.id },
-        data: { driveFileId: dto.file_id, driveUrl: dto.url },
-      });
-      await this.events.record(tx, actorOf(user), {
-        type: DomainEvent.driveAttached,
-        entityType: 'attachment',
-        entityId: saved.id,
-        action: 'created',
-        data: asJson({
-          drive_file_id: dto.file_id,
-          copied: true,
-          drive_configured: driveConfigured(),
-        }),
-        previous: null,
-      });
-    });
-    return { id: saved.id, drive_url: dto.url, copied: true };
+    userGoogleRefreshToken(row);
+    return { ...(await this.tasks.linkDriveFile(user, taskId, dto.file_id)), copied: false };
   }
 }
 

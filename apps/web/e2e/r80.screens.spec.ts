@@ -3,6 +3,8 @@ import { expect, test } from '@playwright/test';
 import { r80Fixture } from './r80.fixture';
 const phase = process.env.R80_PHASE ?? 'antes';
 const screens = [
+  { id: 99, name: 'adjuntos-sin-drive', route: '/today?task=task', drive: false },
+  { id: 99, name: 'adjuntos-con-drive', route: '/today?task=task', drive: true },
   { id: 90, name: 'fecha-composer', route: '/today', composer: true, date: true },
   { id: 90, name: 'fecha-detalle', route: '/today?task=task', date: true },
   { id: 84, name: 'foco', route: '/focus' },
@@ -25,7 +27,7 @@ for (const screen of screens)
     page.on('console', (message) => {
       if (message.type() === 'error') console.log(message.text());
     });
-    await r80Fixture(page, { filtering: true, anchorWarning: screen.id === 81 });
+    await r80Fixture(page, { filtering: true, anchorWarning: screen.id === 81, ...('drive' in screen ? {drive: screen.drive} : {}) });
     await page.goto(screen.route);
     await expect(page.locator('.center').first()).toBeVisible();
     const theme = info.project.name.endsWith('dark') ? 'dark' : 'light';

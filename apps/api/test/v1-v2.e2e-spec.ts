@@ -528,7 +528,7 @@ describe('V1 and V2 product', () => {
       const files = await session()
         .get(`/api/v1/tasks/${photoTask?.id ?? ''}/attachments`)
         .expect(200);
-      expect(files.body.items.length).toBeGreaterThan(0);
+      expect(files.body.items).toHaveLength(0);
       expect(paths.some((item) => item.endsWith('/sendMessage'))).toBe(true);
 
       const denied = await request(server)
@@ -607,7 +607,7 @@ describe('V1 and V2 product', () => {
         if (url.includes('alt=media')) {
           return new Response(Buffer.from('pdf-bytes'), { status: 200 });
         }
-        return new Response(JSON.stringify({ name: 'notas.pdf', mimeType: 'application/pdf' }), {
+        return new Response(JSON.stringify({id:'file-2',name:'notas.pdf',mimeType:'application/pdf',size:'9',webViewLink:'https://drive.google.com/file/d/file-2/view',parents:[],appProperties:{}}), {
           status: 200,
         });
       }
@@ -663,7 +663,7 @@ describe('V1 and V2 product', () => {
           copy: true,
         })
         .expect(201);
-      expect(attached.body.copied).toBe(true);
+      expect(attached.body.copied).toBe(false);
     } finally {
       globalThis.fetch = original;
       delete process.env.GOOGLE_CLIENT_ID;
@@ -710,7 +710,7 @@ describe('V1 and V2 product', () => {
     }
   });
 
-  it('RF-2005: a Drive link is stored and nothing is copied', async () => {
+  it('RF-2005 / TTD-AUD-99: linking an existing Drive file also requires a connection', async () => {
     const task = await session()
       .post('/api/v1/tasks')
       .send({ project_id: projectId, title: 'con drive' })
@@ -723,8 +723,8 @@ describe('V1 and V2 product', () => {
         url: 'https://drive.google.com/file/d/file-1',
         name: 'notas.pdf',
       })
-      .expect(201);
-    expect(attached.body.copied).toBe(false);
+      .expect(409);
+    expect(attached.body.error.code).toBe('drive_not_connected');
   });
 
   it('RF-806: a location reminder stays quiet when the point is outside the fence', async () => {

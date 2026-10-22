@@ -1,0 +1,133 @@
+.task-assets {
+  position: relative;
+}
+.asset-help,
+.asset-connect {
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  margin-block: var(--sp-2);
+}
+.asset-connect {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.detail-attach-btn[aria-disabled='true'] {
+  opacity: var(--asset-disabled-opacity);
+  cursor: not-allowed;
+}
+.attachment-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin: var(--sp-2) 0;
+  padding: 0;
+  list-style: none;
+}
+.attachment-chips > li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+.attachment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  height: var(--chip-h);
+  max-width: var(--chip-max-w);
+  padding-inline: var(--sp-2);
+  border: var(--chip-border);
+  border-radius: var(--chip-radius);
+  background: var(--chip-bg);
+  color: var(--ink);
+  font-size: var(--chip-fs);
+  text-decoration: none;
+  position: relative;
+  box-sizing: border-box;
+}
+.attachment-chip > :is(svg, img) {
+  width: var(--chip-icon);
+  height: var(--chip-icon);
+  flex-shrink: 0;
+}
+.asset-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.asset-size {
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  flex-shrink: 0;
+}
+.attachment-chip.is-missing {
+  color: var(--ink-3);
+  text-decoration: line-through;
+}
+.asset-remove {
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  width: var(--chip-h);
+  height: var(--chip-h);
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+}
+.asset-remove:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.asset-preview {
+  position: absolute;
+  z-index: var(--asset-preview-z);
+  inset-inline-start: 0;
+  max-width: var(--chip-max-w);
+  background: var(--surface);
+  padding: var(--sp-2);
+  box-shadow: var(--shadow-md);
+  border-radius: var(--radius-md);
+}
+.asset-preview img {
+  display: block;
+  max-width: 100%;
+  max-height: var(--chip-max-w);
+  object-fit: contain;
+}
+.asset-remove-dialog h2 {
+  font-size: var(--fs-md);
+}
+.asset-remove-dialog > label {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: var(--tap);
+}
+@media (max-width: 768px) {
+  .attachment-chip {
+    height: var(--chip-h-mobile);
+  }
+  .attachment-chip::before {
+    content: '';
+    position: absolute;
+    inset-block: calc((var(--chip-h-mobile) - var(--tap)) / 2);
+    inset-inline: 0;
+  }
+  .asset-remove {
+    height: var(--tap);
+    width: var(--tap);
+  }
+  .asset-connect a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap);
+  }
+}
+
+.asset-upload-progress {
+  width: 100%;
+  accent-color: var(--accent);
+  height: var(--sp-1);
+}

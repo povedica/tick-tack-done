@@ -1,3 +1,4 @@
+import { DriveAttachmentsService } from '../../drive/attachments.service.js';
 import { listOverdueTaskIds } from '../../reading/overdue.js';
 import { randomUUID } from 'node:crypto';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
@@ -10,7 +11,6 @@ import {
   deriveDurationMinutes,
   excludeOccurrence,
   extractMarkdownChecklist,
-  isRasterImage,
   isIanaTimeZone,
   nextOccurrence,
   recurrenceAnchorWarning,
@@ -48,23 +48,8 @@ import { placementPlan } from '../../ordering/placement.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { lockRecurrenceSeries } from '../../prisma/series-lock.js';
 import type { Tx } from '../../prisma/tx.js';
-import {
-  assertInboundFiles,
-  optionalToken,
-  safeMime,
-  untrustedText,
-  type InboundFile,
-} from './inbound-mail.js';
+import { optionalToken, untrustedText } from './inbound-mail.js';
 import { resolveQuickAdd, type CaptureWarning } from './quick-add.js';
-import {
-  acceptedMime,
-  ATTACHMENT_MAX_PER_TASK,
-  ATTACHMENT_USER_QUOTA_BYTES,
-  removeAttachmentFile,
-  resolveAttachment,
-  safeFileName,
-  writeAttachment,
-} from './attachment-storage.js';
 import { encodeTaskCursor, taskKeyset, taskOrderBy, type TaskSort } from './task-cursor.js';
 import {
   progressOf,
@@ -166,6 +151,7 @@ export class TasksService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
     @Inject(IdempotencyService) private readonly idempotency: IdempotencyService,
+    @Inject(DriveAttachmentsService) private readonly drive: DriveAttachmentsService,
   ) {}
 
   async list(
@@ -260,8 +246,7 @@ export class TasksService {
     readonly subject: unknown;
     readonly text: unknown;
     readonly messageId: unknown;
-    readonly files: readonly InboundFile[];
-  }): Promise<CreatedTask> {
+  }): Promise<{ task: CreatedTask; fresh: boolean }> {
     const local = typeof input.recipient === 'string' ? inboundLocalPart(input.recipient) : null;
     if (local === null) {
       throw new DomainException(HttpStatus.UNAUTHORIZED, 'unauthorized', 'Invalid recipient');
@@ -279,7 +264,6 @@ export class TasksService {
     if (subject.trim().length === 0) {
       throw new DomainException(HttpStatus.BAD_REQUEST, 'empty_title', 'title is required');
     }
-    assertInboundFiles(input.files);
     const user: AuthUser = {
       id: owner.id,
       email: owner.email,
@@ -296,6 +280,8 @@ export class TasksService {
     }
     const created = await this.prisma.$transaction(async (tx) => {
       if (messageId !== null) {
+        const key = `inbound-email:${user.id}:${messageId}`;
+        await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtextextended(${key},0))`;
         const existing = await tx.task.findFirst({
           where: {
             ownerId: user.id,
@@ -318,17 +304,7 @@ export class TasksService {
         fresh: true,
       };
     });
-    if (created.fresh) {
-      for (const file of input.files) {
-        await this.addAttachment(user, created.task.id, {
-          originalname: file.originalname,
-          mimetype: safeMime(file.mimetype),
-          size: file.buffer.length,
-          buffer: file.buffer,
-        });
-      }
-    }
-    return created.task;
+    return created;
   }
 
   create(
@@ -437,8 +413,16 @@ export class TasksService {
         (dto.start_date !== undefined && startParsed.dateOnly) ||
         (dto.due_date !== undefined && dueParsed.dateOnly);
       const isAllDay = dto.is_all_day ?? (inferredAllDay ? true : current.isAllDay);
-      if (due === null && dto.due_date === undefined && !isAllDay && (dto.start_date !== undefined || dto.duration_minutes !== undefined)) {
-        const end = endFromDuration(start?.toISOString() ?? null, dto.duration_minutes === undefined ? current.durationMinutes : dto.duration_minutes);
+      if (
+        due === null &&
+        dto.due_date === undefined &&
+        !isAllDay &&
+        (dto.start_date !== undefined || dto.duration_minutes !== undefined)
+      ) {
+        const end = endFromDuration(
+          start?.toISOString() ?? null,
+          dto.duration_minutes === undefined ? current.durationMinutes : dto.duration_minutes,
+        );
         if (end !== null) due = new Date(end);
       }
       this.assertTimed(due, isAllDay, timeZone);
@@ -649,7 +633,11 @@ export class TasksService {
     });
   }
 
-  async uncomplete(user: AuthUser, id: string, source: 'api' | 'mcp' | 'web' = user.sessionId === null ? 'api' : 'web'): Promise<TaskDetail> {
+  async uncomplete(
+    user: AuthUser,
+    id: string,
+    source: 'api' | 'mcp' | 'web' = user.sessionId === null ? 'api' : 'web',
+  ): Promise<TaskDetail> {
     return this.prisma.$transaction(async (tx) => {
       const current = await this.require(tx, user.id, id, false);
       if (current.status !== 'completed' && current.status !== 'cancelled') {
@@ -1068,7 +1056,11 @@ export class TasksService {
     });
   }
 
-  async restore(user: AuthUser, id: string, source: 'api' | 'mcp' | 'web' = user.sessionId === null ? 'api' : 'web'): Promise<TaskDetail> {
+  async restore(
+    user: AuthUser,
+    id: string,
+    source: 'api' | 'mcp' | 'web' = user.sessionId === null ? 'api' : 'web',
+  ): Promise<TaskDetail> {
     return this.prisma.$transaction(async (tx) => {
       const current = await tx.task.findFirst({ where: { id, ownerId: user.id } });
       if (current === null) {
@@ -1294,163 +1286,52 @@ export class TasksService {
     return this.setItemStatus(user, taskId, itemId, 'active');
   }
 
-  async addAttachment(
-    user: AuthUser,
-    taskId: string,
-    file: { originalname: string; mimetype: string; size: number; buffer: Buffer } | undefined,
-  ): Promise<{
-    id: string;
-    file_name: string;
-    mime_type: string;
-    byte_size: number;
-    has_thumbnail: boolean;
-  }> {
-    if (file === undefined || file.buffer.length === 0) {
-      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'file is required');
-    }
-    const mime = acceptedMime(file.buffer);
-    await this.require(this.prisma, user.id, taskId, false);
-    const onTask = await this.prisma.attachment.count({
-      where: { taskId, ownerId: user.id, deletedAt: null },
-    });
-    if (onTask >= ATTACHMENT_MAX_PER_TASK) {
-      throw new DomainException(
-        HttpStatus.PAYLOAD_TOO_LARGE,
-        'attachment_quota',
-        'This task has too many attachments',
-      );
-    }
-    const usage = await this.prisma.attachment.aggregate({
-      where: { ownerId: user.id, deletedAt: null },
-      _sum: { byteSize: true },
-    });
-    if ((usage._sum.byteSize ?? 0) + file.buffer.length > ATTACHMENT_USER_QUOTA_BYTES) {
-      throw new DomainException(
-        HttpStatus.PAYLOAD_TOO_LARGE,
-        'attachment_quota',
-        'Attachment quota exceeded',
-      );
-    }
-    const storageKey = await writeAttachment(user.id, file.buffer);
-    const thumbnailKey =
-      isRasterImage(mime) && file.buffer.length <= 1_500_000
-        ? await writeAttachment(user.id, file.buffer)
-        : null;
-    try {
-      const row = await this.prisma.attachment.create({
-        data: {
-          ownerId: user.id,
-          taskId,
-          fileName: safeFileName(file.originalname),
-          mimeType: mime,
-          byteSize: file.buffer.length,
-          storageKey,
-          thumbnailKey,
-          uploadedById: user.id,
-        },
-      });
-      return {
-        id: row.id,
-        file_name: row.fileName,
-        mime_type: row.mimeType,
-        byte_size: row.byteSize,
-        has_thumbnail: thumbnailKey !== null,
-      };
-    } catch (error) {
-      await removeAttachmentFile(storageKey);
-      if (thumbnailKey !== null) {
-        await removeAttachmentFile(thumbnailKey);
-      }
-      throw error;
-    }
-  }
-
-  async listAttachments(
-    user: AuthUser,
-    taskId: string,
-  ): Promise<
-    {
-      id: string;
-      file_name: string;
-      mime_type: string;
-      byte_size: number;
-      has_thumbnail: boolean;
-    }[]
-  > {
-    await this.require(this.prisma, user.id, taskId, false);
-    const rows = await this.prisma.attachment.findMany({
-      where: { ownerId: user.id, taskId, deletedAt: null },
-      orderBy: { createdAt: 'asc' },
-    });
-    return rows.map((row) => ({
-      id: row.id,
-      file_name: row.fileName,
-      mime_type: row.mimeType,
-      byte_size: row.byteSize,
-      has_thumbnail: row.thumbnailKey !== null,
-    }));
-  }
-
-  async openThumbnail(
-    user: AuthUser,
-    taskId: string,
-    attachmentId: string,
-  ): Promise<{ absolute: string; fileName: string; mimeType: string }> {
-    const row = await this.prisma.attachment.findFirst({
-      where: { id: attachmentId, ownerId: user.id, taskId, deletedAt: null },
-    });
-    if (row?.thumbnailKey == null) {
-      throw new DomainException(
-        HttpStatus.NOT_FOUND,
-        'thumbnail_not_found',
-        'This attachment has no thumbnail',
-      );
-    }
+  async inboundUser(recipient: string): Promise<AuthUser> {
+    const local = inboundLocalPart(recipient);
+    const owner =
+      local === null
+        ? null
+        : await this.prisma.user.findFirst({
+            where: { inboundEmailTokenHash: hashInboundToken(local), deletedAt: null },
+            select: { id: true, email: true, timeZone: true, taskCompleteChildren: true },
+          });
+    if (!owner) throw new DomainException(401, 'unauthorized', 'Invalid recipient');
     return {
-      absolute: resolveAttachment(row.thumbnailKey),
-      fileName: row.fileName,
-      mimeType: row.mimeType,
+      id: owner.id,
+      email: owner.email,
+      timeZone: owner.timeZone,
+      completeChildren: owner.taskCompleteChildren,
+      scopes: ['tasks:write'],
+      tokenId: null,
+      sessionId: null,
+      listIds: null,
     };
   }
-
-  async openAttachment(
+  assertAttachmentConnected(user: AuthUser): Promise<void> {
+    return this.drive.assertConnected(user);
+  }
+  streamAttachment(
     user: AuthUser,
     taskId: string,
-    attachmentId: string,
-  ): Promise<{ absolute: string; fileName: string; mimeType: string }> {
-    const row = await this.prisma.attachment.findFirst({
-      where: { id: attachmentId, ownerId: user.id, taskId, deletedAt: null },
-    });
-    if (row === null) {
-      throw new DomainException(
-        HttpStatus.NOT_FOUND,
-        'attachment_not_found',
-        'Attachment was not found',
-      );
-    }
-    return {
-      absolute: resolveAttachment(row.storageKey),
-      fileName: row.fileName,
-      mimeType: row.mimeType,
-    };
+    name: string,
+    source: AsyncIterable<Uint8Array>,
+    capture = 'api',
+  ) {
+    return this.drive.stream(user, taskId, name, source, capture);
   }
-
-  async deleteAttachment(user: AuthUser, taskId: string, attachmentId: string): Promise<void> {
-    const row = await this.prisma.attachment.findFirst({
-      where: { id: attachmentId, ownerId: user.id, taskId, deletedAt: null },
-    });
-    if (row === null) {
-      throw new DomainException(
-        HttpStatus.NOT_FOUND,
-        'attachment_not_found',
-        'Attachment was not found',
-      );
-    }
-    await this.prisma.attachment.update({
-      where: { id: attachmentId },
-      data: { deletedAt: new Date() },
-    });
-    await removeAttachmentFile(row.storageKey);
+  linkDriveFile(user: AuthUser, taskId: string, fileId: string, source = 'picker') {
+    return this.drive.link(user, taskId, fileId, source);
+  }
+  listAttachments(user: AuthUser, taskId: string) {
+    return this.drive.list(user, taskId);
+  }
+  deleteAttachment(
+    user: AuthUser,
+    taskId: string,
+    id: string,
+    trashInDrive = false,
+  ): Promise<void> {
+    return this.drive.remove(user, taskId, id, trashInDrive);
   }
 
   async listReminders(user: AuthUser, taskId: string): Promise<ReminderJson[]> {
@@ -1659,8 +1540,14 @@ export class TasksService {
     const start = startParsed.date;
     const inferredAllDay = startParsed.dateOnly || dueParsed.dateOnly;
     const isAllDay = dto.is_all_day ?? captured?.isAllDay ?? (inferredAllDay ? true : false);
-    const explicitDuration = dto.duration_minutes === undefined ? captured?.durationMinutes ?? null : dto.duration_minutes;
-    const inferredEnd = !isAllDay && dto.due_date === undefined && dueParsed.date === null ? endFromDuration(start?.toISOString() ?? null, explicitDuration) : null;
+    const explicitDuration =
+      dto.duration_minutes === undefined
+        ? (captured?.durationMinutes ?? null)
+        : dto.duration_minutes;
+    const inferredEnd =
+      !isAllDay && dto.due_date === undefined && dueParsed.date === null
+        ? endFromDuration(start?.toISOString() ?? null, explicitDuration)
+        : null;
     const due = dueParsed.date ?? (inferredEnd === null ? null : new Date(inferredEnd));
     const sortOrder = await this.planTaskSort(
       tx,
