@@ -45,3 +45,7 @@ El control automático rechazó exportar la BD completa de producción a un arch
 Se retiran las declaraciones y montajes del volumen y ATTACHMENT_DIR de ambos Compose, sin ejecutar ningún comando de retirada en producción. Los despliegues del repositorio no contienen volume prune, volume rm ni down -v. El volumen existente queda preservado hasta el OK explícito de Pablo.
 
 Los backups nuevos empaquetan solo PostgreSQL (que contiene los metadatos); la lista cuenta únicamente db.sql.gz y devuelve attachments_metadata_only:true. Los archivos históricos no se borran. La exportación JSON selecciona expresamente cinco campos públicos del adjunto, sin rutas ni credenciales. Pruebas primero: dos fallos reproducidos y después dos pruebas en verde.
+
+## Paso 6: guardia de CI
+
+attachment-filesystem-guard.spec.ts recorre los fuentes de tareas, integraciones, Drive y MCP, con lista de permitidos vacía. Rechaza writeFile/writeFileSync, createWriteStream, diskStorage, memoryStorage y tmpdir, e impide reintroducir el empaquetado del volumen en backup.sh. Ocho comprobaciones en verde; se ejecutan dentro del test unitario habitual de CI. Los scripts explícitos de migración quedan fuera de las rutas de captura, como exige el plan.
