@@ -150,6 +150,11 @@ export interface Attachment {
   readonly drive_state: 'ok' | 'missing' | 'unknown';
 }
 
+export interface TaskLink {
+  readonly id: string; readonly task_id: string; readonly url: string; readonly title: string | null;
+  readonly source: string; readonly created_at: string; readonly updated_at: string;
+}
+export interface TaskLinkPage { readonly items: readonly TaskLink[]; readonly next_cursor: string | null; }
 export interface AttachmentPage {
   readonly items: readonly Attachment[];
 }
@@ -247,6 +252,9 @@ export interface ResourceClient {
   createChecklistItem(id: string, title: string, idempotencyKey: string): Promise<ChecklistItem>;
   completeChecklistItem(id: string, itemId: string): Promise<ChecklistItem>;
   deleteChecklistItem(id: string, itemId: string): Promise<void>;
+  listTaskLinks(id: string): Promise<TaskLinkPage>;
+  addTaskLink(id: string, body: {url: string; title?: string}): Promise<TaskLink>;
+  removeTaskLink(id: string, linkId: string): Promise<void>;
   listAttachments(id: string): Promise<AttachmentPage>;
   uploadAttachment(id: string, file: Blob, fileName: string): Promise<Attachment>;
   dashboardData(): Promise<JsonObject>;
@@ -490,6 +498,9 @@ export function resourceMethods(http: Http): ResourceClient {
     async deleteChecklistItem(id, itemId) {
       await ask('DELETE', `/api/v1/tasks/${id}/items/${itemId}`, undefined, undefined, isEmpty);
     },
+    listTaskLinks: (id) => ask('GET', `/api/v1/tasks/${id}/links`, undefined, undefined, isTaskLinkPage),
+    addTaskLink: (id, body) => ask('POST', `/api/v1/tasks/${id}/links`, body, undefined, isTaskLink),
+    async removeTaskLink(id, linkId) { await ask('DELETE', `/api/v1/tasks/${id}/links/${linkId}`, undefined, undefined, isEmpty); },
     listAttachments: (id) =>
       ask('GET', `/api/v1/tasks/${id}/attachments`, undefined, undefined, isAttachmentPage),
     uploadAttachment: (id, file, fileName) => upload(http, id, file, fileName),
@@ -938,4 +949,14 @@ export type StatsAchievement =
   operations['StatsController_achievement']['responses'][200]['content']['application/json'];
 function isStatsAchievement(value: unknown): value is StatsAchievement {
   return isRecord(value) && 'enabled' in value;
+}
+
+function isTaskLink(value: unknown): value is TaskLink {
+  if (!isJsonObject(value)) return false;
+  return typeof value.id === 'string' && typeof value.task_id === 'string' && typeof value.url === 'string'
+    && (value.title === null || typeof value.title === 'string') && typeof value.source === 'string'
+    && typeof value.created_at === 'string' && typeof value.updated_at === 'string';
+}
+function isTaskLinkPage(value: unknown): value is TaskLinkPage {
+  return isJsonObject(value) && Array.isArray(value.items) && value.items.every(isTaskLink) && (value.next_cursor === null || typeof value.next_cursor === 'string');
 }

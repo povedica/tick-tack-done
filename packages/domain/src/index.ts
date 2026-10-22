@@ -429,3 +429,5 @@ export { listNameKey } from './lists/name';
 export { normalizeReminderTrigger } from './reminders/trigger';
 
 export { repairAllDayUtc } from './tasks/repair-allday';
+
+export { extractUrls, normalizeTaskUrl } from './links/extract';

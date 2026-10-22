@@ -1,3 +1,7 @@
+import { normalizeTaskUrl } from '@reflexionia/domain';
+import { linkTitle } from './link-title.js';
+import type { AddTaskLinkDto } from './task-links.dto.js';
+import { reconcileTaskLinks, taskLinkJson } from './task-links.js';
 import { DriveAttachmentsService } from '../../drive/attachments.service.js';
 import { listOverdueTaskIds } from '../../reading/overdue.js';
 import { randomUUID } from 'node:crypto';
@@ -70,6 +74,7 @@ import type {
 } from './tasks.dto.js';
 
 const taskInclude = {
+  links: true,
   tags: { where: { tag: { deletedAt: null } }, select: { tagId: true } },
   checklist: {
     where: { deletedAt: null },
@@ -93,6 +98,7 @@ export interface CompletedTask extends CreatedTask {
 }
 
 export interface TaskDetail extends TaskSummaryJson {
+  links: ReturnType<typeof taskLinkJson>[];
   readonly warnings?: readonly CaptureWarning[];
   items: ChecklistItemJson[];
   subtasks: TaskSummaryJson[];
@@ -225,7 +231,7 @@ export class TasksService {
         ...(limitedIds === null ? {} : { id: { in: limitedIds } }),
         ...(taskKeyset(query.sort, query.cursor) ?? {}),
       },
-      include: { tags: { where: { tag: { deletedAt: null } }, select: { tagId: true } } },
+      include: { _count: { select: { links: true } }, tags: { where: { tag: { deletedAt: null } }, select: { tagId: true } } },
       orderBy: taskOrderBy(query.sort),
       take: query.limit + 1,
     });
@@ -331,6 +337,37 @@ export class TasksService {
       fingerprint: requestFingerprint('POST', '/api/v1/tasks', dto),
       statusCode: 201,
       execute: (tx) => this.insertTask(tx, user, dto, source),
+    });
+  }
+
+  async listLinks(user: AuthUser, taskId: string) {
+    await this.get(user, taskId);
+    return { items: (await this.prisma.taskLink.findMany({ where: { ownerId: user.id, taskId }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] })).map(taskLinkJson), next_cursor: null };
+  }
+
+  async addLink(user: AuthUser, taskId: string, dto: AddTaskLinkDto) {
+    await this.get(user, taskId);
+    const url = normalizeTaskUrl(dto.url);
+    if (url === null) throw new DomainException(400, 'validation_failed', 'URL must use http, https or mailto without credentials');
+    const title = dto.title ?? await linkTitle(url);
+    return this.prisma.$transaction(async tx => {
+      await this.load(tx, user, taskId, false);
+      const row = await tx.taskLink.upsert({
+        where: { taskId_url: { taskId, url } },
+        create: { ownerId: user.id, taskId, url, title, source: 'manual' },
+        update: { title, source: 'manual' },
+      });
+      await this.events.record(tx, actorOf(user), { type: DomainEvent.taskLinkAdded, entityType: 'task', entityId: taskId, action: 'updated', data: { task_id: taskId, link: taskLinkJson(row) }, previous: null });
+      return taskLinkJson(row);
+    });
+  }
+
+  async removeLink(user: AuthUser, taskId: string, linkId: string) {
+    await this.prisma.$transaction(async tx => {
+      await this.load(tx, user, taskId, false);
+      const removed = await tx.taskLink.deleteMany({ where: { id: linkId, ownerId: user.id, taskId } });
+      if (!removed.count) throw new DomainException(404, 'task_link_not_found', 'Task link was not found');
+      await this.events.record(tx, actorOf(user), { type: DomainEvent.taskLinkRemoved, entityType: 'task', entityId: taskId, action: 'updated', data: { task_id: taskId, link_id: linkId }, previous: null });
     });
   }
 
@@ -504,6 +541,7 @@ export class TasksService {
           ...(selected.changed ? { fieldClocks: asJson(selected.clocks) } : {}),
         },
       });
+      if (dto.title !== undefined || dto.content !== undefined) await reconcileTaskLinks(tx, user.id, id, `${title}\n${content}`);
       if (dto.tag_ids !== undefined) {
         await tx.taskTag.deleteMany({ where: { taskId: id } });
         await this.linkTags(tx, id, dto.tag_ids);
@@ -1598,6 +1636,7 @@ export class TasksService {
         metadata: asJson(dto.metadata ?? {}),
       },
     });
+    await reconcileTaskLinks(tx, user.id, row.id, `${title}\n${content}`);
     await this.linkTags(tx, row.id, tagIds);
     if (dto.reminder_trigger !== null) {
       await this.ensureDefaultReminder(
@@ -2152,6 +2191,7 @@ export class TasksService {
     });
     return {
       ...toTaskSummary(row, progressOf(row.checklist)),
+      links: row.links.map(taskLinkJson),
       ...(anchorWarning === null ? {} : { warnings: [anchorWarning] }),
       items: row.checklist.map((item) => toChecklistJson(id, item)),
       subtasks: row.children.map((child) => toTaskSummary(child, progressOf(child.checklist))),

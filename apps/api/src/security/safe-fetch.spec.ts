@@ -38,3 +38,10 @@ describe('safe fetch destinations', () => {
     expect(isBlockedAddress('::1')).toBe(true);
   });
 });
+
+it('TTD-AUD-100: rejects unspecified and hex IPv4-mapped private addresses', async () => {
+  for (const address of ['::', '::ffff:7f00:1', '::ffff:a00:1', '::ffff:a9fe:a9fe']) {
+    expect(isBlockedAddress(address)).toBe(true);
+  }
+  await expect(assertPublicUrl('https://[::ffff:7f00:1]/')).rejects.toThrow();
+});

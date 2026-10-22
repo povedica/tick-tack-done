@@ -1,4 +1,12 @@
 export const extraEs = {
+  taskLinks: 'Enlaces',
+  taskLinkAdd: 'Añadir enlace',
+  taskLinkSave: 'Guardar enlace',
+  taskLinkTitle: 'Título opcional',
+  taskLinkUrl: 'URL',
+  taskLinkInvalid: 'Usa una URL http, https o mailto sin credenciales',
+  taskLinkRemove: 'Quitar enlace',
+  taskAssetsTitle: 'Adjuntos y enlaces',
   googleUnifiedTitle: 'Google (Calendar y Drive)',
   googleCalendarPermission: 'Calendario: lectura/escritura',
   googleDrivePermission: 'Drive: solo ficheros creados por ttd',
@@ -1148,6 +1156,14 @@ export const extraEs = {
 } as const;
 
 export const extraEn = {
+  taskLinks: 'Links',
+  taskLinkAdd: 'Add link',
+  taskLinkSave: 'Save link',
+  taskLinkTitle: 'Optional title',
+  taskLinkUrl: 'URL',
+  taskLinkInvalid: 'Use an http, https or mailto URL without credentials',
+  taskLinkRemove: 'Remove link',
+  taskAssetsTitle: 'Attachments and links',
   googleUnifiedTitle: 'Google (Calendar and Drive)',
   googleCalendarPermission: 'Calendar: read/write',
   googleDrivePermission: 'Drive: only files created by ttd',

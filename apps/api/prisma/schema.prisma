@@ -291,6 +291,7 @@ model User {
   stickyNotes           StickyNote[]
   calendarSubscriptions CalendarSubscription[]
   externalEvents        ExternalEvent[]
+  taskLinks             TaskLink[]
   attachments           Attachment[]           @relation("AttachmentOwner")
   uploadedAttachments   Attachment[]           @relation("AttachmentUploadedBy")
   comments              Comment[]              @relation("CommentOwner")
@@ -487,6 +488,7 @@ model Task {
   reminders      Reminder[]
   deliveries     ReminderDelivery[]
   seriesAdvances SeriesAdvance[]    @relation("SeriesAdvanceSource")
+  links          TaskLink[]
   attachments    Attachment[]
   comments       Comment[]
   focusSessions  FocusSession[]
@@ -1545,4 +1547,20 @@ model DriveFolder {
   @@unique([userId, projectId])
   @@index([userId])
   @@map("drive_folders")
+}
+
+model TaskLink {
+  id        String   @id @default(uuid()) @db.Uuid
+  taskId    String   @map("task_id") @db.Uuid
+  ownerId   String   @map("owner_id") @db.Uuid
+  url       String
+  title     String?
+  source    String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  @@unique([taskId, url])
+  @@index([ownerId, taskId])
+  @@map("task_links")
 }

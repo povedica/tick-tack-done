@@ -1,3 +1,4 @@
+import { TaskLinkResponseDto } from './task-links.dto.js';
 import { ApiProperty } from '@nestjs/swagger';
 import {
   ArrayMaxSize,
@@ -572,6 +573,8 @@ export class CaptureWarningDto {
 }
 
 export class TaskResponseDto {
+  @ApiProperty({ type: [TaskLinkResponseDto], required: false }) links?: TaskLinkResponseDto[];
+  @ApiProperty({ required: false }) link_count?: number;
   @ApiProperty({ required: false, type: [CaptureWarningDto] })
   warnings?: CaptureWarningDto[];
   @ApiProperty()

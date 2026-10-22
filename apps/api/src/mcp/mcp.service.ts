@@ -435,6 +435,13 @@ export class McpService {
           args.trash_in_drive === true,
         );
         return { removed: true };
+      case 'list_task_links':
+        return this.tasks.listLinks(user, requiredUuid(args, 'task_id'));
+      case 'add_task_link':
+        return this.tasks.addLink(user, requiredUuid(args, 'task_id'), { url: requiredString(args, 'url', 4096), ...(typeof args.title === 'string' ? { title: requiredString(args, 'title', 200) } : {}) });
+      case 'remove_task_link':
+        await this.tasks.removeLink(user, requiredUuid(args, 'task_id'), requiredUuid(args, 'link_id'));
+        return { removed: true };
       case 'list_task_attachments':
         return {
           items: await this.tasks.listAttachments(user, requiredUuid(args, 'task_id')),

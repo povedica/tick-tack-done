@@ -77,11 +77,11 @@ Base actualizada: `afc9f5d`. [Comprobación previa](docs/audit/r80/verificacion-
 |99|Copia de seguridad nueva sin `attachments.tar.gz`; la exportación JSON solo tiene metadatos.|❌ pendiente de implementación/verificación|—|
 |99|La guardia de CI del paso 6 está activa y en verde.|❌ pendiente de implementación/verificación|—|
 |99|Capturas antes/después de la sección «Adjuntos y enlaces» con y sin Drive, en escritorio y móvil, claro y oscuro.|❌ pendiente de implementación/verificación|—|
-|100|Una tarea con «ver https://example.com/a y www.ttd.dev.» → 2 chips; editar el texto y quitar una URL → 1 chip.|❌ pendiente de implementación/verificación|—|
-|100|Un enlace manual a `javascript:alert(1)` → error de validación; a `http://169.254.169.254/` → se guarda, pero sin _unfurl_. Test SSRF con 10.0.0.1, ::1 y una redirección a una IP privada.|❌ pendiente de implementación/verificación|—|
-|100|Chips de 24 px en escritorio y 32 px en móvil **[medible]**; la fila de la lista muestra «🔗 2».|❌ pendiente de implementación/verificación|—|
-|100|Con MCP: `add_task_link` → sale en `get_task.links` y en la web sin recargar en ≤ 2 s (_refetch_).|❌ pendiente de implementación/verificación|—|
-|100|Capturas antes/después.|❌ pendiente de implementación/verificación|—|
+|100|Una tarea con «ver https://example.com/a y www.ttd.dev.» → 2 chips; editar el texto y quitar una URL → 1 chip.|✅ pruebas locales dominio/API/MCP y Playwright 1280×800/390×844 × claro/oscuro|[Informe](docs/audit/r80/100.md)|
+|100|Un enlace manual a `javascript:alert(1)` → error de validación; a `http://169.254.169.254/` → se guarda, pero sin _unfurl_. Test SSRF con 10.0.0.1, ::1 y una redirección a una IP privada.|✅ pruebas locales dominio/API/MCP y Playwright 1280×800/390×844 × claro/oscuro|[Informe](docs/audit/r80/100.md)|
+|100|Chips de 24 px en escritorio y 32 px en móvil **[medible]**; la fila de la lista muestra «🔗 2».|✅ pruebas locales dominio/API/MCP y Playwright 1280×800/390×844 × claro/oscuro|[Informe](docs/audit/r80/100.md)|
+|100|Con MCP: `add_task_link` → sale en `get_task.links` y en la web sin recargar en ≤ 2 s (_refetch_).|✅ pruebas locales dominio/API/MCP y Playwright 1280×800/390×844 × claro/oscuro|[Informe](docs/audit/r80/100.md)|
+|100|Capturas antes/después.|✅ pruebas locales dominio/API/MCP y Playwright 1280×800/390×844 × claro/oscuro|[Informe](docs/audit/r80/100.md)|
 |101|Cambiar el pomo a 45 en Ajustes > Foco → el reloj muestra 45:00 sin recargar; en otra pestaña, ≤ 5 s después (_refetch on focus_).|❌ pendiente de implementación/verificación|—|
 |101|Con «Empezar el descanso automáticamente» activado, al acabar un pomo de 1 min (en test) empieza el descanso en ≤ 1 s.|❌ pendiente de implementación/verificación|—|
 |101|Los presets se ven bajo el reloj (28 ±1 px de alto) **[medible]**; elegir 15 deja 15:00.|❌ pendiente de implementación/verificación|—|
@@ -148,3 +148,10 @@ Migración del origen MCP: bajada y reaplicación verificadas en ttd_r80. Invent
 ✅ `attachments-inventory --dry-run`, transacción READ ONLY: **0 filas / 0 bytes referenciados; 4 ficheros / 201 bytes en el volumen**. No se leyó contenido ni se imprimieron nombres. **No se ha borrado ningún fichero ni volumen**; los cuatro restos sin referencia se conservan hasta el OK de Pablo. [Resultado agregado](docs/audit/r80/99-inventario-produccion.json).
 
 La comprobación de los scripts sobre una copia de producción sigue ❌ pendiente: el control automático rechazó exportar la BD a un destino local por posible contenido sensible y falta de autorización expresa. **No se exportó nada**. Esto no afecta al inventario agregado, que ya terminó en modo READ ONLY.
+
+### Capturas 98 y 100
+
+|Pantalla|Antes escritorio claro|Después escritorio claro|Antes escritorio oscuro|Después escritorio oscuro|Antes móvil claro|Después móvil claro|Antes móvil oscuro|Después móvil oscuro|
+|---|---|---|---|---|---|---|---|---|
+|98 agenda|[antes](docs/audit/evidencias/r80/98_agenda_antes_desktop_light.png)|[despues](docs/audit/evidencias/r80/98_agenda_despues_desktop_light.png)|[antes](docs/audit/evidencias/r80/98_agenda_antes_desktop_dark.png)|[despues](docs/audit/evidencias/r80/98_agenda_despues_desktop_dark.png)|[antes](docs/audit/evidencias/r80/98_agenda_antes_mobile_light.png)|[despues](docs/audit/evidencias/r80/98_agenda_despues_mobile_light.png)|[antes](docs/audit/evidencias/r80/98_agenda_antes_mobile_dark.png)|[despues](docs/audit/evidencias/r80/98_agenda_despues_mobile_dark.png)|
+|100 enlaces|[antes](docs/audit/evidencias/r80/100_enlaces_antes_desktop_light.png)|[despues](docs/audit/evidencias/r80/100_enlaces_despues_desktop_light.png)|[antes](docs/audit/evidencias/r80/100_enlaces_antes_desktop_dark.png)|[despues](docs/audit/evidencias/r80/100_enlaces_despues_desktop_dark.png)|[antes](docs/audit/evidencias/r80/100_enlaces_antes_mobile_light.png)|[despues](docs/audit/evidencias/r80/100_enlaces_despues_mobile_light.png)|[antes](docs/audit/evidencias/r80/100_enlaces_antes_mobile_dark.png)|[despues](docs/audit/evidencias/r80/100_enlaces_despues_mobile_dark.png)|

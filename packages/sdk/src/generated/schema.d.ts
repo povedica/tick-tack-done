@@ -1264,6 +1264,41 @@ export interface paths {
         patch: operations["TasksController_update"];
         trace?: never;
     };
+    "/api/v1/tasks/{id}/links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List task links (auto and manual), available without Google Drive */
+        get: operations["TasksController_links"];
+        put?: never;
+        /** Add a manual http/https/mailto link. Optional title uses public HTML only, 3s/256KiB/3 redirects maximum. */
+        post: operations["TasksController_addLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{id}/links/{linkId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a link from its owning task */
+        delete: operations["TasksController_removeLink"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tasks/{id}/occurrences": {
         parameters: {
             query?: never;
@@ -4392,6 +4427,16 @@ export interface components {
             before_id?: Record<string, never> | null;
             move_to_end?: boolean;
         };
+        TaskLinkResponseDto: {
+            id: string;
+            task_id: string;
+            url: string;
+            title: string | null;
+            /** @enum {string} */
+            source: "auto" | "manual";
+            created_at: string;
+            updated_at: string;
+        };
         CaptureWarningDto: {
             /** @enum {string} */
             code: "list_not_found" | "list_created" | "tag_not_found" | "tag_created" | "reminder_without_date" | "anchor_outside_rule";
@@ -4403,6 +4448,8 @@ export interface components {
             total: number;
         };
         TaskResponseDto: {
+            links?: components["schemas"]["TaskLinkResponseDto"][];
+            link_count?: number;
             warnings?: components["schemas"]["CaptureWarningDto"][];
             id: string;
             project_id: string;
@@ -4495,6 +4542,8 @@ export interface components {
             move_to_end?: boolean;
         };
         CreateTaskResponseDto: {
+            links?: components["schemas"]["TaskLinkResponseDto"][];
+            link_count?: number;
             warnings?: components["schemas"]["CaptureWarningDto"][];
             id: string;
             project_id: string;
@@ -4531,6 +4580,14 @@ export interface components {
             created_at: string;
             updated_at: string;
             deleted_at: string | null;
+        };
+        TaskLinkPageDto: {
+            items: components["schemas"]["TaskLinkResponseDto"][];
+            next_cursor: string | null;
+        };
+        AddTaskLinkDto: {
+            url: string;
+            title?: string;
         };
         DetachOccurrenceDto: {
             due_date: string;
@@ -7194,6 +7251,78 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["TaskResponseDto"];
                 };
+            };
+        };
+    };
+    TasksController_links: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskLinkPageDto"];
+                };
+            };
+        };
+    };
+    TasksController_addLink: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddTaskLinkDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskLinkResponseDto"];
+                };
+            };
+        };
+    };
+    TasksController_removeLink: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+                linkId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

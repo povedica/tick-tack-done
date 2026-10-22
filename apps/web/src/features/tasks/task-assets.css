@@ -131,3 +131,61 @@
   accent-color: var(--accent);
   height: var(--sp-1);
 }
+
+.task-assets-heading {
+  font-size: var(--fs-sm);
+  color: var(--ink-3);
+}
+.task-link-count {
+  display: inline-flex;
+  align-items: center;
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+}
+.link-remove {
+  opacity: 0;
+}
+.attachment-chips li:hover .link-remove,
+.link-remove:focus-visible {
+  opacity: 1;
+}
+.link-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.link-form label {
+  display: grid;
+  gap: var(--sp-1);
+  min-width: 0;
+  font-size: var(--fs-xs);
+}
+.link-form input {
+  min-width: 0;
+  max-width: 100%;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.link-error {
+  color: var(--danger);
+  font-size: var(--fs-xs);
+}
+@media (max-width: 768px) {
+  .task-links > button,
+  .link-form :is(input, button) {
+    min-height: var(--tap);
+  }
+  .task-links .attachment-chips {
+    row-gap: var(--sp-4);
+  }
+  .link-remove {
+    display: none;
+  }
+  .link-remove[data-open='true'],
+  .link-remove:focus-visible {
+    display: grid;
+    opacity: 1;
+  }
+}

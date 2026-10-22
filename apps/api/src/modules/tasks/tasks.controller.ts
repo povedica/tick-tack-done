@@ -1,3 +1,4 @@
+import { AddTaskLinkDto, TaskLinkPageDto, TaskLinkResponseDto } from './task-links.dto.js';
 import {
   Body,
   Controller,
@@ -248,6 +249,27 @@ export class TasksController {
     @Res() res: Response,
   ): Promise<void> {
     respondJson(req, res, 200, await this.tasks.get(user, id), false);
+  }
+
+  @Get(':id/links')
+  @Scopes('tasks:read')
+  @ApiOperation({ summary: 'List task links (auto and manual), available without Google Drive' })
+  @ApiOkResponse({ type: TaskLinkPageDto })
+  async links(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.tasks.listLinks(user, id);
+  }
+  @Post(':id/links')
+  @Scopes('tasks:write')
+  @ApiOperation({ summary: 'Add a manual http/https/mailto link. Optional title uses public HTML only, 3s/256KiB/3 redirects maximum.' })
+  @ApiOkResponse({ type: TaskLinkResponseDto })
+  async addLink(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() dto: AddTaskLinkDto) {
+    return this.tasks.addLink(user, id, dto);
+  }
+  @Delete(':id/links/:linkId')
+  @Scopes('tasks:write')
+  @ApiOperation({ summary: 'Remove a link from its owning task' })
+  async removeLink(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Param('linkId', ParseUUIDPipe) linkId: string, @Res() res: Response) {
+    await this.tasks.removeLink(user, id, linkId); res.status(204).end();
   }
 
   @Get(':id/occurrences')

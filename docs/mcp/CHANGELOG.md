@@ -25,3 +25,7 @@
 - `api_request` transmite multipart por fragmentos (25 MiB/fichero); no genera un archivo ni una copia completa del binario.
 - No Drive: 409 drive_not_connected con connect_url; token revocado: 409 drive_reauth_required.
 - GET de un adjunto redirige a Drive; miniatura binaria retirada, nueva preview 302/no-store.
+
+## TTD-AUD-100
+
+Añade list_task_links, add_task_link y remove_task_link. get_task incluye links; catálogo de 72 herramientas (69 anteriores + 3). Enlaces independientes de Drive, autenticación/scopes y owner conservados.

@@ -320,6 +320,24 @@ const CATALOG: readonly McpTool[] = [
     ),
   },
   {
+    name: 'list_task_links',
+    description: 'List automatic and manual task links, independent of Google Drive.',
+    scopes: ['tasks:read'],
+    inputSchema: objectSchema({ task_id: id }, ['task_id']),
+  },
+  {
+    name: 'add_task_link',
+    description: 'Add a manual http/https/mailto task link. Private URLs are stored without fetching; optional public HTML title only.',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema({ task_id: id, url: { type: 'string', maxLength: 4096 }, title: { type: 'string', maxLength: 200 } }, ['task_id', 'url']),
+  },
+  {
+    name: 'remove_task_link',
+    description: 'Remove a link from its owning task.',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema({ task_id: id, link_id: id }, ['task_id', 'link_id']),
+  },
+  {
     name: 'list_task_attachments',
     description:
       'List Drive metadata including web_view_link, icon_link, source and drive_state (ok/missing/unknown). Requires Google Drive connected for uploads; files go to the connected Google Drive account; ttd stores metadata only. REST multipart streams to Drive (25 MiB/file, 50/task); direct web uploads allow 100 MiB.',

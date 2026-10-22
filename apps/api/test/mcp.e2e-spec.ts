@@ -172,6 +172,31 @@ describe('MCP server', () => {
     expect(await prisma.project.count({ where: { ownerId: owner.id } })).toBe(projects);
   });
 
+  it('TTD-AUD-100: automatic links reconcile and MCP manual links survive text edits', async () => {
+    const bearer = await tasksBearer(server, owner.email);
+    const call = async (name: string, args: Record<string, unknown>) => {
+      const response = await rpc(server, bearer, 'tools/call', {name, arguments:args});
+      expect(response.body.result.isError).toBe(false);
+      return JSON.parse(toolText(response.body as unknown)) as Record<string, unknown>;
+    };
+    const task = await call('create_task', {title:'ver https://example.com/a y www.ttd.dev.'});
+    expect(task.links).toHaveLength(2);
+    const task_id = task.id;
+    const manual = await call('add_task_link', {task_id,url:'http://169.254.169.254/'});
+    expect(manual.title).toBeNull();
+    await call('update_task', {id:task_id,title:'ver https://example.com/a'});
+    const detail = await call('get_task', {id:task_id});
+    expect(detail.links).toHaveLength(2);
+    expect((await call('list_task_links', {task_id})).items).toHaveLength(2);
+    await call('remove_task_link', {task_id,link_id:manual.id});
+    expect((await call('get_task', {id:task_id})).links).toHaveLength(1);
+    await request(server).post(`/api/v1/tasks/${String(task_id)}/links`).set({'X-Dev-User-Email':owner.email}).send({url:'javascript:alert(1)'}).expect(400);
+    const outsider = await createOwner('links-outsider');
+    try { await request(server).get(`/api/v1/tasks/${String(task_id)}/links`).set({'X-Dev-User-Email':outsider.email}).expect(404); } finally { await removeOwner(outsider.id); }
+    const list = await request(server).get('/api/v1/tasks').set({'X-Dev-User-Email':owner.email}).expect(200);
+    expect(list.body.items.find((item: {id:string})=>item.id===task_id).link_count).toBe(1);
+  });
+
   it('R80: captures the full tools/list contract with a synthetic owner', async () => {
     const token = await request(server)
       .post('/api/v1/me/tokens')

@@ -3998,6 +3998,147 @@
         ]
       }
     },
+    "/api/v1/tasks/{id}/links": {
+      "get": {
+        "operationId": "TasksController_links",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskLinkPageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List task links (auto and manual), available without Google Drive",
+        "tags": [
+          "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "TasksController_addLink",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddTaskLinkDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskLinkResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Add a manual http/https/mailto link. Optional title uses public HTML only, 3s/256KiB/3 redirects maximum.",
+        "tags": [
+          "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tasks/{id}/links/{linkId}": {
+      "delete": {
+        "operationId": "TasksController_removeLink",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "linkId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Remove a link from its owning task",
+        "tags": [
+          "tasks"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/tasks/{id}/occurrences": {
       "get": {
         "operationId": "TasksController_occurrences",
@@ -16543,6 +16684,46 @@
           }
         }
       },
+      "TaskLinkResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "task_id": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "manual"
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "task_id",
+          "url",
+          "title",
+          "source",
+          "created_at",
+          "updated_at"
+        ]
+      },
       "CaptureWarningDto": {
         "type": "object",
         "properties": {
@@ -16586,6 +16767,15 @@
       "TaskResponseDto": {
         "type": "object",
         "properties": {
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskLinkResponseDto"
+            }
+          },
+          "link_count": {
+            "type": "number"
+          },
           "warnings": {
             "type": "array",
             "items": {
@@ -16952,6 +17142,15 @@
       "CreateTaskResponseDto": {
         "type": "object",
         "properties": {
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskLinkResponseDto"
+            }
+          },
+          "link_count": {
+            "type": "number"
+          },
           "warnings": {
             "type": "array",
             "items": {
@@ -17115,6 +17314,41 @@
           "created_at",
           "updated_at",
           "deleted_at"
+        ]
+      },
+      "TaskLinkPageDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskLinkResponseDto"
+            }
+          },
+          "next_cursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ]
+      },
+      "AddTaskLinkDto": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 4096
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "url"
         ]
       },
       "DetachOccurrenceDto": {

@@ -2460,6 +2460,66 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/tasks/{id}/links",
+    "summary": "List task links (auto and manual), available without Google Drive",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tasks/{id}/links",
+    "summary": "Add a manual http/https/mailto link. Optional title uses public HTML only, 3s/256KiB/3 redirects maximum.",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "url": { "type": "string", "maxLength": 4096 },
+              "title": { "type": "string", "maxLength": 200 }
+            },
+            "required": ["url"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/tasks/{id}/links/{linkId}",
+    "summary": "Remove a link from its owning task",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } },
+      { "name": "linkId", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/tasks/{id}/occurrences",
     "summary": "Theoretical occurrences of a repeating task (RF-704). Nothing is stored.",
     "parameters": [

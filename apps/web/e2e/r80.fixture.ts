@@ -6,6 +6,7 @@ export async function r80Fixture(
     count?: number;
     duration?: number;
     drive?: boolean;
+    links?: boolean;
     delayed?: boolean;
     error?: boolean;
     startOnly?: boolean;
@@ -21,7 +22,8 @@ export async function r80Fixture(
     parent_id: null,
     column_id: null,
     title: 'Tarea sintética con título largo que conserva toda su información en el calendario',
-    content: '',
+    content: options.links ? 'ver https://example.com/a y www.ttd.dev.' : '',
+    link_count: options.links ? 2 : 0,
     status: 'active',
     kind: 'task',
     priority: 'high',
@@ -130,6 +132,7 @@ export async function r80Fixture(
         next_cursor: null,
       };
     if (path === '/filters/preview') body = { groups: [{key:'none', label:'', tasks:[task]}], count:1, group_by:'none', sort:'manual', next_cursor:null };
+    if (path === '/tasks/task/links') body = { items: options.links ? ['https://example.com/a','https://www.ttd.dev/'].map((url,index)=>({id:`link-${index}`,task_id:'task',url,title:null,source:'auto',created_at:'2026-10-22T00:00:00Z',updated_at:'2026-10-22T00:00:00Z'})) : [], next_cursor:null };
     if (path === '/tasks/task/attachments' && options.drive) body = {items:[{id:'file',file_name:'informe-sintetico.pdf',mime_type:'application/pdf',byte_size:4096,has_thumbnail:false,drive_file_id:'file',drive_url:'https://drive.google.com/file/d/synthetic/view',web_view_link:'https://drive.google.com/file/d/synthetic/view',icon_link:null,source:'picker',drive_state:'ok'}],next_cursor:null};
     if(path === '/integrations/google' || path === '/integrations/drive') body={configured:true,connected:options.drive ?? false,account:options.drive ? 'synthetic@example.test' : null,status:options.drive ? 'connected' : 'disconnected'};
     if (path === '/integrations/status') body={google:{configured:true,connected:options.drive ?? false,account:options.drive ? 'synthetic@example.test' : null,status:options.drive ? 'connected' : 'disconnected'},drive:{configured:true,connected:options.drive ?? false},telegram:{configured:true,linked:false}};

@@ -1,4 +1,6 @@
 export const DomainEvent = {
+  taskLinkAdded: 'task.link_added@v1',
+  taskLinkRemoved: 'task.link_removed@v1',
   occurrenceDetached: 'occurrence.detached@v1',
   seriesClosed: 'series.closed@v1',
   taskCreated: 'task.created@v1',

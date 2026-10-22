@@ -34,6 +34,9 @@ describe('McpService recurrence mapping', () => {
     updateItem: vi.fn(),
     completeItem: vi.fn(),
     uncompleteItem: vi.fn(),
+    listLinks: vi.fn(),
+    addLink: vi.fn(),
+    removeLink: vi.fn(),
     listAttachments: vi.fn(),
     linkDriveFile: vi.fn(),
     deleteAttachment: vi.fn(),
@@ -784,6 +787,20 @@ describe('McpService recurrence mapping', () => {
     expect(JSON.parse(toolText(response))).toMatchObject({
       activity: [{ changes: { task: { title: 'Full snapshot' } } }],
     });
+  });
+
+  it('TTD-AUD-100: link tools keep the authenticated owner and task', async () => {
+    const id = '33333333-3333-4333-8333-333333333333';
+    tasks.listLinks.mockResolvedValue({items:[], next_cursor:null});
+    tasks.addLink.mockResolvedValue({id,url:'https://example.com/'});
+    for (const [name, args] of [
+      ['list_task_links', {task_id:id}],
+      ['add_task_link', {task_id:id,url:'https://example.com/',title:'Example'}],
+      ['remove_task_link', {task_id:id,link_id:id}],
+    ] as const) await service.handle(user, {jsonrpc:'2.0',id:1,method:'tools/call',params:{name,arguments:args}});
+    expect(tasks.listLinks).toHaveBeenCalledWith(user,id);
+    expect(tasks.addLink).toHaveBeenCalledWith(user,id,{url:'https://example.com/',title:'Example'});
+    expect(tasks.removeLink).toHaveBeenCalledWith(user,id,id);
   });
 
   it('TTD-AUD-99: linking and removing Drive files preserve owner and the explicit trash choice', async () => {

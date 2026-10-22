@@ -70,3 +70,5 @@ export type {
   TaskPatch,
   UpdateMeBody,
 } from './resources';
+
+export type { TaskLink, TaskLinkPage } from './resources';

@@ -1,3 +1,4 @@
+import { LinkSection } from './LinkSection';
 import { AttachmentSection, type AttachmentItem } from './AttachmentSection';
 import { Bell, GripVertical, Pencil, Plus, Repeat, X } from 'lucide-react';
 import {
@@ -421,12 +422,14 @@ export function DetailBody({
           </button>
         </p>
       ) : null}
+      <h3 className="task-assets-heading">{messages.taskAssetsTitle}</h3>
       <AttachmentSection
         taskId={taskId}
         files={attachments}
         onFiles={onDropFiles}
         onDelete={onDeleteAttachment}
       />
+      <LinkSection taskId={taskId} />
     </div>
   );
 }

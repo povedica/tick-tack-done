@@ -15,6 +15,7 @@ block.addSubnet('172.16.0.0', 12, 'ipv4');
 block.addSubnet('192.0.0.0', 24, 'ipv4');
 block.addSubnet('192.168.0.0', 16, 'ipv4');
 block.addSubnet('224.0.0.0', 4, 'ipv4');
+block.addAddress('::', 'ipv6');
 block.addAddress('::1', 'ipv6');
 block.addSubnet('fc00::', 7, 'ipv6');
 block.addSubnet('fe80::', 10, 'ipv6');
@@ -32,7 +33,14 @@ export type LookupAddress = (hostname: string) => Promise<{ address: string; fam
 const defaultLookup: LookupAddress = async (hostname) => dnsLookup(hostname);
 
 export function isBlockedAddress(address: string): boolean {
-  const normalized = address.toLowerCase();
+  let normalized = address.toLowerCase();
+  if (isIP(normalized) === 6) normalized = new URL(`http://[${normalized}]/`).hostname.slice(1, -1);
+  const hexMapped = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(normalized);
+  if (hexMapped) {
+    const high = parseInt(hexMapped[1] ?? '', 16);
+    const low = parseInt(hexMapped[2] ?? '', 16);
+    return block.check([high >> 8, high & 255, low >> 8, low & 255].join('.'), 'ipv4');
+  }
   const mapped = normalized.startsWith('::ffff:') ? normalized.slice('::ffff:'.length) : normalized;
   if (isIP(mapped) === 4) {
     return block.check(mapped, 'ipv4');
@@ -46,6 +54,7 @@ export function isBlockedAddress(address: string): boolean {
 export async function assertPublicUrl(
   raw: string,
   lookup: LookupAddress = defaultLookup,
+  httpAllowed = false,
 ): Promise<ResolvedTarget> {
   let url: URL;
   try {
@@ -53,15 +62,16 @@ export async function assertPublicUrl(
   } catch {
     throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'url is invalid');
   }
-  const allowHttp = process.env.ALLOW_HTTP_WEBHOOKS === 'true';
+  const allowHttp = httpAllowed || process.env.ALLOW_HTTP_WEBHOOKS === 'true';
   if (url.protocol !== 'https:' && !(allowHttp && url.protocol === 'http:')) {
     throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'url must be https');
   }
   if (url.username.length > 0 || url.password.length > 0) {
     throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'url is invalid');
   }
-  const literal = isIP(url.hostname);
-  const addresses = literal === 0 ? [await resolveOne(url.hostname, lookup)] : [url.hostname];
+  const hostname = url.hostname.replace(/^\[|\]$/g, '');
+  const literal = isIP(hostname);
+  const addresses = literal === 0 ? [await resolveOne(hostname, lookup)] : [hostname];
   if (addresses.some((address) => isBlockedAddress(address))) {
     throw new DomainException(
       HttpStatus.BAD_REQUEST,
@@ -81,22 +91,32 @@ export interface SafeResponse {
   readonly body: Buffer;
 }
 
-export async function safeFetch(
-  raw: string,
-  init: {
-    method?: string;
-    headers?: Record<string, string>;
-    body?: string;
-    maxBytes: number;
-    timeoutMs?: number;
-    lookup?: LookupAddress;
-  },
-): Promise<SafeResponse> {
+export interface SafeFetchOptions {
+  method?: string;
+  headers?: Record<string, string>;
+  body?: string;
+  maxBytes: number;
+  timeoutMs?: number;
+  lookup?: LookupAddress;
+  allowHttp?: boolean;
+  maxRedirects?: number;
+  contentType?: string;
+}
+
+export async function safeFetch(raw: string, init: SafeFetchOptions): Promise<SafeResponse> {
   let current = raw;
   const lookup = init.lookup ?? defaultLookup;
-  for (let hop = 0; hop < 3; hop += 1) {
-    const target = await assertPublicUrl(current, lookup);
-    const response = await pinnedRequest(target, init);
+  const deadline = Date.now() + (init.timeoutMs ?? 8_000);
+  for (let hop = 0; hop <= (init.maxRedirects ?? 2); hop += 1) {
+    const remaining = () => Math.max(1, deadline - Date.now());
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const target = await Promise.race([
+      assertPublicUrl(current, lookup, init.allowHttp),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => { reject(new Error('Fetch deadline exceeded')); }, remaining());
+      }),
+    ]).finally(() => { clearTimeout(timer); });
+    const response = await pinnedRequest(target, { ...init, timeoutMs: remaining() });
     if (response.status >= 300 && response.status < 400) {
       const location = response.location;
       if (location === null) {
@@ -136,13 +156,7 @@ function firstHeader(value: unknown): string | null {
 
 function pinnedRequest(
   target: ResolvedTarget,
-  init: {
-    method?: string;
-    headers?: Record<string, string>;
-    body?: string;
-    maxBytes: number;
-    timeoutMs?: number;
-  },
+  init: SafeFetchOptions,
 ): Promise<{ status: number; body: Buffer; location: string | null }> {
   const lib = target.url.protocol === 'https:' ? https : http;
   const family = isIP(target.address) === 6 ? 6 : 4;
@@ -163,6 +177,17 @@ function pinnedRequest(
         timeout: init.timeoutMs ?? 8_000,
       },
       (res) => {
+        if (
+          init.contentType &&
+          (res.statusCode ?? 0) < 300 &&
+          firstHeader(res.headers['content-type'])?.split(';')[0]?.trim().toLowerCase() !==
+            init.contentType
+        ) {
+          res.destroy();
+          req.destroy();
+          reject(new Error('Unsupported response type'));
+          return;
+        }
         const chunks: Buffer[] = [];
         let size = 0;
         res.on('data', (chunk: Buffer) => {
@@ -180,6 +205,7 @@ function pinnedRequest(
           }
           chunks.push(chunk);
         });
+        res.on('error', reject);
         res.on('end', () => {
           resolve({
             status: res.statusCode ?? 0,
@@ -189,6 +215,11 @@ function pinnedRequest(
         });
       },
     );
+    const deadlineTimer = setTimeout(
+      () => req.destroy(new Error('Fetch deadline exceeded')),
+      init.timeoutMs ?? 8_000,
+    );
+    req.on('close', () => { clearTimeout(deadlineTimer); });
     req.on('error', () => {
       reject(
         new DomainException(HttpStatus.BAD_GATEWAY, 'fetch_failed', 'Destination did not respond'),
