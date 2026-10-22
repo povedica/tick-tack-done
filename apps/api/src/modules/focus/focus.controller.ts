@@ -648,5 +648,11 @@ function listedStatus(
 }
 
 function sessionAccess(user: AuthUser): Prisma.FocusSessionWhereInput {
-  return { ownerId: user.id, deletedAt: null, ...(user.listIds === null ? {} : { OR: [{ taskId: null }, { task: { projectId: { in: [...user.listIds] } } }] }) };
+  return {
+    ownerId: user.id,
+    deletedAt: null,
+    ...(user.listIds === null
+      ? {}
+      : { OR: [{ taskId: null }, { task: { projectId: { in: [...user.listIds] } } }] }),
+  };
 }

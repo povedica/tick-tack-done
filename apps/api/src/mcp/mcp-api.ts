@@ -1,3 +1,4 @@
+import { request } from 'node:http';
 import { HttpStatus } from '@nestjs/common';
 import { DomainException } from '../http/domain.exception.js';
 
@@ -72,28 +73,55 @@ export async function requestPublicApi(
     }
     body = form;
   }
-  const response = await fetch(url, {
-    method,
-    redirect: 'manual',
-    signal: AbortSignal.timeout(30_000),
-    headers: {
-      Authorization: authorization,
-      ...(body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
-      ...(typeof args.idempotency_key === 'string'
-        ? { 'Idempotency-Key': args.idempotency_key }
-        : {}),
+  // Only the path comes from the caller. Host, protocol and port never come from
+  // a supplied URL; node:http also does not follow redirects.
+  const encodedBody = body === undefined ? undefined : new Response(body);
+  const payload = encodedBody ? Buffer.from(await encodedBody.arrayBuffer()) : undefined;
+  const response = await new Promise<{ status: number; contentType: string; bytes: Buffer }>(
+    (resolve, reject) => {
+      const outgoing = request(
+        {
+          hostname: '127.0.0.1',
+          port: Number(process.env.PORT ?? '3000'),
+          method,
+          path: url.pathname + url.search,
+          signal: AbortSignal.timeout(30_000),
+          headers: {
+            Authorization: authorization,
+            'Content-Type':
+              body instanceof FormData
+                ? (encodedBody?.headers.get('content-type') ?? 'application/octet-stream')
+                : 'application/json',
+            ...(typeof args.idempotency_key === 'string'
+              ? { 'Idempotency-Key': args.idempotency_key }
+              : {}),
+          },
+        },
+        (incoming) => {
+          const chunks: Buffer[] = [];
+          incoming.on('data', (chunk: Buffer) => chunks.push(chunk));
+          incoming.on('error', reject);
+          incoming.on('end', () => {
+            resolve({
+              status: incoming.statusCode ?? 500,
+              contentType: incoming.headers['content-type'] ?? '',
+              bytes: Buffer.concat(chunks),
+            });
+          });
+        },
+      );
+      outgoing.on('error', reject);
+      outgoing.end(payload);
     },
-    ...(body === undefined ? {} : { body }),
-  });
-  const contentType = response.headers.get('content-type') ?? '';
-  const bytes = Buffer.from(await response.arrayBuffer());
+  );
+  const { bytes, contentType } = response;
   const data: unknown =
     bytes.length === 0
       ? null
       : contentType.includes('json')
         ? JSON.parse(bytes.toString('utf8'))
         : { content_type: contentType, base64: bytes.toString('base64') };
-  if (!response.ok)
+  if (response.status < 200 || response.status >= 300)
     throw new DomainException(HttpStatus.BAD_REQUEST, 'api_request_failed', JSON.stringify(data));
   return { status: response.status, data };
 }
