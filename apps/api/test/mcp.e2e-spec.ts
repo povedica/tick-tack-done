@@ -172,6 +172,15 @@ describe('MCP server', () => {
     expect(await prisma.project.count({ where: { ownerId: owner.id } })).toBe(projects);
   });
 
+  it('TTD-AUD-102: MCP exposes owned notification settings and precise unlinked test errors',async()=>{
+    const token=await request(server).post('/api/v1/me/tokens').set('X-Dev-User-Email',owner.email).send({name:'Synthetic notification test',scopes:['profile:read']}).expect(201);
+    const headers={Authorization:`Bearer ${String(token.body.token)}`};
+    const settings=await rpc(server,headers,'tools/call',{name:'get_notification_settings',arguments:{}});
+    expect(settings.body.result.isError).toBe(false);expect(JSON.parse(toolText(settings.body as unknown)).preferences).toHaveLength(24);
+    const failed=await rpc(server,headers,'tools/call',{name:'send_test_notification',arguments:{channel:'telegram'}});
+    expect(failed.body.result.isError).toBe(true);expect(toolText(failed.body as unknown)).toContain('telegram_not_linked');
+  });
+
   it('TTD-AUD-101: MCP settings validate and finish atomically starts an opted-in break', async () => {
     const token = await request(server).post('/api/v1/me/tokens').set('X-Dev-User-Email',owner.email).send({name:'Synthetic focus settings',scopes:['focus:read','focus:write']}).expect(201);
     const headers={Authorization:`Bearer ${String(token.body.token)}`};

@@ -433,3 +433,6 @@ export { repairAllDayUtc } from './tasks/repair-allday';
 export { extractUrls, normalizeTaskUrl } from './links/extract';
 
 export { autoStartNextPhase } from './focus/cycle';
+
+export { NOTIFICATION_KINDS, NOTIFICATION_CHANNELS, notificationDefault, notificationQuietUntil } from './reminders/preferences';
+export type { NotificationKind, NotificationChannel } from './reminders/preferences';

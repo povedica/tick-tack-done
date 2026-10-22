@@ -1,4 +1,5 @@
 export const DomainEvent = {
+  notificationSettingsUpdated: 'notification.settings_updated@v1',
   taskLinkAdded: 'task.link_added@v1',
   taskLinkRemoved: 'task.link_removed@v1',
   occurrenceDetached: 'occurrence.detached@v1',

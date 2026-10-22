@@ -366,6 +366,149 @@
         ]
       }
     },
+    "/api/v1/me/notifications/settings": {
+      "get": {
+        "operationId": "NotificationsController_settings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        },
+        "summary": "Owned 8×3 notification matrix, channel availability and civil quiet hours",
+        "tags": [
+          "notifications"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "NotificationsController_update",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationSettingsWriteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update notification preferences and quiet hours; no MCP write tool",
+        "tags": [
+          "notifications"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/me/notifications/test": {
+      "post": {
+        "operationId": "NotificationsController_test",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationTestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sent": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Send a real test only to the authenticated owner; reports precise channel errors",
+        "tags": [
+          "notifications"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/me/notifications/deliveries": {
+      "get": {
+        "operationId": "NotificationsController_deliveries",
+        "parameters": [
+          {
+            "name": "cursor",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        },
+        "summary": "Last 50 owned channel outcomes, cursor paginated; quiet deferrals retain their reason",
+        "tags": [
+          "notifications"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/me/view-preferences/{key}": {
       "get": {
         "operationId": "ViewPreferencesController_get",
@@ -4945,6 +5088,60 @@
           "inbound"
         ],
         "security": []
+      }
+    },
+    "/api/v1/reminders/{id}/action": {
+      "post": {
+        "operationId": "NotificationActionsController_action",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationActionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "applied": {
+                      "type": "boolean"
+                    },
+                    "url": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Complete, snooze ten minutes or open with a single-use notification capability. No session or Bearer token is accepted as a substitute.",
+        "tags": [
+          "reminders"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/api/v1/integrations/drive/picker-config": {
@@ -13837,6 +14034,98 @@
           "auth"
         ]
       },
+      "PreferenceDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "task",
+              "focus_end",
+              "daily_digest",
+              "shutdown_digest",
+              "overdue",
+              "due_soon",
+              "habit",
+              "countdown"
+            ]
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "push",
+              "email",
+              "telegram"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "kind",
+          "channel",
+          "enabled"
+        ]
+      },
+      "QuietHoursDto": {
+        "type": "object",
+        "properties": {
+          "start": {
+            "type": "string",
+            "nullable": true
+          },
+          "end": {
+            "type": "string",
+            "nullable": true
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "allow_high": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "days",
+          "allow_high"
+        ]
+      },
+      "NotificationSettingsWriteDto": {
+        "type": "object",
+        "properties": {
+          "preferences": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PreferenceDto"
+            }
+          },
+          "quiet_hours": {
+            "$ref": "#/components/schemas/QuietHoursDto"
+          }
+        }
+      },
+      "NotificationTestDto": {
+        "type": "object",
+        "properties": {
+          "channel": {
+            "type": "string",
+            "enum": [
+              "push",
+              "email",
+              "telegram"
+            ]
+          }
+        },
+        "required": [
+          "channel"
+        ]
+      },
       "ViewPreferenceDto": {
         "type": "object",
         "properties": {
@@ -17704,6 +17993,26 @@
             "type": "boolean"
           }
         }
+      },
+      "NotificationActionDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "complete",
+              "snooze",
+              "open"
+            ]
+          },
+          "token": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "token"
+        ]
       },
       "DriveSessionDto": {
         "type": "object",

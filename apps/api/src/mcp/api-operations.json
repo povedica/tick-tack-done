@@ -257,6 +257,94 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/me/notifications/settings",
+    "summary": "Owned 8×3 notification matrix, channel availability and civil quiet hours",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/me/notifications/settings",
+    "summary": "Update notification preferences and quiet hours; no MCP write tool",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "preferences": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "task",
+                        "focus_end",
+                        "daily_digest",
+                        "shutdown_digest",
+                        "overdue",
+                        "due_soon",
+                        "habit",
+                        "countdown"
+                      ]
+                    },
+                    "channel": { "type": "string", "enum": ["push", "email", "telegram"] },
+                    "enabled": { "type": "boolean" }
+                  },
+                  "required": ["kind", "channel", "enabled"]
+                }
+              },
+              "quiet_hours": {
+                "type": "object",
+                "properties": {
+                  "start": { "type": "string", "nullable": true },
+                  "end": { "type": "string", "nullable": true },
+                  "days": { "type": "array", "items": { "type": "number" } },
+                  "allow_high": { "type": "boolean" }
+                },
+                "required": ["start", "end", "days", "allow_high"]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/me/notifications/test",
+    "summary": "Send a real test only to the authenticated owner; reports precise channel errors",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "channel": { "type": "string", "enum": ["push", "email", "telegram"] }
+            },
+            "required": ["channel"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/notifications/deliveries",
+    "summary": "Last 50 owned channel outcomes, cursor paginated; quiet deferrals retain their reason",
+    "parameters": [
+      { "name": "cursor", "required": true, "in": "query", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/me/view-preferences/{key}",
     "summary": "Read view preferences for the current account (TTD-AUD-59)",
     "parameters": [
@@ -2912,6 +3000,29 @@
               "message_id": { "type": "string" },
               "file": { "type": "array", "items": { "type": "string", "format": "binary" } }
             }
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/reminders/{id}/action",
+    "summary": "Complete, snooze ten minutes or open with a single-use notification capability. No session or Bearer token is accepted as a substitute.",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "action": { "type": "string", "enum": ["complete", "snooze", "open"] },
+              "token": { "type": "string" }
+            },
+            "required": ["action", "token"]
           }
         }
       }

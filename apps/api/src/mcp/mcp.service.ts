@@ -854,6 +854,10 @@ export class McpService {
           },
           authorization,
         );
+      case 'get_notification_settings':
+        return this.focusApi({method:'GET',path:'/api/v1/me/notifications/settings'},authorization);
+      case 'send_test_notification':
+        return this.focusApi({method:'POST',path:'/api/v1/me/notifications/test',body:{channel:args.channel}},authorization);
       case 'update_focus_settings':
         return this.focusApi({method:'PUT',path:'/api/v1/focus/settings',body:args},authorization);
       case 'get_focus_state':

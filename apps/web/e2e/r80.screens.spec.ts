@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 import { r80Fixture } from './r80.fixture';
 const phase = process.env.R80_PHASE ?? 'antes';
 const screens = [
+  { id: 102, name: 'notificaciones', route: '/settings/notifications' },
   { id: 100, name: 'enlaces', route: '/today?task=task' },
   { id: 99, name: 'adjuntos-sin-drive', route: '/today?task=task', drive: false },
   { id: 99, name: 'adjuntos-con-drive', route: '/today?task=task', drive: true },

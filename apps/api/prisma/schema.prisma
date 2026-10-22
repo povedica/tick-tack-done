@@ -114,6 +114,8 @@ enum ReminderDeliveryStatus {
 }
 
 enum ReminderDeliveryKind {
+  focus_end
+  habit
   task
   daily_digest
   shutdown_digest
@@ -250,6 +252,8 @@ model User {
   inboundEmailTokenHash  String?                @unique @map("inbound_email_token_hash")
   dailyReminderTime     String?                @map("daily_reminder_time")
   quietHoursStart       String?                @map("quiet_hours_start")
+  quietHoursDays        Int[]                  @default([0, 1, 2, 3, 4, 5, 6]) @map("quiet_hours_days")
+  quietAllowHigh        Boolean                @default(false) @map("quiet_allow_high")
   quietHoursEnd         String?                @map("quiet_hours_end")
   telegramEnabled       Boolean                @default(true) @map("telegram_enabled")
   focusNotifications    Boolean                @default(true) @map("focus_notifications")
@@ -321,6 +325,9 @@ model User {
   presences             ListPresence[]
   plugins               PluginInstall[]
   recoveryCodes         RecoveryCode[]
+  notificationPreferences NotificationPreference[]
+  notificationReceipts NotificationReceipt[]
+  notificationActions NotificationAction[]
   telegramLinks         TelegramLink[]
   dayPlans              DayPlan[]
   planSessions          PlanSession[]
@@ -961,6 +968,8 @@ model ReminderDelivery {
   countdown   Countdown?            @relation("CountdownDelivery", fields: [countdownId], references: [id], onDelete: Cascade)
   countdownReminderId String?       @map("countdown_reminder_id") @db.Uuid
   countdownReminder CountdownReminder? @relation(fields: [countdownReminderId], references: [id], onDelete: Cascade)
+  notificationReceipts NotificationReceipt[]
+  notificationActions NotificationAction[]
   dedupeKey  String                 @unique @map("dedupe_key")
   fireAt     DateTime               @map("fire_at") @db.Timestamptz(6)
   channel    ReminderChannel        @default(push)
@@ -1567,4 +1576,40 @@ model TaskLink {
   @@unique([taskId, url])
   @@index([ownerId, taskId])
   @@map("task_links")
+}
+
+model NotificationPreference {
+ userId String @map("user_id") @db.Uuid
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ kind ReminderDeliveryKind
+ channel String
+ enabled Boolean
+ @@id([userId,kind,channel])
+ @@map("notification_preferences")
+}
+model NotificationReceipt {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @map("owner_id") @db.Uuid
+ owner User @relation(fields:[ownerId],references:[id],onDelete:Cascade)
+ deliveryId String? @map("delivery_id") @db.Uuid
+ delivery ReminderDelivery? @relation(fields:[deliveryId],references:[id],onDelete:Cascade)
+ kind ReminderDeliveryKind
+ channel String
+ status String
+ reason String?
+ scheduledAt DateTime @map("scheduled_at") @db.Timestamptz(6)
+ createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+ @@index([ownerId,createdAt,id])
+ @@map("notification_receipts")
+}
+model NotificationAction {
+ id String @id @default(uuid()) @db.Uuid
+ ownerId String @map("owner_id") @db.Uuid
+ owner User @relation(fields:[ownerId],references:[id],onDelete:Cascade)
+ deliveryId String @map("delivery_id") @db.Uuid
+ delivery ReminderDelivery @relation(fields:[deliveryId],references:[id],onDelete:Cascade)
+ tokenHash String @unique @map("token_hash")
+ expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+ usedAt DateTime? @map("used_at") @db.Timestamptz(6)
+ @@map("notification_actions")
 }

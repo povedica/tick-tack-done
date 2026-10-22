@@ -1080,3 +1080,5 @@ Base actualizada: afc9f5d. Comprobación previa en [r80/verificacion-previa.md](
 - TTD-AUD-100: enlaces API/MCP/web implementados; dominio, SSRF/unfurl, integración PostgreSQL y cuatro Playwright locales en verde. Migración down/reapply local verificada; r80/100.md. Validación externa pendiente.
 
 - TTD-AUD-101: ajustes API/MCP, presets y sonidos locales implementados. Unitarias, integración PostgreSQL y 8 Playwright locales en verde; migración reversible probada. Auto-inicio al cerrar sesión; cierre sin clientes abiertos no validado. r80/101.md.
+
+- TTD-AUD-102: matriz, silencio civil, historial y capacidades de acción implementados y verificados localmente con canales falsos. Push OS real y recepción externa no demostrados; r80/102.md.

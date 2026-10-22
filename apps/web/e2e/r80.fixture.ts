@@ -102,6 +102,8 @@ export async function r80Fixture(
         time_zone: 'Europe/Madrid',
         features: {},
       };
+    if (path === '/me/notifications/settings') body={time_zone:'Europe/Madrid',preferences:[],channels:{push:{configured:true},email:{address:'synthetic@example.test',configured:true},telegram:{linked:false,status:'not_linked',username:null}},quiet_hours:{start:'22:00',end:'08:00',days:[0,1,2,3,4,5,6],allow_high:false}};
+    if (path === '/me/notifications/deliveries') body={items:[],next_cursor:null};
     if (path === '/focus/settings')
       body = {
         pomodoroMinutes: 25,

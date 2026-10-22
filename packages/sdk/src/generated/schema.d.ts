@@ -110,6 +110,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/notifications/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Owned 8×3 notification matrix, channel availability and civil quiet hours */
+        get: operations["NotificationsController_settings"];
+        /** Update notification preferences and quiet hours; no MCP write tool */
+        put: operations["NotificationsController_update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/notifications/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send a real test only to the authenticated owner; reports precise channel errors */
+        post: operations["NotificationsController_test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/notifications/deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Last 50 owned channel outcomes, cursor paginated; quiet deferrals retain their reason */
+        get: operations["NotificationsController_deliveries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/view-preferences/{key}": {
         parameters: {
             query?: never;
@@ -1550,6 +1602,23 @@ export interface paths {
         put?: never;
         /** Create an email-to-task capture (RF-105). Send recipient, subject, text and message_id fields before files. Files stream directly to the owner’s Drive (25 MiB each, 10 files); without Drive the task is saved with an attachment warning. */
         post: operations["InboundEmailController_receive"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reminders/{id}/action": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Complete, snooze ten minutes or open with a single-use notification capability. No session or Bearer token is accepted as a substitute. */
+        post: operations["NotificationActionsController_action"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3760,6 +3829,27 @@ export interface components {
             p256dh: string;
             auth: string;
         };
+        PreferenceDto: {
+            /** @enum {string} */
+            kind: "task" | "focus_end" | "daily_digest" | "shutdown_digest" | "overdue" | "due_soon" | "habit" | "countdown";
+            /** @enum {string} */
+            channel: "push" | "email" | "telegram";
+            enabled: boolean;
+        };
+        QuietHoursDto: {
+            start: string | null;
+            end: string | null;
+            days: number[];
+            allow_high: boolean;
+        };
+        NotificationSettingsWriteDto: {
+            preferences?: components["schemas"]["PreferenceDto"][];
+            quiet_hours?: components["schemas"]["QuietHoursDto"];
+        };
+        NotificationTestDto: {
+            /** @enum {string} */
+            channel: "push" | "email" | "telegram";
+        };
         ViewPreferenceDto: {
             /** @enum {string} */
             view: "list" | "kanban" | "timeline" | "matrix";
@@ -4675,6 +4765,11 @@ export interface components {
             before_id?: Record<string, never> | null;
             move_to_end?: boolean;
         };
+        NotificationActionDto: {
+            /** @enum {string} */
+            action: "complete" | "snooze" | "open";
+            token: string;
+        };
         DriveSessionDto: {
             name: string;
             mime_type: string;
@@ -5170,6 +5265,100 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    NotificationsController_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    NotificationsController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationSettingsWriteDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    NotificationsController_test: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationTestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        sent?: boolean;
+                    };
+                };
+            };
+        };
+    };
+    NotificationsController_deliveries: {
+        parameters: {
+            query: {
+                cursor: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
             };
         };
     };
@@ -7771,6 +7960,34 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    NotificationActionsController_action: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationActionDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        applied?: boolean;
+                        url?: string;
+                    };
+                };
             };
         };
     };

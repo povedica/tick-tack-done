@@ -1,3 +1,6 @@
+import { NotificationsController } from '../notifications/notifications.controller.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
+import { ReminderTransport } from '../scheduler/reminder.transport.js';
 import { ViewPreferencesController } from './view-preferences.controller.js';
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
@@ -21,6 +24,7 @@ import { TokensService } from './tokens.service.js';
 @Module({
   controllers: [
     MeController,
+    NotificationsController,
     ViewPreferencesController,
     TokensController,
     AuthController,
@@ -31,6 +35,8 @@ import { TokensService } from './tokens.service.js';
   ],
   providers: [
     MeService,
+    NotificationsService,
+    ReminderTransport,
     AccountService,
     AuthService,
     OauthService,

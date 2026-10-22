@@ -1,0 +1,155 @@
+.notification-matrix-wrap {
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-height: var(--notification-matrix-max-h);
+}
+.notification-matrix {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+.notification-matrix th:first-child {
+  width: 40%;
+  text-align: start;
+  font-weight: 400;
+}
+.notification-matrix th {
+  font-weight: 500;
+}
+.notification-matrix thead th {
+  vertical-align: top;
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: var(--z-dropdown);
+}
+.notification-matrix :is(th, td) {
+  border-bottom: 1px solid var(--border);
+  padding: 0;
+}
+.notification-matrix thead th > span {
+  display: block;
+}
+.notification-channel-state {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  min-height: var(--settings-row-h);
+}
+.notification-matrix th > small[role='status'] {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: var(--fs-xs);
+}
+.notification-matrix td {
+  text-align: center;
+}
+.notification-switch {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  width: var(--matrix-cell);
+  height: var(--matrix-cell);
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+}
+.notification-switch > span {
+  display: block;
+  position: relative;
+  width: var(--notification-switch-w);
+  height: var(--notification-switch-h);
+  border-radius: var(--radius-full);
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  box-sizing: border-box;
+}
+.notification-switch > span::before {
+  content: '';
+  position: absolute;
+  width: var(--chip-icon);
+  height: var(--chip-icon);
+  border-radius: var(--radius-full);
+  background: var(--ink-3);
+  left: 1px;
+  top: 1px;
+}
+.notification-switch[aria-checked='true'] > span {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.notification-switch[aria-checked='true'] > span::before {
+  left: auto;
+  right: 1px;
+  background: var(--surface);
+}
+.notification-quiet {
+  margin-block: var(--sp-4);
+}
+.notification-quiet-times {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+}
+.notification-quiet-times label {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+}
+.notification-quiet :is(input, button),
+.notification-matrix th button {
+  min-height: var(--tap);
+}
+.notification-weekdays {
+  display: flex;
+  flex-wrap: wrap;
+  margin-block: var(--sp-2);
+}
+.notification-weekdays button {
+  height: var(--tap);
+  width: var(--tap);
+  background: transparent;
+  color: var(--ink-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0;
+}
+.notification-weekdays button[aria-pressed='true'] {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.notification-allow-high {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+}
+.notification-history article {
+  display: grid;
+  gap: var(--sp-1);
+  border-bottom: 1px solid var(--border);
+  padding-block: var(--sp-2);
+  font-size: var(--fs-xs);
+}
+.notification-guides {
+  font-size: var(--fs-sm);
+}
+@media (max-width: 768px) {
+  .notifications-page {
+    padding-inline: var(--sp-3);
+  }
+  .notification-matrix {
+    font-size: var(--fs-xs);
+  }
+  .notification-matrix th:first-child {
+    width: 40%;
+  }
+}
+
+.notification-matrix thead th > button { min-width:var(--matrix-cell); width:var(--matrix-cell); max-width:100%; padding-inline:0; font-size:var(--fs-xs); }
+.notification-matrix thead th > span { overflow-wrap:anywhere; }
+
+.notification-channel-state { max-height:var(--settings-row-h); display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; line-clamp:2; }
+.notification-channel-state::before { content:''; display:inline-block; width:var(--status-dot); height:var(--status-dot); border-radius:var(--radius-full); background:var(--ink-3); margin-inline-end:var(--sp-1); }

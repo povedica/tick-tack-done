@@ -806,6 +806,16 @@ const CATALOG: readonly McpTool[] = [
     }),
   })),
   {
+    name: 'get_notification_settings',
+    description: 'Read the owned notification matrix, channel availability and civil quiet hours. There is no MCP tool to change account notification preferences.',
+    scopes: ['profile:read'], inputSchema: objectSchema({}, []),
+  },
+  {
+    name: 'send_test_notification',
+    description: 'Send a real test notification only to the authenticated owner through push, email or linked Telegram; reports precise channel errors.',
+    scopes: ['profile:read'], inputSchema: objectSchema({channel:{type:'string',enum:['push','email','telegram']}}, ['channel']),
+  },
+  {
     name: 'update_focus_settings',
     description: 'Update owned Pomodoro settings, durations, auto-start, local sound, volume and daily goal.',
     scopes: ['focus:write'],

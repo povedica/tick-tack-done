@@ -15,6 +15,9 @@ export interface TelegramButton {
 
 export interface ReminderMessage {
   readonly channel: 'push' | 'email' | 'both';
+  readonly allowPush?: boolean;
+  readonly allowEmail?: boolean;
+  readonly action?: {readonly delivery_id:string;readonly token:string;readonly url:string};
   readonly email: string | null;
   readonly subscriptions: readonly PushTarget[];
   readonly telegramChatId: string | null;
@@ -38,8 +41,8 @@ export interface DeliveryResult {
 @Injectable()
 export class ReminderTransport {
   async deliver(message: ReminderMessage): Promise<DeliveryResult> {
-    const wantsEmail = message.channel === 'email' || message.channel === 'both';
-    const wantsPush = message.channel === 'push' || message.channel === 'both';
+    const wantsEmail = message.allowEmail !== false && (message.channel === 'email' || message.channel === 'both');
+    const wantsPush = message.allowPush !== false && (message.channel === 'push' || message.channel === 'both');
     const telegram = await this.telegram(message);
     return {
       email: wantsEmail ? await this.email(message) : 'skipped',
@@ -62,6 +65,7 @@ export class ReminderTransport {
         host,
         port: Number(process.env.SMTP_PORT ?? '1025'),
         secure: false,
+        connectionTimeout:3000, greetingTimeout:3000, socketTimeout:8000,
         ...(user.length > 0 ? { auth: { user, pass } } : {}),
       });
       const from = process.env.SMTP_FROM ?? '';
@@ -92,7 +96,7 @@ export class ReminderTransport {
         return 'skipped';
       }
       webpush.setVapidDetails(subject, publicKey, privateKey);
-      const payload = JSON.stringify({ title: message.title, body: message.body });
+      const payload = JSON.stringify({ title: message.title, body: message.body, ...(message.action ? {data:message.action,actions:[{action:'complete',title:'Completar'},{action:'snooze',title:'Posponer 10 min'},{action:'open',title:'Abrir'}]} : {}) });
       for (const subscription of message.subscriptions) {
         await webpush.sendNotification(
           {

@@ -4,7 +4,7 @@ import type { AddTaskLinkDto } from './task-links.dto.js';
 import { reconcileTaskLinks, taskLinkJson } from './task-links.js';
 import { DriveAttachmentsService } from '../../drive/attachments.service.js';
 import { listOverdueTaskIds } from '../../reading/overdue.js';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { Prisma, type Task } from '@prisma/client';
 import {
@@ -337,6 +337,19 @@ export class TasksService {
       fingerprint: requestFingerprint('POST', '/api/v1/tasks', dto),
       statusCode: 201,
       execute: (tx) => this.insertTask(tx, user, dto, source),
+    });
+  }
+
+  async notificationAction(deliveryId:string,token:string,action:'complete'|'snooze'|'open',expectedOwner?:string){
+    return this.prisma.$transaction(async tx=>{
+      const row=await tx.notificationAction.findFirst({where:{deliveryId,tokenHash:createHash('sha256').update(token).digest('hex'),usedAt:null,expiresAt:{gt:new Date()},...(expectedOwner?{ownerId:expectedOwner}:{})},include:{delivery:true,owner:true}});
+      if(row?.delivery.taskId == null)throw new DomainException(401,'notification_token_invalid','Notification action expired or already used');
+      const claimed=await tx.notificationAction.updateMany({where:{id:row.id,usedAt:null},data:{usedAt:new Date()}});
+      if(claimed.count!==1)throw new DomainException(401,'notification_token_invalid','Notification action already used');
+      const user:AuthUser={id:row.ownerId,email:row.owner.email,timeZone:row.owner.timeZone,completeChildren:row.owner.taskCompleteChildren,scopes:['tasks:read','tasks:write'],tokenId:null,sessionId:null,listIds:null};
+      if(action==='complete')await this.completeIn(tx,user,row.delivery.taskId,null);
+      if(action==='snooze')await tx.reminderDelivery.create({data:{ownerId:row.ownerId,taskId:row.delivery.taskId,reminderId:row.delivery.reminderId,kind:row.delivery.kind,channel:row.delivery.channel,payload:asJson(row.delivery.payload),dedupeKey:`notification-snooze:${row.id}`,fireAt:new Date(Date.now()+600000)}});
+      return {applied:true,url:`/today?task=${row.delivery.taskId}`};
     });
   }
 

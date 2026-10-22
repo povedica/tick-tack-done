@@ -1,4 +1,7 @@
 :root {
+  --notification-matrix-max-h: 520px;
+  --notification-switch-w: 32px;
+  --notification-switch-h: 18px;
   --focus-preset-h: 28px;
   --focus-duration-w: 64px;
   --focus-control-w: 140px;
@@ -230,6 +233,9 @@
 }
 
 [data-theme='dark'] {
+  --notification-matrix-max-h: 520px;
+  --notification-switch-w: 32px;
+  --notification-switch-h: 18px;
   --focus-preset-h: 28px;
   --focus-duration-w: 64px;
   --focus-control-w: 140px;

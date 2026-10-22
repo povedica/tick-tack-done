@@ -33,3 +33,7 @@ Añade list_task_links, add_task_link y remove_task_link. get_task incluye links
 ## TTD-AUD-101
 
 Añade update_focus_settings (focus:write) mediante PUT /focus/settings; get_focus_state.settings expone auto-inicios, sonido, volumen, ambiente y meta. Catálogo 73 herramientas.
+
+## TTD-AUD-102
+
+Añade get_notification_settings y send_test_notification (profile:read, destino propio); no existe herramienta de escritura de matriz. Catálogo 75 herramientas.

@@ -291,6 +291,13 @@ export class TelegramBotService implements OnModuleInit {
   }
 
   private async callback(user: AuthUser, incoming: TelegramIncoming): Promise<string> {
+    const notification = /^n([cso]):([0-9a-f-]{36}):([A-Za-z0-9_-]{24})$/.exec(incoming.callbackData);
+    if (notification) {
+      const action=notification[1]==='c'?'complete':notification[1]==='s'?'snooze':'open';
+      const result=await this.tasks.notificationAction(notification[2]??'',notification[3]??'',action,user.id);
+      return action==='open'?`${process.env.APP_URL??'https://todo.reflexionia.com'}${result.url}`:action==='complete'?'Tarea completada':'Recordatorio pospuesto 10 minutos';
+    }
+
     if (incoming.callbackData.startsWith('s:')) {
       await this.snoozeButton(user, incoming);
       return 'snooze';

@@ -1,3 +1,4 @@
+import { deliverNotification } from '../notifications/deliver.js';
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { Prisma, type ReminderChannel } from '@prisma/client';
@@ -18,7 +19,6 @@ import {
   readStoredHabit,
   streakBreakOn,
   REMINDER_HORIZON_MS,
-  quietUntil,
   reminderDisposition,
   reminderFireAt,
   retryDelayMs,
@@ -86,6 +86,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     catchUp: boolean,
   ): Promise<{ materialized: number; fired: number; late: number }> {
     const materialized = (await this.advanceCompleted()) + (await this.advanceDetached());
+    await this.enqueueFocusEnds(now, catchUp);
     await this.enqueueReminders(now, catchUp);
     await this.enqueueDigests(now, catchUp);
     await this.enqueueShutdownDigests(now, catchUp);
@@ -529,7 +530,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         dedupeKey: `habit:${habit.id}:${next.fireAt}`,
         fireAt: next.fireAt,
         channel: 'push',
-        kind: 'daily_digest',
+        kind: 'habit',
         now,
         catchUp,
         payload: {
@@ -821,7 +822,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     dedupeKey: string;
     fireAt: string;
     channel: ReminderChannel;
-    kind: 'task' | 'daily_digest' | 'shutdown_digest' | 'overdue' | 'due_soon' | 'countdown';
+    kind: 'task' | 'daily_digest' | 'shutdown_digest' | 'overdue' | 'due_soon' | 'countdown' | 'habit' | 'focus_end';
     now: Date;
     catchUp: boolean;
     payload: Prisma.InputJsonObject;
@@ -869,6 +870,11 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         payload: input.payload,
       },
     });
+  }
+
+  private async enqueueFocusEnds(now:Date,catchUp:boolean){
+    const sessions=await this.prisma.focusSession.findMany({where:{endedAt:{gte:new Date(now.getTime()-REMINDER_HORIZON_MS),lte:now},completed:true,deletedAt:null},take:500});
+    for(const session of sessions)await this.queue({ownerId:session.ownerId,taskId:null,reminderId:null,dedupeKey:`focus-end:${session.id}`,fireAt:session.endedAt?.toISOString()??now.toISOString(),channel:'push',kind:'focus_end',payload:{title:'Fin de foco/descanso',body:session.type==='focus'?'Tu sesión de foco ha terminado':'Tu descanso ha terminado'},now,catchUp});
   }
 
   private async fire(now: Date, catchUp: boolean): Promise<{ fired: number; late: number }> {
@@ -945,15 +951,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
               telegram_message_id: null,
               retry_after_seconds: null,
             }
-          : await this.transport.deliver({
-              channel: row.channel,
-              email: typeof payload.email === 'string' ? payload.email : row.owner.email,
-              subscriptions: row.owner.pushSubscriptions,
-              telegramChatId: row.owner.telegramLinks[0]?.chatId ?? null,
-              allowTelegram: row.owner.telegramEnabled,
-              title: typeof payload.title === 'string' ? payload.title : 'Recordatorio',
-              body: typeof payload.body === 'string' ? payload.body : '',
-            });
+          : await deliverNotification(this.prisma,this.transport,row,now,{title:typeof payload.title==='string'?payload.title:'Recordatorio',body:typeof payload.body==='string'?payload.body:''});
         await this.prisma.$transaction(async (tx) => {
           await tx.reminderDelivery.update({
             where: { id: row.id },
@@ -999,41 +997,8 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         });
         continue;
       }
-      const resume = quietUntil(
-        now.toISOString(),
-        row.owner.timeZone,
-        row.owner.quietHoursStart,
-        row.owner.quietHoursEnd,
-      );
-      if (resume !== null) {
-        await this.prisma.reminderDelivery.update({
-          where: { id: row.id },
-          data: { status: 'scheduled', fireAt: new Date(resume) },
-        });
-        continue;
-      }
       const notice = noticeCopy(row.kind, payload, now);
-      const result = await this.transport.deliver({
-        channel: row.channel,
-        email: typeof payload.email === 'string' ? payload.email : row.owner.email,
-        subscriptions: row.owner.pushSubscriptions,
-        telegramChatId: row.owner.telegramLinks[0]?.chatId ?? null,
-        allowTelegram: row.owner.telegramEnabled,
-        title: notice.title,
-        body: notice.body,
-        ...(row.taskId === null
-          ? {}
-          : {
-              buttons: [
-                [
-                  { text: '✅ Hecho', callback_data: `c:${row.taskId}` },
-                  { text: '😴 +10 min', callback_data: `s:${row.id}:10` },
-                  { text: '😴 +1 h', callback_data: `s:${row.id}:60` },
-                ],
-                [{ text: '😴 Esta tarde', callback_data: `s:${row.id}:afternoon` }],
-              ],
-            }),
-      });
+      const result = await deliverNotification(this.prisma,this.transport,row,now,notice);
       if (result.telegram === 'unknown' || result.telegram === 'disconnected') {
         await this.prisma.reminderDelivery.update({
           where: { id: row.id },
@@ -1104,7 +1069,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
           previous: null,
         });
       });
-      if (row.kind === 'task' && row.reminder?.constant === true && row.taskId !== null) {
+      if (row.kind === 'task' && row.reminder?.constant === true && row.taskId !== null && [result.email,result.push,result.telegram].includes('sent')) {
         await this.scheduleConstant(row, now);
       }
       if (mark === 'late') {
