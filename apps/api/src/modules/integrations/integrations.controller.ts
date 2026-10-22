@@ -25,6 +25,7 @@ import {
   telegramConfigured,
 } from '../../integrations/config.js';
 import { downloadDriveFile } from '../../integrations/google-drive.js';
+import { userGoogleRefreshToken } from '../../integrations/user-google-token.js';
 import { exchangeGoogleRefreshToken } from '../../integrations/google-token.js';
 import { telegramSecretMatches } from '../../integrations/telegram-secret.js';
 import { authorizeUrl, readState, redirectFor, signState } from './google-oauth.js';
@@ -33,7 +34,7 @@ import { asJson } from '../../http/json.js';
 import { DomainException } from '../../http/domain.exception.js';
 import { respondJson } from '../../http/respond.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { openField, sealField } from '../../security/field-cipher.js';
+import { sealField } from '../../security/field-cipher.js';
 import { ATTACHMENT_MAX_BYTES } from '../tasks/attachment-storage.js';
 import { TasksService } from '../tasks/tasks.service.js';
 
@@ -336,7 +337,7 @@ export class IntegrationsController {
   ): Promise<void> {
     const row = await this.prisma.user.findUnique({
       where: { id: user.id },
-      select: { googleRefreshToken: true },
+      select: { googleRefreshToken: true, email: true },
     });
     const googleOn = (row?.googleRefreshToken ?? '').length > 0;
     respondJson(req, res, 200, { configured: googleConfigured(), connected: googleOn }, false);
@@ -402,13 +403,9 @@ export class IntegrationsController {
   ): Promise<{ id: string; drive_url: string; copied: true }> {
     const row = await this.prisma.user.findUnique({
       where: { id: user.id },
-      select: { googleRefreshToken: true },
+      select: { googleRefreshToken: true, email: true },
     });
-    const stored = row?.googleRefreshToken ?? null;
-    const refresh =
-      stored === null || stored.length === 0
-        ? (process.env.GOOGLE_REFRESH_TOKEN ?? '')
-        : openField(stored);
+    const refresh = userGoogleRefreshToken(row);
     const access = await exchangeGoogleRefreshToken(refresh);
     const file = await downloadDriveFile(access, dto.file_id);
     if (file.bytes.length > ATTACHMENT_MAX_BYTES) {

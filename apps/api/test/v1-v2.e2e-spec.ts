@@ -673,6 +673,43 @@ describe('V1 and V2 product', () => {
     }
   });
 
+  it('TTD-AUD-86: a global token never authorizes an unconnected user for Drive or Calendar', async () => {
+    process.env.GOOGLE_CLIENT_ID = 'synthetic-client';
+    process.env.GOOGLE_CLIENT_SECRET = 'synthetic-secret';
+    process.env.GOOGLE_REFRESH_TOKEN = 'synthetic-global-account';
+    const original = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = () => {
+      calls++;
+      return Promise.reject(new Error('Cross-account Google request'));
+    };
+    try {
+      const task = await session()
+        .post('/api/v1/tasks')
+        .send({ project_id: projectId, title: 'Credential isolation' })
+        .expect(201);
+      const drive = await session()
+        .post('/api/v1/integrations/drive/attachments')
+        .send({
+          task_id: task.body.id,
+          file_id: 'synthetic-file',
+          url: 'https://drive.google.com/file/d/synthetic-file',
+          name: 'Synthetic',
+          copy: true,
+        })
+        .expect(409);
+      expect(drive.body.error.code).toBe('google_not_connected');
+      const calendar = await session().get('/api/v1/calendar/google/calendars').expect(409);
+      expect(calendar.body.error.code).toBe('google_not_connected');
+      expect(calls).toBe(0);
+    } finally {
+      globalThis.fetch = original;
+      delete process.env.GOOGLE_CLIENT_ID;
+      delete process.env.GOOGLE_CLIENT_SECRET;
+      delete process.env.GOOGLE_REFRESH_TOKEN;
+    }
+  });
+
   it('RF-2005: a Drive link is stored and nothing is copied', async () => {
     const task = await session()
       .post('/api/v1/tasks')

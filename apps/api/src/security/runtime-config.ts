@@ -1,3 +1,5 @@
+import { Logger } from '@nestjs/common';
+
 const EXAMPLE_SECRETS = [
   'generar-con-openssl-rand-hex-32',
   'change-me',
@@ -8,6 +10,9 @@ const EXAMPLE_SECRETS = [
 export function assertRuntimeConfig(): void {
   if (process.env.NODE_ENV !== 'production') {
     return;
+  }
+  if (process.env.GOOGLE_REFRESH_TOKEN) {
+    new Logger('RuntimeConfig').warn('GOOGLE_REFRESH_TOKEN ignored in production');
   }
   if (process.env.AUTH_MODE === 'dev') {
     throw new Error('AUTH_MODE=dev is refused when NODE_ENV=production');

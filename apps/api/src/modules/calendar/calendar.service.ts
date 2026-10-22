@@ -7,10 +7,10 @@ import { DomainEvent } from '../../events/domain-events.js';
 import { EventRecorder } from '../../events/event-recorder.js';
 import { asJson } from '../../http/json.js';
 import { DomainException } from '../../http/domain.exception.js';
-import { openField } from '../../security/field-cipher.js';
 import { ICAL_MAX_BYTES, safeFetch } from '../../security/safe-fetch.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { googleConfigured } from '../../integrations/config.js';
+import { userGoogleRefreshToken } from '../../integrations/user-google-token.js';
 import { exchangeGoogleRefreshToken } from '../../integrations/google-token.js';
 import { GoogleSyncService, type SubscriptionJson } from './google-sync.service.js';
 
@@ -641,13 +641,9 @@ export class CalendarService {
   private async googleAccessToken(userId: string): Promise<string> {
     const row = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { googleRefreshToken: true },
+      select: { googleRefreshToken: true, email: true },
     });
-    const stored = row?.googleRefreshToken ?? null;
-    const refresh =
-      stored === null || stored.length === 0
-        ? (process.env.GOOGLE_REFRESH_TOKEN ?? '')
-        : openField(stored);
+    const refresh = userGoogleRefreshToken(row);
     if (!googleConfigured() || refresh.length === 0) {
       throw new DomainException(
         HttpStatus.SERVICE_UNAVAILABLE,
