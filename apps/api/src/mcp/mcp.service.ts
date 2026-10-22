@@ -1,3 +1,5 @@
+import apiOperations from './api-operations.json' with { type: 'json' };
+import { requestPublicApi } from './mcp-api.js';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import {
   buildRepeatRule,
@@ -34,6 +36,14 @@ import { CalendarService } from '../modules/calendar/calendar.service.js';
 import { validateMcpArgs } from './mcp-args.js';
 import { findTool, visibleTools } from './mcp.catalog.js';
 
+const API_OPERATIONS: readonly {
+  method: string;
+  path: string;
+  summary: string;
+  parameters: unknown;
+  request_body: unknown;
+}[] = apiOperations;
+
 const PROTOCOL = '2025-03-26';
 const PROTOCOLS = new Set(['2024-11-05', '2025-03-26', '2025-06-18']);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -69,7 +79,7 @@ export class McpService {
     @Inject(EventRecorder) private readonly events: EventRecorder,
   ) {}
 
-  async handle(user: AuthUser, body: unknown): Promise<RpcResponse | null> {
+  async handle(user: AuthUser, body: unknown, authorization?: string): Promise<RpcResponse | null> {
     if (!isRecord(body) || body.jsonrpc !== '2.0' || typeof body.method !== 'string') {
       return failure(idOf(body) ?? null, -32600, 'Invalid Request');
     }
@@ -78,7 +88,7 @@ export class McpService {
       return null;
     }
     try {
-      const result = await this.dispatch(user, body.method, body.params);
+      const result = await this.dispatch(user, body.method, body.params, authorization);
       return { jsonrpc: '2.0', id, result };
     } catch (error) {
       if (error instanceof DomainException) {
@@ -96,7 +106,12 @@ export class McpService {
     }
   }
 
-  private async dispatch(user: AuthUser, method: string, params: unknown): Promise<unknown> {
+  private async dispatch(
+    user: AuthUser,
+    method: string,
+    params: unknown,
+    authorization?: string,
+  ): Promise<unknown> {
     if (method === 'initialize') {
       return this.initialize(params);
     }
@@ -113,7 +128,7 @@ export class McpService {
       };
     }
     if (method === 'tools/call') {
-      return this.call(user, params);
+      return this.call(user, params, authorization);
     }
     throw new DomainException(HttpStatus.BAD_REQUEST, 'method_not_found', 'Method not found');
   }
@@ -131,7 +146,7 @@ export class McpService {
     };
   }
 
-  private async call(user: AuthUser, params: unknown): Promise<unknown> {
+  private async call(user: AuthUser, params: unknown, authorization?: string): Promise<unknown> {
     if (!isRecord(params) || typeof params.name !== 'string') {
       throw new DomainException(
         HttpStatus.BAD_REQUEST,
@@ -152,7 +167,28 @@ export class McpService {
     if (!validation.ok) {
       return toolError('validation_failed', validation.message);
     }
-    const data = await this.run(user, tool.name, args);
+    let data: unknown;
+    if (tool.name === 'api_catalog') {
+      const matches = API_OPERATIONS.filter((operation) =>
+        `${operation.method} ${operation.path} ${operation.summary}`
+          .toLowerCase()
+          .includes(typeof args.search === 'string' ? args.search.toLowerCase() : ''),
+      );
+      const start = typeof args.cursor === 'number' ? args.cursor : 0;
+      const limit = typeof args.limit === 'number' ? args.limit : 50;
+      data = {
+        items: matches
+          .slice(start, start + limit)
+          .map((operation) =>
+            args.details === true
+              ? operation
+              : { method: operation.method, path: operation.path, summary: operation.summary },
+          ),
+        total: matches.length,
+        next_cursor: start + limit < matches.length ? start + limit : null,
+      };
+    } else if (tool.name === 'api_request') data = await requestPublicApi(args, authorization);
+    else data = await this.run(user, tool.name, args);
     return { content: [{ type: 'text', text: JSON.stringify(data) }], isError: false };
   }
 

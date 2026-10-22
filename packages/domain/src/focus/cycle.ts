@@ -63,6 +63,8 @@ export interface FocusStatSession {
 }
 
 export interface FocusStats {
+  readonly today_pomodoros: number;
+  readonly today_focus_seconds: number;
   readonly focus_seconds: number;
   readonly completed_pomodoros: number;
   readonly by_list: readonly { readonly list_id: string; readonly seconds: number }[];
@@ -103,8 +105,29 @@ export function focusSessionStatus(input: {
 
 export function focusStats(
   sessions: readonly FocusStatSession[],
-  timeZoneOffsetMinutes = 0,
+  timeZone: string | number = 0,
+  now = new Date().toISOString(),
 ): FocusStats {
+  const localParts = (iso: string) => {
+    const date = new Date(iso);
+    if (typeof timeZone === 'number') {
+      const local = new Date(date.getTime() + timeZone * 60_000);
+      return { day: local.toISOString().slice(0, 10), hour: local.getUTCHours() };
+    }
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(date);
+    const part = (kind: string) => parts.find((value) => value.type === kind)?.value ?? '';
+    return { day: `${part('year')}-${part('month')}-${part('day')}`, hour: Number(part('hour')) };
+  };
+  const today = localParts(now).day;
+  let todayPomodoros = 0;
+  let todaySeconds = 0;
   let focusSeconds = 0;
   let pomodoros = 0;
   const lists = new Map<string, number>();
@@ -112,11 +135,11 @@ export function focusStats(
   const days = new Set<string>();
   const hours = new Map<number, number>();
   for (const session of sessions) {
-    if (session.type !== 'focus') {
+    if (session.type !== 'focus' && session.type !== 'stopwatch') {
       continue;
     }
     focusSeconds += session.actualSeconds;
-    if (session.completed) {
+    if (session.completed && session.type === 'focus') {
       pomodoros += 1;
     }
     if (session.listId !== null) {
@@ -129,9 +152,13 @@ export function focusStats(
     if (Number.isNaN(started)) {
       continue;
     }
-    const local = new Date(started + timeZoneOffsetMinutes * 60_000);
-    days.add(local.toISOString().slice(0, 10));
-    const hour = local.getUTCHours();
+    const local = localParts(session.startedAt);
+    days.add(local.day);
+    if (local.day === today) {
+      todaySeconds += session.actualSeconds;
+      if (session.completed && session.type === 'focus') todayPomodoros += 1;
+    }
+    const hour = local.hour;
     hours.set(hour, (hours.get(hour) ?? 0) + session.actualSeconds);
   }
   let bestHour: number | null = null;
@@ -143,6 +170,8 @@ export function focusStats(
     }
   }
   return {
+    today_pomodoros: todayPomodoros,
+    today_focus_seconds: todaySeconds,
     focus_seconds: focusSeconds,
     completed_pomodoros: pomodoros,
     by_list: [...lists.entries()].map(([listId, seconds]) => ({ list_id: listId, seconds })),
@@ -150,4 +179,17 @@ export function focusStats(
     streak_days: days.size,
     best_hour: bestHour,
   };
+}
+
+/** RF-1205: elapsed real time, freezing at pause and excluding earlier pauses. */
+export function focusElapsedSeconds(input: {
+  readonly startedAt: string;
+  readonly now: string;
+  readonly pausedAt?: string | null;
+  readonly pausedSeconds?: number;
+}): number {
+  const elapsed = (Date.parse(input.pausedAt ?? input.now) - Date.parse(input.startedAt)) / 1000;
+  return Number.isFinite(elapsed)
+    ? Math.max(0, Math.floor(elapsed) - (input.pausedSeconds ?? 0))
+    : 0;
 }

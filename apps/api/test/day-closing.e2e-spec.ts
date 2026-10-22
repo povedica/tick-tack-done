@@ -3,7 +3,7 @@ import type { INestApplication } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/configure-app.js';
 import { loadRootEnv } from '../src/load-env.js';
@@ -65,6 +65,8 @@ describe('day closing, load and someday', () => {
   let owner: Owner;
 
   beforeAll(async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-20T12:00:00Z'));
     await prisma.$connect();
     owner = await createOwner('closing');
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
@@ -78,6 +80,7 @@ describe('day closing, load and someday', () => {
     await app.close();
     await removeOwner(owner.id);
     await prisma.$disconnect();
+    vi.useRealTimers();
   });
 
   function api() {

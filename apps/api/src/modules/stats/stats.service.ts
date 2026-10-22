@@ -82,7 +82,7 @@ export class StatsService {
     const buckets = buildDayBuckets(
       bounds.days,
       tasks,
-      focus.filter((row) => row.type === 'focus'),
+      focus.filter((row) => row.type === 'focus' || row.type === 'stopwatch'),
       habits,
       query.tz,
     );
@@ -182,7 +182,7 @@ export class StatsService {
     const buckets = buildDayBuckets(
       bounds.days,
       tasks,
-      focus.filter((row) => row.type === 'focus'),
+      focus.filter((row) => row.type === 'focus' || row.type === 'stopwatch'),
       habits,
       query.tz,
     );
@@ -272,7 +272,7 @@ export class StatsService {
     const sessions = await this.loadFocus(user, bounds.start, bounds.end, query);
     const typed =
       query.type === undefined || query.type.length === 0
-        ? sessions.filter((session) => session.type === 'focus')
+        ? sessions.filter((session) => session.type === 'focus' || session.type === 'stopwatch')
         : sessions.filter((session) => session.type === query.type);
     const buckets = buildDayBuckets(bounds.days, [], typed, [], query.tz);
     const completed = typed.filter((session) => session.completed).length;
@@ -591,7 +591,8 @@ export class StatsService {
 
   private bounds(query: StatsQuery) {
     if (
-      (query.type !== undefined && !['focus', 'short_break', 'long_break'].includes(query.type)) ||
+      (query.type !== undefined &&
+        !['focus', 'short_break', 'long_break', 'stopwatch'].includes(query.type)) ||
       (query.priority !== undefined &&
         !query.priority
           .split(',')

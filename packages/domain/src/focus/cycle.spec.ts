@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  focusElapsedSeconds,
   cappedFocusSeconds,
   focusSessionStatus,
   focusStats,
@@ -88,5 +89,58 @@ describe('focus', () => {
     expect(stats.by_tag[0]?.name).toBe('casa');
     expect(stats.best_hour).toBe(8);
     expect(focusStats([]).best_hour).toBeNull();
+  });
+});
+
+describe('TTD-AUD-78 RF-1204/1205', () => {
+  it('freezes at pause and subtracts previous pauses across DST', () => {
+    expect(
+      focusElapsedSeconds({
+        startedAt: '2026-10-25T00:50:00Z',
+        now: '2026-10-25T02:00:00Z',
+        pausedAt: '2026-10-25T01:20:00Z',
+        pausedSeconds: 300,
+      }),
+    ).toBe(1500);
+  });
+  it.each(['2026-10-24T22:30:00Z', '2026-03-28T23:30:00Z'])(
+    'counts local midnight in Madrid: %s',
+    (startedAt) => {
+      const result = focusStats(
+        [
+          {
+            type: 'focus',
+            startedAt,
+            actualSeconds: 900,
+            completed: true,
+            listId: null,
+            tagNames: [],
+          },
+        ],
+        'Europe/Madrid',
+        startedAt,
+      );
+      expect(result.today_pomodoros).toBe(1);
+      expect(result.today_focus_seconds).toBe(900);
+      expect(result.best_hour).toBe(0);
+    },
+  );
+  it('counts stopwatch duration without counting a pomodoro', () => {
+    const result = focusStats(
+      [
+        {
+          type: 'stopwatch',
+          startedAt: '2026-10-25T01:20:00Z',
+          actualSeconds: 123,
+          completed: true,
+          listId: null,
+          tagNames: [],
+        },
+      ],
+      'Europe/Madrid',
+      '2026-10-25T02:00:00Z',
+    );
+    expect(result.today_pomodoros).toBe(0);
+    expect(result.today_focus_seconds).toBe(123);
   });
 });

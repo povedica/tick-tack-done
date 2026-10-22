@@ -110,6 +110,92 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/view-preferences/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read view preferences for the current account (TTD-AUD-59) */
+        get: operations["ViewPreferencesController_get"];
+        /** Persist view preferences across devices (TTD-AUD-59) */
+        put: operations["ViewPreferencesController_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/oauth/renewals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Count automatic OAuth renewals by application (RF-2002) */
+        get: operations["TokensController_renewals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/oauth/grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List connected OAuth applications (RF-2002) */
+        get: operations["TokensController_grants"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/oauth/grants/{clientId}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoke all access and refresh tokens for an application (RF-2002) */
+        post: operations["TokensController_revokeGrant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/oauth/grants/{clientId}/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read application activity across OAuth renewals (RF-2002) */
+        get: operations["TokensController_grantActivity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/tokens": {
         parameters: {
             query?: never;
@@ -2770,6 +2856,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/focus/sessions/{id}/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pause a running focus session (RF-1205) */
+        post: operations["FocusController_pause"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/focus/sessions/{id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resume a paused focus session (RF-1205) */
+        post: operations["FocusController_resume"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/focus/stats": {
         parameters: {
             query?: never;
@@ -3502,7 +3622,50 @@ export interface components {
             p256dh: string;
             auth: string;
         };
+        ViewPreferenceDto: {
+            /** @enum {string} */
+            view: "list" | "kanban" | "timeline" | "matrix";
+            /** @enum {string} */
+            group: "none" | "section" | "date" | "tag" | "priority" | "due" | "list";
+            /** @enum {string} */
+            sort: "manual" | "date" | "priority" | "title" | "created" | "due";
+            /** @enum {string} */
+            order: "asc" | "desc";
+            showDetails: boolean;
+            hideCompleted: boolean;
+            /** @enum {string} */
+            detailLayout: "side" | "popup";
+            syncAcrossDevices: boolean;
+        };
+        OauthGrantDto: {
+            client_id: string;
+            client_name: string;
+            authorized_at: string;
+            last_used_at: string | null;
+            active_access_tokens: number;
+            active_refresh_families: number;
+            renewals: number;
+            scopes: string[];
+        };
+        OauthGrantPageDto: {
+            items: components["schemas"]["OauthGrantDto"][];
+        };
+        ActivityEntryDto: {
+            id: string;
+            entity_type: string;
+            entity_id: string;
+            action: string;
+            changes: Record<string, never>;
+            created_at: string;
+            token_id: string | null;
+        };
+        ActivityPageDto: {
+            items: components["schemas"]["ActivityEntryDto"][];
+            next_cursor: string | null;
+        };
         TokenDto: {
+            /** @enum {string|null} */
+            revoked_reason?: "user" | "rotated" | "reuse" | null;
             id: string;
             name: string;
             oauth_client_id: string | null;
@@ -3522,11 +3685,15 @@ export interface components {
             next_cursor: string | null;
         };
         CreateTokenDto: {
+            /** @enum {number|null} */
+            expires_in_days?: 30 | 90 | 365 | null;
             /** @description Agent or script this token belongs to */
             name: string;
             scopes: ("tasks:read" | "tasks:write" | "tasks:create" | "tasks:update" | "tasks:complete" | "tasks:trash" | "lists:read" | "lists:write" | "tags:read" | "tags:write" | "filters:read" | "filters:write" | "habits:read" | "habits:write" | "countdowns:read" | "countdowns:write" | "focus:read" | "focus:write" | "focus:start" | "focus:stop" | "notes:read" | "notes:write" | "calendar:read" | "calendar:write" | "reminders:write" | "notifications:self:write" | "ticky:proposals:read" | "ticky:proposals:write" | "ticky:routines:read" | "ticky:routines:write" | "webhooks:manage" | "automations:manage" | "profile:read" | "profile:write" | "backup:read" | "stats:read")[];
         };
         TokenCreatedDto: {
+            /** @enum {string|null} */
+            revoked_reason?: "user" | "rotated" | "reuse" | null;
             id: string;
             name: string;
             oauth_client_id: string | null;
@@ -3540,19 +3707,6 @@ export interface components {
             client_name: string | null;
             /** @description Shown once. Only the hash is stored. */
             token: string;
-        };
-        ActivityEntryDto: {
-            id: string;
-            entity_type: string;
-            entity_id: string;
-            action: string;
-            changes: Record<string, never>;
-            created_at: string;
-            token_id: string | null;
-        };
-        ActivityPageDto: {
-            items: components["schemas"]["ActivityEntryDto"][];
-            next_cursor: string | null;
         };
         RegistrationStatusDto: {
             open: boolean;
@@ -4506,8 +4660,9 @@ export interface components {
             enabled?: boolean;
         };
         StartDto: {
+            planned_minutes?: number;
             /** @enum {string} */
-            type?: "focus" | "short_break" | "long_break";
+            type?: "focus" | "short_break" | "long_break" | "stopwatch";
             task_id?: string;
             ambient_sound?: string;
         };
@@ -4793,11 +4948,138 @@ export interface operations {
             };
         };
     };
+    ViewPreferencesController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ViewPreferencesController_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ViewPreferenceDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TokensController_renewals: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TokensController_grants: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OauthGrantPageDto"];
+                };
+            };
+        };
+    };
+    TokensController_revokeGrant: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                clientId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TokensController_grantActivity: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                clientId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityPageDto"];
+                };
+            };
+        };
+    };
     TokensController_list: {
         parameters: {
             query?: {
                 /** @description Active means not revoked (including expired access tokens). Revoked excludes automatic OAuth rotations. */
                 status?: "active" | "revoked";
+                kind?: "personal" | "oauth";
             };
             header?: {
                 "X-Dev-User-Email"?: string;
@@ -9992,6 +10274,44 @@ export interface operations {
         };
     };
     FocusController_abort: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FocusController_pause: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FocusController_resume: {
         parameters: {
             query?: never;
             header?: never;

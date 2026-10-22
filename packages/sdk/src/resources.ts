@@ -278,9 +278,20 @@ export interface ResourceClient {
   syncCalendars(): Promise<JsonObject>;
   matrixRules(): Promise<JsonObject>;
   saveMatrixRule(body: JsonObject): Promise<JsonObject>;
+  getViewPreferences(key: string): Promise<JsonObject>;
+  putViewPreferences(key: string, body: JsonObject): Promise<JsonObject>;
+  oauthRenewals(): Promise<JsonObject>;
+  oauthGrants(): Promise<JsonObject>;
+  revokeOauthGrant(id: string): Promise<void>;
+  oauthGrantActivity(id: string, cursor?: string): Promise<JsonObject>;
   startFocus(body?: JsonObject): Promise<JsonObject>;
-  listFocusSessions(status?: 'active' | 'completed' | 'aborted'): Promise<JsonObject>;
+  listFocusSessions(
+    status?: 'active' | 'completed' | 'aborted',
+    cursor?: string,
+  ): Promise<JsonObject>;
   focusStats(): Promise<JsonObject>;
+  pauseFocus(id: string): Promise<JsonObject>;
+  resumeFocus(id: string): Promise<JsonObject>;
   finishFocus(id: string): Promise<JsonObject>;
   abortFocus(id: string): Promise<JsonObject>;
   getFocusSettings(): Promise<JsonObject>;
@@ -564,16 +575,50 @@ export function resourceMethods(http: Http): ResourceClient {
     syncCalendars: () => ask('POST', '/api/v1/calendar/sync', undefined, undefined, isJsonObject),
     matrixRules: () => ask('GET', '/api/v1/matrix/rules', undefined, undefined, isJsonObject),
     saveMatrixRule: (body) => ask('PUT', '/api/v1/matrix/rules', body, undefined, isJsonObject),
-    startFocus: (body = {}) => ask('POST', '/api/v1/focus/sessions', body, undefined, isJsonObject),
-    listFocusSessions: (status) =>
+    getViewPreferences: (key) =>
       ask(
         'GET',
-        status === undefined ? '/api/v1/focus/sessions' : `/api/v1/focus/sessions?status=${status}`,
+        `/api/v1/me/view-preferences/${encodeURIComponent(key)}`,
+        undefined,
+        undefined,
+        isJsonObject,
+      ),
+    putViewPreferences: (key, body) =>
+      ask(
+        'PUT',
+        `/api/v1/me/view-preferences/${encodeURIComponent(key)}`,
+        body,
+        undefined,
+        isJsonObject,
+      ),
+    oauthRenewals: () =>
+      ask('GET', '/api/v1/me/oauth/renewals', undefined, undefined, isJsonObject),
+    oauthGrants: () => ask('GET', '/api/v1/me/oauth/grants', undefined, undefined, isJsonObject),
+    revokeOauthGrant: async (id) => {
+      await ask('POST', `/api/v1/me/oauth/grants/${id}/revoke`, undefined, undefined, isEmpty);
+    },
+    oauthGrantActivity: (id, cursor) =>
+      ask(
+        'GET',
+        `/api/v1/me/oauth/grants/${id}/activity${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`,
+        undefined,
+        undefined,
+        isJsonObject,
+      ),
+    startFocus: (body = {}) => ask('POST', '/api/v1/focus/sessions', body, undefined, isJsonObject),
+    listFocusSessions: (status, cursor) =>
+      ask(
+        'GET',
+        `/api/v1/focus/sessions?${new URLSearchParams({ ...(status ? { status } : {}), ...(cursor ? { cursor } : {}) })}`,
         undefined,
         undefined,
         isJsonObject,
       ),
     focusStats: () => ask('GET', '/api/v1/focus/stats', undefined, undefined, isJsonObject),
+    pauseFocus: (id) =>
+      ask('POST', `/api/v1/focus/sessions/${id}/pause`, undefined, undefined, isJsonObject),
+    resumeFocus: (id) =>
+      ask('POST', `/api/v1/focus/sessions/${id}/resume`, undefined, undefined, isJsonObject),
     finishFocus: (id) =>
       ask('POST', `/api/v1/focus/sessions/${id}/finish`, undefined, undefined, isJsonObject),
     abortFocus: (id) =>

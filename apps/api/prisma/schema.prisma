@@ -142,6 +142,7 @@ enum CountdownRepeat {
 }
 
 enum FocusSessionType {
+  stopwatch
   focus
   short_break
   long_break
@@ -218,7 +219,19 @@ enum CompleteChildrenPolicy {
   leave
 }
 
+model ViewPreference {
+  ownerId String @map("owner_id") @db.Uuid
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  key String
+  preferences Json
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  @@id([ownerId, key])
+  @@map("view_preferences")
+}
+
 model User {
+  viewPreferences ViewPreference[]
   id                    String                 @id @default(uuid()) @db.Uuid
   email                 String                 @unique
   passwordHash          String?                @map("password_hash")
@@ -630,6 +643,8 @@ model FocusSession {
   endedAt          DateTime?        @map("ended_at") @db.Timestamptz(6)
   completed        Boolean          @default(false)
   ambientSound     String?          @map("ambient_sound")
+  pausedAt         DateTime?        @map("paused_at") @db.Timestamptz(6)
+  pausedSeconds    Int              @default(0) @map("paused_seconds")
   interruptedCount Int              @default(0) @map("interrupted_count")
   createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -863,7 +878,7 @@ model Countdown {
 }
 
 model CountdownReminder {
-  id          String    @id @default(uuid()) @db.Uuid
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   countdownId String    @map("countdown_id") @db.Uuid
   countdown   Countdown @relation(fields: [countdownId], references: [id], onDelete: Cascade)
   deliveries  ReminderDelivery[]
@@ -957,6 +972,7 @@ model ReminderDelivery {
   @@index([status, fireAt])
   @@index([status, nextRetryAt])
   @@map("reminder_deliveries")
+  @@index([countdownId])
 }
 
 model PushSubscription {

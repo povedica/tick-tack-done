@@ -114,12 +114,12 @@ export async function tokenHasCalendarScope(accessToken: string): Promise<boolea
   }
   const body = (await response.json()) as { scope?: unknown };
   const scope = typeof body.scope === 'string' ? body.scope : '';
-  for (const item of scope.split(' ')) {
-    if (item === CALENDAR_SCOPE) {
-      return true;
-    }
-  }
-  return false;
+  const granted = new Set(scope.split(' '));
+  return (
+    granted.has(CALENDAR_SCOPE) ||
+    (granted.has(`${CALENDAR_SCOPE}.calendarlist.readonly`) &&
+      granted.has(`${CALENDAR_SCOPE}.events`))
+  );
 }
 
 export function primaryCalendar(

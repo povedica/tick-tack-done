@@ -91,3 +91,74 @@ it('TTD-AUD-35 RF-2002: active pagination survives 80 rotations and revoked coun
     await db.user.delete({ where: { id: owner.id } });
   }
 });
+
+it('TTD-AUD-79 RF-2002: expiry and whole-application revocation preserve owner boundaries', async () => {
+  const owner = await db.user.create({
+    data: { email: `grants-${randomUUID()}@reflexionia.test`, displayName: 'Grants' },
+  });
+  const client = await db.oauthClient.create({
+    data: { ownerId: owner.id, name: 'Claude', redirectUris: ['http://127.0.0.1/cb'] },
+  });
+  const user: AuthUser = {
+    id: owner.id,
+    email: owner.email,
+    timeZone: 'Europe/Madrid',
+    completeChildren: 'ask',
+    scopes: [],
+    tokenId: null,
+    sessionId: 'browser',
+    listIds: null,
+  };
+  try {
+    const before = Date.now();
+    const pat = await service.create(user, 'expiry', ['tasks:read'], 30);
+    expect(Date.parse(pat.expires_at ?? '') - before).toBeGreaterThanOrEqual(30 * 86_400_000);
+    await expect(service.create(user, 'bad', ['tasks:read'], 31)).rejects.toThrow();
+    const access = await db.personalAccessToken.create({
+      data: {
+        ownerId: owner.id,
+        name: 'oauth',
+        tokenHash: randomUUID(),
+        tokenPrefix: 'test',
+        scopes: ['tasks:read'],
+        oauthClientId: client.id,
+        expiresAt: new Date(Date.now() + 3600_000),
+      },
+    });
+    await db.oauthRefreshToken.create({
+      data: {
+        userId: owner.id,
+        clientId: client.id,
+        accessTokenId: access.id,
+        familyId: randomUUID(),
+        tokenHash: randomUUID(),
+        expiresAt: new Date(Date.now() + 86_400_000),
+      },
+    });
+    expect((await service.grants(user)).items[0]).toMatchObject({
+      client_id: client.id,
+      active_access_tokens: 1,
+      active_refresh_families: 1,
+    });
+    await expect(service.revokeGrant({ ...user, id: randomUUID() }, client.id)).rejects.toThrow();
+    await expect(service.grants({ ...user, tokenId: pat.id })).rejects.toThrow();
+    await service.revokeGrant(user, client.id);
+    await service.revokeGrant(user, client.id);
+    expect((await service.grants(user)).items).toEqual([]);
+    expect(await db.oauthRefreshToken.count({ where: { userId: owner.id, revokedAt: null } })).toBe(
+      0,
+    );
+    expect(
+      await db.personalAccessToken.count({
+        where: { ownerId: owner.id, oauthClientId: client.id, revokedAt: null },
+      }),
+    ).toBe(0);
+    expect((await service.grantActivity(user, client.id, '1', undefined)).items).toHaveLength(1);
+  } finally {
+    await db.activityLog.deleteMany({ where: { ownerId: owner.id } });
+    await db.outboxEvent.deleteMany({ where: { ownerId: owner.id } });
+    await db.personalAccessToken.deleteMany({ where: { ownerId: owner.id } });
+    await db.oauthClient.delete({ where: { id: client.id } });
+    await db.user.delete({ where: { id: owner.id } });
+  }
+});

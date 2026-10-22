@@ -313,6 +313,7 @@ export type {
   OpenTaskWrite,
 } from './open/ticktick';
 export {
+  focusElapsedSeconds,
   cappedFocusSeconds,
   DEFAULT_FOCUS_SETTINGS,
   focusSessionStatus,

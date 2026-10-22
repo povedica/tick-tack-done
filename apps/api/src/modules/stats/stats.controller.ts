@@ -47,7 +47,7 @@ class StatsQueryDto {
   @ApiProperty({ required: false, description: 'Focus session type filter' })
   @IsOptional()
   @IsString()
-  @IsIn(['focus', 'short_break', 'long_break'])
+  @IsIn(['focus', 'short_break', 'long_break', 'stopwatch'])
   type?: string;
 
   @ApiProperty({

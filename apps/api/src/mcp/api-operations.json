@@ -1,0 +1,5029 @@
+[
+  {
+    "method": "DELETE",
+    "path": "/api/v1/me",
+    "summary": "Delete the account and its data after email confirmation (section 15)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "confirmation": { "type": "string", "description": "Must equal the account email" },
+              "password": { "type": "string", "description": "Current password" },
+              "totp_code": { "type": "string" },
+              "recovery_code": { "type": "string" }
+            },
+            "required": ["confirmation", "password"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me",
+    "summary": "Current user profile",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/me",
+    "summary": "Update profile settings, including RF-206 completion policy",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "display_name": { "type": "string", "maxLength": 200 },
+              "time_zone": { "type": "string" },
+              "task_complete_children": { "type": "string", "enum": ["ask", "complete", "leave"] },
+              "daily_reminder_time": { "type": "object", "nullable": true, "example": "08:00" },
+              "locale": { "type": "string", "enum": ["auto", "es", "en"] },
+              "week_start": { "type": "string", "enum": ["monday", "sunday"] },
+              "theme": { "type": "string", "enum": ["light", "dark", "auto"] },
+              "nlp_language": { "type": "string", "enum": ["auto", "es", "en"] },
+              "density": { "type": "string", "enum": ["comfortable", "compact"] },
+              "accent": {
+                "type": "string",
+                "enum": ["indigo", "violet", "teal", "amber", "rose", "slate"]
+              },
+              "default_reminder_trigger": {
+                "type": "string",
+                "nullable": true,
+                "enum": ["-PT0M", "-PT5M", "-PT15M", "-PT30M", "-PT1H", "-P1D"]
+              },
+              "quiet_hours_start": { "type": "object", "nullable": true, "example": "22:00" },
+              "quiet_hours_end": { "type": "object", "nullable": true, "example": "07:00" },
+              "telegram_enabled": { "type": "boolean" },
+              "focus_notifications": { "type": "boolean" },
+              "shutdown_reminder_time": { "type": "object", "nullable": true, "example": "21:30" },
+              "work_day_start": { "type": "object", "nullable": true, "example": "09:00" },
+              "work_day_end": { "type": "object", "nullable": true, "example": "18:00" },
+              "default_task_duration_minutes": { "type": "number", "example": 30 },
+              "deadline_soon_days": { "type": "number", "example": 2 },
+              "evening_start": { "type": "string", "example": "18:00" },
+              "features": {
+                "type": "object",
+                "properties": {
+                  "navigation_order": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "calendar",
+                        "matrix",
+                        "countdowns",
+                        "focus",
+                        "habits",
+                        "ticky",
+                        "statistics",
+                        "dashboard",
+                        "reports",
+                        "review",
+                        "search"
+                      ]
+                    }
+                  },
+                  "countdowns": { "type": "boolean" },
+                  "focus": { "type": "boolean" },
+                  "matrix": { "type": "boolean" },
+                  "when_deadline": { "type": "boolean" },
+                  "day_load": { "type": "boolean" },
+                  "day_closing": { "type": "boolean" },
+                  "day_replan": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/me/password",
+    "summary": "Change the password and sign out other sessions",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "current_password": { "type": "string", "description": "Current password" },
+              "new_password": { "type": "string", "minLength": 10, "maxLength": 200 }
+            },
+            "required": ["current_password", "new_password"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/inbound-email",
+    "summary": "Whether the email-to-task address is active (RF-105). The token is not returned.",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/me/inbound-email",
+    "summary": "Create or regenerate the email-to-task address (RF-105). The token is shown once.",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/me/inbound-email",
+    "summary": "Revoke the email-to-task address immediately (RF-105)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/notifications/health",
+    "summary": "Last 20 reminder deliveries, with channel and result (NT-09)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/me/push-subscriptions",
+    "summary": "Register a Web Push subscription (RF-802)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "endpoint": { "type": "string" },
+              "p256dh": { "type": "string" },
+              "auth": { "type": "string" }
+            },
+            "required": ["endpoint", "p256dh", "auth"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/me/push-subscriptions/{id}",
+    "summary": "Remove a Web Push subscription",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/view-preferences/{key}",
+    "summary": "Read view preferences for the current account (TTD-AUD-59)",
+    "parameters": [
+      { "name": "key", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/me/view-preferences/{key}",
+    "summary": "Persist view preferences across devices (TTD-AUD-59)",
+    "parameters": [
+      { "name": "key", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "view": { "type": "string", "enum": ["list", "kanban", "timeline", "matrix"] },
+              "group": {
+                "type": "string",
+                "enum": ["none", "section", "date", "tag", "priority", "due", "list"]
+              },
+              "sort": {
+                "type": "string",
+                "enum": ["manual", "date", "priority", "title", "created", "due"]
+              },
+              "order": { "type": "string", "enum": ["asc", "desc"] },
+              "showDetails": { "type": "boolean" },
+              "hideCompleted": { "type": "boolean" },
+              "detailLayout": { "type": "string", "enum": ["side", "popup"] },
+              "syncAcrossDevices": { "type": "boolean" }
+            },
+            "required": [
+              "view",
+              "group",
+              "sort",
+              "order",
+              "showDetails",
+              "hideCompleted",
+              "detailLayout",
+              "syncAcrossDevices"
+            ]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/oauth/renewals",
+    "summary": "Count automatic OAuth renewals by application (RF-2002)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/oauth/grants",
+    "summary": "List connected OAuth applications (RF-2002)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/me/oauth/grants/{clientId}/revoke",
+    "summary": "Revoke all access and refresh tokens for an application (RF-2002)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "clientId", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/oauth/grants/{clientId}/activity",
+    "summary": "Read application activity across OAuth renewals (RF-2002)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "clientId", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/tokens",
+    "summary": "List personal access tokens. The secret is never returned (RF-2002).",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      {
+        "name": "status",
+        "required": false,
+        "in": "query",
+        "description": "Active means not revoked (including expired access tokens). Revoked excludes automatic OAuth rotations.",
+        "schema": { "enum": ["active", "revoked"], "type": "string" }
+      },
+      {
+        "name": "kind",
+        "required": false,
+        "in": "query",
+        "schema": { "enum": ["personal", "oauth"], "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/me/tokens",
+    "summary": "Create one token for an agent. The secret is shown once (RF-2002).",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "expires_in_days": { "type": "number", "nullable": true, "enum": [30, 90, 365] },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80,
+                "description": "Agent or script this token belongs to"
+              },
+              "scopes": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "tasks:read",
+                    "tasks:write",
+                    "tasks:create",
+                    "tasks:update",
+                    "tasks:complete",
+                    "tasks:trash",
+                    "lists:read",
+                    "lists:write",
+                    "tags:read",
+                    "tags:write",
+                    "filters:read",
+                    "filters:write",
+                    "habits:read",
+                    "habits:write",
+                    "countdowns:read",
+                    "countdowns:write",
+                    "focus:read",
+                    "focus:write",
+                    "focus:start",
+                    "focus:stop",
+                    "notes:read",
+                    "notes:write",
+                    "calendar:read",
+                    "calendar:write",
+                    "reminders:write",
+                    "notifications:self:write",
+                    "ticky:proposals:read",
+                    "ticky:proposals:write",
+                    "ticky:routines:read",
+                    "ticky:routines:write",
+                    "webhooks:manage",
+                    "automations:manage",
+                    "profile:read",
+                    "profile:write",
+                    "backup:read",
+                    "stats:read"
+                  ]
+                }
+              }
+            },
+            "required": ["name", "scopes"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/tokens/{id}/activity",
+    "summary": "Activity performed with one token (RF-2002)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/me/tokens/{id}",
+    "summary": "Revoke a personal access token immediately (RF-2002)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/activity",
+    "summary": "Account activity log",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/auth/registration",
+    "summary": "Whether a new account can still be created",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/register",
+    "summary": "Create the account and a session. Closed after the first user unless REGISTRATION_OPEN.",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "email": { "type": "string" },
+              "password": { "type": "string", "minLength": 10, "maxLength": 200 },
+              "display_name": { "type": "string", "minLength": 1, "maxLength": 80 }
+            },
+            "required": ["email", "password", "display_name"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/login",
+    "summary": "Open a revocable httpOnly session and return the CSRF token",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "email": { "type": "string" },
+              "password": { "type": "string" },
+              "totp_code": { "type": "string" },
+              "recovery_code": { "type": "string" }
+            },
+            "required": ["email", "password"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/auth/logout",
+    "summary": "Revoke the current session",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/auth/session",
+    "summary": "Current session profile and CSRF token",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/auth/sessions",
+    "summary": "Revocable sessions of the current user",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/auth/sessions/{id}",
+    "summary": "Revoke one session immediately",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/oauth/clients",
+    "summary": "Register a public OAuth client (PKCE, no secret)",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string", "maxLength": 80 },
+              "redirect_uris": { "type": "array", "items": { "type": "string" } }
+            },
+            "required": ["name", "redirect_uris"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/oauth/register",
+    "summary": "Dynamic client registration for public PKCE clients (RFC 7591)",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "redirect_uris": { "type": "array", "items": { "type": "string" } },
+              "client_name": { "type": "string" },
+              "token_endpoint_auth_method": { "type": "string", "enum": ["none"] },
+              "grant_types": {
+                "type": "array",
+                "items": { "type": "string", "enum": ["authorization_code", "refresh_token"] }
+              },
+              "response_types": { "type": "array", "items": { "type": "string", "enum": ["code"] } }
+            },
+            "required": ["redirect_uris"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/oauth/authorize",
+    "summary": "Consent details for Authorization Code + PKCE",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/oauth/authorize",
+    "summary": "Approve or deny the consent screen and return the redirect",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "client_id": { "type": "string" },
+              "redirect_uri": { "type": "string" },
+              "scope": { "type": "string" },
+              "state": { "type": "string" },
+              "code_challenge": { "type": "string" },
+              "code_challenge_method": { "type": "string", "enum": ["S256"] },
+              "allow": { "type": "boolean" },
+              "requested_scope": {
+                "type": "string",
+                "description": "Original scope from the authorization request. Empty means the MCP default set."
+              },
+              "resource": { "type": "string" }
+            },
+            "required": [
+              "client_id",
+              "redirect_uri",
+              "scope",
+              "state",
+              "code_challenge",
+              "code_challenge_method",
+              "allow"
+            ]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/oauth/token",
+    "summary": "Exchange an authorization code or refresh token for a bearer token",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "grant_type": { "type": "string", "enum": ["authorization_code", "refresh_token"] },
+              "code": { "type": "string" },
+              "redirect_uri": { "type": "string" },
+              "client_id": { "type": "string" },
+              "code_verifier": { "type": "string" },
+              "refresh_token": { "type": "string" },
+              "scope": { "type": "string" },
+              "resource": { "type": "string" },
+              "client_secret": { "type": "string" }
+            },
+            "required": ["grant_type"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/oauth/revoke",
+    "summary": "Revoke an OAuth access or refresh token (RFC 7009)",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "token": { "type": "string" },
+              "token_type_hint": { "type": "string", "enum": ["access_token", "refresh_token"] }
+            },
+            "required": ["token"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/me/totp",
+    "summary": "Start TOTP. It is not forced on the dev user.",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/me/totp/confirm",
+    "summary": "Confirm TOTP and show recovery codes once",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": { "code": { "type": "string" } },
+            "required": ["code"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/me/totp/pending",
+    "summary": "Discard a TOTP secret that was not confirmed",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/me/totp/disable",
+    "summary": "Turn off TOTP",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": { "code": { "type": "string" } },
+            "required": ["code"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/health",
+    "summary": "Liveness probe",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/countdowns",
+    "summary": "List countdowns with timezone-calculated days (RF-2431)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/countdowns",
+    "summary": "Create a countdown (RF-2401)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+              "target_date": { "type": "string", "example": "2027-01-01" },
+              "type": {
+                "type": "string",
+                "enum": ["countdown", "anniversary", "birthday", "holiday"]
+              },
+              "emoji": { "type": "object", "nullable": true },
+              "color": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "blue",
+                  "teal",
+                  "green",
+                  "lime",
+                  "orange",
+                  "red",
+                  "pink",
+                  "purple",
+                  "navy",
+                  "brown",
+                  "black",
+                  "rainbow"
+                ],
+                "nullable": true
+              },
+              "repeat_rule": {
+                "type": "string",
+                "enum": ["none", "daily", "weekly", "monthly", "yearly"]
+              },
+              "day_mode": { "type": "string", "enum": ["standard", "plus_one"] },
+              "reminders": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "offset_days": { "type": "number", "minimum": 0, "maximum": 365 },
+                    "constant": { "type": "boolean" }
+                  },
+                  "required": ["offset_days"]
+                }
+              },
+              "notes": { "type": "object" },
+              "show_in_sidebar": { "type": "boolean" },
+              "show_in_smart_list": { "type": "boolean" }
+            },
+            "required": ["title", "target_date"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/countdowns/{id}",
+    "summary": "Get a countdown (RF-2431)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/countdowns/{id}",
+    "summary": "Update a countdown (RF-2402)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+              "target_date": { "type": "string", "example": "2027-01-01" },
+              "type": {
+                "type": "string",
+                "enum": ["countdown", "anniversary", "birthday", "holiday"]
+              },
+              "emoji": { "type": "object", "nullable": true },
+              "color": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "blue",
+                  "teal",
+                  "green",
+                  "lime",
+                  "orange",
+                  "red",
+                  "pink",
+                  "purple",
+                  "navy",
+                  "brown",
+                  "black",
+                  "rainbow"
+                ],
+                "nullable": true
+              },
+              "repeat_rule": {
+                "type": "string",
+                "enum": ["none", "daily", "weekly", "monthly", "yearly"]
+              },
+              "day_mode": { "type": "string", "enum": ["standard", "plus_one"] },
+              "reminders": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "offset_days": { "type": "number", "minimum": 0, "maximum": 365 },
+                    "constant": { "type": "boolean" }
+                  },
+                  "required": ["offset_days"]
+                }
+              },
+              "notes": { "type": "object" },
+              "show_in_sidebar": { "type": "boolean" },
+              "show_in_smart_list": { "type": "boolean" },
+              "pinned": { "type": "boolean" },
+              "sort_order": { "type": "number" },
+              "style": { "type": "object", "nullable": true }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/countdowns/{id}",
+    "summary": "Delete a countdown (RF-2405)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/countdowns/{id}/archive",
+    "summary": "Archive a countdown (RF-2403)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/countdowns/{id}/unarchive",
+    "summary": "Unarchive a countdown (RF-2403)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/countdowns/{id}/restore",
+    "summary": "Restore a deleted countdown (RF-2405)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/habits",
+    "summary": "List habits (RF-1301)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/habits",
+    "summary": "Create a habit (RF-1301)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "challenge_days": {
+                "type": "number",
+                "nullable": true,
+                "minimum": 1,
+                "maximum": 10000
+              },
+              "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+              "icon": { "type": "string", "nullable": true },
+              "color": { "type": "string", "nullable": true },
+              "goal": {
+                "type": "object",
+                "properties": {
+                  "times_per_period": { "type": "number", "minimum": 1, "maximum": 1000 },
+                  "period": { "type": "string", "enum": ["day", "week"] },
+                  "target_count": { "type": "number", "minimum": 1, "maximum": 1000 }
+                },
+                "required": ["times_per_period", "period", "target_count"]
+              },
+              "frequency": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "monday",
+                    "tuesday",
+                    "wednesday",
+                    "thursday",
+                    "friday",
+                    "saturday",
+                    "sunday"
+                  ]
+                }
+              },
+              "reminder_time": { "type": "string", "nullable": true, "example": "09:00" },
+              "motivation_note": { "type": "string", "nullable": true },
+              "before_id": { "type": "string", "nullable": true },
+              "move_to_end": { "type": "boolean" }
+            },
+            "required": ["name", "goal", "frequency"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/habits/{id}/stats",
+    "summary": "Habit streaks, completion and heatmaps (RF-1303)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/habits/{id}/checkins",
+    "summary": "Record a daily check-in with a counter and an optional note (RF-1302)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "date": { "type": "string", "example": "2026-10-17" },
+              "count": { "type": "number", "minimum": 0, "maximum": 10000 },
+              "note": { "type": "string", "nullable": true }
+            },
+            "required": ["date", "count"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/habits/{id}",
+    "summary": "Get a habit (RF-1301)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/habits/{id}",
+    "summary": "Update a habit (RF-1301)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "challenge_days": {
+                "type": "number",
+                "nullable": true,
+                "minimum": 1,
+                "maximum": 10000
+              },
+              "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+              "icon": { "type": "string", "nullable": true },
+              "color": { "type": "string", "nullable": true },
+              "goal": {
+                "type": "object",
+                "properties": {
+                  "times_per_period": { "type": "number", "minimum": 1, "maximum": 1000 },
+                  "period": { "type": "string", "enum": ["day", "week"] },
+                  "target_count": { "type": "number", "minimum": 1, "maximum": 1000 }
+                },
+                "required": ["times_per_period", "period", "target_count"]
+              },
+              "frequency": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "monday",
+                    "tuesday",
+                    "wednesday",
+                    "thursday",
+                    "friday",
+                    "saturday",
+                    "sunday"
+                  ]
+                }
+              },
+              "reminder_time": { "type": "string", "nullable": true },
+              "motivation_note": { "type": "string", "nullable": true },
+              "archived": { "type": "boolean" },
+              "before_id": { "type": "string", "nullable": true },
+              "move_to_end": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/habits/{id}",
+    "summary": "Move a habit to the trash (RF-1301, RF-1304)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/folders",
+    "summary": "List folders",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/folders",
+    "summary": "Create a folder",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+              "before_id": { "type": "object", "nullable": true },
+              "move_to_end": { "type": "boolean" }
+            },
+            "required": ["name"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/folders/{id}",
+    "summary": "Get a folder",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/folders/{id}",
+    "summary": "Update a folder",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+              "before_id": { "type": "object", "nullable": true },
+              "move_to_end": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/folders/{id}",
+    "summary": "Move a folder to the trash and detach its lists",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/projects",
+    "summary": "List projects, with the active task count (RF-305)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/projects",
+    "summary": "Create a list",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+              "color": { "type": "object", "nullable": true },
+              "folder_id": { "type": "object", "nullable": true },
+              "view_mode": { "type": "string", "enum": ["list", "kanban", "timeline"] },
+              "kind": { "type": "string", "enum": ["TASK", "NOTE"] },
+              "before_id": { "type": "object", "nullable": true },
+              "move_to_end": { "type": "boolean" }
+            },
+            "required": ["name"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/projects/{id}",
+    "summary": "Get a list",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/projects/{id}",
+    "summary": "Update a list",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+              "color": { "type": "object", "nullable": true },
+              "folder_id": { "type": "object", "nullable": true },
+              "view_mode": { "type": "string", "enum": ["list", "kanban", "timeline"] },
+              "kind": { "type": "string", "enum": ["TASK", "NOTE"] },
+              "before_id": { "type": "object", "nullable": true },
+              "move_to_end": { "type": "boolean" },
+              "default_reminder_trigger": {
+                "type": "object",
+                "nullable": true,
+                "description": "Null inherits the account reminder. 'off' stays quiet."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/projects/{id}",
+    "summary": "Move a list and its tasks to the trash",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/projects/{id}/data",
+    "summary": "List plus its sections and active tasks",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/projects/{id}/archive",
+    "summary": "Archive a list",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/projects/{id}/unarchive",
+    "summary": "Unarchive a list",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/projects/{id}/archive-completed",
+    "summary": "Archive every completed task in a list (RF-306)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/projects/{id}/columns",
+    "summary": "List sections of a list",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/projects/{id}/columns",
+    "summary": "Create a section",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+              "collapsed": { "type": "boolean" },
+              "wip_limit": { "type": "object", "nullable": true, "minimum": 1 },
+              "before_id": { "type": "object", "nullable": true },
+              "move_to_end": { "type": "boolean" }
+            },
+            "required": ["name"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/projects/{id}/columns/{columnId}",
+    "summary": "Rename, collapse or reorder a section (RF-304)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } },
+      { "name": "columnId", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+              "collapsed": { "type": "boolean" },
+              "wip_limit": { "type": "object", "nullable": true, "minimum": 1 },
+              "before_id": { "type": "object", "nullable": true },
+              "move_to_end": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/projects/{id}/columns/{columnId}",
+    "summary": "Delete a section and detach its tasks",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } },
+      { "name": "columnId", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/matrix/rules",
+    "summary": "Eisenhower rules. Missing rows use the spec defaults (RF-1004).",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/matrix/rules",
+    "summary": "Replace one quadrant rule (RF-1004)",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "quadrant": { "type": "string", "enum": ["do", "schedule", "delegate", "drop"] },
+              "rules": { "type": "object", "nullable": true },
+              "effect": { "type": "object" }
+            },
+            "required": ["quadrant", "effect"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/filters",
+    "summary": "List saved filters with task counts (RF-903)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/filters",
+    "summary": "Save a normal or advanced filter (RF-902)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+              "icon": { "type": "string", "nullable": true },
+              "color": { "type": "string", "nullable": true },
+              "mode": { "type": "string", "enum": ["normal", "advanced"] },
+              "rules": {
+                "type": "object",
+                "properties": {
+                  "combinator": { "type": "string", "enum": ["AND", "OR"] },
+                  "groups": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "combinator": { "type": "string", "enum": ["AND", "OR"] },
+                        "conditions": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "field": {
+                                "type": "string",
+                                "enum": [
+                                  "list",
+                                  "tag",
+                                  "date",
+                                  "priority",
+                                  "keyword",
+                                  "status",
+                                  "assignee"
+                                ]
+                              },
+                              "op": { "type": "string" },
+                              "value": {
+                                "oneOf": [
+                                  { "type": "string" },
+                                  { "type": "array", "items": { "type": "string" } }
+                                ]
+                              }
+                            },
+                            "required": ["field", "op"]
+                          }
+                        }
+                      },
+                      "required": ["combinator", "conditions"]
+                    }
+                  }
+                },
+                "required": ["combinator", "groups"]
+              },
+              "before_id": { "type": "string", "nullable": true }
+            },
+            "required": ["name", "mode", "rules"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/filters/preview",
+    "summary": "Preview filter rules without saving (RF-902)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "mode": { "type": "string", "enum": ["normal", "advanced"] },
+              "rules": {
+                "type": "object",
+                "properties": {
+                  "combinator": { "type": "string", "enum": ["AND", "OR"] },
+                  "groups": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "combinator": { "type": "string", "enum": ["AND", "OR"] },
+                        "conditions": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "field": {
+                                "type": "string",
+                                "enum": [
+                                  "list",
+                                  "tag",
+                                  "date",
+                                  "priority",
+                                  "keyword",
+                                  "status",
+                                  "assignee"
+                                ]
+                              },
+                              "op": { "type": "string" },
+                              "value": {
+                                "oneOf": [
+                                  { "type": "string" },
+                                  { "type": "array", "items": { "type": "string" } }
+                                ]
+                              }
+                            },
+                            "required": ["field", "op"]
+                          }
+                        }
+                      },
+                      "required": ["combinator", "conditions"]
+                    }
+                  }
+                },
+                "required": ["combinator", "groups"]
+              }
+            },
+            "required": ["mode", "rules"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/filters/{id}/tasks",
+    "summary": "List view of a saved filter (RF-903, RF-1001)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/filters/{id}",
+    "summary": "Get a saved filter (RF-902)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/filters/{id}",
+    "summary": "Update, pin or reorder a filter (RF-902, RF-903)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+              "icon": { "type": "string", "nullable": true },
+              "color": { "type": "string", "nullable": true },
+              "mode": { "type": "string", "enum": ["normal", "advanced"] },
+              "rules": {
+                "type": "object",
+                "properties": {
+                  "combinator": { "type": "string", "enum": ["AND", "OR"] },
+                  "groups": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "combinator": { "type": "string", "enum": ["AND", "OR"] },
+                        "conditions": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "field": {
+                                "type": "string",
+                                "enum": [
+                                  "list",
+                                  "tag",
+                                  "date",
+                                  "priority",
+                                  "keyword",
+                                  "status",
+                                  "assignee"
+                                ]
+                              },
+                              "op": { "type": "string" },
+                              "value": {
+                                "oneOf": [
+                                  { "type": "string" },
+                                  { "type": "array", "items": { "type": "string" } }
+                                ]
+                              }
+                            },
+                            "required": ["field", "op"]
+                          }
+                        }
+                      },
+                      "required": ["combinator", "conditions"]
+                    }
+                  }
+                },
+                "required": ["combinator", "groups"]
+              },
+              "before_id": { "type": "string", "nullable": true },
+              "move_to_end": { "type": "boolean" },
+              "pin": {
+                "type": "boolean",
+                "description": "Place the filter first in the sidebar (RF-903)."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/filters/{id}",
+    "summary": "Move a filter to the trash (RF-902)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/smart-lists",
+    "summary": "System smart lists for the current user (RF-901)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/smart-lists",
+    "summary": "Enable and reorder system smart lists (RF-901)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string",
+                      "enum": [
+                        "today",
+                        "tomorrow",
+                        "next_7_days",
+                        "all",
+                        "inbox",
+                        "assigned_to_me",
+                        "completed",
+                        "trash",
+                        "no_date",
+                        "recently_added",
+                        "someday"
+                      ]
+                    },
+                    "enabled": { "type": "boolean" }
+                  },
+                  "required": ["key", "enabled"]
+                }
+              }
+            },
+            "required": ["items"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/smart-lists/{key}/tasks",
+    "summary": "List view of a system smart list (RF-901, RF-1001)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "key", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/search",
+    "summary": "Search tasks, notes, lists and tags (RF-1501)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/tags",
+    "summary": "List tags with active task counts (RF-403)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tags",
+    "summary": "Create a tag",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+              "color": { "type": "object", "nullable": true },
+              "parent_id": { "type": "object", "nullable": true },
+              "before_id": { "type": "object", "nullable": true },
+              "move_to_end": { "type": "boolean" }
+            },
+            "required": ["name"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tags/merge",
+    "summary": "Merge one tag into another",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": { "source_id": { "type": "string" }, "target_id": { "type": "string" } },
+            "required": ["source_id", "target_id"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/tags/{id}",
+    "summary": "Get a tag",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/tags/{id}",
+    "summary": "Rename, recolor, reparent or reorder a tag",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+              "color": { "type": "object", "nullable": true },
+              "parent_id": { "type": "object", "nullable": true },
+              "before_id": { "type": "object", "nullable": true },
+              "move_to_end": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/tags/{id}",
+    "summary": "Delete a tag. Filters keep working because they store ids (RF-403).",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/tasks/completed",
+    "summary": "Completed tasks",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/tasks/trash",
+    "summary": "Trashed tasks",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/tasks/trash",
+    "summary": "Empty the trash (RF-306)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/tasks/trash/{id}",
+    "summary": "Permanently delete one trashed task",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tasks/trash/{id}/restore",
+    "summary": "Restore a trashed task",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tasks/batch",
+    "summary": "Bulk complete, move, tag, prioritize, reschedule or delete (RF-208)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": ["complete", "move", "tag", "priority", "due", "delete"]
+              },
+              "ids": { "type": "array", "items": { "type": "string" } },
+              "project_id": { "type": "string" },
+              "column_id": { "type": "object", "nullable": true },
+              "tag_ids": { "type": "array", "items": { "type": "string" } },
+              "priority": { "type": "string", "enum": ["none", "low", "medium", "high"] },
+              "due_date": { "type": "object", "nullable": true },
+              "complete_children": { "type": "string", "enum": ["complete", "leave"] }
+            },
+            "required": ["action", "ids"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/tasks",
+    "summary": "List tasks. Subtasks stay nested unless flat=true (RF-205). list_id filters one list, same as project_id.",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tasks",
+    "summary": "Create a task. raw_text is parsed on the server (RF-102); explicit fields override it. Checklist lines can be extracted from Markdown (RF-202).",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "project_id": {
+                "type": "string",
+                "description": "Required unless raw_text is set. An explicit list overrides a parsed ^list or ~list."
+              },
+              "parent_id": { "type": "object", "nullable": true },
+              "column_id": { "type": "object", "nullable": true },
+              "title": {
+                "type": "string",
+                "maxLength": 500,
+                "description": "Required unless raw_text yields a title. Stored as sent, including edge spaces. Empty is valid. An explicit title overrides the parse."
+              },
+              "raw_text": {
+                "type": "string",
+                "maxLength": 2000,
+                "description": "Quick add text. The server parses it (RF-102). A missing ^list or #tag is created. Explicit fields in this body override the parse and do not create the parsed list or tags."
+              },
+              "content": { "type": "string" },
+              "reminder_trigger": {
+                "type": "string",
+                "nullable": true,
+                "description": "Explicit relative reminder for quick add. Null disables parsed and default reminders. Stored atomically with the task.",
+                "enum": [
+                  "TRIGGER:-PT0M",
+                  "TRIGGER:-PT5M",
+                  "TRIGGER:-PT15M",
+                  "TRIGGER:-PT30M",
+                  "TRIGGER:-PT1H",
+                  "TRIGGER:-P1D"
+                ]
+              },
+              "kind": { "type": "string", "enum": ["task", "note"] },
+              "priority": { "type": "string", "enum": ["none", "low", "medium", "high"] },
+              "is_all_day": { "type": "boolean" },
+              "start_date": { "type": "object", "nullable": true },
+              "due_date": { "type": "object", "nullable": true },
+              "time_zone": { "type": "string" },
+              "duration_minutes": { "type": "object", "nullable": true },
+              "someday": { "type": "boolean" },
+              "evening_only": { "type": "boolean" },
+              "repeat_rule": { "type": "object", "nullable": true },
+              "repeat_from": { "type": "string", "enum": ["due_date", "completion_date"] },
+              "tag_ids": { "type": "array", "items": { "type": "string" } },
+              "metadata": { "type": "object" },
+              "extract_checklist": { "type": "boolean" },
+              "extract_as": { "type": "string", "enum": ["checklist", "subtask"] },
+              "before_id": { "type": "object", "nullable": true },
+              "move_to_end": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/tasks/{id}",
+    "summary": "Task detail, checklist progress, subtasks and activity (RF-207, RF-209)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/tasks/{id}",
+    "summary": "Update a task, including kind task/note and priority (RF-204, RF-501)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "column_id": { "type": "object" },
+              "title": { "type": "string", "maxLength": 500 },
+              "content": { "type": "string" },
+              "kind": { "type": "string", "enum": ["task", "note"] },
+              "priority": { "type": "string", "enum": ["none", "low", "medium", "high"] },
+              "is_all_day": { "type": "boolean" },
+              "start_date": { "type": "object", "nullable": true },
+              "due_date": { "type": "object", "nullable": true },
+              "time_zone": { "type": "string" },
+              "duration_minutes": { "type": "object", "nullable": true },
+              "someday": { "type": "boolean" },
+              "evening_only": { "type": "boolean" },
+              "repeat_rule": { "type": "object", "nullable": true },
+              "repeat_from": { "type": "string", "enum": ["due_date", "completion_date"] },
+              "tag_ids": { "type": "array", "items": { "type": "string" } },
+              "metadata": { "type": "object" },
+              "extract_checklist": { "type": "boolean" },
+              "extract_as": { "type": "string", "enum": ["checklist", "subtask"] },
+              "before_id": { "type": "object", "nullable": true },
+              "move_to_end": { "type": "boolean" },
+              "field_clocks": {
+                "type": "object",
+                "description": "Per-field client clocks for last-write-wins (RF-13012). ISO-8601 values."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/tasks/{id}",
+    "summary": "Move a task and its subtasks to the trash",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/tasks/{id}/occurrences",
+    "summary": "Theoretical occurrences of a repeating task (RF-704). Nothing is stored.",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tasks/{id}/occurrences/detach",
+    "summary": "Detach one occurrence from the series with an EXDATE (RF-705)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "due_date": { "type": "string" },
+              "title": { "type": "string", "maxLength": 500 }
+            },
+            "required": ["due_date"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tasks/{id}/snooze",
+    "summary": "Move the due date to tomorrow, next week or a chosen date (RF-605)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "preset": { "type": "string", "enum": ["tomorrow", "next_week", "date"] },
+              "date": { "type": "object", "nullable": true }
+            },
+            "required": ["preset"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/tasks/{id}/reminders",
+    "summary": "Reminders on a task (RF-801)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tasks/{id}/reminders",
+    "summary": "Add a relative, absolute or location reminder (RF-801)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "trigger": { "type": "string", "example": "TRIGGER:-PT5M" },
+              "type": {
+                "type": "string",
+                "enum": ["relative", "absolute", "location", "daily_digest"]
+              },
+              "absolute_at": { "type": "object", "nullable": true },
+              "channel": { "type": "string", "enum": ["push", "email", "both"] },
+              "constant": { "type": "boolean" },
+              "constant_interval_minutes": { "type": "object", "nullable": true },
+              "location": { "type": "object", "nullable": true }
+            },
+            "required": ["trigger", "type"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tasks/{id}/reminders/{reminderId}/snooze",
+    "summary": "Snooze a reminder for 10 minutes, 1 hour, tomorrow or a custom time (RF-804)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } },
+      { "name": "reminderId", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "preset": { "type": "string", "enum": ["10m", "1h", "tomorrow", "custom"] },
+              "until": { "type": "object", "nullable": true }
+            },
+            "required": ["preset"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/tasks/{id}/reminders/{reminderId}",
+    "summary": "Delete a reminder",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } },
+      { "name": "reminderId", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tasks/{id}/complete",
+    "summary": "Complete a task. Active children require a choice unless a policy is set (RF-206).",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "complete_children": { "type": "string", "enum": ["complete", "leave"] },
+              "advance": { "type": "string", "enum": ["one_period", "next_future"] },
+              "materialize_next": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tasks/{id}/cancel",
+    "summary": "Mark a task as will-not-do. Cancelled tasks stay out of completed and out of trash.",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tasks/{id}/uncomplete",
+    "summary": "Mark a task active again",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tasks/{id}/move",
+    "summary": "Move a task between lists or sections (RF-204)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "project_id": { "type": "string" },
+              "column_id": { "type": "object", "nullable": true },
+              "before_task_id": { "type": "object", "nullable": true }
+            },
+            "required": ["project_id"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tasks/{id}/duplicate",
+    "summary": "Duplicate a task with its checklist and subtasks (RF-204)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tasks/{id}/items",
+    "summary": "Add a checklist item",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "title": { "type": "string", "maxLength": 500 },
+              "start_date": { "type": "object", "nullable": true },
+              "due_date": { "type": "object", "nullable": true },
+              "is_all_day": { "type": "boolean" },
+              "time_zone": { "type": "string" },
+              "before_id": { "type": "object", "nullable": true },
+              "move_to_end": { "type": "boolean" }
+            },
+            "required": ["title"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/tasks/{id}/items/{itemId}",
+    "summary": "Update a checklist item",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } },
+      { "name": "itemId", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "title": { "type": "string", "maxLength": 500 },
+              "start_date": { "type": "object", "nullable": true },
+              "due_date": { "type": "object", "nullable": true },
+              "is_all_day": { "type": "boolean" },
+              "time_zone": { "type": "string" },
+              "before_id": { "type": "object", "nullable": true },
+              "move_to_end": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/tasks/{id}/items/{itemId}",
+    "summary": "Delete a checklist item",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } },
+      { "name": "itemId", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tasks/{id}/items/{itemId}/complete",
+    "summary": "Complete a checklist item",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } },
+      { "name": "itemId", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tasks/{id}/attachments",
+    "summary": "Attach a file to a task (RF-203)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "multipart/form-data": {
+          "schema": {
+            "type": "object",
+            "properties": { "file": { "type": "string", "format": "binary" } }
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/tasks/{id}/attachments",
+    "summary": "List attachments of a task",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/tasks/{id}/attachments/{attachmentId}/thumbnail",
+    "summary": "Download the image thumbnail (RF-203)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } },
+      { "name": "attachmentId", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/tasks/{id}/attachments/{attachmentId}",
+    "summary": "Download an attachment",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } },
+      { "name": "attachmentId", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/tasks/{id}/attachments/{attachmentId}",
+    "summary": "Delete an attachment",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } },
+      { "name": "attachmentId", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/inbound/email",
+    "summary": "Deliver an email-to-task message (RF-105). The recipient token authenticates the call. Content is stored and never executed.",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "multipart/form-data": {
+          "schema": {
+            "type": "object",
+            "required": ["recipient", "subject"],
+            "properties": {
+              "recipient": { "type": "string" },
+              "subject": { "type": "string" },
+              "text": { "type": "string" },
+              "message_id": { "type": "string" },
+              "file": { "type": "array", "items": { "type": "string", "format": "binary" } }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/ticky/flags",
+    "summary": "Ticky feature flags (all off by default)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/ticky/capabilities",
+    "summary": "Closed read_capabilities.proposed.v1 for the Ticky reader (APP-02)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/ticky/authority",
+    "summary": "Read own Ticky permissions and explicit planning preferences",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/ticky/authority",
+    "summary": "Update Ticky authority (own lists only; APP-02)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "list_ids": { "type": "array", "items": { "type": "string" } },
+              "autonomy": { "type": "number", "minimum": 0, "maximum": 2 },
+              "paused": { "type": "boolean" },
+              "revoked": { "type": "boolean" },
+              "inbox_list_id": { "type": "string", "nullable": true },
+              "action_scopes": { "type": "array", "items": { "type": "string" } },
+              "workday_start": { "type": "string", "nullable": true },
+              "workday_end": { "type": "string", "nullable": true },
+              "estimate_learning_enabled": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/ticky/reader",
+    "summary": "Issue a list-restricted read-only PAT for the Python reader",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/ticky/context",
+    "summary": "Build a ContextSnapshot for planning (APP-05)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/ticky/models",
+    "summary": "List models granted server-side; empty while generation is disabled",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/ticky/threads",
+    "summary": "Open a Ticky chat thread (APP-03)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/ticky/threads",
+    "summary": "List Ticky chat threads",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/ticky/threads/{id}/messages",
+    "summary": "Read canonical Python conversation history for the authenticated owner",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/ticky/threads/{id}/messages",
+    "summary": "Post a chat message (idempotent client_message_id)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "model_id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,63}$" },
+              "client_message_id": { "type": "string" },
+              "text": { "type": "string" }
+            },
+            "required": ["client_message_id", "text"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/ticky/threads/{id}",
+    "summary": "Delete canonical conversation history; return pending until checkpoints are erased",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/ticky/runs/{id}/events",
+    "summary": "Proxy async run events (SSE; APP-03)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/ticky/runs/{id}/cancel",
+    "summary": "Cancel a run (does not undo domain effects)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/ticky/proposals",
+    "summary": "Store an immutable proposal document",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "document": {
+                "type": "string",
+                "description": "Immutable proposal JSON document (stringified schema body)."
+              }
+            },
+            "required": ["document"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/ticky/proposals/{id}/approve",
+    "summary": "Approve a subset of proposal actions (APP-04)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "digest": { "type": "string" },
+              "selected_actions": { "type": "array", "items": { "type": "string" } }
+            },
+            "required": ["digest", "selected_actions"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/ticky/actions/{id}",
+    "summary": "Ledger status for an action_id (uncertain delivery)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/ticky/memories",
+    "summary": "List remembered preferences (APP-08)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/ticky/memories",
+    "summary": "Store a memory entry",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "help_style",
+                  "coaching_enabled",
+                  "timezone",
+                  "work_hours",
+                  "estimate_learning_enabled"
+                ]
+              },
+              "value": { "type": "string" },
+              "source_message_id": { "type": "string", "format": "uuid" }
+            },
+            "required": ["kind", "value", "source_message_id"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/ticky/memories/{id}",
+    "summary": "Forget a canonical explicit preference",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/ticky/routines",
+    "summary": "List shadow routines (paused by default; APP-08)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/ticky/routines",
+    "summary": "Create a shadow routine without notifications (APP-08)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "kind": { "type": "string", "enum": ["daily_plan", "weekly_review"] },
+              "timezone": { "type": "string", "maxLength": 64, "example": "Europe/Madrid" },
+              "local_hour": { "type": "string", "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$" },
+              "weekday": { "type": "number", "minimum": 0, "maximum": 6 },
+              "enabled": { "type": "boolean", "default": false },
+              "window_minutes": { "type": "number", "minimum": 1, "maximum": 1440, "default": 15 }
+            },
+            "required": ["kind", "timezone", "local_hour"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/ticky/routines/{id}",
+    "summary": "Update a shadow routine with optimistic concurrency (APP-08)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "kind": { "type": "string", "enum": ["daily_plan", "weekly_review"] },
+              "timezone": { "type": "string", "maxLength": 64, "example": "Europe/Madrid" },
+              "local_hour": { "type": "string", "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$" },
+              "weekday": { "type": "number", "minimum": 0, "maximum": 6 },
+              "enabled": { "type": "boolean", "default": false },
+              "window_minutes": { "type": "number", "minimum": 1, "maximum": 1440, "default": 15 },
+              "expected_version": { "type": "number", "minimum": 1 }
+            },
+            "required": ["kind", "timezone", "local_hour", "expected_version"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/ticky/routines/{id}/pause",
+    "summary": "Pause a shadow routine immediately (APP-08)",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/sync",
+    "summary": "Delta sync since an event id. Tombstones older than 90 days are omitted (RF-13011, RF-13014).",
+    "parameters": [
+      { "name": "since", "required": true, "in": "query", "schema": { "type": "string" } },
+      { "name": "limit", "required": true, "in": "query", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/export/json",
+    "summary": "Versioned JSON export of the user state (RF-1703, RF-1705)",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/backups",
+    "summary": "List backup stamps on this machine (RF-1704)",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/backups/restore",
+    "summary": "Verify a backup archive. Applying it stays on the host script (RF-1704).",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "stamp": { "type": "string" },
+              "confirmation": { "type": "string", "example": "restore" }
+            },
+            "required": ["stamp", "confirmation"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/planning/sessions",
+    "summary": "Open a day-planning session. Nothing is changed yet.",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "local_date": { "type": "string", "example": "2026-10-19" },
+              "time_zone": { "type": "string", "example": "Europe/Madrid" },
+              "today": { "type": "boolean" },
+              "overdue": { "type": "boolean" },
+              "inbox": { "type": "boolean" },
+              "undated": { "type": "boolean" },
+              "limit": { "type": "number", "nullable": true }
+            },
+            "required": ["local_date", "time_zone"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/planning/sessions/{id}",
+    "summary": "Read a planning session and its preview",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/planning/sessions/{id}/decisions/{taskId}",
+    "summary": "Record one planning decision without changing the task",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } },
+      { "name": "taskId", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "decision": {
+                "type": "string",
+                "enum": ["done", "plan_day", "later", "cancel", "trash", "skip", "someday"]
+              },
+              "target_date": { "type": "string", "nullable": true }
+            },
+            "required": ["decision"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/planning/sessions/{id}/decisions/{taskId}",
+    "summary": "Remove one planning decision",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } },
+      { "name": "taskId", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/planning/sessions/{id}/apply",
+    "summary": "Apply the preview. “La haré hoy” does not change the due date.",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": { "expected_revision": { "type": "number" } },
+            "required": ["expected_revision"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/plans",
+    "summary": "Tasks the user planned for a local date",
+    "parameters": [
+      { "name": "time_zone", "required": true, "in": "query", "schema": {} },
+      { "name": "date", "required": true, "in": "query", "schema": {} }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/planning/load",
+    "summary": "Day load projection (RF-2641)",
+    "parameters": [
+      { "name": "date", "required": true, "in": "query", "schema": { "type": "string" } },
+      { "name": "time_zone", "required": true, "in": "query", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/planning/shutdown/sessions",
+    "summary": "Start the shutdown ritual (RF-2651)",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "apply_suggestions": {
+                "type": "boolean",
+                "description": "When false, suggestions remain informational; only explicit decisions are applied. Defaults to true for existing clients."
+              },
+              "local_date": { "type": "string", "example": "2026-10-20" },
+              "time_zone": { "type": "string", "example": "Europe/Madrid" }
+            },
+            "required": ["local_date", "time_zone"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/planning/shutdown/sessions/{id}/decisions/{taskId}",
+    "summary": "Record a shutdown decision (RF-2651)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } },
+      { "name": "taskId", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "decision": {
+                "type": "string",
+                "enum": ["done", "plan_day", "later", "someday", "cancel", "trash", "skip"]
+              },
+              "target_date": { "type": "string", "nullable": true },
+              "evening": { "type": "boolean" }
+            },
+            "required": ["decision"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/planning/shutdown/sessions/{id}/decisions/{taskId}",
+    "summary": "Clear a shutdown decision (RF-2651)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } },
+      { "name": "taskId", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/planning/shutdown/sessions/{id}/apply",
+    "summary": "Apply the shutdown (RF-2651)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": { "expected_revision": { "type": "number" } },
+            "required": ["expected_revision"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/planning/replan/sessions",
+    "summary": "Propose a light replan (RF-2670)",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "apply_suggestions": {
+                "type": "boolean",
+                "description": "When false, suggestions remain informational; only explicit decisions are applied. Defaults to true for existing clients."
+              },
+              "local_date": { "type": "string", "example": "2026-10-20" },
+              "time_zone": { "type": "string", "example": "Europe/Madrid" }
+            },
+            "required": ["local_date", "time_zone"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/planning/replan/sessions/{id}/decisions/{taskId}",
+    "summary": "Override a replan suggestion (RF-2671)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } },
+      { "name": "taskId", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "decision": {
+                "type": "string",
+                "enum": ["done", "plan_day", "later", "someday", "cancel", "trash", "skip"]
+              },
+              "target_date": { "type": "string", "nullable": true },
+              "evening": { "type": "boolean" }
+            },
+            "required": ["decision"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/planning/replan/sessions/{id}/apply",
+    "summary": "Apply a replan (RF-2671)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": { "expected_revision": { "type": "number" } },
+            "required": ["expected_revision"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/calendar/events",
+    "summary": "Tasks with a date plus external events (RF-1101, RF-2520)",
+    "parameters": [
+      { "name": "from", "required": true, "in": "query", "schema": { "type": "string" } },
+      { "name": "to", "required": true, "in": "query", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/calendar/google/calendars",
+    "summary": "List Google calendars the account can subscribe to (RF-2501)",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/calendar/subscriptions",
+    "summary": "List calendar subscriptions (RF-1103, RF-2505)",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/calendar/subscriptions",
+    "summary": "Subscribe to an iCal URL or a Google calendar (RF-1103, RF-2502)",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "url": { "type": "string" },
+              "provider": { "type": "string", "enum": ["ical", "google"] },
+              "calendar_id": {
+                "type": "string",
+                "description": "Real Google calendar id (RF-2502)"
+              },
+              "color": { "type": "string" },
+              "sync_direction": { "type": "string", "enum": ["read", "two_way"] }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/calendar/subscriptions/{id}",
+    "summary": "Rename, recolor or hide a calendar subscription (RF-2503)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "summary": { "type": "string" },
+              "color": { "type": "object", "nullable": true },
+              "visible": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/calendar/subscriptions/{id}",
+    "summary": "Remove a calendar subscription",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/calendar/sync",
+    "summary": "Sync every external calendar subscription (RF-2521)",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/calendar/subscriptions/{id}/refresh",
+    "summary": "Sync one subscription now (RF-1103, RF-2514)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/calendar/subscriptions/{id}/push",
+    "summary": "Google Calendar two-way write (V2). Stops without credentials.",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/calendar/feeds",
+    "summary": "List active iCal feeds. The secret URL is not returned (RF-1104)",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/calendar/feeds",
+    "summary": "Create a secret iCal feed for a list or filter (RF-1104)",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": { "project_id": { "type": "string" }, "filter_id": { "type": "string" } }
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/calendar/feeds/{id}/rotate",
+    "summary": "Regenerate an iCal feed URL. The previous URL stops working (RF-1104)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/calendar/feeds/{id}",
+    "summary": "Revoke an iCal feed (RF-1104)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/dashboard/widgets",
+    "summary": "Widget catalog (RF-2101, RF-2104)",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/dashboard/data",
+    "summary": "KPI for one widget (RF-2102, RF-2104)",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/dashboard",
+    "summary": "Dashboard layout (RF-2103)",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/me/dashboard",
+    "summary": "Save the dashboard layout (RF-2103)",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "is_default": { "type": "boolean" },
+              "widgets": { "type": "array" }
+            },
+            "required": ["name", "widgets"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/reports/weekly",
+    "summary": "Weekly report history (RF-2204)",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/reports/weekly",
+    "summary": "Build this week’s report (RF-2201, RF-2203)",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/reports/weekly/{week}",
+    "summary": "One weekly report (RF-2204)",
+    "parameters": [
+      { "name": "week", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/report-settings",
+    "summary": "Weekly report settings (RF-2202)",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/me/report-settings",
+    "summary": "Update weekly report settings (RF-2202)",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "day": { "type": "string", "example": "sunday" },
+              "time": { "type": "string", "example": "20:00" },
+              "tone": { "type": "string", "enum": ["honesto", "neutro", "motivador"] },
+              "channels": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/stats/overview",
+    "summary": "Statistics overview KPIs and trend (RF-2321)",
+    "parameters": [
+      {
+        "name": "from",
+        "required": true,
+        "in": "query",
+        "schema": { "example": "2026-10-13", "type": "string" }
+      },
+      {
+        "name": "to",
+        "required": true,
+        "in": "query",
+        "schema": { "example": "2026-10-19", "type": "string" }
+      },
+      {
+        "name": "tz",
+        "required": true,
+        "in": "query",
+        "schema": { "example": "Europe/Madrid", "type": "string" }
+      },
+      {
+        "name": "list",
+        "required": false,
+        "in": "query",
+        "description": "Comma-separated project ids",
+        "schema": { "type": "string" }
+      },
+      {
+        "name": "tag",
+        "required": false,
+        "in": "query",
+        "description": "Comma-separated tag ids",
+        "schema": { "type": "string" }
+      },
+      {
+        "name": "priority",
+        "required": false,
+        "in": "query",
+        "description": "Comma-separated priorities",
+        "schema": { "type": "string" }
+      },
+      {
+        "name": "type",
+        "required": false,
+        "in": "query",
+        "description": "Focus session type filter",
+        "schema": { "type": "string" }
+      },
+      {
+        "name": "day",
+        "required": false,
+        "in": "query",
+        "description": "Selected timeline day, independent of the filtered period",
+        "schema": { "type": "string" }
+      },
+      {
+        "name": "group",
+        "required": false,
+        "in": "query",
+        "schema": { "type": "string", "enum": ["day", "week", "month"] }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/stats/tasks",
+    "summary": "Task statistics series and distributions (RF-2321)",
+    "parameters": [
+      {
+        "name": "from",
+        "required": true,
+        "in": "query",
+        "schema": { "example": "2026-10-13", "type": "string" }
+      },
+      {
+        "name": "to",
+        "required": true,
+        "in": "query",
+        "schema": { "example": "2026-10-19", "type": "string" }
+      },
+      {
+        "name": "tz",
+        "required": true,
+        "in": "query",
+        "schema": { "example": "Europe/Madrid", "type": "string" }
+      },
+      {
+        "name": "list",
+        "required": false,
+        "in": "query",
+        "description": "Comma-separated project ids",
+        "schema": { "type": "string" }
+      },
+      {
+        "name": "tag",
+        "required": false,
+        "in": "query",
+        "description": "Comma-separated tag ids",
+        "schema": { "type": "string" }
+      },
+      {
+        "name": "priority",
+        "required": false,
+        "in": "query",
+        "description": "Comma-separated priorities",
+        "schema": { "type": "string" }
+      },
+      {
+        "name": "type",
+        "required": false,
+        "in": "query",
+        "description": "Focus session type filter",
+        "schema": { "type": "string" }
+      },
+      {
+        "name": "day",
+        "required": false,
+        "in": "query",
+        "description": "Selected timeline day, independent of the filtered period",
+        "schema": { "type": "string" }
+      },
+      {
+        "name": "group",
+        "required": false,
+        "in": "query",
+        "schema": { "type": "string", "enum": ["day", "week", "month"] }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/stats/focus",
+    "summary": "Focus statistics, heatmap and distribution (RF-2322)",
+    "parameters": [
+      {
+        "name": "from",
+        "required": true,
+        "in": "query",
+        "schema": { "example": "2026-10-13", "type": "string" }
+      },
+      {
+        "name": "to",
+        "required": true,
+        "in": "query",
+        "schema": { "example": "2026-10-19", "type": "string" }
+      },
+      {
+        "name": "tz",
+        "required": true,
+        "in": "query",
+        "schema": { "example": "Europe/Madrid", "type": "string" }
+      },
+      {
+        "name": "list",
+        "required": false,
+        "in": "query",
+        "description": "Comma-separated project ids",
+        "schema": { "type": "string" }
+      },
+      {
+        "name": "tag",
+        "required": false,
+        "in": "query",
+        "description": "Comma-separated tag ids",
+        "schema": { "type": "string" }
+      },
+      {
+        "name": "priority",
+        "required": false,
+        "in": "query",
+        "description": "Comma-separated priorities",
+        "schema": { "type": "string" }
+      },
+      {
+        "name": "type",
+        "required": false,
+        "in": "query",
+        "description": "Focus session type filter",
+        "schema": { "type": "string" }
+      },
+      {
+        "name": "day",
+        "required": false,
+        "in": "query",
+        "description": "Selected timeline day, independent of the filtered period",
+        "schema": { "type": "string" }
+      },
+      {
+        "name": "group",
+        "required": false,
+        "in": "query",
+        "schema": { "type": "string", "enum": ["day", "week", "month"] }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/stats/habits",
+    "summary": "Habit statistics for the range (RF-2323)",
+    "parameters": [
+      {
+        "name": "from",
+        "required": true,
+        "in": "query",
+        "schema": { "example": "2026-10-13", "type": "string" }
+      },
+      {
+        "name": "to",
+        "required": true,
+        "in": "query",
+        "schema": { "example": "2026-10-19", "type": "string" }
+      },
+      {
+        "name": "tz",
+        "required": true,
+        "in": "query",
+        "schema": { "example": "Europe/Madrid", "type": "string" }
+      },
+      {
+        "name": "list",
+        "required": false,
+        "in": "query",
+        "description": "Comma-separated project ids",
+        "schema": { "type": "string" }
+      },
+      {
+        "name": "tag",
+        "required": false,
+        "in": "query",
+        "description": "Comma-separated tag ids",
+        "schema": { "type": "string" }
+      },
+      {
+        "name": "priority",
+        "required": false,
+        "in": "query",
+        "description": "Comma-separated priorities",
+        "schema": { "type": "string" }
+      },
+      {
+        "name": "type",
+        "required": false,
+        "in": "query",
+        "description": "Focus session type filter",
+        "schema": { "type": "string" }
+      },
+      {
+        "name": "day",
+        "required": false,
+        "in": "query",
+        "description": "Selected timeline day, independent of the filtered period",
+        "schema": { "type": "string" }
+      },
+      {
+        "name": "group",
+        "required": false,
+        "in": "query",
+        "schema": { "type": "string", "enum": ["day", "week", "month"] }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/stats/achievement",
+    "summary": "Achievement value, level and public formula (RF-2321)",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/stats/export",
+    "summary": "Export statistics for the filtered range as CSV or JSON (RF-2324)",
+    "parameters": [
+      {
+        "name": "from",
+        "required": true,
+        "in": "query",
+        "schema": { "example": "2026-10-13", "type": "string" }
+      },
+      {
+        "name": "to",
+        "required": true,
+        "in": "query",
+        "schema": { "example": "2026-10-19", "type": "string" }
+      },
+      {
+        "name": "tz",
+        "required": true,
+        "in": "query",
+        "schema": { "example": "Europe/Madrid", "type": "string" }
+      },
+      {
+        "name": "list",
+        "required": false,
+        "in": "query",
+        "description": "Comma-separated project ids",
+        "schema": { "type": "string" }
+      },
+      {
+        "name": "tag",
+        "required": false,
+        "in": "query",
+        "description": "Comma-separated tag ids",
+        "schema": { "type": "string" }
+      },
+      {
+        "name": "priority",
+        "required": false,
+        "in": "query",
+        "description": "Comma-separated priorities",
+        "schema": { "type": "string" }
+      },
+      {
+        "name": "type",
+        "required": false,
+        "in": "query",
+        "description": "Focus session type filter",
+        "schema": { "type": "string" }
+      },
+      {
+        "name": "day",
+        "required": false,
+        "in": "query",
+        "description": "Selected timeline day, independent of the filtered period",
+        "schema": { "type": "string" }
+      },
+      {
+        "name": "group",
+        "required": false,
+        "in": "query",
+        "schema": { "type": "string", "enum": ["day", "week", "month"] }
+      },
+      {
+        "name": "format",
+        "required": true,
+        "in": "query",
+        "schema": { "type": "string", "enum": ["csv", "json"] }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/review/daily",
+    "summary": "Propose today’s short list. The UI does not decide (RF-2301)",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/review/weekly",
+    "summary": "Guided weekly review (RF-2302, RF-2303)",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/webhooks",
+    "summary": "List webhook endpoints (RF-11010)",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/webhooks",
+    "summary": "Create a signed webhook (RF-11010)",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "url": { "type": "string" },
+              "secret": { "type": "string" },
+              "events": { "type": "array", "items": { "type": "string" } },
+              "active": { "type": "boolean" }
+            },
+            "required": ["url", "events"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/webhooks/{id}",
+    "summary": "Pause or resume a webhook (RF-11010)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": { "type": "object", "properties": { "active": { "type": "boolean" } } }
+        }
+      }
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/webhooks/{id}",
+    "summary": "Remove a webhook",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/webhooks/{id}/rotate",
+    "summary": "Rotate a webhook secret. The new secret is shown once (RF-11010)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/webhooks/{id}/ping",
+    "summary": "Send a test ping (RF-11010)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/webhooks/deliveries/{deliveryId}/retry",
+    "summary": "Retry a delivery (RF-11010)",
+    "parameters": [
+      { "name": "deliveryId", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/automations",
+    "summary": "List automations (section 11.3)",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/automations",
+    "summary": "Create an automation (section 11.3)",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "trigger": { "type": "object" },
+              "conditions": { "type": "object", "nullable": true },
+              "actions": { "type": "array" },
+              "enabled": { "type": "boolean" }
+            },
+            "required": ["name", "trigger", "actions"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/automations/{id}",
+    "summary": "Pause or resume an automation",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": { "type": "object", "properties": { "enabled": { "type": "boolean" } } }
+        }
+      }
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/automations/{id}",
+    "summary": "Delete an automation",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/automations/{id}/run",
+    "summary": "Run an automation now, including the weekly report template (RF-2203)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/events/stream",
+    "summary": "Push domain events to open clients (RF-13013)",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/focus/sessions",
+    "summary": "Start a server-side focus session (RF-1201, RF-1205)",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "planned_minutes": { "type": "number", "minimum": 1, "maximum": 180 },
+              "type": {
+                "type": "string",
+                "enum": ["focus", "short_break", "long_break", "stopwatch"]
+              },
+              "task_id": { "type": "string" },
+              "ambient_sound": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/focus/sessions",
+    "summary": "List focus sessions (RF-1204)",
+    "parameters": [
+      {
+        "name": "status",
+        "required": false,
+        "in": "query",
+        "schema": { "enum": ["active", "completed", "aborted"], "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/focus/sessions/{id}/finish",
+    "summary": "Finish a session and name the next phase (RF-1201)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/focus/sessions/{id}/abort",
+    "summary": "Abort a session (RF-1205)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/focus/sessions/{id}/pause",
+    "summary": "Pause a running focus session (RF-1205)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/focus/sessions/{id}/resume",
+    "summary": "Resume a paused focus session (RF-1205)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/focus/stats",
+    "summary": "Focus statistics (RF-1204)",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/focus/settings",
+    "summary": "Focus settings (RF-1201)",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/focus/settings",
+    "summary": "Update focus settings (RF-1201)",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "pomodoro_minutes": { "type": "number" },
+              "short_break_minutes": { "type": "number" },
+              "long_break_minutes": { "type": "number" },
+              "cycles_before_long_break": { "type": "number" },
+              "strict_mode": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/focus/tasks/{taskId}/estimate",
+    "summary": "Optional pomodoro estimate on a task (RF-1202)",
+    "parameters": [
+      { "name": "taskId", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": { "estimated_pomodoros": { "type": "number" } },
+            "required": ["estimated_pomodoros"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/projects/{id}/members",
+    "summary": "List members of a shared list (RF-1801)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/projects/{id}/members",
+    "summary": "Share a list with a user or a token (RF-1801, RF-1805)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "email": { "type": "string" },
+              "token_id": { "type": "string" },
+              "permission": { "type": "string", "enum": ["read", "comment", "write"] }
+            },
+            "required": ["permission"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/projects/{id}/members/{memberId}",
+    "summary": "Remove a member (RF-1801)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } },
+      { "name": "memberId", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/projects/{id}/presence",
+    "summary": "Mark that you are looking at the list (RF-1804)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/projects/{id}/activity",
+    "summary": "Activity of a shared list (RF-1803)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/tasks/{id}/comments",
+    "summary": "Comments on a task (RF-1803)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tasks/{id}/comments",
+    "summary": "Comment, with @mentions (RF-1803)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": { "body": { "type": "string" } },
+            "required": ["body"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tasks/{id}/assignee",
+    "summary": "Assign a task (RF-1802)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": { "assignee_id": { "type": "object", "nullable": true } },
+            "required": ["assignee_id"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/plugins",
+    "summary": "Installed plugins (section 12)",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/plugins",
+    "summary": "Install a plugin from its manifest. It does not run inside the API.",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/plugins/widgets",
+    "summary": "Widgets registered by plugins (RF-2105)",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/plugins/{pluginId}",
+    "summary": "Remove a plugin",
+    "parameters": [
+      { "name": "pluginId", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/notes",
+    "summary": "Notes, which are tasks with kind note (RF-1401)",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tasks/{id}/convert",
+    "summary": "Convert a note into a task or the other way (RF-1402)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": { "to": { "type": "string", "enum": ["task", "note"] } },
+            "required": ["to"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/sticky-notes",
+    "summary": "Sticky notes (RF-1403)",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/sticky-notes",
+    "summary": "Pin a sticky note (RF-1403)",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "text": { "type": "string" },
+              "color": { "type": "string" },
+              "pinned_task_id": { "type": "object", "nullable": true }
+            },
+            "required": ["text"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/sticky-notes/{id}",
+    "summary": "Update a sticky note (RF-1403)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "text": { "type": "string" },
+              "color": { "type": "string" },
+              "pinned_task_id": { "type": "object", "nullable": true }
+            },
+            "required": ["text"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/sticky-notes/{id}",
+    "summary": "Delete a sticky note (RF-1403)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/import/csv",
+    "summary": "Import a CSV with a column map (RF-1702). TickTick import stays deferred.",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "csv": { "type": "string" },
+              "title_column": { "type": "string" },
+              "due_column": { "type": "string" },
+              "priority_column": { "type": "string" },
+              "project_id": { "type": "string" }
+            },
+            "required": ["csv", "title_column"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/export/csv",
+    "summary": "CSV export of a list (RF-1703)",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/export/ical",
+    "summary": "iCal export of a list or filter (RF-1703)",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/integrations/telegram",
+    "summary": "Telegram bot status. Without TELEGRAM_BOT_TOKEN it stays stopped (RF-2003).",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/integrations/telegram",
+    "summary": "Unlink Telegram chats from this account (RF-2003)",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/integrations/telegram/pairing",
+    "summary": "Issue a one-time pairing code. Send /start <code> in Telegram (APP-07a). Does not accept raw chat_id.",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/integrations/telegram/link",
+    "summary": "Deprecated: linking by raw chat_id is refused. Use POST /integrations/telegram/pairing (APP-07a).",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": { "chat_id": { "type": "string" } },
+            "required": ["chat_id"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/integrations/telegram/webhook",
+    "summary": "Inbound Telegram update. Creates the task and replies in the chat (RF-2003). Refuses to run when the bot token is missing.",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Telegram Update: message text, voice, photo, or callback_query."
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/integrations/google",
+    "summary": "Google connection status. The refresh token is stored after consent (RF-2004).",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/integrations/google",
+    "summary": "Disconnect Google Calendar and Drive (RF-2004)",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/integrations/google/start",
+    "summary": "Build the Google consent URL. The browser completes it (RF-2004).",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/integrations/google/callback",
+    "summary": "Google redirects here with the authorization code (RF-2004).",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/integrations/drive",
+    "summary": "Google Drive status. No call is made without credentials (RF-2005).",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/integrations/drive/attachments",
+    "summary": "Attach a Drive file by link. Copying bytes needs credentials (RF-2005).",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "task_id": { "type": "string" },
+              "file_id": { "type": "string" },
+              "url": { "type": "string" },
+              "name": { "type": "string" },
+              "copy": { "type": "boolean" }
+            },
+            "required": ["task_id", "file_id", "url", "name"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/me/location",
+    "summary": "Fire location reminders when the browser supplies a position (RF-806)",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": { "lat": { "type": "number" }, "lon": { "type": "number" } },
+            "required": ["lat", "lon"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/achievements",
+    "summary": "Achievement score shared with Estadísticas (RF-1602 / RF-2321). Off means null.",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/me/achievements",
+    "summary": "Turn the achievement score on or off (RF-1602)",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": { "enabled": { "type": "boolean" } },
+            "required": ["enabled"]
+          }
+        }
+      }
+    }
+  }
+]

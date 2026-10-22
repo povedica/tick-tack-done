@@ -22,6 +22,17 @@ export async function exchangeGoogleRefreshToken(refreshToken: string): Promise<
     }),
     signal: AbortSignal.timeout(8_000),
   });
+  const body = (await response.json().catch(() => ({}))) as {
+    access_token?: unknown;
+    error?: unknown;
+  };
+  if (!response.ok && body.error === 'invalid_grant') {
+    throw new DomainException(
+      HttpStatus.BAD_GATEWAY,
+      'google_reconnect_required',
+      'Google authorization expired or was revoked. Reconnect Google from integrations.',
+    );
+  }
   if (!response.ok) {
     throw new DomainException(
       HttpStatus.BAD_GATEWAY,
@@ -29,7 +40,6 @@ export async function exchangeGoogleRefreshToken(refreshToken: string): Promise<
       'Google token exchange failed',
     );
   }
-  const body = (await response.json()) as { access_token?: unknown };
   if (typeof body.access_token !== 'string' || body.access_token.length === 0) {
     throw new DomainException(
       HttpStatus.BAD_GATEWAY,
