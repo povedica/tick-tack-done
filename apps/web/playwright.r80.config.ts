@@ -1,7 +1,7 @@
 import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: './e2e',
-  testMatch: 'r80*.spec.ts',
+  testMatch: '*.spec.ts',
   timeout: 30_000,
   projects: ['light', 'dark'].flatMap((theme) => [
     {

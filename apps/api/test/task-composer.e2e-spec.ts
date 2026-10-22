@@ -66,7 +66,10 @@ describe('RF-101/102/601/801: task composer explicit metadata', () => {
       }).expect(201);
       expect(response.body.title).toBe('Meeting');
       expect(response.body.start_date).toEqual(expect.any(String));
-      expect(response.body.due_date).toBeNull();
+      expect(
+        Date.parse(response.body.due_date as string) -
+          Date.parse(response.body.start_date as string),
+      ).toBe((range.includes('10am') ? 60 : 30) * 60_000);
       expect(response.body.is_all_day).toBe(false);
       expect(response.body.duration_minutes).toBe(range.includes('10am') ? 60 : 30);
       const task = await prisma.task.findUniqueOrThrow({
@@ -99,7 +102,7 @@ describe('RF-101/102/601/801: task composer explicit metadata', () => {
     expect(task.repeatRule).toBe('RRULE:FREQ=WEEKLY');
     const reminders = await prisma.reminder.findMany({ where: { taskId: task.id } });
     expect(reminders).toHaveLength(1);
-    expect(reminders[0]?.trigger).toBe('TRIGGER:-PT0M');
+    expect(reminders[0]?.trigger).toBe('-PT0M');
   });
   it('RF-102/801: explicit no reminder overrides parsed text and account default', async () => {
     const response = await create({

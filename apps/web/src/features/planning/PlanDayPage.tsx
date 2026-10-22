@@ -15,6 +15,8 @@ import { closingRequest } from '../closing/api';
 import { useAppLocale } from '../../i18n/locale';
 import { taskQueryHref } from '../../shell/use-open-task';
 import './planning.css';
+import { useMessages } from '../../i18n';
+import type { PlanSources } from '@reflexionia/domain';
 
 type Decision = 'done' | 'plan_day' | 'later' | 'someday' | 'cancel' | 'trash' | 'skip';
 
@@ -46,6 +48,8 @@ interface PlanSession {
   readonly revision: number;
   readonly state: string;
   readonly hidden_overdue: number;
+  readonly totals: Readonly<Record<keyof PlanSources, number>>;
+  readonly time_zone: string;
   readonly cards: readonly PlanCard[];
   readonly decisions: readonly PlanDecisionRow[];
   readonly preview: {
@@ -62,6 +66,7 @@ interface AppliedPlan {
 }
 
 export function PlanDayPage() {
+  const messages = useMessages();
   const locale = useAppLocale();
   const location = useLocation();
   const text: Copy = locale.startsWith('en') ? english : spanish;
@@ -75,12 +80,37 @@ export function PlanDayPage() {
   const [attempt, setAttempt] = useState(0);
   const [loadLine, setLoadLine] = useState<string | null>(null);
   const [confirmApply, setConfirmApply] = useState(false);
+  const [sources, setSources] = useState<PlanSources>({
+    today: true,
+    overdue: true,
+    inbox: false,
+    undated: false,
+  });
+  const [sourceStep, setSourceStep] = useState(true);
+  const [ownerId, setOwnerId] = useState('');
   useEffect(() => {
     let cancelled = false;
     setError(null);
     api
       .getMe()
       .then(async (me) => {
+        setOwnerId(me.id);
+        try {
+          const saved: unknown = JSON.parse(
+            localStorage.getItem(`ttd.planDefaults.${me.id}`) ?? '{}',
+          );
+          if (typeof saved === 'object' && saved !== null) {
+            const value = saved as Record<string, unknown>;
+            setSources({
+              today: typeof value.today === 'boolean' ? value.today : true,
+              overdue: typeof value.overdue === 'boolean' ? value.overdue : true,
+              inbox: value.inbox === true,
+              undated: value.undated === true,
+            });
+          }
+        } catch {
+          /* Invalid local preferences use the defaults. */
+        }
         const timeZone = me.time_zone || Intl.DateTimeFormat().resolvedOptions().timeZone;
         const localDate = new Intl.DateTimeFormat('en-CA', {
           timeZone,
@@ -103,9 +133,9 @@ export function PlanDayPage() {
           local_date: localDate,
           time_zone: timeZone,
           today: true,
-          overdue: false,
-          inbox: false,
-          undated: false,
+          overdue: true,
+          inbox: true,
+          undated: true,
         });
       })
       .then((body) => {
@@ -118,9 +148,29 @@ export function PlanDayPage() {
       cancelled = true;
     };
   }, [text, attempt]);
-  const cards =
-    session?.cards.filter((card) => card.section === 'today' || card.section === 'today_timed') ??
-    [];
+  const cards = session?.cards ?? [];
+  async function continuePlan() {
+    if (!session || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      localStorage.setItem(`ttd.planDefaults.${ownerId}`, JSON.stringify(sources));
+      setSession(
+        readSession(
+          await api.startPlan({
+            local_date: session.local_date,
+            time_zone: session.time_zone,
+            ...sources,
+          }),
+        ),
+      );
+      setSourceStep(false);
+    } catch (reason) {
+      setError(messageOf(reason, text));
+    } finally {
+      setBusy(false);
+    }
+  }
   const eligible = cards.filter(
     (card) => selected.includes(card.task_id) && card.recurring === false,
   );
@@ -239,6 +289,40 @@ export function PlanDayPage() {
         !error ? (
           <p role="status">{text.loading}</p>
         ) : null
+      ) : sourceStep ? (
+        <section className="plan-sources week-card" aria-label={messages.planSources}>
+          <h2>{messages.planSources}</h2>
+          {(['today', 'overdue', 'inbox', 'undated'] as const).map((key) => (
+            <label key={key}>
+              <input
+                type="checkbox"
+                checked={sources[key]}
+                onChange={(event) => { setSources((previous) => ({ ...previous, [key]: event.target.checked })); }
+                }
+              />
+              {
+                messages[
+                  {
+                    today: 'planSourceToday',
+                    overdue: 'planSourceOverdue',
+                    inbox: 'planSourceInbox',
+                    undated: 'planSourceUndated',
+                  }[key] as 'planSourceToday'
+                ]
+              }{' '}
+              ({session.totals[key]})
+            </label>
+          ))}
+          <Button
+            variant="primary"
+            disabled={busy || !Object.values(sources).some(Boolean)}
+            onClick={() => {
+              runAction(continuePlan());
+            }}
+          >
+            {messages.planSourcesContinue}
+          </Button>
+        </section>
       ) : (
         <>
           <div className="plan-overview">
@@ -256,6 +340,11 @@ export function PlanDayPage() {
             ) : null}
           </div>
           <p className="ui-muted">{weekly.count(cards.length, eligible.length)}</p>
+          {session.hidden_overdue > 0 ? (
+            <p role="status">
+              {messages.planHiddenOverdue.replace('{count}', String(session.hidden_overdue))}
+            </p>
+          ) : null}
           {cards.length === 0 ? (
             <div className="week-card">
               <h2>{text.empty}</h2>
@@ -489,9 +578,17 @@ export function WontDoPage() {
 function readSession(value: unknown): PlanSession {
   const row = objectOf(value);
   const preview = objectOf(row.preview);
+  const totals = objectOf(row.totals);
   return {
     id: stringOf(row.id),
     local_date: stringOf(row.local_date),
+    time_zone: stringOf(row.time_zone) || Intl.DateTimeFormat().resolvedOptions().timeZone,
+    totals: {
+      today: Number(totals.today ?? 0),
+      overdue: Number(totals.overdue ?? 0),
+      inbox: Number(totals.inbox ?? 0),
+      undated: Number(totals.undated ?? 0),
+    },
     revision: typeof row.revision === 'number' ? row.revision : 1,
     state: stringOf(row.state),
     hidden_overdue: typeof row.hidden_overdue === 'number' ? row.hidden_overdue : 0,

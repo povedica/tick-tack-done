@@ -1066,3 +1066,5 @@ Base actualizada: afc9f5d. Comprobación previa en [r80/verificacion-previa.md](
 - TTD-AUD-99: pasos 1–6 implementados en commits separados; inventario de producción de solo lectura: 0 filas y 4 ficheros huérfanos/201 bytes preservados. Capturas y pruebas sintéticas de Drive, MCP, correo y Telegram. Modelo sin almacenamiento local y rollback verificado. Pendientes pruebas externas; sin borrado de producción.
 
 - TTD-AUD-93: sidebar con cinco secciones, filtros persistentes y PeriodNavigator compartido implementados; ocho Playwright y dos e2e de Calendar en verde. Evidencia en r80/93.md.
+
+- TTD-AUD-94: paso inicial de fuentes por usuario y recuentos del dominio implementados; 17+1→18, exclusión→1/17 ocultas. Unitarias, siete e2e HTTP y 36 Playwright en verde; r80/94.md.

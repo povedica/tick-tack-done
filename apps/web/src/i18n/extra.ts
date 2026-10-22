@@ -1,4 +1,11 @@
 export const extraEs = {
+  planSources: 'Elige qué revisar',
+  planSourceToday: 'Hoy',
+  planSourceOverdue: 'Vencidas',
+  planSourceInbox: 'Bandeja',
+  planSourceUndated: 'Sin fecha',
+  planSourcesContinue: 'Continuar',
+  planHiddenOverdue: '{count} vencidas quedan fuera',
   calendarAllSources: 'Todo',
   calendarSubscribed: 'Calendarios suscritos',
   driveConnect: 'Conectar Google Drive',
@@ -1118,6 +1125,13 @@ export const extraEs = {
 } as const;
 
 export const extraEn = {
+  planSources: 'Choose what to review',
+  planSourceToday: 'Today',
+  planSourceOverdue: 'Overdue',
+  planSourceInbox: 'Inbox',
+  planSourceUndated: 'Undated',
+  planSourcesContinue: 'Continue',
+  planHiddenOverdue: '{count} overdue tasks are excluded',
   calendarAllSources: 'All',
   calendarSubscribed: 'Subscribed calendars',
   driveConnect: 'Connect Google Drive',

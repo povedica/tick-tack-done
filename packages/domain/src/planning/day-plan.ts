@@ -132,17 +132,25 @@ export function planQueue(
     if (task.isSomeday === true) {
       continue;
     }
-    const placed = classify(task, input.localDate, input.timeZone, input.sources);
+    const placed = classify(task, input.localDate, input.timeZone, {
+      today: true,
+      overdue: true,
+      inbox: true,
+      undated: true,
+    });
     if (placed !== null) {
       classified.push(placed);
     }
   }
   classified.sort(compareCards);
-  const today = classified.filter(
+  const selected = classified.filter(
+    (card) => input.sources[card.section === 'today_timed' ? 'today' : card.section],
+  );
+  const today = selected.filter(
     (card) => card.section === 'today_timed' || card.section === 'today',
   );
-  const overdue = classified.filter((card) => card.section === 'overdue');
-  const rest = classified.filter((card) => card.section === 'inbox' || card.section === 'undated');
+  const overdue = selected.filter((card) => card.section === 'overdue');
+  const rest = selected.filter((card) => card.section === 'inbox' || card.section === 'undated');
   const room = input.limit === null ? null : Math.max(0, input.limit - today.length);
   const keptOverdue = room === null ? overdue : overdue.slice(0, room);
   const roomAfter = room === null ? null : room - keptOverdue.length;
@@ -150,10 +158,12 @@ export function planQueue(
   const cards = [...today, ...keptOverdue, ...keptRest].map((card, rank) => toCard(card, rank));
   return {
     cards,
-    hiddenOverdue: overdue.length - keptOverdue.length,
+    hiddenOverdue:
+      classified.filter((card) => card.section === 'overdue').length - keptOverdue.length,
     totals: {
-      today: today.length,
-      overdue: overdue.length,
+      today: classified.filter((card) => card.section === 'today' || card.section === 'today_timed')
+        .length,
+      overdue: classified.filter((card) => card.section === 'overdue').length,
       inbox: classified.filter((card) => card.section === 'inbox').length,
       undated: classified.filter((card) => card.section === 'undated').length,
     },
