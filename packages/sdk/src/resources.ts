@@ -4,6 +4,7 @@ import type { ApiClientOptions, PageQuery, Task } from './client';
 
 export type Me = components['schemas']['MeResponseDto'];
 export interface UpdateMeBody {
+  readonly telegram_enabled?: boolean;
   readonly display_name?: string;
   readonly time_zone?: string;
   readonly task_complete_children?: 'ask' | 'complete' | 'leave';
@@ -348,6 +349,7 @@ export interface ResourceClient {
   rotateCalendarFeed(id: string): Promise<JsonObject>;
   revokeCalendarFeed(id: string): Promise<void>;
   disconnectGoogle(options?: { readonly removeImportedEvents?: boolean }): Promise<void>;
+  recheckTelegram(): Promise<JsonObject>;
   disconnectTelegram(): Promise<void>;
   listMembers(projectId: string): Promise<JsonObject>;
   addMember(
@@ -734,6 +736,7 @@ export function resourceMethods(http: Http): ResourceClient {
         isEmpty,
       );
     },
+    recheckTelegram: () => ask('POST','/api/v1/integrations/telegram/recheck',undefined,undefined,isJsonObject),
     async disconnectTelegram() {
       await ask('DELETE', '/api/v1/integrations/telegram', undefined, undefined, isEmpty);
     },

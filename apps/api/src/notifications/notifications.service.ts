@@ -1,3 +1,4 @@
+import { setTelegramStatus } from '../integrations/telegram-status.js';
 import { isUUID } from 'class-validator';
 import { asJson } from '../http/json.js';
 import { Inject, Injectable } from '@nestjs/common';
@@ -127,6 +128,7 @@ export class NotificationsService {
       body: 'Prueba de notificación',
     });
     const outcome = result[channel];
+    if(channel==='telegram' && outcome==='disconnected')await setTelegramStatus(this.prisma,user.id,'blocked');
     await this.prisma.notificationReceipt.create({
       data: {
         ownerId: user.id,

@@ -37,3 +37,7 @@ Añade update_focus_settings (focus:write) mediante PUT /focus/settings; get_foc
 ## TTD-AUD-102
 
 Añade get_notification_settings y send_test_notification (profile:read, destino propio); no existe herramienta de escritura de matriz. Catálogo 75 herramientas.
+
+## TTD-AUD-103
+
+Sin herramientas nuevas (75). Los endpoints descubiertos por api_catalog documentan perfil, estado blocked, pairing deep link y recheck; las pruebas de notificación propia conservan el error preciso.

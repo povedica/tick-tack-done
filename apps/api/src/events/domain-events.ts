@@ -1,4 +1,5 @@
 export const DomainEvent = {
+  telegramStatusChanged: 'telegram.status_changed@v1',
   notificationSettingsUpdated: 'notification.settings_updated@v1',
   taskLinkAdded: 'task.link_added@v1',
   taskLinkRemoved: 'task.link_removed@v1',

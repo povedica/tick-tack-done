@@ -12816,7 +12816,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramStatusDto"
+                }
+              }
+            }
           }
         },
         "summary": "Telegram bot status. Without TELEGRAM_BOT_TOKEN it stays stopped (RF-2003).",
@@ -12848,13 +12855,40 @@
         ]
       }
     },
+    "/api/v1/integrations/telegram/recheck": {
+      "post": {
+        "operationId": "IntegrationsController_recheckTelegram",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Check that the linked Telegram bot can send again after being unblocked",
+        "tags": [
+          "integrations"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/integrations/telegram/pairing": {
       "post": {
         "operationId": "IntegrationsController_pairing",
         "parameters": [],
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramPairingResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Issue a one-time pairing code. Send /start <code> in Telegram (APP-07a). Does not accept raw chat_id.",
@@ -18893,6 +18927,87 @@
         "required": [
           "csv",
           "title_column"
+        ]
+      },
+      "TelegramStatusDto": {
+        "type": "object",
+        "properties": {
+          "configured": {
+            "type": "boolean"
+          },
+          "linked": {
+            "type": "boolean"
+          },
+          "bot_username": {
+            "type": "string",
+            "nullable": true
+          },
+          "username": {
+            "type": "string",
+            "nullable": true
+          },
+          "display_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "linked_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "not_linked",
+              "connected",
+              "blocked"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "voice": {
+            "type": "boolean"
+          },
+          "photo": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "configured",
+          "linked",
+          "bot_username",
+          "username",
+          "display_name",
+          "linked_at",
+          "status",
+          "enabled",
+          "voice",
+          "photo"
+        ]
+      },
+      "TelegramPairingResponseDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "expires_at": {
+            "type": "string"
+          },
+          "bot_username": {
+            "type": "string",
+            "nullable": true
+          },
+          "deep_link": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "code",
+          "expires_at",
+          "bot_username",
+          "deep_link"
         ]
       },
       "LinkDto": {

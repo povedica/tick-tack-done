@@ -1277,6 +1277,9 @@ model RecoveryCode {
 }
 
 model TelegramLink {
+  username String?
+  displayName String? @map("display_name")
+  status String @default("connected")
   id        String    @id @default(uuid()) @db.Uuid
   ownerId   String    @map("owner_id") @db.Uuid
   owner     User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)

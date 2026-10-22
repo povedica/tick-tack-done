@@ -1,3 +1,4 @@
+import { setTelegramStatus } from '../integrations/telegram-status.js';
 import { createHash, randomBytes } from 'node:crypto';
 import type { Prisma, ReminderDeliveryKind } from '@prisma/client';
 import {
@@ -131,6 +132,7 @@ export async function deliverNotification(
         }
       : {}),
   });
+  if(result.telegram==='disconnected' && link)await setTelegramStatus(prisma,row.ownerId,'blocked');
   for (const channel of NOTIFICATION_CHANNELS) {
     if (only && !only.includes(channel)) continue;
     const reason = reasons.get(channel);

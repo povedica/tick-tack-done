@@ -1,3 +1,4 @@
+import { TelegramCard } from '../settings/TelegramCard';
 import { runAction } from '../../components/run-action';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
@@ -298,10 +299,6 @@ export function IntegrationSettings() {
     setGoogleFlag(callback.notice);
     setParams(callback.params, { replace: true });
   }, [params, setParams]);
-  const telegram = useQuery({
-    queryKey: ['telegram'],
-    queryFn: () => api.integrationStatus('telegram'),
-  });
   const google = useQuery({ queryKey: ['google'], queryFn: () => api.integrationStatus('google') });
   const googleOn = flag(google.data, 'connected');
   const googleReady = flag(google.data, 'configured');
@@ -329,23 +326,6 @@ export function IntegrationSettings() {
     setRemoveImportedEvents(false);
     setConfirmGoogle(true);
   }
-  const voice = flag(telegram.data, 'voice');
-  const photo = flag(telegram.data, 'photo');
-  const telegramConfigured = flag(telegram.data, 'configured');
-  const telegramLinked = flag(telegram.data, 'linked');
-  const [pairingCode, setPairingCode] = useState<string | null>(null);
-  const [pairingError, setPairingError] = useState<string | null>(null);
-  const pairTelegram = useMutation({
-    mutationFn: () => api.createTelegramPairing(),
-    onSuccess: (body) => {
-      const code = text(body.code);
-      setPairingCode(code.length > 0 ? code : null);
-      setPairingError(null);
-    },
-    onError: () => {
-      setPairingError(messages.telegramPairingFailed);
-    },
-  });
   return (
     <section className="token-settings">
       <header className="page-header">
@@ -433,72 +413,7 @@ export function IntegrationSettings() {
         />
       </section>
 
-      <section className="token-panel" aria-labelledby="telegram-title">
-        <div className="token-panel-head">
-          <div>
-            <h2 id="telegram-title">Telegram</h2>
-            {telegram.isFetched ? (
-              <p>{telegramLinked ? messages.telegramHint : messages.telegramSoon}</p>
-            ) : (
-              <p className="token-meta">…</p>
-            )}
-          </div>
-          {telegram.isFetched ? (
-            <StatusPill
-              on={telegramLinked}
-              onLabel={messages.integrationConnected}
-              offLabel={telegramConfigured ? messages.integrationIdle : messages.integrationSoon}
-            />
-          ) : null}
-        </div>
-        {telegram.isFetched && (voice || photo) ? (
-          <ul className="token-chips">
-            {voice ? <li className="token-chip">{messages.telegramVoice}</li> : null}
-            {photo ? <li className="token-chip">{messages.telegramPhoto}</li> : null}
-          </ul>
-        ) : null}
-        {telegram.isFetched && telegramLinked ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              runAction(
-                api.disconnectTelegram().then(() => {
-                  setPairingCode(null);
-                  runAction(telegram.refetch());
-                }),
-              );
-            }}
-          >
-            {messages.googleDisconnect}
-          </Button>
-        ) : null}
-        {telegram.isFetched && !telegramLinked && telegramConfigured ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="primary"
-            loading={pairTelegram.isPending}
-            onClick={() => {
-              pairTelegram.mutate();
-            }}
-          >
-            {messages.telegramLink}
-          </Button>
-        ) : null}
-        {telegram.isFetched && !telegramLinked && !telegramConfigured ? (
-          <Button type="button" size="sm" disabled>
-            {messages.integrationSoon}
-          </Button>
-        ) : null}
-        {pairingError !== null ? <p role="alert">{pairingError}</p> : null}
-        {pairingCode !== null ? (
-          <p className="token-meta" role="status">
-            {messages.telegramPairingHint.replace('{code}', pairingCode)}
-          </p>
-        ) : null}
-      </section>
+      <TelegramCard />
 
       <InboundEmailCard />
     </section>

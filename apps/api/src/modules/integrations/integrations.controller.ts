@@ -11,7 +11,7 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiProperty, ApiTags, ApiOkResponse, ApiCreatedResponse } from '@nestjs/swagger';
 import {
   IsBoolean,
   IsBooleanString,
@@ -37,6 +37,25 @@ import { respondJson } from '../../http/respond.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { openField, sealField } from '../../security/field-cipher.js';
 import { TasksService } from '../tasks/tasks.service.js';
+
+class TelegramStatusDto {
+ @ApiProperty() configured!:boolean;
+ @ApiProperty() linked!:boolean;
+ @ApiProperty({type:String,nullable:true}) bot_username!:string|null;
+ @ApiProperty({type:String,nullable:true}) username!:string|null;
+ @ApiProperty({type:String,nullable:true}) display_name!:string|null;
+ @ApiProperty({type:String,nullable:true}) linked_at!:string|null;
+ @ApiProperty({enum:['not_linked','connected','blocked']}) status!:string;
+ @ApiProperty() enabled!:boolean;
+ @ApiProperty() voice!:boolean;
+ @ApiProperty() photo!:boolean;
+}
+class TelegramPairingResponseDto {
+ @ApiProperty() code!:string;
+ @ApiProperty() expires_at!:string;
+ @ApiProperty({type:String,nullable:true}) bot_username!:string|null;
+ @ApiProperty({type:String,nullable:true}) deep_link!:string|null;
+}
 
 class LinkDto {
   @ApiProperty()
@@ -95,6 +114,7 @@ export class IntegrationsController {
   ) {}
 
   @Get('telegram')
+  @ApiOkResponse({type:TelegramStatusDto})
   @Scopes('profile:read')
   @ApiOperation({
     summary: 'Telegram bot status. Without TELEGRAM_BOT_TOKEN it stays stopped (RF-2003).',
@@ -106,14 +126,16 @@ export class IntegrationsController {
   ): Promise<void> {
     const link = await this.prisma.telegramLink.findFirst({
       where: { ownerId: user.id, deletedAt: null },
-      select: { id: true },
     });
+    const owner=await this.prisma.user.findUniqueOrThrow({where:{id:user.id},select:{telegramEnabled:true}});
     respondJson(
       req,
       res,
       200,
       {
         configured: telegramConfigured(),
+        bot_username:await this.telegram.botUsername(),
+        username:link?.username??null,display_name:link?.displayName??null,linked_at:link?.createdAt.toISOString()??null,status:link?.status??'not_linked',enabled:owner.telegramEnabled,
         voice: telegramConfigured() && present('TELEGRAM_VOICE_PROVIDER'),
         photo: telegramConfigured(),
         linked: link !== null,
@@ -126,6 +148,7 @@ export class IntegrationsController {
   @Scopes('profile:write')
   @ApiOperation({ summary: 'Unlink Telegram chats from this account (RF-2003)' })
   async unlinkTelegram(@CurrentUser() user: AuthUser, @Res() res: Response): Promise<void> {
+    const links=await this.prisma.telegramLink.findMany({where:{ownerId:user.id,deletedAt:null}});
     await this.prisma.$transaction(async (tx) => {
       await tx.telegramLink.updateMany({
         where: { ownerId: user.id, deletedAt: null },
@@ -140,10 +163,17 @@ export class IntegrationsController {
         previous: null,
       });
     });
+    for(const link of links)await this.telegram.farewell(link.chatId);
     res.status(204).end();
   }
 
+  @Post('telegram/recheck')
+  @Scopes('profile:write')
+  @ApiOperation({summary:'Check that the linked Telegram bot can send again after being unblocked'})
+  async recheckTelegram(@CurrentUser()user:AuthUser){return this.telegram.recheck(user);}
+
   @Post('telegram/pairing')
+  @ApiCreatedResponse({type:TelegramPairingResponseDto})
   @Scopes('profile:write')
   @ApiOperation({
     summary:

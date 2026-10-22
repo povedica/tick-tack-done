@@ -1,4 +1,5 @@
 :root {
+  --telegram-qr-size:160px;
   --notification-matrix-max-h: 520px;
   --notification-switch-w: 32px;
   --notification-switch-h: 18px;
@@ -233,6 +234,7 @@
 }
 
 [data-theme='dark'] {
+  --telegram-qr-size:160px;
   --notification-matrix-max-h: 520px;
   --notification-switch-w: 32px;
   --notification-switch-h: 18px;

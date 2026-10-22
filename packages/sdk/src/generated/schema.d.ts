@@ -3444,6 +3444,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/integrations/telegram/recheck": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check that the linked Telegram bot can send again after being unblocked */
+        post: operations["IntegrationsController_recheckTelegram"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/integrations/telegram/pairing": {
         parameters: {
             query?: never;
@@ -5023,6 +5040,25 @@ export interface components {
             due_column?: string;
             priority_column?: string;
             project_id?: string;
+        };
+        TelegramStatusDto: {
+            configured: boolean;
+            linked: boolean;
+            bot_username: string | null;
+            username: string | null;
+            display_name: string | null;
+            linked_at: string | null;
+            /** @enum {string} */
+            status: "not_linked" | "connected" | "blocked";
+            enabled: boolean;
+            voice: boolean;
+            photo: boolean;
+        };
+        TelegramPairingResponseDto: {
+            code: string;
+            expires_at: string;
+            bot_username: string | null;
+            deep_link: string | null;
         };
         LinkDto: {
             chat_id: string;
@@ -11540,7 +11576,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["TelegramStatusDto"];
+                };
             };
         };
     };
@@ -11561,7 +11599,7 @@ export interface operations {
             };
         };
     };
-    IntegrationsController_pairing: {
+    IntegrationsController_recheckTelegram: {
         parameters: {
             query?: never;
             header?: never;
@@ -11575,6 +11613,25 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    IntegrationsController_pairing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelegramPairingResponseDto"];
+                };
             };
         };
     };

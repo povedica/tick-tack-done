@@ -1,0 +1,67 @@
+.telegram-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--tap);
+  padding-inline: var(--sp-3);
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: var(--fs-sm);
+  text-decoration: none;
+}
+.telegram-qr {
+  margin-block: var(--sp-3);
+}
+.telegram-qr .totp-qr {
+  width: var(--telegram-qr-size);
+  height: var(--telegram-qr-size);
+}
+.telegram-card .token-panel-head {
+  align-items: center;
+}
+.telegram-status {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+}
+.telegram-status::before {
+  content: '';
+  display: inline-block;
+  width: var(--status-dot);
+  height: var(--status-dot);
+  background: var(--ink-3);
+  border-radius: var(--radius-full);
+  margin-inline-end: var(--sp-1);
+}
+.telegram-status[data-status='connected']::before {
+  background: var(--success);
+}
+.telegram-status[data-status='blocked']::before {
+  background: var(--warning);
+}
+.telegram-notify-switch {
+  min-height: var(--settings-row-h);
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--fs-sm);
+}
+.telegram-notify-switch input {
+  min-width: var(--tap);
+  min-height: var(--tap);
+}
+.telegram-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.telegram-card button,
+.telegram-card summary {
+  min-height: var(--tap);
+}
+.telegram-manual {
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+}
