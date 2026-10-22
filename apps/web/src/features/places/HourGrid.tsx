@@ -620,6 +620,7 @@ export function HourGrid({
                     key={task.id}
                     {...drag.bindTask(task)}
                     className="hour-block calendar-hour-task calendar-chip"
+                    data-task-id={task.id}
                     data-block-size={Number(style(`task:${task.id}`).height) < 18 ? 'tiny' : Number(style(`task:${task.id}`).height) < 32 ? 'compact' : 'regular'}
                     style={
                       {

@@ -162,6 +162,7 @@ describe('Google calendar subscriptions', () => {
           title: 'Reunión',
           editable: false,
           calendar_id: 'ada@gmail.com',
+          subscription_id: first.body.id as string,
           status: 'confirmed',
         }),
       ]);

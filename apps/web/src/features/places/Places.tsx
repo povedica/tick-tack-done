@@ -3,7 +3,10 @@ import { useCalendarDrag } from './use-calendar-drag';
 import { useCalendarTaskChange, type CalendarTaskChange } from './use-calendar-task-change';
 import { SidebarFoldButton } from '../../shell/SidebarFoldButton';
 import { DayWeekStrip } from '../calendar/DayWeekStrip';
-import { CalendarFilterRow } from '../calendar/CalendarFilterRow';
+import { CalendarSources } from '../calendar/CalendarSources';
+import { sourceSelected } from '../calendar/source-selection';
+import { useCalendarSources } from '../calendar/use-calendar-sources';
+import { PeriodNavigator } from '../../components/period/PeriodNavigator';
 import { useVerticalCalendarNavigation } from '../calendar/useVerticalCalendarNavigation';
 import { TodayMark } from '../../components/period/TodayMark';
 import { useCalendarToday } from '../../components/period/useCalendarToday';
@@ -26,7 +29,6 @@ import {
   List,
   Check,
   ListFilter,
-  Tag,
   X,
 } from 'lucide-react';
 import { CalendarTaskMark } from '../calendar/CalendarTaskMark';
@@ -35,7 +37,7 @@ import '../calendar/calendar.css';
 import { PriorityCheck } from '../../components/PriorityCheck';
 import { displayTitle } from '../tasks/displayTitle';
 import { ApiError, type Project, type Task } from '@reflexionia/sdk';
-import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Fragment,
   useCallback,
@@ -278,7 +280,6 @@ export function InboxPage() {
 
 function ProcessCard({
   messages,
-  locale,
   taskTitle,
   projects,
   onDate,
@@ -322,15 +323,10 @@ function ProcessCard({
         >
           {messages.processWeek}
         </Button>
-        <input
-          type="date"
-          lang={locale.toLowerCase().startsWith('en') ? 'en-CA' : 'es-ES'}
-          aria-label={messages.processDate}
-          onChange={(event) => {
-            if (event.target.value.length > 0) {
-              onDate('date', `${event.target.value}T12:00:00.000Z`);
-            }
-          }}
+        <PeriodNavigator
+          title={messages.processDate}
+          date={new Date()}
+          onPick={(date) => { onDate('date', date.toISOString()); }}
         />
         <label>
           {messages.processMove}
@@ -391,8 +387,24 @@ export function CalendarPage() {
   const contextProject = params.get('project_id') ?? params.get('list') ?? undefined;
   const filterId = params.get('filter_id') ?? '';
   const tagId = params.get('tag_id') ?? '';
-  const filters = useQuery({ queryKey: ['filters'], queryFn: () => api.listFilters() });
-  const tags = useQuery({ queryKey: ['tags'], queryFn: collectTags });
+  const { params: sourceParams } = useCalendarSources();
+  const selectedFilters = (sourceParams.get('filters') ?? '')
+    .split(',')
+    .filter((id) => id && id !== '-');
+  const filterResults = useQueries({
+    queries: selectedFilters.map((id) => ({
+      queryKey: ['calendar-filter-tasks', id],
+      queryFn: () => collectFilterTasks(id, {}),
+    })),
+  });
+  const selectedTaskIds = selectedFilters.length
+    ? new Set(
+        filterResults.flatMap(
+          (result) =>
+            result.data?.groups.flatMap((group) => group.tasks.map((task) => task.id)) ?? [],
+        ),
+      )
+    : null;
   const filterTasks = useQuery({
     queryKey: ['calendar-filter-tasks', filterId],
     queryFn: () => collectFilterTasks(filterId, {}),
@@ -401,13 +413,6 @@ export function CalendarPage() {
   const filterTaskIds = filterId
     ? new Set(filterTasks.data?.groups.flatMap((group) => group.tasks.map((task) => task.id)) ?? [])
     : null;
-  const selectFilter = (key: string, value: string) => {
-    const query = new URLSearchParams(window.location.search);
-    if (key === 'project_id') query.delete('list');
-    if (value) query.set(key, value);
-    else query.delete(key);
-    setParams(query);
-  };
   const createAt = (slot: CalendarSlot, anchor: SlotAnchor) => {
     if (draft === null) setDraft({ slot, anchor });
   };
@@ -417,9 +422,7 @@ export function CalendarPage() {
   const requestedView = view === 'multi-week' ? 'two-weeks' : view;
   const knownView = CAL_VIEWS.includes(requestedView as (typeof CAL_VIEWS)[number]);
   const current =
-    mobile && requestedView === 'quarter'
-      ? 'month'
-      : knownView ? requestedView : 'month';
+    mobile && requestedView === 'quarter' ? 'month' : knownView ? requestedView : 'month';
   const ViewIcon = calendarViewIcon(current ?? 'month');
   const weekStart = usePreferences((state) => state.weekStart);
   const [cursor, setCursor] = useState(
@@ -590,12 +593,11 @@ export function CalendarPage() {
     queryKey: ['calendar-subscriptions'],
     queryFn: () => api.listCalendarSubscriptions(),
   });
-  const [showTasks, setShowTasks] = useState(true);
   const [openEvent, setOpenEvent] = useState<ExternalEventView | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
-  const external = (
-    Array.isArray(externalQuery.data?.external) ? externalQuery.data.external : []
-  ).filter(isExternalEvent);
+  const external = (Array.isArray(externalQuery.data?.external) ? externalQuery.data.external : [])
+    .filter(isExternalEvent)
+    .filter((event) => sourceSelected(sourceParams.get('cals'), event.subscription_id ?? ''));
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
   const colors = useMemo(() => {
     const map = new Map<string, string>();
@@ -606,27 +608,32 @@ export function CalendarPage() {
     }
     return map;
   }, [projects.data]);
-  const dated = showTasks
-    ? [...(tasks.data ?? []), ...(startTasks.data ?? [])]
-        .filter(
-          (task, index, all) =>
-            (task.start_date ?? task.due_date) !== null &&
-            (contextProject === undefined || task.project_id === contextProject) &&
-            (!tagId || task.tag_ids.includes(tagId)) &&
-            (!filterTaskIds || filterTaskIds.has(task.id)) &&
-            task.kind === 'task' &&
-            all.findIndex((other) => other.id === task.id) === index,
-        )
-        .map((task) => ({ ...task, due_date: task.start_date ?? task.due_date })) // Calendar display date only; mutations still address the original task ID.
-    : [];
+  const dated = [...(tasks.data ?? []), ...(startTasks.data ?? [])]
+    .filter(
+      (task, index, all) =>
+        (task.start_date ?? task.due_date) !== null &&
+        (contextProject === undefined || task.project_id === contextProject) &&
+        (!tagId || task.tag_ids.includes(tagId)) &&
+        (!filterTaskIds || filterTaskIds.has(task.id)) &&
+        (!selectedTaskIds || selectedTaskIds.has(task.id)) &&
+        sourceSelected(sourceParams.get('lists'), task.project_id) &&
+        (sourceParams.get('tags') === null ||
+          task.tag_ids.some((id) => sourceSelected(sourceParams.get('tags'), id))) &&
+        task.kind === 'task' &&
+        all.findIndex((other) => other.id === task.id) === index,
+    )
+    .map((task) => ({ ...task, due_date: task.start_date ?? task.due_date })); // Calendar display date only; mutations still address the original task ID.
   const activeFilterCount =
     Number(!!contextProject) +
     Number(!!filterId) +
     Number(!!tagId) +
     Number(workweek && (current === 'week' || current === 'multi-day')) +
-    Number(!showTasks) +
+    ['lists', 'tags', 'cals', 'filters'].filter((key) => sourceParams.has(key)).length +
     subscriptionItems(subscriptions.data).filter((subscription) => !subscription.visible).length;
-  const title = current === 'day' && mobile ? new Intl.DateTimeFormat(locale, {month:'short',year:'numeric'}).format(cursor) : calendarTitle(locale, current ?? 'month', cursor, cells);
+  const title =
+    current === 'day' && mobile
+      ? new Intl.DateTimeFormat(locale, { month: 'short', year: 'numeric' }).format(cursor)
+      : calendarTitle(locale, current ?? 'month', cursor, cells);
   const move = (delta: number): void => {
     const next = shiftView(cursor, current ?? 'month', delta, weekStart);
     setCursor(next);
@@ -726,51 +733,7 @@ export function CalendarPage() {
         >
           {() => (
             <div className="calendar-filter-content">
-              <CalendarFilterRow
-                label={messages.kindList}
-                accessibleLabel={messages.calendarQuickContext}
-                icon={<List aria-hidden="true" />}
-                value={contextProject ?? ''}
-                options={[
-                  { value: '', label: messages.calendarQuickAllLists },
-                  ...(projects.data?.items ?? [])
-                    .filter((project) => !project.closed && project.kind !== 'NOTE')
-                    .map((project) => ({ value: project.id, label: project.name })),
-                ]}
-                onChange={(value) => {
-                  selectFilter('project_id', value);
-                }}
-              />
-              <CalendarFilterRow
-                label={messages.filtersTitle}
-                icon={<ListFilter aria-hidden="true" />}
-                value={filterId}
-                options={[
-                  { value: '', label: messages.calendarFilterAll },
-                  ...(filters.data?.items ?? []).map((filter) => ({
-                    value: filter.id,
-                    label: filter.name,
-                  })),
-                ]}
-                onChange={(value) => {
-                  selectFilter('filter_id', value);
-                }}
-              />
-              <CalendarFilterRow
-                label={messages.tagsTitle}
-                icon={<Tag aria-hidden="true" />}
-                value={tagId}
-                options={[
-                  { value: '', label: messages.calendarFilterAll },
-                  ...(tags.data?.items ?? []).map((tag) => ({ value: tag.id, label: tag.name })),
-                ]}
-                onChange={(value) => {
-                  selectFilter('tag_id', value);
-                }}
-              />
-              {filters.isError || tags.isError || subscriptions.isError || filterTasks.isError ? (
-                <p role="alert">{messages.saveFailed}</p>
-              ) : null}
+              <CalendarSources />
               {current === 'week' || current === 'multi-day' ? (
                 <label>
                   <input
@@ -787,12 +750,6 @@ export function CalendarPage() {
                   {messages.calWorkweek}
                 </label>
               ) : null}
-              <CalendarVisibility
-                messages={messages}
-                showTasks={showTasks}
-                onTasks={setShowTasks}
-                subscriptions={subscriptionItems(subscriptions.data)}
-              />
             </div>
           )}
         </CalendarMenu>
@@ -1093,7 +1050,11 @@ function calendarTitle(locale: string, view: string, cursor: Date, cells: readon
     return `${start} – ${end}`;
   }
   if (view === 'day') {
-    return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric' }).format(cursor);
+    return new Intl.DateTimeFormat(locale, {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }).format(cursor);
   }
   const first = cells[0] ?? cursor;
   const last = cells.at(-1) ?? cursor;
@@ -2226,83 +2187,6 @@ function subscriptionItems(
       },
     ];
   });
-}
-
-function CalendarVisibility({
-  messages,
-  showTasks,
-  onTasks,
-  subscriptions,
-}: {
-  readonly messages: Messages;
-  readonly showTasks: boolean;
-  readonly onTasks: (value: boolean) => void;
-  readonly subscriptions: readonly {
-    id: string;
-    summary: string | null;
-    color: string | null;
-    visible: boolean;
-  }[];
-}) {
-  const queryClient = useQueryClient();
-  const [pending, setPending] = useState<Readonly<Record<string, boolean>>>({});
-  return (
-    <>
-      <label>
-        <input
-          type="checkbox"
-          checked={showTasks}
-          onChange={() => {
-            onTasks(!showTasks);
-          }}
-        />
-        {messages.calendarTasks}
-      </label>
-      <fieldset className="calendar-sources">
-        <legend>
-          <CalendarDays aria-hidden="true" />
-          {messages.calendarSource}
-        </legend>
-        {subscriptions.length === 0 ? (
-          <p className="calendar-sources-empty">{messages.calendarNoSubscriptions}</p>
-        ) : null}
-        {subscriptions.map((row) => (
-          <label key={row.id}>
-            <input
-              type="checkbox"
-              checked={pending[row.id] ?? row.visible}
-              disabled={pending[row.id] !== undefined}
-              onChange={() => {
-                if (!navigator.onLine) {
-                  return;
-                }
-                const visible = !row.visible;
-                setPending((current) => ({ ...current, [row.id]: visible }));
-                runAction(
-                  api
-                    .updateCalendarSubscription(row.id, { visible })
-                    .then(() =>
-                      Promise.all([
-                        queryClient.invalidateQueries({ queryKey: ['calendar-subscriptions'] }),
-                        queryClient.invalidateQueries({ queryKey: ['calendar-events'] }),
-                      ]),
-                    )
-                    .finally(() => {
-                      setPending((current) => {
-                        return Object.fromEntries(
-                          Object.entries(current).filter(([id]) => id !== row.id),
-                        );
-                      });
-                    }),
-                );
-              }}
-            />
-            {row.summary ?? row.id}
-          </label>
-        ))}
-      </fieldset>
-    </>
-  );
 }
 
 function calendarViewIcon(view: string) {

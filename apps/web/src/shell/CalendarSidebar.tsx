@@ -7,6 +7,7 @@ import { useMessages } from '../i18n';
 import { useAppLocale } from '../i18n/locale';
 import { usePreferences } from '../theme/preferences';
 import { localDateParam, monthCells } from '../features/places/month';
+import { CalendarSources } from '../features/calendar/CalendarSources';
 
 /**
  * TTD-AUD-61: calendar-specific secondary sidebar with mini-month.
@@ -101,6 +102,7 @@ export function CalendarSidebar({
           })}
         </div>
       </div>
+      <CalendarSources />
     </aside>
   );
 }

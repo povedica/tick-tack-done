@@ -61,6 +61,7 @@ export class CalendarService {
       })),
       external: external.map((event) => ({
         id: event.id,
+        subscription_id: event.subscriptionId,
         title: event.title,
         starts_at: isoInZone(event.startsAt, event.timeZone),
         ends_at: event.endsAt === null ? null : isoInZone(event.endsAt, event.timeZone),

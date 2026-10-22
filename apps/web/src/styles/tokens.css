@@ -1,4 +1,7 @@
 :root {
+  --calendar-source-row-h: 2rem;
+  --calendar-source-check-size: 1rem;
+  --calendar-source-mobile-h: 2.75rem;
   --today-mark-bg: color-mix(in srgb, var(--accent) 88%, black);
   --today-mark-ink: var(--on-accent);
   --today-mark-hover-bg: color-mix(in srgb, var(--today-mark-bg) 90%, white);

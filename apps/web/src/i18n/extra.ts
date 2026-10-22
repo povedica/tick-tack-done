@@ -1,4 +1,6 @@
 export const extraEs = {
+  calendarAllSources: 'Todo',
+  calendarSubscribed: 'Calendarios suscritos',
   driveConnect: 'Conectar Google Drive',
   driveReconnect: 'Reconectar Google Drive',
   driveRequired: 'Para adjuntar ficheros, conecta Google Drive',
@@ -1116,6 +1118,8 @@ export const extraEs = {
 } as const;
 
 export const extraEn = {
+  calendarAllSources: 'All',
+  calendarSubscribed: 'Subscribed calendars',
   driveConnect: 'Connect Google Drive',
   driveReconnect: 'Reconnect Google Drive',
   driveRequired: 'Connect Google Drive to attach files',

@@ -3,6 +3,7 @@ import type { Messages } from '../../i18n';
 
 export interface ExternalEventView {
   readonly id: string;
+  readonly subscription_id?: string;
   readonly title: string;
   readonly starts_at: string;
   readonly ends_at: string | null;
