@@ -73,8 +73,8 @@
   --year-day-font: 0.6875rem;
   --year-day-font-mobile: 0.625rem;
   --year-today-size: 1rem;
-  --cal-two-weeks-cell-h: clamp(8rem, 22dvh, 12rem);
-  --cal-two-weeks-cell-h-mobile: clamp(5.5rem, 14dvh, 7rem);
+  --cal-two-weeks-cell-h: 8rem;
+  --cal-two-weeks-cell-h-mobile: 5.5rem;
   --calendar-quick-width: 19rem;
   --ghost-bg: var(--accent-soft);
   --ghost-border: var(--accent);
@@ -254,8 +254,8 @@
   --year-day-font: 0.6875rem;
   --year-day-font-mobile: 0.625rem;
   --year-today-size: 1rem;
-  --cal-two-weeks-cell-h: clamp(8rem, 22dvh, 12rem);
-  --cal-two-weeks-cell-h-mobile: clamp(5.5rem, 14dvh, 7rem);
+  --cal-two-weeks-cell-h: 8rem;
+  --cal-two-weeks-cell-h-mobile: 5.5rem;
   --today-mark-bg: color-mix(in srgb, var(--accent) 88%, black);
   --today-mark-ink: var(--on-accent);
   --today-mark-hover-bg: color-mix(in srgb, var(--today-mark-bg) 90%, white);
@@ -483,3 +483,25 @@
     transition-duration: 1ms !important;
   }
 }
+
+:root, [data-theme='dark'] {
+  --chip-h: 24px;
+  --chip-h-mobile: 32px;
+  --chip-radius: var(--radius-full);
+  --chip-bg: var(--surface-2);
+  --chip-border: 1px solid var(--border);
+  --chip-fs: var(--fs-xs);
+  --chip-icon: 14px;
+  --chip-max-w: 220px;
+  --sheet-max-h-mobile: min(88dvh, 720px);
+  --sheet-radius: var(--radius-xl);
+  --matrix-cell: 44px;
+  --settings-row-h: 44px;
+  --status-dot: 8px;
+  --cal-day-header-h: 44px;
+  --cal-day-strip-h: 48px;
+  --cal-block-gap: 2px;
+  --sheet-handle-w: 36px;
+  --sheet-handle-h: 4px;
+}
+[data-theme='dark'] { --chip-bg: var(--surface-3); }

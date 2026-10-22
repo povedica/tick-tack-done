@@ -136,6 +136,7 @@ export function DatePopover({
   return (
     <Popover
       open={open}
+      mobileSheet
       anchor={anchor}
       offsetX={16}
       offsetY={-16}

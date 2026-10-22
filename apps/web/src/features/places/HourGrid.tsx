@@ -29,7 +29,7 @@ import { CalendarTaskMark } from '../calendar/CalendarTaskMark';
 import type { Messages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
 import { taskQueryHref } from '../../shell/use-open-task';
-import { calendarTaskLabel, isCalendarOverdue, tasksOnCell } from './month';
+import { calendarTaskLabel, isCalendarOverdue, tasksOnCell, isoWeek } from './month';
 import { GRID_END_HOUR, GRID_START_HOUR, HOUR_PX, hourBlock, layoutHourItems } from './hour';
 
 export function HourGrid({
@@ -222,7 +222,7 @@ export function HourGrid({
         {drag.announcement}
       </span>
       <div ref={header} className="hour-headers" style={columns}>
-        <span />
+        <span className="hour-week-number">{days.length === 1 ? `S${String(isoWeek(days[0] ?? new Date()))}` : ''}</span>
         {days.map((day) => (
           <h2
             key={localKey(day)}
@@ -294,6 +294,8 @@ export function HourGrid({
                   >
                     <CalendarTaskMark task={task} />
                     <Link
+                      title={task.title}
+                      aria-label={task.title}
                       className={
                         isCalendarOverdue(task.due_date, task.time_zone, new Date())
                           ? 'cal-pill is-overdue'
@@ -440,7 +442,8 @@ export function HourGrid({
                     top: block(item.start, item.end).top,
                     height: block(item.start, item.end).height,
                     left: `${String((item.lane / item.lanes) * 100)}%`,
-                    width: `${String(100 / item.lanes)}%`,
+                    width: `calc(${String(100 / item.lanes)}% - var(--cal-block-gap) * ${String((item.lanes - 1) / item.lanes)})`,
+                    marginLeft: `calc(var(--cal-block-gap) * ${String(item.lane / item.lanes)})`,
                   }
                 : {};
             };
@@ -617,18 +620,20 @@ export function HourGrid({
                     key={task.id}
                     {...drag.bindTask(task)}
                     className="hour-block calendar-hour-task calendar-chip"
+                    data-block-size={Number(style(`task:${task.id}`).height) < 18 ? 'tiny' : Number(style(`task:${task.id}`).height) < 32 ? 'compact' : 'regular'}
                     style={
                       {
                         ...chipStyle(colors.get(task.project_id)),
                         ...style(`task:${task.id}`),
-                        height: 'auto',
-                        maxHeight: style(`task:${task.id}`).height,
+
                         '--calendar-task-duration-height': `${String(style(`task:${task.id}`).height ?? 24)}px`,
                       } as CSSProperties & { '--calendar-task-duration-height': string }
                     }
                   >
                     <CalendarTaskMark task={task} />
                     <Link
+                      title={task.title}
+                      aria-label={task.title}
                       className={
                         isCalendarOverdue(task.due_date, task.time_zone, new Date())
                           ? 'is-overdue'
@@ -642,6 +647,7 @@ export function HourGrid({
                         task.time_zone,
                         messages.untitled,
                       )}
+                      {Number(style(`task:${task.id}`).height) >= 18 ? <time className="hour-task-time"> · {new Intl.DateTimeFormat(locale, {timeZone, hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(task.start_date ?? task.due_date ?? ''))}</time> : null}
                     </Link>
                     <button
                       type="button"
@@ -657,6 +663,9 @@ export function HourGrid({
                     type="button"
                     {...drag.external}
                     className="hour-block calendar-chip"
+                    title={event.title}
+                    aria-label={event.title}
+                    data-block-size={Number(style(`event:${event.id}`).height) < 18 ? 'tiny' : Number(style(`event:${event.id}`).height) < 32 ? 'compact' : 'regular'}
                     style={{ ...chipStyle(event.color), ...style(`event:${event.id}`) }}
                     onClick={() => {
                       onOpenEvent(event);

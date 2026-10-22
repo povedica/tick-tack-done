@@ -1,6 +1,7 @@
+import { composerContextFor } from './features/capture/context';
 import { PolicyPage } from './features/auth/PolicyPage';
 import { runAction } from './components/run-action';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useNavigate, useSearchParams } from 'react-router';
 import { api } from './api';
@@ -269,6 +270,7 @@ function QuickAddRoute() {
 }
 
 function CaptureHotkey() {
+  const composerClient = useQueryClient();
   useEffect(() => {
     function onKey(event: KeyboardEvent): void {
       const target = event.target;
@@ -293,7 +295,7 @@ function CaptureHotkey() {
           ?.focus();
         return;
       }
-      openTaskComposer();
+      openTaskComposer(composerContextFor(window.location, { cache: composerClient }));
     }
     window.addEventListener('keydown', onKey);
     return () => {

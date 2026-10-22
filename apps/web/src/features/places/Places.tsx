@@ -1,3 +1,4 @@
+import { composerContextFor } from '../capture/context';
 import { useCalendarDrag } from './use-calendar-drag';
 import { useCalendarTaskChange, type CalendarTaskChange } from './use-calendar-task-change';
 import { SidebarFoldButton } from '../../shell/SidebarFoldButton';
@@ -362,6 +363,7 @@ function ProcessCard({
 }
 
 export function CalendarPage() {
+  const composerClient = useQueryClient();
   const taskChange = useCalendarTaskChange();
   const [draft, setDraft] = useState<{ slot: CalendarSlot; anchor: SlotAnchor } | null>(null);
   const [createdNotice, setCreatedNotice] = useState('');
@@ -417,11 +419,7 @@ export function CalendarPage() {
   const current =
     mobile && requestedView === 'quarter'
       ? 'month'
-      : mobile && requestedView === 'two-weeks'
-        ? 'week'
-        : knownView
-          ? requestedView
-          : 'month';
+      : knownView ? requestedView : 'month';
   const ViewIcon = calendarViewIcon(current ?? 'month');
   const weekStart = usePreferences((state) => state.weekStart);
   const [cursor, setCursor] = useState(
@@ -430,7 +428,7 @@ export function CalendarPage() {
 
   useEffect(() => {
     // Preserve links and filters when opening desktop-only views on mobile.
-    if (mobile && (requestedView === 'quarter' || requestedView === 'two-weeks')) {
+    if (mobile && requestedView === 'quarter') {
       const query = new URLSearchParams(params);
       query.delete('weeks');
       runAction(
@@ -628,7 +626,7 @@ export function CalendarPage() {
     Number(workweek && (current === 'week' || current === 'multi-day')) +
     Number(!showTasks) +
     subscriptionItems(subscriptions.data).filter((subscription) => !subscription.visible).length;
-  const title = calendarTitle(locale, current ?? 'month', cursor, cells);
+  const title = current === 'day' && mobile ? new Intl.DateTimeFormat(locale, {month:'short',year:'numeric'}).format(cursor) : calendarTitle(locale, current ?? 'month', cursor, cells);
   const move = (delta: number): void => {
     const next = shiftView(cursor, current ?? 'month', delta, weekStart);
     setCursor(next);
@@ -700,7 +698,7 @@ export function CalendarPage() {
             className="calendar-add"
             aria-label={messages.captureTitle}
             onClick={() => {
-              openTaskComposer();
+              openTaskComposer(composerContextFor(window.location, { cache: composerClient }));
             }}
           >
             <Plus size={17} aria-hidden="true" />
@@ -806,7 +804,7 @@ export function CalendarPage() {
           {(close) => (
             <div className="calendar-view-links mobile-view-links">
               {['agenda', 'year', 'month', 'week', 'two-weeks', 'multi-day', 'day', 'quarter']
-                .filter((item) => !mobile || (item !== 'quarter' && item !== 'two-weeks'))
+                .filter((item) => !mobile || item !== 'quarter')
                 .map((item) => {
                   const Icon = calendarViewIcon(item);
                   return (
@@ -826,7 +824,7 @@ export function CalendarPage() {
           )}
         </CalendarMenu>
       </header>
-      {current === 'day' ? (
+      {current === 'day' && mobile ? (
         <DayWeekStrip
           selected={cursor}
           weekStart={weekStart}
@@ -1095,7 +1093,7 @@ function calendarTitle(locale: string, view: string, cursor: Date, cells: readon
     return `${start} – ${end}`;
   }
   if (view === 'day') {
-    return new Intl.DateTimeFormat(locale, { month: 'long' }).format(cursor);
+    return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric' }).format(cursor);
   }
   const first = cells[0] ?? cursor;
   const last = cells.at(-1) ?? cursor;

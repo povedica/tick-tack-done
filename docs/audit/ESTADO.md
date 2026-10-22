@@ -1060,3 +1060,5 @@ Base actualizada: afc9f5d. Comprobación previa en [r80/verificacion-previa.md](
 | 104 | Pendiente de implementación y aceptación                              | PR #75                              |
 
 - TTD-AUD-85: contrato implementado y probado localmente; reparación de datos pendiente de copia de producción (véase r80/85.md).
+
+- TTD-AUD-87–92: implementación y verificación local en r80/87-92.md; capturas comparativas disponibles. Pendiente revisión global del lote y requisitos de densidad extrema del calendario.

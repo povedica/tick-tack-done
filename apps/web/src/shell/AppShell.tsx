@@ -1,3 +1,4 @@
+import { composerContextFor } from '../features/capture/context';
 import { runAction } from '../components/run-action';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState, type CSSProperties } from 'react';
@@ -16,7 +17,6 @@ import { refreshTaskSurfaces } from '../features/tasks/refresh';
 import { useMessages } from '../i18n';
 import { BottomBar } from './BottomBar';
 import { CalendarSidebar } from './CalendarSidebar';
-import { DetailEmpty } from './DetailEmpty';
 import { IconRail } from './IconRail';
 import { readSidebarCollapsed, writeSidebarCollapsed } from './sidebar-state';
 import { ShellActionsProvider } from './shell-actions';
@@ -29,6 +29,7 @@ import { isSidebarShortcut, isTypingTarget } from './shortcuts';
 import { AccountPreferenceSync } from '../theme/AccountPreferenceSync';
 
 export function AppShell() {
+  const composerClient = useQueryClient();
   const messages = useMessages();
   const location = useLocation();
   const [params, setParams] = useSearchParams();
@@ -43,14 +44,8 @@ export function AppShell() {
   const showSidebar = sectionShowsSidebar(section);
   const showDetailPane = sectionShowsDetailPane(section) && !narrow;
   const sidebarCollapsed = !showSidebar || collapsed;
-  const requestedView = new URLSearchParams(location.search).get('view');
-  const kanban =
-    requestedView === 'kanban' ||
-    (requestedView === null &&
-      location.pathname === '/today' &&
-      localStorage.getItem('tick-tack-done.matrix.view.today') === 'kanban');
   const detailOpen =
-    (showDetailPane && (!kanban || taskId !== null)) || (narrow && taskId !== null);
+    (showDetailPane && taskId !== null) || (narrow && taskId !== null);
   const floatingDetail = !narrow && !sectionShowsDetailPane(section) && taskId !== null;
 
   useEffect(() => {
@@ -84,6 +79,9 @@ export function AppShell() {
     const next = new URLSearchParams(params);
     next.delete('task');
     setParams(next, { replace: true });
+    if (taskId !== null) requestAnimationFrame(() => {
+      document.querySelector<HTMLElement>(`[data-task-id="${CSS.escape(taskId)}"]`)?.focus();
+    });
   }
 
   useEffect(() => {
@@ -101,6 +99,7 @@ export function AppShell() {
           const next = new URLSearchParams(params);
           next.delete('task');
           setParams(next, { replace: true });
+          requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-task-id="${CSS.escape(taskId)}"]`)?.focus());
         }
         return;
       }
@@ -160,7 +159,7 @@ export function AppShell() {
         <IconRail
           onCapture={() => {
             closeDrawer();
-            openTaskComposer();
+            openTaskComposer(composerContextFor(window.location, { cache: composerClient }));
           }}
         />
         {section === 'calendar' && !narrow ? (
@@ -215,11 +214,7 @@ export function AppShell() {
                 storeDetailWidth(localStorage, next);
               }}
             />
-            {taskId !== null ? (
-              <TaskDetail taskId={taskId} onClose={closeDetail} />
-            ) : (
-              <DetailEmpty />
-            )}
+            <TaskDetail taskId={taskId} onClose={closeDetail} />
           </div>
         ) : null}
         {floatingDetail ? (

@@ -3,6 +3,8 @@ import { expect, test } from '@playwright/test';
 import { r80Fixture } from './r80.fixture';
 const phase = process.env.R80_PHASE ?? 'antes';
 const screens = [
+  { id: 90, name: 'fecha-composer', route: '/today', composer: true, date: true },
+  { id: 90, name: 'fecha-detalle', route: '/today?task=task', date: true },
   { id: 84, name: 'foco', route: '/focus' },
   { id: 101, name: 'foco', route: '/focus' },
   { id: 81, name: 'ancla-repeticion', route: '/today?task=task' },
@@ -31,6 +33,11 @@ for (const screen of screens)
     if (screen.composer) {
       await page.keyboard.press('n');
       await expect(page.locator('.calendar-quick-add').first()).toBeVisible();
+    }
+    if ('date' in screen && screen.date) {
+      if (screen.composer) await page.locator('[role=dialog] .composer-date').click();
+      else await page.locator('.detail-meta-chip').first().click();
+      await expect(page.locator('.date-popover')).toBeVisible();
     }
     await page.evaluate(() => document.fonts.ready);
     await page.screenshot({

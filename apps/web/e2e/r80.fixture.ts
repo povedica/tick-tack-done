@@ -4,6 +4,7 @@ export async function r80Fixture(
   options: {
     anchorWarning?: boolean;
     count?: number;
+    duration?: number;
     delayed?: boolean;
     error?: boolean;
     startOnly?: boolean;
@@ -30,7 +31,7 @@ export async function r80Fixture(
     repeat_rule: options.anchorWarning ? 'RRULE:FREQ=WEEKLY;BYDAY=MO' : null,
     tag_ids: options.filtering ? ['tag'] : [],
     checklist_progress: { completed: 0, total: 0 },
-    duration_minutes: 60,
+    duration_minutes: options.duration ?? 60,
     completed_at: null,
     created_at: '2026-10-01T08:00:00Z',
     source: 'manual',
@@ -127,6 +128,7 @@ export async function r80Fixture(
         ],
         next_cursor: null,
       };
+    if (path === '/filters/preview') body = { groups: [{key:'none', label:'', tasks:[task]}], count:1, group_by:'none', sort:'manual', next_cursor:null };
     if (path === '/tasks/task')
       body = {
         ...task,

@@ -29,7 +29,7 @@ export function hourBlock(
   const to = Math.min(end, Math.max(from + 15, rawEnd));
   return {
     top: ((from - start) / 60) * HOUR_PX,
-    height: Math.max(HOUR_PX / 2, ((to - from) / 60) * HOUR_PX),
+    height: Math.max(HOUR_PX / 4, ((to - from) / 60) * HOUR_PX),
   };
 }
 
