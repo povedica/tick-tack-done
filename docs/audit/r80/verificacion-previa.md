@@ -1,0 +1,45 @@
+# R80 — comprobación previa sobre afc9f5d
+
+Base: origin/main actualizado el 22/10/2026. Checkout aislado; cambios locales del usuario conservados.
+
+Decisión: una única PR y commits parciales, por instrucción expresa de Pablo; sustituye las tres PR del documento y la regla general por punto.
+
+Las rutas API son relativas a apps/api/src, las web a apps/web/src y las de dominio a packages/domain/src. Las referencias se verificaron por símbolo cuando fue necesario.
+
+| ID | Rutas comprobadas antes de editar | Resultado |
+|---|---|---|
+| 80 | `auth/oauth-refresh.ts:16; auth/oauth.service.ts:374-382` | Confirmado: rotado = reuso, revocación inmediata; sin gracia. |
+| 81 | `modules/tasks/tasks.service.ts:427; scheduler/scheduler.service.ts:113; mcp/mcp.service.ts:1043` | Confirmado: cierre de una fila y next_occurrence desde ahora. |
+| 82 | `mcp/mcp.service.ts:281,313,511; modules/tasks/tasks.service.ts:566; mcp/mcp.catalog.ts:248` | Confirmado: proyecto explícito pisa parser; faltan lista parseada, complete_children y parent_id; cancelar no se reabre. |
+| 83 | `mcp/mcp.service.ts:178,217,646,731,745` | Confirmado: rango due estricto, búsqueda sin cursor, notas array, catálogo cursor numérico. |
+| 84 | `modules/focus/focus.controller.ts:583; mcp/mcp.service.ts:768` | Confirmado: elapsed usa now aun terminada; start_focus crea directamente sin ciclo de vida. |
+| 85 | `mcp/mcp-api.ts:148; mcp/mcp.service.ts:142,596; modules/tasks/tasks.service.ts:563` | Confirmado: pasarela colapsa status a 400; versión fija y listChanged false; falta descarte dedicado. Subfilas pendientes de regresión. |
+| 86 | `modules/integrations/integrations.controller.ts:410; modules/calendar/calendar.service.ts:649; modules/calendar/google-sync.service.ts:652` | Confirmados tres respaldos globales. Variable en producción: pendiente de acceso de solo lectura, valor nunca imprimible. |
+| 87 | `features/places/Places.tsx:829,1098` | Confirmadas tira en escritorio y título solo mes. Solapamiento pendiente de reproducción con dos eventos. |
+| 88 | `styles/tokens.css:76; features/calendar/calendar.css:664` | Confirmada altura fija por celda y ausencia de altura completa. |
+| 89 | `features/places/Places.tsx; features/calendar/calendar.css:1560` | Bloques de hora con título y hora separados; reproducción 15/30/60 min pendiente. |
+| 90 | `components/DatePopover.tsx:137; components/Popover.tsx:55,67` | Confirmados offsets y viewport de ventana. Causa específica de iOS pendiente; emulación no acredita dispositivo físico. |
+| 91 | `shell/AppShell.tsx:44,53,221; shell/shell.css:19` | Confirmado: reserva columna sin selección y renderiza DetailEmpty. |
+| 92 | `shell/AppShell.tsx:163; shell/BottomBar.tsx:67; features/places/Places.tsx:703; app.tsx:296` | Confirmado: entradas globales sin borrador contextual. |
+| 93 | `shell/CalendarSidebar.tsx:44; features/places/Places.tsx:325; features/calendar/CalendarControls.tsx:195` | Confirmado: solo minicalendario, filtros en popover e input date nativo. |
+| 94 | `features/planning/PlanDayPage.tsx:102-108` | Confirmado: overdue false; sin selección inicial de fuentes. |
+| 95 | `stats/aggregate.ts:162; features/product/WeeklyPages.tsx:123` | Confirmado: tasa solo tareas con due, total todas; reporte requiere detalle verificable. |
+| 96 | `i18n/extra.ts:772,1866; e2e/tokens-r75.spec.ts; shell/shell.css` | Confirmado plural único. Layouts y minicalendario/cajón pendientes de reproducción móvil DSF3. |
+| 97 | `features/product/ProductPages.tsx:315,408,459` | Confirmado: dos tarjetas usan la misma desconexión. |
+| 98 | `features/places/Places.tsx:539-575` | Rango/carga a medir antes de cambiar; el retraso de producción no está acreditado localmente. |
+| 99 | `modules/tasks/attachment-storage.ts:125; modules/tasks/tasks.service.ts:1202; modules/integrations/telegram-bot.service.ts:501; prisma/schema.prisma:733; scripts/backup.sh:21` | Confirmadas escrituras locales, miniaturas, copia de Drive y backup binario. 500 en producción no reproducido aquí; no se adjuntan datos reales. |
+| 100 | `prisma/schema.prisma; features/tasks/DetailBody.tsx` | Confirmada ausencia de TaskLink y chips de enlaces. |
+| 101 | `focus/cycle.ts; modules/focus/focus.controller.ts; features/focus/FocusPage.tsx` | Confirmados ajustes básicos, sin página de ajustes, auto inicio, sonidos u objetivo. |
+| 102 | `features/places/Places.tsx:3200; prisma/schema.prisma:115; scheduler/reminder.transport.ts` | Confirmada ausencia de matriz/prueba/historial en UI; deliveries ya persiste. |
+| 103 | `features/product/ProductPages.tsx:335; modules/integrations/telegram-bot.service.ts:32,162; auth/me.service.ts` | Confirmado código manual, TTL10m y aceptación /start; falta estado de bloqueo visible. |
+| 104 | `health/health.response.dto.ts:8; app.tsx` | Confirmado health con commit; no página Acerca de. |
+
+## Reproducciones pendientes y límites externos
+
+Los casos marcados a verificar no se consideran reproducidos por inspección estática. Se registrarán por separado tests, waterfall, viewport/tema y resultado; no se atribuye a iOS real una emulación.
+
+No hay entorno de staging identificado en el repositorio. No se modificarán datos, credenciales ni volúmenes de producción. La retirada de adjuntos mantendrá las fases y el veto al borrado sin OK de Pablo.
+
+RF relacionados: 101–107, 201–210, 601–605, 701–706, 801–808, 1001–1003, 1704, 1902–1903, 2001–2006, 2102, 2201–2203. R80 prevalece sobre las antiguas reglas de crear listas desconocidas y almacenamiento local de adjuntos.
+
+Se conserva detalle modal en Calendario y panel en Hoy/listas. Chip de racha duplicado: no encontrado en shell; no se abre un cambio adicional.
