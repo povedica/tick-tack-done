@@ -1084,3 +1084,5 @@ Base actualizada: afc9f5d. Comprobación previa en [r80/verificacion-previa.md](
 - TTD-AUD-102: matriz, silencio civil, historial y capacidades de acción implementados y verificados localmente con canales falsos. Push OS real y recepción externa no demostrados; r80/102.md.
 
 - TTD-AUD-103: Telegram guiado implementado; 4 unitarias, 2 e2e con proveedor falso, 4 Playwright y 12 capturas posteriores. Estado blocked y not_linked demostrados localmente; proveedor real pendiente. r80/103.md.
+
+- **104**: Acerca de implementado y probado localmente; versiones, diagnóstico sanitizado y capturas. Metadatos del despliegue real pendientes. [Informe](r80/104.md), PR #75.

@@ -17,7 +17,8 @@ if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   GIT_COMMIT=$(git rev-parse --short HEAD)
 fi
 GIT_COMMIT=${GIT_COMMIT:-unknown}
-export GIT_COMMIT
+BUILD_TIME=${BUILD_TIME:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}
+export GIT_COMMIT BUILD_TIME
 
 docker compose \
   -f deploy/production/docker-compose.yml \

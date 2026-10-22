@@ -4078,6 +4078,15 @@ export interface components {
             status: "ok";
             /** @example unknown */
             commit: Record<string, never>;
+            /** @example 0.1.0 */
+            version: Record<string, never>;
+            /** @example 2026-10-22T10:00:00Z */
+            built_at: Record<string, never>;
+            /**
+             * @description Same serverInfo.version returned by MCP initialize
+             * @example 0.1.0+abcdef1
+             */
+            mcp_version: Record<string, never>;
         };
         CountdownReminderDto: {
             offset_days: number;

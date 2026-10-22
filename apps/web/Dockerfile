@@ -12,6 +12,10 @@ COPY tsconfig.base.json ./
 COPY packages/domain packages/domain
 COPY packages/sdk packages/sdk
 COPY apps/web apps/web
+ARG GIT_COMMIT=unknown
+ARG BUILD_TIME
+ENV GIT_COMMIT=$GIT_COMMIT
+ENV BUILD_TIME=$BUILD_TIME
 ENV VITE_AUTH_MODE=session
 RUN pnpm --filter @reflexionia/domain build && pnpm --filter web build
 

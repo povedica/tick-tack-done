@@ -15090,11 +15090,27 @@
           "commit": {
             "type": "object",
             "example": "unknown"
+          },
+          "version": {
+            "type": "object",
+            "example": "0.1.0"
+          },
+          "built_at": {
+            "type": "object",
+            "example": "2026-10-22T10:00:00Z"
+          },
+          "mcp_version": {
+            "type": "object",
+            "example": "0.1.0+abcdef1",
+            "description": "Same serverInfo.version returned by MCP initialize"
           }
         },
         "required": [
           "status",
-          "commit"
+          "commit",
+          "version",
+          "built_at",
+          "mcp_version"
         ]
       },
       "CountdownReminderDto": {

@@ -10,12 +10,14 @@ services:
       dockerfile: apps/api/Dockerfile
       args:
         GIT_COMMIT: ${GIT_COMMIT:-unknown}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
     restart: unless-stopped
     env_file:
       - ${RUNTIME_ENV_FILE:?Set RUNTIME_ENV_FILE}
     environment:
       NODE_ENV: production
       GIT_COMMIT: ${GIT_COMMIT:-unknown}
+      BUILD_TIME: ${BUILD_TIME:-unknown}
       AUTH_MODE: ''
       BUS_AUTOSTART: 'true'
       SCHEDULER_AUTOSTART: 'true'
@@ -45,6 +47,9 @@ services:
     build:
       context: ../..
       dockerfile: apps/web/Dockerfile
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
     restart: unless-stopped
     read_only: true
     tmpfs:

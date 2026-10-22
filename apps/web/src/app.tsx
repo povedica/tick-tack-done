@@ -1,4 +1,5 @@
 import { NotificationsPage } from './features/settings/NotificationsPage';
+import { AboutPage } from './features/settings/AboutPage';
 import { FocusSettingsPage } from './features/settings/FocusSettingsPage';
 import { composerContextFor } from './features/capture/context';
 import { PolicyPage } from './features/auth/PolicyPage';
@@ -202,6 +203,7 @@ function Shell() {
               <Route path="workday" element={<WorkdaySettings />} />
               <Route path="capture" element={<CaptureSettings />} />
               <Route path="focus" element={<FocusSettingsPage />} />
+              <Route path="about" element={<AboutPage />} />
               <Route path="notifications" element={<NotificationsPage />} />
               <Route path="smart-lists" element={<SmartListsPage />} />
               <Route path="calendar" element={<CalendarSettings />} />

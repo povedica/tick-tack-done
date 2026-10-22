@@ -389,6 +389,7 @@ export function IntegrationSettings() {
         ) : null}
         <p className="token-meta">{messages.googleCalendarPermission}</p>
         <p className="token-meta">{messages.googleDrivePermission}</p>
+        <p className="token-meta">{messages.googleDataNotice}</p>
         <GoogleAccessActions
           messages={messages}
           connected={googleOn}

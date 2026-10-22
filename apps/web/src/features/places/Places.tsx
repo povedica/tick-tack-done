@@ -2582,12 +2582,14 @@ const SETTINGS_GROUPS = [
       '/settings/sharing',
       '/settings/data',
       '/settings/shortcuts',
+      '/settings/about',
     ],
   ],
 ] as const;
 
 function settingsLabel(messages: Messages, path: string): string {
   const labels: Record<string, string> = {
+    '/settings/about': messages.aboutTitle,
     '/settings/account': messages.settingsAccount,
     '/settings/workday': messages.settingsWorkday,
     '/settings/features': messages.settingsFeatures,

@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 import { r80Fixture } from './r80.fixture';
 const phase = process.env.R80_PHASE ?? 'antes';
 const screens = [
+  { id: 104, name: 'acerca-de', route: phase === 'antes' ? '/settings/account' : '/settings/about' },
   { id: 103, name: 'telegram-sin-vincular', route: '/settings/integrations', telegramState: 'unlinked' as const },
   { id: 103, name: 'telegram-vinculado', route: '/settings/integrations', telegramState: 'linked' as const },
   { id: 103, name: 'telegram-bloqueado', route: '/settings/integrations', telegramState: 'blocked' as const },

@@ -314,6 +314,7 @@ export interface ResourceClient {
   updateNotificationSettings(body: JsonObject): Promise<JsonObject>;
   testNotification(channel: 'push'|'email'|'telegram'): Promise<JsonObject>;
   notificationDeliveries(cursor?: string): Promise<JsonObject>;
+  getHealth(): Promise<JsonObject>;
   getFocusSettings(): Promise<JsonObject>;
   updateFocusSettings(body: JsonObject): Promise<JsonObject>;
   listNotes(): Promise<JsonObject>;
@@ -653,6 +654,7 @@ export function resourceMethods(http: Http): ResourceClient {
     updateNotificationSettings: body => ask('PUT','/api/v1/me/notifications/settings',body,undefined,isJsonObject),
     testNotification: channel => ask('POST','/api/v1/me/notifications/test',{channel},undefined,isJsonObject),
     notificationDeliveries: cursor => ask('GET',`/api/v1/me/notifications/deliveries${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`,undefined,undefined,isJsonObject),
+    getHealth: () => ask('GET', '/api/v1/health', undefined, undefined, isJsonObject),
     getFocusSettings: () =>
       ask('GET', '/api/v1/focus/settings', undefined, undefined, isJsonObject),
     updateFocusSettings: (body) =>

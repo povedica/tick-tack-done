@@ -107,6 +107,7 @@ export async function r80Fixture(
     if (path === '/me/notifications/deliveries') body={items:[],next_cursor:null};
     if (path === '/integrations/telegram') body={configured:true,linked:options.telegramState==='linked'||options.telegramState==='blocked',username:options.telegramState==='unlinked'?null:'test',display_name:'Synthetic Telegram',linked_at:'2026-10-22T08:00:00Z',status:options.telegramState==='blocked'?'blocked':options.telegramState==='linked'?'connected':'not_linked',bot_username:'synthetic_bot',enabled:true};
     if (path === '/integrations/telegram/pairing') body={code:'synthetic-pairing-code',expires_at:'2026-10-22T10:10:00Z',bot_username:'synthetic_bot',deep_link:'https://t.me/synthetic_bot?start=synthetic-pairing-code'};
+    if (path === '/health') body={status:'ok',commit:'acd7570',version:'0.2.0',built_at:'2026-10-22T10:00:00Z',mcp_version:'0.2.0+acd7570'};
     if (path === '/focus/settings')
       body = {
         pomodoroMinutes: 25,
