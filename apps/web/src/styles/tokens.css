@@ -1,4 +1,11 @@
 :root {
+  --calendar-mini-border-w: 1px;
+  --calendar-mobile-mini-h: calc(var(--calendar-mobile-mini-head-h) + 6 * var(--tap) + 2 * var(--sp-1) + var(--calendar-mini-border-w));
+  --mcp-client-tab-h: 2.25rem;
+  --mcp-client-hit-extra: 0.25rem;
+  --calendar-mobile-week-row-min: 7rem;
+  --calendar-mobile-mini-head-h: 1.5rem;
+  --mcp-config-copy-space: 3rem;
   --stats-formula-icon-size: 0.875rem;
   --plan-sources-width: 28rem;
   --calendar-source-row-h: 2rem;

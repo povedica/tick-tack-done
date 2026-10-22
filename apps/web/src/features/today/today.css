@@ -1599,3 +1599,5 @@ a.task-title {
     height: 100%;
   }
 }
+
+.task-time { white-space: nowrap; line-height: var(--lh-tight); flex-shrink: 0; }

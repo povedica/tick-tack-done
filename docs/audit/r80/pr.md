@@ -103,6 +103,13 @@ Base actualizada: `afc9f5d`. [Comprobación previa](docs/audit/r80/verificacion-
 | 104 | «Copiar diagnóstico» copia un texto sin `@` ni `Bearer` (test).                                                                                                                                                                         | ❌ pendiente de implementación/verificación | —         |
 | 104 | Captura en escritorio y móvil.                                                                                                                                                                                                          | ❌ pendiente de implementación/verificación | —         |
 
+| 96.1 | Duración en una línea y reducción si no cabe | ✅ boundingBox, resize a 50 px y title; ambos viewports/temas | [Evidencia](docs/audit/r80/96.md) |
+| 96.2 | Plurales 0/1/2 es/en | ✅ Intl.PluralRules unitario y singular visible en Hoy | [Evidencia](docs/audit/r80/96.md) |
+| 96.3 | Pestañas sin salto y altura fija | ✅ 36 px exactos antes/después del cambio; área táctil 44 px | [Evidencia](docs/audit/r80/96.md) |
+| 96.4 | JSON pre de 12 px, scroll y copiar exacto | ✅ Playwright comprueba estilos, scroll y clipboard | [Evidencia](docs/audit/r80/96.md) |
+| 96.5 | Título de 120 caracteres en dos líneas y apertura completa | ✅ móvil: alto >1 y ≤2 líneas; detalle conserva texto | [Evidencia](docs/audit/r80/96.md) |
+| 96.6 | Minicalendario y cajón a escala 3 | ✅ antes 24×23,859, después 49,28×44 px; cajón 844/auto | [Evidencia](docs/audit/r80/96.md) |
+
 ## Decisiones
 
 - Una PR frente a las tres propuestas en el documento, por instrucción expresa del usuario.

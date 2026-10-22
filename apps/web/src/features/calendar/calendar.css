@@ -1807,3 +1807,10 @@
 .hour-task-time { font-size:inherit; color:var(--ink-2); }
 
 .calendar-page .hour-block[data-block-size='regular'] > :is(a,span) { white-space:nowrap; text-overflow:ellipsis; overflow:hidden; overflow-wrap:normal; }
+
+@media (max-width: 700px) {
+  .mobile-week-board { grid-template-rows: auto repeat(4, minmax(var(--calendar-mobile-week-row-min), 1fr)); overflow-y: auto; }
+  .mobile-week-board.is-workweek { grid-template-rows: auto repeat(3, minmax(var(--calendar-mobile-week-row-min), 1fr)); }
+  .mobile-week-mini { grid-column: 1 / -1; grid-template-rows: var(--calendar-mobile-mini-head-h) repeat(6, var(--tap)); height: var(--calendar-mobile-mini-h); min-height: var(--calendar-mobile-mini-h); }
+  .mobile-week-mini > a { min-height: var(--tap); }
+}

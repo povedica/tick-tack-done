@@ -392,19 +392,25 @@ export function TokensPage() {
             {copied === 'url' ? messages.copied : messages.mcpCopyUrl}
           </Button>
         </div>
-        <div role="tablist" aria-label={messages.mcpClient} className="focus-modes">
-          {['Cursor', 'Claude', 'ChatGPT', 'Otro'].map((name) => (
-            <button
-              key={name}
-              role="tab"
-              aria-selected={client === name}
-              onClick={() => {
-                setClient(name);
-              }}
-            >
-              {name}
-            </button>
-          ))}
+        <div className="token-client-scroll">
+          <div
+            role="tablist"
+            aria-label={messages.mcpClient}
+            className="focus-modes token-client-tabs"
+          >
+            {['Cursor', 'Claude', 'ChatGPT', 'Otro'].map((name) => (
+              <button
+                key={name}
+                role="tab"
+                aria-selected={client === name}
+                onClick={() => {
+                  setClient(name);
+                }}
+              >
+                {name === 'Otro' ? messages.mcpOtherClient : name}
+              </button>
+            ))}
+          </div>
         </div>
         {client === 'ChatGPT' || client === 'Claude' ? (
           <ol>
@@ -414,7 +420,7 @@ export function TokensPage() {
           </ol>
         ) : null}
         {client === 'Cursor' || client === 'Otro' ? (
-          <>
+          <div className="token-config">
             <pre className="token-snippet">{snippet}</pre>
             <Button
               type="button"
@@ -425,7 +431,7 @@ export function TokensPage() {
             >
               {copied === 'snippet' ? messages.copied : messages.mcpCopyConfig}
             </Button>
-          </>
+          </div>
         ) : null}
       </section>
 

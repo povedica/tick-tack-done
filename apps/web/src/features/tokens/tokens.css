@@ -75,3 +75,14 @@
     width: 100%;
   }
 }
+
+.token-client-scroll { overflow-x: auto; padding-block: var(--mcp-client-hit-extra); scroll-snap-type: x proximity; }
+.token-settings .token-client-tabs { display: flex; flex-wrap: nowrap; width: max-content; max-width: none; height: var(--mcp-client-tab-h); padding-block: 0; }
+.token-settings .token-client-tabs button { position: relative; flex: none; white-space: nowrap; height: var(--mcp-client-tab-h); min-height: var(--mcp-client-tab-h); padding-block: 0; scroll-snap-align: start; }
+.token-client-tabs button::after { content: ''; position: absolute; inset: calc(-1 * var(--mcp-client-hit-extra)) 0; }
+.token-config { position: relative; min-width: 0; }
+.token-settings .token-config .token-snippet { white-space: pre; overflow-x: auto; overflow-wrap: normal; font-family: var(--font-mono); font-size: var(--fs-xs); padding-top: var(--mcp-config-copy-space); }
+.token-config > .ui-button { position: absolute; top: var(--sp-1); right: var(--sp-1); min-height: var(--tap); background: var(--surface); }
+
+.token-client-scroll, .token-config { width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; }
+.token-settings .token-url { max-width: 100%; min-width: 0; }

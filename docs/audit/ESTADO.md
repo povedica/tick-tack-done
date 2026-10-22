@@ -1070,3 +1070,5 @@ Base actualizada: afc9f5d. Comprobación previa en [r80/verificacion-previa.md](
 - TTD-AUD-94: paso inicial de fuentes por usuario y recuentos del dominio implementados; 17+1→18, exclusión→1/17 ocultas. Unitarias, siete e2e HTTP y 36 Playwright en verde; r80/94.md.
 
 - TTD-AUD-95: total/cumplimiento explicados, icono de 14 px y semana actual con agregado diario; dominio, fallback, 12 Playwright y regresión semanal en verde. r80/95.md.
+
+- TTD-AUD-96: seis ajustes móviles implementados; escala 3 reproduce y corrige celdas de ~24 a 44 px, cajón desplazable, pestañas 36/44, JSON, títulos y plurales. 16 Playwright y dos unitarias en verde; r80/96.md.
