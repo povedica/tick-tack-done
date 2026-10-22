@@ -534,11 +534,6 @@ export function TodayPage() {
   }
 
   const inbox = projects.data?.items.find((project) => project.is_inbox);
-  const dateLabel = new Intl.DateTimeFormat(locale, {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  }).format(new Date());
   const empty =
     !tasks.isPending && !tasks.isError && parts.overdue.length + parts.today.length === 0;
   const menuTask = (tasks.data ?? []).find((task) => task.id === menu?.id);
@@ -660,7 +655,6 @@ export function TodayPage() {
           <SidebarFoldButton />
           <div>
             <h1 id="today-heading">{messages.todayTitle}</h1>
-            <p className="today-date">{dateLabel}</p>
           </div>
         </div>
         <div className="page-actions">
