@@ -56,7 +56,17 @@ export function Popover({
       const isSheet = mobileSheet && window.matchMedia('(max-width: 768px)').matches;
       setSheet(isSheet);
       if (isSheet) {
-        setPosition({ position: 'fixed', left: viewLeft, top: 'auto', bottom: Math.max(0, window.innerHeight-viewTop-viewHeight), width:viewWidth, maxWidth:viewWidth, maxHeight:`min(var(--sheet-max-h-mobile), ${String(viewHeight)}px)`, zIndex:2000, overflow:'auto' });
+        setPosition({
+          position: 'fixed',
+          left: viewLeft,
+          top: 'auto',
+          bottom: Math.max(0, window.innerHeight - viewTop - viewHeight),
+          width: viewWidth,
+          maxWidth: viewWidth,
+          maxHeight: `min(var(--sheet-max-h-mobile), ${String(viewHeight)}px)`,
+          zIndex: 2000,
+          overflow: 'auto',
+        });
         return;
       }
       if (!target) return;
@@ -80,7 +90,10 @@ export function Popover({
       setPosition({
         position: 'fixed',
         top,
-        left: Math.max(viewLeft + 12, Math.min(box.left + offsetX, viewLeft + viewWidth - width - 12)),
+        left: Math.max(
+          viewLeft + 12,
+          Math.min(box.left + offsetX, viewLeft + viewWidth - width - 12),
+        ),
         right: 'auto',
         width,
         maxHeight: Math.max(120, Math.min(maxHeight, viewTop + viewHeight - top - 12)),
@@ -214,7 +227,10 @@ export function Popover({
     }
     const rect = node.getBoundingClientRect();
     if (mobileSheet && window.matchMedia('(max-width: 768px)').matches) return;
-    const limit = (window.visualViewport?.height ?? window.innerHeight) + (window.visualViewport?.offsetTop ?? 0) - 12;
+    const limit =
+      (window.visualViewport?.height ?? window.innerHeight) +
+      (window.visualViewport?.offsetTop ?? 0) -
+      12;
     if (rect.bottom > limit) {
       node.style.maxHeight = `${String(Math.max(160, rect.height - (rect.bottom - limit)))}px`;
     }
@@ -249,10 +265,30 @@ export function Popover({
       aria-label={label}
       tabIndex={-1}
     >
-      {sheet ? <div className="sheet-handle" aria-hidden="true" onPointerDown={(event) => { touchStart.current=event.clientY; event.currentTarget.setPointerCapture(event.pointerId); }} onPointerUp={(event) => { if(touchStart.current !== null && event.clientY-touchStart.current > 64) onClose(); touchStart.current=null; }} /> : null}
+      {sheet ? (
+        <div
+          className="sheet-handle"
+          aria-hidden="true"
+          onPointerDown={(event) => {
+            touchStart.current = event.clientY;
+            event.currentTarget.setPointerCapture(event.pointerId);
+          }}
+          onPointerUp={(event) => {
+            if (touchStart.current !== null && event.clientY - touchStart.current > 64) onClose();
+            touchStart.current = null;
+          }}
+        />
+      ) : null}
       {children}
     </div>
   );
-  const result = sheet ? <><div className="date-sheet-backdrop" aria-hidden="true" onClick={onClose} />{content}</> : content;
+  const result = sheet ? (
+    <>
+      <div className="date-sheet-backdrop" aria-hidden="true" onClick={onClose} />
+      {content}
+    </>
+  ) : (
+    content
+  );
   return anchor || sheet ? createPortal(result, document.body) : result;
 }

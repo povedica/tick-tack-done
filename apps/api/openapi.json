@@ -15171,20 +15171,20 @@
             ]
           },
           "commit": {
-            "type": "object",
+            "type": "string",
             "example": "unknown"
           },
           "version": {
-            "type": "object",
-            "example": "0.1.0"
+            "type": "string",
+            "example": "0.2.0"
           },
           "built_at": {
-            "type": "object",
+            "type": "string",
             "example": "2026-10-22T10:00:00Z"
           },
           "mcp_version": {
-            "type": "object",
-            "example": "0.1.0+abcdef1",
+            "type": "string",
+            "example": "0.2.0+abcdef1",
             "description": "Same serverInfo.version returned by MCP initialize"
           }
         },

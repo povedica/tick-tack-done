@@ -70,7 +70,12 @@ export class NotificationsService {
           where: {
             userId_kind_channel: { userId: user.id, kind: pref.kind, channel: pref.channel },
           },
-          create: { userId: user.id, kind:pref.kind,channel:pref.channel,enabled:pref.enabled },
+          create: {
+            userId: user.id,
+            kind: pref.kind,
+            channel: pref.channel,
+            enabled: pref.enabled,
+          },
           update: { enabled: pref.enabled },
         });
       if (dto.quiet_hours)
@@ -128,7 +133,8 @@ export class NotificationsService {
       body: 'Prueba de notificación',
     });
     const outcome = result[channel];
-    if(channel==='telegram' && outcome==='disconnected')await setTelegramStatus(this.prisma,user.id,'blocked');
+    if (channel === 'telegram' && outcome === 'disconnected')
+      await setTelegramStatus(this.prisma, user.id, 'blocked');
     await this.prisma.notificationReceipt.create({
       data: {
         ownerId: user.id,
@@ -149,7 +155,8 @@ export class NotificationsService {
     return { sent: true };
   }
   async deliveries(user: AuthUser, cursor?: string) {
-    if(cursor!==undefined && !isUUID(cursor))throw new DomainException(400,'invalid_cursor','Invalid notification cursor');
+    if (cursor !== undefined && !isUUID(cursor))
+      throw new DomainException(400, 'invalid_cursor', 'Invalid notification cursor');
     const anchor =
       cursor === undefined
         ? null
@@ -174,18 +181,16 @@ export class NotificationsService {
       take: 51,
     });
     return {
-      items: rows
-        .slice(0, 50)
-        .map((row) => ({
-          id: row.id,
-          delivery_id: row.deliveryId,
-          kind: row.kind,
-          channel: row.channel,
-          status: row.status,
-          reason: row.reason,
-          scheduled_at: row.scheduledAt.toISOString(),
-          created_at: row.createdAt.toISOString(),
-        })),
+      items: rows.slice(0, 50).map((row) => ({
+        id: row.id,
+        delivery_id: row.deliveryId,
+        kind: row.kind,
+        channel: row.channel,
+        status: row.status,
+        reason: row.reason,
+        scheduled_at: row.scheduledAt.toISOString(),
+        created_at: row.createdAt.toISOString(),
+      })),
       next_cursor: rows.length > 50 ? (rows[49]?.id ?? null) : null,
     };
   }

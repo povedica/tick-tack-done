@@ -4094,16 +4094,16 @@ export interface components {
             /** @enum {string} */
             status: "ok";
             /** @example unknown */
-            commit: Record<string, never>;
-            /** @example 0.1.0 */
-            version: Record<string, never>;
+            commit: string;
+            /** @example 0.2.0 */
+            version: string;
             /** @example 2026-10-22T10:00:00Z */
-            built_at: Record<string, never>;
+            built_at: string;
             /**
              * @description Same serverInfo.version returned by MCP initialize
-             * @example 0.1.0+abcdef1
+             * @example 0.2.0+abcdef1
              */
-            mcp_version: Record<string, never>;
+            mcp_version: string;
         };
         CountdownReminderDto: {
             offset_days: number;

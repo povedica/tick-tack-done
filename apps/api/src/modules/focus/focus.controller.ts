@@ -161,9 +161,9 @@ class FocusSettingsResponseDto {
   @ApiProperty() cyclesBeforeLongBreak!: number;
   @ApiProperty() autoStartBreaks!: boolean;
   @ApiProperty() autoStartFocus!: boolean;
-  @ApiProperty({enum:['none','bell','chime','digital']}) alarmSound!: string;
+  @ApiProperty({ enum: ['none', 'bell', 'chime', 'digital'] }) alarmSound!: string;
   @ApiProperty() volume!: number;
-  @ApiProperty({enum:['none','tick','rain','white_noise']}) ambientSound!: string;
+  @ApiProperty({ enum: ['none', 'tick', 'rain', 'white_noise'] }) ambientSound!: string;
   @ApiProperty() dailyGoal!: number;
   @ApiProperty() strictMode!: boolean;
 }
@@ -560,7 +560,7 @@ export class FocusController {
   @Get('settings')
   @Scopes('focus:read')
   @ApiOperation({ summary: 'Focus settings (RF-1201)' })
-  @ApiOkResponse({type:FocusSettingsResponseDto})
+  @ApiOkResponse({ type: FocusSettingsResponseDto })
   async getSettings(
     @CurrentUser() user: AuthUser,
     @Req() req: Request,
@@ -571,7 +571,7 @@ export class FocusController {
   }
 
   @Put('settings')
-  @ApiOkResponse({type:FocusSettingsResponseDto})
+  @ApiOkResponse({ type: FocusSettingsResponseDto })
   @Scopes('focus:write')
   @ApiOperation({
     summary: 'Save focus durations, auto-start, local sounds, volume and daily goal (TTD-AUD-101)',
@@ -596,7 +596,7 @@ export class FocusController {
   @Patch('settings')
   @Scopes('focus:write')
   @ApiOperation({ summary: 'Update focus settings (RF-1201)' })
-  @ApiOkResponse({type:FocusSettingsResponseDto})
+  @ApiOkResponse({ type: FocusSettingsResponseDto })
   async patchSettings(
     @CurrentUser() user: AuthUser,
     @Body(

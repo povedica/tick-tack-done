@@ -15,10 +15,17 @@ export interface GoogleAccessAccount {
 }
 export function googleServiceAccess(row: GoogleAccessAccount | null, service: GoogleProduct) {
   const scopes = row?.googleGrantedScopes ?? [];
-  const has=(scope:string)=>scopes.includes(scope);
-  const calendarRoot='https://www.googleapis.com/auth/calendar';
-  const granted=service==='calendar' ? has(calendarRoot) || ((has(`${calendarRoot}.calendarlist.readonly`) || has(`${calendarRoot}.calendarlist`) || has(`${calendarRoot}.readonly`)) && has(`${calendarRoot}.events`)) : has(GOOGLE_PRODUCT_SCOPES.drive[0]);
-  const authorized=granted && !!row?.googleRefreshToken && row.googleStatus!=='reauth_required';
+  const has = (scope: string) => scopes.includes(scope);
+  const calendarRoot = 'https://www.googleapis.com/auth/calendar';
+  const granted =
+    service === 'calendar'
+      ? has(calendarRoot) ||
+        ((has(`${calendarRoot}.calendarlist.readonly`) ||
+          has(`${calendarRoot}.calendarlist`) ||
+          has(`${calendarRoot}.readonly`)) &&
+          has(`${calendarRoot}.events`))
+      : has(GOOGLE_PRODUCT_SCOPES.drive[0]);
+  const authorized = granted && !!row?.googleRefreshToken && row.googleStatus !== 'reauth_required';
   const enabled =
     service === 'drive' ? row?.googleDriveEnabled === true : row?.googleCalendarEnabled === true;
   const status = !row?.googleRefreshToken

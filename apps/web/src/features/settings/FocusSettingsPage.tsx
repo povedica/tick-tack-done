@@ -22,9 +22,13 @@ export function FocusSettingsPage() {
   const [busy, setBusy] = useState(false);
   const value = (key: string, fallback: string | number | boolean): string | number | boolean => {
     const found = draft[key] ?? query.data?.[key];
-    return typeof found === 'string' || typeof found === 'number' || typeof found === 'boolean' ? found : fallback;
+    return typeof found === 'string' || typeof found === 'number' || typeof found === 'boolean'
+      ? found
+      : fallback;
   };
-  const set = (key: string, next: string | number | boolean) => { setDraft((old) => ({ ...old, [key]: next })); };
+  const set = (key: string, next: string | number | boolean) => {
+    setDraft((old) => ({ ...old, [key]: next }));
+  };
   const numbers = [
     ['pomodoroMinutes', 'pomodoro_minutes', m.focusPomoDuration, 5, 180, 5, 25],
     ['shortBreakMinutes', 'short_break_minutes', m.focusShortBreak, 1, 60, 1, 5],
@@ -61,7 +65,9 @@ export function FocusSettingsPage() {
       <ErrorState
         title={m.loadFailed}
         retryLabel={m.retry}
-        onRetry={() => { runAction(query.refetch()); }}
+        onRetry={() => {
+          runAction(query.refetch());
+        }}
       />
     );
   return (
@@ -80,7 +86,9 @@ export function FocusSettingsPage() {
               <button
                 type="button"
                 aria-label={m.focusDecrease.replace('{label}', label)}
-                onClick={() => { set(key, Math.max(min, Number(value(key, initial)) - step)); }}
+                onClick={() => {
+                  set(key, Math.max(min, Number(value(key, initial)) - step));
+                }}
               >
                 −
               </button>
@@ -92,12 +100,16 @@ export function FocusSettingsPage() {
                 max={max}
                 step={step}
                 value={Number(value(key, initial))}
-                onChange={(event) => { set(key, event.target.value); }}
+                onChange={(event) => {
+                  set(key, event.target.value);
+                }}
               />
               <button
                 type="button"
                 aria-label={m.focusIncrease.replace('{label}', label)}
-                onClick={() => { set(key, Math.min(max, Number(value(key, initial)) + step)); }}
+                onClick={() => {
+                  set(key, Math.min(max, Number(value(key, initial)) + step));
+                }}
               >
                 +
               </button>
@@ -116,7 +128,9 @@ export function FocusSettingsPage() {
               type="checkbox"
               role="switch"
               checked={Boolean(value(key, false))}
-              onChange={(event) => { set(key, event.target.checked); }}
+              onChange={(event) => {
+                set(key, event.target.checked);
+              }}
             />
           </label>
         ))}
@@ -126,7 +140,9 @@ export function FocusSettingsPage() {
             <select
               id="focus-alarm"
               value={String(value('alarmSound', 'bell'))}
-              onChange={(event) => { set('alarmSound', event.target.value); }}
+              onChange={(event) => {
+                set('alarmSound', event.target.value);
+              }}
             >
               {(
                 [
@@ -159,14 +175,18 @@ export function FocusSettingsPage() {
             min={0}
             max={100}
             value={Number(value('volume', 70))}
-            onChange={(event) => { set('volume', Number(event.target.value)); }}
+            onChange={(event) => {
+              set('volume', Number(event.target.value));
+            }}
           />
         </label>
         <label className="focus-setting-row">
           {m.focusAmbient}
           <select
             value={String(value('ambientSound', 'none'))}
-            onChange={(event) => { set('ambientSound', event.target.value); }}
+            onChange={(event) => {
+              set('ambientSound', event.target.value);
+            }}
           >
             {(
               [

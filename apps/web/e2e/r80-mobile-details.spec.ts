@@ -23,11 +23,20 @@ async function capture(
 
 test('TTD-AUD-96.1: duration remains on one line', async ({ page }, info) => {
   await r80Fixture(page, { duration: 8820 });
-  await page.route('**/api/v1/planning/load?*',async (route) => route.fulfill({json:{task_minutes:8820,available_minutes:480,unestimated_count:1,status:'overload'}}));
+  await page.route('**/api/v1/planning/load?*', async (route) =>
+    route.fulfill({
+      json: {
+        task_minutes: 8820,
+        available_minutes: 480,
+        unestimated_count: 1,
+        status: 'overload',
+      },
+    }),
+  );
   await page.goto('/today');
   const duration = page.locator('.task-time[title*="6 d 3 h"]').first();
   await expect(duration).toBeVisible();
-  await expect(page.getByText('1 tarea sin duración',{exact:true})).toBeVisible();
+  await expect(page.getByText('1 tarea sin duración', { exact: true })).toBeVisible();
   await capture(page, info, 'duracion');
   const metrics = await duration.evaluate((node) => ({
     height: node.getBoundingClientRect().height,
@@ -37,7 +46,9 @@ test('TTD-AUD-96.1: duration remains on one line', async ({ page }, info) => {
   expect(metrics.height).toBeLessThanOrEqual(metrics.font * 1.4 + 1);
   expect(metrics.whiteSpace).toBe('nowrap');
   await expect(duration).toHaveAttribute('title', /6 d 3 h/);
-  await duration.evaluate((node) => { node.parentElement!.style.width='50px'; });
+  await duration.evaluate((node) => {
+    node.parentElement!.style.width = '50px';
+  });
   await page.clock.runFor(100);
   await expect(duration).toHaveText('6 d');
   await expect(duration).toHaveAttribute('title', /6 d 3 h/);
@@ -66,7 +77,11 @@ test('TTD-AUD-96.3/4: MCP client tabs are stable and JSON scrolls and copies exa
   const after = await tabs.boundingBox();
   expect(before!.height).toBe(36);
   expect(after!.height).toBe(before!.height);
-  expect(await tabs.getByRole('tab',{name:'Otro',exact:true}).evaluate((node) => Number.parseFloat(getComputedStyle(node,'::after').height))).toBeGreaterThanOrEqual(44);
+  expect(
+    await tabs
+      .getByRole('tab', { name: 'Otro', exact: true })
+      .evaluate((node) => Number.parseFloat(getComputedStyle(node, '::after').height)),
+  ).toBeGreaterThanOrEqual(44);
   const pre = page.locator('.token-snippet');
   const css = await pre.evaluate((node) => ({
     whiteSpace: getComputedStyle(node).whiteSpace,
@@ -102,14 +117,12 @@ test('TTD-AUD-96.6: mini calendar and drawer measured at scale 3', async ({ page
   if (mobile) await page.locator('.sidebar-fold-button').click();
   await expect(page.locator('.sidebar')).toBeVisible();
   await capture(page, info, 'cajon');
-  const drawer = await page
-    .locator('.sidebar')
-    .evaluate((node) => ({
-      height: node.getBoundingClientRect().height,
-      overflow: getComputedStyle(node).overflowY,
-      scroll: node.scrollHeight,
-      client: node.clientHeight,
-    }));
+  const drawer = await page.locator('.sidebar').evaluate((node) => ({
+    height: node.getBoundingClientRect().height,
+    overflow: getComputedStyle(node).overflowY,
+    scroll: node.scrollHeight,
+    client: node.clientHeight,
+  }));
   await writeFile(
     path.resolve(
       '../../docs/audit/r80',

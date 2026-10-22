@@ -89,19 +89,50 @@ export class TelegramBotService implements OnModuleInit {
         expiresAt,
       },
     });
-    const bot_username=await this.telegram.botUsername();
-    return { code, expires_at: expiresAt.toISOString(),bot_username,deep_link:bot_username?`https://t.me/${bot_username}?start=${code}`:null };
+    const bot_username = await this.telegram.botUsername();
+    return {
+      code,
+      expires_at: expiresAt.toISOString(),
+      bot_username,
+      deep_link: bot_username ? `https://t.me/${bot_username}?start=${code}` : null,
+    };
   }
 
-  botUsername(){return this.telegram.botUsername();}
-  async recheck(user:AuthUser){
-    const link=await this.prisma.telegramLink.findFirst({where:{ownerId:user.id,deletedAt:null}});
-    if(!link)throw new DomainException(409,'telegram_not_linked','Telegram is not linked');
-    try{await this.telegram.call('sendMessage',{chat_id:link.chatId,text:'Telegram conectado a tick-tack-done'});await setTelegramStatus(this.prisma,user.id,'connected');}
-    catch(caught){if(caught instanceof DomainException && typeof caught.getResponse()==='object' && (caught.getResponse() as {code?:unknown}).code==='telegram_blocked')await setTelegramStatus(this.prisma,user.id,'blocked');throw caught;}
-    return {connected:true};
+  botUsername() {
+    return this.telegram.botUsername();
   }
-  async farewell(chatId:string){try{await this.telegram.call('sendMessage',{chat_id:chatId,text:'Desvinculado de tick-tack-done'});}catch{/* Unlinking locally must succeed after Telegram revokes access. */}}
+  async recheck(user: AuthUser) {
+    const link = await this.prisma.telegramLink.findFirst({
+      where: { ownerId: user.id, deletedAt: null },
+    });
+    if (!link) throw new DomainException(409, 'telegram_not_linked', 'Telegram is not linked');
+    try {
+      await this.telegram.call('sendMessage', {
+        chat_id: link.chatId,
+        text: 'Telegram conectado a tick-tack-done',
+      });
+      await setTelegramStatus(this.prisma, user.id, 'connected');
+    } catch (caught) {
+      if (
+        caught instanceof DomainException &&
+        typeof caught.getResponse() === 'object' &&
+        (caught.getResponse() as { code?: unknown }).code === 'telegram_blocked'
+      )
+        await setTelegramStatus(this.prisma, user.id, 'blocked');
+      throw caught;
+    }
+    return { connected: true };
+  }
+  async farewell(chatId: string) {
+    try {
+      await this.telegram.call('sendMessage', {
+        chat_id: chatId,
+        text: 'Desvinculado de tick-tack-done',
+      });
+    } catch {
+      /* Unlinking locally must succeed after Telegram revokes access. */
+    }
+  }
 
   async handle(body: unknown): Promise<TelegramOutcome> {
     const incoming = readTelegramUpdate(body);
@@ -113,7 +144,12 @@ export class TelegramBotService implements OnModuleInit {
       return { called_telegram: false, action: 'duplicate' };
     }
     if (incoming.kind === 'text') {
-      const paired = await this.tryPair(incoming.chatId, incoming.text, incoming.username??null,incoming.displayName??null);
+      const paired = await this.tryPair(
+        incoming.chatId,
+        incoming.text,
+        incoming.username ?? null,
+        incoming.displayName ?? null,
+      );
       if (paired !== null) {
         await this.send(incoming.chatId, plain(paired));
         return { called_telegram: true, action: 'paired' };
@@ -170,7 +206,12 @@ export class TelegramBotService implements OnModuleInit {
     }
   }
 
-  private async tryPair(chatId: string, text: string, username:string|null,displayName:string|null): Promise<string | null> {
+  private async tryPair(
+    chatId: string,
+    text: string,
+    username: string | null,
+    displayName: string | null,
+  ): Promise<string | null> {
     const match = /^\/start(?:@\w+)?(?:\s+|_)([A-Za-z0-9_-]{16,})$/.exec(text.trim());
     if (match === null) {
       return null;
@@ -192,8 +233,15 @@ export class TelegramBotService implements OnModuleInit {
       }
       await tx.telegramLink.upsert({
         where: { chatId },
-        create: { ownerId: row.ownerId, chatId,username,displayName,status:'connected' },
-        update: { ownerId: row.ownerId, deletedAt: null,username,displayName,status:'connected',createdAt:new Date() },
+        create: { ownerId: row.ownerId, chatId, username, displayName, status: 'connected' },
+        update: {
+          ownerId: row.ownerId,
+          deletedAt: null,
+          username,
+          displayName,
+          status: 'connected',
+          createdAt: new Date(),
+        },
       });
       await this.events.record(
         tx,
@@ -303,11 +351,23 @@ export class TelegramBotService implements OnModuleInit {
   }
 
   private async callback(user: AuthUser, incoming: TelegramIncoming): Promise<string> {
-    const notification = /^n([cso]):([0-9a-f-]{36}):([A-Za-z0-9_-]{24})$/.exec(incoming.callbackData);
+    const notification = /^n([cso]):([0-9a-f-]{36}):([A-Za-z0-9_-]{24})$/.exec(
+      incoming.callbackData,
+    );
     if (notification) {
-      const action=notification[1]==='c'?'complete':notification[1]==='s'?'snooze':'open';
-      const result=await this.tasks.notificationAction(notification[2]??'',notification[3]??'',action,user.id);
-      return action==='open'?`${process.env.APP_URL??'https://todo.reflexionia.com'}${result.url}`:action==='complete'?'Tarea completada':'Recordatorio pospuesto 10 minutos';
+      const action =
+        notification[1] === 'c' ? 'complete' : notification[1] === 's' ? 'snooze' : 'open';
+      const result = await this.tasks.notificationAction(
+        notification[2] ?? '',
+        notification[3] ?? '',
+        action,
+        user.id,
+      );
+      return action === 'open'
+        ? `${process.env.APP_URL ?? 'https://todo.reflexionia.com'}${result.url}`
+        : action === 'complete'
+          ? 'Tarea completada'
+          : 'Recordatorio pospuesto 10 minutos';
     }
 
     if (incoming.callbackData.startsWith('s:')) {
@@ -830,23 +890,32 @@ export class TelegramBotService implements OnModuleInit {
   }
 
   private async send(chatId: string, reply: Reply): Promise<void> {
-    try { await this.telegram.call('sendMessage', {
-      chat_id: chatId,
-      text: reply.text,
-      ...(reply.html ? { parse_mode: 'HTML' } : {}),
-      ...(reply.buttons.length === 0
-        ? {}
-        : {
-            reply_markup: {
-              inline_keyboard: reply.buttons.map((button) => [
-                { text: button.text, callback_data: button.data },
-              ]),
-            },
-          }),
-    }); } catch(caught) {
-      if(caught instanceof DomainException && typeof caught.getResponse()==='object' && (caught.getResponse() as {code?:unknown}).code==='telegram_blocked') {
-        const link=await this.prisma.telegramLink.findFirst({where:{chatId,deletedAt:null},select:{ownerId:true}});
-        if(link)await setTelegramStatus(this.prisma,link.ownerId,'blocked');
+    try {
+      await this.telegram.call('sendMessage', {
+        chat_id: chatId,
+        text: reply.text,
+        ...(reply.html ? { parse_mode: 'HTML' } : {}),
+        ...(reply.buttons.length === 0
+          ? {}
+          : {
+              reply_markup: {
+                inline_keyboard: reply.buttons.map((button) => [
+                  { text: button.text, callback_data: button.data },
+                ]),
+              },
+            }),
+      });
+    } catch (caught) {
+      if (
+        caught instanceof DomainException &&
+        typeof caught.getResponse() === 'object' &&
+        (caught.getResponse() as { code?: unknown }).code === 'telegram_blocked'
+      ) {
+        const link = await this.prisma.telegramLink.findFirst({
+          where: { chatId, deletedAt: null },
+          select: { ownerId: true },
+        });
+        if (link) await setTelegramStatus(this.prisma, link.ownerId, 'blocked');
         return;
       }
       throw caught;

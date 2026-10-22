@@ -38,9 +38,15 @@ export class DriveFolderRenamer implements OnModuleInit {
       if (!folder) return;
       const user = await this.prisma.user.findFirst({
         where: { id: event.ownerId, deletedAt: null },
-        select: { googleRefreshToken: true, googleStatus: true, googleGrantedScopes:true,googleCalendarEnabled:true,googleDriveEnabled:true },
+        select: {
+          googleRefreshToken: true,
+          googleStatus: true,
+          googleGrantedScopes: true,
+          googleCalendarEnabled: true,
+          googleDriveEnabled: true,
+        },
       });
-      if (!googleServiceAccess(user,'drive').connected || !user?.googleRefreshToken) return;
+      if (!googleServiceAccess(user, 'drive').connected || !user?.googleRefreshToken) return;
       const client = new DriveClient(
         await exchangeGoogleRefreshToken(openField(user.googleRefreshToken)),
       );

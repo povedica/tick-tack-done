@@ -104,21 +104,27 @@ export function LinkSection({ taskId }: { readonly taskId: string }) {
                 {host ? (
                   <img
                     src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=32`}
-                    onError={event => { event.currentTarget.style.visibility = 'hidden'; }}
+                    onError={(event) => {
+                      event.currentTarget.style.visibility = 'hidden';
+                    }}
                     alt=""
                     referrerPolicy="no-referrer"
                   />
                 ) : (
                   <LinkIcon size={14} aria-hidden="true" />
                 )}
-                <span className="asset-name">{link.title ?? (host.length ? host : target.pathname)}</span>
+                <span className="asset-name">
+                  {link.title ?? (host.length ? host : target.pathname)}
+                </span>
               </a>
               <button
                 className="asset-remove link-remove"
                 data-open={menu === link.id}
                 type="button"
                 aria-label={messages.taskLinkRemove}
-                onClick={() => { runAction(remove(link.id)); }}
+                onClick={() => {
+                  runAction(remove(link.id));
+                }}
               >
                 <X size={14} aria-hidden="true" />
               </button>
@@ -146,20 +152,33 @@ export function LinkSection({ taskId }: { readonly taskId: string }) {
         >
           <label>
             {messages.taskLinkUrl}
-            <input value={url} maxLength={4096} onChange={(event) => { setUrl(event.target.value); }} />
+            <input
+              value={url}
+              maxLength={4096}
+              onChange={(event) => {
+                setUrl(event.target.value);
+              }}
+            />
           </label>
           <label>
             {messages.taskLinkTitle}
             <input
               value={title}
               maxLength={200}
-              onChange={(event) => { setTitle(event.target.value); }}
+              onChange={(event) => {
+                setTitle(event.target.value);
+              }}
             />
           </label>
           <Button type="submit" disabled={busy}>
             {messages.taskLinkSave}
           </Button>
-          <Button variant="ghost" onClick={() => { setAdding(false); }}>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setAdding(false);
+            }}
+          >
             {messages.cancel}
           </Button>
         </form>

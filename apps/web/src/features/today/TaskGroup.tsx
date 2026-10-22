@@ -259,7 +259,11 @@ export function TaskGroup({
                   {task.hasRepeat ? (
                     <Repeat className="task-icon" size={14} aria-hidden="true" />
                   ) : null}
-                  {(task.linkCount ?? 0) > 0 ? <span className="task-link-count"><LinkIcon size={12} aria-hidden="true" /> {task.linkCount}</span> : null}
+                  {(task.linkCount ?? 0) > 0 ? (
+                    <span className="task-link-count">
+                      <LinkIcon size={12} aria-hidden="true" /> {task.linkCount}
+                    </span>
+                  ) : null}
                   {task.attachmentCount > 0 ? (
                     <Paperclip className="task-icon" size={14} aria-hidden="true" />
                   ) : null}

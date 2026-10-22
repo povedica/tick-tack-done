@@ -350,9 +350,12 @@ describe('core tasks API', () => {
       .post('/api/v1/tasks')
       .send({ project_id: owner.inboxId, title: 'Con adjunto' })
       .expect(201);
-    const uploaded = await api.post(`/api/v1/tasks/${task.body.id}/attachments`).attach('file',Buffer.from('hola'),{filename:'nota.txt',contentType:'text/plain'}).expect(409);
+    const uploaded = await api
+      .post(`/api/v1/tasks/${task.body.id}/attachments`)
+      .attach('file', Buffer.from('hola'), { filename: 'nota.txt', contentType: 'text/plain' })
+      .expect(409);
     expect(uploaded.body.error.code).toBe('drive_not_connected');
-    expect(await prisma.attachment.count({where:{taskId:task.body.id as string}})).toBe(0);
+    expect(await prisma.attachment.count({ where: { taskId: task.body.id as string } })).toBe(0);
   });
 
   it('RF-502: sorts high priority ahead of none', async () => {

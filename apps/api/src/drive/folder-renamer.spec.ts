@@ -20,9 +20,13 @@ it('TTD-AUD-99 list rename updates its Drive folder and ignores upstream failure
     },
     driveFolder: { findFirst: vi.fn().mockResolvedValue({ driveFolderId: 'folder' }) },
     user: {
-      findFirst: vi
-        .fn()
-        .mockResolvedValue({ googleRefreshToken: 'synthetic-refresh', googleStatus: 'connected',googleGrantedScopes:['https://www.googleapis.com/auth/drive.file'],googleDriveEnabled:true,googleCalendarEnabled:true }),
+      findFirst: vi.fn().mockResolvedValue({
+        googleRefreshToken: 'synthetic-refresh',
+        googleStatus: 'connected',
+        googleGrantedScopes: ['https://www.googleapis.com/auth/drive.file'],
+        googleDriveEnabled: true,
+        googleCalendarEnabled: true,
+      }),
     },
   };
   vi.stubEnv('GOOGLE_CLIENT_ID', 'synthetic');

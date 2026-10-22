@@ -104,9 +104,13 @@ export function HourGrid({
     };
     const observer = new ResizeObserver(measure);
     observer.observe(node);
-    node.querySelectorAll('.hour-col').forEach((column) => { observer.observe(column); });
+    node.querySelectorAll('.hour-col').forEach((column) => {
+      observer.observe(column);
+    });
     measure();
-    return () => { observer.disconnect(); };
+    return () => {
+      observer.disconnect();
+    };
   }, [days.map((day) => localKey(day)).join(',')]);
   const drag = useCalendarDrag(board, timeZone, onTaskChange);
   const moved = drag.preview?.patch;
@@ -462,7 +466,10 @@ export function HourGrid({
                 return { id: `event:${event.id}`, start, end };
               }),
             ];
-            const limited = limitHourLanes(layoutHourItems(timed), days.length === 1 ? (columnWidths[key] ?? 10000) : 10000);
+            const limited = limitHourLanes(
+              layoutHourItems(timed),
+              days.length === 1 ? (columnWidths[key] ?? 10000) : 10000,
+            );
             const layout = limited.visible;
             const style = (id: string) => {
               const item = layout.find((item) => item.id === id);

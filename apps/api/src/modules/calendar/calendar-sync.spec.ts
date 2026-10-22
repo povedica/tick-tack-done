@@ -53,7 +53,13 @@ function memory() {
         email: user.email,
         timeZone: user.timeZone,
         taskCompleteChildren: 'ask',
-        googleRefreshToken: 'refresh-token',googleGrantedScopes:['https://www.googleapis.com/auth/calendar.calendarlist.readonly','https://www.googleapis.com/auth/calendar.events'],googleCalendarEnabled:true,googleDriveEnabled:true,
+        googleRefreshToken: 'refresh-token',
+        googleGrantedScopes: [
+          'https://www.googleapis.com/auth/calendar.calendarlist.readonly',
+          'https://www.googleapis.com/auth/calendar.events',
+        ],
+        googleCalendarEnabled: true,
+        googleDriveEnabled: true,
       })),
     },
     calendarSubscription: {

@@ -21,7 +21,15 @@ export class CatalogChange {
   async consume(client: string): Promise<boolean> {
     if (!this.changed) return false;
     const clientHash = createHash('sha256').update(client).digest('hex');
-    return (await this.store.set(`ttd:mcp:catalog:seen:${this.hash}:${clientHash}`, '1', 'EX', 30 * 86400, 'NX')) === 'OK';
+    return (
+      (await this.store.set(
+        `ttd:mcp:catalog:seen:${this.hash}:${clientHash}`,
+        '1',
+        'EX',
+        30 * 86400,
+        'NX',
+      )) === 'OK'
+    );
   }
 }
 @Injectable()
@@ -33,11 +41,20 @@ export class McpRevision implements OnModuleInit, OnModuleDestroy {
     this.redis = new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: 1 });
     this.redis.on('error', () => undefined);
     this.change = new CatalogChange(this.redis);
-    try { await this.change.initialize(catalogHash(MCP_TOOLS)); }
-    catch { new Logger(McpRevision.name).warn('Catalog revision storage unavailable'); }
+    try {
+      await this.change.initialize(catalogHash(MCP_TOOLS));
+    } catch {
+      new Logger(McpRevision.name).warn('Catalog revision storage unavailable');
+    }
   }
   async consume(client: string): Promise<boolean> {
-    try { return await this.change?.consume(client) ?? false; } catch { return false; }
+    try {
+      return (await this.change?.consume(client)) ?? false;
+    } catch {
+      return false;
+    }
   }
-  onModuleDestroy(): void { this.redis?.disconnect(); }
+  onModuleDestroy(): void {
+    this.redis?.disconnect();
+  }
 }

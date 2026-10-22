@@ -20,12 +20,18 @@ test('TTD-AUD-84: MCP focus changes appear in the real web within two seconds', 
   expect(response.status()).toBe(201);
   const token = (await response.json()) as { id: string; token: string };
   const authorization = `Bearer ${token.token}`;
-  if(info.project.name==='desktop-light') {
-    const catalog=await request.post(`${base}/api/v1/mcp`,{headers:{Authorization:authorization},data:{jsonrpc:'2.0',id:85,method:'tools/list'}});
+  if (info.project.name === 'desktop-light') {
+    const catalog = await request.post(`${base}/api/v1/mcp`, {
+      headers: { Authorization: authorization },
+      data: { jsonrpc: '2.0', id: 85, method: 'tools/list' },
+    });
     expect(catalog.status()).toBe(200);
-    const result=await catalog.json() as {result:{tools:unknown[]}};
+    const result = (await catalog.json()) as { result: { tools: unknown[] } };
     expect(result.result.tools).toHaveLength(75);
-    writeFileSync(path.resolve('../../docs/audit/r80/mcp-tools-despues.json'),JSON.stringify(result.result,null,2)+'\n');
+    writeFileSync(
+      path.resolve('../../docs/audit/r80/mcp-tools-despues.json'),
+      JSON.stringify(result.result, null, 2) + '\n',
+    );
   }
 
   async function call(name: string, args: Record<string, unknown> = {}) {
@@ -73,9 +79,10 @@ test('TTD-AUD-84: MCP focus changes appear in the real web within two seconds', 
     const theme = info.project.name.endsWith('dark') ? 'dark' : 'light';
     await page.evaluate((theme) => (document.documentElement.dataset.theme = theme), theme);
     const name = info.project.name.replace('-', '_');
-    if (process.env.R80_PHASE !== 'despues') await page.screenshot({
-      path: path.resolve('../../docs/audit/evidencias/r80', `84_foco-mcp_antes_${name}.png`),
-    });
+    if (process.env.R80_PHASE !== 'despues')
+      await page.screenshot({
+        path: path.resolve('../../docs/audit/evidencias/r80', `84_foco-mcp_antes_${name}.png`),
+      });
     if (process.env.R80_LIVE_CAPTURE_ONLY === 'antes') return;
     const started = await call('start_focus', {
       task_id: fixture.taskId,

@@ -113,9 +113,13 @@ export async function safeFetch(raw: string, init: SafeFetchOptions): Promise<Sa
     const target = await Promise.race([
       assertPublicUrl(current, lookup, init.allowHttp),
       new Promise<never>((_, reject) => {
-        timer = setTimeout(() => { reject(new Error('Fetch deadline exceeded')); }, remaining());
+        timer = setTimeout(() => {
+          reject(new Error('Fetch deadline exceeded'));
+        }, remaining());
       }),
-    ]).finally(() => { clearTimeout(timer); });
+    ]).finally(() => {
+      clearTimeout(timer);
+    });
     const response = await pinnedRequest(target, { ...init, timeoutMs: remaining() });
     if (response.status >= 300 && response.status < 400) {
       const location = response.location;
@@ -219,7 +223,9 @@ function pinnedRequest(
       () => req.destroy(new Error('Fetch deadline exceeded')),
       init.timeoutMs ?? 8_000,
     );
-    req.on('close', () => { clearTimeout(deadlineTimer); });
+    req.on('close', () => {
+      clearTimeout(deadlineTimer);
+    });
     req.on('error', () => {
       reject(
         new DomainException(HttpStatus.BAD_GATEWAY, 'fetch_failed', 'Destination did not respond'),

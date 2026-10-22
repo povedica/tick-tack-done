@@ -13,7 +13,13 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
-import { ApiOperation, ApiProperty, ApiQuery, ApiTags, ApiNoContentResponse } from '@nestjs/swagger';
+import {
+  ApiOperation,
+  ApiProperty,
+  ApiQuery,
+  ApiTags,
+  ApiNoContentResponse,
+} from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Matches, Min } from 'class-validator';
 import type { Request, Response } from 'express';
@@ -192,10 +198,17 @@ export class DayClosingController {
 
   @Delete('replan/sessions/:id')
   @Scopes('tasks:write')
-  @ApiOperation({ summary: 'Discard an owned replan draft without applying decisions (TTD-AUD-85)' })
+  @ApiOperation({
+    summary: 'Discard an owned replan draft without applying decisions (TTD-AUD-85)',
+  })
   @ApiNoContentResponse()
-  async discardReplan(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Res() res: Response): Promise<void> {
-    await this.closing.discardReplan(user, id); res.status(204).end();
+  async discardReplan(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.closing.discardReplan(user, id);
+    res.status(204).end();
   }
 
   @Put('replan/sessions/:id/decisions/:taskId')

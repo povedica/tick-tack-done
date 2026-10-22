@@ -297,8 +297,9 @@ export function PlanDayPage() {
               <input
                 type="checkbox"
                 checked={sources[key]}
-                onChange={(event) => { setSources((previous) => ({ ...previous, [key]: event.target.checked })); }
-                }
+                onChange={(event) => {
+                  setSources((previous) => ({ ...previous, [key]: event.target.checked }));
+                }}
               />
               {
                 messages[

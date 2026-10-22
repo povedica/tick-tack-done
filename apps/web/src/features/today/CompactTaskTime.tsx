@@ -39,7 +39,9 @@ export function CompactTaskTime({
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(parent);
-    return () => { observer.disconnect(); };
+    return () => {
+      observer.disconnect();
+    };
   }, [value, reminder]);
   return (
     <time ref={ref} className="task-time" title={value} dateTime={date ?? undefined}>

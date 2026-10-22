@@ -1229,9 +1229,23 @@
   background: var(--surface-2);
 }
 
-.detail-slot { animation: detail-enter var(--dur-base) ease; }
-@keyframes detail-enter { from { transform: translateX(100%); } to { transform: translateX(0); } }
+.detail-slot {
+  animation: detail-enter var(--dur-base) ease;
+}
+@keyframes detail-enter {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
 
 @media (max-width: 1023px) {
-  .shell[data-drawer='open'] .sidebar { height: 100dvh; max-height: 100dvh; overflow-y: auto; overscroll-behavior: contain; }
+  .shell[data-drawer='open'] .sidebar {
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
 }

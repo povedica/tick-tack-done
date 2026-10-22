@@ -23,7 +23,9 @@ function respond(status: number, headers: Record<string, string>, body = '') {
       };
       res.statusCode = status;
       res.headers = headers;
-      res.destroy = () => { res.removeAllListeners(); };
+      res.destroy = () => {
+        res.removeAllListeners();
+      };
       callback(res);
       queueMicrotask(() => {
         res.emit('data', Buffer.from(body));
@@ -77,7 +79,10 @@ it('TTD-AUD-100: permits three redirects and enforces an overall DNS deadline', 
   const slow = safeFetch('https://example.test/', {
     maxBytes: 262144,
     timeoutMs: 3000,
-    lookup: () => new Promise(() => { /* Simulate DNS that never settles. */ }),
+    lookup: () =>
+      new Promise(() => {
+        /* Simulate DNS that never settles. */
+      }),
   });
   const failed = expect(slow).rejects.toThrow(/deadline/);
   await vi.advanceTimersByTimeAsync(3000);

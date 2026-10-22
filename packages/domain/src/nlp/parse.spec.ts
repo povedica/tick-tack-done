@@ -539,7 +539,6 @@ it.each([
   expect(result.durationMinutes).toBe(minutes);
 });
 
-
 it('TTD-AUD-85.7 RF-102: a time range includes its end as due', () => {
   const result = parsed('x mañana 17:00-17:45');
   expect(result.start?.date).toContain('T15:00:00');

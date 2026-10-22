@@ -48,7 +48,9 @@ function script(url: string, id: string): Promise<void> {
     node.id = id;
     node.src = url;
     node.async = true;
-    node.onload = () => { resolve(); };
+    node.onload = () => {
+      resolve();
+    };
     node.onerror = () => {
       node.remove();
       reject(new ApiError(503, 'drive_picker_unavailable', 'Google Picker failed to load'));
@@ -72,11 +74,14 @@ async function sdk(): Promise<GoogleSdk> {
   }
   const gapi = browser.gapi;
   if (!gapi) throw new ApiError(503, 'drive_picker_unavailable', 'Google Picker is unavailable');
-  await new Promise<void>((resolve, reject) => { gapi.load('picker', {
+  await new Promise<void>((resolve, reject) => {
+    gapi.load('picker', {
       callback: resolve,
-      onerror: () => { reject(new ApiError(503, 'drive_picker_unavailable', 'Google Picker is unavailable')); },
-    }); },
-  );
+      onerror: () => {
+        reject(new ApiError(503, 'drive_picker_unavailable', 'Google Picker is unavailable'));
+      },
+    });
+  });
   if (!browser.google)
     throw new ApiError(503, 'drive_picker_unavailable', 'Google Picker is unavailable');
   return browser.google;
@@ -100,18 +105,25 @@ export async function pickDriveFile(): Promise<string | null> {
       if (error) reject(error);
       else resolve(id);
     };
-    const timeout = setTimeout(() => { finish(null); }, 10 * 60 * 1000);
+    const timeout = setTimeout(
+      () => {
+        finish(null);
+      },
+      10 * 60 * 1000,
+    );
     const client = google.accounts.oauth2.initTokenClient({
       client_id: config.client_id ?? '',
       scope: 'https://www.googleapis.com/auth/drive.file',
-      error_callback: () => { finish(
+      error_callback: () => {
+        finish(
           null,
           new ApiError(
             403,
             'drive_picker_unavailable',
             'Google Picker authorization did not finish',
           ),
-        ); },
+        );
+      },
       callback: (token) => {
         if (!token.access_token) {
           finish(

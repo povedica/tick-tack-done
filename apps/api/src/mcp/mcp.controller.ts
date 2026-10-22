@@ -13,7 +13,10 @@ const POST_SUMMARY =
 @ApiTags('mcp')
 @Controller('mcp')
 export class McpController {
-  constructor(@Inject(McpService) private readonly mcp: McpService, @Inject(McpRevision) private readonly revision: McpRevision) {}
+  constructor(
+    @Inject(McpService) private readonly mcp: McpService,
+    @Inject(McpRevision) private readonly revision: McpRevision,
+  ) {}
 
   @Post()
   @Authenticated()
@@ -53,7 +56,11 @@ export class McpController {
     summary:
       'Authenticated SSE catalog-change notifications (RF-2001); other Accept headers return 405.',
   })
-  @ApiResponse({ status: 200, description: 'SSE stream; notifications/tools/list_changed when the persisted catalog hash changed.' })
+  @ApiResponse({
+    status: 200,
+    description:
+      'SSE stream; notifications/tools/list_changed when the persisted catalog hash changed.',
+  })
   @ApiResponse({
     status: 405,
     description:
@@ -63,16 +70,33 @@ export class McpController {
     },
   })
   @ApiResponse({ status: 401, description: 'Missing credential or invalid bearer token.' })
-  async get(@CurrentUser() user: AuthUser, @Req() req: Request, @Res() res: Response): Promise<void> {
-    if (!req.headers.accept?.includes('text/event-stream')) { this.methodNotAllowed(res); return; }
-    res.status(200).set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' });
+  async get(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    if (!req.headers.accept?.includes('text/event-stream')) {
+      this.methodNotAllowed(res);
+      return;
+    }
+    res.status(200).set({
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-store',
+      Connection: 'keep-alive',
+    });
     res.flushHeaders();
     res.write(': catalog stream\n\n');
     if (await this.revision.consume(user.tokenId ?? user.sessionId ?? user.id)) {
-      res.write(`event: message\ndata: ${JSON.stringify({ jsonrpc: '2.0', method: 'notifications/tools/list_changed' })}\n\n`);
+      res.write(
+        `event: message\ndata: ${JSON.stringify({ jsonrpc: '2.0', method: 'notifications/tools/list_changed' })}\n\n`,
+      );
     }
-    const heartbeat = setInterval(() => { res.write(': heartbeat\n\n'); }, 25000);
-    req.on('close', () => { clearInterval(heartbeat); });
+    const heartbeat = setInterval(() => {
+      res.write(': heartbeat\n\n');
+    }, 25000);
+    req.on('close', () => {
+      clearInterval(heartbeat);
+    });
   }
 
   @Delete()

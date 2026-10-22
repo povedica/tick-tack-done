@@ -3,10 +3,29 @@ import { expect, test } from '@playwright/test';
 import { r80Fixture } from './r80.fixture';
 const phase = process.env.R80_PHASE ?? 'antes';
 const screens = [
-  { id: 104, name: 'acerca-de', route: phase === 'antes' ? '/settings/account' : '/settings/about' },
-  { id: 103, name: 'telegram-sin-vincular', route: '/settings/integrations', telegramState: 'unlinked' as const },
-  { id: 103, name: 'telegram-vinculado', route: '/settings/integrations', telegramState: 'linked' as const },
-  { id: 103, name: 'telegram-bloqueado', route: '/settings/integrations', telegramState: 'blocked' as const },
+  {
+    id: 104,
+    name: 'acerca-de',
+    route: phase === 'antes' ? '/settings/account' : '/settings/about',
+  },
+  {
+    id: 103,
+    name: 'telegram-sin-vincular',
+    route: '/settings/integrations',
+    telegramState: 'unlinked' as const,
+  },
+  {
+    id: 103,
+    name: 'telegram-vinculado',
+    route: '/settings/integrations',
+    telegramState: 'linked' as const,
+  },
+  {
+    id: 103,
+    name: 'telegram-bloqueado',
+    route: '/settings/integrations',
+    telegramState: 'blocked' as const,
+  },
   { id: 102, name: 'notificaciones', route: '/settings/notifications' },
   { id: 100, name: 'enlaces', route: '/today?task=task' },
   { id: 99, name: 'adjuntos-sin-drive', route: '/today?task=task', drive: false },
@@ -34,12 +53,19 @@ for (const screen of screens)
     page.on('console', (message) => {
       if (message.type() === 'error') console.log(message.text());
     });
-    await r80Fixture(page, { filtering: true, anchorWarning: screen.id === 81, links: screen.id === 100, ...('telegramState' in screen ? {telegramState:screen.telegramState} : {}), ...('drive' in screen ? {drive: screen.drive} : {}) });
+    await r80Fixture(page, {
+      filtering: true,
+      anchorWarning: screen.id === 81,
+      links: screen.id === 100,
+      ...('telegramState' in screen ? { telegramState: screen.telegramState } : {}),
+      ...('drive' in screen ? { drive: screen.drive } : {}),
+    });
     await page.goto(screen.route);
     await expect(page.locator('.center').first()).toBeVisible();
     const theme = info.project.name.endsWith('dark') ? 'dark' : 'light';
     await page.evaluate((theme) => (document.documentElement.dataset.theme = theme), theme);
-    if (screen.id === 101 && screen.name === 'foco' && phase === 'despues') await page.getByRole('button', {name: 'Editar duración'}).click();
+    if (screen.id === 101 && screen.name === 'foco' && phase === 'despues')
+      await page.getByRole('button', { name: 'Editar duración' }).click();
     if (screen.composer) {
       await page.keyboard.press('n');
       await expect(page.locator('.calendar-quick-add').first()).toBeVisible();
@@ -55,7 +81,8 @@ for (const screen of screens)
     }
     if (screen.id === 103 && phase === 'despues') {
       await page.locator('.telegram-card').scrollIntoViewIfNeeded();
-      if ('telegramState' in screen && screen.telegramState === 'unlinked') await expect(page.getByRole('link',{name:'Abrir Telegram',exact:true})).toBeVisible();
+      if ('telegramState' in screen && screen.telegramState === 'unlinked')
+        await expect(page.getByRole('link', { name: 'Abrir Telegram', exact: true })).toBeVisible();
     }
     await page.evaluate(() => document.fonts.ready);
     await page.screenshot({

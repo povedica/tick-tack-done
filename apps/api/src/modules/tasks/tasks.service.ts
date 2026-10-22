@@ -231,7 +231,10 @@ export class TasksService {
         ...(limitedIds === null ? {} : { id: { in: limitedIds } }),
         ...(taskKeyset(query.sort, query.cursor) ?? {}),
       },
-      include: { _count: { select: { links: true } }, tags: { where: { tag: { deletedAt: null } }, select: { tagId: true } } },
+      include: {
+        _count: { select: { links: true } },
+        tags: { where: { tag: { deletedAt: null } }, select: { tagId: true } },
+      },
       orderBy: taskOrderBy(query.sort),
       take: query.limit + 1,
     });
@@ -340,47 +343,125 @@ export class TasksService {
     });
   }
 
-  async notificationAction(deliveryId:string,token:string,action:'complete'|'snooze'|'open',expectedOwner?:string){
-    return this.prisma.$transaction(async tx=>{
-      const row=await tx.notificationAction.findFirst({where:{deliveryId,tokenHash:createHash('sha256').update(token).digest('hex'),usedAt:null,expiresAt:{gt:new Date()},...(expectedOwner?{ownerId:expectedOwner}:{})},include:{delivery:true,owner:true}});
-      if(row?.delivery.taskId == null)throw new DomainException(401,'notification_token_invalid','Notification action expired or already used');
-      const claimed=await tx.notificationAction.updateMany({where:{id:row.id,usedAt:null},data:{usedAt:new Date()}});
-      if(claimed.count!==1)throw new DomainException(401,'notification_token_invalid','Notification action already used');
-      const user:AuthUser={id:row.ownerId,email:row.owner.email,timeZone:row.owner.timeZone,completeChildren:row.owner.taskCompleteChildren,scopes:['tasks:read','tasks:write'],tokenId:null,sessionId:null,listIds:null};
-      if(action==='complete')await this.completeIn(tx,user,row.delivery.taskId,null);
-      if(action==='snooze')await tx.reminderDelivery.create({data:{ownerId:row.ownerId,taskId:row.delivery.taskId,reminderId:row.delivery.reminderId,kind:row.delivery.kind,channel:row.delivery.channel,payload:asJson(row.delivery.payload),dedupeKey:`notification-snooze:${row.id}`,fireAt:new Date(Date.now()+600000)}});
-      return {applied:true,url:`/today?task=${row.delivery.taskId}`};
+  async notificationAction(
+    deliveryId: string,
+    token: string,
+    action: 'complete' | 'snooze' | 'open',
+    expectedOwner?: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const row = await tx.notificationAction.findFirst({
+        where: {
+          deliveryId,
+          tokenHash: createHash('sha256').update(token).digest('hex'),
+          usedAt: null,
+          expiresAt: { gt: new Date() },
+          ...(expectedOwner ? { ownerId: expectedOwner } : {}),
+        },
+        include: { delivery: true, owner: true },
+      });
+      if (row?.delivery.taskId == null)
+        throw new DomainException(
+          401,
+          'notification_token_invalid',
+          'Notification action expired or already used',
+        );
+      const claimed = await tx.notificationAction.updateMany({
+        where: { id: row.id, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+      if (claimed.count !== 1)
+        throw new DomainException(
+          401,
+          'notification_token_invalid',
+          'Notification action already used',
+        );
+      const user: AuthUser = {
+        id: row.ownerId,
+        email: row.owner.email,
+        timeZone: row.owner.timeZone,
+        completeChildren: row.owner.taskCompleteChildren,
+        scopes: ['tasks:read', 'tasks:write'],
+        tokenId: null,
+        sessionId: null,
+        listIds: null,
+      };
+      if (action === 'complete') await this.completeIn(tx, user, row.delivery.taskId, null);
+      if (action === 'snooze')
+        await tx.reminderDelivery.create({
+          data: {
+            ownerId: row.ownerId,
+            taskId: row.delivery.taskId,
+            reminderId: row.delivery.reminderId,
+            kind: row.delivery.kind,
+            channel: row.delivery.channel,
+            payload: asJson(row.delivery.payload),
+            dedupeKey: `notification-snooze:${row.id}`,
+            fireAt: new Date(Date.now() + 600000),
+          },
+        });
+      return { applied: true, url: `/today?task=${row.delivery.taskId}` };
     });
   }
 
   async listLinks(user: AuthUser, taskId: string) {
     await this.get(user, taskId);
-    return { items: (await this.prisma.taskLink.findMany({ where: { ownerId: user.id, taskId }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] })).map(taskLinkJson), next_cursor: null };
+    return {
+      items: (
+        await this.prisma.taskLink.findMany({
+          where: { ownerId: user.id, taskId },
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        })
+      ).map(taskLinkJson),
+      next_cursor: null,
+    };
   }
 
   async addLink(user: AuthUser, taskId: string, dto: AddTaskLinkDto) {
     await this.get(user, taskId);
     const url = normalizeTaskUrl(dto.url);
-    if (url === null) throw new DomainException(400, 'validation_failed', 'URL must use http, https or mailto without credentials');
-    const title = dto.title ?? await linkTitle(url);
-    return this.prisma.$transaction(async tx => {
+    if (url === null)
+      throw new DomainException(
+        400,
+        'validation_failed',
+        'URL must use http, https or mailto without credentials',
+      );
+    const title = dto.title ?? (await linkTitle(url));
+    return this.prisma.$transaction(async (tx) => {
       await this.load(tx, user, taskId, false);
       const row = await tx.taskLink.upsert({
         where: { taskId_url: { taskId, url } },
         create: { ownerId: user.id, taskId, url, title, source: 'manual' },
         update: { title, source: 'manual' },
       });
-      await this.events.record(tx, actorOf(user), { type: DomainEvent.taskLinkAdded, entityType: 'task', entityId: taskId, action: 'updated', data: { task_id: taskId, link: taskLinkJson(row) }, previous: null });
+      await this.events.record(tx, actorOf(user), {
+        type: DomainEvent.taskLinkAdded,
+        entityType: 'task',
+        entityId: taskId,
+        action: 'updated',
+        data: { task_id: taskId, link: taskLinkJson(row) },
+        previous: null,
+      });
       return taskLinkJson(row);
     });
   }
 
   async removeLink(user: AuthUser, taskId: string, linkId: string) {
-    await this.prisma.$transaction(async tx => {
+    await this.prisma.$transaction(async (tx) => {
       await this.load(tx, user, taskId, false);
-      const removed = await tx.taskLink.deleteMany({ where: { id: linkId, ownerId: user.id, taskId } });
-      if (!removed.count) throw new DomainException(404, 'task_link_not_found', 'Task link was not found');
-      await this.events.record(tx, actorOf(user), { type: DomainEvent.taskLinkRemoved, entityType: 'task', entityId: taskId, action: 'updated', data: { task_id: taskId, link_id: linkId }, previous: null });
+      const removed = await tx.taskLink.deleteMany({
+        where: { id: linkId, ownerId: user.id, taskId },
+      });
+      if (!removed.count)
+        throw new DomainException(404, 'task_link_not_found', 'Task link was not found');
+      await this.events.record(tx, actorOf(user), {
+        type: DomainEvent.taskLinkRemoved,
+        entityType: 'task',
+        entityId: taskId,
+        action: 'updated',
+        data: { task_id: taskId, link_id: linkId },
+        previous: null,
+      });
     });
   }
 
@@ -554,7 +635,8 @@ export class TasksService {
           ...(selected.changed ? { fieldClocks: asJson(selected.clocks) } : {}),
         },
       });
-      if (dto.title !== undefined || dto.content !== undefined) await reconcileTaskLinks(tx, user.id, id, `${title}\n${content}`);
+      if (dto.title !== undefined || dto.content !== undefined)
+        await reconcileTaskLinks(tx, user.id, id, `${title}\n${content}`);
       if (dto.tag_ids !== undefined) {
         await tx.taskTag.deleteMany({ where: { taskId: id } });
         await this.linkTags(tx, id, dto.tag_ids);

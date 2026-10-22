@@ -2,7 +2,6 @@ import { extraEn } from './extra';
 import type { es } from './es';
 
 export const en = {
-
   accountProgressLabel: 'Streak {days}. Control {score}, {state}',
   calendarTodayLabel: '{date}, today',
   accountProgress: 'Your progress',

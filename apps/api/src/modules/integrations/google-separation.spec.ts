@@ -23,6 +23,8 @@ it('Calendar and Drive use one client and incremental scopes; state identifies t
   expect(readState(state + 'x')).toBeNull();
 });
 
-it('rejects malformed state parameter types before cryptographic operations',()=>{
- expect(readState(['state','value'])).toBeNull();expect(readState({value:'state'})).toBeNull();expect(readState(undefined)).toBeNull();
+it('rejects malformed state parameter types before cryptographic operations', () => {
+  expect(readState(['state', 'value'])).toBeNull();
+  expect(readState({ value: 'state' })).toBeNull();
+  expect(readState(undefined)).toBeNull();
 });

@@ -35,7 +35,7 @@ describe('TTD-AUD-97 Google disconnect', () => {
         {} as TelegramBotService,
         {} as TasksService,
       );
-      const status=vi.fn().mockReturnThis();
+      const status = vi.fn().mockReturnThis();
       const res = { status, end: vi.fn() } as unknown as Response;
       await controller.disconnectGoogle({ id: 'owner' } as AuthUser, res, {
         remove_imported_events: String(remove),
@@ -49,7 +49,12 @@ describe('TTD-AUD-97 Google disconnect', () => {
       );
       expect(tx.user.update).toHaveBeenCalledWith({
         where: { id: 'owner' },
-        data: { googleRefreshToken: null, googleAccountEmail: null, googleStatus: 'disconnected',googleGrantedScopes:[] },
+        data: {
+          googleRefreshToken: null,
+          googleAccountEmail: null,
+          googleStatus: 'disconnected',
+          googleGrantedScopes: [],
+        },
       });
       if (remove)
         expect(tx.externalEvent.updateMany).toHaveBeenCalledWith(
@@ -86,7 +91,17 @@ describe('TTD-AUD-86 / RF-2006 user credential isolation', () => {
       prisma,
       new EventRecorder(),
       {} as TelegramBotService,
-      {linkDriveFile:vi.fn().mockRejectedValue(new DomainException(HttpStatus.CONFLICT,'drive_not_connected','Connect Google Drive in Settings > Integrations'))} as unknown as TasksService,
+      {
+        linkDriveFile: vi
+          .fn()
+          .mockRejectedValue(
+            new DomainException(
+              HttpStatus.CONFLICT,
+              'drive_not_connected',
+              'Connect Google Drive in Settings > Integrations',
+            ),
+          ),
+      } as unknown as TasksService,
     );
     await expect(
       // eslint-disable-next-line @typescript-eslint/dot-notation -- Test the private credential boundary without exposing it publicly.

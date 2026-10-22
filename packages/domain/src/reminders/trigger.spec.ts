@@ -195,7 +195,6 @@ describe('reminders', () => {
   });
 });
 
-
-it.each(['TRIGGER:-PT15M', '-PT15M'])('TTD-AUD-85.5 RF-801 normalizes %s', trigger => {
+it.each(['TRIGGER:-PT15M', '-PT15M'])('TTD-AUD-85.5 RF-801 normalizes %s', (trigger) => {
   expect(normalizeReminderTrigger(trigger)).toBe('-PT15M');
 });

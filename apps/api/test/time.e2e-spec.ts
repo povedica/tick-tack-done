@@ -380,8 +380,17 @@ describe('time API', () => {
 
   afterEach(() => vi.restoreAllMocks());
   it('RF-803 and RF-804: a constant reminder reschedules after sending, and snoozing drops that delivery', async () => {
-    await prisma.user.update({where:{id:owner.id},data:{quietHoursStart:null,quietHoursEnd:null}});
-    vi.spyOn(app.get(ReminderTransport), 'deliver').mockResolvedValue({email:'skipped',push:'sent',telegram:'skipped',telegram_message_id:null,retry_after_seconds:null});
+    await prisma.user.update({
+      where: { id: owner.id },
+      data: { quietHoursStart: null, quietHoursEnd: null },
+    });
+    vi.spyOn(app.get(ReminderTransport), 'deliver').mockResolvedValue({
+      email: 'skipped',
+      push: 'sent',
+      telegram: 'skipped',
+      telegram_message_id: null,
+      retry_after_seconds: null,
+    });
     const created = await authed()
       .post('/api/v1/tasks')
       .send({

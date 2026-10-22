@@ -1600,4 +1600,8 @@ a.task-title {
   }
 }
 
-.task-time { white-space: nowrap; line-height: var(--lh-tight); flex-shrink: 0; }
+.task-time {
+  white-space: nowrap;
+  line-height: var(--lh-tight);
+  flex-shrink: 0;
+}

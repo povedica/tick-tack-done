@@ -129,18 +129,45 @@ it('TTD-AUD-102: quiet 23:00 defers push/Telegram to civil 08:00 while email sen
   });
   expect(deferred).toHaveLength(2);
 });
-it('TTD-AUD-102: real test endpoint uses only owned destinations and refuses recipient overrides',async()=>{
- const names=['VAPID_PUBLIC_KEY','VAPID_PRIVATE_KEY','SMTP_HOST','SMTP_FROM','TELEGRAM_BOT_TOKEN'] as const;
- const old=Object.fromEntries(names.map(name=>[name,process.env[name]]));
- for(const name of names)process.env[name]='synthetic-config';
- await prisma.pushSubscription.create({data:{ownerId,endpoint:'https://push.example.test/synthetic',p256dh:'synthetic',auth:'synthetic'}});
- try{
-  for(const channel of ['push','email','telegram']){
-   await api().post('/api/v1/me/notifications/test').set('X-Dev-User-Email',email).send({channel}).expect(201);
-   expect(deliver).toHaveBeenLastCalledWith(expect.objectContaining({email}));
+it('TTD-AUD-102: real test endpoint uses only owned destinations and refuses recipient overrides', async () => {
+  const names = [
+    'VAPID_PUBLIC_KEY',
+    'VAPID_PRIVATE_KEY',
+    'SMTP_HOST',
+    'SMTP_FROM',
+    'TELEGRAM_BOT_TOKEN',
+  ] as const;
+  const old = Object.fromEntries(names.map((name) => [name, process.env[name]]));
+  for (const name of names) process.env[name] = 'synthetic-config';
+  await prisma.pushSubscription.create({
+    data: {
+      ownerId,
+      endpoint: 'https://push.example.test/synthetic',
+      p256dh: 'synthetic',
+      auth: 'synthetic',
+    },
+  });
+  try {
+    for (const channel of ['push', 'email', 'telegram']) {
+      await api()
+        .post('/api/v1/me/notifications/test')
+        .set('X-Dev-User-Email', email)
+        .send({ channel })
+        .expect(201);
+      expect(deliver).toHaveBeenLastCalledWith(expect.objectContaining({ email }));
+    }
+    await api()
+      .post('/api/v1/me/notifications/test')
+      .set('X-Dev-User-Email', email)
+      .send({ channel: 'email', recipient: 'not-owner@example.test' })
+      .expect(400);
+  } finally {
+    for (const name of names) {
+      const value = old[name];
+      if (value === undefined) Reflect.deleteProperty(process.env, name);
+      else process.env[name] = value;
+    }
   }
-  await api().post('/api/v1/me/notifications/test').set('X-Dev-User-Email',email).send({channel:'email',recipient:'not-owner@example.test'}).expect(400);
- }finally{for(const name of names){const value=old[name];if(value===undefined)Reflect.deleteProperty(process.env,name);else process.env[name]=value;}}
 });
 
 it('TTD-AUD-102: notification capability completes once, then rejects reuse and keeps owner isolation', async () => {

@@ -32,7 +32,12 @@ export function CalendarSources() {
         ? [
             {
               id: row.id,
-              name: typeof row.name === 'string' ? row.name : typeof row.summary === 'string' ? row.summary : messages.calendarSource,
+              name:
+                typeof row.name === 'string'
+                  ? row.name
+                  : typeof row.summary === 'string'
+                    ? row.summary
+                    : messages.calendarSource,
               ...(typeof row.color === 'string' ? { color: row.color } : {}),
             },
           ]
@@ -67,12 +72,13 @@ export function CalendarSources() {
           <input
             type="checkbox"
             checked={all}
-            onChange={() => { change(
+            onChange={() => {
+              change(
                 all
                   ? { lists: '-', tags: '-', cals: '-', filters: '-' }
                   : { lists: null, tags: null, cals: null, filters: null },
-              ); }
-            }
+              );
+            }}
           />
         </label>
       </details>

@@ -789,33 +789,82 @@ describe('McpService recurrence mapping', () => {
     });
   });
 
-  it('TTD-AUD-102: notification tools read settings and test only the current owner',async()=>{
-    transport.mockResolvedValue({status:200,body:{sent:true}});
-    const current={...user,scopes:['profile:read']};
-    await service.handle(current,{jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'get_notification_settings',arguments:{}}},'Bearer synthetic');
-    expect(transport).toHaveBeenLastCalledWith({method:'GET',path:'/api/v1/me/notifications/settings'},'Bearer synthetic');
-    await service.handle(current,{jsonrpc:'2.0',id:2,method:'tools/call',params:{name:'send_test_notification',arguments:{channel:'email'}}},'Bearer synthetic');
-    expect(transport).toHaveBeenLastCalledWith({method:'POST',path:'/api/v1/me/notifications/test',body:{channel:'email'}},'Bearer synthetic');
+  it('TTD-AUD-102: notification tools read settings and test only the current owner', async () => {
+    transport.mockResolvedValue({ status: 200, body: { sent: true } });
+    const current = { ...user, scopes: ['profile:read'] };
+    await service.handle(
+      current,
+      {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: 'get_notification_settings', arguments: {} },
+      },
+      'Bearer synthetic',
+    );
+    expect(transport).toHaveBeenLastCalledWith(
+      { method: 'GET', path: '/api/v1/me/notifications/settings' },
+      'Bearer synthetic',
+    );
+    await service.handle(
+      current,
+      {
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'tools/call',
+        params: { name: 'send_test_notification', arguments: { channel: 'email' } },
+      },
+      'Bearer synthetic',
+    );
+    expect(transport).toHaveBeenLastCalledWith(
+      { method: 'POST', path: '/api/v1/me/notifications/test', body: { channel: 'email' } },
+      'Bearer synthetic',
+    );
   });
 
   it('TTD-AUD-101: settings tool uses the public PUT contract with focus scope', async () => {
-    transport.mockResolvedValue({status:200,body:{pomodoroMinutes:45}});
-    await service.handle({...user,scopes:['focus:write']},{jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'update_focus_settings',arguments:{pomodoro_minutes:45}}},'Bearer synthetic');
-    expect(transport).toHaveBeenCalledWith(expect.objectContaining({method:'PUT',path:'/api/v1/focus/settings',body:{pomodoro_minutes:45}}),'Bearer synthetic');
+    transport.mockResolvedValue({ status: 200, body: { pomodoroMinutes: 45 } });
+    await service.handle(
+      { ...user, scopes: ['focus:write'] },
+      {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: 'update_focus_settings', arguments: { pomodoro_minutes: 45 } },
+      },
+      'Bearer synthetic',
+    );
+    expect(transport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: 'PUT',
+        path: '/api/v1/focus/settings',
+        body: { pomodoro_minutes: 45 },
+      }),
+      'Bearer synthetic',
+    );
   });
 
   it('TTD-AUD-100: link tools keep the authenticated owner and task', async () => {
     const id = '33333333-3333-4333-8333-333333333333';
-    tasks.listLinks.mockResolvedValue({items:[], next_cursor:null});
-    tasks.addLink.mockResolvedValue({id,url:'https://example.com/'});
+    tasks.listLinks.mockResolvedValue({ items: [], next_cursor: null });
+    tasks.addLink.mockResolvedValue({ id, url: 'https://example.com/' });
     for (const [name, args] of [
-      ['list_task_links', {task_id:id}],
-      ['add_task_link', {task_id:id,url:'https://example.com/',title:'Example'}],
-      ['remove_task_link', {task_id:id,link_id:id}],
-    ] as const) await service.handle(user, {jsonrpc:'2.0',id:1,method:'tools/call',params:{name,arguments:args}});
-    expect(tasks.listLinks).toHaveBeenCalledWith(user,id);
-    expect(tasks.addLink).toHaveBeenCalledWith(user,id,{url:'https://example.com/',title:'Example'});
-    expect(tasks.removeLink).toHaveBeenCalledWith(user,id,id);
+      ['list_task_links', { task_id: id }],
+      ['add_task_link', { task_id: id, url: 'https://example.com/', title: 'Example' }],
+      ['remove_task_link', { task_id: id, link_id: id }],
+    ] as const)
+      await service.handle(user, {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name, arguments: args },
+      });
+    expect(tasks.listLinks).toHaveBeenCalledWith(user, id);
+    expect(tasks.addLink).toHaveBeenCalledWith(user, id, {
+      url: 'https://example.com/',
+      title: 'Example',
+    });
+    expect(tasks.removeLink).toHaveBeenCalledWith(user, id, id);
   });
 
   it('TTD-AUD-99: linking and removing Drive files preserve owner and the explicit trash choice', async () => {

@@ -213,7 +213,12 @@ export function FocusPage() {
             <Settings size={20} aria-hidden="true" />
           </Link>
           {live ? (
-            <Button variant="ghost" onClick={() => { setConfirm(true); }}>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setConfirm(true);
+              }}
+            >
               {m.cancel}
             </Button>
           ) : null}
@@ -254,7 +259,9 @@ export function FocusPage() {
                     className="focus-clock-edit"
                     type="button"
                     aria-label={m.focusEditDuration}
-                    onClick={() => { setEditingDuration((value) => !value); }}
+                    onClick={() => {
+                      setEditingDuration((value) => !value);
+                    }}
                   >
                     {formatClock(remaining)}
                   </button>
@@ -309,14 +316,19 @@ export function FocusPage() {
             {m.focusCycleProgress
               .replace(
                 '{cycle}',
-                String((numeric(stats.data?.completed_pomodoros) % (numeric(settings.data.cyclesBeforeLongBreak) || 4)) + 1),
+                String(
+                  (numeric(stats.data?.completed_pomodoros) %
+                    (numeric(settings.data.cyclesBeforeLongBreak) || 4)) +
+                    1,
+                ),
               )
               .replace('{total}', String(numeric(settings.data.cyclesBeforeLongBreak) || 4))
               .replace(
                 '{remaining}',
                 String(
                   (numeric(settings.data.cyclesBeforeLongBreak) || 4) -
-                    (numeric(stats.data?.completed_pomodoros) % (numeric(settings.data.cyclesBeforeLongBreak) || 4)),
+                    (numeric(stats.data?.completed_pomodoros) %
+                      (numeric(settings.data.cyclesBeforeLongBreak) || 4)),
                 ),
               )}
           </p>

@@ -3,14 +3,12 @@ import { DriveClient, DRIVE_STREAM_CHUNK_BYTES } from './drive-client.js';
 afterEach(() => vi.unstubAllGlobals());
 describe('TTD-AUD-99 Drive streaming transport', () => {
   it('initiates a resumable session with origin and metadata, never exposes a token', async () => {
-    const fetcher = vi
-      .fn()
-      .mockResolvedValue(
-        new Response(null, {
-          status: 200,
-          headers: { Location: 'https://www.googleapis.com/upload/drive/v3/files?upload_id=test' },
-        }),
-      );
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(null, {
+        status: 200,
+        headers: { Location: 'https://www.googleapis.com/upload/drive/v3/files?upload_id=test' },
+      }),
+    );
     const client = new DriveClient('private-access', fetcher);
     const result = await client.session(
       {

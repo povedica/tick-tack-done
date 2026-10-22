@@ -36,7 +36,16 @@ it('shows actual granted permissions independently from local activation', () =>
   );
 });
 
-it('recognizes a full Calendar grant and never calls a known revoked token authorized',()=>{
- const row={googleRefreshToken:'synthetic',googleStatus:'connected',googleGrantedScopes:['https://www.googleapis.com/auth/calendar'],googleCalendarEnabled:true,googleDriveEnabled:true};
- expect(googleServiceAccess(row,'calendar').authorized).toBe(true);expect(googleServiceAccess({...row,googleStatus:'reauth_required'},'calendar').authorized).toBe(false);
+it('recognizes a full Calendar grant and never calls a known revoked token authorized', () => {
+  const row = {
+    googleRefreshToken: 'synthetic',
+    googleStatus: 'connected',
+    googleGrantedScopes: ['https://www.googleapis.com/auth/calendar'],
+    googleCalendarEnabled: true,
+    googleDriveEnabled: true,
+  };
+  expect(googleServiceAccess(row, 'calendar').authorized).toBe(true);
+  expect(
+    googleServiceAccess({ ...row, googleStatus: 'reauth_required' }, 'calendar').authorized,
+  ).toBe(false);
 });

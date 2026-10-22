@@ -889,5 +889,14 @@ button.stats-kpi:hover {
   margin: var(--sp-1) 0;
 }
 
-.stats-formula-help, .stats-formula-help svg { display: inline-block; width: var(--stats-formula-icon-size); height: var(--stats-formula-icon-size); vertical-align: middle; }
-.stats-kpi-value[data-compact=true] { font-size: var(--fs-md); line-height: var(--lh-base); }
+.stats-formula-help,
+.stats-formula-help svg {
+  display: inline-block;
+  width: var(--stats-formula-icon-size);
+  height: var(--stats-formula-icon-size);
+  vertical-align: middle;
+}
+.stats-kpi-value[data-compact='true'] {
+  font-size: var(--fs-md);
+  line-height: var(--lh-base);
+}

@@ -1,7 +1,32 @@
-.google-disconnect-dialog { width: min(var(--google-confirm-width), calc(100% - var(--sp-8))); max-height: var(--sheet-max-h-mobile); overflow-y: auto; border: var(--calendar-mini-border-w) solid var(--border); border-radius: var(--sheet-radius); padding: var(--sp-5); background: var(--surface); color: var(--ink); }
-.google-disconnect-dialog::backdrop { background: var(--overlay-backdrop-bg); }
-.google-disconnect-dialog li { margin-block: var(--sp-2); font-size: var(--fs-sm); }
-.google-remove-events { display: flex; align-items: center; gap: var(--sp-2); min-height: var(--tap); font-size: var(--fs-sm); }
+.google-disconnect-dialog {
+  width: min(var(--google-confirm-width), calc(100% - var(--sp-8)));
+  max-height: var(--sheet-max-h-mobile);
+  overflow-y: auto;
+  border: var(--calendar-mini-border-w) solid var(--border);
+  border-radius: var(--sheet-radius);
+  padding: var(--sp-5);
+  background: var(--surface);
+  color: var(--ink);
+}
+.google-disconnect-dialog::backdrop {
+  background: var(--overlay-backdrop-bg);
+}
+.google-disconnect-dialog li {
+  margin-block: var(--sp-2);
+  font-size: var(--fs-sm);
+}
+.google-remove-events {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: var(--tap);
+  font-size: var(--fs-sm);
+}
 
-.google-service-card .token-panel-head { flex-wrap: wrap; }
-.google-service-card .token-panel-head > .token-meta { min-width: 0; overflow-wrap: anywhere; }
+.google-service-card .token-panel-head {
+  flex-wrap: wrap;
+}
+.google-service-card .token-panel-head > .token-meta {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

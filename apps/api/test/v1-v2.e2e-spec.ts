@@ -556,7 +556,16 @@ describe('V1 and V2 product', () => {
     process.env.GOOGLE_REFRESH_TOKEN = 'env-should-not-be-used';
     await prisma.user.update({
       where: { id: userId },
-      data: { googleRefreshToken: 'stored-refresh-token',googleGrantedScopes:['https://www.googleapis.com/auth/calendar.calendarlist.readonly','https://www.googleapis.com/auth/calendar.events','https://www.googleapis.com/auth/drive.file'],googleCalendarEnabled:true,googleDriveEnabled:true },
+      data: {
+        googleRefreshToken: 'stored-refresh-token',
+        googleGrantedScopes: [
+          'https://www.googleapis.com/auth/calendar.calendarlist.readonly',
+          'https://www.googleapis.com/auth/calendar.events',
+          'https://www.googleapis.com/auth/drive.file',
+        ],
+        googleCalendarEnabled: true,
+        googleDriveEnabled: true,
+      },
     });
     const methods: string[] = [];
     const refreshUsed: string[] = [];
@@ -607,9 +616,20 @@ describe('V1 and V2 product', () => {
         if (url.includes('alt=media')) {
           return new Response(Buffer.from('pdf-bytes'), { status: 200 });
         }
-        return new Response(JSON.stringify({id:'file-2',name:'notas.pdf',mimeType:'application/pdf',size:'9',webViewLink:'https://drive.google.com/file/d/file-2/view',parents:[],appProperties:{}}), {
-          status: 200,
-        });
+        return new Response(
+          JSON.stringify({
+            id: 'file-2',
+            name: 'notas.pdf',
+            mimeType: 'application/pdf',
+            size: '9',
+            webViewLink: 'https://drive.google.com/file/d/file-2/view',
+            parents: [],
+            appProperties: {},
+          }),
+          {
+            status: 200,
+          },
+        );
       }
       return original(input, init);
     };

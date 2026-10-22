@@ -260,16 +260,29 @@ export class TasksController {
   }
   @Post(':id/links')
   @Scopes('tasks:write')
-  @ApiOperation({ summary: 'Add a manual http/https/mailto link. Optional title uses public HTML only, 3s/256KiB/3 redirects maximum.' })
+  @ApiOperation({
+    summary:
+      'Add a manual http/https/mailto link. Optional title uses public HTML only, 3s/256KiB/3 redirects maximum.',
+  })
   @ApiOkResponse({ type: TaskLinkResponseDto })
-  async addLink(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() dto: AddTaskLinkDto) {
+  async addLink(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AddTaskLinkDto,
+  ) {
     return this.tasks.addLink(user, id, dto);
   }
   @Delete(':id/links/:linkId')
   @Scopes('tasks:write')
   @ApiOperation({ summary: 'Remove a link from its owning task' })
-  async removeLink(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Param('linkId', ParseUUIDPipe) linkId: string, @Res() res: Response) {
-    await this.tasks.removeLink(user, id, linkId); res.status(204).end();
+  async removeLink(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('linkId', ParseUUIDPipe) linkId: string,
+    @Res() res: Response,
+  ) {
+    await this.tasks.removeLink(user, id, linkId);
+    res.status(204).end();
   }
 
   @Get(':id/occurrences')

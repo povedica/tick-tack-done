@@ -42,14 +42,20 @@ it('TTD-AUD-99 Picker excludes folders and keeps Google credentials out of ttd r
     accounts: {
       oauth2: {
         initTokenClient: (options: { callback: (token: { access_token: string }) => void }) => ({
-          requestAccessToken: () => { options.callback({ access_token: 'picker-only-token' }); },
+          requestAccessToken: () => {
+            options.callback({ access_token: 'picker-only-token' });
+          },
         }),
       },
     },
   };
   vi.stubGlobal('window', {
     google: sdk,
-    gapi: { load: (_name: string, options: { callback: () => void }) => { options.callback(); } },
+    gapi: {
+      load: (_name: string, options: { callback: () => void }) => {
+        options.callback();
+      },
+    },
   });
   vi.mocked(taskFetch).mockResolvedValue({
     client_id: 'public-client',

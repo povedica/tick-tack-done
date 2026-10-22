@@ -11,7 +11,7 @@ import type { PrismaService } from '../prisma/prisma.service.js';
 import { asJson } from '../http/json.js';
 import type { DeliveryResult, ReminderTransport } from '../scheduler/reminder.transport.js';
 interface NotificationJob {
-  reminderId?: string|null;
+  reminderId?: string | null;
   id: string;
   ownerId: string;
   kind: ReminderDeliveryKind;
@@ -80,21 +80,34 @@ export async function deliverNotification(
     else if (channel !== 'email' && resume) {
       reasons.set(channel, 'quiet_hours');
       const deferred = await prisma.reminderDelivery.upsert({
-        where: { dedupeKey: `quiet:${row.reminderId??row.id}:${channel}:${resume}` },
+        where: { dedupeKey: `quiet:${row.reminderId ?? row.id}:${channel}:${resume}` },
         create: {
           ownerId: row.ownerId,
           taskId: row.taskId,
-          reminderId:row.reminderId??null,
+          reminderId: row.reminderId ?? null,
           kind: row.kind,
           fireAt: new Date(resume),
           channel: 'push',
-          dedupeKey: `quiet:${row.reminderId??row.id}:${channel}:${resume}`,
+          dedupeKey: `quiet:${row.reminderId ?? row.id}:${channel}:${resume}`,
           payload: asJson({ ...payload, notification_channels: [channel] }),
         },
         update: {},
       });
-      const scheduled = await prisma.notificationReceipt.findFirst({where:{deliveryId:deferred.id,channel,status:'scheduled'}});
-      if(!scheduled)await prisma.notificationReceipt.create({data:{ownerId:row.ownerId,deliveryId:deferred.id,kind,channel,status:'scheduled',reason:'quiet_hours',scheduledAt:new Date(resume)}});
+      const scheduled = await prisma.notificationReceipt.findFirst({
+        where: { deliveryId: deferred.id, channel, status: 'scheduled' },
+      });
+      if (!scheduled)
+        await prisma.notificationReceipt.create({
+          data: {
+            ownerId: row.ownerId,
+            deliveryId: deferred.id,
+            kind,
+            channel,
+            status: 'scheduled',
+            reason: 'quiet_hours',
+            scheduledAt: new Date(resume),
+          },
+        });
     } else allowed.add(channel);
   }
   let action: { delivery_id: string; token: string; url: string } | undefined;
@@ -132,7 +145,8 @@ export async function deliverNotification(
         }
       : {}),
   });
-  if(result.telegram==='disconnected' && link)await setTelegramStatus(prisma,row.ownerId,'blocked');
+  if (result.telegram === 'disconnected' && link)
+    await setTelegramStatus(prisma, row.ownerId, 'blocked');
   for (const channel of NOTIFICATION_CHANNELS) {
     if (only && !only.includes(channel)) continue;
     const reason = reasons.get(channel);

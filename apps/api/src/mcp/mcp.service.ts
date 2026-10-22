@@ -438,9 +438,16 @@ export class McpService {
       case 'list_task_links':
         return this.tasks.listLinks(user, requiredUuid(args, 'task_id'));
       case 'add_task_link':
-        return this.tasks.addLink(user, requiredUuid(args, 'task_id'), { url: requiredString(args, 'url', 4096), ...(typeof args.title === 'string' ? { title: requiredString(args, 'title', 200) } : {}) });
+        return this.tasks.addLink(user, requiredUuid(args, 'task_id'), {
+          url: requiredString(args, 'url', 4096),
+          ...(typeof args.title === 'string' ? { title: requiredString(args, 'title', 200) } : {}),
+        });
       case 'remove_task_link':
-        await this.tasks.removeLink(user, requiredUuid(args, 'task_id'), requiredUuid(args, 'link_id'));
+        await this.tasks.removeLink(
+          user,
+          requiredUuid(args, 'task_id'),
+          requiredUuid(args, 'link_id'),
+        );
         return { removed: true };
       case 'list_task_attachments':
         return {
@@ -855,11 +862,24 @@ export class McpService {
           authorization,
         );
       case 'get_notification_settings':
-        return this.focusApi({method:'GET',path:'/api/v1/me/notifications/settings'},authorization);
+        return this.focusApi(
+          { method: 'GET', path: '/api/v1/me/notifications/settings' },
+          authorization,
+        );
       case 'send_test_notification':
-        return this.focusApi({method:'POST',path:'/api/v1/me/notifications/test',body:{channel:args.channel}},authorization);
+        return this.focusApi(
+          {
+            method: 'POST',
+            path: '/api/v1/me/notifications/test',
+            body: { channel: args.channel },
+          },
+          authorization,
+        );
       case 'update_focus_settings':
-        return this.focusApi({method:'PUT',path:'/api/v1/focus/settings',body:args},authorization);
+        return this.focusApi(
+          { method: 'PUT', path: '/api/v1/focus/settings', body: args },
+          authorization,
+        );
       case 'get_focus_state':
         return this.focusApi({ method: 'GET', path: '/api/v1/focus/state' }, authorization);
       case 'pause_focus':

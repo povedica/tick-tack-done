@@ -164,7 +164,8 @@ for (const width of [1280, 390]) {
       await page.setViewportSize({ width, height: 850 });
       await fixture(page, state);
       await page.goto('/plan/day');
-      if (state === 'empty') await page.getByRole('button', { name: 'Continuar', exact: true }).click();
+      if (state === 'empty')
+        await page.getByRole('button', { name: 'Continuar', exact: true }).click();
       await expect(
         page.getByText(
           state === 'empty'

@@ -127,7 +127,17 @@ it('RF-2001: generic MCP API transport re-enters bearer scope checks', async () 
     process.env.GOOGLE_CLIENT_SECRET = 'synthetic';
     await db.user.update({
       where: { id: owner.id },
-      data: { googleRefreshToken: sealField('synthetic-refresh'),googleGrantedScopes:['https://www.googleapis.com/auth/calendar.calendarlist.readonly','https://www.googleapis.com/auth/calendar.events','https://www.googleapis.com/auth/drive.file'],googleCalendarEnabled:true,googleDriveEnabled:true, googleStatus: 'connected' },
+      data: {
+        googleRefreshToken: sealField('synthetic-refresh'),
+        googleGrantedScopes: [
+          'https://www.googleapis.com/auth/calendar.calendarlist.readonly',
+          'https://www.googleapis.com/auth/calendar.events',
+          'https://www.googleapis.com/auth/drive.file',
+        ],
+        googleCalendarEnabled: true,
+        googleDriveEnabled: true,
+        googleStatus: 'connected',
+      },
     });
     const base = `/api/v1/tasks/${String(parsed.data.id)}/attachments`;
     const upload = await writerCall({

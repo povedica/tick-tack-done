@@ -48,7 +48,7 @@ export function signState(state: GoogleState): string {
 }
 
 export function readState(token: unknown): GoogleState | null {
-  if(typeof token!=='string') return null;
+  if (typeof token !== 'string') return null;
   const dot = token.indexOf('.');
   if (dot <= 0) {
     return null;
@@ -62,10 +62,14 @@ export function readState(token: unknown): GoogleState | null {
     return null;
   }
   try {
-    const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as Partial<GoogleState>;
+    const parsed = JSON.parse(
+      Buffer.from(payload, 'base64url').toString('utf8'),
+    ) as Partial<GoogleState>;
     if (
-      typeof parsed.exp!=='number' || !Number.isFinite(parsed.exp) ||
-      typeof parsed.uid!=='string' || typeof parsed.redirect!=='string' ||
+      typeof parsed.exp !== 'number' ||
+      !Number.isFinite(parsed.exp) ||
+      typeof parsed.uid !== 'string' ||
+      typeof parsed.redirect !== 'string' ||
       parsed.exp < Date.now() ||
       (parsed.requested !== undefined &&
         !['calendar', 'drive', 'all'].includes(parsed.requested)) ||
@@ -74,7 +78,12 @@ export function readState(token: unknown): GoogleState | null {
     ) {
       return null;
     }
-    return {uid:parsed.uid,exp:parsed.exp,redirect:parsed.redirect,...(parsed.requested===undefined?{}:{requested:parsed.requested})};
+    return {
+      uid: parsed.uid,
+      exp: parsed.exp,
+      redirect: parsed.redirect,
+      ...(parsed.requested === undefined ? {} : { requested: parsed.requested }),
+    };
   } catch {
     return null;
   }

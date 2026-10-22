@@ -7,7 +7,7 @@ export async function r80Fixture(
     duration?: number;
     drive?: boolean;
     links?: boolean;
-    telegramState?: 'unlinked'|'linked'|'blocked';
+    telegramState?: 'unlinked' | 'linked' | 'blocked';
     delayed?: boolean;
     error?: boolean;
     startOnly?: boolean;
@@ -103,11 +103,54 @@ export async function r80Fixture(
         time_zone: 'Europe/Madrid',
         features: {},
       };
-    if (path === '/me/notifications/settings') body={time_zone:'Europe/Madrid',preferences:[],channels:{push:{configured:true},email:{address:'synthetic@example.test',configured:true},telegram:{linked:false,status:'not_linked',username:null}},quiet_hours:{start:'22:00',end:'08:00',days:[0,1,2,3,4,5,6],allow_high:false}};
-    if (path === '/me/notifications/deliveries') body={items:[],next_cursor:null};
-    if (path === '/integrations/telegram') body={configured:true,linked:options.telegramState==='linked'||options.telegramState==='blocked',username:options.telegramState==='unlinked'?null:'test',display_name:'Synthetic Telegram',linked_at:'2026-10-22T08:00:00Z',status:options.telegramState==='blocked'?'blocked':options.telegramState==='linked'?'connected':'not_linked',bot_username:'synthetic_bot',enabled:true};
-    if (path === '/integrations/telegram/pairing') body={code:'synthetic-pairing-code',expires_at:'2026-10-22T10:10:00Z',bot_username:'synthetic_bot',deep_link:'https://t.me/synthetic_bot?start=synthetic-pairing-code'};
-    if (path === '/health') body={status:'ok',commit:'acd7570',version:'0.2.0',built_at:'2026-10-22T10:00:00Z',mcp_version:'0.2.0+acd7570'};
+    if (path === '/me/notifications/settings')
+      body = {
+        time_zone: 'Europe/Madrid',
+        preferences: [],
+        channels: {
+          push: { configured: true },
+          email: { address: 'synthetic@example.test', configured: true },
+          telegram: { linked: false, status: 'not_linked', username: null },
+        },
+        quiet_hours: {
+          start: '22:00',
+          end: '08:00',
+          days: [0, 1, 2, 3, 4, 5, 6],
+          allow_high: false,
+        },
+      };
+    if (path === '/me/notifications/deliveries') body = { items: [], next_cursor: null };
+    if (path === '/integrations/telegram')
+      body = {
+        configured: true,
+        linked: options.telegramState === 'linked' || options.telegramState === 'blocked',
+        username: options.telegramState === 'unlinked' ? null : 'test',
+        display_name: 'Synthetic Telegram',
+        linked_at: '2026-10-22T08:00:00Z',
+        status:
+          options.telegramState === 'blocked'
+            ? 'blocked'
+            : options.telegramState === 'linked'
+              ? 'connected'
+              : 'not_linked',
+        bot_username: 'synthetic_bot',
+        enabled: true,
+      };
+    if (path === '/integrations/telegram/pairing')
+      body = {
+        code: 'synthetic-pairing-code',
+        expires_at: '2026-10-22T10:10:00Z',
+        bot_username: 'synthetic_bot',
+        deep_link: 'https://t.me/synthetic_bot?start=synthetic-pairing-code',
+      };
+    if (path === '/health')
+      body = {
+        status: 'ok',
+        commit: 'acd7570',
+        version: '0.2.0',
+        built_at: '2026-10-22T10:00:00Z',
+        mcp_version: '0.2.0+acd7570',
+      };
     if (path === '/focus/settings')
       body = {
         pomodoroMinutes: 25,
@@ -137,11 +180,69 @@ export async function r80Fixture(
         ],
         next_cursor: null,
       };
-    if (path === '/filters/preview') body = { groups: [{key:'none', label:'', tasks:[task]}], count:1, group_by:'none', sort:'manual', next_cursor:null };
-    if (path === '/tasks/task/links') body = { items: options.links ? ['https://example.com/a','https://www.ttd.dev/'].map((url,index)=>({id:`link-${index}`,task_id:'task',url,title:null,source:'auto',created_at:'2026-10-22T00:00:00Z',updated_at:'2026-10-22T00:00:00Z'})) : [], next_cursor:null };
-    if (path === '/tasks/task/attachments' && options.drive) body = {items:[{id:'file',file_name:'informe-sintetico.pdf',mime_type:'application/pdf',byte_size:4096,has_thumbnail:false,drive_file_id:'file',drive_url:'https://drive.google.com/file/d/synthetic/view',web_view_link:'https://drive.google.com/file/d/synthetic/view',icon_link:null,source:'picker',drive_state:'ok'}],next_cursor:null};
-    if(path === '/integrations/google' || path === '/integrations/drive') body={configured:true,connected:options.drive ?? false,authorized:options.drive ?? false,enabled:true,has_connection:options.drive ?? false,account:options.drive ? 'synthetic@example.test' : null,status:options.drive ? 'connected' : 'disconnected'};
-    if (path === '/integrations/status') body={google:{configured:true,connected:options.drive ?? false,account:options.drive ? 'synthetic@example.test' : null,status:options.drive ? 'connected' : 'disconnected'},drive:{configured:true,connected:options.drive ?? false},telegram:{configured:true,linked:false}};
+    if (path === '/filters/preview')
+      body = {
+        groups: [{ key: 'none', label: '', tasks: [task] }],
+        count: 1,
+        group_by: 'none',
+        sort: 'manual',
+        next_cursor: null,
+      };
+    if (path === '/tasks/task/links')
+      body = {
+        items: options.links
+          ? ['https://example.com/a', 'https://www.ttd.dev/'].map((url, index) => ({
+              id: `link-${index}`,
+              task_id: 'task',
+              url,
+              title: null,
+              source: 'auto',
+              created_at: '2026-10-22T00:00:00Z',
+              updated_at: '2026-10-22T00:00:00Z',
+            }))
+          : [],
+        next_cursor: null,
+      };
+    if (path === '/tasks/task/attachments' && options.drive)
+      body = {
+        items: [
+          {
+            id: 'file',
+            file_name: 'informe-sintetico.pdf',
+            mime_type: 'application/pdf',
+            byte_size: 4096,
+            has_thumbnail: false,
+            drive_file_id: 'file',
+            drive_url: 'https://drive.google.com/file/d/synthetic/view',
+            web_view_link: 'https://drive.google.com/file/d/synthetic/view',
+            icon_link: null,
+            source: 'picker',
+            drive_state: 'ok',
+          },
+        ],
+        next_cursor: null,
+      };
+    if (path === '/integrations/google' || path === '/integrations/drive')
+      body = {
+        configured: true,
+        connected: options.drive ?? false,
+        authorized: options.drive ?? false,
+        enabled: true,
+        has_connection: options.drive ?? false,
+        account: options.drive ? 'synthetic@example.test' : null,
+        status: options.drive ? 'connected' : 'disconnected',
+      };
+    if (path === '/integrations/status')
+      body = {
+        google: {
+          configured: true,
+          connected: options.drive ?? false,
+          account: options.drive ? 'synthetic@example.test' : null,
+          status: options.drive ? 'connected' : 'disconnected',
+        },
+        drive: { configured: true, connected: options.drive ?? false },
+        telegram: { configured: true, linked: false },
+      };
     if (path === '/tasks/task')
       body = {
         ...task,

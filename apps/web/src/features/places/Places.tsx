@@ -2570,7 +2570,13 @@ const SETTINGS_GROUPS = [
   ],
   [
     'groupWork',
-    ['/settings/capture', '/settings/focus', '/settings/notifications', '/settings/smart-lists', '/settings/calendar'],
+    [
+      '/settings/capture',
+      '/settings/focus',
+      '/settings/notifications',
+      '/settings/smart-lists',
+      '/settings/calendar',
+    ],
   ],
   [
     'groupAdvanced',
@@ -3132,7 +3138,6 @@ export function CaptureSettings() {
     </section>
   );
 }
-
 
 function timeZones(current: string): readonly string[] {
   const known =

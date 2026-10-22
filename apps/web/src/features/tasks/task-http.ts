@@ -48,8 +48,15 @@ export async function patchChecklistItem(
   await taskFetch('PATCH', `/api/v1/tasks/${taskId}/items/${itemId}`, body);
 }
 
-export async function deleteAttachment(taskId: string, attachmentId: string, trashInDrive=false): Promise<void> {
-  await taskFetch('DELETE', `/api/v1/tasks/${taskId}/attachments/${attachmentId}?trash_in_drive=${String(trashInDrive)}`);
+export async function deleteAttachment(
+  taskId: string,
+  attachmentId: string,
+  trashInDrive = false,
+): Promise<void> {
+  await taskFetch(
+    'DELETE',
+    `/api/v1/tasks/${taskId}/attachments/${attachmentId}?trash_in_drive=${String(trashInDrive)}`,
+  );
 }
 
 export function attachmentHref(taskId: string, attachmentId: string): string {

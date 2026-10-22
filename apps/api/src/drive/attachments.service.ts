@@ -80,7 +80,13 @@ export class DriveAttachmentsService {
   async assertConnected(user: AuthUser): Promise<void> {
     const row = await this.prisma.user.findUnique({
       where: { id: user.id },
-      select: { googleRefreshToken: true, googleStatus: true, googleGrantedScopes:true,googleCalendarEnabled:true,googleDriveEnabled:true },
+      select: {
+        googleRefreshToken: true,
+        googleStatus: true,
+        googleGrantedScopes: true,
+        googleCalendarEnabled: true,
+        googleDriveEnabled: true,
+      },
     });
     if (!row?.googleRefreshToken)
       throw new DomainException(
@@ -93,8 +99,14 @@ export class DriveAttachmentsService {
       throw new DomainException(409, 'drive_reauth_required', 'Reconnect Google Drive', {
         connect_url: '/settings/integrations',
       });
-    const access=googleServiceAccess(row,'drive');
-    if(!access.authorized || !access.enabled) throw new DomainException(409,access.enabled?'drive_permission_required':'drive_disabled','Authorize or enable Google Drive in Settings > Integrations',{connect_url:'/settings/integrations'});
+    const access = googleServiceAccess(row, 'drive');
+    if (!access.authorized || !access.enabled)
+      throw new DomainException(
+        409,
+        access.enabled ? 'drive_permission_required' : 'drive_disabled',
+        'Authorize or enable Google Drive in Settings > Integrations',
+        { connect_url: '/settings/integrations' },
+      );
   }
   private async client(user: AuthUser): Promise<DriveClient> {
     await this.assertConnected(user);
@@ -292,7 +304,7 @@ export class DriveAttachmentsService {
     const buffered = await attachmentPrefix(source);
     try {
       const mime = acceptedMime(buffered.prefix);
-      buffered.prefix=Buffer.alloc(0);
+      buffered.prefix = Buffer.alloc(0);
       return await this.using(user, async (client) => {
         const folder = await this.folder(user, taskId, client);
         const session = await client.session(

@@ -45,7 +45,10 @@ export async function attachmentPrefix(source: AsyncIterable<Uint8Array>) {
     }
     async function* replay() {
       try {
-        while(chunks.length){const chunk=chunks.shift();if(chunk)yield chunk;}
+        while (chunks.length) {
+          const chunk = chunks.shift();
+          if (chunk) yield chunk;
+        }
         if (!done)
           for (;;) {
             const next = await iterator.next();

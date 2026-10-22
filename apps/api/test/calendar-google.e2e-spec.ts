@@ -85,7 +85,16 @@ describe('Google calendar subscriptions', () => {
     process.env.GOOGLE_CLIENT_SECRET = 'secret';
     await prisma.user.update({
       where: { id: ownerId },
-      data: { googleRefreshToken: 'stored-refresh',googleGrantedScopes:['https://www.googleapis.com/auth/calendar.calendarlist.readonly','https://www.googleapis.com/auth/calendar.events','https://www.googleapis.com/auth/drive.file'],googleCalendarEnabled:true,googleDriveEnabled:true },
+      data: {
+        googleRefreshToken: 'stored-refresh',
+        googleGrantedScopes: [
+          'https://www.googleapis.com/auth/calendar.calendarlist.readonly',
+          'https://www.googleapis.com/auth/calendar.events',
+          'https://www.googleapis.com/auth/drive.file',
+        ],
+        googleCalendarEnabled: true,
+        googleDriveEnabled: true,
+      },
     });
     const original = globalThis.fetch;
     vi.stubGlobal('fetch', (input: string | URL) => {

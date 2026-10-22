@@ -111,8 +111,8 @@ export function NotificationsPage() {
     email: m.notificationEmail,
     telegram: m.notificationTelegram,
   };
-  const kindLabels: Partial<Record<string,string>> = labels;
-  const channelLabels: Partial<Record<string,string>> = channels;
+  const kindLabels: Partial<Record<string, string>> = labels;
+  const channelLabels: Partial<Record<string, string>> = channels;
   const enabled = (kind: NotificationKind, channel: NotificationChannel) =>
     list(query.data?.preferences).find((pref) => pref.kind === kind && pref.channel === channel)
       ?.enabled ?? notificationDefault(kind, channel, telegram.linked === true);
@@ -158,7 +158,9 @@ export function NotificationsPage() {
       <ErrorState
         title={m.loadFailed}
         retryLabel={m.retry}
-        onRetry={() => { runAction(query.refetch()); }}
+        onRetry={() => {
+          runAction(query.refetch());
+        }}
       />
     );
   return (
@@ -201,7 +203,9 @@ export function NotificationsPage() {
                         ? m.notificationNotLinked
                         : undefined
                     }
-                    onClick={() => { runAction(test(channel)); }}
+                    onClick={() => {
+                      runAction(test(channel));
+                    }}
                   >
                     {m.notificationTest}
                   </Button>
@@ -222,14 +226,15 @@ export function NotificationsPage() {
                       role="switch"
                       aria-label={`${labels[kind]} · ${channels[channel]}`}
                       aria-checked={enabled(kind, channel) === true}
-                      onClick={() => { runAction(
+                      onClick={() => {
+                        runAction(
                           save({
                             preferences: [
                               { kind, channel, enabled: enabled(kind, channel) !== true },
                             ],
                           }),
-                        ); }
-                      }
+                        );
+                      }}
                     >
                       <span aria-hidden="true" />
                     </button>
@@ -242,7 +247,13 @@ export function NotificationsPage() {
       </div>
       {telegram.status === 'blocked' ? <p role="alert">{m.notificationBlockedHelp}</p> : null}
       {push !== 'missing' && push !== 'denied' ? (
-        <Button size="sm" variant="ghost" onClick={() => { runAction(activatePush()); }}>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => {
+            runAction(activatePush());
+          }}
+        >
           {m.notificationEnablePush}
         </Button>
       ) : null}
@@ -292,7 +303,9 @@ export function NotificationsPage() {
             <input
               type="time"
               value={quietValue.start}
-              onChange={(event) => { setQuiet({ ...quietValue, start: event.target.value }); }}
+              onChange={(event) => {
+                setQuiet({ ...quietValue, start: event.target.value });
+              }}
             />
           </label>
           <label>
@@ -300,7 +313,9 @@ export function NotificationsPage() {
             <input
               type="time"
               value={quietValue.end}
-              onChange={(event) => { setQuiet({ ...quietValue, end: event.target.value }); }}
+              onChange={(event) => {
+                setQuiet({ ...quietValue, end: event.target.value });
+              }}
             />
           </label>
         </div>
@@ -310,13 +325,14 @@ export function NotificationsPage() {
               type="button"
               key={day}
               aria-pressed={quietValue.days.includes(day)}
-              onClick={() => { setQuiet({
+              onClick={() => {
+                setQuiet({
                   ...quietValue,
                   days: quietValue.days.includes(day)
                     ? quietValue.days.filter((value) => value !== day)
                     : [...quietValue.days, day],
-                }); }
-              }
+                });
+              }}
             >
               {new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' }).format(
                 new Date(Date.UTC(2026, 9, 18 + day)),
@@ -328,7 +344,9 @@ export function NotificationsPage() {
           <input
             type="checkbox"
             checked={quietValue.allow_high}
-            onChange={(event) => { setQuiet({ ...quietValue, allow_high: event.target.checked }); }}
+            onChange={(event) => {
+              setQuiet({ ...quietValue, allow_high: event.target.checked });
+            }}
           />
           {m.notificationAllowHigh}
         </label>
@@ -364,7 +382,9 @@ export function NotificationsPage() {
           <Button
             size="sm"
             disabled={history.isFetchingNextPage}
-            onClick={() => { runAction(history.fetchNextPage()); }}
+            onClick={() => {
+              runAction(history.fetchNextPage());
+            }}
           >
             {m.notificationMore}
           </Button>

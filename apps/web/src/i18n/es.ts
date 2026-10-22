@@ -1,7 +1,6 @@
 import { extraEs } from './extra';
 
 export const es = {
-
   accountProgressLabel: 'Racha {days}. Control {score}, {state}',
   calendarTodayLabel: '{date}, hoy',
   accountProgress: 'Tu progreso',

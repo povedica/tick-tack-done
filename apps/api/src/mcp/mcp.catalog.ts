@@ -327,9 +327,17 @@ const CATALOG: readonly McpTool[] = [
   },
   {
     name: 'add_task_link',
-    description: 'Add a manual http/https/mailto task link. Private URLs are stored without fetching; optional public HTML title only.',
+    description:
+      'Add a manual http/https/mailto task link. Private URLs are stored without fetching; optional public HTML title only.',
     scopes: ['tasks:write'],
-    inputSchema: objectSchema({ task_id: id, url: { type: 'string', maxLength: 4096 }, title: { type: 'string', maxLength: 200 } }, ['task_id', 'url']),
+    inputSchema: objectSchema(
+      {
+        task_id: id,
+        url: { type: 'string', maxLength: 4096 },
+        title: { type: 'string', maxLength: 200 },
+      },
+      ['task_id', 'url'],
+    ),
   },
   {
     name: 'remove_task_link',
@@ -807,25 +815,41 @@ const CATALOG: readonly McpTool[] = [
   })),
   {
     name: 'get_notification_settings',
-    description: 'Read the owned notification matrix, channel availability and civil quiet hours. There is no MCP tool to change account notification preferences.',
-    scopes: ['profile:read'], inputSchema: objectSchema({}, []),
+    description:
+      'Read the owned notification matrix, channel availability and civil quiet hours. There is no MCP tool to change account notification preferences.',
+    scopes: ['profile:read'],
+    inputSchema: objectSchema({}, []),
   },
   {
     name: 'send_test_notification',
-    description: 'Send a real test notification only to the authenticated owner through push, email or linked Telegram; reports precise channel errors.',
-    scopes: ['profile:read'], inputSchema: objectSchema({channel:{type:'string',enum:['push','email','telegram']}}, ['channel']),
+    description:
+      'Send a real test notification only to the authenticated owner through push, email or linked Telegram; reports precise channel errors.',
+    scopes: ['profile:read'],
+    inputSchema: objectSchema(
+      { channel: { type: 'string', enum: ['push', 'email', 'telegram'] } },
+      ['channel'],
+    ),
   },
   {
     name: 'update_focus_settings',
-    description: 'Update owned Pomodoro settings, durations, auto-start, local sound, volume and daily goal.',
+    description:
+      'Update owned Pomodoro settings, durations, auto-start, local sound, volume and daily goal.',
     scopes: ['focus:write'],
-    inputSchema: objectSchema({
-      pomodoro_minutes:{type:'integer',minimum:5,maximum:180,multipleOf:5},
-      short_break_minutes:{type:'integer',minimum:1,maximum:60}, long_break_minutes:{type:'integer',minimum:5,maximum:90},
-      cycles_before_long_break:{type:'integer',minimum:1,maximum:12}, auto_start_breaks:{type:'boolean'}, auto_start_focus:{type:'boolean'},
-      alarm_sound:{type:'string',enum:['none','bell','chime','digital']}, volume:{type:'integer',minimum:0,maximum:100},
-      ambient_sound:{type:'string',enum:['none','tick','rain','white_noise']}, daily_goal:{type:'integer',minimum:1,maximum:20},
-    }, []),
+    inputSchema: objectSchema(
+      {
+        pomodoro_minutes: { type: 'integer', minimum: 5, maximum: 180, multipleOf: 5 },
+        short_break_minutes: { type: 'integer', minimum: 1, maximum: 60 },
+        long_break_minutes: { type: 'integer', minimum: 5, maximum: 90 },
+        cycles_before_long_break: { type: 'integer', minimum: 1, maximum: 12 },
+        auto_start_breaks: { type: 'boolean' },
+        auto_start_focus: { type: 'boolean' },
+        alarm_sound: { type: 'string', enum: ['none', 'bell', 'chime', 'digital'] },
+        volume: { type: 'integer', minimum: 0, maximum: 100 },
+        ambient_sound: { type: 'string', enum: ['none', 'tick', 'rain', 'white_noise'] },
+        daily_goal: { type: 'integer', minimum: 1, maximum: 20 },
+      },
+      [],
+    ),
   },
   {
     name: 'get_focus_state',

@@ -3,7 +3,7 @@ import { r80Fixture } from './r80.fixture';
 test('TTD-AUD-100 links update in two seconds, validate schemes and use compact accessible chips', async ({
   page,
 }, info) => {
-  await r80Fixture(page, {links:true});
+  await r80Fixture(page, { links: true });
   let links = [
     {
       id: 'link',
@@ -57,9 +57,30 @@ test('TTD-AUD-100 links update in two seconds, validate schemes and use compact 
   await expect(page.locator('.task-link-chip')).toHaveCount(3);
 });
 
-test('TTD-AUD-100: unfurled titles remain literal text rather than HTML',async({page})=>{
- await r80Fixture(page,{links:true});
- const title='<img src=x onerror="window.unfurlExecuted=true">';
- await page.route('**/tasks/task/links',route=>route.fulfill({json:{items:[{id:'safe-text',task_id:'task',url:'https://example.test/',title,source:'manual',created_at:'2026-10-22T10:00:00Z',updated_at:'2026-10-22T10:00:00Z'}],next_cursor:null}}));
- await page.goto('/today?task=task');const label=page.locator('.task-links .asset-name');await expect(label).toHaveText(title);await expect(label.locator('img')).toHaveCount(0);expect(await page.evaluate(()=>Object.hasOwn(window,'unfurlExecuted'))).toBe(false);
+test('TTD-AUD-100: unfurled titles remain literal text rather than HTML', async ({ page }) => {
+  await r80Fixture(page, { links: true });
+  const title = '<img src=x onerror="window.unfurlExecuted=true">';
+  await page.route('**/tasks/task/links', (route) =>
+    route.fulfill({
+      json: {
+        items: [
+          {
+            id: 'safe-text',
+            task_id: 'task',
+            url: 'https://example.test/',
+            title,
+            source: 'manual',
+            created_at: '2026-10-22T10:00:00Z',
+            updated_at: '2026-10-22T10:00:00Z',
+          },
+        ],
+        next_cursor: null,
+      },
+    }),
+  );
+  await page.goto('/today?task=task');
+  const label = page.locator('.task-links .asset-name');
+  await expect(label).toHaveText(title);
+  await expect(label.locator('img')).toHaveCount(0);
+  expect(await page.evaluate(() => Object.hasOwn(window, 'unfurlExecuted'))).toBe(false);
 });

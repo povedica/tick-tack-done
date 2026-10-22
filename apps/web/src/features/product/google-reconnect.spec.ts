@@ -5,14 +5,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router';
 import { expect, it, vi } from 'vitest';
 import type * as I18n from '../../i18n';
-import {
-  googleAuthorizationUrl,
-  googleCallbackNotice,
-} from './GoogleAccessActions';
+import { googleAuthorizationUrl, googleCallbackNotice } from './GoogleAccessActions';
 import { IntegrationSettings } from './ProductPages';
 
 vi.hoisted(() => {
-  Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:() => null,setItem:() => undefined,removeItem:() => undefined}});
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    value: { getItem: () => null, setItem: () => undefined, removeItem: () => undefined },
+  });
 });
 
 vi.mock('../../i18n', async (original) => {
@@ -22,8 +22,21 @@ vi.mock('../../i18n', async (original) => {
 
 it('TTD-AUD-43: a connected Google account offers reconnect without disconnecting first', () => {
   const client = new QueryClient();
-  client.setQueryData(['google'], {connected:false,configured:true,authorized:true,enabled:true,status:'reauth_required',has_connection:true});
-  client.setQueryData(['drive'], {connected:false,configured:true,authorized:false,enabled:true,status:'permission_required'});
+  client.setQueryData(['google'], {
+    connected: false,
+    configured: true,
+    authorized: true,
+    enabled: true,
+    status: 'reauth_required',
+    has_connection: true,
+  });
+  client.setQueryData(['drive'], {
+    connected: false,
+    configured: true,
+    authorized: false,
+    enabled: true,
+    status: 'permission_required',
+  });
   client.setQueryData(['telegram'], { linked: false, configured: false });
   const html = renderToStaticMarkup(
     createElement(

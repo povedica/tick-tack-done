@@ -172,57 +172,132 @@ describe('MCP server', () => {
     expect(await prisma.project.count({ where: { ownerId: owner.id } })).toBe(projects);
   });
 
-  it('TTD-AUD-102: MCP exposes owned notification settings and precise unlinked test errors',async()=>{
-    const token=await request(server).post('/api/v1/me/tokens').set('X-Dev-User-Email',owner.email).send({name:'Synthetic notification test',scopes:['profile:read']}).expect(201);
-    const headers={Authorization:`Bearer ${String(token.body.token)}`};
-    const settings=await rpc(server,headers,'tools/call',{name:'get_notification_settings',arguments:{}});
-    expect(settings.body.result.isError).toBe(false);expect(JSON.parse(toolText(settings.body as unknown)).preferences).toHaveLength(24);
-    const failed=await rpc(server,headers,'tools/call',{name:'send_test_notification',arguments:{channel:'telegram'}});
-    expect(failed.body.result.isError).toBe(true);expect(toolText(failed.body as unknown)).toContain('telegram_not_linked');
+  it('TTD-AUD-102: MCP exposes owned notification settings and precise unlinked test errors', async () => {
+    const token = await request(server)
+      .post('/api/v1/me/tokens')
+      .set('X-Dev-User-Email', owner.email)
+      .send({ name: 'Synthetic notification test', scopes: ['profile:read'] })
+      .expect(201);
+    const headers = { Authorization: `Bearer ${String(token.body.token)}` };
+    const settings = await rpc(server, headers, 'tools/call', {
+      name: 'get_notification_settings',
+      arguments: {},
+    });
+    expect(settings.body.result.isError).toBe(false);
+    expect(JSON.parse(toolText(settings.body as unknown)).preferences).toHaveLength(24);
+    const failed = await rpc(server, headers, 'tools/call', {
+      name: 'send_test_notification',
+      arguments: { channel: 'telegram' },
+    });
+    expect(failed.body.result.isError).toBe(true);
+    expect(toolText(failed.body as unknown)).toContain('telegram_not_linked');
   });
 
   it('TTD-AUD-101: MCP settings validate and finish atomically starts an opted-in break', async () => {
-    const token = await request(server).post('/api/v1/me/tokens').set('X-Dev-User-Email',owner.email).send({name:'Synthetic focus settings',scopes:['focus:read','focus:write']}).expect(201);
-    const headers={Authorization:`Bearer ${String(token.body.token)}`};
-    const changed=await rpc(server,headers,'tools/call',{name:'update_focus_settings',arguments:{pomodoro_minutes:45,auto_start_breaks:true,short_break_minutes:5,daily_goal:8,volume:70}});
+    const token = await request(server)
+      .post('/api/v1/me/tokens')
+      .set('X-Dev-User-Email', owner.email)
+      .send({ name: 'Synthetic focus settings', scopes: ['focus:read', 'focus:write'] })
+      .expect(201);
+    const headers = { Authorization: `Bearer ${String(token.body.token)}` };
+    const changed = await rpc(server, headers, 'tools/call', {
+      name: 'update_focus_settings',
+      arguments: {
+        pomodoro_minutes: 45,
+        auto_start_breaks: true,
+        short_break_minutes: 5,
+        daily_goal: 8,
+        volume: 70,
+      },
+    });
     expect(changed.body.result.isError).toBe(false);
-    const state=await rpc(server,headers,'tools/call',{name:'get_focus_state',arguments:{}});
-    expect(JSON.parse(toolText(state.body as unknown)).settings).toMatchObject({pomodoroMinutes:45,autoStartBreaks:true,dailyGoal:8});
-    await request(server).put('/api/v1/focus/settings').set(headers).send({pomodoro_minutes:200}).expect(400);
-    const session=await request(server).post('/api/v1/focus/sessions').set(headers).send({planned_minutes:1}).expect(201);
-    await prisma.focusSession.update({where:{id:String(session.body.id)},data:{startedAt:new Date(Date.now()-60000)}});
-    const started=performance.now();
-    await request(server).post(`/api/v1/focus/sessions/${String(session.body.id)}/finish`).set(headers).send({}).expect(200);
-    const active=await prisma.focusSession.findMany({where:{ownerId:owner.id,endedAt:null,type:'short_break'}});
-    expect(active).toHaveLength(1);expect(performance.now()-started).toBeLessThan(1000);
-    await request(server).post(`/api/v1/focus/sessions/${String(session.body.id)}/finish`).set(headers).send({}).expect(404);
-    await request(server).post(`/api/v1/focus/sessions/${String(active[0]?.id)}/abort`).set(headers).expect(200);
-    await request(server).put('/api/v1/focus/settings').set(headers).send({auto_start_breaks:false}).expect(200);
+    const state = await rpc(server, headers, 'tools/call', {
+      name: 'get_focus_state',
+      arguments: {},
+    });
+    expect(JSON.parse(toolText(state.body as unknown)).settings).toMatchObject({
+      pomodoroMinutes: 45,
+      autoStartBreaks: true,
+      dailyGoal: 8,
+    });
+    await request(server)
+      .put('/api/v1/focus/settings')
+      .set(headers)
+      .send({ pomodoro_minutes: 200 })
+      .expect(400);
+    const session = await request(server)
+      .post('/api/v1/focus/sessions')
+      .set(headers)
+      .send({ planned_minutes: 1 })
+      .expect(201);
+    await prisma.focusSession.update({
+      where: { id: String(session.body.id) },
+      data: { startedAt: new Date(Date.now() - 60000) },
+    });
+    const started = performance.now();
+    await request(server)
+      .post(`/api/v1/focus/sessions/${String(session.body.id)}/finish`)
+      .set(headers)
+      .send({})
+      .expect(200);
+    const active = await prisma.focusSession.findMany({
+      where: { ownerId: owner.id, endedAt: null, type: 'short_break' },
+    });
+    expect(active).toHaveLength(1);
+    expect(performance.now() - started).toBeLessThan(1000);
+    await request(server)
+      .post(`/api/v1/focus/sessions/${String(session.body.id)}/finish`)
+      .set(headers)
+      .send({})
+      .expect(404);
+    await request(server)
+      .post(`/api/v1/focus/sessions/${String(active[0]?.id)}/abort`)
+      .set(headers)
+      .expect(200);
+    await request(server)
+      .put('/api/v1/focus/settings')
+      .set(headers)
+      .send({ auto_start_breaks: false })
+      .expect(200);
   });
 
   it('TTD-AUD-100: automatic links reconcile and MCP manual links survive text edits', async () => {
     const bearer = await tasksBearer(server, owner.email);
     const call = async (name: string, args: Record<string, unknown>) => {
-      const response = await rpc(server, bearer, 'tools/call', {name, arguments:args});
+      const response = await rpc(server, bearer, 'tools/call', { name, arguments: args });
       expect(response.body.result.isError).toBe(false);
       return JSON.parse(toolText(response.body as unknown)) as Record<string, unknown>;
     };
-    const task = await call('create_task', {title:'ver https://example.com/a y www.ttd.dev.'});
+    const task = await call('create_task', { title: 'ver https://example.com/a y www.ttd.dev.' });
     expect(task.links).toHaveLength(2);
     const task_id = task.id;
-    const manual = await call('add_task_link', {task_id,url:'http://169.254.169.254/'});
+    const manual = await call('add_task_link', { task_id, url: 'http://169.254.169.254/' });
     expect(manual.title).toBeNull();
-    await call('update_task', {id:task_id,title:'ver https://example.com/a'});
-    const detail = await call('get_task', {id:task_id});
+    await call('update_task', { id: task_id, title: 'ver https://example.com/a' });
+    const detail = await call('get_task', { id: task_id });
     expect(detail.links).toHaveLength(2);
-    expect((await call('list_task_links', {task_id})).items).toHaveLength(2);
-    await call('remove_task_link', {task_id,link_id:manual.id});
-    expect((await call('get_task', {id:task_id})).links).toHaveLength(1);
-    await request(server).post(`/api/v1/tasks/${String(task_id)}/links`).set({'X-Dev-User-Email':owner.email}).send({url:'javascript:alert(1)'}).expect(400);
+    expect((await call('list_task_links', { task_id })).items).toHaveLength(2);
+    await call('remove_task_link', { task_id, link_id: manual.id });
+    expect((await call('get_task', { id: task_id })).links).toHaveLength(1);
+    await request(server)
+      .post(`/api/v1/tasks/${String(task_id)}/links`)
+      .set({ 'X-Dev-User-Email': owner.email })
+      .send({ url: 'javascript:alert(1)' })
+      .expect(400);
     const outsider = await createOwner('links-outsider');
-    try { await request(server).get(`/api/v1/tasks/${String(task_id)}/links`).set({'X-Dev-User-Email':outsider.email}).expect(404); } finally { await removeOwner(outsider.id); }
-    const list = await request(server).get('/api/v1/tasks').set({'X-Dev-User-Email':owner.email}).expect(200);
-    expect(list.body.items.find((item: {id:string})=>item.id===task_id).link_count).toBe(1);
+    try {
+      await request(server)
+        .get(`/api/v1/tasks/${String(task_id)}/links`)
+        .set({ 'X-Dev-User-Email': outsider.email })
+        .expect(404);
+    } finally {
+      await removeOwner(outsider.id);
+    }
+    const list = await request(server)
+      .get('/api/v1/tasks')
+      .set({ 'X-Dev-User-Email': owner.email })
+      .expect(200);
+    expect(list.body.items.find((item: { id: string }) => item.id === task_id).link_count).toBe(1);
   });
 
   it('R80: captures the full tools/list contract with a synthetic owner', async () => {
@@ -316,7 +391,9 @@ describe('MCP server', () => {
 
   it('RF-2001: list_tasks forwards cursor and the next page does not repeat the first', async () => {
     const bearer = await tasksBearer(server, owner.email);
-    const project = await prisma.project.create({data:{ownerId:owner.id,name:'Pagination isolated'}});
+    const project = await prisma.project.create({
+      data: { ownerId: owner.id, name: 'Pagination isolated' },
+    });
     const created: string[] = [];
     for (const title of ['Página uno', 'Página dos']) {
       const made = await rpc(server, bearer, 'tools/call', {
@@ -1258,7 +1335,17 @@ describe('MCP server', () => {
     try {
       await prisma.user.update({
         where: { id: owner.id },
-        data: { googleRefreshToken: sealField('synthetic-refresh'),googleGrantedScopes:['https://www.googleapis.com/auth/calendar.calendarlist.readonly','https://www.googleapis.com/auth/calendar.events','https://www.googleapis.com/auth/drive.file'],googleCalendarEnabled:true,googleDriveEnabled:true, googleStatus: 'connected' },
+        data: {
+          googleRefreshToken: sealField('synthetic-refresh'),
+          googleGrantedScopes: [
+            'https://www.googleapis.com/auth/calendar.calendarlist.readonly',
+            'https://www.googleapis.com/auth/calendar.events',
+            'https://www.googleapis.com/auth/drive.file',
+          ],
+          googleCalendarEnabled: true,
+          googleDriveEnabled: true,
+          googleStatus: 'connected',
+        },
       });
       const task = await prisma.task.create({
         data: {

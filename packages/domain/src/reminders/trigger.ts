@@ -258,7 +258,6 @@ export function reminderDisposition(
   return catchUp ? 'late' : 'fire';
 }
 
-
 /** RF-801: store one relative duration form while retaining an explicit start anchor. */
 export function normalizeReminderTrigger(input: string): string | null {
   const text = input.trim().toUpperCase();
