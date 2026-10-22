@@ -31,3 +31,11 @@ Cambio deliberado del correo: si un fichero supera el límite después de captur
 Se ejecutó el mismo inventario transpilado, por stdin y sin escribir el script en el servidor. Las consultas se ejecutaron en una transacción `READ ONLY`. Resultado: **0 filas heredadas / 0 bytes referenciados; 4 ficheros / 201 bytes en el volumen**. Los recuentos de usuarios se refieren únicamente a propietarios de filas heredadas, no al total de cuentas con Google. No se imprimieron nombres ni se leyó el contenido.
 
 Los cuatro ficheros sin referencia se preservan. No se ejecutó migrate-attachments-to-drive en producción, ni se eliminó ningún fichero ni volumen. El inventario está en 99-inventario-produccion.json; retirar esos restos requiere el OK explícito de Pablo.
+
+## Paso 4: esquema sin almacenamiento local
+
+Migración generada `20261022114218_attachments_drive_only`, revisada para sustituir el DROP/ADD propuesto por Prisma por un RENAME que conserva las URL. Su guardia rechaza referencias locales, metadatos incompletos y enlaces duplicados antes de eliminar columnas. Modelo final: drive_file_id obligatorio, byte_size bigint, web_view_link, icon_link, drive_folder_id, source y unicidad tarea/fichero.
+
+✅ Prueba e2e del esquema: sin storage_key, thumbnail_key ni bytea. ✅ Prueba de fallo ante una referencia local en una tabla temporal. ✅ Avance y bajada ejecutados con metadatos sintéticos conservados (99-rollback-proof.sql), sin alterar la tabla real de la base aislada durante esa prueba.
+
+El control automático rechazó exportar la BD completa de producción a un archivo local por posible contenido sensible y falta de autorización expresa para ese destino. No se exportó nada. La validación de reparación en una copia de producción sigue pendiente; se mantienen las pruebas sintéticas y el inventario agregado de solo lectura ya realizado.

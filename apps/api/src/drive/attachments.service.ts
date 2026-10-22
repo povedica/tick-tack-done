@@ -24,7 +24,7 @@ export interface DriveAttachmentJson {
   file_name: string;
   mime_type: string;
   byte_size: number;
-  drive_file_id: string | null;
+  drive_file_id: string;
   web_view_link: string;
   icon_link: string | null;
   source: string;
@@ -39,9 +39,11 @@ export function driveAttachmentJson(
     id: row.id,
     file_name: row.fileName,
     mime_type: row.mimeType,
-    byte_size: row.byteSize,
+    byte_size: Number(row.byteSize),
     drive_file_id: row.driveFileId,
-    web_view_link: row.driveFileId ? viewLink({id:row.driveFileId,webViewLink:row.driveUrl ?? ''}) : '',
+    web_view_link: row.driveFileId
+      ? viewLink({ id: row.driveFileId, webViewLink: row.webViewLink })
+      : '',
     icon_link: row.iconLink,
     source: row.source,
     drive_state: state,
@@ -333,7 +335,12 @@ export class DriveAttachmentsService {
     const size = Number(file.size ?? 0);
     if (!Number.isSafeInteger(size) || size < 0)
       throw new DomainException(502, 'drive_invalid_metadata', 'Invalid Drive file size');
-    if(size>DRIVE_ATTACHMENT_MAX_BYTES)throw new DomainException(413,'payload_too_large','Attachment exceeds the configured Drive limit');
+    if (size > DRIVE_ATTACHMENT_MAX_BYTES)
+      throw new DomainException(
+        413,
+        'payload_too_large',
+        'Attachment exceeds the configured Drive limit',
+      );
     return this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtextextended(${'task-attachments:' + taskId},0))`;
       const task = await tx.task.findFirst({
@@ -356,9 +363,9 @@ export class DriveAttachmentsService {
       const data = {
         fileName: file.name ?? 'file',
         mimeType: file.mimeType ?? 'application/octet-stream',
-        byteSize: size,
+        byteSize: BigInt(size),
         driveFileId: file.id,
-        driveUrl: viewLink(file),
+        webViewLink: viewLink(file),
         iconLink: file.iconLink ?? null,
         driveFolderId: folderId,
         source,
@@ -367,7 +374,7 @@ export class DriveAttachmentsService {
       const row = existing
         ? await tx.attachment.update({ where: { id: existing.id }, data })
         : await tx.attachment.create({
-            data: { ...data, ownerId: user.id, taskId, uploadedById: user.id, storageKey: '' },
+            data: { ...data, ownerId: user.id, taskId, uploadedById: user.id },
           });
       await this.events.record(tx, actorOf(user), {
         type: DomainEvent.driveAttached,
@@ -430,7 +437,7 @@ export class DriveAttachmentsService {
     const row = await this.owned(user, id);
     if (!row.driveFileId) throw new DomainException(404, 'thumbnail_not_found', 'No Drive preview');
     return this.using(user, async (client) => {
-      const file = await client.file(row.driveFileId ?? '', 'thumbnailLink,trashed');
+      const file = await client.file(row.driveFileId, 'thumbnailLink,trashed');
       if (file.trashed || !file.thumbnailLink)
         throw new DomainException(404, 'thumbnail_not_found', 'No Drive preview');
       const url = new URL(file.thumbnailLink);

@@ -52,7 +52,15 @@ export class DriveClient {
     } | null;
     if (body?.error?.errors?.some((error) => error.reason === 'storageQuotaExceeded'))
       throw new DomainException(507, 'drive_quota_exceeded', 'Google Drive quota exceeded');
-    if (response.status === 403 && body?.error?.errors?.some(error=>error.reason==='insufficientPermissions')) throw new DomainException(409,'drive_reauth_required','Reconnect Google Drive to grant drive.file access');
+    if (
+      response.status === 403 &&
+      body?.error?.errors?.some((error) => error.reason === 'insufficientPermissions')
+    )
+      throw new DomainException(
+        409,
+        'drive_reauth_required',
+        'Reconnect Google Drive to grant drive.file access',
+      );
     if (response.status === 401)
       throw new DomainException(409, 'drive_reauth_required', 'Reconnect Google Drive');
     if (response.status === 404)
@@ -62,11 +70,19 @@ export class DriveClient {
     });
   }
   async file(id: string, fields = FIELDS): Promise<DriveFile> {
-    return (await (
+    const selected = fields.split(',').includes('id') ? fields : 'id,' + fields;
+    const file = (await (
       await this.request(
-        `${API}/files/${encodeURIComponent(id)}?fields=${encodeURIComponent(fields)}`,
+        `${API}/files/${encodeURIComponent(id)}?fields=${encodeURIComponent(selected)}`,
       )
     ).json()) as DriveFile;
+    if (file.id !== id)
+      throw new DomainException(
+        502,
+        'drive_invalid_metadata',
+        'Drive did not return the requested file',
+      );
+    return file;
   }
   async find(query: string): Promise<DriveFile[]> {
     const result = (await (

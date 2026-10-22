@@ -143,7 +143,7 @@ export interface Attachment {
   readonly file_name: string;
   readonly mime_type: string;
   readonly byte_size: number;
-  readonly drive_file_id: string | null;
+  readonly drive_file_id: string;
   readonly web_view_link: string;
   readonly icon_link: string | null;
   readonly source: string;

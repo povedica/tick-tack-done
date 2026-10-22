@@ -1062,3 +1062,5 @@ Base actualizada: afc9f5d. Comprobación previa en [r80/verificacion-previa.md](
 - TTD-AUD-85: contrato implementado y probado localmente; reparación de datos pendiente de copia de producción (véase r80/85.md).
 
 - TTD-AUD-87–92: implementación y verificación local en r80/87-92.md; capturas comparativas disponibles. Pendiente revisión global del lote y requisitos de densidad extrema del calendario.
+
+- TTD-AUD-99: pasos 1–4 implementados en commits separados; inventario de producción de solo lectura: 0 filas y 4 ficheros huérfanos/201 bytes preservados. Capturas y pruebas sintéticas de Drive, MCP, correo y Telegram. Modelo sin almacenamiento local y rollback verificado. Pendientes pasos de infraestructura/CI y pruebas externas; sin borrado de producción.

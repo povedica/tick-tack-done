@@ -139,3 +139,5 @@ Migración del origen MCP: bajada y reaplicación verificadas en ttd_r80. Invent
 ### Inventario de adjuntos en producción
 
 ✅ `attachments-inventory --dry-run`, transacción READ ONLY: **0 filas / 0 bytes referenciados; 4 ficheros / 201 bytes en el volumen**. No se leyó contenido ni se imprimieron nombres. **No se ha borrado ningún fichero ni volumen**; los cuatro restos sin referencia se conservan hasta el OK de Pablo. [Resultado agregado](docs/audit/r80/99-inventario-produccion.json).
+
+La comprobación de los scripts sobre una copia de producción sigue ❌ pendiente: el control automático rechazó exportar la BD a un destino local por posible contenido sensible y falta de autorización expresa. **No se exportó nada**. Esto no afecta al inventario agregado, que ya terminó en modo READ ONLY.
