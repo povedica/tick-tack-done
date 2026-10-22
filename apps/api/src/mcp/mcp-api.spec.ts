@@ -47,3 +47,47 @@ it.each([
   await expect(requestPublicApi({ method: 'GET', path }, 'Bearer caller')).rejects.toThrow();
   expect(request).not.toHaveBeenCalled();
 });
+
+it('TTD-AUD-85.1: preserves HTTP status, stable code and structured error body', async () => {
+  request.mockReset();
+  request.mockImplementation((_options: unknown, callback: (incoming: Readable) => void) => {
+    const incoming = Object.assign(
+      Readable.from([
+        Buffer.from(
+          JSON.stringify({
+            error: {
+              code: 'task_not_found',
+              message: 'Task was not found',
+              details: { pending: 1 },
+            },
+          }),
+        ),
+      ]),
+      { statusCode: 404, headers: { 'content-type': 'application/json' } },
+    );
+    return {
+      on: vi.fn(),
+      end: () => {
+        callback(incoming);
+      },
+    };
+  });
+  await expect(
+    requestPublicApi(
+      { method: 'GET', path: '/api/v1/tasks/00000000-0000-4000-8000-000000000000' },
+      'Bearer synthetic',
+    ),
+  ).rejects.toMatchObject({
+    status: 404,
+    response: {
+      code: 'task_not_found',
+      details: {
+        status: 404,
+        code: 'task_not_found',
+        message: 'Task was not found',
+        pending: 1,
+        body: { error: { code: 'task_not_found' } },
+      },
+    },
+  });
+});

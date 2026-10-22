@@ -121,7 +121,25 @@ export async function requestPublicApi(
       : contentType.includes('json')
         ? JSON.parse(bytes.toString('utf8'))
         : { content_type: contentType, base64: bytes.toString('base64') };
-  if (response.status < 200 || response.status >= 300)
-    throw new DomainException(HttpStatus.BAD_REQUEST, 'api_request_failed', JSON.stringify(data));
+  if (response.status < 200 || response.status >= 300) {
+    const body = typeof data === 'object' && data !== null ? (data as Record<string, unknown>) : {};
+    const error =
+      typeof body.error === 'object' && body.error !== null
+        ? (body.error as Record<string, unknown>)
+        : {};
+    const code = typeof error.code === 'string' ? error.code : 'api_request_failed';
+    const message = typeof error.message === 'string' ? error.message : 'REST API request failed';
+    const details =
+      typeof error.details === 'object' && error.details !== null
+        ? (error.details as Record<string, unknown>)
+        : {};
+    throw new DomainException(response.status, code, message, {
+      ...details,
+      status: response.status,
+      code,
+      message,
+      body: data,
+    });
+  }
   return { status: response.status, data };
 }
