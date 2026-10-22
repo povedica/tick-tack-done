@@ -46,6 +46,21 @@ const task = (patch: Partial<StatsTaskRow> = {}): StatsTaskRow => ({
   tagNames: [],
   ...patch,
 });
+
+it('TTD-AUD-95: all completed includes undated work while plan compliance is 16/24 excluding cancelled', () => {
+  const rows = [
+    ...Array.from({ length: 16 }, (_, i) => task({ id: `done-${i}` })),
+    ...Array.from({ length: 110 }, (_, i) => task({ id: `undated-${i}`, dueDate: null })),
+    ...Array.from({ length: 8 }, (_, i) =>
+      task({ id: `pending-${i}`, status: 'active', completedAt: null }),
+    ),
+    task({ id: 'cancelled', status: 'cancelled' }),
+  ];
+  expect(countCompletedCreated(rows, '2026-10-19', '2026-10-25', tz).completed).toBe(126);
+  const rate = completionRate(rows, '2026-10-19', '2026-10-25', tz);
+  expect(rate).toEqual({ completed: 16, planned: 24, rate: 66.7 });
+  expect(Math.round(rate.rate!)).toBe(67);
+});
 const focus = (patch: Partial<StatsFocusRow> = {}): StatsFocusRow => ({
   id: 'f',
   type: 'focus',

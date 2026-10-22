@@ -119,9 +119,9 @@ for (const width of [1280, 390]) {
     await page.locator('.week-chart').scrollIntoViewIfNeeded();
     await page.screenshot({ path: info.outputPath(`reports-detail-${width}.png`), fullPage: true });
     await page.getByRole('button', { name: /^Seleccionar semana:/ }).click();
-    const calendar = page.getByRole('dialog', { name: 'Seleccionar semana' });
+    const calendar = page.getByRole('dialog', { name: 'Fecha', exact:true });
     await expect(calendar).toBeVisible();
-    await expect(calendar.locator('button[aria-pressed=true]')).toHaveCount(7);
+    await expect(calendar.locator('button[aria-pressed=true]')).toHaveCount(1);
     await calendar.getByRole('button', { name: 'Mes anterior' }).click();
     await expect(calendar.getByText('septiembre de 2026', { exact: true })).toBeVisible();
     await calendar.getByRole('button', { name: 'Mes siguiente' }).click();
@@ -135,14 +135,16 @@ for (const width of [1280, 390]) {
     await page.getByRole('button', { name: /^Seleccionar semana:/ }).click();
     await page
       .getByRole('dialog')
-      .getByRole('button', { name: 'Esta semana', exact: true })
+      .getByRole('button', { name: 'Hoy', exact: true })
       .click();
+    await page.getByRole('dialog', {name:'Fecha',exact:true}).getByRole('button',{name:'Hecho',exact:true}).click();
     await expect(page).toHaveURL(/2026-10-19$/);
     await page.getByRole('button', { name: /^Seleccionar semana:/ }).click();
     await page
       .getByRole('dialog')
       .getByRole('button', { name: 'lunes, 12 de octubre de 2026', exact: true })
       .click();
+    await page.getByRole('dialog', {name:'Fecha', exact:true}).getByRole('button', {name:'Hecho',exact:true}).click();
     await expect(page).toHaveURL(/2026-10-12$/);
     await page.getByRole('button', { name: 'Semana siguiente', exact: true }).click();
     await expect(page).toHaveURL(/2026-10-19$/);

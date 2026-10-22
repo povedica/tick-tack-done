@@ -10,11 +10,13 @@ export function PeriodNavigator({
   date,
   onPick,
   className = 'calendar-period',
+  label,
 }: {
   readonly title: string;
   readonly date: Date;
   readonly onPick: (date: Date) => void;
   readonly className?: string;
+  readonly label?: string;
 }) {
   const [open, setOpen] = useState(false);
   const anchor = useRef<HTMLButtonElement>(null);
@@ -24,10 +26,12 @@ export function PeriodNavigator({
       <button
         type="button"
         ref={anchor}
-        aria-label={title}
+        aria-label={label ?? title}
         aria-haspopup="dialog"
         aria-expanded={open}
-        onClick={() => { setOpen(true); }}
+        onClick={() => {
+          setOpen(true);
+        }}
       >
         <span>{title}</span>
         <ChevronDown size={14} aria-hidden="true" />
@@ -44,7 +48,9 @@ export function PeriodNavigator({
           repeatRule: null,
         }}
         timeZone={timeZone}
-        onClose={() => { setOpen(false); }}
+        onClose={() => {
+          setOpen(false);
+        }}
         onApply={(next) => {
           if (next.dueDate) onPick(new Date(`${calendarDay(next.dueDate, timeZone)}T12:00:00`));
           setOpen(false);

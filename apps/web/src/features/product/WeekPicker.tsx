@@ -28,12 +28,15 @@ export function WeekPicker({
       <Button
         variant="ghost"
         aria-label={copy.previousWeek}
-        onClick={() => { onSelect(shiftDayKey(selected, -7)); }}
+        onClick={() => {
+          onSelect(shiftDayKey(selected, -7));
+        }}
       >
         <ChevronLeft size={18} aria-hidden="true" />
       </Button>
       <PeriodNavigator
         className="week-range"
+        label={`${copy.selectWeek}: ${date.toLocaleDateString(copy.locale, { day: 'numeric', month: 'long', year: 'numeric' })}`}
         title={`${label(selected)} – ${label(shiftDayKey(selected, 6))}`}
         date={date}
         onPick={(next) => {
@@ -44,7 +47,9 @@ export function WeekPicker({
       <Button
         variant="ghost"
         aria-label={copy.nextWeek}
-        onClick={() => { onSelect(shiftDayKey(selected, 7)); }}
+        onClick={() => {
+          onSelect(shiftDayKey(selected, 7));
+        }}
       >
         <ChevronRight size={18} aria-hidden="true" />
       </Button>

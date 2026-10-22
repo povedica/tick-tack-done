@@ -296,6 +296,14 @@ export function DatePopover({
                 <button
                   key={key}
                   type="button"
+                  data-date={key}
+                  aria-label={date.toLocaleDateString(locale, {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  })}
+                  aria-pressed={selected}
                   className={[
                     'cal-day',
                     date.getMonth() !== cursor.getMonth() ? 'is-outside' : '',

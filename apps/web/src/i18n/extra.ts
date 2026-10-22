@@ -1,4 +1,10 @@
 export const extraEs = {
+  statsAllCompleted: 'Completadas (todas)',
+  statsPlanCompliance: 'Cumplimiento del plan',
+  statsPlanCount: '{completed} de {planned} con fecha ({rate} %)',
+  statsCompletionHelp: 'Completadas dentro del periodo con fecha límite en el periodo, divididas entre todas las tareas con fecha límite en el periodo, excluidas las canceladas, por 100. El total también incluye completadas sin fecha.',
+  statsCompletionHelpLabel: 'Cómo se calcula el cumplimiento',
+  reportThroughToday: 'En curso · hasta hoy, {date}',
   planSources: 'Elige qué revisar',
   planSourceToday: 'Hoy',
   planSourceOverdue: 'Vencidas',
@@ -834,7 +840,7 @@ export const extraEs = {
   loadChip: '{used} planificados de {available} · {status}',
   loadUnestimated: '{count} sin duración (cuentan {minutes} min)',
   dateIn7: '+7 días',
-  dateOk: 'OK',
+  dateOk: 'Hecho',
   reminderRow: 'Recordatorio',
   repeatRow: 'Repetir',
   noReminder: 'Sin recordatorio',
@@ -1125,6 +1131,12 @@ export const extraEs = {
 } as const;
 
 export const extraEn = {
+  statsAllCompleted: 'Completed (all)',
+  statsPlanCompliance: 'Plan completion',
+  statsPlanCount: '{completed} of {planned} with a due date ({rate} %)',
+  statsCompletionHelp: 'Tasks completed within the period and due within the period divided by all tasks due within the period, excluding cancelled tasks, times 100. The total also includes completed tasks without a due date.',
+  statsCompletionHelpLabel: 'How plan completion is calculated',
+  reportThroughToday: 'In progress · through today, {date}',
   planSources: 'Choose what to review',
   planSourceToday: 'Today',
   planSourceOverdue: 'Overdue',
@@ -1952,7 +1964,7 @@ export const extraEn = {
   loadChip: '{used} of {available} · {status}',
   loadUnestimated: '{count} without a duration (counted as {minutes} min)',
   dateIn7: '+7 days',
-  dateOk: 'OK',
+  dateOk: 'Done',
   reminderRow: 'Reminder',
   repeatRow: 'Repeat',
   noReminder: 'No reminder',

@@ -142,7 +142,7 @@ for (const width of [1280, 390]) {
         fullPage: true,
       });
       await calendar.getByRole('button', { name: 'Mañana', exact: true }).click();
-      await calendar.getByRole('button', { name: 'OK', exact: true }).click();
+      await calendar.getByRole('button', { name: 'Hecho', exact: true }).click();
       await page.getByRole('button', { name: 'Opciones de tarea', exact: true }).click();
       const options = page.getByRole('dialog', { name: 'Opciones de tarea' });
       await options.getByRole('button', { name: 'Alta', exact: true }).click();
@@ -206,7 +206,7 @@ test('RF-102/601/801: date, time, duration, recurrence, reminder and list surviv
   await calendar.getByRole('button', { name: '15 min antes', exact: true }).click();
   await calendar.getByRole('button', { name: /^Repetir/ }).click();
   await calendar.getByRole('button', { name: 'Cada semana', exact: true }).click();
-  await calendar.getByRole('button', { name: 'OK', exact: true }).click();
+  await calendar.getByRole('button', { name: 'Hecho', exact: true }).click();
   await page.getByRole('button', { name: 'Opciones de tarea', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Bandeja', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Trabajo', exact: true }).click();
@@ -216,7 +216,7 @@ test('RF-102/601/801: date, time, duration, recurrence, reminder and list surviv
     .getByRole('dialog')
     .getByRole('checkbox', { name: 'personal importante', exact: true })
     .check();
-  await page.getByRole('dialog').getByRole('button', { name: 'OK', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Hecho', exact: true }).click();
   await field.press('Enter');
   await expect(field).toHaveValue('');
   expect(creations).toHaveLength(1);

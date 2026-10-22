@@ -1068,3 +1068,5 @@ Base actualizada: afc9f5d. Comprobación previa en [r80/verificacion-previa.md](
 - TTD-AUD-93: sidebar con cinco secciones, filtros persistentes y PeriodNavigator compartido implementados; ocho Playwright y dos e2e de Calendar en verde. Evidencia en r80/93.md.
 
 - TTD-AUD-94: paso inicial de fuentes por usuario y recuentos del dominio implementados; 17+1→18, exclusión→1/17 ocultas. Unitarias, siete e2e HTTP y 36 Playwright en verde; r80/94.md.
+
+- TTD-AUD-95: total/cumplimiento explicados, icono de 14 px y semana actual con agregado diario; dominio, fallback, 12 Playwright y regresión semanal en verde. r80/95.md.
