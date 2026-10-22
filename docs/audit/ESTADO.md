@@ -944,8 +944,8 @@ implementación principal; se han revisado sin restaurar diseños descartados.
   cambios automáticos. Falta acreditar audiencia no tester y autorización duradera.
 - El usuario ha autorizado finalmente merge y despliegue, sustituyendo su
   restricción anterior. Se recuperó del historial el acceso correcto al VPS y responde; los alias
-  locales que daban timeout no identificaban este despliegue. Preparación de
-  backup y despliegue en curso; no hay versión nueva acreditada aún.
+  locales que daban timeout no identificaban este despliegue. Backup previo completado y despliegue de `acd7570` realizado;
+  comprobación posterior detallada abajo.
 - Se mantienen excluidos 75.11 y Ticky F1–F10. Calendario móvil conserva el diseño
   aprobado; no se añaden propuestas históricas como funcionalidades nuevas.
 
@@ -969,10 +969,60 @@ implementación principal; se han revisado sin restaurar diseños descartados.
   PostgreSQL/Redis reales en base temporal; sin modificar tareas de producción.
 - Contratos OpenAPI/SDK y catálogo MCP regenerados; migraciones y rollback
   verificados en bases aisladas. **Playwright completo: 262 correctas y 2 omitidas**, con API simulada.
-  CodeQL correcto tras refuerzo del transporte; CI final pendiente del último corte.
+  CI completo y CodeQL correctos en `be06896`, antes del merge.
 - Commits de implementación: `0dbc0d0` (API/dominio/SDK/migraciones), `a2674d3`
   (Foco), `5e14ac0` (Tokens/preferencias), `1132595` (MCP) y `5d7d96f`
-  (sesión/Estadísticas/regresiones). PR #73.
+  (sesión/Estadísticas/regresiones), `4a89401` (evidencia) y `be06896` (formato).
+  PR #73 mergeada en `acd7570` el 22/10/2026.
 
-El alcance de código puede revisarse con estas evidencias; el cierre global
-requiere además el despliegue y las comprobaciones externas indicadas arriba.
+### Despliegue y comprobación real — 22/10/2026
+
+- PR #73 finalizada y mergeada en main: `acd75706761c0bc5bd57d11dd06899d64bc4ff1f`.
+  Main local actualizado. Backup previo privado de PostgreSQL, adjuntos y código;
+  índices de archivo y checksums comprobados, imágenes anteriores conservadas.
+  El backup previo queda en el VPS; no se presenta como nueva copia externa RF-1704.
+- Imágenes API y web construidas en el VPS, migraciones ejecutadas por el
+  entrypoint. Health público: `status=ok`, commit completo `acd7570…`.
+- Cuenta real: login 200; Foco settings/stats/sessions, aplicaciones OAuth,
+  renovaciones y preferencias `today`: todos 200. Google configurado/conectado;
+  lectura de nueve calendarios 200 en el código nuevo.
+- Navegador real de producción: Foco, Tokens, Mes, Año y Hoy a 1280 y 390 px.
+  Diez aperturas, sin desbordamiento horizontal ni errores JavaScript; Año
+  visible en 904/391 ms en esta máquina (no es medición de dispositivo físico).
+  Editor global con N y menú del avatar abiertos/cerrados sin guardar datos.
+  Logout desde la UI: 204 y redirección a login. Capturas privadas en /tmp.
+- MCP HTTP real con PAT temporal de lectura: creación 201, initialize y
+  tools/list 200, list_projects, api_catalog y api_request GET correctos.
+  PATCH de Foco rechazado por scope_missing, sin modificación. Revocación del
+  PAT 204 y logout 204; sólo se han creado/revocado credenciales de prueba,
+  sin cambiar tareas, eventos ni sesiones de foco. El primer intento con
+  permisos/argumentos insuficientes se rechazó correctamente; no se cuenta
+  como funcionamiento correcto del escenario hasta repetir el contrato válido.
+
+### Estado final y pendientes externos
+
+- 78 y 79: implementación y validación local/integración cerradas; despliegue y
+  lectura real acreditados. Las escrituras de Foco, tareas/adjuntos por MCP y
+  revocación OAuth se prueban con usuarios temporales en PostgreSQL real, sin
+  revocar aplicaciones personales ni generar sesiones de foco de producción.
+- 76/77: conservados y regresiones verificadas; editor/avatar abiertos también
+  con cuenta real. Falta teclado virtual de dispositivo físico para 76.
+- Google: funcionamiento del propietario acreditado. Falta verificación/publicación
+  de Google Cloud para no testers y duración mayor de siete días; no se ha
+  cambiado esa configuración externa. Drive no se prueba adjuntando archivos
+  personales; no se afirma validada una nueva copia de backup externa.
+- Conector MCP de Codex: list_projects devuelve error interno -32603 del conector.
+  La misma operación HTTP directa con PAT válido funciona; no aparece error de
+  servidor en el recorrido. Queda revisar/reconectar el cliente y volver a
+  descubrir herramientas; no se declara validado Claude/ChatGPT/Cursor reales.
+- Calendario desktop: repaso en navegador y aceptación simulada; se conserva el
+  detalle flotante compartido. Eso no implementa literalmente el TaskPeek compacto
+  anclado histórico de 75.6; no se añade automáticamente ni se declara ese criterio
+  literal acreditado. No se reabre móvil ni se incorpora 75.11. La consolidación
+  de overrides CSS permanece deuda de mantenimiento, sin cambiar lo aprobado.
+- Exclusiones conservadas: 75.11 y Ticky F1–F10. Los 162 archivos/estados locales
+  del usuario conservan contenido/ausencia tras cambiar a main; localuser y los
+  documentos aportados quedan fuera de commits.
+
+No se declara aceptación global de todos los criterios físicos/externos ni
+del patrón literal de 75.6 a partir de pruebas simuladas o históricas.
