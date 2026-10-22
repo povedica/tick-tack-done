@@ -7,6 +7,61 @@ import { IntegrationsController } from './integrations.controller.js';
 import type { TelegramBotService } from './telegram-bot.service.js';
 import type { TasksService } from '../tasks/tasks.service.js';
 import type { AuthUser } from '../../auth/auth-user.js';
+import type { Response } from 'express';
+import { sealField } from '../../security/field-cipher.js';
+
+describe('TTD-AUD-97 Google disconnect', () => {
+  it.each([false, true])(
+    'revokes own credential and removes imported Google events only when requested (%s)',
+    async (remove) => {
+      const fetch = vi.fn().mockResolvedValue(new globalThis.Response('', { status: 200 }));
+      vi.stubGlobal('fetch', fetch);
+      const tx = {
+        user: { update: vi.fn().mockResolvedValue({}) },
+        externalEvent: { updateMany: vi.fn().mockResolvedValue({ count: 3 }) },
+      };
+      const prisma = {
+        user: {
+          findUnique: vi
+            .fn()
+            .mockResolvedValue({ googleRefreshToken: sealField('synthetic-refresh') }),
+        },
+        $transaction: vi.fn().mockImplementation((fn: (value: unknown) => unknown) => fn(tx)),
+      } as unknown as PrismaService;
+      const events = { record: vi.fn().mockResolvedValue(undefined) } as unknown as EventRecorder;
+      const controller = new IntegrationsController(
+        prisma,
+        events,
+        {} as TelegramBotService,
+        {} as TasksService,
+      );
+      const status=vi.fn().mockReturnThis();
+      const res = { status, end: vi.fn() } as unknown as Response;
+      await controller.disconnectGoogle({ id: 'owner' } as AuthUser, res, {
+        remove_imported_events: String(remove),
+      });
+      expect(fetch).toHaveBeenCalledWith(
+        'https://oauth2.googleapis.com/revoke',
+        expect.objectContaining({
+          method: 'POST',
+          body: new URLSearchParams({ token: 'synthetic-refresh' }),
+        }),
+      );
+      expect(tx.user.update).toHaveBeenCalledWith({
+        where: { id: 'owner' },
+        data: { googleRefreshToken: null, googleAccountEmail: null, googleStatus: 'disconnected' },
+      });
+      if (remove)
+        expect(tx.externalEvent.updateMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: { ownerId: 'owner', deletedAt: null, subscription: { provider: 'google' } },
+          }),
+        );
+      else expect(tx.externalEvent.updateMany).not.toHaveBeenCalled();
+      expect(status).toHaveBeenCalledWith(204);
+    },
+  );
+});
 
 afterEach(() => {
   vi.unstubAllEnvs();

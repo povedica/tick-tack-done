@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   HttpStatus,
+  HttpCode,
   Inject,
   Post,
   Query,
@@ -11,7 +12,14 @@ import {
   Res,
 } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
-import { IsBoolean, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsBooleanString,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+} from 'class-validator';
 import type { Request, Response } from 'express';
 import { actorOf, type AuthUser } from '../../auth/auth-user.js';
 import { CurrentUser } from '../../auth/current-user.decorator.js';
@@ -27,7 +35,7 @@ import { asJson } from '../../http/json.js';
 import { DomainException } from '../../http/domain.exception.js';
 import { respondJson } from '../../http/respond.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { sealField } from '../../security/field-cipher.js';
+import { openField, sealField } from '../../security/field-cipher.js';
 import { TasksService } from '../tasks/tasks.service.js';
 
 class LinkDto {
@@ -35,6 +43,19 @@ class LinkDto {
   @IsString()
   @MaxLength(40)
   chat_id!: string;
+}
+
+class DisconnectGoogleDto {
+  @ApiProperty({
+    type:Boolean,
+    required: false,
+    default: false,
+    description:
+      'Soft-delete imported Google events; existing Drive attachment links are always kept.',
+  })
+  @IsOptional()
+  @IsBooleanString()
+  remove_imported_events?: string;
 }
 
 class DriveDto {
@@ -216,20 +237,61 @@ export class IntegrationsController {
   }
 
   @Delete('google')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @Scopes('profile:write')
-  @ApiOperation({ summary: 'Disconnect Google Calendar and Drive (RF-2004)' })
-  async disconnectGoogle(@CurrentUser() user: AuthUser, @Res() res: Response): Promise<void> {
+  @ApiOperation({
+    summary:
+      'Disconnect and revoke Google Calendar and Drive; keep imported events unless explicitly requested (RF-2004)',
+  })
+  async disconnectGoogle(
+    @CurrentUser() user: AuthUser,
+    @Res() res: Response,
+    @Query() dto: DisconnectGoogleDto = {},
+  ): Promise<void> {
+    if(dto.remove_imported_events !== undefined && dto.remove_imported_events !== 'true' && dto.remove_imported_events !== 'false') {
+      throw new DomainException(HttpStatus.BAD_REQUEST,'validation_failed','remove_imported_events must be true or false');
+    }
+    const credential = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: { googleRefreshToken: true },
+    });
+    let revoked = false;
+    if (credential?.googleRefreshToken) {
+      try {
+        const response = await fetch('https://oauth2.googleapis.com/revoke', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ token: openField(credential.googleRefreshToken) }),
+          signal: AbortSignal.timeout(5000),
+        });
+        revoked = response.ok || response.status === 400;
+      } catch {
+        /* Local disconnect remains available when Google cannot be reached. */
+      }
+    }
     await this.prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { id: user.id },
         data: { googleRefreshToken: null, googleAccountEmail: null, googleStatus: 'disconnected' },
       });
+      if (dto.remove_imported_events === 'true')
+        await tx.externalEvent.updateMany({
+          where: { ownerId: user.id, deletedAt: null, subscription: { provider: 'google' } },
+          data: { deletedAt: new Date() },
+        });
       await this.events.record(tx, actorOf(user), {
         type: DomainEvent.googleDisconnected,
         entityType: 'user',
         entityId: user.id,
         action: 'updated',
-        data: { google: { connected: false } },
+        data: {
+          google: {
+            connected: false,
+            revocation_requested: !!credential?.googleRefreshToken,
+            revoked,
+            imported_events_removed: dto.remove_imported_events === 'true',
+          },
+        },
         previous: null,
       });
     });

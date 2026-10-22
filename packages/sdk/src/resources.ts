@@ -148,7 +148,6 @@ export interface Attachment {
   readonly icon_link: string | null;
   readonly source: string;
   readonly drive_state: 'ok' | 'missing' | 'unknown';
-
 }
 
 export interface AttachmentPage {
@@ -334,7 +333,7 @@ export interface ResourceClient {
   listCalendarFeeds(): Promise<JsonObject>;
   rotateCalendarFeed(id: string): Promise<JsonObject>;
   revokeCalendarFeed(id: string): Promise<void>;
-  disconnectGoogle(): Promise<void>;
+  disconnectGoogle(options?: { readonly removeImportedEvents?: boolean }): Promise<void>;
   disconnectTelegram(): Promise<void>;
   listMembers(projectId: string): Promise<JsonObject>;
   addMember(
@@ -703,8 +702,14 @@ export function resourceMethods(http: Http): ResourceClient {
     async revokeCalendarFeed(id) {
       await ask('DELETE', `/api/v1/calendar/feeds/${id}`, undefined, undefined, isEmpty);
     },
-    async disconnectGoogle() {
-      await ask('DELETE', '/api/v1/integrations/google', undefined, undefined, isEmpty);
+    async disconnectGoogle(options) {
+      await ask(
+        'DELETE',
+        `/api/v1/integrations/google${options?.removeImportedEvents ? '?remove_imported_events=true' : ''}`,
+        undefined,
+        undefined,
+        isEmpty,
+      );
     },
     async disconnectTelegram() {
       await ask('DELETE', '/api/v1/integrations/telegram', undefined, undefined, isEmpty);

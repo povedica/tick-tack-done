@@ -1,4 +1,14 @@
 export const extraEs = {
+  googleUnifiedTitle: 'Google (Calendar y Drive)',
+  googleCalendarPermission: 'Calendario: lectura/escritura',
+  googleDrivePermission: 'Drive: solo ficheros creados por ttd',
+  googleReauthStatus: 'Reconectar',
+  googleDisconnectedStatus: 'Desconectado',
+  googleDisconnectCalendars: 'Los calendarios dejan de sincronizarse. Los eventos importados se conservan salvo que marques la casilla.',
+  googleDisconnectAttachments: 'Los adjuntos siguen en tu Drive como enlaces; no se pueden subir nuevos.',
+  googleDisconnectRevoke: 'La autorización se revoca también en Google.',
+  googleDisconnectRemoveEvents: 'Borrar también los eventos importados',
+  googleDisconnectedNotice: 'Google desconectado. Puedes revocarlo también en',
   statsAllCompleted: 'Completadas (todas)',
   statsPlanCompliance: 'Cumplimiento del plan',
   statsPlanCount: '{completed} de {planned} con fecha ({rate} %)',
@@ -1134,6 +1144,16 @@ export const extraEs = {
 } as const;
 
 export const extraEn = {
+  googleUnifiedTitle: 'Google (Calendar and Drive)',
+  googleCalendarPermission: 'Calendar: read/write',
+  googleDrivePermission: 'Drive: only files created by ttd',
+  googleReauthStatus: 'Reconnect',
+  googleDisconnectedStatus: 'Disconnected',
+  googleDisconnectCalendars: 'Calendars stop syncing. Imported events are kept unless you select the checkbox.',
+  googleDisconnectAttachments: 'Attachments stay in your Drive as links; new uploads are disabled.',
+  googleDisconnectRevoke: 'Authorization is also revoked at Google.',
+  googleDisconnectRemoveEvents: 'Also delete imported events',
+  googleDisconnectedNotice: 'Google disconnected. You can also revoke access at',
   statsAllCompleted: 'Completed (all)',
   statsPlanCompliance: 'Plan completion',
   statsPlanCount: '{completed} of {planned} with a due date ({rate} %)',

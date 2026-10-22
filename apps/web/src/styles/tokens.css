@@ -1,4 +1,5 @@
 :root {
+  --google-confirm-width: 30rem;
   --calendar-mini-border-w: 1px;
   --calendar-mobile-mini-h: calc(var(--calendar-mobile-mini-head-h) + 6 * var(--tap) + 2 * var(--sp-1) + var(--calendar-mini-border-w));
   --mcp-client-tab-h: 2.25rem;

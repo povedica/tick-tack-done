@@ -290,7 +290,8 @@ export function IntegrationSettings() {
   const queryClient = useQueryClient();
   const [params, setParams] = useSearchParams();
   const [googleFlag, setGoogleFlag] = useState(params.get('google'));
-  const [confirmGoogle, setConfirmGoogle] = useState<'google' | 'drive' | null>(null);
+  const [confirmGoogle, setConfirmGoogle] = useState(false);
+  const [removeImportedEvents, setRemoveImportedEvents] = useState(false);
   useEffect(() => {
     const callback = googleCallbackNotice(params);
     if (callback === null) return;
@@ -301,7 +302,6 @@ export function IntegrationSettings() {
     queryKey: ['telegram'],
     queryFn: () => api.integrationStatus('telegram'),
   });
-  const drive = useQuery({ queryKey: ['drive'], queryFn: () => api.integrationStatus('drive') });
   const google = useQuery({ queryKey: ['google'], queryFn: () => api.integrationStatus('google') });
   const googleOn = flag(google.data, 'connected');
   const googleReady = flag(google.data, 'configured');
@@ -313,18 +313,21 @@ export function IntegrationSettings() {
     },
   });
   const disconnectGoogle = useMutation({
-    mutationFn: () => api.disconnectGoogle(),
+    mutationFn: () => api.disconnectGoogle({ removeImportedEvents }),
     onSuccess: () => {
-      setConfirmGoogle(null);
+      setConfirmGoogle(false);
       runAction(google.refetch());
-      runAction(drive.refetch());
+      setGoogleFlag('disconnected');
+      runAction(queryClient.invalidateQueries({ queryKey: ['calendar-events'] }));
+      runAction(queryClient.invalidateQueries({ queryKey: ['calendar-subscriptions'] }));
       runAction(queryClient.invalidateQueries({ queryKey: ['google-calendars'] }));
     },
   });
   const busy = connectGoogle.isPending || disconnectGoogle.isPending;
-  function requestDisconnect(source: 'google' | 'drive'): void {
+  function requestDisconnect(): void {
     disconnectGoogle.reset();
-    setConfirmGoogle(source);
+    setRemoveImportedEvents(false);
+    setConfirmGoogle(true);
   }
   const voice = flag(telegram.data, 'voice');
   const photo = flag(telegram.data, 'photo');
@@ -360,17 +363,33 @@ export function IntegrationSettings() {
       {googleFlag === 'error' ? <p role="alert">{messages.googleErrorNote}</p> : null}
       {googleFlag === 'denied' ? <p role="alert">{messages.googleDeniedNote}</p> : null}
 
+      {googleFlag === 'disconnected' ? (
+        <p role="status">
+          {messages.googleDisconnectedNotice}{' '}
+          <a
+            href="https://myaccount.google.com/permissions"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            myaccount.google.com/permissions
+          </a>
+        </p>
+      ) : null}
       <section className="token-panel" aria-labelledby="google-title">
         <div className="token-panel-head">
           <div>
-            <h2 id="google-title">Google</h2>
+            <h2 id="google-title">{messages.googleUnifiedTitle}</h2>
             <p>{messages.googleHint}</p>
           </div>
           {google.isSuccess ? (
             <StatusPill
-              on={googleOn}
+              on={googleOn && text(google.data.status) !== 'reauth_required'}
               onLabel={messages.integrationConnected}
-              offLabel={googleReady ? messages.integrationIdle : messages.integrationOff}
+              offLabel={
+                text(google.data.status) === 'reauth_required'
+                  ? messages.googleReauthStatus
+                  : messages.googleDisconnectedStatus
+              }
             />
           ) : null}
         </div>
@@ -388,72 +407,25 @@ export function IntegrationSettings() {
             </Button>
           </p>
         ) : null}
+        <p className="token-meta">{messages.googleCalendarPermission}</p>
+        <p className="token-meta">{messages.googleDrivePermission}</p>
         <GoogleAccessActions
           messages={messages}
           connected={googleOn}
           configured={googleReady}
-          confirming={confirmGoogle === 'google'}
+          confirming={confirmGoogle}
+          removeImportedEvents={removeImportedEvents}
+          onRemoveImportedEvents={setRemoveImportedEvents}
           busy={busy}
           error={disconnectGoogle.isError ? messages.googleDisconnectFailed : null}
           onConnect={() => {
             connectGoogle.mutate();
           }}
           onRequestDisconnect={() => {
-            requestDisconnect('google');
+            requestDisconnect();
           }}
           onCancel={() => {
-            setConfirmGoogle(null);
-          }}
-          onConfirm={() => {
-            disconnectGoogle.mutate();
-          }}
-        />
-      </section>
-
-      <section className="token-panel" aria-labelledby="drive-title">
-        <div className="token-panel-head">
-          <div>
-            <h2 id="drive-title">Drive</h2>
-            <p>{messages.driveNeedsGoogle}</p>
-          </div>
-          {drive.isSuccess ? (
-            <StatusPill
-              on={flag(drive.data, 'connected')}
-              onLabel={messages.integrationConnected}
-              offLabel={
-                flag(drive.data, 'configured') ? messages.integrationIdle : messages.integrationSoon
-              }
-            />
-          ) : null}
-        </div>
-        {drive.isError ? (
-          <p role="alert">
-            {messages.googleErrorNote}
-            <Button
-              type="button"
-              onClick={() => {
-                runAction(drive.refetch());
-              }}
-            >
-              {messages.retry}
-            </Button>
-          </p>
-        ) : null}
-        <GoogleAccessActions
-          messages={messages}
-          connected={flag(drive.data, 'connected')}
-          configured={flag(drive.data, 'configured')}
-          confirming={confirmGoogle === 'drive'}
-          busy={busy}
-          error={disconnectGoogle.isError ? messages.googleDisconnectFailed : null}
-          onConnect={() => {
-            connectGoogle.mutate();
-          }}
-          onRequestDisconnect={() => {
-            requestDisconnect('drive');
-          }}
-          onCancel={() => {
-            setConfirmGoogle(null);
+            setConfirmGoogle(false);
           }}
           onConfirm={() => {
             disconnectGoogle.mutate();

@@ -3401,7 +3401,7 @@ export interface paths {
         get: operations["IntegrationsController_google"];
         put?: never;
         post?: never;
-        /** Disconnect Google Calendar and Drive (RF-2004) */
+        /** Disconnect and revoke Google Calendar and Drive; keep imported events unless explicitly requested (RF-2004) */
         delete: operations["IntegrationsController_disconnectGoogle"];
         options?: never;
         head?: never;
@@ -4631,7 +4631,7 @@ export interface components {
             file_name: string;
             mime_type: string;
             byte_size: number;
-            drive_file_id: string | null;
+            drive_file_id: string;
             web_view_link: string;
             icon_link: string | null;
             source: string;
@@ -11234,14 +11234,17 @@ export interface operations {
     };
     IntegrationsController_disconnectGoogle: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Soft-delete imported Google events; existing Drive attachment links are always kept. */
+                remove_imported_events?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            200: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -11,6 +12,10 @@ import {
   googleCallbackNotice,
 } from './GoogleAccessActions';
 import { IntegrationSettings } from './ProductPages';
+
+vi.hoisted(() => {
+  Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:() => null,setItem:() => undefined,removeItem:() => undefined}});
+});
 
 vi.mock('../../i18n', async (original) => {
   const actual = await original<typeof I18n>();

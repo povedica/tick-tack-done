@@ -704,6 +704,12 @@ En `token.created@v1` y `token.revoked@v1`, la representación `token` incluye
 los campos aditivos `oauth_client_id` y `expires_at` (ambos anulables), iguales
 al DTO público. Identifican la aplicación y la caducidad; nunca contienen el secreto.
 
+En `google.disconnected@v1`, `google` incluye `connected:false`, `revocation_requested`,
+`revoked` e `imported_events_removed`. La revocación remota usa solo la credencial del
+propietario; un fallo de red no impide desconectar localmente. Los eventos importados
+se conservan salvo `DELETE /integrations/google?remove_imported_events=true` explícito.
+Los adjuntos de Drive se conservan siempre como metadatos y enlaces.
+
 En `report.generated@v1`, la semana (`week` en automatizaciones, `report.week`
 en generación manual) es la fecha civil del lunes en la zona del propietario.
 Ambos productores guardan el mismo payload verificable `metrics_version=2`, con

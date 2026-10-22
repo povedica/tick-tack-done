@@ -5032,8 +5032,16 @@
   {
     "method": "DELETE",
     "path": "/api/v1/integrations/google",
-    "summary": "Disconnect Google Calendar and Drive (RF-2004)",
-    "parameters": [],
+    "summary": "Disconnect and revoke Google Calendar and Drive; keep imported events unless explicitly requested (RF-2004)",
+    "parameters": [
+      {
+        "name": "remove_imported_events",
+        "required": false,
+        "in": "query",
+        "description": "Soft-delete imported Google events; existing Drive attachment links are always kept.",
+        "schema": { "default": false, "type": "boolean" }
+      }
+    ],
     "request_body": {}
   },
   {

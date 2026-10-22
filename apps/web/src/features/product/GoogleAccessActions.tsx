@@ -1,5 +1,7 @@
 import { Button } from '../../components/ui';
 import type { Messages } from '../../i18n';
+import { useEffect, useRef } from 'react';
+import './google-access.css';
 
 export function googleAuthorizationUrl(value: unknown): string {
   if (typeof value !== 'string') throw new Error('invalid_google_url');
@@ -19,6 +21,8 @@ export function GoogleAccessActions({
   onRequestDisconnect,
   onCancel,
   onConfirm,
+  removeImportedEvents = false,
+  onRemoveImportedEvents,
 }: {
   readonly messages: Messages;
   readonly connected: boolean;
@@ -30,7 +34,13 @@ export function GoogleAccessActions({
   readonly onRequestDisconnect: () => void;
   readonly onCancel: () => void;
   readonly onConfirm: () => void;
+  readonly removeImportedEvents?: boolean;
+  readonly onRemoveImportedEvents?: (remove: boolean) => void;
 }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (confirming) dialog.current?.showModal();
+  }, [confirming]);
   return (
     <>
       <div className="token-actions">
@@ -58,8 +68,35 @@ export function GoogleAccessActions({
         ) : null}
       </div>
       {confirming ? (
-        <div className="token-confirm" role="alertdialog" aria-label={messages.googleDisconnect}>
+        <dialog
+          ref={dialog}
+          className="ui-modal google-disconnect-dialog"
+          role="alertdialog"
+          aria-label={messages.googleDisconnect}
+          onCancel={(event) => {
+            event.preventDefault();
+            onCancel();
+          }}
+          onClick={(event) => {
+            if (event.target === event.currentTarget) onCancel();
+          }}
+        >
           <p>{messages.googleDisconnectBody}</p>
+          <ul>
+            <li>{messages.googleDisconnectCalendars}</li>
+            <li>{messages.googleDisconnectAttachments}</li>
+            <li>{messages.googleDisconnectRevoke}</li>
+          </ul>
+          <label className="google-remove-events">
+            <input
+              type="checkbox"
+              checked={removeImportedEvents}
+              onChange={(event) => {
+                onRemoveImportedEvents?.(event.target.checked);
+              }}
+            />
+            {messages.googleDisconnectRemoveEvents}
+          </label>
           {error !== null ? <p role="alert">{error}</p> : null}
           <div className="token-actions">
             <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={onCancel}>
@@ -76,7 +113,7 @@ export function GoogleAccessActions({
               {messages.googleDisconnect}
             </Button>
           </div>
-        </div>
+        </dialog>
       ) : null}
     </>
   );

@@ -12560,13 +12560,24 @@
       },
       "delete": {
         "operationId": "IntegrationsController_disconnectGoogle",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "remove_imported_events",
+            "required": false,
+            "in": "query",
+            "description": "Soft-delete imported Google events; existing Drive attachment links are always kept.",
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ],
         "responses": {
-          "200": {
+          "204": {
             "description": ""
           }
         },
-        "summary": "Disconnect Google Calendar and Drive (RF-2004)",
+        "summary": "Disconnect and revoke Google Calendar and Drive; keep imported events unless explicitly requested (RF-2004)",
         "tags": [
           "integrations"
         ],
@@ -17463,8 +17474,7 @@
             "type": "number"
           },
           "drive_file_id": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           },
           "web_view_link": {
             "type": "string"

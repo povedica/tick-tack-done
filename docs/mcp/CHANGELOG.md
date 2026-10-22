@@ -2,6 +2,8 @@
 
 ## R80 — PR #75 (en desarrollo)
 
+- TTD-AUD-97: `api_request DELETE /integrations/google` revoca la credencial propia y conserva eventos/adjuntos; `remove_imported_events:true` en la query elimina solo eventos Google importados del propietario. Sin cambiar herramientas MCP, OpenAPI y SDK exponen el parámetro.
+
 - TTD-AUD-80: refresh OAuth concurrente e idempotente durante 60 s; access anterior limitado a 120 s; fallos transitorios con 503.
 - TTD-AUD-81: recurrence:null cierra la serie del propietario; next_occurrence comparte cálculo de dominio y respeta día completo. warnings incluye anchor_outside_rule y next_matching.
 - TTD-AUD-86: sin Google propio, 409 google_not_connected; credencial global ignorada fuera del usuario semilla explícito en desarrollo.
