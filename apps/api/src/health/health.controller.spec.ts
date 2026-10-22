@@ -27,7 +27,7 @@ describe('HealthController', () => {
     const response = await request(app.getHttpServer() as SuperTestApp)
       .get('/api/v1/health')
       .expect(200);
-    expect(response.body).toEqual({ status: 'ok', commit: 'unknown' });
+    expect(response.body).toMatchObject({ status: 'ok', commit: 'unknown', version: '0.2.0', built_at:'unknown', mcp_version:'0.2.0+unknown' });
     expect(response.headers['x-request-id']).toEqual(expect.any(String));
   });
 

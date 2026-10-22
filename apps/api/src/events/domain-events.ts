@@ -1,4 +1,6 @@
 export const DomainEvent = {
+  googlePermissionsUpdated: 'google.permissions_updated@v1',
+  googleServiceUpdated: 'google.service_updated@v1',
   telegramStatusChanged: 'telegram.status_changed@v1',
   notificationSettingsUpdated: 'notification.settings_updated@v1',
   taskLinkAdded: 'task.link_added@v1',

@@ -26,7 +26,7 @@ describe('TTD-AUD-86 legacy Google seed credential policy', () => {
     expect(
       userGoogleRefreshToken({
         email: 'other@example.test',
-        googleRefreshToken: sealField('synthetic-owned'),
+        googleRefreshToken: sealField('synthetic-owned'),googleGrantedScopes:['https://www.googleapis.com/auth/calendar.calendarlist.readonly','https://www.googleapis.com/auth/calendar.events'],googleCalendarEnabled:true,googleDriveEnabled:true,
       }),
     ).toBe('synthetic-owned');
   });

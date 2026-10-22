@@ -1,3 +1,4 @@
+import { DRIVE_INPUT_CHUNK_BYTES } from './drive-client.js';
 import path from 'node:path';
 import { HttpStatus } from '@nestjs/common';
 import { DomainException } from '../http/domain.exception.js';
@@ -23,7 +24,7 @@ export async function attachmentPrefix(source: AsyncIterable<Uint8Array>) {
         done = true;
         break;
       }
-      if (next.value.byteLength > 8 * 1024 * 1024)
+      if (next.value.byteLength > DRIVE_INPUT_CHUNK_BYTES)
         throw new DomainException(
           413,
           'stream_chunk_too_large',
@@ -44,7 +45,7 @@ export async function attachmentPrefix(source: AsyncIterable<Uint8Array>) {
     }
     async function* replay() {
       try {
-        yield* chunks;
+        while(chunks.length){const chunk=chunks.shift();if(chunk)yield chunk;}
         if (!done)
           for (;;) {
             const next = await iterator.next();

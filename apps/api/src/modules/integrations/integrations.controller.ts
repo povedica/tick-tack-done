@@ -1,4 +1,10 @@
 import {
+  GoogleConnectionStatusDto,
+  GoogleIntegrationStatusDto,
+  GoogleServiceAccessDto,
+} from './google-status.dto.js';
+import { GOOGLE_ACCESS_SELECT, googleServiceAccess } from '../../integrations/google-access.js';
+import {
   Body,
   Controller,
   Delete,
@@ -7,11 +13,21 @@ import {
   HttpCode,
   Inject,
   Post,
+  Patch,
+  Param,
   Query,
   Req,
   Res,
 } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiProperty, ApiTags, ApiOkResponse, ApiCreatedResponse } from '@nestjs/swagger';
+import {
+  ApiBody,
+  ApiQuery,
+  ApiOperation,
+  ApiProperty,
+  ApiTags,
+  ApiOkResponse,
+  ApiCreatedResponse,
+} from '@nestjs/swagger';
 import {
   IsBoolean,
   IsBooleanString,
@@ -27,7 +43,6 @@ import { Public, Scopes } from '../../auth/scopes.decorator.js';
 import { DomainEvent } from '../../events/domain-events.js';
 import { EventRecorder } from '../../events/event-recorder.js';
 import { googleConfigured, telegramConfigured } from '../../integrations/config.js';
-import { userGoogleRefreshToken } from '../../integrations/user-google-token.js';
 import { telegramSecretMatches } from '../../integrations/telegram-secret.js';
 import { authorizeUrl, readState, redirectFor, signState } from './google-oauth.js';
 import { TelegramBotService } from './telegram-bot.service.js';
@@ -39,22 +54,22 @@ import { openField, sealField } from '../../security/field-cipher.js';
 import { TasksService } from '../tasks/tasks.service.js';
 
 class TelegramStatusDto {
- @ApiProperty() configured!:boolean;
- @ApiProperty() linked!:boolean;
- @ApiProperty({type:String,nullable:true}) bot_username!:string|null;
- @ApiProperty({type:String,nullable:true}) username!:string|null;
- @ApiProperty({type:String,nullable:true}) display_name!:string|null;
- @ApiProperty({type:String,nullable:true}) linked_at!:string|null;
- @ApiProperty({enum:['not_linked','connected','blocked']}) status!:string;
- @ApiProperty() enabled!:boolean;
- @ApiProperty() voice!:boolean;
- @ApiProperty() photo!:boolean;
+  @ApiProperty() configured!: boolean;
+  @ApiProperty() linked!: boolean;
+  @ApiProperty({ type: String, nullable: true }) bot_username!: string | null;
+  @ApiProperty({ type: String, nullable: true }) username!: string | null;
+  @ApiProperty({ type: String, nullable: true }) display_name!: string | null;
+  @ApiProperty({ type: String, nullable: true }) linked_at!: string | null;
+  @ApiProperty({ enum: ['not_linked', 'connected', 'blocked'] }) status!: string;
+  @ApiProperty() enabled!: boolean;
+  @ApiProperty() voice!: boolean;
+  @ApiProperty() photo!: boolean;
 }
 class TelegramPairingResponseDto {
- @ApiProperty() code!:string;
- @ApiProperty() expires_at!:string;
- @ApiProperty({type:String,nullable:true}) bot_username!:string|null;
- @ApiProperty({type:String,nullable:true}) deep_link!:string|null;
+  @ApiProperty() code!: string;
+  @ApiProperty() expires_at!: string;
+  @ApiProperty({ type: String, nullable: true }) bot_username!: string | null;
+  @ApiProperty({ type: String, nullable: true }) deep_link!: string | null;
 }
 
 class LinkDto {
@@ -66,7 +81,7 @@ class LinkDto {
 
 class DisconnectGoogleDto {
   @ApiProperty({
-    type:Boolean,
+    type: Boolean,
     required: false,
     default: false,
     description:
@@ -114,7 +129,7 @@ export class IntegrationsController {
   ) {}
 
   @Get('telegram')
-  @ApiOkResponse({type:TelegramStatusDto})
+  @ApiOkResponse({ type: TelegramStatusDto })
   @Scopes('profile:read')
   @ApiOperation({
     summary: 'Telegram bot status. Without TELEGRAM_BOT_TOKEN it stays stopped (RF-2003).',
@@ -127,15 +142,22 @@ export class IntegrationsController {
     const link = await this.prisma.telegramLink.findFirst({
       where: { ownerId: user.id, deletedAt: null },
     });
-    const owner=await this.prisma.user.findUniqueOrThrow({where:{id:user.id},select:{telegramEnabled:true}});
+    const owner = await this.prisma.user.findUniqueOrThrow({
+      where: { id: user.id },
+      select: { telegramEnabled: true },
+    });
     respondJson(
       req,
       res,
       200,
       {
         configured: telegramConfigured(),
-        bot_username:await this.telegram.botUsername(),
-        username:link?.username??null,display_name:link?.displayName??null,linked_at:link?.createdAt.toISOString()??null,status:link?.status??'not_linked',enabled:owner.telegramEnabled,
+        bot_username: await this.telegram.botUsername(),
+        username: link?.username ?? null,
+        display_name: link?.displayName ?? null,
+        linked_at: link?.createdAt.toISOString() ?? null,
+        status: link?.status ?? 'not_linked',
+        enabled: owner.telegramEnabled,
         voice: telegramConfigured() && present('TELEGRAM_VOICE_PROVIDER'),
         photo: telegramConfigured(),
         linked: link !== null,
@@ -148,7 +170,9 @@ export class IntegrationsController {
   @Scopes('profile:write')
   @ApiOperation({ summary: 'Unlink Telegram chats from this account (RF-2003)' })
   async unlinkTelegram(@CurrentUser() user: AuthUser, @Res() res: Response): Promise<void> {
-    const links=await this.prisma.telegramLink.findMany({where:{ownerId:user.id,deletedAt:null}});
+    const links = await this.prisma.telegramLink.findMany({
+      where: { ownerId: user.id, deletedAt: null },
+    });
     await this.prisma.$transaction(async (tx) => {
       await tx.telegramLink.updateMany({
         where: { ownerId: user.id, deletedAt: null },
@@ -163,17 +187,21 @@ export class IntegrationsController {
         previous: null,
       });
     });
-    for(const link of links)await this.telegram.farewell(link.chatId);
+    for (const link of links) await this.telegram.farewell(link.chatId);
     res.status(204).end();
   }
 
   @Post('telegram/recheck')
   @Scopes('profile:write')
-  @ApiOperation({summary:'Check that the linked Telegram bot can send again after being unblocked'})
-  async recheckTelegram(@CurrentUser()user:AuthUser){return this.telegram.recheck(user);}
+  @ApiOperation({
+    summary: 'Check that the linked Telegram bot can send again after being unblocked',
+  })
+  async recheckTelegram(@CurrentUser() user: AuthUser) {
+    return this.telegram.recheck(user);
+  }
 
   @Post('telegram/pairing')
-  @ApiCreatedResponse({type:TelegramPairingResponseDto})
+  @ApiCreatedResponse({ type: TelegramPairingResponseDto })
   @Scopes('profile:write')
   @ApiOperation({
     summary:
@@ -234,6 +262,7 @@ export class IntegrationsController {
   }
 
   @Get('google')
+  @ApiOkResponse({ type: GoogleConnectionStatusDto })
   @Scopes('profile:read')
   @ApiOperation({
     summary: 'Google connection status. The refresh token is stored after consent (RF-2004).',
@@ -245,7 +274,7 @@ export class IntegrationsController {
   ): Promise<void> {
     const row = await this.prisma.user.findUnique({
       where: { id: user.id },
-      select: { googleRefreshToken: true, googleAccountEmail: true, googleStatus: true },
+      select: { ...GOOGLE_ACCESS_SELECT, googleAccountEmail: true },
     });
     respondJson(
       req,
@@ -253,14 +282,14 @@ export class IntegrationsController {
       200,
       {
         configured: googleConfigured(),
-        connected: (row?.googleRefreshToken ?? '').length > 0,
+        ...googleServiceAccess(row, 'calendar'),
         account: row?.googleAccountEmail ?? null,
-        status:
-          row?.googleStatus === 'reauth_required'
-            ? 'reauth_required'
-            : row?.googleRefreshToken
-              ? 'connected'
-              : 'disconnected',
+        has_connection: !!row?.googleRefreshToken,
+        connection_status: row?.googleStatus ?? 'disconnected',
+        services: {
+          calendar: googleServiceAccess(row, 'calendar'),
+          drive: googleServiceAccess(row, 'drive'),
+        },
       },
       false,
     );
@@ -271,15 +300,23 @@ export class IntegrationsController {
   @Scopes('profile:write')
   @ApiOperation({
     summary:
-      'Disconnect and revoke Google Calendar and Drive; keep imported events unless explicitly requested (RF-2004)',
+      'Disconnect and revoke all Google services; keep imported events unless explicitly requested (RF-2004)',
   })
   async disconnectGoogle(
     @CurrentUser() user: AuthUser,
     @Res() res: Response,
     @Query() dto: DisconnectGoogleDto = {},
   ): Promise<void> {
-    if(dto.remove_imported_events !== undefined && dto.remove_imported_events !== 'true' && dto.remove_imported_events !== 'false') {
-      throw new DomainException(HttpStatus.BAD_REQUEST,'validation_failed','remove_imported_events must be true or false');
+    if (
+      dto.remove_imported_events !== undefined &&
+      dto.remove_imported_events !== 'true' &&
+      dto.remove_imported_events !== 'false'
+    ) {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'remove_imported_events must be true or false',
+      );
     }
     const credential = await this.prisma.user.findUnique({
       where: { id: user.id },
@@ -299,10 +336,21 @@ export class IntegrationsController {
         /* Local disconnect remains available when Google cannot be reached. */
       }
     }
+    if (credential?.googleRefreshToken && !revoked)
+      throw new DomainException(
+        503,
+        'google_revoke_failed',
+        'Google could not confirm revocation; retry later',
+      );
     await this.prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { id: user.id },
-        data: { googleRefreshToken: null, googleAccountEmail: null, googleStatus: 'disconnected' },
+        data: {
+          googleRefreshToken: null,
+          googleAccountEmail: null,
+          googleStatus: 'disconnected',
+          googleGrantedScopes: [],
+        },
       });
       if (dto.remove_imported_events === 'true')
         await tx.externalEvent.updateMany({
@@ -330,30 +378,51 @@ export class IntegrationsController {
 
   @Get('google/start')
   @Scopes('profile:write')
-  @ApiOperation({ summary: 'Build the Google consent URL. The browser completes it (RF-2004).' })
-  start(@CurrentUser() user: AuthUser, @Req() req: Request, @Res() res: Response): void {
-    const redirect = redirectFor(pageOrigin(req));
-    if (!googleConfigured()) {
+  @ApiOperation({
+    summary: 'Request Calendar, Drive or both using incremental Google consent (RF-2004/2005).',
+  })
+  @ApiQuery({ name: 'service', required: false, enum: ['calendar', 'drive', 'all'] })
+  start(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+    @Query('service') requested?: string,
+  ): void {
+    if (
+      requested !== undefined &&
+      requested !== 'calendar' &&
+      requested !== 'drive' &&
+      requested !== 'all'
+    )
+      throw new DomainException(400, 'validation_failed', 'service must be calendar, drive or all');
+    if (!googleConfigured())
       throw new DomainException(
-        HttpStatus.SERVICE_UNAVAILABLE,
+        503,
         'google_not_configured',
-        'Google needs GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET',
+        'Configure Google OAuth before connecting',
       );
-    }
-    if (redirect === null) {
+    const redirect = redirectFor(pageOrigin(req));
+    if (!redirect)
       throw new DomainException(
-        HttpStatus.BAD_REQUEST,
+        400,
         'validation_failed',
         'Open settings on the app origin before connecting Google',
       );
-    }
-    const state = signState({ uid: user.id, exp: Date.now() + 10 * 60 * 1000, redirect });
-    respondJson(req, res, 200, { url: authorizeUrl(redirect, state) }, false);
+    const product = requested ?? 'all';
+    const state = signState({
+      uid: user.id,
+      exp: Date.now() + 10 * 60 * 1000,
+      redirect,
+      requested: product,
+    });
+    respondJson(req, res, 200, { url: authorizeUrl(redirect, state, product) }, false);
   }
 
   @Get('google/callback')
   @Public()
-  @ApiOperation({ summary: 'Google redirects here with the authorization code (RF-2004).' })
+  @ApiOperation({
+    summary: 'Google OAuth callback; persist only actually granted scopes (RF-2004/2005).',
+  })
   async callback(
     @Query('code') code: string | undefined,
     @Query('state') state: string | undefined,
@@ -371,7 +440,7 @@ export class IntegrationsController {
       res.redirect(302, `${back}/settings/integrations?google=denied`);
       return;
     }
-    if (parsed === null || code === undefined || code.length === 0) {
+    if (parsed === null || typeof code !== 'string' || code.length === 0) {
       res.redirect(302, `${back}/settings/integrations?google=error`);
       return;
     }
@@ -387,33 +456,63 @@ export class IntegrationsController {
       }),
       signal: AbortSignal.timeout(8_000),
     });
-    const body = (await token.json()) as { access_token?: unknown; refresh_token?: unknown };
-    if (!token.ok || typeof body.refresh_token !== 'string') {
+    const body = (await token.json()) as {
+      access_token?: unknown;
+      refresh_token?: unknown;
+      scope?: unknown;
+    };
+    if (!token.ok || typeof body.access_token !== 'string') {
       res.redirect(302, `${back}/settings/integrations?google=error`);
       return;
     }
-    const refreshToken = body.refresh_token;
+    const existing = await this.prisma.user.findUniqueOrThrow({
+      where: { id: parsed.uid },
+      select: { googleRefreshToken: true, googleAccountEmail: true },
+    });
+    const refreshToken =
+      typeof body.refresh_token === 'string' && body.refresh_token.length > 0
+        ? sealField(body.refresh_token)
+        : existing.googleRefreshToken;
+    if (!refreshToken) {
+      res.redirect(302, `${back}/settings/integrations?google=error`);
+      return;
+    }
+    const scopes =
+      typeof body.scope === 'string' ? [...new Set(body.scope.split(/\s+/).filter(Boolean))] : [];
     const account = await googleAccount(
       typeof body.access_token === 'string' ? body.access_token : '',
     );
+    if (
+      typeof body.refresh_token !== 'string' &&
+      (!account || account !== existing.googleAccountEmail)
+    ) {
+      res.redirect(302, `${back}/settings/integrations?google=error`);
+      return;
+    }
     await this.prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { id: parsed.uid },
         data: {
-          googleRefreshToken: sealField(refreshToken),
+          googleRefreshToken: refreshToken,
           googleAccountEmail: account,
           googleStatus: 'connected',
+          googleGrantedScopes: scopes,
+          ...(parsed.requested === 'drive'
+            ? { googleDriveEnabled: true }
+            : parsed.requested === 'calendar'
+              ? { googleCalendarEnabled: true }
+              : { googleDriveEnabled: true, googleCalendarEnabled: true }),
         },
       });
       await this.events.record(
         tx,
         { ownerId: parsed.uid, actorId: parsed.uid, actorKind: 'user', tokenId: null },
         {
-          type: DomainEvent.calendarSubscribed,
+          type: DomainEvent.googlePermissionsUpdated,
           entityType: 'user',
           entityId: parsed.uid,
           action: 'updated',
-          data: asJson({ provider: 'google', account }),
+          data: asJson({ provider: 'google', granted_scopes: scopes }),
           previous: null,
         },
       );
@@ -422,6 +521,7 @@ export class IntegrationsController {
   }
 
   @Get('drive')
+  @ApiOkResponse({ type: GoogleIntegrationStatusDto })
   @Scopes('profile:read')
   @ApiOperation({ summary: 'Google Drive status. No call is made without credentials (RF-2005).' })
   async drive(
@@ -431,10 +531,86 @@ export class IntegrationsController {
   ): Promise<void> {
     const row = await this.prisma.user.findUnique({
       where: { id: user.id },
-      select: { googleRefreshToken: true, email: true },
+      select: { ...GOOGLE_ACCESS_SELECT, googleAccountEmail: true },
     });
-    const googleOn = (row?.googleRefreshToken ?? '').length > 0;
-    respondJson(req, res, 200, { configured: googleConfigured(), connected: googleOn }, false);
+    respondJson(
+      req,
+      res,
+      200,
+      {
+        configured: googleConfigured(),
+        ...googleServiceAccess(row, 'drive'),
+        account: row?.googleAccountEmail ?? null,
+      },
+      false,
+    );
+  }
+
+  @Patch('google/services/:service')
+  @Scopes('profile:write')
+  @ApiOperation({
+    summary:
+      'Activate or deactivate Calendar/Drive locally. This does not revoke Google permissions.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['enabled'],
+      additionalProperties: false,
+      properties: { enabled: { type: 'boolean' } },
+    },
+  })
+  @ApiOkResponse({ type: GoogleServiceAccessDto })
+  async setGoogleService(
+    @CurrentUser() user: AuthUser,
+    @Param('service') service: string,
+    @Body() body: { enabled?: unknown },
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    if (
+      (service !== 'calendar' && service !== 'drive') ||
+      typeof body.enabled !== 'boolean' ||
+      Object.keys(body).some((key) => key !== 'enabled')
+    )
+      throw new DomainException(
+        400,
+        'validation_failed',
+        'Choose calendar or drive and a boolean enabled',
+      );
+    const enabled = body.enabled;
+    const row = await this.prisma.$transaction(async (tx) => {
+      const current = await tx.user.findUniqueOrThrow({
+        where: { id: user.id },
+        select: GOOGLE_ACCESS_SELECT,
+      });
+      if (enabled && !googleServiceAccess(current, service).authorized)
+        throw new DomainException(
+          409,
+          'google_permission_required',
+          'Authorize this service with Google first',
+        );
+      const updated = await tx.user.update({
+        where: { id: user.id },
+        data:
+          service === 'drive'
+            ? { googleDriveEnabled: enabled }
+            : { googleCalendarEnabled: enabled },
+        select: GOOGLE_ACCESS_SELECT,
+      });
+      await this.events.record(tx, actorOf(user), {
+        type: DomainEvent.googleServiceUpdated,
+        entityType: 'user',
+        entityId: user.id,
+        action: 'updated',
+        data: { service, enabled },
+        previous: {
+          enabled: service === 'drive' ? current.googleDriveEnabled : current.googleCalendarEnabled,
+        },
+      });
+      return updated;
+    });
+    respondJson(req, res, 200, googleServiceAccess(row, service), false);
   }
 
   @Post('drive/attachments')
@@ -464,11 +640,6 @@ export class IntegrationsController {
   }
 
   private async copyDriveFile(user: AuthUser, taskId: string, dto: DriveDto) {
-    const row = await this.prisma.user.findUnique({
-      where: { id: user.id },
-      select: { googleRefreshToken: true, email: true },
-    });
-    userGoogleRefreshToken(row);
     return { ...(await this.tasks.linkDriveFile(user, taskId, dto.file_id)), copied: false };
   }
 }

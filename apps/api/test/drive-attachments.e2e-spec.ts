@@ -14,6 +14,10 @@ loadRootEnv();
 process.env.AUTH_MODE = 'dev';
 process.env.GOOGLE_CLIENT_ID = 'synthetic-client';
 process.env.GOOGLE_CLIENT_SECRET = 'synthetic-secret';
+
+
+
+
 const prohibited = `/tmp/r80-drive-prohibited-${randomUUID()}`;
 process.env.ATTACHMENT_DIR = prohibited;
 const prisma = new PrismaClient();
@@ -74,7 +78,7 @@ describe('TTD-AUD-99 Drive-only attachments', () => {
   it('initiates browser-to-Drive upload and verifies the signed completion metadata', async () => {
     await prisma.user.update({
       where: { id: owner.id },
-      data: { googleRefreshToken: sealField('synthetic-refresh'), googleStatus: 'connected' },
+      data: { googleRefreshToken: sealField('synthetic-refresh'), googleStatus: 'connected',googleGrantedScopes:['https://www.googleapis.com/auth/drive.file'],googleDriveEnabled:true,googleCalendarEnabled:true },
     });
     const session = await request(server)
       .post(`/api/v1/tasks/${taskId}/attachments/drive-session`)
@@ -164,7 +168,7 @@ describe('TTD-AUD-99 Drive-only attachments', () => {
   it('streams email and Telegram captures to Drive without retaining local files', async () => {
     await prisma.user.update({
       where: { id: owner.id },
-      data: { googleRefreshToken: sealField('synthetic-refresh'), googleStatus: 'connected' },
+      data: { googleRefreshToken: sealField('synthetic-refresh'), googleStatus: 'connected',googleGrantedScopes:['https://www.googleapis.com/auth/drive.file'],googleDriveEnabled:true,googleCalendarEnabled:true },
     });
     const issued = await request(server).post('/api/v1/me/inbound-email').set(authed()).expect(201);
     const messageId = randomUUID();
@@ -194,13 +198,14 @@ describe('TTD-AUD-99 Drive-only attachments', () => {
     const driveFetch = globalThis.fetch;
     vi.stubGlobal('fetch', ((input: string | URL | Request, init?: RequestInit) => {
       const url = typeof input === 'string' || input instanceof URL ? input.toString() : input.url;
-      if (url.startsWith('https://api.telegram.org/file/'))
+      const parsed=new URL(url);
+      if (parsed.origin==='https://api.telegram.org' && parsed.pathname.startsWith('/file/'))
         return Promise.resolve(new Response(Buffer.from([255, 216, 255, 1, 2])));
-      if (url.includes('api.telegram.org') && url.endsWith('/getFile'))
+      if (parsed.origin==='https://api.telegram.org' && parsed.pathname.endsWith('/getFile'))
         return Promise.resolve(
           Response.json({ ok: true, result: { file_path: 'photos/synthetic.jpg' } }),
         );
-      if (url.includes('api.telegram.org'))
+      if (parsed.origin==='https://api.telegram.org')
         return Promise.resolve(Response.json({ ok: true, result: {} }));
       return driveFetch(input, init);
     }));

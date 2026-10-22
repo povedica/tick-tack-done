@@ -326,7 +326,7 @@ export const es = {
   scopeSensitive: 'Permiso sensible',
   googleReconnect: 'Reconectar Google',
   googleDisconnectBody:
-    'Se desconectarán Google Calendar y Drive. Para volver a usarlos tendrás que conectar Google de nuevo.',
+    'Se desconectará Google Calendar. Para volver a sincronizarlo tendrás que conectarlo de nuevo. Drive seguirá conectado.',
   googleDisconnectFailed: 'No se ha podido desconectar Google. Inténtalo de nuevo.',
   actionFailed: 'No se ha podido completar la acción. Inténtalo de nuevo.',
   tokenScopes: 'Permisos',

@@ -3523,7 +3523,7 @@ export interface paths {
         get: operations["IntegrationsController_google"];
         put?: never;
         post?: never;
-        /** Disconnect and revoke Google Calendar and Drive; keep imported events unless explicitly requested (RF-2004) */
+        /** Disconnect and revoke all Google services; keep imported events unless explicitly requested (RF-2004) */
         delete: operations["IntegrationsController_disconnectGoogle"];
         options?: never;
         head?: never;
@@ -3537,7 +3537,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Build the Google consent URL. The browser completes it (RF-2004). */
+        /** Request Calendar, Drive or both using incremental Google consent (RF-2004/2005). */
         get: operations["IntegrationsController_start"];
         put?: never;
         post?: never;
@@ -3554,7 +3554,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Google redirects here with the authorization code (RF-2004). */
+        /** Google OAuth callback; persist only actually granted scopes (RF-2004/2005). */
         get: operations["IntegrationsController_callback"];
         put?: never;
         post?: never;
@@ -3579,6 +3579,23 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/google/services/{service}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Activate or deactivate Calendar/Drive locally. This does not revoke Google permissions. */
+        patch: operations["IntegrationsController_setGoogleService"];
         trace?: never;
     };
     "/api/v1/integrations/drive/attachments": {
@@ -5071,6 +5088,44 @@ export interface components {
         };
         LinkDto: {
             chat_id: string;
+        };
+        GoogleServiceAccessDto: {
+            /** @description True only when the token has the required granted scopes and is not known revoked */
+            authorized: boolean;
+            /** @description Local activation; disabling does not revoke the Google grant */
+            enabled: boolean;
+            connected: boolean;
+            /** @enum {string} */
+            status: "connected" | "disabled" | "permission_required" | "permissions_unknown" | "reauth_required" | "disconnected";
+        };
+        GoogleServicesDto: {
+            calendar: components["schemas"]["GoogleServiceAccessDto"];
+            drive: components["schemas"]["GoogleServiceAccessDto"];
+        };
+        GoogleConnectionStatusDto: {
+            /** @description True only when the token has the required granted scopes and is not known revoked */
+            authorized: boolean;
+            /** @description Local activation; disabling does not revoke the Google grant */
+            enabled: boolean;
+            connected: boolean;
+            /** @enum {string} */
+            status: "connected" | "disabled" | "permission_required" | "permissions_unknown" | "reauth_required" | "disconnected";
+            configured: boolean;
+            account: string | null;
+            has_connection: boolean;
+            connection_status: string;
+            services: components["schemas"]["GoogleServicesDto"];
+        };
+        GoogleIntegrationStatusDto: {
+            /** @description True only when the token has the required granted scopes and is not known revoked */
+            authorized: boolean;
+            /** @description Local activation; disabling does not revoke the Google grant */
+            enabled: boolean;
+            connected: boolean;
+            /** @enum {string} */
+            status: "connected" | "disabled" | "permission_required" | "permissions_unknown" | "reauth_required" | "disconnected";
+            configured: boolean;
+            account: string | null;
         };
         DriveDto: {
             task_id: string;
@@ -11701,7 +11756,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["GoogleConnectionStatusDto"];
+                };
             };
         };
     };
@@ -11727,7 +11784,9 @@ export interface operations {
     };
     IntegrationsController_start: {
         parameters: {
-            query?: never;
+            query?: {
+                service?: "calendar" | "drive" | "all";
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -11772,7 +11831,36 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["GoogleIntegrationStatusDto"];
+                };
+            };
+        };
+    };
+    IntegrationsController_setGoogleService: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                service: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    enabled: boolean;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoogleServiceAccessDto"];
+                };
             };
         };
     };

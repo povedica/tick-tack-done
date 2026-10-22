@@ -556,7 +556,7 @@ describe('V1 and V2 product', () => {
     process.env.GOOGLE_REFRESH_TOKEN = 'env-should-not-be-used';
     await prisma.user.update({
       where: { id: userId },
-      data: { googleRefreshToken: 'stored-refresh-token' },
+      data: { googleRefreshToken: 'stored-refresh-token',googleGrantedScopes:['https://www.googleapis.com/auth/calendar.calendarlist.readonly','https://www.googleapis.com/auth/calendar.events','https://www.googleapis.com/auth/drive.file'],googleCalendarEnabled:true,googleDriveEnabled:true },
     });
     const methods: string[] = [];
     const refreshUsed: string[] = [];
@@ -698,7 +698,7 @@ describe('V1 and V2 product', () => {
           copy: true,
         })
         .expect(409);
-      expect(drive.body.error.code).toBe('google_not_connected');
+      expect(drive.body.error.code).toBe('drive_not_connected');
       const calendar = await session().get('/api/v1/calendar/google/calendars').expect(409);
       expect(calendar.body.error.code).toBe('google_not_connected');
       expect(calls).toBe(0);

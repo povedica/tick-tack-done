@@ -97,7 +97,7 @@ describe('capture API', () => {
 
     const reminders = await api.get(`/api/v1/tasks/${created.body.id}/reminders`).expect(200);
     expect(reminders.body).toEqual([
-      expect.objectContaining({ trigger: 'TRIGGER:-PT30M', type: 'relative' }),
+      expect.objectContaining({ trigger: '-PT30M', type: 'relative' }),
     ]);
     const event = await prisma.outboxEvent.findFirst({
       where: {

@@ -5261,7 +5261,7 @@
   {
     "method": "DELETE",
     "path": "/api/v1/integrations/google",
-    "summary": "Disconnect and revoke Google Calendar and Drive; keep imported events unless explicitly requested (RF-2004)",
+    "summary": "Disconnect and revoke all Google services; keep imported events unless explicitly requested (RF-2004)",
     "parameters": [
       {
         "name": "remove_imported_events",
@@ -5276,14 +5276,21 @@
   {
     "method": "GET",
     "path": "/api/v1/integrations/google/start",
-    "summary": "Build the Google consent URL. The browser completes it (RF-2004).",
-    "parameters": [],
+    "summary": "Request Calendar, Drive or both using incremental Google consent (RF-2004/2005).",
+    "parameters": [
+      {
+        "name": "service",
+        "required": false,
+        "in": "query",
+        "schema": { "enum": ["calendar", "drive", "all"], "type": "string" }
+      }
+    ],
     "request_body": {}
   },
   {
     "method": "GET",
     "path": "/api/v1/integrations/google/callback",
-    "summary": "Google redirects here with the authorization code (RF-2004).",
+    "summary": "Google OAuth callback; persist only actually granted scopes (RF-2004/2005).",
     "parameters": [],
     "request_body": {}
   },
@@ -5293,6 +5300,27 @@
     "summary": "Google Drive status. No call is made without credentials (RF-2005).",
     "parameters": [],
     "request_body": {}
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/integrations/google/services/{service}",
+    "summary": "Activate or deactivate Calendar/Drive locally. This does not revoke Google permissions.",
+    "parameters": [
+      { "name": "service", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "required": ["enabled"],
+            "additionalProperties": false,
+            "properties": { "enabled": { "type": "boolean" } }
+          }
+        }
+      }
+    }
   },
   {
     "method": "POST",

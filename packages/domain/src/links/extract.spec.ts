@@ -22,3 +22,11 @@ it('TTD-AUD-100: manual URLs allow http/https/mailto and reject executable schem
   expect(normalizeTaskUrl('https://user:password@example.com/')).toBeNull();
   expect(normalizeTaskUrl('file:///tmp/private')).toBeNull();
 });
+
+it('bounds trailing punctuation and unmatched delimiter processing linearly', () => {
+  const before = Date.now();
+  expect(extractUrls('https://example.test/a' + ')'.repeat(20000) + '!'.repeat(20000))).toEqual([
+    'https://example.test/a',
+  ]);
+  expect(Date.now() - before).toBeLessThan(1000);
+});

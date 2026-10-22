@@ -1,3 +1,4 @@
+import { googleServiceAccess } from '../integrations/google-access.js';
 import { Inject, Injectable, type OnModuleInit } from '@nestjs/common';
 import type { DomainBusEvent } from '../events/event-bus.js';
 import { EventRouter } from '../events/event-router.js';
@@ -37,9 +38,9 @@ export class DriveFolderRenamer implements OnModuleInit {
       if (!folder) return;
       const user = await this.prisma.user.findFirst({
         where: { id: event.ownerId, deletedAt: null },
-        select: { googleRefreshToken: true, googleStatus: true },
+        select: { googleRefreshToken: true, googleStatus: true, googleGrantedScopes:true,googleCalendarEnabled:true,googleDriveEnabled:true },
       });
-      if (!user?.googleRefreshToken || user.googleStatus === 'reauth_required') return;
+      if (!googleServiceAccess(user,'drive').connected || !user?.googleRefreshToken) return;
       const client = new DriveClient(
         await exchangeGoogleRefreshToken(openField(user.googleRefreshToken)),
       );

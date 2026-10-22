@@ -51,7 +51,7 @@ export function AppShell() {
   useEffect(() => {
     if (
       location.pathname !== '/settings/integrations' ||
-      new URLSearchParams(location.search).get('google') !== 'connected'
+      new URLSearchParams(location.search).get('google') !== 'connected' && new URLSearchParams(location.search).get('drive') !== 'connected'
     )
       return;
     const back = sessionStorage.getItem('ttd.google.return');

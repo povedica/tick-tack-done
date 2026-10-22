@@ -322,7 +322,7 @@ export const en = {
   scopeSensitive: 'Sensitive permission',
   googleReconnect: 'Reconnect Google',
   googleDisconnectBody:
-    'Google Calendar and Drive will be disconnected. You will need to connect Google again to use them.',
+    'Google Calendar will be disconnected. Drive stays connected. You will need to connect Google again to use them.',
   googleDisconnectFailed: 'Could not disconnect Google. Try again.',
   actionFailed: 'Could not complete the action. Try again.',
   tokenScopes: 'Scopes',

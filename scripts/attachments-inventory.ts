@@ -20,7 +20,7 @@ async function main(): Promise<void> {
     const columns=await tx.$queryRaw<{column_name:string}[]>`SELECT column_name FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='attachments'`;
     const legacy=columns.some(column=>column.column_name==='storage_key');
     const rows=legacy ? await tx.$queryRaw<{owner_id:string; bytes:bigint; count:bigint}[]>`SELECT owner_id, SUM(byte_size)::bigint AS bytes, COUNT(*)::bigint AS count FROM attachments WHERE storage_key IS NOT NULL AND storage_key <> '' GROUP BY owner_id` : [];
-    const users=await tx.user.findMany({where:{id:{in:rows.map(row=>row.owner_id)},googleRefreshToken:{not:null}},select:{id:true}});
+    const users=await tx.user.findMany({where:{id:{in:rows.map(row=>row.owner_id)},googleRefreshToken:{not:null},googleDriveEnabled:true,googleGrantedScopes:{has:'https://www.googleapis.com/auth/drive.file'}},select:{id:true}});
     const connected=new Set(users.map(user=>user.id));
     return {legacy_rows:rows.reduce((sum,row)=>sum+Number(row.count),0),legacy_bytes:rows.reduce((sum,row)=>sum+Number(row.bytes),0),users_with_google:rows.filter(row=>connected.has(row.owner_id)).length,users_without_google:rows.filter(row=>!connected.has(row.owner_id)).length};
     });

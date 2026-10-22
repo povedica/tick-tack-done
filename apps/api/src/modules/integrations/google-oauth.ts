@@ -1,5 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { GOOGLE_PRODUCT_SCOPES } from '../../integrations/google-access.js';
 
+export type GoogleRequestedService = 'calendar' | 'drive' | 'all';
 const CALLBACK_PATH = '/api/v1/integrations/google/callback';
 
 function allowedRedirects(): ReadonlySet<string> {
@@ -20,10 +22,12 @@ export const GOOGLE_SCOPES = [
   'email',
   'https://www.googleapis.com/auth/calendar.calendarlist.readonly',
   'https://www.googleapis.com/auth/calendar.events',
-  'https://www.googleapis.com/auth/drive.file',
 ].join(' ');
 
+export const DRIVE_SCOPES = 'openid email https://www.googleapis.com/auth/drive.file';
+
 export interface GoogleState {
+  readonly requested?: GoogleRequestedService;
   readonly uid: string;
   readonly exp: number;
   readonly redirect: string;
@@ -43,7 +47,8 @@ export function signState(state: GoogleState): string {
   return `${payload}.${mac}`;
 }
 
-export function readState(token: string): GoogleState | null {
+export function readState(token: unknown): GoogleState | null {
+  if(typeof token!=='string') return null;
   const dot = token.indexOf('.');
   if (dot <= 0) {
     return null;
@@ -57,26 +62,43 @@ export function readState(token: string): GoogleState | null {
     return null;
   }
   try {
-    const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as GoogleState;
+    const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as Partial<GoogleState>;
     if (
+      typeof parsed.exp!=='number' || !Number.isFinite(parsed.exp) ||
+      typeof parsed.uid!=='string' || typeof parsed.redirect!=='string' ||
       parsed.exp < Date.now() ||
+      (parsed.requested !== undefined &&
+        !['calendar', 'drive', 'all'].includes(parsed.requested)) ||
       !allowedRedirects().has(parsed.redirect) ||
       parsed.uid.length === 0
     ) {
       return null;
     }
-    return parsed;
+    return {uid:parsed.uid,exp:parsed.exp,redirect:parsed.redirect,...(parsed.requested===undefined?{}:{requested:parsed.requested})};
   } catch {
     return null;
   }
 }
 
-export function authorizeUrl(redirect: string, state: string): string {
+export function authorizeUrl(
+  redirect: string,
+  state: string,
+  requested: GoogleRequestedService = 'all',
+): string {
   const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
   url.searchParams.set('client_id', process.env.GOOGLE_CLIENT_ID ?? '');
   url.searchParams.set('redirect_uri', redirect);
   url.searchParams.set('response_type', 'code');
-  url.searchParams.set('scope', GOOGLE_SCOPES);
+  url.searchParams.set(
+    'scope',
+    [
+      'openid',
+      'email',
+      ...(requested === 'all'
+        ? [...GOOGLE_PRODUCT_SCOPES.calendar, ...GOOGLE_PRODUCT_SCOPES.drive]
+        : GOOGLE_PRODUCT_SCOPES[requested]),
+    ].join(' '),
+  );
   url.searchParams.set('access_type', 'offline');
   url.searchParams.set('include_granted_scopes', 'true');
   url.searchParams.set('prompt', 'consent');

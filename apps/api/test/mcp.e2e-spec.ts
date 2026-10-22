@@ -316,11 +316,12 @@ describe('MCP server', () => {
 
   it('RF-2001: list_tasks forwards cursor and the next page does not repeat the first', async () => {
     const bearer = await tasksBearer(server, owner.email);
+    const project = await prisma.project.create({data:{ownerId:owner.id,name:'Pagination isolated'}});
     const created: string[] = [];
     for (const title of ['Página uno', 'Página dos']) {
       const made = await rpc(server, bearer, 'tools/call', {
         name: 'create_task',
-        arguments: { title, project_id: owner.inboxId },
+        arguments: { title, project_id: project.id },
       });
       const task = JSON.parse(toolText(made.body as unknown)) as { id: string };
       created.push(task.id);
@@ -328,7 +329,7 @@ describe('MCP server', () => {
 
     const first = await rpc(server, bearer, 'tools/call', {
       name: 'list_tasks',
-      arguments: { limit: 1 },
+      arguments: { limit: 1, project_id: project.id },
     });
     const page = JSON.parse(toolText(first.body as unknown)) as {
       items: { id: string }[];
@@ -341,7 +342,7 @@ describe('MCP server', () => {
 
     const second = await rpc(server, bearer, 'tools/call', {
       name: 'list_tasks',
-      arguments: { limit: 1, cursor: page.next_cursor },
+      arguments: { limit: 1, project_id: project.id, cursor: page.next_cursor },
     });
     const next = JSON.parse(toolText(second.body as unknown)) as { items: { id: string }[] };
     expect(next.items.some((item) => item.id === firstId)).toBe(false);
@@ -1257,7 +1258,7 @@ describe('MCP server', () => {
     try {
       await prisma.user.update({
         where: { id: owner.id },
-        data: { googleRefreshToken: sealField('synthetic-refresh'), googleStatus: 'connected' },
+        data: { googleRefreshToken: sealField('synthetic-refresh'),googleGrantedScopes:['https://www.googleapis.com/auth/calendar.calendarlist.readonly','https://www.googleapis.com/auth/calendar.events','https://www.googleapis.com/auth/drive.file'],googleCalendarEnabled:true,googleDriveEnabled:true, googleStatus: 'connected' },
       });
       const task = await prisma.task.create({
         data: {

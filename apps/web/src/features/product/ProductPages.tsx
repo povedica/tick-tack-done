@@ -1,15 +1,11 @@
+import { GoogleIntegrationCards } from '../settings/DriveCard';
 import { TelegramCard } from '../settings/TelegramCard';
 import { runAction } from '../../components/run-action';
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
 import { Button, ErrorState, SkeletonRows } from '../../components/ui';
-import {
-  GoogleAccessActions,
-  googleAuthorizationUrl,
-  googleCallbackNotice,
-} from './GoogleAccessActions';
 import { InboundEmailCard } from '../settings/InboundEmailCard';
 import { GoogleCalendarsCard } from '../settings/GoogleCalendarsCard';
 import { useMessages } from '../../i18n';
@@ -288,44 +284,6 @@ export function CalendarSettings() {
 
 export function IntegrationSettings() {
   const messages = useMessages();
-  const queryClient = useQueryClient();
-  const [params, setParams] = useSearchParams();
-  const [googleFlag, setGoogleFlag] = useState(params.get('google'));
-  const [confirmGoogle, setConfirmGoogle] = useState(false);
-  const [removeImportedEvents, setRemoveImportedEvents] = useState(false);
-  useEffect(() => {
-    const callback = googleCallbackNotice(params);
-    if (callback === null) return;
-    setGoogleFlag(callback.notice);
-    setParams(callback.params, { replace: true });
-  }, [params, setParams]);
-  const google = useQuery({ queryKey: ['google'], queryFn: () => api.integrationStatus('google') });
-  const googleOn = flag(google.data, 'connected');
-  const googleReady = flag(google.data, 'configured');
-  const account = text(google.data?.account);
-  const connectGoogle = useMutation({
-    mutationFn: async () => googleAuthorizationUrl((await api.googleConnect()).url),
-    onSuccess: (url) => {
-      window.location.assign(url);
-    },
-  });
-  const disconnectGoogle = useMutation({
-    mutationFn: () => api.disconnectGoogle({ removeImportedEvents }),
-    onSuccess: () => {
-      setConfirmGoogle(false);
-      runAction(google.refetch());
-      setGoogleFlag('disconnected');
-      runAction(queryClient.invalidateQueries({ queryKey: ['calendar-events'] }));
-      runAction(queryClient.invalidateQueries({ queryKey: ['calendar-subscriptions'] }));
-      runAction(queryClient.invalidateQueries({ queryKey: ['google-calendars'] }));
-    },
-  });
-  const busy = connectGoogle.isPending || disconnectGoogle.isPending;
-  function requestDisconnect(): void {
-    disconnectGoogle.reset();
-    setRemoveImportedEvents(false);
-    setConfirmGoogle(true);
-  }
   return (
     <section className="token-settings">
       <header className="page-header">
@@ -334,88 +292,8 @@ export function IntegrationSettings() {
           <p className="lede">{messages.integrationsHint}</p>
         </div>
       </header>
-      {googleFlag === 'connected' ? (
-        <p className="token-meta" role="status">
-          {messages.googleConnectedNote}
-        </p>
-      ) : null}
-      {connectGoogle.isError ? <p role="alert">{messages.googleErrorNote}</p> : null}
-      {googleFlag === 'error' ? <p role="alert">{messages.googleErrorNote}</p> : null}
-      {googleFlag === 'denied' ? <p role="alert">{messages.googleDeniedNote}</p> : null}
-
-      {googleFlag === 'disconnected' ? (
-        <p role="status">
-          {messages.googleDisconnectedNotice}{' '}
-          <a
-            href="https://myaccount.google.com/permissions"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            myaccount.google.com/permissions
-          </a>
-        </p>
-      ) : null}
-      <section className="token-panel" aria-labelledby="google-title">
-        <div className="token-panel-head">
-          <div>
-            <h2 id="google-title">{messages.googleUnifiedTitle}</h2>
-            <p>{messages.googleHint}</p>
-          </div>
-          {google.isSuccess ? (
-            <StatusPill
-              on={googleOn && text(google.data.status) !== 'reauth_required'}
-              onLabel={messages.integrationConnected}
-              offLabel={
-                text(google.data.status) === 'reauth_required'
-                  ? messages.googleReauthStatus
-                  : messages.googleDisconnectedStatus
-              }
-            />
-          ) : null}
-        </div>
-        {account.length > 0 ? <p className="token-meta">{account}</p> : null}
-        {google.isError ? (
-          <p role="alert">
-            {messages.googleErrorNote}
-            <Button
-              type="button"
-              onClick={() => {
-                runAction(google.refetch());
-              }}
-            >
-              {messages.retry}
-            </Button>
-          </p>
-        ) : null}
-        <p className="token-meta">{messages.googleCalendarPermission}</p>
-        <p className="token-meta">{messages.googleDrivePermission}</p>
-        <p className="token-meta">{messages.googleDataNotice}</p>
-        <GoogleAccessActions
-          messages={messages}
-          connected={googleOn}
-          configured={googleReady}
-          confirming={confirmGoogle}
-          removeImportedEvents={removeImportedEvents}
-          onRemoveImportedEvents={setRemoveImportedEvents}
-          busy={busy}
-          error={disconnectGoogle.isError ? messages.googleDisconnectFailed : null}
-          onConnect={() => {
-            connectGoogle.mutate();
-          }}
-          onRequestDisconnect={() => {
-            requestDisconnect();
-          }}
-          onCancel={() => {
-            setConfirmGoogle(false);
-          }}
-          onConfirm={() => {
-            disconnectGoogle.mutate();
-          }}
-        />
-      </section>
-
+      <GoogleIntegrationCards />
       <TelegramCard />
-
       <InboundEmailCard />
     </section>
   );

@@ -2,8 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../../api';
 export function useDriveConnection() {
   const google = useQuery({
-    queryKey: ['google'],
-    queryFn: () => api.integrationStatus('google'),
+    queryKey: ['drive'],
+    queryFn: () => api.integrationStatus('drive'),
     staleTime: 30000,
     refetchOnWindowFocus: 'always',
   });

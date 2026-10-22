@@ -26,7 +26,7 @@ export function TelegramCard() {
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [notice, setNotice] = useState('');
-  const [desktop, setDesktop] = useState(() => window.matchMedia('(min-width:1024px)').matches);
+  const [desktop, setDesktop] = useState(() => typeof window.matchMedia === 'function' && window.matchMedia('(min-width:1024px)').matches);
   const closeDialog = useCallback(() => { setConfirm(false); }, []);
   const pending = useRef(false);
   const previouslyLinked = useRef<boolean | null>(null);

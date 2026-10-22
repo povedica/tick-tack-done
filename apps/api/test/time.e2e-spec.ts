@@ -3,11 +3,12 @@ import type { INestApplication } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/configure-app.js';
 import { loadRootEnv } from '../src/load-env.js';
 import { nextOccurrence } from '@reflexionia/domain';
+import { ReminderTransport } from '../src/scheduler/reminder.transport.js';
 import { SchedulerService } from '../src/scheduler/scheduler.service.js';
 
 type SuperTestApp = Parameters<typeof request>[0];
@@ -377,7 +378,10 @@ describe('time API', () => {
     expect(next?.dueDate?.toISOString()).toBe(expected.occurrence.dueDate);
   });
 
-  it('RF-803 and RF-804: a constant reminder reschedules, and snoozing drops that delivery', async () => {
+  afterEach(() => vi.restoreAllMocks());
+  it('RF-803 and RF-804: a constant reminder reschedules after sending, and snoozing drops that delivery', async () => {
+    await prisma.user.update({where:{id:owner.id},data:{quietHoursStart:null,quietHoursEnd:null}});
+    vi.spyOn(app.get(ReminderTransport), 'deliver').mockResolvedValue({email:'skipped',push:'sent',telegram:'skipped',telegram_message_id:null,retry_after_seconds:null});
     const created = await authed()
       .post('/api/v1/tasks')
       .send({

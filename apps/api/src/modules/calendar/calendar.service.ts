@@ -1,3 +1,4 @@
+import { GOOGLE_ACCESS_SELECT } from '../../integrations/google-access.js';
 import { createHash, randomBytes } from 'node:crypto';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { formatInTimeZone } from 'date-fns-tz';
@@ -642,7 +643,7 @@ export class CalendarService {
   private async googleAccessToken(userId: string): Promise<string> {
     const row = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { googleRefreshToken: true, email: true },
+      select: { ...GOOGLE_ACCESS_SELECT, email: true },
     });
     const refresh = userGoogleRefreshToken(row);
     if (!googleConfigured() || refresh.length === 0) {
@@ -652,7 +653,32 @@ export class CalendarService {
         'Connect Google from settings before reading the calendar',
       );
     }
-    return exchangeGoogleRefreshToken(refresh);
+    try {
+      return await exchangeGoogleRefreshToken(refresh);
+    } catch (error) {
+      if (
+        error instanceof DomainException &&
+        (error.getResponse() as { code?: string }).code === 'google_reconnect_required'
+      ) {
+        await this.prisma.$transaction(async (tx) => {
+          const changed = await tx.user.updateMany({
+            where: { id: userId, googleStatus: { not: 'reauth_required' } },
+            data: { googleStatus: 'reauth_required' },
+          });
+          if (changed.count)
+            await tx.outboxEvent.create({
+              data: {
+                ownerId: userId,
+                type: DomainEvent.googleReauthRequired,
+                actorKind: 'automation',
+                actorId: userId,
+                data: { google_status: 'reauth_required' },
+              },
+            });
+        });
+      }
+      throw error;
+    }
   }
 
   private async fetchIcal(url: string): Promise<string> {

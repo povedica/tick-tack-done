@@ -172,6 +172,7 @@ describe('filters, smart lists and search', () => {
           project_id: project.id,
           title: 'Start only',
           start_date: start,
+          due_date: null,
           is_all_day: false,
           duration_minutes: 30,
           time_zone: 'Europe/Madrid',

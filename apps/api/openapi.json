@@ -12966,7 +12966,14 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoogleConnectionStatusDto"
+                }
+              }
+            }
           }
         },
         "summary": "Google connection status. The refresh token is stored after consent (RF-2004).",
@@ -12998,7 +13005,7 @@
             "description": ""
           }
         },
-        "summary": "Disconnect and revoke Google Calendar and Drive; keep imported events unless explicitly requested (RF-2004)",
+        "summary": "Disconnect and revoke all Google services; keep imported events unless explicitly requested (RF-2004)",
         "tags": [
           "integrations"
         ],
@@ -13012,13 +13019,27 @@
     "/api/v1/integrations/google/start": {
       "get": {
         "operationId": "IntegrationsController_start",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "service",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "calendar",
+                "drive",
+                "all"
+              ],
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
           }
         },
-        "summary": "Build the Google consent URL. The browser completes it (RF-2004).",
+        "summary": "Request Calendar, Drive or both using incremental Google consent (RF-2004/2005).",
         "tags": [
           "integrations"
         ],
@@ -13038,7 +13059,7 @@
             "description": ""
           }
         },
-        "summary": "Google redirects here with the authorization code (RF-2004).",
+        "summary": "Google OAuth callback; persist only actually granted scopes (RF-2004/2005).",
         "tags": [
           "integrations"
         ],
@@ -13051,10 +13072,72 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoogleIntegrationStatusDto"
+                }
+              }
+            }
           }
         },
         "summary": "Google Drive status. No call is made without credentials (RF-2005).",
+        "tags": [
+          "integrations"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/integrations/google/services/{service}": {
+      "patch": {
+        "operationId": "IntegrationsController_setGoogleService",
+        "parameters": [
+          {
+            "name": "service",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "enabled"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoogleServiceAccessDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Activate or deactivate Calendar/Drive locally. This does not revoke Google permissions.",
         "tags": [
           "integrations"
         ],
@@ -19035,6 +19118,150 @@
         },
         "required": [
           "chat_id"
+        ]
+      },
+      "GoogleServiceAccessDto": {
+        "type": "object",
+        "properties": {
+          "authorized": {
+            "type": "boolean",
+            "description": "True only when the token has the required granted scopes and is not known revoked"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Local activation; disabling does not revoke the Google grant"
+          },
+          "connected": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "connected",
+              "disabled",
+              "permission_required",
+              "permissions_unknown",
+              "reauth_required",
+              "disconnected"
+            ]
+          }
+        },
+        "required": [
+          "authorized",
+          "enabled",
+          "connected",
+          "status"
+        ]
+      },
+      "GoogleServicesDto": {
+        "type": "object",
+        "properties": {
+          "calendar": {
+            "$ref": "#/components/schemas/GoogleServiceAccessDto"
+          },
+          "drive": {
+            "$ref": "#/components/schemas/GoogleServiceAccessDto"
+          }
+        },
+        "required": [
+          "calendar",
+          "drive"
+        ]
+      },
+      "GoogleConnectionStatusDto": {
+        "type": "object",
+        "properties": {
+          "authorized": {
+            "type": "boolean",
+            "description": "True only when the token has the required granted scopes and is not known revoked"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Local activation; disabling does not revoke the Google grant"
+          },
+          "connected": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "connected",
+              "disabled",
+              "permission_required",
+              "permissions_unknown",
+              "reauth_required",
+              "disconnected"
+            ]
+          },
+          "configured": {
+            "type": "boolean"
+          },
+          "account": {
+            "type": "string",
+            "nullable": true
+          },
+          "has_connection": {
+            "type": "boolean"
+          },
+          "connection_status": {
+            "type": "string"
+          },
+          "services": {
+            "$ref": "#/components/schemas/GoogleServicesDto"
+          }
+        },
+        "required": [
+          "authorized",
+          "enabled",
+          "connected",
+          "status",
+          "configured",
+          "account",
+          "has_connection",
+          "connection_status",
+          "services"
+        ]
+      },
+      "GoogleIntegrationStatusDto": {
+        "type": "object",
+        "properties": {
+          "authorized": {
+            "type": "boolean",
+            "description": "True only when the token has the required granted scopes and is not known revoked"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Local activation; disabling does not revoke the Google grant"
+          },
+          "connected": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "connected",
+              "disabled",
+              "permission_required",
+              "permissions_unknown",
+              "reauth_required",
+              "disconnected"
+            ]
+          },
+          "configured": {
+            "type": "boolean"
+          },
+          "account": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "authorized",
+          "enabled",
+          "connected",
+          "status",
+          "configured",
+          "account"
         ]
       },
       "DriveDto": {

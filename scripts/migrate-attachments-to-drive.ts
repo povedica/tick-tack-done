@@ -41,7 +41,7 @@ async function main(): Promise<void> {
     };
     const rows = await db.$queryRaw<
       Row[]
-    >`SELECT a.id,a.owner_id,a.task_id,a.storage_key,a.thumbnail_key,a.drive_file_id,a.file_name,a.mime_type,a.byte_size,t.project_id,p.name AS project_name,u.google_refresh_token FROM attachments a JOIN tasks t ON t.id=a.task_id JOIN projects p ON p.id=t.project_id JOIN users u ON u.id=a.owner_id WHERE a.storage_key IS NOT NULL AND a.storage_key<>'' ORDER BY a.owner_id,a.id`;
+    >`SELECT a.id,a.owner_id,a.task_id,a.storage_key,a.thumbnail_key,a.drive_file_id,a.file_name,a.mime_type,a.byte_size,t.project_id,p.name AS project_name,CASE WHEN COALESCE((to_jsonb(u)->>'google_drive_enabled')::boolean,false) AND COALESCE(to_jsonb(u)->'google_granted_scopes','[]'::jsonb) ? 'https://www.googleapis.com/auth/drive.file' THEN u.google_refresh_token ELSE NULL END AS google_refresh_token FROM attachments a JOIN tasks t ON t.id=a.task_id JOIN projects p ON p.id=t.project_id JOIN users u ON u.id=a.owner_id WHERE a.storage_key IS NOT NULL AND a.storage_key<>'' ORDER BY a.owner_id,a.id`;
     console.log(
       JSON.stringify({
         dry_run: mode.dryRun,

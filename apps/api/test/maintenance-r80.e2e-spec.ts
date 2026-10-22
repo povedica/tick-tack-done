@@ -19,7 +19,7 @@ const run = (script: string, args: string[]) =>
       .find((line) => line.startsWith('{')) ?? '{}',
   ) as { count: number };
 it('TTD-AUD-81/85: actual scripts dry-run, backup, apply and second apply are idempotent on synthetic data', async () => {
-  if (new URL(process.env.DATABASE_URL ?? '').pathname !== '/ttd_r80')
+  if (!(() => { const url=new URL(process.env.DATABASE_URL ?? '');return url.pathname==='/ttd_r80' || (process.env.CI==='true' && url.pathname==='/reflexionia_test' && ['localhost','127.0.0.1'].includes(url.hostname)); })())
     throw new Error('Only isolated synthetic database is allowed');
   const owner = await db.user.create({
     data: { displayName: 'Synthetic', email: `maintenance-${randomUUID()}@example.test` },

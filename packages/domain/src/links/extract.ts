@@ -22,16 +22,27 @@ export function normalizeTaskUrl(raw: string): string | null {
 export function extractUrls(text: string): string[] {
   const urls = new Set<string>();
   for (const match of text.matchAll(/(?:https?:\/\/|www\.|mailto:)[^\s<>"']+/gi)) {
-    let raw = match[0].replace(/[.,;:!?]+$/, '');
-    for (const [open, close] of [
-      ['(', ')'],
-      ['[', ']'],
-      ['{', '}'],
-    ] as const) {
-      while (raw.endsWith(close) && raw.split(close).length > raw.split(open).length)
-        raw = raw.slice(0, -1);
+    const value = match[0];
+    const pairs: Readonly<Record<string, string>> = { ')': '(', ']': '[', '}': '{' };
+    const counts: Record<string, number> = {};
+    for (const character of value)
+      if ('()[]{}'.includes(character)) counts[character] = (counts[character] ?? 0) + 1;
+    let end = value.length;
+    while (end > 0) {
+      const tail = value[end - 1] ?? '';
+      if ('.,;:!?'.includes(tail)) {
+        end--;
+        continue;
+      }
+      const open = pairs[tail];
+      if (open && (counts[tail] ?? 0) > (counts[open] ?? 0)) {
+        counts[tail] = (counts[tail] ?? 0) - 1;
+        end--;
+        continue;
+      }
+      break;
     }
-    raw = raw.replace(/[.,;:!?]+$/, '');
+    const raw = value.slice(0, end);
     const url = normalizeTaskUrl(raw);
     if (url !== null) urls.add(url);
   }

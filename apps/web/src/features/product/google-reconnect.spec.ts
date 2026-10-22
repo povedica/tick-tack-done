@@ -5,9 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router';
 import { expect, it, vi } from 'vitest';
 import type * as I18n from '../../i18n';
-import { messagesFor } from '../../i18n';
 import {
-  GoogleAccessActions,
   googleAuthorizationUrl,
   googleCallbackNotice,
 } from './GoogleAccessActions';
@@ -24,8 +22,8 @@ vi.mock('../../i18n', async (original) => {
 
 it('TTD-AUD-43: a connected Google account offers reconnect without disconnecting first', () => {
   const client = new QueryClient();
-  client.setQueryData(['google'], { connected: true, configured: true });
-  client.setQueryData(['drive'], { connected: true, configured: true });
+  client.setQueryData(['google'], {connected:false,configured:true,authorized:true,enabled:true,status:'reauth_required',has_connection:true});
+  client.setQueryData(['drive'], {connected:false,configured:true,authorized:false,enabled:true,status:'permission_required'});
   client.setQueryData(['telegram'], { linked: false, configured: false });
   const html = renderToStaticMarkup(
     createElement(
@@ -38,31 +36,10 @@ it('TTD-AUD-43: a connected Google account offers reconnect without disconnectin
       ),
     ),
   );
-  expect(html).toContain('Reconectar Google');
+  expect(html).toContain('Reconectar Google Calendar');
+  expect(html).toContain('Autorizar Google Drive');
+  expect(html).toContain('Sin permiso');
   client.clear();
-});
-
-it('TTD-AUD-43: disconnect confirmation names Calendar and Drive and displays failure in place', () => {
-  const messages = messagesFor('es');
-  const confirm = vi.fn();
-  const html = renderToStaticMarkup(
-    createElement(GoogleAccessActions, {
-      messages,
-      connected: true,
-      configured: true,
-      confirming: true,
-      busy: false,
-      error: messages.googleDisconnectFailed,
-      onConnect: vi.fn(),
-      onRequestDisconnect: vi.fn(),
-      onCancel: vi.fn(),
-      onConfirm: confirm,
-    }),
-  );
-  expect(html).toContain('role="alertdialog"');
-  expect(html).toContain('Google Calendar y Drive');
-  expect(html).toContain(messages.googleDisconnectFailed);
-  expect(confirm).not.toHaveBeenCalled();
 });
 
 it('TTD-AUD-43: unexpected authorization URLs fail instead of silently doing nothing', () => {

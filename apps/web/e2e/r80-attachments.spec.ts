@@ -8,7 +8,7 @@ test('TTD-AUD-99 disconnected Drive disables attaching and explains how to conne
 test('TTD-AUD-99 Drive chips have token heights and removal defaults to keeping the file',async({page},info)=>{
   await r80Fixture(page,{drive:true});await page.goto('/today?task=task');const chip=page.locator('.attachment-chip');await expect(chip).toBeVisible();
   expect(Math.abs(((await chip.boundingBox())?.height ?? 0)-(info.project.name.startsWith('mobile')?32:24))).toBeLessThanOrEqual(1);
-  await expect(chip).toHaveAttribute('target','_blank');await expect(chip).toHaveAttribute('href',/drive.google.com/);
+  await expect(chip).toHaveAttribute('target','_blank');await expect(chip).toHaveAttribute('href',/^https:\/\/drive\.google\.com\//);
   await page.locator('.asset-remove').click();const dialog=page.getByRole('dialog',{name:'Quitar de la tarea'});await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('checkbox')).not.toBeChecked();await dialog.getByRole('button',{name:'Cancelar'}).click();await expect(chip).toBeVisible();
 });

@@ -1,6 +1,7 @@
 import { DomainException } from '../http/domain.exception.js';
 /** One 7.75 MiB application buffer plus at most a 256 KiB incoming fragment. */
-export const DRIVE_STREAM_CHUNK_BYTES = 31 * 256 * 1024;
+export const DRIVE_INPUT_CHUNK_BYTES = 256 * 1024;
+export const DRIVE_STREAM_CHUNK_BYTES = 31 * DRIVE_INPUT_CHUNK_BYTES;
 const API = 'https://www.googleapis.com/drive/v3';
 const UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable';
 const FIELDS = 'id,name,mimeType,size,webViewLink,iconLink,parents,trashed,appProperties';
@@ -202,7 +203,7 @@ export class DriveClient {
       return null;
     };
     for await (const fragment of source) {
-      if (fragment.byteLength > 256 * 1024)
+      if (fragment.byteLength > DRIVE_INPUT_CHUNK_BYTES)
         throw new DomainException(
           413,
           'stream_chunk_too_large',

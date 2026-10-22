@@ -677,7 +677,7 @@ Capa de compatibilidad `GET /open/v1/...` compatible con la forma de la Open API
 Todos versionados (`task.created@v1`). Mínimo:
 
 ```
-series.closed task.created task.updated task.completed task.uncompleted task.reopened task.cancelled task.deleted task.restored task.moved task.due_soon task.overdue plan.applied plan.shutdown_started plan.shutdown_applied plan.replan_applied plan.replan_discarded task.someday_set task.someday_unset
+google.permissions_updated google.service_updated series.closed task.created task.updated task.completed task.uncompleted task.reopened task.cancelled task.deleted task.restored task.moved task.due_soon task.overdue plan.applied plan.shutdown_started plan.shutdown_applied plan.replan_applied plan.replan_discarded task.someday_set task.someday_unset
 checklist_item.created checklist_item.updated checklist_item.completed checklist_item.uncompleted checklist_item.deleted
 project.created project.updated project.archived project.unarchived project.deleted
 folder.created folder.updated folder.deleted
@@ -955,3 +955,8 @@ TTD-AUD-101 (RF-1201/1203/1205): GET/PUT/PATCH /focus/settings expone duraciones
 TTD-AUD-102 (RF-802/804/805/808): GET/PUT /me/notifications/settings, POST /me/notifications/test (solo propietario), GET /me/notifications/deliveries (50/cursor). notification.settings_updated@v1 contiene preferencias sin secretos. POST /reminders/{deliveryId}/action usa una capacidad de un uso (hash, TTL24h), nunca un token de cuenta; completar y consumir son transaccionales. Resultados por canal en NotificationReceipt vinculados a ReminderDelivery; el scheduler aplica matriz y silencio antes del transporte, dejando email intacto.
 
 TTD-AUD-103 (RF-2003): GET /integrations/telegram incluye bot_username, username, display_name, linked_at, status y enabled. POST /integrations/telegram/pairing devuelve deep_link y expires_at (TTL10min); POST /integrations/telegram/recheck verifica el desbloqueo. Evento telegram.status_changed@v1 con status y propietario, sin credenciales. DELETE conserva soft delete y envía despedida; los envíos posteriores se omiten por not_linked.
+
+
+### Aclaración RF-2004/2005 (22/10/2026, PR75)
+
+Calendar y Drive tienen tarjetas y estado de autorización/activación independientes, usando una conexión Google. El consentimiento incremental solicita el permiso pendiente y se comprueban los scopes realmente concedidos. Desactivar deja de usar un servicio sin revocar Google. La revocación completa afecta a ambos y Cambiar permisos avisa antes de revocar y volver a autorizar. Los adjuntos requieren drive.file concedido y Drive activo; conocer la cuenta o tener Calendar autorizado no basta.

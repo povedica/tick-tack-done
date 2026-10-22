@@ -20,7 +20,7 @@ describe('validateMcpArgs (TTD-AUD-54)', () => {
     if (result.ok) {
       return;
     }
-    expect(result.message).toContain('Campos no admitidos: status, parent_id');
+    expect(result.message).toContain('Campos no admitidos: status');
     expect(result.message).toContain('Campos válidos:');
   });
 

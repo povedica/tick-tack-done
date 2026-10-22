@@ -49,7 +49,7 @@ describe('TTD-AUD-97 Google disconnect', () => {
       );
       expect(tx.user.update).toHaveBeenCalledWith({
         where: { id: 'owner' },
-        data: { googleRefreshToken: null, googleAccountEmail: null, googleStatus: 'disconnected' },
+        data: { googleRefreshToken: null, googleAccountEmail: null, googleStatus: 'disconnected',googleGrantedScopes:[] },
       });
       if (remove)
         expect(tx.externalEvent.updateMany).toHaveBeenCalledWith(
@@ -86,7 +86,7 @@ describe('TTD-AUD-86 / RF-2006 user credential isolation', () => {
       prisma,
       new EventRecorder(),
       {} as TelegramBotService,
-      {} as TasksService,
+      {linkDriveFile:vi.fn().mockRejectedValue(new DomainException(HttpStatus.CONFLICT,'drive_not_connected','Connect Google Drive in Settings > Integrations'))} as unknown as TasksService,
     );
     await expect(
       // eslint-disable-next-line @typescript-eslint/dot-notation -- Test the private credential boundary without exposing it publicly.
@@ -99,8 +99,8 @@ describe('TTD-AUD-86 / RF-2006 user credential isolation', () => {
     ).rejects.toMatchObject(
       new DomainException(
         HttpStatus.CONFLICT,
-        'google_not_connected',
-        'Connect Google from Settings > Integrations',
+        'drive_not_connected',
+        'Connect Google Drive in Settings > Integrations',
       ),
     );
     expect(fetch).not.toHaveBeenCalled();

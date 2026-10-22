@@ -20,7 +20,7 @@ it('TTD-AUD-99: signature split across chunks is sniffed after collecting a boun
 it('TTD-AUD-99: refuses oversized individual chunks before buffering', async () => {
   async function* source() {
     await Promise.resolve();
-    yield new Uint8Array(8 * 1024 * 1024 + 1);
+    yield new Uint8Array(256 * 1024 + 1);
   }
   await expect(attachmentPrefix(source())).rejects.toThrow('chunk');
 });

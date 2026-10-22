@@ -1,3 +1,4 @@
+import { googleServiceAccess } from '../integrations/google-access.js';
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import type { Attachment } from '@prisma/client';
@@ -14,6 +15,7 @@ import { DriveClient, type DriveFile } from './drive-client.js';
 import { signUpload, readUpload } from './upload-token.js';
 import {
   ATTACHMENT_MAX_BYTES,
+  attachmentPrefix,
   ATTACHMENT_MAX_PER_TASK,
   DRIVE_ATTACHMENT_MAX_BYTES,
   safeFileName,
@@ -78,7 +80,7 @@ export class DriveAttachmentsService {
   async assertConnected(user: AuthUser): Promise<void> {
     const row = await this.prisma.user.findUnique({
       where: { id: user.id },
-      select: { googleRefreshToken: true, googleStatus: true },
+      select: { googleRefreshToken: true, googleStatus: true, googleGrantedScopes:true,googleCalendarEnabled:true,googleDriveEnabled:true },
     });
     if (!row?.googleRefreshToken)
       throw new DomainException(
@@ -91,6 +93,8 @@ export class DriveAttachmentsService {
       throw new DomainException(409, 'drive_reauth_required', 'Reconnect Google Drive', {
         connect_url: '/settings/integrations',
       });
+    const access=googleServiceAccess(row,'drive');
+    if(!access.authorized || !access.enabled) throw new DomainException(409,access.enabled?'drive_permission_required':'drive_disabled','Authorize or enable Google Drive in Settings > Integrations',{connect_url:'/settings/integrations'});
   }
   private async client(user: AuthUser): Promise<DriveClient> {
     await this.assertConnected(user);
@@ -285,33 +289,22 @@ export class DriveAttachmentsService {
     await this.ownedTask(user, taskId);
     await this.assertConnected(user);
     await this.quota(user, taskId);
-    const iterator = source[Symbol.asyncIterator]();
-    const first = await iterator.next();
-    if (first.done || first.value.byteLength === 0)
-      throw new DomainException(400, 'empty_attachment', 'Empty attachment');
-    const mime = acceptedMime(
-      Buffer.from(
-        first.value.buffer,
-        first.value.byteOffset,
-        Math.min(first.value.byteLength, 8000),
-      ),
-    );
-    async function* replay() {
-      yield first.value;
-      for (;;) {
-        const next = await iterator.next();
-        if (next.done) return;
-        yield next.value;
-      }
-    }
+    const buffered = await attachmentPrefix(source);
     try {
+      const mime = acceptedMime(buffered.prefix);
+      buffered.prefix=Buffer.alloc(0);
       return await this.using(user, async (client) => {
         const folder = await this.folder(user, taskId, client);
         const session = await client.session(
           { name: safeFileName(name), mimeType: mime, parent: folder, uploadId: randomUUID() },
           process.env.PUBLIC_URL ?? 'https://todo.reflexionia.com',
         );
-        const uploaded = await client.upload(session, replay(), ATTACHMENT_MAX_BYTES, mime);
+        const uploaded = await client.upload(
+          session,
+          buffered.replay(),
+          ATTACHMENT_MAX_BYTES,
+          mime,
+        );
         const file = await client.file(uploaded.id);
         if (file.trashed || !file.parents?.includes(folder))
           throw new DomainException(
@@ -322,7 +315,7 @@ export class DriveAttachmentsService {
         return this.save(user, taskId, file, capture, folder);
       });
     } finally {
-      await iterator.return?.();
+      await buffered.close();
     }
   }
   private async save(

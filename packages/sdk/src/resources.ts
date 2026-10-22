@@ -322,7 +322,8 @@ export interface ResourceClient {
   createSticky(text: string): Promise<JsonObject>;
   integrationStatus(kind: 'telegram' | 'drive' | 'google'): Promise<JsonObject>;
   createTelegramPairing(): Promise<JsonObject>;
-  googleConnect(): Promise<JsonObject>;
+  setGoogleService(service: 'calendar' | 'drive', enabled: boolean): Promise<JsonObject>;
+  googleConnect(service?: 'calendar' | 'drive' | 'all'): Promise<JsonObject>;
   listWebhooks(): Promise<JsonObject>;
   createWebhook(body: JsonObject): Promise<JsonObject>;
   updateWebhook(id: string, body: { active: boolean }): Promise<JsonObject>;
@@ -666,8 +667,9 @@ export function resourceMethods(http: Http): ResourceClient {
       ask('GET', `/api/v1/integrations/${kind}`, undefined, undefined, isJsonObject),
     createTelegramPairing: () =>
       ask('POST', '/api/v1/integrations/telegram/pairing', undefined, undefined, isJsonObject),
-    googleConnect: () =>
-      ask('GET', '/api/v1/integrations/google/start', undefined, undefined, isJsonObject),
+    setGoogleService: (service,enabled) => ask('PATCH',`/api/v1/integrations/google/services/${service}`,{enabled},undefined,isJsonObject),
+    googleConnect: (service='all') =>
+      ask('GET', `/api/v1/integrations/google/start?service=${service}`, undefined, undefined, isJsonObject),
     listWebhooks: () => ask('GET', '/api/v1/webhooks', undefined, undefined, isJsonObject),
     createWebhook: (body) => ask('POST', '/api/v1/webhooks', body, undefined, isJsonObject),
     updateWebhook: (id, body) =>

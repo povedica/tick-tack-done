@@ -22,3 +22,11 @@ it('TTD-AUD-100: optional unfurl is bounded HTML and tolerates blocked destinati
   );
   expect(await linkTitle('mailto:test@example.com')).toBeNull();
 });
+
+it('decodes title entities once and keeps the result as text, never recursive HTML sanitization', async () => {
+  vi.mocked(safeFetch).mockResolvedValueOnce({
+    status: 200,
+    body: Buffer.from('<title>&amp;lt;script&amp;gt; A &amp; B</title>'),
+  });
+  expect(await linkTitle('https://example.test')).toBe('&lt;script&gt; A & B');
+});

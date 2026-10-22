@@ -22,10 +22,11 @@ it('TTD-AUD-99 list rename updates its Drive folder and ignores upstream failure
     user: {
       findFirst: vi
         .fn()
-        .mockResolvedValue({ googleRefreshToken: 'synthetic-refresh', googleStatus: 'connected' }),
+        .mockResolvedValue({ googleRefreshToken: 'synthetic-refresh', googleStatus: 'connected',googleGrantedScopes:['https://www.googleapis.com/auth/drive.file'],googleDriveEnabled:true,googleCalendarEnabled:true }),
     },
   };
   vi.stubEnv('GOOGLE_CLIENT_ID', 'synthetic');
+
   vi.stubEnv('GOOGLE_CLIENT_SECRET', 'synthetic');
   const fetcher = vi
     .fn()

@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { API_SCOPES } from '../../api/src/auth/scopes';
@@ -20,6 +20,14 @@ test('TTD-AUD-84: MCP focus changes appear in the real web within two seconds', 
   expect(response.status()).toBe(201);
   const token = (await response.json()) as { id: string; token: string };
   const authorization = `Bearer ${token.token}`;
+  if(info.project.name==='desktop-light') {
+    const catalog=await request.post(`${base}/api/v1/mcp`,{headers:{Authorization:authorization},data:{jsonrpc:'2.0',id:85,method:'tools/list'}});
+    expect(catalog.status()).toBe(200);
+    const result=await catalog.json() as {result:{tools:unknown[]}};
+    expect(result.result.tools).toHaveLength(75);
+    writeFileSync(path.resolve('../../docs/audit/r80/mcp-tools-despues.json'),JSON.stringify(result.result,null,2)+'\n');
+  }
+
   async function call(name: string, args: Record<string, unknown> = {}) {
     const response = await request.post(`${base}/api/v1/mcp`, {
       headers: { Authorization: authorization },
