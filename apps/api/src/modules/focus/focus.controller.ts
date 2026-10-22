@@ -14,7 +14,14 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
-import { ApiOperation, ApiProperty, ApiQuery, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBody,
+  ApiOperation,
+  ApiProperty,
+  ApiQuery,
+  ApiTags,
+  ApiOkResponse,
+} from '@nestjs/swagger';
 import {
   IsBoolean,
   isUUID,
@@ -24,6 +31,7 @@ import {
   IsString,
   IsUUID,
   Max,
+  MaxLength,
   Min,
 } from 'class-validator';
 import type { Request, Response } from 'express';
@@ -68,6 +76,14 @@ class StartDto {
   @IsOptional()
   @IsString()
   ambient_sound?: string;
+}
+
+class FinishDto {
+  @ApiProperty({ required: false, maxLength: 2000 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
 }
 
 class SettingsDto {
@@ -163,6 +179,24 @@ export class FocusController {
         throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
     }
     const row = await this.prisma.$transaction(async (tx) => {
+      const key = `focus-session:${user.id}`;
+      await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtextextended(${key}, 0))`;
+      const candidates = await tx.focusSession.findMany({
+        where: { ownerId: user.id, endedAt: null, deletedAt: null },
+      });
+      const active = candidates.find(
+        (candidate) =>
+          candidate.type === 'stopwatch' ||
+          candidate.pausedAt !== null ||
+          (this.json(candidate, new Date()).remaining_seconds ?? 0) > 0,
+      );
+      if (active !== undefined)
+        throw new DomainException(
+          HttpStatus.CONFLICT,
+          'focus_already_running',
+          'A focus session is already running',
+          { session_id: active.id },
+        );
       const created = await tx.focusSession.create({
         data: {
           ownerId: user.id,
@@ -189,13 +223,23 @@ export class FocusController {
   @Post('sessions/:id/finish')
   @Scopes('focus:write')
   @ApiOperation({ summary: 'Finish a session and name the next phase (RF-1201)' })
+  @ApiBody({ type: FinishDto, required: false })
   async finish(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
+    @Body(
+      new ValidationPipe({
+        expectedType: FinishDto,
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    )
+    dto: FinishDto | undefined,
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    respondJson(req, res, 200, await this.close(user, id, true), false);
+    respondJson(req, res, 200, await this.close(user, id, true, dto?.note), false);
   }
 
   @Post('sessions/:id/abort')
@@ -364,6 +408,67 @@ export class FocusController {
     );
   }
 
+  @Get('state')
+  @Scopes('focus:write')
+  @ApiOperation({ summary: 'Current owned focus session, settings and daily totals (TTD-AUD-84)' })
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      required: ['session', 'settings', 'today'],
+      properties: {
+        session: { type: 'object', nullable: true, additionalProperties: true },
+        settings: { type: 'object', additionalProperties: true },
+        today: {
+          type: 'object',
+          properties: { pomos: { type: 'integer' }, minutes: { type: 'number' } },
+        },
+      },
+    },
+  })
+  async state(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    const [rows, settings] = await Promise.all([
+      this.prisma.focusSession.findMany({
+        where: sessionAccess(user),
+        include: { task: { select: { id: true, title: true } } },
+        orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
+      }),
+      this.settingsOf(user.id),
+    ]);
+    const current = rows.find(
+      (session) =>
+        session.endedAt === null &&
+        (session.type === 'stopwatch' ||
+          session.pausedAt !== null ||
+          (this.json(session, new Date()).remaining_seconds ?? 0) > 0),
+    );
+    const stats = focusStats(
+      rows.map((row) => ({
+        type: row.type,
+        startedAt: row.startedAt.toISOString(),
+        actualSeconds: row.actualSeconds,
+        completed: row.completed,
+        listId: null,
+        tagNames: [],
+      })),
+      user.timeZone,
+    );
+    respondJson(
+      req,
+      res,
+      200,
+      {
+        session: current ? this.json(current, new Date()) : null,
+        settings,
+        today: { pomos: stats.today_pomodoros, minutes: stats.today_focus_seconds / 60 },
+      },
+      false,
+    );
+  }
+
   @Get('stats')
   @Scopes('focus:read')
   @ApiOperation({ summary: 'Focus statistics (RF-1204)' })
@@ -503,7 +608,7 @@ export class FocusController {
     respondJson(req, res, 200, { id: row.id, estimated_pomodoros: row.estimatedPomodoros }, false);
   }
 
-  private async close(user: AuthUser, id: string, completed: boolean) {
+  private async close(user: AuthUser, id: string, completed: boolean, note?: string) {
     const current = await this.prisma.focusSession.findFirst({
       where: { id, ...sessionAccess(user) },
     });
@@ -538,7 +643,14 @@ export class FocusController {
         entityType: 'focus_session',
         entityId: id,
         action: 'updated',
-        data: { session: { id, actual_seconds: actual, completed } },
+        data: {
+          session: {
+            id,
+            actual_seconds: actual,
+            completed,
+            ...(note === undefined ? {} : { note }),
+          },
+        },
         previous: null,
       });
       return saved;
@@ -582,7 +694,7 @@ export class FocusController {
       paused_seconds: row.pausedSeconds,
       elapsed_seconds: focusElapsedSeconds({
         startedAt: row.startedAt.toISOString(),
-        now: now.toISOString(),
+        now: (row.endedAt ?? now).toISOString(),
         pausedAt: row.pausedAt?.toISOString() ?? null,
         pausedSeconds: row.pausedSeconds,
       }),

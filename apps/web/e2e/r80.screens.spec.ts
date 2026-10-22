@@ -3,6 +3,8 @@ import { expect, test } from '@playwright/test';
 import { r80Fixture } from './r80.fixture';
 const phase = process.env.R80_PHASE ?? 'antes';
 const screens = [
+  { id: 84, name: 'foco', route: '/focus' },
+  { id: 101, name: 'foco', route: '/focus' },
   { id: 81, name: 'ancla-repeticion', route: '/today?task=task' },
   { id: 87, name: 'calendario-dia', route: '/calendar/day?date=2026-10-22' },
   { id: 88, name: 'calendario-dos-semanas', route: '/calendar/two-weeks?date=2026-10-22' },

@@ -743,9 +743,28 @@ const CATALOG: readonly McpTool[] = [
   },
   {
     name: 'start_focus',
-    description: 'Start a server-side focus session.',
+    description: 'Start an owned focus session linked to a task. Rejects another running session.',
     scopes: ['focus:write'],
-    inputSchema: objectSchema({ minutes: { type: 'integer', minimum: 1, maximum: 180 } }),
+    inputSchema: objectSchema({
+      task_id: id,
+      type: { type: 'string', enum: ['pomodoro', 'stopwatch'] },
+      minutes: { type: 'integer', minimum: 1, maximum: 180 },
+    }),
+  },
+  ...(['pause', 'resume', 'finish', 'abort'] as const).map((action) => ({
+    name: `${action}_focus`,
+    description: `${action.charAt(0).toUpperCase()}${action.slice(1)} the current owned focus session, or the supplied session id.`,
+    scopes: ['focus:write'],
+    inputSchema: objectSchema({
+      id,
+      ...(action === 'finish' ? { note: { type: 'string', maxLength: 2000 } } : {}),
+    }),
+  })),
+  {
+    name: 'get_focus_state',
+    description: 'Read the current owned session, focus settings and today totals.',
+    scopes: ['focus:write'],
+    inputSchema: objectSchema({}),
   },
   {
     name: 'review_daily',

@@ -98,6 +98,20 @@ export async function r80Fixture(
         time_zone: 'Europe/Madrid',
         features: {},
       };
+    if (path === '/focus/settings')
+      body = {
+        pomodoroMinutes: 25,
+        shortBreakMinutes: 5,
+        longBreakMinutes: 15,
+        cyclesBeforeLongBreak: 4,
+      };
+    if (path === '/focus/stats')
+      body = {
+        today_pomodoros: 0,
+        today_focus_seconds: 0,
+        completed_pomodoros: 0,
+        focus_seconds: 0,
+      };
     if (path === '/tasks')
       body = {
         items: [

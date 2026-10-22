@@ -196,12 +196,17 @@ export class McpService {
         next_cursor: start + limit < matches.length ? offsetCursor(start + limit) : null,
       };
     } else if (tool.name === 'api_request') data = await requestPublicApi(args, authorization);
-    else data = await this.run(user, tool.name, args);
+    else data = await this.run(user, tool.name, args, authorization);
     if (tool.name.startsWith('list_')) data = listResult(data, args);
     return { content: [{ type: 'text', text: JSON.stringify(data) }], isError: false };
   }
 
-  private async run(user: AuthUser, name: string, args: Record<string, unknown>): Promise<unknown> {
+  private async run(
+    user: AuthUser,
+    name: string,
+    args: Record<string, unknown>,
+    authorization?: string,
+  ): Promise<unknown> {
     const limit = limitOf(args);
     switch (name) {
       case 'list_tasks': {
@@ -809,27 +814,45 @@ export class McpService {
         });
       case 'dashboard_snapshot':
         return loadDashboardSnapshot(this.prisma, user.id, new Date(), user.timeZone);
-      case 'start_focus': {
-        const minutes = typeof args.minutes === 'number' ? args.minutes : 25;
-        return this.prisma.$transaction(async (tx) => {
-          const created = await tx.focusSession.create({
-            data: {
-              ownerId: user.id,
-              type: 'focus',
-              plannedMinutes: minutes,
-              startedAt: new Date(),
+      case 'start_focus':
+        return this.focusApi(
+          {
+            method: 'POST',
+            path: '/api/v1/focus/sessions',
+            body: {
+              ...(typeof args.task_id === 'string' ? { task_id: args.task_id } : {}),
+              type: args.type === 'stopwatch' ? 'stopwatch' : 'focus',
+              ...(typeof args.minutes === 'number' ? { planned_minutes: args.minutes } : {}),
             },
-          });
-          await this.events.record(tx, actorOf(user), {
-            type: DomainEvent.focusSessionStarted,
-            entityType: 'focus_session',
-            entityId: created.id,
-            action: 'created',
-            data: asJson({ planned_minutes: minutes }),
-            previous: null,
-          });
-          return { id: created.id, planned_minutes: minutes };
-        });
+          },
+          authorization,
+        );
+      case 'get_focus_state':
+        return this.focusApi({ method: 'GET', path: '/api/v1/focus/state' }, authorization);
+      case 'pause_focus':
+      case 'resume_focus':
+      case 'finish_focus':
+      case 'abort_focus': {
+        const state =
+          args.id === undefined
+            ? await this.focusApi({ method: 'GET', path: '/api/v1/focus/state' }, authorization)
+            : null;
+        const session = isRecord(state) && isRecord(state.session) ? state.session : null;
+        const id = typeof args.id === 'string' ? args.id : session?.id;
+        if (typeof id !== 'string')
+          throw new DomainException(
+            HttpStatus.CONFLICT,
+            'focus_not_running',
+            'No focus session is running',
+          );
+        return this.focusApi(
+          {
+            method: 'POST',
+            path: `/api/v1/focus/sessions/${id}/${name.replace('_focus', '')}`,
+            ...(typeof args.note === 'string' ? { body: { note: args.note } } : {}),
+          },
+          authorization,
+        );
       }
       case 'review_daily': {
         const tasks = await this.prisma.task.findMany({
@@ -927,6 +950,11 @@ export class McpService {
       default:
         throw new DomainException(HttpStatus.BAD_REQUEST, 'unknown_tool', 'Unknown tool');
     }
+  }
+
+  private async focusApi(args: Record<string, unknown>, authorization?: string): Promise<unknown> {
+    const response = await requestPublicApi(args, authorization);
+    return isRecord(response) ? response.data : response;
   }
 
   private async parsedList(

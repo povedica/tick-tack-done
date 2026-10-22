@@ -6,4 +6,4 @@ Se conserva el respaldo únicamente en NODE_ENV=development y para el email exac
 
 Validación: 3 unitarias de consumidores, 4 de política, 1 de aviso de arranque y 1 e2e HTTP (Drive y Calendar, usuario sin vincular, variable global definida), con PostgreSQL local aislado y Node 26.
 
-Producción: no se ha accedido al entorno privado del VPS en esta ronda; no se sabe si la variable está definida. No se ha retirado ni revocado ninguna credencial real. Este criterio externo queda pendiente y no se marca como verificado.
+Producción, 22/10/2026: comprobación SSH de solo lectura dentro del contenedor API; el comando que únicamente imprime set/unset devolvió **unset**. No está definida GOOGLE_REFRESH_TOKEN. No hubo que retirarla ni se ha modificado o revocado ninguna credencial real. No se ha desplegado la PR durante esta comprobación.

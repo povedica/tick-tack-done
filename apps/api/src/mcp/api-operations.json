@@ -4536,7 +4536,17 @@
     "parameters": [
       { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
     ],
-    "request_body": {}
+    "request_body": {
+      "required": false,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": { "note": { "type": "string", "maxLength": 2000 } }
+          }
+        }
+      }
+    }
   },
   {
     "method": "POST",
@@ -4563,6 +4573,13 @@
     "parameters": [
       { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
     ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/focus/state",
+    "summary": "Current owned focus session, settings and daily totals (TTD-AUD-84)",
+    "parameters": [],
     "request_body": {}
   },
   {

@@ -17,7 +17,7 @@ export function useActiveFocus(): ActiveFocus | null {
   const sessions = useQuery({
     queryKey: ['focus-sessions'],
     queryFn: () => api.listFocusSessions('active'),
-    refetchInterval: 15_000,
+    refetchInterval: 1000,
   });
   const settings = useQuery({
     queryKey: ['focus-settings'],

@@ -41,7 +41,7 @@ export function FocusPage() {
     queryFn: ({ pageParam }) => api.listFocusSessions(undefined, pageParam),
     getNextPageParam: (page) =>
       typeof page.next_cursor === 'string' ? page.next_cursor : undefined,
-    refetchInterval: 15_000,
+    refetchInterval: 1000,
   });
   const settings = useQuery({
     queryKey: ['focus-settings'],

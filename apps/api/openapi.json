@@ -11339,6 +11339,16 @@
             }
           }
         ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinishDto"
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "description": ""
@@ -11432,6 +11442,60 @@
           }
         },
         "summary": "Resume a paused focus session (RF-1205)",
+        "tags": [
+          "focus"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/focus/state": {
+      "get": {
+        "operationId": "FocusController_state",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "session",
+                    "settings",
+                    "today"
+                  ],
+                  "properties": {
+                    "session": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": true
+                    },
+                    "settings": {
+                      "type": "object",
+                      "additionalProperties": true
+                    },
+                    "today": {
+                      "type": "object",
+                      "properties": {
+                        "pomos": {
+                          "type": "integer"
+                        },
+                        "minutes": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Current owned focus session, settings and daily totals (TTD-AUD-84)",
         "tags": [
           "focus"
         ],
@@ -17669,6 +17733,15 @@
           },
           "ambient_sound": {
             "type": "string"
+          }
+        }
+      },
+      "FinishDto": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "maxLength": 2000
           }
         }
       },

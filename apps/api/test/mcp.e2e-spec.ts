@@ -1,3 +1,4 @@
+import type { AddressInfo } from 'node:net';
 import { writeFileSync } from 'node:fs';
 import { MCP_TOOLS } from '../src/mcp/mcp.catalog.js';
 import { API_SCOPES } from '../src/auth/scopes.js';
@@ -56,6 +57,8 @@ async function removeOwner(id: string): Promise<void> {
   });
   await prisma.filter.deleteMany({ where: { ownerId: id } });
   await prisma.smartList.deleteMany({ where: { ownerId: id } });
+  await prisma.focusSession.deleteMany({ where: { ownerId: id } });
+  await prisma.focusSettings.deleteMany({ where: { userId: id } });
   await prisma.habitLog.deleteMany({ where: { ownerId: id } });
   await prisma.habit.deleteMany({ where: { ownerId: id } });
   await prisma.task.deleteMany({ where: { ownerId: id } });
@@ -66,6 +69,7 @@ async function removeOwner(id: string): Promise<void> {
 describe('MCP server', () => {
   let app: INestApplication;
   let server: SuperTestApp;
+  const previousPort = process.env.PORT;
   let owner: { id: string; email: string; inboxId: string };
 
   beforeAll(async () => {
@@ -74,12 +78,16 @@ describe('MCP server', () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
     configureApp(app);
-    await app.init();
+    await app.listen(0, '127.0.0.1');
+    const http = app.getHttpServer() as { address(): AddressInfo };
+    process.env.PORT = String(http.address().port);
     server = app.getHttpServer() as SuperTestApp;
   });
 
   afterAll(async () => {
     await app.close();
+    if (previousPort === undefined) delete process.env.PORT;
+    else process.env.PORT = previousPort;
     await removeOwner(owner.id);
     await prisma.$disconnect();
   });
@@ -965,6 +973,76 @@ describe('MCP server', () => {
       expect(Array.isArray(page.items), tool.name).toBe(true);
       expect(page, tool.name).toHaveProperty('next_cursor');
     }
+  });
+  it('TTD-AUD-84: MCP controls an owned focus session through the public API', async () => {
+    const token = await request(server)
+      .post('/api/v1/me/tokens')
+      .set('X-Dev-User-Email', owner.email)
+      .send({ name: 'R80 focus', scopes: ['tasks:read', 'focus:read', 'focus:write'] })
+      .expect(201);
+    const bearer = { Authorization: `Bearer ${String(token.body.token)}` };
+    const task = await prisma.task.create({
+      data: {
+        ownerId: owner.id,
+        projectId: owner.inboxId,
+        createdById: owner.id,
+        title: 'R80 focused task',
+      },
+    });
+    const call = async (name: string, args: Record<string, unknown> = {}) => {
+      const response = await rpc(server, bearer, 'tools/call', { name, arguments: args });
+      expect(response.body.result.isError).toBe(false);
+      return JSON.parse(toolText(response.body as unknown)) as Record<string, unknown>;
+    };
+    await prisma.focusSession.create({
+      data: {
+        ownerId: owner.id,
+        type: 'focus',
+        plannedMinutes: 25,
+        startedAt: new Date(Date.now() - 86_400_000),
+      },
+    });
+    const started = await call('start_focus', { task_id: task.id, type: 'pomodoro', minutes: 25 });
+    expect(started.task_id).toBe(task.id);
+    const rejected = await rpc(server, bearer, 'tools/call', {
+      name: 'start_focus',
+      arguments: {},
+    });
+    expect(rejected.body.result).toMatchObject({
+      isError: true,
+      data: { status: 409, session_id: started.id },
+    });
+    const paused = await call('pause_focus');
+    expect(paused.paused_at).not.toBeNull();
+    const resumed = await call('resume_focus');
+    expect(resumed.paused_at).toBeNull();
+    await prisma.focusSession.update({
+      where: { id: String(started.id) },
+      data: { startedAt: new Date(Date.now() - 28_000), pausedSeconds: 0 },
+    });
+    const done = await call('finish_focus', { note: 'Synthetic completion note' });
+    expect(done.elapsed_seconds).toBeGreaterThanOrEqual(28);
+    expect(Number(done.elapsed_seconds)).toBeLessThanOrEqual(29);
+    const state = await call('get_focus_state');
+    expect(state.session).toBeNull();
+    expect(state).toHaveProperty('settings');
+    expect(state).toHaveProperty('today');
+    const stopwatch = await call('start_focus', { type: 'stopwatch', task_id: task.id });
+    expect(stopwatch.type).toBe('stopwatch');
+    const aborted = await call('abort_focus');
+    expect(aborted.completed).toBe(false);
+    expect(aborted.ended_at).not.toBeNull();
+  });
+  it('TTD-AUD-85.1: api_request keeps a real task_not_found HTTP error', async () => {
+    const bearer = await tasksBearer(server, owner.email);
+    const response = await rpc(server, bearer, 'tools/call', {
+      name: 'api_request',
+      arguments: { method: 'GET', path: `/api/v1/tasks/${randomUUID()}` },
+    });
+    expect(response.body.result).toMatchObject({
+      isError: true,
+      data: { status: 404, code: 'task_not_found', message: 'Task was not found' },
+    });
   });
 });
 

@@ -2890,6 +2890,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/focus/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Current owned focus session, settings and daily totals (TTD-AUD-84) */
+        get: operations["FocusController_state"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/focus/stats": {
         parameters: {
             query?: never;
@@ -4670,6 +4687,9 @@ export interface components {
             type?: "focus" | "short_break" | "long_break" | "stopwatch";
             task_id?: string;
             ambient_sound?: string;
+        };
+        FinishDto: {
+            note?: string;
         };
         SettingsDto: {
             pomodoro_minutes?: number;
@@ -10275,7 +10295,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["FinishDto"];
+            };
+        };
         responses: {
             201: {
                 headers: {
@@ -10339,6 +10363,36 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    FocusController_state: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        session: {
+                            [key: string]: unknown;
+                        } | null;
+                        settings: {
+                            [key: string]: unknown;
+                        };
+                        today: {
+                            pomos?: number;
+                            minutes?: number;
+                        };
+                    };
+                };
             };
         };
     };

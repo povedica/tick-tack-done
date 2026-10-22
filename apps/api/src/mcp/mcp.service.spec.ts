@@ -1,3 +1,5 @@
+const transport = vi.hoisted(() => vi.fn());
+vi.mock('./mcp-api.js', () => ({ requestPublicApi: transport }));
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpStatus } from '@nestjs/common';
 import { DomainException } from '../http/domain.exception.js';
@@ -597,6 +599,104 @@ describe('McpService recurrence mapping', () => {
     const result = JSON.parse(toolText(response)) as { items: unknown[]; next_cursor: unknown };
     expect(result.items).toHaveLength(2);
     expect(typeof result.next_cursor).toBe('string');
+  });
+  it('TTD-AUD-84: start_focus uses the public lifecycle with task and stopwatch type', async () => {
+    transport.mockResolvedValue({ status: 201, data: { id: 'session', type: 'stopwatch' } });
+    const result = await service.handle(
+      { ...user, scopes: ['focus:write'] },
+      {
+        jsonrpc: '2.0',
+        id: 84,
+        method: 'tools/call',
+        params: {
+          name: 'start_focus',
+          arguments: { task_id: '33333333-3333-4333-8333-333333333333', type: 'stopwatch' },
+        },
+      },
+      'Bearer synthetic',
+    );
+    expect(result).toMatchObject({ result: { isError: false } });
+    expect(transport).toHaveBeenCalledWith(
+      {
+        method: 'POST',
+        path: '/api/v1/focus/sessions',
+        body: { task_id: '33333333-3333-4333-8333-333333333333', type: 'stopwatch' },
+      },
+      'Bearer synthetic',
+    );
+  });
+  it.each(['pause_focus', 'resume_focus', 'finish_focus', 'abort_focus'])(
+    'TTD-AUD-84: %s targets the current owned session',
+    async (name) => {
+      transport.mockImplementation((args: { method: string }) =>
+        Promise.resolve({
+          status: 200,
+          data:
+            args.method === 'GET'
+              ? { session: { id: '33333333-3333-4333-8333-333333333333' } }
+              : { id: '33333333-3333-4333-8333-333333333333' },
+        }),
+      );
+      const result = await service.handle(
+        { ...user, scopes: ['focus:write'] },
+        { jsonrpc: '2.0', id: 84, method: 'tools/call', params: { name, arguments: {} } },
+        'Bearer synthetic',
+      );
+      expect(result).toMatchObject({ result: { isError: false } });
+      expect(transport).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          method: 'POST',
+          path: `/api/v1/focus/sessions/33333333-3333-4333-8333-333333333333/${name.replace('_focus', '')}`,
+        }),
+        'Bearer synthetic',
+      );
+    },
+  );
+  it('TTD-AUD-84: get_focus_state preserves settings and daily totals', async () => {
+    transport.mockResolvedValue({
+      status: 200,
+      data: { session: null, settings: { pomodoroMinutes: 25 }, today: { pomos: 1, minutes: 25 } },
+    });
+    const response = await service.handle(
+      { ...user, scopes: ['focus:write'] },
+      {
+        jsonrpc: '2.0',
+        id: 84,
+        method: 'tools/call',
+        params: { name: 'get_focus_state', arguments: {} },
+      },
+      'Bearer synthetic',
+    );
+    expect(JSON.parse(toolText(response))).toMatchObject({ session: null, today: { pomos: 1 } });
+  });
+  it('TTD-AUD-85.1: api_request retains structured HTTP failure context', async () => {
+    transport.mockRejectedValueOnce(
+      new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found', {
+        status: 404,
+        code: 'task_not_found',
+        message: 'Task was not found',
+        body: { error: { code: 'task_not_found' } },
+      }),
+    );
+    const result = await service.handle(
+      user,
+      {
+        jsonrpc: '2.0',
+        id: 85,
+        method: 'tools/call',
+        params: {
+          name: 'api_request',
+          arguments: { method: 'GET', path: '/api/v1/tasks/33333333-3333-4333-8333-333333333333' },
+        },
+      },
+      'Bearer synthetic',
+    );
+    expect(result).toMatchObject({
+      result: {
+        isError: true,
+        data: { status: 404, code: 'task_not_found', body: { error: { code: 'task_not_found' } } },
+      },
+    });
   });
 });
 
