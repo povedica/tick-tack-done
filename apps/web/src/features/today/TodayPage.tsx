@@ -81,7 +81,8 @@ export function TodayPage() {
   const showToast = useActionToast((state) => state.show);
   const addRef = useRef<HTMLInputElement>(null);
   const [params, setParams] = useSearchParams();
-  const group = groupFromLocation(params.get('group'), readStored(GROUP_KEY));
+  const [storedGroup, setStoredGroup] = useState(() => readStored(GROUP_KEY));
+  const group = groupFromLocation(params.get('group'), storedGroup);
   const [sort, setSort] = useState<TaskSortKey>(() => parseSort(readStored(SORT_KEY)));
   const [sortDir, setSortDir] = useState<TaskSortDir>(() => parseSortDir(readStored(SORT_DIR_KEY)));
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(
@@ -128,6 +129,52 @@ export function TodayPage() {
     )
       setMatrixLayout(requested);
   }, [params, matrixLayout]);
+  const remotePrefs = useQuery({
+    queryKey: ['view-preferences', 'today'],
+    queryFn: () => api.getViewPreferences('today'),
+    refetchInterval: 30_000,
+  });
+  useEffect(() => {
+    const value = remotePrefs.data?.preferences;
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+    const remote = value as Record<string, unknown>;
+    if (typeof remote.group === 'string') {
+      localStorage.setItem(GROUP_KEY, remote.group);
+      setStoredGroup(remote.group);
+    }
+    if (typeof remote.sort === 'string') {
+      localStorage.setItem(SORT_KEY, remote.sort);
+      setSort(parseSort(remote.sort));
+    }
+    if (typeof remote.order === 'string') {
+      localStorage.setItem(SORT_DIR_KEY, remote.order);
+      setSortDir(parseSortDir(remote.order));
+    }
+    if (typeof remote.showDetails === 'boolean') setDetails(remote.showDetails);
+    if (typeof remote.hideCompleted === 'boolean') setHideCompleted(remote.hideCompleted);
+    if (
+      !params.has('view') &&
+      (remote.view === 'list' || remote.view === 'kanban' || remote.view === 'matrix')
+    ) {
+      writeMatrixLayout('today', remote.view);
+      setMatrixLayout(remote.view);
+    }
+  }, [remotePrefs.data]);
+  function syncPrefs(patch: Record<string, string | boolean>) {
+    runAction(
+      api.putViewPreferences('today', {
+        view: matrixLayout,
+        group,
+        sort,
+        order: sortDir,
+        showDetails: details,
+        hideCompleted,
+        detailLayout: 'side',
+        syncAcrossDevices: true,
+        ...patch,
+      }),
+    );
+  }
   const jobs = useRef(new Map<string, CompleteJob>());
   const leaveTimers = useRef(new Map<string, number>());
   const tasks = useQuery({
@@ -381,6 +428,8 @@ export function TodayPage() {
 
   function chooseGroup(value: TaskGroupKey): void {
     localStorage.setItem(GROUP_KEY, value);
+    setStoredGroup(value);
+    syncPrefs({ group: value });
     const next = new URLSearchParams(params);
     next.set('group', value);
     setParams(next, { replace: true });
@@ -389,11 +438,13 @@ export function TodayPage() {
 
   function chooseSort(value: TaskSortKey): void {
     setSort(value);
+    syncPrefs({ sort: value });
     localStorage.setItem(SORT_KEY, value);
   }
 
   function chooseDir(value: TaskSortDir): void {
     setSortDir(value);
+    syncPrefs({ order: value });
     localStorage.setItem(SORT_DIR_KEY, value);
   }
 
@@ -617,6 +668,7 @@ export function TodayPage() {
             showMatrix={flags.matrix}
             value={matrixLayout}
             onChange={(next) => {
+              syncPrefs({ view: next });
               writeMatrixLayout('today', next);
               setMatrixLayout(next);
               const query = new URLSearchParams(params);
@@ -680,9 +732,15 @@ export function TodayPage() {
           <ViewMenu
             messages={messages}
             details={details}
-            onDetails={setDetails}
+            onDetails={(value) => {
+              setDetails(value);
+              syncPrefs({ showDetails: value });
+            }}
             hideCompleted={hideCompleted}
-            onHideCompleted={setHideCompleted}
+            onHideCompleted={(value) => {
+              setHideCompleted(value);
+              syncPrefs({ hideCompleted: value });
+            }}
             onPrint={() => {
               window.print();
             }}

@@ -146,3 +146,13 @@
 .today-plan-saved {
   font-size: 12px;
 }
+
+/* Alcance vigente: capacidad fuera del encabezado móvil del Plan del día. */
+@media (max-width: 768px) {
+  .plan-day .plan-overview {
+    display: none;
+  }
+  .plan-day .page-header {
+    align-items: center;
+  }
+}

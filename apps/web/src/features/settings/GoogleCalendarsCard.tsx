@@ -1,3 +1,4 @@
+import { ApiError } from '@reflexionia/sdk';
 import { runAction } from '../../components/run-action';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -95,6 +96,12 @@ export function GoogleCalendarsCard() {
         <div>
           <h2>{messages.googleCalendars}</h2>
           {offline ? <p className="ui-danger">{messages.offline}</p> : null}
+          {remote.error instanceof ApiError && remote.error.code === 'google_reconnect_required' ? (
+            <p role="alert">
+              {messages.googleReconnectHint}{' '}
+              <Link to="/settings/integrations">{messages.googleReconnect}</Link>
+            </p>
+          ) : null}
           {remote.isError ? (
             <p className="ui-danger">
               {messages.syncError}{' '}
@@ -112,6 +119,12 @@ export function GoogleCalendarsCard() {
             runAction(local.refetch());
           }}
         />
+      ) : null}
+      {remote.error instanceof ApiError && remote.error.code === 'google_reconnect_required' ? (
+        <p role="alert">
+          {messages.googleReconnectHint}{' '}
+          <Link to="/settings/integrations">{messages.googleReconnect}</Link>
+        </p>
       ) : null}
       {remote.isError ? (
         <ErrorState

@@ -178,6 +178,18 @@ export function Board({
       hideCompleted: !revealCompleted,
     }),
   );
+  const remotePrefs = useQuery({
+    queryKey: ['view-preferences', viewKey],
+    queryFn: () => api.getViewPreferences(viewKey),
+    refetchInterval: 30_000,
+  });
+  useEffect(() => {
+    const remote = remotePrefs.data?.preferences;
+    if (remote && typeof remote === 'object' && !Array.isArray(remote)) {
+      const next = patchViewPrefs(viewKey, remote);
+      setPrefs(next);
+    }
+  }, [remotePrefs.data, viewKey]);
   const groupBy: GroupBy = prefs.group;
   const sort: Sort = prefs.sort;
   const details = prefs.showDetails;
@@ -223,7 +235,13 @@ export function Board({
     );
 
   function savePrefs(patch: Partial<typeof prefs>): void {
-    setPrefs(patchViewPrefs(viewKey, patch));
+    const next = patchViewPrefs(viewKey, patch);
+    setPrefs(next);
+    runAction(
+      api
+        .putViewPreferences(viewKey, { ...next, syncAcrossDevices: true })
+        .then(() => queryClient.invalidateQueries({ queryKey: ['view-preferences', viewKey] })),
+    );
   }
 
   function chooseView(next: BoardView): void {

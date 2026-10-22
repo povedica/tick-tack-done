@@ -23,7 +23,7 @@ export const DEFAULT_VIEW_PREFS: ViewPrefs = {
   showDetails: true,
   hideCompleted: true,
   detailLayout: 'side',
-  syncAcrossDevices: false,
+  syncAcrossDevices: true,
 };
 
 function keyFor(id: string): string {
@@ -66,7 +66,7 @@ function asLayout(value: unknown): DetailLayout | null {
   return value === 'side' || value === 'popup' ? value : null;
 }
 
-/** TTD-AUD-59: read per-view prefs (local cache; syncAcrossDevices reserved for server). */
+/** TTD-AUD-59: read per-view prefs (local cache backed by the account API). */
 export function readViewPrefs(id: string, fallback: Partial<ViewPrefs> = {}): ViewPrefs {
   const base: ViewPrefs = { ...DEFAULT_VIEW_PREFS, ...fallback };
   try {

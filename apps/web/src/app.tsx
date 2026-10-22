@@ -1,3 +1,4 @@
+import { PolicyPage } from './features/auth/PolicyPage';
 import { runAction } from './components/run-action';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -57,7 +58,7 @@ import {
 } from './features/settings/MoreSettings';
 import { AppearancePage } from './features/settings/AppearancePage';
 import { FeaturesPage } from './features/settings/FeaturesPage';
-import { useFeatures, type FeatureFlags } from './features/settings/feature-flags';
+import { featureFlags, useFeatures, type FeatureFlags } from './features/settings/feature-flags';
 import { ConsentPage } from './features/auth/ConsentPage';
 import { LoginPage, RegisterPage } from './features/auth/AuthPages';
 import { RequireSession, SessionBootstrap } from './features/auth/RequireSession';
@@ -113,6 +114,8 @@ function Shell() {
         />
       ) : null}
       <Routes>
+        <Route path="/privacy" element={<PolicyPage />} />
+        <Route path="/terms" element={<PolicyPage terms />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPage />} />
@@ -225,13 +228,15 @@ function FeatureRoute({
   readonly children: ReactNode;
 }) {
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
-  const enabled = useFeatures((state) => {
+  const storedEnabled = useFeatures((state) => {
     const value = state.flags[flag];
     return typeof value === 'boolean' ? value : true;
   });
   if (me.isPending) {
     return <div className="page-loading" aria-busy="true" />;
   }
+  const configured = me.data === undefined ? storedEnabled : featureFlags(me.data.features)[flag];
+  const enabled = typeof configured === 'boolean' ? configured : true;
   if (!enabled) {
     return <Navigate to="/today?disabled=1" replace />;
   }
