@@ -297,7 +297,7 @@ export const en = {
   smartListsLink: 'Smart lists',
   filtersLink: 'Filters',
   tokensLink: 'Tokens',
-  tokenManualGroup: 'Manual tokens',
+  tokenManualGroup: 'Personal tokens',
   tokenAuthorization: 'Authorization',
   tokenExpired: 'Expired',
   tokenLoadMore: 'Load more',

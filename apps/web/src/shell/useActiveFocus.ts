@@ -1,3 +1,5 @@
+import { useMessages } from '../i18n';
+import { focusElapsedSeconds } from '@reflexionia/domain';
 import { runAction } from '../components/run-action';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
@@ -43,23 +45,30 @@ export function useActiveFocus(): ActiveFocus | null {
   if (live === null || started.length === 0) {
     return null;
   }
-  const elapsed = Math.max(0, Math.floor((now - Date.parse(started)) / 1000));
+  const elapsed = focusElapsedSeconds({
+    startedAt: started,
+    now: new Date(now).toISOString(),
+    pausedAt: typeof live.paused_at === 'string' ? live.paused_at : null,
+    pausedSeconds: numberOf(live.paused_seconds),
+  });
   const remaining = Math.max(0, planned * 60 - elapsed);
   return {
     id: text(live.id),
     taskId: text(live.task_id).length > 0 ? text(live.task_id) : null,
-    remaining,
-    planned: planned * 60,
-    progress: planned === 0 ? 0 : Math.min(1, elapsed / (planned * 60)),
+    remaining: live.type === 'stopwatch' ? elapsed : remaining,
+    planned: live.type === 'stopwatch' ? 0 : planned * 60,
+    progress: live.type === 'stopwatch' || planned === 0 ? 0 : Math.min(1, elapsed / (planned * 60)),
   };
 }
 
 /** Finishes a session that has reached zero, even when /focus is not open. */
 export function FocusCloser() {
+  const messages = useMessages();
+  const account = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
   const queryClient = useQueryClient();
   const focus = useActiveFocus();
   const closed = useRef<string | null>(null);
-  const id = focus !== null && focus.remaining === 0 ? focus.id : '';
+  const id = focus !== null && focus.planned > 0 && focus.remaining === 0 ? focus.id : '';
   useEffect(() => {
     if (id.length === 0 || closed.current === id) {
       return;
@@ -67,11 +76,18 @@ export function FocusCloser() {
     closed.current = id;
     runAction(
       api.finishFocus(id).then(() => {
+        if (
+          account.data?.focus_notifications !== false &&
+          typeof Notification !== 'undefined' &&
+          Notification.permission === 'granted'
+        )
+          new Notification(messages.focusDone);
+        runAction(queryClient.invalidateQueries({ queryKey: ['focus-record'] }));
         runAction(queryClient.invalidateQueries({ queryKey: ['focus-sessions'] }));
         runAction(queryClient.invalidateQueries({ queryKey: ['focus-stats'] }));
       }),
     );
-  }, [id, queryClient]);
+  }, [id, queryClient, messages.focusDone, account.data?.focus_notifications]);
   return null;
 }
 
@@ -83,7 +99,11 @@ export function formatClock(total: number): string {
 
 function firstLive(value: unknown): Record<string, unknown> | null {
   return (
-    rows(value).find((row) => row.ended_at == null && numberOf(row.remaining_seconds) > 0) ?? null
+    rows(value).find(
+      (row) =>
+        row.ended_at == null &&
+        (row.type === 'stopwatch' || row.paused_at != null || numberOf(row.remaining_seconds) > 0),
+    ) ?? null
   );
 }
 

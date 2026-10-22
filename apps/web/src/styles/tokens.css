@@ -135,6 +135,12 @@
   --chart-7: #3dbe74;
   --chart-8: #b3b3b3;
 
+  --focus-panel-w: clamp(20rem, 30vw, 30rem);
+  --focus-ring-size: 15rem;
+  --focus-clock-fs: 2.5rem;
+  --focus-ring-track: var(--border);
+  --focus-ring-stroke: 1.5;
+  --focus-ring-progress-stroke: 2;
   --focus-ring: #4772fa;
 
   --countdown-blue-bg: #e8f0ff;
@@ -338,6 +344,12 @@
   --chart-7: #3dbe74;
   --chart-8: #b3b3b3;
 
+  --focus-panel-w: clamp(20rem, 30vw, 30rem);
+  --focus-ring-size: 15rem;
+  --focus-clock-fs: 2.5rem;
+  --focus-ring-track: var(--border);
+  --focus-ring-stroke: 1.5;
+  --focus-ring-progress-stroke: 2;
   --focus-ring: #4772fa;
 
   --countdown-blue-bg: #1b2a45;

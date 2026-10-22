@@ -301,7 +301,7 @@ export const es = {
   smartListsLink: 'Listas inteligentes',
   filtersLink: 'Filtros',
   tokensLink: 'Tokens',
-  tokenManualGroup: 'Tokens manuales',
+  tokenManualGroup: 'Tokens personales',
   tokenAuthorization: 'Autorización',
   tokenExpired: 'Caducado',
   tokenLoadMore: 'Cargar más',

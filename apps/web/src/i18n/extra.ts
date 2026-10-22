@@ -1,4 +1,61 @@
 export const extraEs = {
+  googleReconnectHint:
+    'La autorización de Google ha caducado o se ha revocado. Vuelve a conectar Google.',
+  focusShortBreak: 'Descanso corto',
+  focusLongBreak: 'Descanso largo',
+  focusCycles: 'Pomos antes del descanso largo',
+  tokenRevokedReasonUser: 'Revocado por ti',
+  tokenRevokedReasonReuse: 'Reutilización detectada',
+  focusShortcutToggle: 'Foco: iniciar, pausar o continuar',
+  focusShortcutMode: 'Foco: alternar Pomo y Cronómetro',
+  privacyTitle: 'Política de privacidad',
+  termsTitle: 'Condiciones de uso',
+  privacyPurpose:
+    'tick-tack-done guarda los datos de tu cuenta, tareas, hábitos, preferencias y registros de actividad para ofrecer el gestor de tareas. Las credenciales de las integraciones se almacenan en el servidor y no se publican.',
+  privacyCalendar:
+    'Con tu autorización, leemos la lista de calendarios y sus eventos para mostrarlos en la aplicación. Si activas sincronización de escritura, creamos y actualizamos eventos de tareas en el calendario elegido.',
+  privacyDrive:
+    'Con tu autorización, usamos los archivos que seleccionas o que crea la aplicación para adjuntos y copias de seguridad. El permiso drive.file limita el acceso a esos archivos.',
+  privacyLimitedUse:
+    'El uso y la transferencia de información recibida de las API de Google se ajustan a la Política de datos de usuario de los servicios API de Google, incluidos los requisitos de Uso Limitado. No vendemos esos datos ni los utilizamos para publicidad o entrenamiento de modelos de inteligencia artificial.',
+  privacyRetention:
+    'Puedes revocar Google en Ajustes → Integraciones o desde tu cuenta de Google. Revocar detiene el acceso futuro; los adjuntos y datos ya importados se eliminan desde la aplicación. En Ajustes → Datos puedes exportar tus datos y en Cuenta solicitar la eliminación de la cuenta. Las copias de seguridad siguen su ciclo de retención configurado por el administrador.',
+  termsPurpose:
+    'Este servicio permite organizar tareas personales e integrar calendarios, archivos y agentes autorizados. Eres responsable del contenido que introduces y de los permisos que concedes a otros clientes.',
+  termsAccess:
+    'Conserva tus credenciales y revoca los tokens que ya no necesites. No utilices el servicio para acceder a datos ajenos o interferir en su funcionamiento. Puedes exportar tus datos y cerrar tu cuenta desde Ajustes.',
+  policyContact: 'Contacto y soporte del proyecto',
+
+  tokenExpiryDays: 'días',
+  tokenAppsTitle: 'Aplicaciones conectadas',
+  tokenAppsEmpty: 'Ninguna aplicación conectada todavía',
+  tokenAppDeclaredName: 'Nombre declarado por la aplicación',
+  tokenAppRevoke: 'Revocar acceso',
+  tokenExpiresIn: 'Caducidad',
+  tokenExpiresNever: 'Sin caducidad',
+  tokenExpiresOn: 'Caduca el',
+  tokenScopesSummary: 'permisos',
+  tokenAppRenewals: 'renovaciones automáticas',
+  mcpOAuthStep1: 'Añade el conector con esta URL',
+  mcpOAuthStep2: 'Inicia sesión en ttd cuando te lo pida',
+  mcpOAuthStep3: 'La aplicación aparecerá en Aplicaciones conectadas',
+
+  focusModePomo: 'Pomo',
+  focusModeStopwatch: 'Cronómetro',
+  focusResume: 'Continuar',
+  focusOverview: 'Resumen',
+  focusTodayPomo: 'Pomos de hoy',
+  focusTodayFocus: 'Foco de hoy',
+  focusTotalPomo: 'Pomos totales',
+  focusTotalDuration: 'Tiempo total de foco',
+  focusRecord: 'Registro de foco',
+  focusRecordEmpty: 'Aún no hay registros de foco',
+  focusNoTask: 'Sin tarea',
+  focusSettings: 'Ajustes de foco',
+  focusAbortConfirm: '¿Abandonar la sesión? No contará como pomodoro.',
+  focusStartBreak: 'Empezar descanso',
+  focusSkipBreak: 'Saltar descanso',
+
   calendarMovedTo: 'Movida a {date}',
   calendarMovedOccurrence: 'Solo se ha movido esta repetición',
   calendarMoveFailed: 'No se ha podido mover la tarea.',
@@ -647,7 +704,7 @@ export const extraEs = {
   achievementsOff: 'Puntuación desactivada',
   achievementsOn: 'Puntuación activada',
   yesterdayLabel: 'ayer',
-  tokenAccessReadWrite: 'lectura+escritura',
+  tokenAccessReadWrite: 'Lectura y escritura',
   tokenAccessRead: 'lectura',
   tokenAccessWrite: 'escritura',
 
@@ -1044,6 +1101,62 @@ export const extraEs = {
 } as const;
 
 export const extraEn = {
+  googleReconnectHint: 'Google authorization expired or was revoked. Reconnect Google.',
+  focusShortBreak: 'Short break',
+  focusLongBreak: 'Long break',
+  focusCycles: 'Pomos before long break',
+  tokenRevokedReasonUser: 'Revoked by you',
+  tokenRevokedReasonReuse: 'Reuse detected',
+  focusShortcutToggle: 'Focus: start, pause or resume',
+  focusShortcutMode: 'Focus: switch Pomo and Stopwatch',
+  privacyTitle: 'Privacy policy',
+  termsTitle: 'Terms of use',
+  privacyPurpose:
+    'tick-tack-done stores your account, tasks, habits, preferences and activity records to provide task management. Integration credentials are stored on the server and are not published.',
+  privacyCalendar:
+    'With your authorization, we read your calendar list and events to display them in the app. If you enable write synchronization, we create and update task events in the selected calendar.',
+  privacyDrive:
+    'With your authorization, we use files you select or the app creates for attachments and backups. The drive.file permission limits access to those files.',
+  privacyLimitedUse:
+    'Use and transfer of information received from Google APIs adhere to the Google API Services User Data Policy, including Limited Use requirements. We do not sell this data or use it for advertising or AI model training.',
+  privacyRetention:
+    'You can revoke Google access in Settings → Integrations or from your Google account. Revocation stops future access; previously imported attachments and data can be deleted in the app. Export your data in Settings → Data and request account deletion in Account. Backups follow the administrator-configured retention cycle.',
+  termsPurpose:
+    'This service organizes personal tasks and integrates calendars, files and authorized agents. You are responsible for the content you enter and the permissions you grant to other clients.',
+  termsAccess:
+    'Keep your credentials secure and revoke tokens you no longer need. Do not use the service to access other people’s data or interfere with its operation. Export your data and close your account from Settings.',
+  policyContact: 'Project contact and support',
+
+  tokenExpiryDays: 'days',
+  tokenAppsTitle: 'Connected apps',
+  tokenAppsEmpty: 'No connected apps yet',
+  tokenAppDeclaredName: 'Name declared by the app',
+  tokenAppRevoke: 'Revoke access',
+  tokenExpiresIn: 'Expiration',
+  tokenExpiresNever: 'No expiration',
+  tokenExpiresOn: 'Expires on',
+  tokenScopesSummary: 'permissions',
+  tokenAppRenewals: 'automatic renewals',
+  mcpOAuthStep1: 'Add the connector using this URL',
+  mcpOAuthStep2: 'Sign in to ttd when prompted',
+  mcpOAuthStep3: 'The app will appear in Connected apps',
+
+  focusSettings: 'Focus settings',
+  focusModePomo: 'Pomo',
+  focusModeStopwatch: 'Stopwatch',
+  focusResume: 'Resume',
+  focusOverview: 'Overview',
+  focusTodayPomo: 'Today’s pomos',
+  focusTodayFocus: 'Today’s focus',
+  focusTotalPomo: 'Total pomos',
+  focusTotalDuration: 'Total focus time',
+  focusRecord: 'Focus record',
+  focusRecordEmpty: 'No focus records yet',
+  focusNoTask: 'No task',
+  focusAbortConfirm: 'Abandon this session? It will not count as a pomo.',
+  focusStartBreak: 'Start break',
+  focusSkipBreak: 'Skip break',
+
   calendarMovedTo: 'Moved to {date}',
   calendarMovedOccurrence: 'Only this occurrence was moved',
   calendarMoveFailed: 'Could not move the task.',
@@ -1684,7 +1797,7 @@ export const extraEn = {
   achievementsOff: 'Score off',
   achievementsOn: 'Score on',
   yesterdayLabel: 'yesterday',
-  tokenAccessReadWrite: 'read+write',
+  tokenAccessReadWrite: 'Read & write',
   tokenAccessRead: 'read',
   tokenAccessWrite: 'write',
 

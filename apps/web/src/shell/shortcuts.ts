@@ -12,6 +12,8 @@ export const GO_PATHS: Record<string, string> = {
 };
 
 export const SHORTCUT_ROWS = [
+  ['Space (Foco)', 'focusShortcutToggle'],
+  ['F (Foco)', 'focusShortcutMode'],
   ['N', 'fab'],
   ['?', 'shortcutsTitle'],
   ['Ctrl/Cmd+K', 'shortcutPaletteSearch'],
