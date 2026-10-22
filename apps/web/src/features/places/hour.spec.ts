@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hourBlock, minutesInZone, layoutHourItems } from './hour';
+import { hourBlock, minutesInZone, layoutHourItems, limitHourLanes } from './hour';
 
 describe('hour grid', () => {
   it('reads a zoned clock', () => {
@@ -25,4 +25,23 @@ it('RF-1102: overlapping events occupy parallel lanes without losing midnight', 
     ['c', 0, 1],
   ]);
   expect(hourBlock(0, 60).top).toBe(0);
+});
+
+it('TTD-AUD-87: caps overlapping lanes at 64px plus 2px gap and exposes every hidden item', () => {
+  const layout = layoutHourItems(
+    Array.from({ length: 6 }, (_, index) => ({ id: String(index), start: 600, end: 660 })),
+  );
+  const result = limitHourLanes(layout, 196);
+  expect(result.visible).toHaveLength(2);
+  expect(result.visible.every((item) => item.lanes === 3)).toBe(true);
+  expect(result.overflow).toMatchObject([{ count: 4, start: 600, end: 660, lane: 2, lanes: 3 }]);
+  const normal = limitHourLanes(
+    layoutHourItems([
+      { id: 'a', start: 600, end: 660 },
+      { id: 'b', start: 600, end: 660 },
+    ]),
+    130,
+  );
+  expect(normal.visible).toHaveLength(2);
+  expect(normal.overflow).toEqual([]);
 });

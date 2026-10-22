@@ -27,3 +27,18 @@ test('TTD-AUD-88 two weeks fills the content height', async ({page}, info) => {
   expect(Math.abs((area?.y ?? 0)+(area?.height ?? 0)-(grid?.y ?? 0)-(grid?.height ?? 0))).toBeLessThanOrEqual(info.project.name.startsWith('mobile') ? 16 : 8);
   if (info.project.name.startsWith('desktop')) expect((await page.locator('.cal-cell').first().boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(299);
 });
+
+test('TTD-AUD-87: many simultaneous events retain readable lanes and expose +N', async({page})=>{
+ await r80Fixture(page);
+ await page.route('**/api/v1/calendar/events**',route=>route.fulfill({json:{tasks:[],external:Array.from({length:24},(_,index)=>({id:`many-${index}`,title:`Overlap ${index}`,subscription_id:'cal',provider:'google',starts_at:'2026-10-22T08:00:00Z',ends_at:'2026-10-22T09:00:00Z',is_all_day:false,time_zone:'Europe/Madrid'}))}}));
+ await page.goto('/calendar/day?date=2026-10-22');
+ const overflow=page.locator('.hour-overflow');await expect(overflow).toBeVisible();
+ for(const box of await page.locator('.hour-col .hour-block').evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().width))) expect(box).toBeGreaterThanOrEqual(63);
+ await overflow.click();await expect(page.locator('.calendar-day-sheet')).toBeVisible();
+});
+test('TTD-AUD-88: six tasks respect the cell limit and +N opens the day',async({page})=>{
+ await r80Fixture(page,{count:6});await page.goto('/calendar/two-weeks?date=2026-10-22');
+ // The two-week cell has five visible task slots, further bounded by available height.
+ const overflow=page.locator('.cal-cell[data-day="2026-10-22"] .calendar-overflow');
+ await expect(overflow).toBeVisible();await overflow.click();await expect(page.locator('.calendar-day-sheet')).toBeVisible();
+});

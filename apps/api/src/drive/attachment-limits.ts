@@ -3,9 +3,76 @@ import { HttpStatus } from '@nestjs/common';
 import { DomainException } from '../http/domain.exception.js';
 export const ATTACHMENT_MAX_BYTES = 25 * 1024 * 1024;
 export const ATTACHMENT_MAX_PER_TASK = 50;
-export const DRIVE_ATTACHMENT_MAX_BYTES = Number(
-  process.env.DRIVE_ATTACHMENT_MAX_BYTES ?? 100 * 1024 * 1024,
+export function attachmentByteLimit(value: string | undefined): number {
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : 100 * 1024 * 1024;
+}
+export const DRIVE_ATTACHMENT_MAX_BYTES = attachmentByteLimit(
+  process.env.DRIVE_ATTACHMENT_MAX_BYTES,
 );
+/** Collect signature bytes across arbitrary stream boundaries; buffer at most 8000 + one bounded chunk. */
+export async function attachmentPrefix(source: AsyncIterable<Uint8Array>) {
+  const iterator = source[Symbol.asyncIterator]();
+  const chunks: Uint8Array[] = [];
+  let length = 0;
+  let done = false;
+  try {
+    while (length < 8000) {
+      const next = await iterator.next();
+      if (next.done) {
+        done = true;
+        break;
+      }
+      if (next.value.byteLength > 8 * 1024 * 1024)
+        throw new DomainException(
+          413,
+          'stream_chunk_too_large',
+          'Stream chunk exceeds the memory bound',
+        );
+      if (next.value.byteLength === 0) continue;
+      chunks.push(next.value);
+      length += next.value.byteLength;
+    }
+    if (length === 0) throw new DomainException(400, 'empty_attachment', 'Empty attachment');
+    const prefix = Buffer.alloc(Math.min(length, 8000));
+    let offset = 0;
+    for (const chunk of chunks) {
+      const part = chunk.subarray(0, prefix.length - offset);
+      prefix.set(part, offset);
+      offset += part.length;
+      if (offset === prefix.length) break;
+    }
+    async function* replay() {
+      try {
+        yield* chunks;
+        if (!done)
+          for (;;) {
+            const next = await iterator.next();
+            if (next.done) {
+              done = true;
+              return;
+            }
+            yield next.value;
+          }
+      } finally {
+        if (!done) await iterator.return?.();
+      }
+    }
+    return {
+      prefix,
+      replay,
+      close: async () => {
+        if (!done) {
+          done = true;
+          await iterator.return?.();
+        }
+      },
+    };
+  } catch (error) {
+    if (!done) await iterator.return?.();
+    throw error;
+  }
+}
 export function safeFileName(name: string): string {
   const base = path
     .basename(name)

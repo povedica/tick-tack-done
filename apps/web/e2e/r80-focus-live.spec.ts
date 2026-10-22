@@ -65,7 +65,7 @@ test('TTD-AUD-84: MCP focus changes appear in the real web within two seconds', 
     const theme = info.project.name.endsWith('dark') ? 'dark' : 'light';
     await page.evaluate((theme) => (document.documentElement.dataset.theme = theme), theme);
     const name = info.project.name.replace('-', '_');
-    await page.screenshot({
+    if (process.env.R80_PHASE !== 'despues') await page.screenshot({
       path: path.resolve('../../docs/audit/evidencias/r80', `84_foco-mcp_antes_${name}.png`),
     });
     if (process.env.R80_LIVE_CAPTURE_ONLY === 'antes') return;

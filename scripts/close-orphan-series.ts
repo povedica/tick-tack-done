@@ -10,7 +10,7 @@ async function main(): Promise<void> {
   try {
     // Direct links plus auditable links lost by the old update (which cleared series_id).
     const candidates = await db.task.findMany({
-      where: { status: 'active', repeatRule: null, deletedAt: null },
+      where: { status: 'active', repeatRule: null, recurrenceOpen: true, deletedAt: null },
       select: { id: true, ownerId: true, seriesId: true, updatedAt: true },
     });
     const proven = new Map<string, { ownerId: string; taskId: string; seriesId: string }>();
@@ -60,17 +60,29 @@ async function main(): Promise<void> {
               ownerId: row.ownerId,
               status: 'active',
               repeatRule: null,
+              recurrenceOpen: true,
               deletedAt: null,
             },
           });
           if (current === null) return;
-          await tx.task.updateMany({
-            where: { ownerId: row.ownerId, seriesId: row.seriesId },
+          const updated = await tx.task.updateMany({
+            where: { ownerId: row.ownerId, seriesId: row.seriesId, recurrenceOpen: true },
             data: { recurrenceOpen: false },
           });
+          if (updated.count === 0) return;
           await tx.seriesAdvance.updateMany({
-            where: { seriesId: row.seriesId, processedAt: null },
+            where: { ownerId: row.ownerId, seriesId: row.seriesId, processedAt: null },
             data: { processedAt: new Date() },
+          });
+          await tx.outboxEvent.create({
+            data: {
+              ownerId: row.ownerId,
+              type: 'series.closed@v1',
+              actorKind: 'automation',
+              actorId: row.ownerId,
+              data: { series_id: row.seriesId, source: 'maintenance' },
+              previous: { recurrence_open: true },
+            },
           });
         });
     }

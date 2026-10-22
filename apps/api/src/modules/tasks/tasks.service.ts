@@ -517,7 +517,7 @@ export class TasksService {
           data: { recurrenceOpen: false },
         });
         await tx.seriesAdvance.updateMany({
-          where: { seriesId: current.seriesId, processedAt: null },
+          where: { ownerId: user.id, seriesId: current.seriesId, processedAt: null },
           data: { processedAt: new Date() },
         });
         await this.events.record(tx, actorOf(user), {

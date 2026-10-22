@@ -26,3 +26,8 @@ it('TTD-AUD-92 inherits only unambiguous AND filter constraints and a default co
   cache.setQueryData(['filters'],{items:[{id:'one',rules:{...rules,combinator:'OR'}}]});
   expect(composerContextFor({pathname:'/filter/one'},{now,timeZone:'Europe/Madrid',cache})).toEqual({text:''});
 });
+
+for(const route of ['/today','/smart/today','/next','/upcoming','/smart/next_7_days','/calendar/day','/calendar/week','/calendar/month','/calendar/two-weeks','/calendar/agenda']) it(`TTD-AUD-92 context date for ${route}`,()=>{
+ expect(context(route).date).toMatchObject({dueDate:'2026-10-21T22:00:00.000Z',allDay:true});
+});
+for(const route of ['/inbox','/focus','/matrix','/search','/settings/account','/someday']) it(`TTD-AUD-92 no invented date for ${route}`,()=>{expect(context(route).date).toBeUndefined();});

@@ -1206,12 +1206,13 @@ function DayGrid({
         const room = cell.clientHeight - list.offsetTop - 4;
         const heights = children.map((child) => child.offsetHeight + 3);
         const total = heights.reduce((sum, height) => sum + height, 0);
-        const reserve = total > room || hiddenBars.has(key) ? 26 : 0;
+        const maxItems = node.closest('.calendar-two-weeks') ? 5 : Number.POSITIVE_INFINITY;
+        const reserve = total > room || children.length > maxItems || hiddenBars.has(key) ? 26 : 0;
         let used = 0;
         let hidden = hiddenBars.get(key) ?? 0;
         children.forEach((child, index) => {
           used += heights[index] ?? 0;
-          const visible = used <= room - reserve;
+          const visible = index < maxItems && used <= room - reserve;
           child.style.visibility = visible ? 'visible' : 'hidden';
           child.inert = !visible;
           child.setAttribute('aria-hidden', String(!visible));

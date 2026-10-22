@@ -58,7 +58,7 @@ async function fixture(page: Page, fail = false, patches: Record<string, unknown
         time_zone: 'Europe/Madrid',
         is_all_day: request.is_all_day ?? true,
         project_id: request.project_id ?? 'inbox',
-        tag_ids: [],
+        tag_ids: request.tag_ids ?? [],
         tags: [],
         project_name: 'Bandeja',
         column_id: request.column_id ?? null,
@@ -506,3 +506,13 @@ for (const path of ['/today?view=list', '/list/work?view=list']) {
     });
   });
 }
+
+for(const path of ['/today','/tag/tag-1']) test(`TTD-AUD-92 global composer saves inherited context and appears in ${path}`,async({page})=>{
+ const posts=await fixture(page);await page.goto(path);await page.keyboard.press('n');
+ const dialog=page.locator('.calendar-quick-add');await expect(dialog).toBeVisible();
+ await dialog.locator('input[name=title]').fill('Nueva con contexto');await dialog.getByRole('button',{name:'Añadir',exact:true}).click();
+ await expect(dialog).toHaveCount(0);await expect.poll(()=>posts.length).toBe(1);
+ if(path==='/today') expect(posts[0]).toMatchObject({due_date:'2026-10-19T22:00:00.000Z',is_all_day:true});
+ else expect(posts[0]?.tag_ids).toEqual(['tag-1']);
+ await expect(page.locator('.task-row').filter({hasText:'Nueva con contexto'}).first()).toBeVisible();
+});

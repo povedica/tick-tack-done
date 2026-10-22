@@ -59,7 +59,7 @@ it('TTD-AUD-95: all completed includes undated work while plan compliance is 16/
   expect(countCompletedCreated(rows, '2026-10-19', '2026-10-25', tz).completed).toBe(126);
   const rate = completionRate(rows, '2026-10-19', '2026-10-25', tz);
   expect(rate).toEqual({ completed: 16, planned: 24, rate: 66.7 });
-  expect(Math.round(rate.rate!)).toBe(67);
+  expect(Math.round(rate.rate ?? 0)).toBe(67);
 });
 const focus = (patch: Partial<StatsFocusRow> = {}): StatsFocusRow => ({
   id: 'f',
