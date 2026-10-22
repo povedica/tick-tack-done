@@ -135,3 +135,7 @@ Pendiente: lint, typecheck, unitarias, integración, Playwright, regeneración d
 |85.8|Respuestas compactas|✅ <2048 bytes tras 4 cambios; detalle completo opt-in|mcp.service.spec.ts, mcp.e2e-spec.ts|
 
 Migración del origen MCP: bajada y reaplicación verificadas en ttd_r80. Inventario de adjuntos (paso 1, commit separado): 0 filas y 0 bytes en la base y volumen aislados. No se ha retirado almacenamiento de producción.
+
+### Inventario de adjuntos en producción
+
+✅ `attachments-inventory --dry-run`, transacción READ ONLY: **0 filas / 0 bytes referenciados; 4 ficheros / 201 bytes en el volumen**. No se leyó contenido ni se imprimieron nombres. **No se ha borrado ningún fichero ni volumen**; los cuatro restos sin referencia se conservan hasta el OK de Pablo. [Resultado agregado](docs/audit/r80/99-inventario-produccion.json).

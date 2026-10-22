@@ -15,3 +15,19 @@ Migración aditiva `20261022104424_attachment_drive_metadata`: estado de Google,
 Transporte en streaming con un buffer de 7,75 MiB y fragmentos de entrada de hasta 256 KiB (total ≤8 MiB); las peticiones resumables tienen fragmentos múltiplos de 256 KiB. Referencias: [subidas resumables](https://developers.google.com/workspace/drive/api/guides/manage-uploads), [errores de cuota](https://developers.google.com/workspace/drive/api/guides/handle-errors). La web usará la URL de sesión, sin access token en el navegador.
 
 Corrección comprobada durante el paso 2: la ruta antigua de enlaces creaba claves locales ficticias, sin fichero. Esas filas se convierten a enlaces sin copiar ni borrar datos físicos; si aparece un fichero inesperado, el script se detiene. Las copias binarias antiguas no se confunden con el original de Drive: se recuperan por la marca ttdLegacyAttachmentId de la migración.
+
+## Paso 3: código de captura y contratos
+
+Se sustituyen las rutas binarias por metadatos y redirecciones; desaparecen attachment-storage.ts y la descarga de copias desde Drive. Busboy propaga contrapresión y serializa los adjuntos de un correo; MCP codifica su multipart por fragmentos en lugar de construirlo entero. Telegram descarga como flujo; la voz, que antes solo se transcribía, ahora se envía al proveedor de transcripción también como flujo, sin introducir un nuevo adjunto de audio.
+
+Web: sesión resumable firmada, PUT directo en trozos de 8 MiB, progreso y reanudación por Range. El backend no devuelve access tokens. Picker usa una autorización interactiva propia del SDK de Google (drive.file), solo en memoria y con cierre a los 10 minutos; no reutiliza ni expone la credencial del servidor. Configuración pública necesaria: GOOGLE_PICKER_API_KEY (clave de navegador restringida por origen), GOOGLE_PICKER_APP_ID y GOOGLE_CLIENT_ID. No se han introducido valores de credenciales en el repo.
+
+Pruebas con Drive HTTP simulado: sesión/finalización, HMAC manipulado, streaming REST y MCP, correo y Telegram, redirección 302/no-store, borrado con y sin papelera, quota 507 y revocación 409. Las capturas y el waterfall de Playwright usan datos sintéticos; la validación real en la consola de Drive y staging queda explícitamente pendiente.
+
+Cambio deliberado del correo: si un fichero supera el límite después de capturar el asunto, la tarea se conserva y el fichero se rechaza (413). Sin conexión a Drive, la tarea se conserva con el aviso solicitado. Los reenvíos con el mismo message_id no duplican ni tarea ni adjuntos. El enlace Drive antiguo requiere ahora conexión y verificación; copy:true se conserva como adaptador de solo enlace y devuelve copied:false.
+
+## Inventario de producción (22/10/2026)
+
+Se ejecutó el mismo inventario transpilado, por stdin y sin escribir el script en el servidor. Las consultas se ejecutaron en una transacción `READ ONLY`. Resultado: **0 filas heredadas / 0 bytes referenciados; 4 ficheros / 201 bytes en el volumen**. Los recuentos de usuarios se refieren únicamente a propietarios de filas heredadas, no al total de cuentas con Google. No se imprimieron nombres ni se leyó el contenido.
+
+Los cuatro ficheros sin referencia se preservan. No se ejecutó migrate-attachments-to-drive en producción, ni se eliminó ningún fichero ni volumen. El inventario está en 99-inventario-produccion.json; retirar esos restos requiere el OK explícito de Pablo.
