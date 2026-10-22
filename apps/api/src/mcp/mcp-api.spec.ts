@@ -14,7 +14,12 @@ it('RF-2001: preserves the bearer and returns HTTP authorization failures', asyn
         headers: { 'content-type': 'application/json' },
       },
     );
-    return { on: vi.fn(), end: () => callback(incoming) };
+    return {
+      on: vi.fn(),
+      end: () => {
+        callback(incoming);
+      },
+    };
   });
   await expect(
     requestPublicApi(

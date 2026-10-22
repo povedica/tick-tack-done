@@ -1,3 +1,4 @@
+import { rm } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -9,6 +10,7 @@ import { newPersonalAccessToken } from '../src/auth/token-secret.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 
 process.env.AUTH_MODE = 'dev';
+process.env.ATTACHMENT_DIR = `/tmp/mcp-api-attachments-${randomUUID()}`;
 const db = new PrismaService();
 let app: INestApplication;
 const oldPort = process.env.PORT;
@@ -23,6 +25,7 @@ afterAll(async () => {
   if (oldPort === undefined) delete process.env.PORT;
   else process.env.PORT = oldPort;
   await app.close();
+  await rm(process.env.ATTACHMENT_DIR ?? '', { recursive: true, force: true });
   await db.$disconnect();
 });
 
@@ -101,9 +104,41 @@ it('RF-2001: generic MCP API transport re-enters bearer scope checks', async () 
       priority: 'high',
       is_all_day: false,
     });
+    const writerCall = async (args: Record<string, unknown>) => {
+      const reply = await request(app.getHttpServer() as Parameters<typeof request>[0])
+        .post('/api/v1/mcp')
+        .set('Authorization', `Bearer ${writer.token}`)
+        .send({
+          jsonrpc: '2.0',
+          id: 3,
+          method: 'tools/call',
+          params: { name: 'api_request', arguments: args },
+        })
+        .expect(200);
+      expect(reply.body.result.isError).toBe(false);
+      return JSON.parse(String(reply.body.result.content[0].text)) as {
+        data: Record<string, unknown>;
+      };
+    };
+    const base = `/api/v1/tasks/${String(parsed.data.id)}/attachments`;
+    const upload = await writerCall({
+      method: 'POST',
+      path: base,
+      files: [
+        {
+          field: 'file',
+          filename: 'nota.txt',
+          content_type: 'text/plain',
+          base64: Buffer.from('hola MCP').toString('base64'),
+        },
+      ],
+    });
+    const download = await writerCall({ method: 'GET', path: `${base}/${String(upload.data.id)}` });
+    expect(download.data).toMatchObject({ base64: Buffer.from('hola MCP').toString('base64') });
   } finally {
     await db.activityLog.deleteMany({ where: { ownerId: owner.id } });
     await db.outboxEvent.deleteMany({ where: { ownerId: owner.id } });
+    await db.attachment.deleteMany({ where: { ownerId: owner.id } });
     await db.task.deleteMany({ where: { ownerId: owner.id } });
     await db.project.deleteMany({ where: { ownerId: owner.id } });
     await db.personalAccessToken.deleteMany({ where: { ownerId: owner.id } });

@@ -180,7 +180,6 @@ reclasifica como verificado por las pruebas de este corte. Ticky F1–F10 queda 
   Lint del monorepo: API/domain/SDK correctos; los errores de lint del nuevo menú
   se corrigieron y se comprueba de nuevo web antes del commit.
 
-
 ### Corte 75.7 — RF-604: hoy circular y fecha de cuenta
 
 - `TodayMark` aplica `.today-mark`, `data-today` y `aria-current="date"` al número
@@ -205,7 +204,6 @@ reclasifica como verificado por las pruebas de este corte. Ticky F1–F10 queda 
   igual al regenerado del corte anterior. No se declara validado el backend real
   ni el Reporte semanal en navegador: WeekPicker usa el componente compartido,
   pero el navegador compartido completo sigue pendiente en 75.11.
-
 
 ### Revisión de 77 tras validación del usuario — 21/10/2026
 
@@ -242,7 +240,6 @@ la declaración de cierre funcional completo de 77 hasta validar esta revisión.
   de Playwright. `/smart/tomorrow` responde HTTP 200 y `/api/v1/health` devuelve
   `status: ok` por el proxy; el servidor queda arrancado para validar.
 
-
 ### Feedback adicional registrado — pendiente, sin desviar 75–79
 
 A petición de Pablo se registran estos ajustes, manteniendo el foco en el alcance
@@ -259,7 +256,6 @@ A petición de Pablo se registran estos ajustes, manteniendo el foco en el alcan
 La revisión de 77 queda en `ab15f2b`; se retoma 75.10. Estas observaciones no se
 mezclan con el commit de los menús ni se cierran basándose en lecturas de código.
 
-
 Ajuste posterior de 77 solicitado por Pablo: ambos sidebars móviles pasan al 88 %
 del ancho del viewport mediante `--mobile-sidebar-w` en claro/oscuro. Se conserva
 la franja exterior para cerrar. Sustituye el límite anterior de 240 px; el drawer
@@ -268,7 +264,6 @@ no depende ya del ancho del sidebar de escritorio.
 El fondo exterior del drawer recibe además desenfoque de 4 px y opacidad más
 oscura (55 % en claro / 60 % en oscuro), mediante tokens de ambos temas y
 backdrop-filter con prefijo Safari. El sidebar permanece por encima y nítido.
-
 
 ### Aclaración vinculante de 75.11 — referencia del Reporte semanal
 
@@ -287,7 +282,6 @@ rediseñar el selector del Reporte para adaptarlo a otro popover. La explicació
 previa de 264 px/no modal no se considera una decisión aceptada por el usuario.
 Pendiente de implementación y comprobación; no se declara corregido todavía.
 
-
 ### Ajuste solicitado — Dos semanas sustituye Varias semanas
 
 Se elimina la vista de longitud variable y su selector de cantidad. La nueva vista
@@ -304,7 +298,6 @@ la sesión real del usuario ni cierra el resto de 75 (incluido 75.11 pendiente).
 
 Cierre técnico de este ajuste: lint, typecheck y test del monorepo en verde
 (598 pruebas). OpenAPI regenerado sin cambios en API/SDK. Sin cambios de API.
-
 
 ### Año dentro del viewport — RF-1101
 
@@ -325,10 +318,10 @@ retrocede una semana; no debe impedir el scroll vertical. Referencias del chat:
 `codex-clipboard-7e1f432b-608e-469d-b90b-a81d48eb9213.jpg` y
 `codex-clipboard-0e245194-1530-462c-9e44-8c489f73950f.jpg`.
 
-
 ### Relevo de sesión — cambios locales aún sin commit (21/10)
 
 Decisiones posteriores de Pablo, vinculantes:
+
 - Cabecera simplificada en todas las vistas: retirar todos los botones «⋯».
 - Selector de vistas con icono de la vista activa; cambia al seleccionar otra.
 - Botón de filtros en escritorio/móvil: panel flotante con listas, filtros
@@ -367,7 +360,6 @@ Commits publicados: 8a5676a (Dos semanas) y a4c226a (Año en viewport).
 Falta revisar diff, cerrar checks finales, actualizar evidencia de PR y guardar
 el corte en la misma PR 73. No incluir documentos locales ajenos al agente.
 
-
 ### Ajustes móviles de calendario — RF-1101 (21/10)
 
 Días ajenos al mes con números de menor peso y contraste en móvil. Agenda del
@@ -380,7 +372,6 @@ Evidencia con API simulada: Playwright del panel (altura, scroll y cierre) y dos
 pruebas táctiles Mes/Año en verde. Typecheck web correcto tras extraer el gesto.
 Lint y tests generales pasaron antes de esa extracción; no acredita sesión real.
 
-
 ### Agenda continua — RF-1101 (21/10)
 
 Sustituida ventana fija por ampliación de 30 días al acercarse a los extremos
@@ -388,7 +379,6 @@ del scroll, hacia pasado y futuro. Incluye días vacíos y conserva el día visi
 al anteponer fechas. Consultas existentes ampliadas, sin cambios de API.
 Playwright con API simulada verifica ampliación más allá de septiembre y
 noviembre y cruce a 2027; panel de día sin regresión. Typecheck web correcto.
-
 
 ### Barra inferior móvil independiente de la sección — RF-1902 / UI-103
 
@@ -398,7 +388,6 @@ CalendarSidebar. La barra inferior permanece pulsable sobre el fondo del drawer;
 se reserva su altura al pie para no tapar los enlaces finales.
 Playwright con API simulada verifica alternancia Listas/Más desde Calendario,
 navegación, cierre y minicalendario de escritorio. Typecheck web correcto.
-
 
 ### Corrección posterior de Agenda — navegación mensual manual (RF-1101)
 
@@ -410,7 +399,6 @@ Se conserva acceso por fecha explícita. Dos Playwright con API simulada en verd
 posición inicial en hoy, scroll sin peticiones nuevas, botones cargan más datos y
 panel del día sin regresión. No acredita sesión backend real.
 
-
 ### Agenda: cabecera mínima y tres meses iniciales — RF-1101
 
 Petición posterior: cabecera sólo con iconos de vistas y filtros, en móvil y
@@ -421,7 +409,6 @@ Sin carga automática por scroll. Dos Playwright con API simulada verifican rang
 septiembre–noviembre, hoy visible, botones ocultos entre extremos, carga manual
 y cabecera de escritorio. Typecheck web correcto.
 
-
 ### Agenda: transición a diciembre y meses vacíos — RF-1101
 
 Al ampliar manualmente, se lleva el scroll al mes recién cargado y se recalculan
@@ -430,7 +417,6 @@ Los meses sin elementos conservan cabecera y estado vacío, sin crear filas por
 día. Prueba con API simulada: evento en diciembre visible y continuación por
 enero/febrero vacíos; prueba de tres meses iniciales y carga manual también pasa.
 Typecheck web correcto. No se ha inspeccionado backend/sesión real del usuario.
-
 
 ### Panel de filtros: coherencia visual — RF-1101 / RF-1902
 
@@ -443,7 +429,6 @@ filtros 390/1280, selección/persistencia/visibilidad, Escape/foco y apertura de
 vistas estable. Inspección visual clara/oscura con API simulada y capturas sólo
 en /tmp. Lint y typecheck web correctos; no acredita sesión real.
 
-
 ### Orden estable de acciones del calendario — RF-1101 / RF-1902
 
 Filtros a la izquierda y vista a la derecha en todas las vistas, incluida Agenda;
@@ -452,7 +437,6 @@ de cabecera móvil. Dos Playwright con API simulada recorren las ocho vistas a
 390 y 1280, comparando posiciones con tolerancia inferior a 2 px y orden DOM.
 Ambos pasan.
 
-
 ### Filtros: calendario sin enlace a ajustes — RF-1103
 
 El panel muestra «Calendario» como título, sin navegación a Ajustes. Debajo,
@@ -460,7 +444,6 @@ El panel muestra «Calendario» como título, sin navegación a Ajustes. Debajo,
 con sus controles de visibilidad. Tareas permanece como control independiente.
 Texto es/en. Tres Playwright con API simulada correctos: vacío sin enlace y
 fuentes/selección/persistencia a 390 y 1280.
-
 
 ### Día: franja semanal fija y navegación — RF-1101 / RF-1902
 
@@ -473,7 +456,6 @@ Playwright táctil con API simulada verifica selección, ambos gestos, octubre/D
 diciembre–enero, columna estable y posición fija con scroll. Otras dos pruebas
 verifican filtros/vistas en todas las vistas móvil/escritorio. Inspección visual
 390 px, captura temporal en /tmp. Typecheck y lint de archivos afectados en verde.
-
 
 ### Día: hora actual roja y cabecera compacta — RF-1101
 
@@ -488,7 +470,6 @@ comienza antes del 22 % del viewport y supera el 65 % de altura. También pasa
 prueba de franja/gestos. API simulada, captura temporal /tmp; lint y tipos web
 correctos antes del ajuste final de coherencia horaria de eventos.
 
-
 ### Horario: afinado de línea, horas y todo el día — RF-1101
 
 Tokens compartidos claro/oscuro: línea 1px/punto 4px, horas 11px, columna horaria
@@ -498,7 +479,6 @@ las tarjetas; admite dos líneas para estrechar la columna. Inspección visual
 con cuatro tareas (tres títulos largos) a 390×844. Tres Playwright dirigidos
 correctos: línea/actualización/zona, franja/gestos, cuatro tareas sin solapamiento.
 Typecheck web correcto; API simulada y capturas sólo en /tmp.
-
 
 ### Todo el día: dos elementos y agenda completa — RF-1101/1102
 
@@ -512,14 +492,12 @@ Prueba mixta con cuatro tareas y un evento confirma dos visibles, +3 y agenda
 completa. Ambas pasan con API simulada; inspección de capturas temporales /tmp.
 Typecheck y lint de archivos afectados correctos antes del último afinado CSS.
 
-
 ### Vistas sólo escritorio — RF-1101 (petición posterior)
 
 Trimestre y Dos semanas se retiran del selector móvil. Enlaces directos y
 preferencias heredadas se normalizan en móvil a Mes y Semana respectivamente,
 conservando fecha y filtros. Ambas vistas siguen disponibles en escritorio.
 Playwright específico móvil/escritorio correcto con API simulada.
-
 
 ### Semana móvil: tarjetas compactas — RF-1101
 
@@ -531,7 +509,6 @@ Playwright densidad con doce tareas: caben al menos cuatro completas por celda,
 altura <=24px; prueba previa de gestos/selector también correcta. Inspección visual
 390×844 con API simulada, captura sólo /tmp.
 
-
 ### Selector de vistas móvil: sólo vistas — RF-1101
 
 Retirada la fila anterior/Hoy/siguiente del menú compartido de vistas a petición
@@ -540,7 +517,6 @@ web y comprobación ESLint del componente ejecutados; prueba dirigida del select
 actualizada para verificar seis vistas y ausencia de botones de navegación.
 Resultado: ESLint y typecheck correctos; Playwright dirigido correcto (1/1),
 con API simulada.
-
 
 ### Alta desde calendario móvil: modal amplio y acciones — RF-1102 / RF-1902
 
@@ -556,7 +532,6 @@ Ajuste posterior: altura móvil reducida de 86dvh a 69dvh (aprox. 20 %),
 centrada con margen 15.5dvh. Fecha sin límite fijo de ancho ni elipsis;
 aprovecha el espacio hasta la prioridad y permite salto si hace falta.
 Playwright dirigido correcto (1/1), API simulada: altura y fecha sin truncado.
-
 
 ### Hora final por defecto — RF-601
 
@@ -576,7 +551,6 @@ cuando están configurados. Tooltips y nombre accesible en es/en. Typecheck
 correcto y Playwright dirigido (1/1) con API simulada verifica ambos indicadores
 tras configurar recordatorio de cinco minutos y repetición diaria.
 
-
 ### Alta desde huecos en todas las vistas — RF-1102 / RF-1902
 
 Semana móvil conecta los huecos de cada día al QuickAddPopover compartido.
@@ -590,7 +564,6 @@ Semana escritorio y Varios días, Dos semanas y gestos móviles. Todos correctos
 con API simulada: las franjas conservan hora pulsada y duración inicial 30 min;
 sin horario se crea todo el día. Typecheck, ESLint y diff --check correctos.
 
-
 ### Agenda: controles de continuación por mes — RF-1101
 
 Sustituidos textos genéricos por nombre del mes/año que se cargará y chevrons
@@ -598,7 +571,6 @@ arriba/abajo según dirección de la lista. Botones ghost compartidos, color acc
 tamaño y espaciado con tokens, objetivo táctil conservado; nombres accesibles
 es/en anteriores conservados. Sin carga automática. Typecheck correcto; dos
 Playwright con API simulada verifican navegación manual y meses vacíos.
-
 
 ### Comandos slash en descripción del alta — RF-202 / RF-1902
 
@@ -609,7 +581,6 @@ coloca el cursor para continuar. Reutiliza Popover y sus flechas/Enter/Escape;
 Escape cierra sólo el menú y conserva borrador. URLs con / no disparan menú.
 Etiquetas es/en. Playwright dirigido correcto (1/1), API simulada: teclado,
 selección táctil/clic, cursor, cierre, URL y contenido enviado.
-
 
 ## Guardado de avances y alcance pendiente — cierre del 21/10/2026
 
@@ -629,7 +600,6 @@ API simulada; no se acredita sesión real. Capturas temporales /tmp; los seis
 PNG que la prueba antigua había regenerado se restauraron a su estado limpio.
 Documentos locales del usuario excluidos de los commits.
 
-
 ## 75.2/75.9 — panel fijo sólo en Tareas (22/10/2026)
 
 Implementada la política compartida sectionShowsDetailPane: sólo tasks conserva
@@ -648,7 +618,6 @@ Tareas con columna y cierre de detalle móvil: correcto con API simulada.
 La prueba de composición tablet/móvil/200 % también pasa: resuelto el ancho cero
 de Agenda al liberar la columna derecha. Sin cambios de API/modelo/eventos.
 
-
 ## 75.3 — plegado compartido en cabecera (22/10/2026)
 
 SidebarFoldButton compartido entre Calendario, Hoy y ViewPages. A la izquierda
@@ -665,7 +634,6 @@ ocho vistas a ambos anchos. Dos regresiones de Agenda correctas antes del ajuste
 final de orden visual; repetición final de plegado 2/2 correcta. 171 unitarios
 web, lint web y typecheck correctos. Inspección visual 1280/390, capturas sólo
 /tmp y API simulada. Sin cambios de API/modelo/eventos.
-
 
 ## 75.5 — mover y redimensionar tareas (22/10/2026)
 
@@ -729,14 +697,12 @@ Las 75 regresiones existentes de calendario, captura y arrastre pasan. En el
 primer pase amplio una prueba nueva comparaba antes de cargar el color de la
 lista; ahora espera ese estilo y las dos pruebas finales pasan (claro/oscuro).
 
-
 ## 2026-10-22 — 75.11 excluido del alcance
 
 El usuario indica expresamente «Este no lo hagas». Se retira 75.11 del alcance
 pendiente: no compartir el selector de periodos del Reporte semanal con Calendario.
 Calendario conserva su selector actual. Esta decisión sustituye las indicaciones
 anteriores sobre 75.11, incluida la aclaración vinculante del 21/10.
-
 
 ## 2026-10-22 — maquetación de la vista anual
 
@@ -752,7 +718,6 @@ navegación táctil anual correctos. Sin cambios de API; OpenAPI sin diff.
 Lint y typecheck generales correctos. 605 unitarios correctos por paquetes;
 lint interrumpido por recursos y un timeout de API en el primer pase concurrente
 se resuelven al repetir lint y los 117 tests de API de forma aislada.
-
 
 ## 2026-10-22 — 76: alta homogénea global y de calendario
 
@@ -783,7 +748,6 @@ final web. OpenAPI regenerado sin diff. Corregida carrera de retorno de foco
 al cerrar menús: restaura el título salvo si ya se está escribiendo en la
 descripción. Comprobaciones de N repetidas en 1280/390px correctas.
 
-
 ## 2026-10-22 — horas editables en línea y posición del selector de fecha
 
 RF-601 / RF-1902. Hora y Hasta son campos de texto HH:mm en su propia fila,
@@ -807,7 +771,6 @@ Sin hora. Se añade el placeholder a ambos campos.
 Validación: 33/33 Playwright finales, 605 unitarios y typecheck generales
 correctos; lint de dominio/API y lint web corregido correctos. OpenAPI sin diff.
 
-
 ## 2026-10-22 — aclaración de controles de hora y confirmación de borrador
 
 El usuario pide recuperar los controles nativos anteriores en la propia fila.
@@ -823,7 +786,6 @@ Esta indicación sustituye la propuesta previa de panel gris y acciones a la der
 Validación conjunta: 35 Playwright correctos, cuatro repeticiones finales de
 confirmación/teclado correctas. Lint/typecheck generales y 606 unitarios correctos;
 OpenAPI regenerado sin diff. Capturas locales revisadas en /tmp.
-
 
 ## 2026-10-22 — Hoy: alta ligera y vistas por iconos compartidos
 
@@ -845,7 +807,6 @@ orden de Hábitos y cambios de vista en Mañana. Pase conjunto 35/35 correcto.
 606 unitarios, incluidos alcance Mañana, lint/typecheck generales y OpenAPI sin
 diff correctos; comprobación web final adicional. Capturas sólo /tmp, API simulada.
 
-
 ## 2026-10-22 — Kanban: tarjetas, captura en columnas y detalle contextual
 
 RF-301/304, RF-501/502, RF-1902/1903. Columnas transparentes, anchos acotados
@@ -859,12 +820,12 @@ selección y recupera espacio del tablero. URL view=kanban y preferencia local
 compatibles; enlaces directos y navegación entre vistas respetados. Tarjeta
 abre detalle al pulsar su contenido no interactivo; controles mantienen su acción.
 
-+ en cabecera y primer hueco al final abren el modal compartido: Hoy conserva
-fecha y prioridad/lista/etiqueta del grupo; listas conservan proyecto y column_id,
-y agrupaciones por fecha conservan su fecha contextual. columnId viaja en el
-borrador y se preserva al expandir; se limpia si se cambia a otro proyecto.
-No se consideran cambios los valores iniciales del contexto: modal vacío cierra
-sin confirmación; ediciones reales conservan la protección de borrador.
+- en cabecera y primer hueco al final abren el modal compartido: Hoy conserva
+  fecha y prioridad/lista/etiqueta del grupo; listas conservan proyecto y column_id,
+  y agrupaciones por fecha conservan su fecha contextual. columnId viaja en el
+  borrador y se preserva al expandir; se limpia si se cambia a otro proyecto.
+  No se consideran cambios los valores iniciales del contexto: modal vacío cierra
+  sin confirmación; ediciones reales conservan la protección de borrador.
 
 Validación: 37 Playwright de editor/calendario/Kanban correctos, más pase final
 Kanban con URL directa, creación desde ambas zonas, prioridad/column_id reales
@@ -885,14 +846,12 @@ Validación: lint y typecheck generales, 606 unitarios y OpenAPI sin diff.
 Pruebas Playwright de clic en padding, hover aislado y arrastre nativo entre
 prioridades y secciones con persistencia simulada en API.
 
-
 ### Densidad de la vista lista (22 oct 2026)
 
 RF-1001: filas desktop de 40 a 34 px (15 % menos de altura), con mínimo de
 32 px al elegir densidad compacta. Texto, checkbox y metadatos conservan tamaño
 y alineación. Ajuste compartido por Hoy y las listas que usan TaskList; móvil
 y tarjetas Kanban mantienen sus dimensiones.
-
 
 Corrección de densidad: se elimina además el padding heredado de 8 px por lado
 y el borde duplicado de los li. Altura efectiva de fila desktop verificada en
@@ -909,3 +868,111 @@ Checkbox en lista desktop: referencia TickTick medida con icono de 17 px y
 7 px hasta el título. TTD ajusta el área del check a 24 px, retira padding del
 título y deja 7,5 px entre icono y texto; la zona del input no invade el título.
 Validación geométrica Playwright en Hoy y lista de proyecto.
+
+## 2026-10-22 — continuación de 78/79 y pendientes transversales
+
+Fuentes contrastadas: especificación única, documento vigente r75-lite y resumen
+de alcance, además de código y estado actual de #73. Los encabezados originales
+son «TTD-AUD-78 — Foco/Pomodoro: pantalla tipo TickTick (Pomo/Cronómetro, anillo
+con progreso, Resumen y Registro) y sin panel de detalle» y «TTD-AUD-79 — Tokens
+y MCP: lo que pidió la propuesta y no llegó en #71/#73». 76 y 77 ya tenían la
+implementación principal; se han revisado sin restaurar diseños descartados.
+
+### Implementación de Foco — RF-1201/1202/1204/1205/1206
+
+- Cronómetro persistido, pausa/continuación con tiempo acumulado y reconstrucción
+  desde servidor, duración por sesión sin reescribir ajustes globales.
+- Endpoints públicos de pausa y continuación; validación explícita de DTO,
+  aislamiento de propietario/listas al asociar una tarea y cierre concurrente
+  sin duplicar eventos. Estadísticas por zona IANA de cuenta o `tz`, con totales
+  de hoy; cronómetro suma tiempo sin convertirse en un pomodoro.
+- Registro con título de tarea, paginación por cursor y agrupación por día local.
+  Dos columnas en escritorio; Resumen/Registro debajo en móvil. Anillo fino,
+  reloj centrado, selector de tarea, fases y descansos, pausa y confirmación de
+  abandono. Atajos F y Espacio documentados. Ajustes globales en menú separado
+  de los presets de sesión. El «+» de registro manual sigue oculto: opcional en 78.
+- Mini reloj compatible con pausas/cronómetro; conservación del aviso de fin.
+  Se emiten `focus.session_paused@v1`, `focus.session_resumed@v1` y
+  `focus.settings_updated@v1`; catálogo de la especificación actualizado.
+
+### Tokens y MCP — RF-2001/2002, TTD-AUD-38/43/47/49/59/79
+
+- PAT con 30/90/365 días o sin caducidad; UI por defecto 90 días. Motivo de
+  revocación derivado, filtro por origen personal/OAuth y recuento de renovaciones
+  agrupado por aplicación en servidor, independiente de la página de tokens.
+- Aplicaciones OAuth por cliente, scopes, autorización, último uso y actividad
+  paginada entre renovaciones. Revocación conjunta de access/refresh en transacción;
+  bloqueo por usuario/cliente compartido con la renovación evita carreras.
+- Instrucciones diferenciadas Cursor/Otro (bearer), Claude/ChatGPT (OAuth), permisos
+  plegables, sensibles identificados también en filas, formulario móvil y estados
+  sin conexión. Corregido aviso de error duplicado de actividad.
+- `api_catalog`: contrato público generado del mismo OpenAPI, con búsqueda y
+  paginación. `api_request`: operaciones sin herramienta dedicada, JSON, archivos
+  multipart base64 (25 MB), descargas, e Idempotency-Key. Reutiliza el bearer y
+  vuelve a pasar por guards/DTO/scopes/owner/listas. No admite destinos externos,
+  redirecciones ni llamadas MCP recursivas. No se sortean las operaciones que
+  exigen sesión de navegador (S-15/S-16). Quick add conserva el parser compartido;
+  probado también desde el nuevo transporte contra API y PostgreSQL reales.
+- Preferencias por cuenta para Hoy y vistas de tareas: API GET/PUT pública,
+  caché local, recarga y consulta periódica entre dispositivos. Evento
+  `account.view_preference_updated@v1`. Corregida carrera de arranque de rutas
+  habilitadas antes de aplicar la caché de preferencias.
+- Google solicita Calendar calendarlist.readonly + events (con compatibilidad
+  para autorizaciones anteriores), conserva scopes concedidos y distingue
+  `invalid_grant` con reconexión, sin confundirlo con caducidad de sesión de ttd.
+  Páginas públicas /privacy y /terms y enlaces desde login/registro.
+- Plan del día móvil: capacidad oculta y cabecera alineada, según pendiente vigente.
+
+### Evidencia y límites
+
+- Migraciones generadas con `pnpm db:migrate` en base temporal aislada. La base
+  local original tiene una migración histórica divergente y NO se ha reseteado.
+  Aplicación completa y rollback SQL de ambas migraciones verificados en otra
+  base temporal vacía. SQL inverso: `docs/migrations/20261022-focus-preferences-down.sql`;
+  se niega a perder registros de cronómetro, pausas o preferencias.
+- Pruebas de navegador con API simulada; las capturas nuevas de Foco/Tokens están
+  en `/tmp/ttd-focus-*.png` y `/tmp/ttd-tokens-*.png`. Tests heredados actualizados al avatar de 77, cabecera/sidebar vigente,
+  confirmaciones en línea y contratos de sesión completos. Esto no es validación
+  real de las pantallas nuevas ni prueba de teclado virtual en dispositivo físico.
+- Producción consultada en lectura: health devuelve `36f9209`. Login real 200,
+  Google configurado/conectado y lectura de nueve calendarios 200; logout 204.
+  No se han creado ni editado tareas/eventos reales. La conexión del propietario
+  funciona en esa versión; NO acredita el código nuevo, acceso de no testers ni
+  permanencia más de siete días. Sin errores JavaScript en login anónimo: dos
+  401 esperados de /me y /auth/session; los cuatro errores históricos no reproducidos.
+- La publicación/verificación de Google Cloud permanece externa y excluida de
+  cambios automáticos. Falta acreditar audiencia no tester y autorización duradera.
+- El usuario ha autorizado finalmente merge y despliegue, sustituyendo su
+  restricción anterior. Se recuperó del historial el acceso correcto al VPS y responde; los alias
+  locales que daban timeout no identificaban este despliegue. Preparación de
+  backup y despliegue en curso; no hay versión nueva acreditada aún.
+- Se mantienen excluidos 75.11 y Ticky F1–F10. Calendario móvil conserva el diseño
+  aprobado; no se añaden propuestas históricas como funcionalidades nuevas.
+
+### Correcciones encontradas en el repaso
+
+- AUD-34: cerrar sesión marca el estado anónimo y elimina CSRF antes de vaciar
+  consultas/navegar. Una respuesta de sesión anterior ya no puede autenticar
+  otra vez el cliente tras logout. Regresión unitaria y recorrido de navegador.
+- Estadísticas: normalización inicial de URL antes de interacción; esperar zona
+  de cuenta evita que el primer preset se pierda al cargar.
+- Agenda: alineación de casilla con la primera línea corregida (2 px), sin
+  cambiar funciones de calendario móvil. Cuatro combinaciones de ancho/densidad.
+- CodeQL: transporte genérico MCP con `node:http`, hostname y puerto fijos;
+  sólo la ruta validada procede del agente. Sin redirecciones.
+
+### Validación de esta continuación
+
+- `pnpm lint`, `pnpm typecheck`, `pnpm test`: correctos en Node 26.
+  **623 unitarias** (dominio 310, API 128, web 174, SDK 11).
+- Integración completa: **131 correctas, 2 omitidas** (Ticky fuera del corte),
+  PostgreSQL/Redis reales en base temporal; sin modificar tareas de producción.
+- Contratos OpenAPI/SDK y catálogo MCP regenerados; migraciones y rollback
+  verificados en bases aisladas. **Playwright completo: 262 correctas y 2 omitidas**, con API simulada.
+  CodeQL correcto tras refuerzo del transporte; CI final pendiente del último corte.
+- Commits de implementación: `0dbc0d0` (API/dominio/SDK/migraciones), `a2674d3`
+  (Foco), `5e14ac0` (Tokens/preferencias), `1132595` (MCP) y `5d7d96f`
+  (sesión/Estadísticas/regresiones). PR #73.
+
+El alcance de código puede revisarse con estas evidencias; el cierre global
+requiere además el despliegue y las comprobaciones externas indicadas arriba.

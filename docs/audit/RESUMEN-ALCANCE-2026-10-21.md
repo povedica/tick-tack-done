@@ -1,7 +1,8 @@
 # Alcance y estado al guardar los avances del 21/10/2026
 
 Rama `codex/ttd-audit-remaining`, PR #73, abierta en borrador. Este corte guarda
-los avances de calendario y alta; no cierra 75–79 ni autoriza merge o despliegue.
+los avances de calendario y alta; no cerraba 75–79. La autorización posterior
+del 22/10 para merge y despliegue prevalece; ver la continuación al final.
 Fuentes: `ESTADO.md`, `ttd-codex-r75.md`, decisiones posteriores del usuario y
 código actual. Las decisiones posteriores prevalecen sobre los diseños iniciales.
 
@@ -43,35 +44,35 @@ código actual. Las decisiones posteriores prevalecen sobre los diseños inicial
 
 ## Estado de 75–79 y trabajo restante
 
-| Punto | Estado actual | Qué falta |
-| --- | --- | --- |
-| 75.1 Filtros/fuentes | Adaptado al panel flotante solicitado después | Revisión final de paridad funcional; no afirmar implementado el sidebar original, sustituido por decisión del usuario |
-| 75.2 Panel fijo sólo en Tareas | Implementado el 22/10 | Sólo tasks mantiene columna; otras secciones abren detalle centrado y móvil conserva hoja |
-| 75.3 Plegado en cabecera | Implementado el 22/10 | Compartido Calendario/Hoy/Tareas, rail sin duplicado, ARIA/atajo y drawer móvil probados |
-| 75.4 Tarjetas/horas | Muy avanzado | Revisar consistencia final por vista; por decisión posterior no se repite hora dentro de tarjetas con franja horaria |
-| 75.5 Mover/redimensionar | Implementado el 22/10 | Ratón/táctil/teclado, duración, todo el día, Deshacer, rollback/Reintentar y DST probados con API simulada; validación real pendiente |
-| 75.6 TaskPeek/evento anclado | Parcial | TaskPeek junto a tarjeta y evento externo anclado; el detalle actual no acredita ese patrón |
-| 75.7 Hoy circular | Implementado y probado | Validación real final; no confundir con navegador de periodo compartido |
-| 75.8 Cabecera | Adaptada y probada según feedback | Cierre visual/funcional final de escritorio; no restaurar «⋯» ni la antigua navegación dentro del selector móvil |
-| 75.9 Paneles secundarios | Columna derecha retirada fuera de Tareas el 22/10 | Repaso visual de desktop; drawer móvil ya corregido |
-| 75.10 Todo el día | Adaptado y probado | Revisión final global; el límite de dos y DaySheet sustituyen la expansión de franja del diseño inicial |
-| 75.11 Navegador compartido | Excluido por el usuario (22/10) | No implementar. Calendario conserva su selector actual; no compartir el selector del Reporte semanal |
-| 76 Composer único | Implementado; pendiente validación móvil real | Alta global (+/N), URL compartida y calendario usan la misma tarjeta y botonera. Borrador protegido, descarte, atajos y adaptación a visualViewport comprobados con API simulada; confirmar teclado en dispositivo real |
-| 77 Avatar/progreso | Implementado, validado con API simulada | Recorrido con sesión/datos reales y cierre de aceptación |
-| 78 Foco/Pomodoro | Pendiente de rediseño completo | Pomo/Cronómetro, pausa/continuar, progreso, presets por sesión, Resumen/Registro, distribución móvil/escritorio y endpoints indicados en la spec |
-| 79 Tokens/MCP | Pendiente de rediseño y nuevas APIs | Aplicaciones OAuth por cliente, revocación conjunta, caducidad de PAT, actividad por aplicación, filas plegables, permisos resumidos/sensibles e instrucciones por cliente |
+| Punto                          | Estado actual                                                | Qué falta                                                                                                                                                                                                                |
+| ------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 75.1 Filtros/fuentes           | Adaptado al panel flotante solicitado después                | Revisión final de paridad funcional; no afirmar implementado el sidebar original, sustituido por decisión del usuario                                                                                                    |
+| 75.2 Panel fijo sólo en Tareas | Implementado el 22/10                                        | Sólo tasks mantiene columna; otras secciones abren detalle centrado y móvil conserva hoja                                                                                                                                |
+| 75.3 Plegado en cabecera       | Implementado el 22/10                                        | Compartido Calendario/Hoy/Tareas, rail sin duplicado, ARIA/atajo y drawer móvil probados                                                                                                                                 |
+| 75.4 Tarjetas/horas            | Muy avanzado                                                 | Revisar consistencia final por vista; por decisión posterior no se repite hora dentro de tarjetas con franja horaria                                                                                                     |
+| 75.5 Mover/redimensionar       | Implementado el 22/10                                        | Ratón/táctil/teclado, duración, todo el día, Deshacer, rollback/Reintentar y DST probados con API simulada; validación real pendiente                                                                                    |
+| 75.6 TaskPeek/evento anclado   | Parcial                                                      | TaskPeek junto a tarjeta y evento externo anclado; el detalle actual no acredita ese patrón                                                                                                                              |
+| 75.7 Hoy circular              | Implementado y probado                                       | Validación real final; no confundir con navegador de periodo compartido                                                                                                                                                  |
+| 75.8 Cabecera                  | Adaptada y probada según feedback                            | Cierre visual/funcional final de escritorio; no restaurar «⋯» ni la antigua navegación dentro del selector móvil                                                                                                         |
+| 75.9 Paneles secundarios       | Columna derecha retirada fuera de Tareas el 22/10            | Repaso visual de desktop; drawer móvil ya corregido                                                                                                                                                                      |
+| 75.10 Todo el día              | Adaptado y probado                                           | Revisión final global; el límite de dos y DaySheet sustituyen la expansión de franja del diseño inicial                                                                                                                  |
+| 75.11 Navegador compartido     | Excluido por el usuario (22/10)                              | No implementar. Calendario conserva su selector actual; no compartir el selector del Reporte semanal                                                                                                                     |
+| 76 Composer único              | Implementado; pendiente validación móvil real                | Alta global (+/N), URL compartida y calendario usan la misma tarjeta y botonera. Borrador protegido, descarte, atajos y adaptación a visualViewport comprobados con API simulada; confirmar teclado en dispositivo real  |
+| 77 Avatar/progreso             | Implementado, validado con API simulada                      | Recorrido con sesión/datos reales y cierre de aceptación                                                                                                                                                                 |
+| 78 Foco/Pomodoro               | Implementado en esta continuación; validación final en curso | Cronómetro/pausas persistentes, presets por sesión, resumen local, registro paginado y UI responsive. Falta acreditar el código nuevo desplegado y dispositivo físico                                                    |
+| 79 Tokens/MCP                  | Implementado en esta continuación; validación final en curso | APIs de aplicaciones y revocación conjunta, PAT con caducidad, actividad/recuento de renovaciones, UI plegable e instrucciones por cliente. Transporte MCP hacia API pública. Falta validación desplegada de este código |
 
 ## Otros pendientes registrados
 
 - Hoy (22/10): alta más ligera, bombilla retirada y Lista/Matriz/Kanban visibles por iconos; Kanban con Hábitos al final. Compartido con Mañana y páginas equivalentes, probado con API simulada; pendiente revisión real del usuario. Sustituye la indicación anterior de vistas en menú.
-- Plan del día móvil: ocultar resumen de capacidad y alinear título/Planificar.
+- Plan del día móvil: capacidad oculta y cabecera alineada en la continuación del 22/10.
 - Año: investigar lentitud observada; no hay diagnóstico demostrado.
 - Desktop al 200 % de zoom: fallo de Agenda resuelto el 22/10 al retirar la
   columna derecha; la prueba de composición a 1440 px pasa.
 - Consolidar los overrides CSS de calendario sin cambiar lo validado.
-- AUD-34: investigar incidencias de login; quedó aplazado.
+- AUD-34: corregida carrera de logout/respuesta de sesión y verificado login real; ver continuación.
 - AUD-47: configuración/validación manual de Google Cloud y OAuth.
-- AUD-59: sincronización de preferencias entre dispositivos en servidor.
+- AUD-59: sincronización en servidor implementada y probada entre contextos de navegador; pendiente despliegue.
 - Validación real tras despliegue de actividad sin anidación, MCP con fechas de
   día completo, errores de argumentos desconocidos y escenarios de cuenta/permisos.
 - Revisión global de los criterios históricos: el registro histórico no equivale
@@ -117,3 +118,53 @@ públicos existentes, incluido moveTask para cambios de lista.
 Validación: lint y typecheck generales, 606 unitarios y OpenAPI sin diff.
 Pruebas Playwright de clic en padding, hover aislado y arrastre nativo entre
 prioridades y secciones con persistencia simulada en API.
+
+## Continuación del 22/10: 78, 79 y pendientes transversales
+
+Implementación y evidencia detalladas al final de ESTADO.md. Los encabezados
+originales de los puntos trabajados son TTD-AUD-78 «Foco/Pomodoro: pantalla tipo
+TickTick (…) y sin panel de detalle» y TTD-AUD-79 «Tokens y MCP: lo que pidió la
+propuesta y no llegó en #71/#73». Las fases 4/5 históricas y los pendientes 76/77
+se contrastan por contenido; no se vuelven a considerar pendientes las correcciones
+que ya existen en código.
+
+- Foco: cronómetro, pausa/continuación persistentes, presets por sesión, tareas,
+  totales por zona de cuenta, registro paginado, diseño escritorio/móvil y ajustes.
+  Registro manual y wake lock eran opcionales; no se muestra un alta manual vacía.
+- Tokens: caducidad, aplicaciones OAuth, actividad y revocación conjunta; motivos,
+  renovaciones agregadas y permisos sensibles. La sesión de navegador sigue siendo
+  obligatoria para administrar credenciales, conforme a S-15/S-16.
+- MCP: descubrimiento del contrato de OpenAPI y transporte hacia las operaciones
+  públicas restantes, incluidos adjuntos, manteniendo autenticación/propietario/
+  scopes/restricciones de listas. Parser compartido usado sin reimplementarlo.
+- AUD-59: preferencias de Hoy y vistas de tareas en servidor; nueva migración
+  aislada por propietario, caché local y recarga desde otro contexto de navegador.
+- AUD-34: login real correcto en producción actual; no se reproducen errores JS.
+  Dos 401 de arranque sin sesión son esperados. No demuestra todas las cuentas.
+- Google: flujo del propietario conectado y nueve calendarios leídos realmente
+  en producción `36f9209`; mejoras nuevas de scopes, reconexión y páginas públicas
+  aún por validar desplegadas. La configuración/publicación de Google Cloud sigue
+  externa: no testers y duración mayor a siete días no acreditados.
+- Plan del día móvil: retirada capacidad y alineación de cabecera vigente.
+- 76/77: regresiones actuales de composer, borrador, viewport y avatar; se mantiene
+  pendiente el teclado virtual físico de 76 y la aceptación con el código desplegado.
+- Calendario desktop: se conserva el patrón compartido de detalle flotante y el
+  look aprobado; no se añade automáticamente el TaskPeek histórico como otro
+  componente ni se reabre calendario móvil. Año: sin regresión funcional reproducida
+  en los recorridos de esta continuación; no hay medición con dispositivo real.
+
+El último permiso del usuario autoriza merge y producción. El acceso específico al VPS, recuperado del historial, responde;
+backup y despliegue en preparación. No se declara un despliegue nuevo todavía. 75.11 y Ticky F1–F10 permanecen excluidos. No se ha modificado `localuser` ni
+se incorporan los cambios de especificación aportados por el usuario.
+
+### Evidencia consolidada del código
+
+Integración completa: 131 correctas y 2 omitidas de Ticky. Capturas ficticias
+en `/tmp/ttd-focus-*.png` y `/tmp/ttd-tokens-*.png`, con separación explícita de la
+lectura real de Google en producción antigua. Corregidas además las carreras
+de logout e inicialización de Estadísticas y la alineación de Agenda.
+
+Commits: `0dbc0d0`, `a2674d3`, `5e14ac0`, `1132595`, `5d7d96f`; PR #73.
+Playwright completo: **262 correctas y 2 omitidas**, API simulada. CodeQL correcto.
+CI final y despliegue se registran al terminar; no convertir este inventario
+en una declaración de aceptación con datos reales.
