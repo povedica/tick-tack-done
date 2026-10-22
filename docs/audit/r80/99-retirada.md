@@ -39,3 +39,9 @@ Migración generada `20261022114218_attachments_drive_only`, revisada para susti
 ✅ Prueba e2e del esquema: sin storage_key, thumbnail_key ni bytea. ✅ Prueba de fallo ante una referencia local en una tabla temporal. ✅ Avance y bajada ejecutados con metadatos sintéticos conservados (99-rollback-proof.sql), sin alterar la tabla real de la base aislada durante esa prueba.
 
 El control automático rechazó exportar la BD completa de producción a un archivo local por posible contenido sensible y falta de autorización expresa para ese destino. No se exportó nada. La validación de reparación en una copia de producción sigue pendiente; se mantienen las pruebas sintéticas y el inventario agregado de solo lectura ya realizado.
+
+## Paso 5: infraestructura, backups y exportación
+
+Se retiran las declaraciones y montajes del volumen y ATTACHMENT_DIR de ambos Compose, sin ejecutar ningún comando de retirada en producción. Los despliegues del repositorio no contienen volume prune, volume rm ni down -v. El volumen existente queda preservado hasta el OK explícito de Pablo.
+
+Los backups nuevos empaquetan solo PostgreSQL (que contiene los metadatos); la lista cuenta únicamente db.sql.gz y devuelve attachments_metadata_only:true. Los archivos históricos no se borran. La exportación JSON selecciona expresamente cinco campos públicos del adjunto, sin rutas ni credenciales. Pruebas primero: dos fallos reproducidos y después dos pruebas en verde.

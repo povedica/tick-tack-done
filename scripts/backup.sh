@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Backup diario (RF-1704): pg_dump + adjuntos, copiado FUERA de la máquina, retención 30 días.
+# Backup diario (RF-1704): pg_dump con metadatos de Drive, copiado FUERA de la máquina.
 # En el host compartido lo lanza deploy/production/cron-backup.sh
 # (COMPOSE_FILE, COMPOSE_PROJECT_NAME y BACKUP_DIR ya exportados).
 set -euo pipefail
@@ -16,10 +16,7 @@ echo "[backup] pg_dump…"
 docker compose exec -T postgres pg_dump -U "${POSTGRES_USER:-reflexionia}" "${POSTGRES_DB:-reflexionia}" \
   | gzip > "$out/db.sql.gz"
 
-echo "[backup] adjuntos…"
-project="${COMPOSE_PROJECT_NAME:-reflexionia-tasks}"
-docker run --rm -v "${project}_attachments:/data" -v "$out":/out alpine \
-  tar czf /out/attachments.tar.gz -C /data .
+# TTD-AUD-99: los binarios pertenecen a Drive; no se monta ni empaqueta su volumen antiguo.
 
 upload_drive() {
   local dir="$1"

@@ -28,8 +28,6 @@ services:
       SCHEDULER_AUTOSTART: 'true'
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       REDIS_URL: redis://redis:6379
-    volumes:
-      - attachments:/data/attachments
     depends_on:
       postgres:
         condition: service_healthy
@@ -73,4 +71,3 @@ volumes:
   caddy_config:
   pgdata:
   redisdata:
-  attachments:

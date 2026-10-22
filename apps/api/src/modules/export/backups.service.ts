@@ -9,7 +9,7 @@ export interface BackupItem {
   readonly stamp: string;
   readonly bytes: number;
   readonly has_database: boolean;
-  readonly has_attachments: boolean;
+  readonly attachments_metadata_only: true;
 }
 
 @Injectable()
@@ -30,12 +30,11 @@ export class BackupsService {
         continue;
       }
       const database = await fileSize(path.join(dir, 'db.sql.gz'));
-      const attachments = await fileSize(path.join(dir, 'attachments.tar.gz'));
       items.push({
         stamp: name,
-        bytes: database + attachments,
+        bytes: database,
         has_database: database > 0,
-        has_attachments: attachments > 0,
+        attachments_metadata_only: true,
       });
     }
     const remote = process.env.BACKUP_REMOTE ?? '';

@@ -37,7 +37,7 @@ export class DriveAttachmentResponseDto {
   @ApiProperty() file_name!: string;
   @ApiProperty() mime_type!: string;
   @ApiProperty() byte_size!: number;
-  @ApiProperty({ type: String, nullable: true }) drive_file_id!: string | null;
+  @ApiProperty() drive_file_id!: string;
   @ApiProperty() web_view_link!: string;
   @ApiProperty({ type: String, nullable: true }) icon_link!: string | null;
   @ApiProperty() source!: string;
