@@ -1,6 +1,6 @@
 # Cambios MCP
 
-## R80 — PR #75 (en desarrollo)
+## R80 — PR #75 (implementado; aceptación externa pendiente)
 
 - TTD-AUD-97: `api_request DELETE /integrations/google` revoca la credencial propia y conserva eventos/adjuntos; `remove_imported_events:true` en la query elimina solo eventos Google importados del propietario. Sin cambiar herramientas MCP, OpenAPI y SDK exponen el parámetro.
 
@@ -11,15 +11,17 @@
 - TTD-AUD-83 (incompatible): cursor de api_catalog numérico → string opaco; list_notes array → {items,next_cursor}; todos los list_* comparten forma; search devuelve items/next_cursor y grupos paginados. from inclusivo y range_field=any por defecto.
 - TTD-AUD-84: start_focus comparte el ciclo de vida REST; cinco herramientas nuevas pause_focus/resume_focus/finish_focus/abort_focus/get_focus_state, todas con focus:write.
 - TTD-AUD-85.1: api_request conserva data.status/code/message/body y los detalles del error REST.
-- El catálogo final se actualizará con los puntos restantes; no se declara todavía el total de 75 herramientas.
+- Catálogo final: **75 herramientas**, frente a61 originales;14 adiciones, ninguna retirada. Snapshots públicos sin credenciales: [antes](../audit/r80/mcp-tools-antes.json) y [después](../audit/r80/mcp-tools-despues.json), obtenido de MCP initialize/tools/list en el API local real.
 
 ### TTD-AUD-85
+
 - Versión API 0.2.0 + commit; catálogo con hash Redis persistente y SSE autenticado `notifications/tools/list_changed`.
 - Actividad compacta por defecto, con origen y actor en get_task; `include_activity:full` conserva el detalle anterior.
 - `discard_replan` descarta un borrador propio sin modificar tareas. Una replanificación vacía no crea sesión.
 - Recordatorios normalizados a duración ISO; rangos NLP tienen inicio, fin y duración. Origen `mcp` explícito en capturas y aislamiento.
 
 ### TTD-AUD-99 (corte de código)
+
 - `list_task_attachments` devuelve metadatos de Drive, enlaces, origen y disponibilidad; no binarios.
 - Nuevas `link_drive_file` y `remove_task_attachment`; quitar conserva el fichero salvo trash_in_drive:true.
 - `api_request` transmite multipart por fragmentos (25 MiB/fichero); no genera un archivo ni una copia completa del binario.
@@ -41,3 +43,5 @@ Añade get_notification_settings y send_test_notification (profile:read, destino
 ## TTD-AUD-103
 
 Sin herramientas nuevas (75). Los endpoints descubiertos por api_catalog documentan perfil, estado blocked, pairing deep link y recheck; las pruebas de notificación propia conservan el error preciso.
+
+- Aclaración de producto de Pablo: Calendar y Drive muestran permisos/activación independientes sobre una conexión Google; los adjuntos MCP requieren drive.file concedido y Drive activo. Se mantienen75 herramientas.

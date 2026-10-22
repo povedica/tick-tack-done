@@ -1,0 +1,2023 @@
+{
+  "screens": 42,
+  "captures": 336,
+  "missing": [],
+  "files": [
+    {
+      "file": "docs/audit/evidencias/r80/100_enlaces_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 139999
+    },
+    {
+      "file": "docs/audit/evidencias/r80/100_enlaces_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 210581
+    },
+    {
+      "file": "docs/audit/evidencias/r80/100_enlaces_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 93444
+    },
+    {
+      "file": "docs/audit/evidencias/r80/100_enlaces_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 93203
+    },
+    {
+      "file": "docs/audit/evidencias/r80/100_enlaces_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 202455
+    },
+    {
+      "file": "docs/audit/evidencias/r80/100_enlaces_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 205113
+    },
+    {
+      "file": "docs/audit/evidencias/r80/100_enlaces_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 92626
+    },
+    {
+      "file": "docs/audit/evidencias/r80/100_enlaces_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 90065
+    },
+    {
+      "file": "docs/audit/evidencias/r80/101_ajustes-foco_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 136294
+    },
+    {
+      "file": "docs/audit/evidencias/r80/101_ajustes-foco_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 136546
+    },
+    {
+      "file": "docs/audit/evidencias/r80/101_ajustes-foco_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 69544
+    },
+    {
+      "file": "docs/audit/evidencias/r80/101_ajustes-foco_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 71112
+    },
+    {
+      "file": "docs/audit/evidencias/r80/101_ajustes-foco_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 173093
+    },
+    {
+      "file": "docs/audit/evidencias/r80/101_ajustes-foco_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 174158
+    },
+    {
+      "file": "docs/audit/evidencias/r80/101_ajustes-foco_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 99138
+    },
+    {
+      "file": "docs/audit/evidencias/r80/101_ajustes-foco_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 101303
+    },
+    {
+      "file": "docs/audit/evidencias/r80/101_foco_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 94224
+    },
+    {
+      "file": "docs/audit/evidencias/r80/101_foco_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 93462
+    },
+    {
+      "file": "docs/audit/evidencias/r80/101_foco_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 66040
+    },
+    {
+      "file": "docs/audit/evidencias/r80/101_foco_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 66032
+    },
+    {
+      "file": "docs/audit/evidencias/r80/101_foco_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 118162
+    },
+    {
+      "file": "docs/audit/evidencias/r80/101_foco_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 116814
+    },
+    {
+      "file": "docs/audit/evidencias/r80/101_foco_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 71942
+    },
+    {
+      "file": "docs/audit/evidencias/r80/101_foco_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 71535
+    },
+    {
+      "file": "docs/audit/evidencias/r80/102_notificaciones_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 186140
+    },
+    {
+      "file": "docs/audit/evidencias/r80/102_notificaciones_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 186777
+    },
+    {
+      "file": "docs/audit/evidencias/r80/102_notificaciones_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 42952
+    },
+    {
+      "file": "docs/audit/evidencias/r80/102_notificaciones_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 44257
+    },
+    {
+      "file": "docs/audit/evidencias/r80/102_notificaciones_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 191336
+    },
+    {
+      "file": "docs/audit/evidencias/r80/102_notificaciones_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 193791
+    },
+    {
+      "file": "docs/audit/evidencias/r80/102_notificaciones_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 102750
+    },
+    {
+      "file": "docs/audit/evidencias/r80/102_notificaciones_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 103990
+    },
+    {
+      "file": "docs/audit/evidencias/r80/103_telegram-bloqueado_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 177093
+    },
+    {
+      "file": "docs/audit/evidencias/r80/103_telegram-bloqueado_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 176736
+    },
+    {
+      "file": "docs/audit/evidencias/r80/103_telegram-bloqueado_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 106580
+    },
+    {
+      "file": "docs/audit/evidencias/r80/103_telegram-bloqueado_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 107371
+    },
+    {
+      "file": "docs/audit/evidencias/r80/103_telegram-bloqueado_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 223991
+    },
+    {
+      "file": "docs/audit/evidencias/r80/103_telegram-bloqueado_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 224943
+    },
+    {
+      "file": "docs/audit/evidencias/r80/103_telegram-bloqueado_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 122740
+    },
+    {
+      "file": "docs/audit/evidencias/r80/103_telegram-bloqueado_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 123721
+    },
+    {
+      "file": "docs/audit/evidencias/r80/103_telegram-sin-vincular_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 177229
+    },
+    {
+      "file": "docs/audit/evidencias/r80/103_telegram-sin-vincular_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 176571
+    },
+    {
+      "file": "docs/audit/evidencias/r80/103_telegram-sin-vincular_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 108302
+    },
+    {
+      "file": "docs/audit/evidencias/r80/103_telegram-sin-vincular_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 108704
+    },
+    {
+      "file": "docs/audit/evidencias/r80/103_telegram-sin-vincular_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 178584
+    },
+    {
+      "file": "docs/audit/evidencias/r80/103_telegram-sin-vincular_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 178085
+    },
+    {
+      "file": "docs/audit/evidencias/r80/103_telegram-sin-vincular_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 96656
+    },
+    {
+      "file": "docs/audit/evidencias/r80/103_telegram-sin-vincular_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 97727
+    },
+    {
+      "file": "docs/audit/evidencias/r80/103_telegram-vinculado_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 177093
+    },
+    {
+      "file": "docs/audit/evidencias/r80/103_telegram-vinculado_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 176736
+    },
+    {
+      "file": "docs/audit/evidencias/r80/103_telegram-vinculado_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 106580
+    },
+    {
+      "file": "docs/audit/evidencias/r80/103_telegram-vinculado_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 107371
+    },
+    {
+      "file": "docs/audit/evidencias/r80/103_telegram-vinculado_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 227532
+    },
+    {
+      "file": "docs/audit/evidencias/r80/103_telegram-vinculado_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 228721
+    },
+    {
+      "file": "docs/audit/evidencias/r80/103_telegram-vinculado_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 111071
+    },
+    {
+      "file": "docs/audit/evidencias/r80/103_telegram-vinculado_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 112060
+    },
+    {
+      "file": "docs/audit/evidencias/r80/104_acerca-de_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 173514
+    },
+    {
+      "file": "docs/audit/evidencias/r80/104_acerca-de_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 175771
+    },
+    {
+      "file": "docs/audit/evidencias/r80/104_acerca-de_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 23285
+    },
+    {
+      "file": "docs/audit/evidencias/r80/104_acerca-de_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 25159
+    },
+    {
+      "file": "docs/audit/evidencias/r80/104_acerca-de_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 146133
+    },
+    {
+      "file": "docs/audit/evidencias/r80/104_acerca-de_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 146284
+    },
+    {
+      "file": "docs/audit/evidencias/r80/104_acerca-de_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 73569
+    },
+    {
+      "file": "docs/audit/evidencias/r80/104_acerca-de_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 74704
+    },
+    {
+      "file": "docs/audit/evidencias/r80/81_ancla-repeticion_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 196597
+    },
+    {
+      "file": "docs/audit/evidencias/r80/81_ancla-repeticion_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 199905
+    },
+    {
+      "file": "docs/audit/evidencias/r80/81_ancla-repeticion_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 81280
+    },
+    {
+      "file": "docs/audit/evidencias/r80/81_ancla-repeticion_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 81680
+    },
+    {
+      "file": "docs/audit/evidencias/r80/81_ancla-repeticion_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 201659
+    },
+    {
+      "file": "docs/audit/evidencias/r80/81_ancla-repeticion_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 203859
+    },
+    {
+      "file": "docs/audit/evidencias/r80/81_ancla-repeticion_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 98686
+    },
+    {
+      "file": "docs/audit/evidencias/r80/81_ancla-repeticion_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 97376
+    },
+    {
+      "file": "docs/audit/evidencias/r80/84_foco-mcp_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 154913
+    },
+    {
+      "file": "docs/audit/evidencias/r80/84_foco-mcp_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 134055
+    },
+    {
+      "file": "docs/audit/evidencias/r80/84_foco-mcp_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 67413
+    },
+    {
+      "file": "docs/audit/evidencias/r80/84_foco-mcp_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 66104
+    },
+    {
+      "file": "docs/audit/evidencias/r80/84_foco-mcp_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 192725
+    },
+    {
+      "file": "docs/audit/evidencias/r80/84_foco-mcp_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 187311
+    },
+    {
+      "file": "docs/audit/evidencias/r80/84_foco-mcp_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 76855
+    },
+    {
+      "file": "docs/audit/evidencias/r80/84_foco-mcp_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 76429
+    },
+    {
+      "file": "docs/audit/evidencias/r80/84_foco_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 94224
+    },
+    {
+      "file": "docs/audit/evidencias/r80/84_foco_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 93462
+    },
+    {
+      "file": "docs/audit/evidencias/r80/84_foco_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 66040
+    },
+    {
+      "file": "docs/audit/evidencias/r80/84_foco_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 66032
+    },
+    {
+      "file": "docs/audit/evidencias/r80/84_foco_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 105910
+    },
+    {
+      "file": "docs/audit/evidencias/r80/84_foco_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 105009
+    },
+    {
+      "file": "docs/audit/evidencias/r80/84_foco_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 33136
+    },
+    {
+      "file": "docs/audit/evidencias/r80/84_foco_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 68691
+    },
+    {
+      "file": "docs/audit/evidencias/r80/87_calendario-dia_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 98871
+    },
+    {
+      "file": "docs/audit/evidencias/r80/87_calendario-dia_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 101445
+    },
+    {
+      "file": "docs/audit/evidencias/r80/87_calendario-dia_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 52235
+    },
+    {
+      "file": "docs/audit/evidencias/r80/87_calendario-dia_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 54700
+    },
+    {
+      "file": "docs/audit/evidencias/r80/87_calendario-dia_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 136769
+    },
+    {
+      "file": "docs/audit/evidencias/r80/87_calendario-dia_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 142630
+    },
+    {
+      "file": "docs/audit/evidencias/r80/87_calendario-dia_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 47951
+    },
+    {
+      "file": "docs/audit/evidencias/r80/87_calendario-dia_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 50467
+    },
+    {
+      "file": "docs/audit/evidencias/r80/88_calendario-dos-semanas_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 120318
+    },
+    {
+      "file": "docs/audit/evidencias/r80/88_calendario-dos-semanas_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 122995
+    },
+    {
+      "file": "docs/audit/evidencias/r80/88_calendario-dos-semanas_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 99913
+    },
+    {
+      "file": "docs/audit/evidencias/r80/88_calendario-dos-semanas_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 102409
+    },
+    {
+      "file": "docs/audit/evidencias/r80/88_calendario-dos-semanas_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 162363
+    },
+    {
+      "file": "docs/audit/evidencias/r80/88_calendario-dos-semanas_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 167885
+    },
+    {
+      "file": "docs/audit/evidencias/r80/88_calendario-dos-semanas_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 44662
+    },
+    {
+      "file": "docs/audit/evidencias/r80/88_calendario-dos-semanas_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 48197
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_bloque-15_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 96341
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_bloque-15_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 99116
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_bloque-15_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 49003
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_bloque-15_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 51498
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_bloque-15_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 122990
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_bloque-15_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 127642
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_bloque-15_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 47937
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_bloque-15_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 50458
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_bloque-30_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 96341
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_bloque-30_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 99116
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_bloque-30_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 49003
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_bloque-30_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 51498
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_bloque-30_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 122990
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_bloque-30_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 127642
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_bloque-30_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 47937
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_bloque-30_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 50458
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_bloque-60_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 96387
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_bloque-60_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 99138
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_bloque-60_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 53236
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_bloque-60_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 55720
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_bloque-60_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 123036
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_bloque-60_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 127664
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_bloque-60_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 47951
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_bloque-60_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 50467
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_calendario-semana_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 128832
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_calendario-semana_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 130193
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_calendario-semana_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 99913
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_calendario-semana_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 102409
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_calendario-semana_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 153152
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_calendario-semana_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 157071
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_calendario-semana_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 100517
+    },
+    {
+      "file": "docs/audit/evidencias/r80/89_calendario-semana_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 102861
+    },
+    {
+      "file": "docs/audit/evidencias/r80/90_fecha-composer_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 213985
+    },
+    {
+      "file": "docs/audit/evidencias/r80/90_fecha-composer_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 244855
+    },
+    {
+      "file": "docs/audit/evidencias/r80/90_fecha-composer_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 110838
+    },
+    {
+      "file": "docs/audit/evidencias/r80/90_fecha-composer_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 128065
+    },
+    {
+      "file": "docs/audit/evidencias/r80/90_fecha-composer_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 213992
+    },
+    {
+      "file": "docs/audit/evidencias/r80/90_fecha-composer_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 244806
+    },
+    {
+      "file": "docs/audit/evidencias/r80/90_fecha-composer_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 84645
+    },
+    {
+      "file": "docs/audit/evidencias/r80/90_fecha-composer_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 82694
+    },
+    {
+      "file": "docs/audit/evidencias/r80/90_fecha-detalle_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 206969
+    },
+    {
+      "file": "docs/audit/evidencias/r80/90_fecha-detalle_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 212950
+    },
+    {
+      "file": "docs/audit/evidencias/r80/90_fecha-detalle_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 90608
+    },
+    {
+      "file": "docs/audit/evidencias/r80/90_fecha-detalle_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 93350
+    },
+    {
+      "file": "docs/audit/evidencias/r80/90_fecha-detalle_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 215260
+    },
+    {
+      "file": "docs/audit/evidencias/r80/90_fecha-detalle_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 221085
+    },
+    {
+      "file": "docs/audit/evidencias/r80/90_fecha-detalle_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 77735
+    },
+    {
+      "file": "docs/audit/evidencias/r80/90_fecha-detalle_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 78041
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_hoy-seleccion_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 190772
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_hoy-seleccion_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 193709
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_hoy-seleccion_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 75720
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_hoy-seleccion_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 76221
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_hoy-seleccion_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 200157
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_hoy-seleccion_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 202793
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_hoy-seleccion_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 91741
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_hoy-seleccion_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 91575
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_hoy_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 131266
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_hoy_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 133567
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_hoy_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 85470
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_hoy_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 87956
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_hoy_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 121372
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_hoy_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 123512
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_hoy_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 85521
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_hoy_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 88000
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_lista-seleccion_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 160800
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_lista-seleccion_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 162154
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_lista-seleccion_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 75720
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_lista-seleccion_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 76221
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_lista-seleccion_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 169678
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_lista-seleccion_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 170700
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_lista-seleccion_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 91741
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_lista-seleccion_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 91575
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_lista_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 101016
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_lista_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 102185
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_lista_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 48719
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_lista_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 50410
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_lista_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 88135
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_lista_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 89210
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_lista_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 48719
+    },
+    {
+      "file": "docs/audit/evidencias/r80/91_lista_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 50410
+    },
+    {
+      "file": "docs/audit/evidencias/r80/92_composer-hoy_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 176736
+    },
+    {
+      "file": "docs/audit/evidencias/r80/92_composer-hoy_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 206511
+    },
+    {
+      "file": "docs/audit/evidencias/r80/92_composer-hoy_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 65601
+    },
+    {
+      "file": "docs/audit/evidencias/r80/92_composer-hoy_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 82173
+    },
+    {
+      "file": "docs/audit/evidencias/r80/92_composer-hoy_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 169497
+    },
+    {
+      "file": "docs/audit/evidencias/r80/92_composer-hoy_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 198595
+    },
+    {
+      "file": "docs/audit/evidencias/r80/92_composer-hoy_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 64291
+    },
+    {
+      "file": "docs/audit/evidencias/r80/92_composer-hoy_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 80922
+    },
+    {
+      "file": "docs/audit/evidencias/r80/92_composer-lista_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 131895
+    },
+    {
+      "file": "docs/audit/evidencias/r80/92_composer-lista_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 160984
+    },
+    {
+      "file": "docs/audit/evidencias/r80/92_composer-lista_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 56155
+    },
+    {
+      "file": "docs/audit/evidencias/r80/92_composer-lista_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 71636
+    },
+    {
+      "file": "docs/audit/evidencias/r80/92_composer-lista_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 135898
+    },
+    {
+      "file": "docs/audit/evidencias/r80/92_composer-lista_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 166503
+    },
+    {
+      "file": "docs/audit/evidencias/r80/92_composer-lista_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 56688
+    },
+    {
+      "file": "docs/audit/evidencias/r80/92_composer-lista_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 72043
+    },
+    {
+      "file": "docs/audit/evidencias/r80/93_periodo_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 138319
+    },
+    {
+      "file": "docs/audit/evidencias/r80/93_periodo_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 139760
+    },
+    {
+      "file": "docs/audit/evidencias/r80/93_periodo_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 106839
+    },
+    {
+      "file": "docs/audit/evidencias/r80/93_periodo_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 108730
+    },
+    {
+      "file": "docs/audit/evidencias/r80/93_periodo_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 202242
+    },
+    {
+      "file": "docs/audit/evidencias/r80/93_periodo_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 211007
+    },
+    {
+      "file": "docs/audit/evidencias/r80/93_periodo_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 73735
+    },
+    {
+      "file": "docs/audit/evidencias/r80/93_periodo_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 73389
+    },
+    {
+      "file": "docs/audit/evidencias/r80/93_sidebar_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 128832
+    },
+    {
+      "file": "docs/audit/evidencias/r80/93_sidebar_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 130193
+    },
+    {
+      "file": "docs/audit/evidencias/r80/93_sidebar_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 99913
+    },
+    {
+      "file": "docs/audit/evidencias/r80/93_sidebar_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 102409
+    },
+    {
+      "file": "docs/audit/evidencias/r80/93_sidebar_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 153152
+    },
+    {
+      "file": "docs/audit/evidencias/r80/93_sidebar_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 157071
+    },
+    {
+      "file": "docs/audit/evidencias/r80/93_sidebar_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 100517
+    },
+    {
+      "file": "docs/audit/evidencias/r80/93_sidebar_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 102861
+    },
+    {
+      "file": "docs/audit/evidencias/r80/94_fuentes_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 101285
+    },
+    {
+      "file": "docs/audit/evidencias/r80/94_fuentes_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 102393
+    },
+    {
+      "file": "docs/audit/evidencias/r80/94_fuentes_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 57240
+    },
+    {
+      "file": "docs/audit/evidencias/r80/94_fuentes_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 58631
+    },
+    {
+      "file": "docs/audit/evidencias/r80/94_fuentes_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 98342
+    },
+    {
+      "file": "docs/audit/evidencias/r80/94_fuentes_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 100718
+    },
+    {
+      "file": "docs/audit/evidencias/r80/94_fuentes_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 63674
+    },
+    {
+      "file": "docs/audit/evidencias/r80/94_fuentes_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 66602
+    },
+    {
+      "file": "docs/audit/evidencias/r80/94_plan_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 101285
+    },
+    {
+      "file": "docs/audit/evidencias/r80/94_plan_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 102393
+    },
+    {
+      "file": "docs/audit/evidencias/r80/94_plan_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 57240
+    },
+    {
+      "file": "docs/audit/evidencias/r80/94_plan_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 58631
+    },
+    {
+      "file": "docs/audit/evidencias/r80/94_plan_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 180190
+    },
+    {
+      "file": "docs/audit/evidencias/r80/94_plan_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 179841
+    },
+    {
+      "file": "docs/audit/evidencias/r80/94_plan_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 129753
+    },
+    {
+      "file": "docs/audit/evidencias/r80/94_plan_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 129856
+    },
+    {
+      "file": "docs/audit/evidencias/r80/95_estadisticas_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 192808
+    },
+    {
+      "file": "docs/audit/evidencias/r80/95_estadisticas_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 196169
+    },
+    {
+      "file": "docs/audit/evidencias/r80/95_estadisticas_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 120378
+    },
+    {
+      "file": "docs/audit/evidencias/r80/95_estadisticas_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 123880
+    },
+    {
+      "file": "docs/audit/evidencias/r80/95_estadisticas_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 198638
+    },
+    {
+      "file": "docs/audit/evidencias/r80/95_estadisticas_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 201654
+    },
+    {
+      "file": "docs/audit/evidencias/r80/95_estadisticas_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 51786
+    },
+    {
+      "file": "docs/audit/evidencias/r80/95_estadisticas_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 54050
+    },
+    {
+      "file": "docs/audit/evidencias/r80/95_reporte-actual_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 109821
+    },
+    {
+      "file": "docs/audit/evidencias/r80/95_reporte-actual_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 110369
+    },
+    {
+      "file": "docs/audit/evidencias/r80/95_reporte-actual_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 88282
+    },
+    {
+      "file": "docs/audit/evidencias/r80/95_reporte-actual_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 90043
+    },
+    {
+      "file": "docs/audit/evidencias/r80/95_reporte-actual_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 104878
+    },
+    {
+      "file": "docs/audit/evidencias/r80/95_reporte-actual_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 105921
+    },
+    {
+      "file": "docs/audit/evidencias/r80/95_reporte-actual_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 92948
+    },
+    {
+      "file": "docs/audit/evidencias/r80/95_reporte-actual_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 94644
+    },
+    {
+      "file": "docs/audit/evidencias/r80/95_reporte-anterior_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 99405
+    },
+    {
+      "file": "docs/audit/evidencias/r80/95_reporte-anterior_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 100776
+    },
+    {
+      "file": "docs/audit/evidencias/r80/95_reporte-anterior_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 77545
+    },
+    {
+      "file": "docs/audit/evidencias/r80/95_reporte-anterior_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 80318
+    },
+    {
+      "file": "docs/audit/evidencias/r80/95_reporte-anterior_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 99405
+    },
+    {
+      "file": "docs/audit/evidencias/r80/95_reporte-anterior_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 100776
+    },
+    {
+      "file": "docs/audit/evidencias/r80/95_reporte-anterior_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 77545
+    },
+    {
+      "file": "docs/audit/evidencias/r80/95_reporte-anterior_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 80318
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_cajon_antes_desktop_dark.png",
+      "width": 3840,
+      "height": 2400,
+      "bytes": 241924
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_cajon_antes_desktop_light.png",
+      "width": 3840,
+      "height": 2400,
+      "bytes": 244734
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_cajon_antes_mobile_dark.png",
+      "width": 1170,
+      "height": 2532,
+      "bytes": 52501
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_cajon_antes_mobile_light.png",
+      "width": 1170,
+      "height": 2532,
+      "bytes": 64935
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_cajon_despues_desktop_dark.png",
+      "width": 3840,
+      "height": 2400,
+      "bytes": 241924
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_cajon_despues_desktop_light.png",
+      "width": 3840,
+      "height": 2400,
+      "bytes": 244734
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_cajon_despues_mobile_dark.png",
+      "width": 1170,
+      "height": 2532,
+      "bytes": 67954
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_cajon_despues_mobile_light.png",
+      "width": 1170,
+      "height": 2532,
+      "bytes": 79382
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_duracion_antes_desktop_dark.png",
+      "width": 3840,
+      "height": 2400,
+      "bytes": 191794
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_duracion_antes_desktop_light.png",
+      "width": 3840,
+      "height": 2400,
+      "bytes": 194534
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_duracion_antes_mobile_dark.png",
+      "width": 1170,
+      "height": 2532,
+      "bytes": 129218
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_duracion_antes_mobile_light.png",
+      "width": 1170,
+      "height": 2532,
+      "bytes": 132489
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_duracion_despues_desktop_dark.png",
+      "width": 3840,
+      "height": 2400,
+      "bytes": 202826
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_duracion_despues_desktop_light.png",
+      "width": 3840,
+      "height": 2400,
+      "bytes": 205398
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_duracion_despues_mobile_dark.png",
+      "width": 1170,
+      "height": 2532,
+      "bytes": 139925
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_duracion_despues_mobile_light.png",
+      "width": 1170,
+      "height": 2532,
+      "bytes": 143022
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_minicalendario_antes_desktop_dark.png",
+      "width": 3840,
+      "height": 2400,
+      "bytes": 241924
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_minicalendario_antes_desktop_light.png",
+      "width": 3840,
+      "height": 2400,
+      "bytes": 244734
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_minicalendario_antes_mobile_dark.png",
+      "width": 1170,
+      "height": 2532,
+      "bytes": 148988
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_minicalendario_antes_mobile_light.png",
+      "width": 1170,
+      "height": 2532,
+      "bytes": 153115
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_minicalendario_despues_desktop_dark.png",
+      "width": 3840,
+      "height": 2400,
+      "bytes": 241924
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_minicalendario_despues_desktop_light.png",
+      "width": 3840,
+      "height": 2400,
+      "bytes": 244734
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_minicalendario_despues_mobile_dark.png",
+      "width": 1170,
+      "height": 2532,
+      "bytes": 150183
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_minicalendario_despues_mobile_light.png",
+      "width": 1170,
+      "height": 2532,
+      "bytes": 153817
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_plan-titulo_antes_desktop_dark.png",
+      "width": 3840,
+      "height": 2400,
+      "bytes": 177993
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_plan-titulo_antes_desktop_light.png",
+      "width": 3840,
+      "height": 2400,
+      "bytes": 178631
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_plan-titulo_antes_mobile_dark.png",
+      "width": 1170,
+      "height": 2532,
+      "bytes": 96409
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_plan-titulo_antes_mobile_light.png",
+      "width": 1170,
+      "height": 2532,
+      "bytes": 98744
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_plan-titulo_despues_desktop_dark.png",
+      "width": 3840,
+      "height": 2400,
+      "bytes": 177993
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_plan-titulo_despues_desktop_light.png",
+      "width": 3840,
+      "height": 2400,
+      "bytes": 178631
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_plan-titulo_despues_mobile_dark.png",
+      "width": 1170,
+      "height": 2532,
+      "bytes": 103122
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_plan-titulo_despues_mobile_light.png",
+      "width": 1170,
+      "height": 2532,
+      "bytes": 105260
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_tokens_antes_desktop_dark.png",
+      "width": 3840,
+      "height": 2400,
+      "bytes": 305753
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_tokens_antes_desktop_light.png",
+      "width": 3840,
+      "height": 2400,
+      "bytes": 305377
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_tokens_antes_mobile_dark.png",
+      "width": 1170,
+      "height": 2532,
+      "bytes": 153016
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_tokens_antes_mobile_light.png",
+      "width": 1170,
+      "height": 2532,
+      "bytes": 155285
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_tokens_despues_desktop_dark.png",
+      "width": 3840,
+      "height": 2400,
+      "bytes": 311466
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_tokens_despues_desktop_light.png",
+      "width": 3840,
+      "height": 2400,
+      "bytes": 311597
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_tokens_despues_mobile_dark.png",
+      "width": 1170,
+      "height": 2532,
+      "bytes": 166990
+    },
+    {
+      "file": "docs/audit/evidencias/r80/96_tokens_despues_mobile_light.png",
+      "width": 1170,
+      "height": 2532,
+      "bytes": 169002
+    },
+    {
+      "file": "docs/audit/evidencias/r80/97_confirmacion_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 215211
+    },
+    {
+      "file": "docs/audit/evidencias/r80/97_confirmacion_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 213795
+    },
+    {
+      "file": "docs/audit/evidencias/r80/97_confirmacion_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 133789
+    },
+    {
+      "file": "docs/audit/evidencias/r80/97_confirmacion_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 133447
+    },
+    {
+      "file": "docs/audit/evidencias/r80/97_confirmacion_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 250362
+    },
+    {
+      "file": "docs/audit/evidencias/r80/97_confirmacion_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 254758
+    },
+    {
+      "file": "docs/audit/evidencias/r80/97_confirmacion_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 144640
+    },
+    {
+      "file": "docs/audit/evidencias/r80/97_confirmacion_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 149924
+    },
+    {
+      "file": "docs/audit/evidencias/r80/97_google_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 191343
+    },
+    {
+      "file": "docs/audit/evidencias/r80/97_google_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 190411
+    },
+    {
+      "file": "docs/audit/evidencias/r80/97_google_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 124835
+    },
+    {
+      "file": "docs/audit/evidencias/r80/97_google_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 125368
+    },
+    {
+      "file": "docs/audit/evidencias/r80/97_google_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 242374
+    },
+    {
+      "file": "docs/audit/evidencias/r80/97_google_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 242986
+    },
+    {
+      "file": "docs/audit/evidencias/r80/97_google_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 139655
+    },
+    {
+      "file": "docs/audit/evidencias/r80/97_google_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 141445
+    },
+    {
+      "file": "docs/audit/evidencias/r80/98_agenda_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 172088
+    },
+    {
+      "file": "docs/audit/evidencias/r80/98_agenda_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 174918
+    },
+    {
+      "file": "docs/audit/evidencias/r80/98_agenda_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 100079
+    },
+    {
+      "file": "docs/audit/evidencias/r80/98_agenda_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 102513
+    },
+    {
+      "file": "docs/audit/evidencias/r80/98_agenda_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 212122
+    },
+    {
+      "file": "docs/audit/evidencias/r80/98_agenda_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 219242
+    },
+    {
+      "file": "docs/audit/evidencias/r80/98_agenda_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 100152
+    },
+    {
+      "file": "docs/audit/evidencias/r80/98_agenda_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 102664
+    },
+    {
+      "file": "docs/audit/evidencias/r80/99_adjuntos-con-drive_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 201732
+    },
+    {
+      "file": "docs/audit/evidencias/r80/99_adjuntos-con-drive_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 204587
+    },
+    {
+      "file": "docs/audit/evidencias/r80/99_adjuntos-con-drive_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 85748
+    },
+    {
+      "file": "docs/audit/evidencias/r80/99_adjuntos-con-drive_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 86108
+    },
+    {
+      "file": "docs/audit/evidencias/r80/99_adjuntos-con-drive_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 203670
+    },
+    {
+      "file": "docs/audit/evidencias/r80/99_adjuntos-con-drive_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 206224
+    },
+    {
+      "file": "docs/audit/evidencias/r80/99_adjuntos-con-drive_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 91060
+    },
+    {
+      "file": "docs/audit/evidencias/r80/99_adjuntos-con-drive_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 90746
+    },
+    {
+      "file": "docs/audit/evidencias/r80/99_adjuntos-sin-drive_antes_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 190772
+    },
+    {
+      "file": "docs/audit/evidencias/r80/99_adjuntos-sin-drive_antes_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 193709
+    },
+    {
+      "file": "docs/audit/evidencias/r80/99_adjuntos-sin-drive_antes_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 75720
+    },
+    {
+      "file": "docs/audit/evidencias/r80/99_adjuntos-sin-drive_antes_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 76221
+    },
+    {
+      "file": "docs/audit/evidencias/r80/99_adjuntos-sin-drive_despues_desktop_dark.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 200157
+    },
+    {
+      "file": "docs/audit/evidencias/r80/99_adjuntos-sin-drive_despues_desktop_light.png",
+      "width": 2560,
+      "height": 1600,
+      "bytes": 202793
+    },
+    {
+      "file": "docs/audit/evidencias/r80/99_adjuntos-sin-drive_despues_mobile_dark.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 91741
+    },
+    {
+      "file": "docs/audit/evidencias/r80/99_adjuntos-sin-drive_despues_mobile_light.png",
+      "width": 780,
+      "height": 1688,
+      "bytes": 91575
+    }
+  ]
+}

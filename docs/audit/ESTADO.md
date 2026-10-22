@@ -1031,33 +1031,33 @@ del patrón literal de 75.6 a partir de pruebas simuladas o históricas.
 
 Base actualizada: afc9f5d. Comprobación previa en [r80/verificacion-previa.md](r80/verificacion-previa.md). Una única PR por petición expresa de Pablo.
 
-| ID  | Estado                                                                | Evidencia                           |
-| --- | --------------------------------------------------------------------- | ----------------------------------- |
-| 80  | Implementado; validación local; staging pendiente                     | [OAuth](r80/80-oauth.md)            |
-| 81  | Implementado; aceptación local; copia de producción pendiente         | [Recurrencia](r80/81-recurrence.md) |
-| 82  | Implementado; validación local                                        | [Tareas MCP](r80/82-tasks.md)       |
-| 83  | Implementado; validación local                                        | [Paginación](r80/83-pagination.md)  |
-| 84  | Implementado; validación local real MCP/API/web                       | [Foco](r80/84-focus.md)             |
-| 85  | Pendiente de implementación y aceptación                              | PR #75                              |
-| 86  | Implementado; validación local; variable global ausente en producción | PR #75                              |
-| 87  | Pendiente de implementación y aceptación                              | PR #75                              |
-| 88  | Pendiente de implementación y aceptación                              | PR #75                              |
-| 89  | Pendiente de implementación y aceptación                              | PR #75                              |
-| 90  | Pendiente de implementación y aceptación                              | PR #75                              |
-| 91  | Pendiente de implementación y aceptación                              | PR #75                              |
-| 92  | Pendiente de implementación y aceptación                              | PR #75                              |
-| 93  | Pendiente de implementación y aceptación                              | PR #75                              |
-| 94  | Pendiente de implementación y aceptación                              | PR #75                              |
-| 95  | Pendiente de implementación y aceptación                              | PR #75                              |
-| 96  | Pendiente de implementación y aceptación                              | PR #75                              |
-| 97  | Pendiente de implementación y aceptación                              | PR #75                              |
-| 98  | Pendiente de implementación y aceptación                              | PR #75                              |
-| 99  | Pendiente de implementación y aceptación                              | PR #75                              |
-| 100 | Pendiente de implementación y aceptación                              | PR #75                              |
-| 101 | Pendiente de implementación y aceptación                              | PR #75                              |
-| 102 | Pendiente de implementación y aceptación                              | PR #75                              |
-| 103 | Pendiente de implementación y aceptación                              | PR #75                              |
-| 104 | Pendiente de implementación y aceptación                              | PR #75                              |
+| ID  | Estado                                                        | Evidencia                           |
+| --- | ------------------------------------------------------------- | ----------------------------------- |
+| 80  | Implementado; validación local; staging pendiente             | [OAuth](r80/80-oauth.md)            |
+| 81  | Implementado; aceptación local; copia de producción pendiente | [Recurrencia](r80/81-recurrence.md) |
+| 82  | Implementado; validación local                                | [Tareas MCP](r80/82-tasks.md)       |
+| 83  | Implementado; validación local                                | [Paginación](r80/83-pagination.md)  |
+| 84  | Implementado; validación local real MCP/API/web               | [Foco](r80/84-focus.md)             |
+| 85  | Implementado; verificación local; externos pendientes         | [Informe](r80/85.md)                |
+| 86  | Implementado; verificación local                              | [Informe](r80/86-google.md)         |
+| 87  | Implementado; verificación local                              | [Informe](r80/87-92.md)             |
+| 88  | Implementado; verificación local                              | [Informe](r80/87-92.md)             |
+| 89  | Implementado; verificación local                              | [Informe](r80/87-92.md)             |
+| 90  | Implementado; verificación local                              | [Informe](r80/87-92.md)             |
+| 91  | Implementado; verificación local                              | [Informe](r80/87-92.md)             |
+| 92  | Implementado; verificación local                              | [Informe](r80/87-92.md)             |
+| 93  | Implementado; verificación local                              | [Informe](r80/93.md)                |
+| 94  | Implementado; verificación local                              | [Informe](r80/94.md)                |
+| 95  | Implementado; verificación local                              | [Informe](r80/95.md)                |
+| 96  | Implementado; verificación local                              | [Informe](r80/96.md)                |
+| 97  | Implementado; verificación local; externos pendientes         | [Informe](r80/97.md)                |
+| 98  | Implementado; verificación local                              | [Informe](r80/98.md)                |
+| 99  | Implementado; verificación local; externos pendientes         | [Informe](r80/99-retirada.md)       |
+| 100 | Implementado; verificación local; externos pendientes         | [Informe](r80/100.md)               |
+| 101 | Implementado; verificación local; externos pendientes         | [Informe](r80/101.md)               |
+| 102 | Implementado; verificación local; externos pendientes         | [Informe](r80/102.md)               |
+| 103 | Implementado; verificación local; externos pendientes         | [Informe](r80/103.md)               |
+| 104 | Implementado; verificación local; externos pendientes         | [Informe](r80/104.md)               |
 
 - TTD-AUD-85: contrato implementado y probado localmente; reparación de datos pendiente de copia de producción (véase r80/85.md).
 
@@ -1086,3 +1086,7 @@ Base actualizada: afc9f5d. Comprobación previa en [r80/verificacion-previa.md](
 - TTD-AUD-103: Telegram guiado implementado; 4 unitarias, 2 e2e con proveedor falso, 4 Playwright y 12 capturas posteriores. Estado blocked y not_linked demostrados localmente; proveedor real pendiente. r80/103.md.
 
 - **104**: Acerca de implementado y probado localmente; versiones, diagnóstico sanitizado y capturas. Metadatos del despliegue real pendientes. [Informe](r80/104.md), PR #75.
+
+- Petición adicional de Pablo: tarjetas Calendar/Drive en esta PR, con una conexión OAuth, permisos/activación separados y avisos de tratamiento de datos. [Decisión](r80/DECISIONES.md), [pruebas](r80/97-separacion.md). Los permisos antiguos no verificados requieren revisar el consentimiento; no se ha desplegado.
+
+Cierre local R80: [verificación final](r80/verificacion-final.md), [criterios por punto](r80/pr.md), [42 pantallas/336 capturas](r80/capturas.md). Implementación y validaciones locales completadas; PR75 en borrador por aceptación externa pendiente.

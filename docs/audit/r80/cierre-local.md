@@ -6,7 +6,7 @@ RF-1102: los carriles horarios de Día reservan el último carril legible para +
 
 RF-601/102: cuatro anclas en esquinas del escritorio dentro del viewport; Escape devuelve el foco. Hoja móvil y teclado emulado pasan. Guardar con composer global aparece en Hoy y en etiqueta sin recargar, ocho pruebas. Tabla de contextos ampliada a19 casos.
 
-RF-104/S-18: límite de adjuntos inválido (NaN, infinito, fracciones, cero o negativo) vuelve al límite100MiB; firmas recogidas en un prefijo de8000 bytes a través de chunks fragmentados, con replay sin pérdida y cierre del iterador en errores. Se rechaza un chunk mayor8MiB antes de bufferizarlo. Tres unitarias y cinco e2e Drive simulado verdes.
+RF-104/S-18: límite de adjuntos inválido (NaN, infinito, fracciones, cero o negativo) vuelve al límite100MiB; firmas recogidas en un prefijo de8000 bytes a través de chunks fragmentados, con replay sin pérdida y cierre del iterador en errores. Se rechaza un chunk mayor256KiB antes de bufferizarlo, respetando el máximo8MiB con el buffer de subida. Los fragmentos del prefijo se liberan al reproducirlos y el prefijo se libera tras identificar el tipo. Tres unitarias y cinco e2e Drive simulado verdes.
 
 Regresión global: se actualizan expectativas del trigger normalizado (85), se declara `due_date:null` para probar explícitamente inicio sin final, se aísla la lista de paginación MCP y se simula un envío push exitoso para comprobar la reiteración constante. La prueba no afirma recepción externa.
 

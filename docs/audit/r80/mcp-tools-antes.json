@@ -33,13 +33,7 @@
         "properties": {
           "method": {
             "type": "string",
-            "enum": [
-              "GET",
-              "POST",
-              "PATCH",
-              "PUT",
-              "DELETE"
-            ]
+            "enum": ["GET", "POST", "PATCH", "PUT", "DELETE"]
           },
           "path": {
             "type": "string",
@@ -59,11 +53,7 @@
             "items": {
               "type": "object",
               "additionalProperties": false,
-              "required": [
-                "field",
-                "filename",
-                "base64"
-              ],
+              "required": ["field", "filename", "base64"],
               "properties": {
                 "field": {
                   "type": "string",
@@ -84,10 +74,7 @@
             }
           }
         },
-        "required": [
-          "method",
-          "path"
-        ],
+        "required": ["method", "path"],
         "additionalProperties": false
       }
     },
@@ -124,25 +111,14 @@
           },
           "priority": {
             "type": "string",
-            "enum": [
-              "none",
-              "low",
-              "medium",
-              "high"
-            ]
+            "enum": ["none", "low", "medium", "high"]
           },
           "someday": {
             "type": "boolean"
           },
           "status": {
             "type": "string",
-            "enum": [
-              "active",
-              "completed",
-              "archived",
-              "cancelled",
-              "all"
-            ]
+            "enum": ["active", "completed", "archived", "cancelled", "all"]
           }
         },
         "additionalProperties": false
@@ -159,9 +135,7 @@
             "format": "uuid"
           }
         },
-        "required": [
-          "id"
-        ],
+        "required": ["id"],
         "additionalProperties": false
       }
     },
@@ -237,12 +211,7 @@
           },
           "priority": {
             "type": "string",
-            "enum": [
-              "none",
-              "low",
-              "medium",
-              "high"
-            ]
+            "enum": ["none", "low", "medium", "high"]
           },
           "someday": {
             "type": "boolean"
@@ -255,12 +224,7 @@
             "properties": {
               "freq": {
                 "type": "string",
-                "enum": [
-                  "daily",
-                  "weekly",
-                  "monthly",
-                  "yearly"
-                ]
+                "enum": ["daily", "weekly", "monthly", "yearly"]
               },
               "interval": {
                 "type": "integer",
@@ -271,15 +235,7 @@
                 "type": "array",
                 "items": {
                   "type": "string",
-                  "enum": [
-                    "MO",
-                    "TU",
-                    "WE",
-                    "TH",
-                    "FR",
-                    "SA",
-                    "SU"
-                  ]
+                  "enum": ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]
                 },
                 "description": "Only with freq=weekly."
               },
@@ -294,32 +250,15 @@
                 "properties": {
                   "setpos": {
                     "type": "integer",
-                    "enum": [
-                      1,
-                      2,
-                      3,
-                      4,
-                      -1
-                    ],
+                    "enum": [1, 2, 3, 4, -1],
                     "description": "-1 = last."
                   },
                   "weekday": {
                     "type": "string",
-                    "enum": [
-                      "MO",
-                      "TU",
-                      "WE",
-                      "TH",
-                      "FR",
-                      "SA",
-                      "SU"
-                    ]
+                    "enum": ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]
                   }
                 },
-                "required": [
-                  "setpos",
-                  "weekday"
-                ],
+                "required": ["setpos", "weekday"],
                 "additionalProperties": false,
                 "description": "Only with freq=monthly: last Friday of the month = {setpos:-1, weekday:'FR'}."
               },
@@ -334,9 +273,7 @@
                 "description": "End after N occurrences."
               }
             },
-            "required": [
-              "freq"
-            ],
+            "required": ["freq"],
             "additionalProperties": false
           },
           "repeat_rule": {
@@ -346,16 +283,11 @@
           },
           "repeat_from": {
             "type": "string",
-            "enum": [
-              "due_date",
-              "completion_date"
-            ],
+            "enum": ["due_date", "completion_date"],
             "description": "due_date (default): next from the rule grid. completion_date: from when you completed it (habits like 'water every 3 days')."
           }
         },
-        "required": [
-          "title"
-        ],
+        "required": ["title"],
         "additionalProperties": false
       }
     },
@@ -375,9 +307,7 @@
             "format": "uuid"
           }
         },
-        "required": [
-          "text"
-        ],
+        "required": ["text"],
         "additionalProperties": false
       }
     },
@@ -393,10 +323,7 @@
           },
           "advance": {
             "type": "string",
-            "enum": [
-              "one_period",
-              "next_future"
-            ],
+            "enum": ["one_period", "next_future"],
             "description": "How to pick the next due date for a repeating task. Default 'one_period'."
           },
           "materialize_next": {
@@ -404,9 +331,7 @@
             "description": "If true, create the next occurrence in this same call instead of waiting for the scheduler (~60 s)."
           }
         },
-        "required": [
-          "id"
-        ],
+        "required": ["id"],
         "additionalProperties": false
       }
     },
@@ -421,9 +346,7 @@
             "format": "uuid"
           }
         },
-        "required": [
-          "id"
-        ],
+        "required": ["id"],
         "additionalProperties": false
       }
     },
@@ -438,9 +361,7 @@
             "format": "uuid"
           }
         },
-        "required": [
-          "id"
-        ],
+        "required": ["id"],
         "additionalProperties": false
       }
     },
@@ -455,9 +376,7 @@
             "format": "uuid"
           }
         },
-        "required": [
-          "id"
-        ],
+        "required": ["id"],
         "additionalProperties": false
       }
     },
@@ -472,9 +391,7 @@
             "format": "uuid"
           }
         },
-        "required": [
-          "id"
-        ],
+        "required": ["id"],
         "additionalProperties": false
       }
     },
@@ -489,9 +406,7 @@
             "format": "uuid"
           }
         },
-        "required": [
-          "task_id"
-        ],
+        "required": ["task_id"],
         "additionalProperties": false
       }
     },
@@ -511,10 +426,7 @@
             "maxLength": 100000
           }
         },
-        "required": [
-          "task_id",
-          "body"
-        ],
+        "required": ["task_id", "body"],
         "additionalProperties": false
       }
     },
@@ -529,9 +441,7 @@
             "format": "uuid"
           }
         },
-        "required": [
-          "task_id"
-        ],
+        "required": ["task_id"],
         "additionalProperties": false
       }
     },
@@ -550,17 +460,11 @@
             "format": "uuid"
           },
           "column_id": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "uuid"
           }
         },
-        "required": [
-          "id",
-          "project_id"
-        ],
+        "required": ["id", "project_id"],
         "additionalProperties": false
       }
     },
@@ -580,10 +484,7 @@
             "maxLength": 500
           }
         },
-        "required": [
-          "task_id",
-          "title"
-        ],
+        "required": ["task_id", "title"],
         "additionalProperties": false
       }
     },
@@ -607,11 +508,7 @@
             "maxLength": 500
           }
         },
-        "required": [
-          "task_id",
-          "item_id",
-          "title"
-        ],
+        "required": ["task_id", "item_id", "title"],
         "additionalProperties": false
       }
     },
@@ -630,10 +527,7 @@
             "format": "uuid"
           }
         },
-        "required": [
-          "task_id",
-          "item_id"
-        ],
+        "required": ["task_id", "item_id"],
         "additionalProperties": false
       }
     },
@@ -652,10 +546,7 @@
             "format": "uuid"
           }
         },
-        "required": [
-          "task_id",
-          "item_id"
-        ],
+        "required": ["task_id", "item_id"],
         "additionalProperties": false
       }
     },
@@ -670,9 +561,7 @@
             "format": "uuid"
           }
         },
-        "required": [
-          "task_id"
-        ],
+        "required": ["task_id"],
         "additionalProperties": false
       }
     },
@@ -693,33 +582,17 @@
           },
           "type": {
             "type": "string",
-            "enum": [
-              "relative",
-              "absolute",
-              "location",
-              "daily_digest"
-            ]
+            "enum": ["relative", "absolute", "location", "daily_digest"]
           },
           "absolute_at": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "channel": {
             "type": "string",
-            "enum": [
-              "push",
-              "email",
-              "both"
-            ]
+            "enum": ["push", "email", "both"]
           }
         },
-        "required": [
-          "task_id",
-          "trigger",
-          "type"
-        ],
+        "required": ["task_id", "trigger", "type"],
         "additionalProperties": false
       }
     },
@@ -738,10 +611,7 @@
             "format": "uuid"
           }
         },
-        "required": [
-          "task_id",
-          "reminder_id"
-        ],
+        "required": ["task_id", "reminder_id"],
         "additionalProperties": false
       }
     },
@@ -756,17 +626,11 @@
             "format": "uuid"
           },
           "assignee_id": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "uuid"
           }
         },
-        "required": [
-          "id",
-          "assignee_id"
-        ],
+        "required": ["id", "assignee_id"],
         "additionalProperties": false
       }
     },
@@ -786,17 +650,11 @@
             "maxLength": 500
           },
           "content": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "maxLength": 100000
           },
           "column_id": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "uuid"
           },
           "tag_ids": {
@@ -861,39 +719,25 @@
             "description": "If true, parse title with the quick-add parser. Explicit fields win."
           },
           "due_date": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "description": "YYYY-MM-DD = all-day in the task time zone; YYYY-MM-DDTHH:mm±hh:mm = timed instant; null clears."
           },
           "start_date": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "description": "YYYY-MM-DD = all-day in the task time zone; YYYY-MM-DDTHH:mm±hh:mm = timed instant; null clears."
           },
           "is_all_day": {
             "type": "boolean"
           },
           "duration_minutes": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "minimum": 0,
             "maximum": 1440,
             "description": "Kept as given. If start_date and due_date are both set within 24h, must match their span."
           },
           "priority": {
             "type": "string",
-            "enum": [
-              "none",
-              "low",
-              "medium",
-              "high"
-            ]
+            "enum": ["none", "low", "medium", "high"]
           },
           "someday": {
             "type": "boolean"
@@ -902,19 +746,11 @@
             "type": "boolean"
           },
           "recurrence": {
-            "type": [
-              "object",
-              "null"
-            ],
+            "type": ["object", "null"],
             "properties": {
               "freq": {
                 "type": "string",
-                "enum": [
-                  "daily",
-                  "weekly",
-                  "monthly",
-                  "yearly"
-                ]
+                "enum": ["daily", "weekly", "monthly", "yearly"]
               },
               "interval": {
                 "type": "integer",
@@ -925,15 +761,7 @@
                 "type": "array",
                 "items": {
                   "type": "string",
-                  "enum": [
-                    "MO",
-                    "TU",
-                    "WE",
-                    "TH",
-                    "FR",
-                    "SA",
-                    "SU"
-                  ]
+                  "enum": ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]
                 },
                 "description": "Only with freq=weekly."
               },
@@ -948,32 +776,15 @@
                 "properties": {
                   "setpos": {
                     "type": "integer",
-                    "enum": [
-                      1,
-                      2,
-                      3,
-                      4,
-                      -1
-                    ],
+                    "enum": [1, 2, 3, 4, -1],
                     "description": "-1 = last."
                   },
                   "weekday": {
                     "type": "string",
-                    "enum": [
-                      "MO",
-                      "TU",
-                      "WE",
-                      "TH",
-                      "FR",
-                      "SA",
-                      "SU"
-                    ]
+                    "enum": ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]
                   }
                 },
-                "required": [
-                  "setpos",
-                  "weekday"
-                ],
+                "required": ["setpos", "weekday"],
                 "additionalProperties": false,
                 "description": "Only with freq=monthly: last Friday of the month = {setpos:-1, weekday:'FR'}."
               },
@@ -988,32 +799,22 @@
                 "description": "End after N occurrences."
               }
             },
-            "required": [
-              "freq"
-            ],
+            "required": ["freq"],
             "additionalProperties": false,
             "description": "Structured recurrence, or null to remove the series."
           },
           "repeat_rule": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "maxLength": 500,
             "description": "Raw RRULE, or null to clear. Mutually exclusive with recurrence."
           },
           "repeat_from": {
             "type": "string",
-            "enum": [
-              "due_date",
-              "completion_date"
-            ],
+            "enum": ["due_date", "completion_date"],
             "description": "due_date (default): next from the rule grid. completion_date: from when you completed it (habits like 'water every 3 days')."
           }
         },
-        "required": [
-          "id"
-        ],
+        "required": ["id"],
         "additionalProperties": false
       }
     },
@@ -1036,11 +837,7 @@
             "format": "date-time"
           }
         },
-        "required": [
-          "id",
-          "from",
-          "to"
-        ],
+        "required": ["id", "from", "to"],
         "additionalProperties": false
       }
     },
@@ -1064,10 +861,7 @@
             "maxLength": 500
           }
         },
-        "required": [
-          "id",
-          "due_date"
-        ],
+        "required": ["id", "due_date"],
         "additionalProperties": false
       }
     },
@@ -1119,15 +913,7 @@
           },
           "decision": {
             "type": "string",
-            "enum": [
-              "done",
-              "plan_day",
-              "later",
-              "someday",
-              "cancel",
-              "trash",
-              "skip"
-            ]
+            "enum": ["done", "plan_day", "later", "someday", "cancel", "trash", "skip"]
           },
           "target_date": {
             "type": "string"
@@ -1136,11 +922,7 @@
             "type": "boolean"
           }
         },
-        "required": [
-          "session_id",
-          "task_id",
-          "decision"
-        ],
+        "required": ["session_id", "task_id", "decision"],
         "additionalProperties": false
       }
     },
@@ -1162,11 +944,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "session_id",
-          "expected_revision",
-          "idempotency_key"
-        ],
+        "required": ["session_id", "expected_revision", "idempotency_key"],
         "additionalProperties": false
       }
     },
@@ -1222,9 +1000,7 @@
             "minLength": 1
           }
         },
-        "required": [
-          "name"
-        ],
+        "required": ["name"],
         "additionalProperties": false
       }
     },
@@ -1258,9 +1034,7 @@
             "minLength": 1
           }
         },
-        "required": [
-          "name"
-        ],
+        "required": ["name"],
         "additionalProperties": false
       }
     },
@@ -1298,10 +1072,7 @@
             "minLength": 1
           }
         },
-        "required": [
-          "name",
-          "keyword"
-        ],
+        "required": ["name", "keyword"],
         "additionalProperties": false
       }
     },
@@ -1334,9 +1105,7 @@
             "minLength": 1
           }
         },
-        "required": [
-          "key"
-        ],
+        "required": ["key"],
         "additionalProperties": false
       }
     },
@@ -1370,9 +1139,7 @@
             "minLength": 1
           }
         },
-        "required": [
-          "name"
-        ],
+        "required": ["name"],
         "additionalProperties": false
       }
     },
@@ -1394,10 +1161,7 @@
             "minimum": 0
           }
         },
-        "required": [
-          "id",
-          "date"
-        ],
+        "required": ["id", "date"],
         "additionalProperties": false
       }
     },
@@ -1438,9 +1202,7 @@
             "format": "uuid"
           }
         },
-        "required": [
-          "id"
-        ],
+        "required": ["id"],
         "additionalProperties": false
       }
     },
@@ -1491,10 +1253,7 @@
             "type": "boolean"
           }
         },
-        "required": [
-          "title",
-          "target_date"
-        ],
+        "required": ["title", "target_date"],
         "additionalProperties": false
       }
     },
@@ -1522,9 +1281,7 @@
             "type": "boolean"
           }
         },
-        "required": [
-          "id"
-        ],
+        "required": ["id"],
         "additionalProperties": false
       }
     },
@@ -1539,9 +1296,7 @@
             "format": "uuid"
           }
         },
-        "required": [
-          "id"
-        ],
+        "required": ["id"],
         "additionalProperties": false
       }
     },
@@ -1556,9 +1311,7 @@
             "format": "uuid"
           }
         },
-        "required": [
-          "id"
-        ],
+        "required": ["id"],
         "additionalProperties": false
       }
     },
@@ -1573,9 +1326,7 @@
             "format": "uuid"
           }
         },
-        "required": [
-          "id"
-        ],
+        "required": ["id"],
         "additionalProperties": false
       }
     },
@@ -1599,9 +1350,7 @@
             "minLength": 1
           }
         },
-        "required": [
-          "q"
-        ],
+        "required": ["q"],
         "additionalProperties": false
       }
     },
@@ -1632,9 +1381,7 @@
             "maxLength": 4000
           }
         },
-        "required": [
-          "text"
-        ],
+        "required": ["text"],
         "additionalProperties": false
       }
     },
@@ -1706,10 +1453,7 @@
             "format": "uuid"
           }
         },
-        "required": [
-          "from",
-          "to"
-        ],
+        "required": ["from", "to"],
         "additionalProperties": false
       }
     },
@@ -1721,10 +1465,7 @@
         "properties": {
           "provider": {
             "type": "string",
-            "enum": [
-              "google",
-              "ical"
-            ]
+            "enum": ["google", "ical"]
           },
           "calendar_id": {
             "type": "string",
@@ -1743,9 +1484,7 @@
             "type": "boolean"
           }
         },
-        "required": [
-          "provider"
-        ],
+        "required": ["provider"],
         "additionalProperties": false
       }
     },
@@ -1785,9 +1524,7 @@
             "type": "boolean"
           }
         },
-        "required": [
-          "id"
-        ],
+        "required": ["id"],
         "additionalProperties": false
       }
     },
@@ -1802,9 +1539,7 @@
             "format": "uuid"
           }
         },
-        "required": [
-          "id"
-        ],
+        "required": ["id"],
         "additionalProperties": false
       }
     }
