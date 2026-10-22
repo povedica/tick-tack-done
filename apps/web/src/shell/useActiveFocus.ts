@@ -57,7 +57,8 @@ export function useActiveFocus(): ActiveFocus | null {
     taskId: text(live.task_id).length > 0 ? text(live.task_id) : null,
     remaining: live.type === 'stopwatch' ? elapsed : remaining,
     planned: live.type === 'stopwatch' ? 0 : planned * 60,
-    progress: live.type === 'stopwatch' || planned === 0 ? 0 : Math.min(1, elapsed / (planned * 60)),
+    progress:
+      live.type === 'stopwatch' || planned === 0 ? 0 : Math.min(1, elapsed / (planned * 60)),
   };
 }
 

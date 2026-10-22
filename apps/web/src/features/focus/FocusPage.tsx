@@ -57,7 +57,11 @@ export function FocusPage() {
   const [confirm, setConfirm] = useState(false);
   const [next, setNext] = useState<string | null>(null);
   const record = sessions.data?.pages.flatMap(rows) ?? [];
-  const live = record.find((row) => row.ended_at === null && (row.type === 'stopwatch' || row.paused_at != null || numeric(row.remaining_seconds) > 0));
+  const live = record.find(
+    (row) =>
+      row.ended_at === null &&
+      (row.type === 'stopwatch' || row.paused_at != null || numeric(row.remaining_seconds) > 0),
+  );
   const paused = typeof live?.paused_at === 'string';
   const stopwatch = live ? live.type === 'stopwatch' : mode === 'stopwatch';
   const planned = live
