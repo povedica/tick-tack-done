@@ -5,7 +5,7 @@ test.use({ timezoneId: 'America/New_York' });
 for (const mobile of [false, true]) {
   test(`TTD-AUD-75.7: filled today circles ${mobile ? 'mobile' : 'desktop'}`, async ({ page }) => {
     await page.setViewportSize(mobile ? { width: 390, height: 844 } : { width: 1280, height: 800 });
-    await page.clock.install({ time: new Date('2026-10-21T21:59:59Z') });
+    await page.clock.install({ time: new Date('2026-10-21T21:58:00Z') });
     await page.addInitScript(() => localStorage.setItem('tick-tack-done.account-prefs', '1'));
     await page.route('**/api/v1/**', async (route) => {
       const path = new URL(route.request().url()).pathname.replace('/api/v1', '');
@@ -24,7 +24,9 @@ for (const mobile of [false, true]) {
       await route.fulfill({ status: 200, json });
     });
     await page.goto('/calendar/week?date=2026-10-21');
-    const number = page.locator('.hour-headers [data-today="true"]');
+    const number = page.locator(
+      mobile ? '.mobile-week-mini [data-today="true"]' : '.hour-headers [data-today="true"]',
+    );
     await expect(number).toHaveText('21');
     await expect(number).toHaveCSS('border-radius', '50%');
     for (const theme of ['light', 'dark']) {
@@ -67,7 +69,7 @@ for (const mobile of [false, true]) {
         expect(style.background).not.toBe('rgba(0, 0, 0, 0)');
       }
     }
-    await page.clock.fastForward(1001);
+    await page.clock.fastForward(120_001);
     await expect(number).toHaveText('22');
     await expect(number).toHaveAttribute('aria-current', 'date');
     for (const view of ['month', 'year']) {

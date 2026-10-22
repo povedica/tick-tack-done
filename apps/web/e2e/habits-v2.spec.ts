@@ -139,20 +139,16 @@ for (const width of [1440, 390])
         theme,
       );
       await page.screenshot({
-        path: `../../docs/reviews/assets/habits-2026-10-21/${width}-${theme}.png`,
+        path: `/tmp/ttd-habits-${width}-${theme}.png`,
       });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
         true,
       );
-      let confirmed = false;
-      page.once('dialog', async (dialog) => {
-        confirmed = true;
-        expect(dialog.message()).toContain('registro de ese día');
-        await dialog.accept();
-      });
       await page.getByRole('button', { name: '2026-10-19 · 9', exact: true }).first().click();
-      await page.getByRole('button', { name: 'Desmarcar', exact: true }).click();
-      await expect.poll(() => confirmed).toBe(true);
+      const clearForm = page.getByRole('form', { name: 'Editar registro del día' });
+      await clearForm.getByRole('button', { name: 'Desmarcar', exact: true }).click();
+      await expect(clearForm.getByRole('button', { name: 'Cancelar', exact: true })).toBeVisible();
+      await clearForm.getByRole('button', { name: 'Desmarcar', exact: true }).click();
       expect(calls.at(-1)?.body).toMatchObject({ date: '2026-10-19', count: 0, note: null });
       await page.getByRole('button', { name: 'Archivar', exact: true }).click();
       await expect(page.getByRole('button', { name: 'Recuperar', exact: true })).toBeVisible();

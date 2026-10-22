@@ -23,8 +23,12 @@ test('TTD-AUD-27: Control translates reason codes independently of the legacy se
     }),
   );
   await page.goto('/today');
-  await page.locator('.control-chip').first().click();
-  const dialog = page.getByRole('dialog', { name: 'Control score', exact: true });
+  await page
+    .getByRole('button', { name: /Account menu|Menú de cuenta/ })
+    .filter({ visible: true })
+    .click();
+  await page.locator('.account-progress').click();
+  const dialog = page.locator('.control-summary');
   await expect(dialog).toContainText('Focus: 6/10 pomodoros this week');
   await expect(dialog).not.toContainText('Texto nuevo');
 });
@@ -116,7 +120,7 @@ test('TTD-AUD-27: Today deadline hints follow English locale', async ({ page }) 
 });
 
 test('TTD-AUD-27: Ticky conversation and permissions follow English locale', async ({ page }) => {
-  await fixtures(page, { locale: 'en' });
+  await fixtures(page, { locale: 'en', ticky: 'enabled' });
   await page.addInitScript(() => localStorage.setItem('tick-tack-done.locale', 'en'));
   await page.route('**/api/v1/ticky/authority', (route) =>
     route.fulfill({
@@ -287,7 +291,7 @@ for (const theme of ['light', 'dark'] as const) {
       const other = page.locator('.sidebar .nav-link:not(.is-active)').first();
       await other.hover({ timeout: 3000 });
       expect(await other.evaluate(renderedContrast)).toBeGreaterThanOrEqual(4.5);
-      const icon = page.locator('.icon-rail > a[href="/today"]');
+      const icon = page.locator('.icon-rail .rail-section-active');
       expect(await icon.evaluate(renderedContrast)).toBeGreaterThanOrEqual(3);
       await icon.hover({ timeout: 3000 });
       expect(await icon.evaluate(renderedContrast)).toBeGreaterThanOrEqual(3);
@@ -312,17 +316,14 @@ for (const width of [1280, 360]) {
     await expect(page.locator('textarea.detail-title')).toBeVisible();
     await expect(page.locator('a[href^="/ticky"]')).toHaveCount(0);
     await page.goto('/ticky');
-    const screen = page.locator('.ticky-page');
-    await expect(screen).toHaveClass(/screen-page/);
-    await expect(screen).toContainText('El administrador ha desactivado Ticky');
-    await expect(screen.locator('textarea')).toHaveCount(0);
-    await expect(screen.getByRole('button', { name: 'Reintentar' })).toBeVisible();
+    await expect(page).toHaveURL(/today\?disabled=1/);
+    await expect(page.locator('.ticky-composer')).toHaveCount(0);
     await page.screenshot({ path: test.info().outputPath(`ticky-disabled-${width}.png`) });
   });
 }
 
 test('TTD-AUD-07: server capability can recover and kill switch stays closed', async ({ page }) => {
-  await fixtures(page);
+  await fixtures(page, { ticky: 'enabled' });
   let state = 'error';
   await page.route('**/api/v1/ticky/flags', async (route) => {
     if (state === 'error') await route.fulfill({ status: 503, json: {} });
@@ -514,7 +515,7 @@ async function fixtures(
         density: options.density ?? 'comfortable',
         accent: options.accent ?? 'indigo',
         ...(options.theme === undefined ? {} : { theme: options.theme }),
-        features: { navigation_order: order },
+        features: { navigation_order: order, ticky: options.ticky === 'enabled' },
       };
     }
     if (path === '/projects')
@@ -564,7 +565,7 @@ async function fixtures(
     }
     if (path === '/calendar/events')
       body = {
-        tasks: [],
+        tasks: options.title === undefined ? [] : [sampleTask],
         external: [
           {
             id: 'hotel',
@@ -716,6 +717,24 @@ async function fixtures(
     }
     if (path === '/review/daily') body = { task_ids: [], tasks: [] };
     if (path === '/smart-lists') body = { items: [] };
+    if (path === '/smart-lists/inbox/tasks' || path === '/filters/preview')
+      body = {
+        count: 1,
+        groups: [
+          {
+            key: 'all',
+            name: '',
+            tasks: [
+              {
+                ...sampleTask,
+                project_name: 'Bandeja',
+                tags: [],
+                checklist_progress: { completed: 0, total: 0 },
+              },
+            ],
+          },
+        ],
+      };
     if (path === '/sync') body = { changes: [], next_cursor: null };
     await route.fulfill({ json: body });
   });
@@ -931,14 +950,16 @@ test('SEM-1/3, CAL-1/2: one clipped span, no overflow and a persistent workweek'
   expect(
     await page.locator('.hour-board').evaluate((node) => node.scrollWidth <= node.clientWidth),
   ).toBe(true);
-  await page.getByRole('button', { name: 'Opciones del calendario', exact: true }).click();
+  await page.getByRole('button', { name: 'Filtrar calendario', exact: true }).click();
   await page.getByRole('checkbox', { name: 'Solo semana laboral (L–V)' }).check();
   await expect(page.locator('.hour-col')).toHaveCount(5);
   await page.reload();
   await expect(page.locator('.hour-col')).toHaveCount(5);
 });
 
-test('MOV-1/3: mobile More has readable links and Calendar opens Agenda', async ({ page }) => {
+test('MOV-1/3: mobile More has readable links and Calendar keeps its default Month', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await fixtures(page);
   await page.goto('/today');
@@ -956,7 +977,7 @@ test('MOV-1/3: mobile More has readable links and Calendar opens Agenda', async 
   ).toBe(true);
   await page.keyboard.press('Escape');
   await page.locator('.bottom-bar').getByRole('link', { name: 'Calendario', exact: true }).click();
-  await expect(page).toHaveURL(/calendar\/agenda/);
+  await expect(page).toHaveURL(/calendar\/month/);
 });
 
 test('DET-3/4, MOV-4 and POP-1: mobile detail renders Markdown, readable subtasks and a trapped date dialog', async ({
@@ -1018,36 +1039,39 @@ for (const width of [1280, 390]) {
           const firstLine = range.getClientRects()[0];
           if (firstLine === undefined) throw new Error('missing first line');
           const box = check.getBoundingClientRect();
-          return Math.abs(box.top + box.height / 2 - firstLine.top - firstLine.height / 2);
+          return box.top + box.height / 2 - firstLine.top - firstLine.height / 2;
         }, surface.title);
-        expect(offset, `${surface.path} first-line offset`).toBeLessThanOrEqual(1.5);
+        expect(
+          Math.abs(offset),
+          `${surface.path} signed first-line offset ${String(offset)}`,
+        ).toBeLessThanOrEqual(1.5);
       }
     });
   }
 }
 
-test('global Control chip stays available on mobile and collapsed desktop', async ({ page }) => {
+test('TTD-AUD-77: progress belongs to the avatar on mobile and collapsed desktop', async ({
+  page,
+}) => {
   await fixtures(page);
   await page.goto('/today');
-  await page.locator('.sidebar .control-chip').click();
-  await expect(
-    page.getByRole('dialog', { name: 'Puntuación de control', exact: true }),
-  ).toContainText('79');
-  await page.keyboard.press('Escape');
-  await page.keyboard.press('[');
-  await expect(page.locator('.icon-rail .control-chip')).toBeVisible();
-  await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.locator('.mobile-control-bar .control-chip')).toBeVisible();
-  await page.locator('.mobile-control-bar .control-chip').click();
-  await expect(
-    page.getByRole('dialog', { name: 'Puntuación de control', exact: true }),
-  ).toContainText('Uso diario');
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await expect(page.locator('.control-chip')).toHaveCount(0);
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    if (width === 390)
+      await page.locator('.bottom-bar').getByRole('button', { name: 'Más', exact: true }).click();
+    const trigger = page.getByRole('button', { name: 'Menú de cuenta' }).filter({ visible: true });
+    await trigger.click();
+    const menu = page.getByRole('menu', { name: 'Menú de cuenta' });
+    await expect(menu.locator('.account-progress')).toContainText('79');
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
+  }
 });
 
 for (const width of [1280, 390]) {
   for (const score of [100, 60, 36, null]) {
-    test(`Control presentation: ${width}px score ${String(score)}, long streak and bounded breakdown`, async ({
+    test(`TTD-AUD-77 avatar: ${width}px score ${String(score)} and long streak`, async ({
       page,
     }) => {
       await page.setViewportSize({ width, height: 844 });
@@ -1055,59 +1079,31 @@ for (const width of [1280, 390]) {
       await page.route('**/api/v1/stats/overview?*', (route) =>
         route.fulfill({
           json: {
-            summary: {
-              streak_current: 125,
-              achievement: {
-                enabled: true,
-                score,
-                components: {
-                  tasks: { earned: 25, max: 50, configured: true },
-                  usage: { earned: 10, max: 10, configured: true },
-                },
-              },
-            },
+            summary: { streak_current: 125, achievement: { enabled: true, score, components: {} } },
           },
         }),
       );
       await page.goto('/today');
-      const chip = page.locator(
-        width === 390 ? '.mobile-control-bar .control-chip' : '.sidebar .control-chip',
+      if (width === 390)
+        await page.locator('.bottom-bar').getByRole('button', { name: 'Más', exact: true }).click();
+      const trigger = page
+        .getByRole('button', { name: 'Menú de cuenta' })
+        .filter({ visible: true });
+      await trigger.click();
+      const menu = page.getByRole('menu', { name: 'Menú de cuenta' });
+      await expect(menu.locator('.account-progress-streak')).toContainText('125');
+      await expect(menu.locator('.account-progress-value')).toContainText(
+        score === null ? '—' : String(score),
       );
-      const state =
-        score === null ? 'Sin datos' : score >= 75 ? 'Al día' : score >= 50 ? 'Justo' : 'Atrasado';
-      await expect(chip).toHaveText(`125 días · ${score === null ? '—' : String(score)}${state}`);
-      await expect(chip).toHaveCSS('background-color', 'rgb(255, 255, 255)');
-      await expect(chip).toHaveCSS('border-top-width', '1px');
-      await expect(chip).toHaveCSS('box-shadow', 'none');
-      await expect(chip).toHaveCSS('font-size', '14px');
-      await expect(chip.locator('strong')).toHaveCSS('font-weight', '600');
-      await expect(chip.locator('svg')).toHaveAttribute('fill', 'none');
-      expect(await chip.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
-      await chip.click();
-      const panel = page.getByRole('dialog', { name: 'Puntuación de control', exact: true });
-      await expect(panel).toContainText(`${score === null ? '—' : String(score)} sobre 100`);
       expect(
-        await panel.evaluate((node) => {
+        await menu.evaluate((node) => {
           const r = node.getBoundingClientRect();
           return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight;
         }),
       ).toBe(true);
       await page.keyboard.press('Escape');
-      await expect(panel).toHaveCount(0);
-      if (width === 1280) {
-        await page.keyboard.press('[');
-        const compact = page.locator('.icon-rail .control-chip');
-        await expect(compact).toHaveText(score === null ? '—' : String(score));
-        await expect(compact).toHaveCSS('font-size', '14px');
-        expect(await compact.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
-        await compact.click();
-        expect(
-          await panel.evaluate((node) => {
-            const r = node.getBoundingClientRect();
-            return r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight;
-          }),
-        ).toBe(true);
-      }
+      await expect(menu).toHaveCount(0);
+      await expect(page.locator('.control-chip')).toHaveCount(0);
     });
   }
 }
@@ -1214,7 +1210,7 @@ test('secondary sidebar has no theme or collapse controls on desktop', async ({ 
   await expect(page.locator('.sidebar-footer button')).toHaveCount(0);
   await expect(
     page.locator('.icon-rail').getByRole('button', { name: 'Contraer la barra', exact: true }),
-  ).toBeVisible();
+  ).toHaveCount(0);
 });
 
 for (const width of [1280, 390]) {
@@ -1252,7 +1248,7 @@ for (const width of [1280, 390]) {
         },
       }),
     );
-    await page.goto('/dashboard');
+    await page.goto('/today');
     if (width === 390) {
       await page
         .locator('.bottom-bar')
@@ -1304,19 +1300,18 @@ for (const width of [1280]) {
     const account = page.locator(
       width < 1024 ? '.sidebar .account-menu' : '.icon-rail .account-menu',
     );
-    const trigger = account.locator('summary');
+    const trigger = account.getByRole('button', { name: 'Menú de cuenta' });
     await expect(trigger).toHaveText('A');
     await trigger.click();
-    const panel = account.locator('.menu-card');
+    const panel = page.getByRole('menu', { name: 'Menú de cuenta' });
     await expect(panel).toBeVisible();
-    await expect(panel.getByRole('link', { name: 'Ajustes', exact: true })).toHaveAttribute(
+    await expect(panel.getByRole('menuitem', { name: 'Ajustes', exact: true })).toHaveAttribute(
       'href',
       '/settings/account',
     );
-    await expect(panel.getByRole('link', { name: 'Estadísticas', exact: true })).toHaveAttribute(
-      'href',
-      '/statistics',
-    );
+    await expect(
+      panel.getByRole('menuitem', { name: 'Estadísticas', exact: true }),
+    ).toHaveAttribute('href', '/statistics');
     const bounds = await panel.boundingBox();
     expect(bounds!.x).toBeGreaterThanOrEqual(0);
     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
@@ -1327,7 +1322,7 @@ for (const width of [1280]) {
     await page.locator('.sidebar').click({ position: { x: 5, y: 400 } });
     await expect(panel).toBeHidden();
     await trigger.click();
-    await panel.getByRole('link', { name: 'Estadísticas', exact: true }).click();
+    await panel.getByRole('menuitem', { name: 'Estadísticas', exact: true }).click();
     await expect(page).toHaveURL(/\/statistics$/);
     await expect(account.locator('.menu-card')).toBeHidden();
   });
@@ -1342,16 +1337,17 @@ for (const width of [360, 390]) {
     const sidebar = page.locator('.sidebar');
     await expect(sidebar).toHaveCSS('transform', 'none');
     await expect(sidebar.locator('.sidebar-account-identity')).toContainText('Auditoría');
-    await expect(sidebar.locator('.control-chip, .account-menu')).toHaveCount(0);
+    await expect(sidebar.locator('.control-chip')).toHaveCount(0);
     const footer = sidebar.locator('.sidebar-more-footer');
     await expect(footer.getByRole('link', { name: 'Ajustes', exact: true })).toBeVisible();
     const logout = footer.getByRole('button', { name: 'Cerrar sesión', exact: true });
     await expect(logout).toBeVisible();
     const settingsBox = await footer.locator('a').boundingBox();
     const logoutBox = await logout.boundingBox();
-    const sidebarBox = await sidebar.boundingBox();
     expect(logoutBox!.y).toBeGreaterThan(settingsBox!.y);
-    expect(sidebarBox!.y + sidebarBox!.height - logoutBox!.y - logoutBox!.height).toBeLessThan(40);
+    const bottomBar = await page.locator('.bottom-bar').boundingBox();
+    expect(bottomBar!.y - logoutBox!.y - logoutBox!.height).toBeGreaterThanOrEqual(0);
+    expect(bottomBar!.y - logoutBox!.y - logoutBox!.height).toBeLessThan(40);
     await page.screenshot({ path: test.info().outputPath(`mobile-more-account-${width}.png`) });
     let loggedOut = false;
     await page.route('**/auth/logout', async (route) => {
@@ -1359,7 +1355,7 @@ for (const width of [360, 390]) {
       await route.fulfill({ status: 204 });
     });
     await logout.click();
-    await expect(page).toHaveURL(/\/login$/);
+    await expect(page).toHaveURL((url) => url.pathname === '/login');
     expect(loggedOut).toBe(true);
   });
 }
@@ -1370,7 +1366,7 @@ for (const width of [1440, 390]) {
       page,
     }) => {
       await page.setViewportSize({ width, height: 900 });
-      await fixtures(page);
+      await fixtures(page, { ticky: 'enabled' });
       await page.goto('/today?task=audit-task');
       await page.evaluate(
         (theme) => document.documentElement.setAttribute('data-theme', theme),

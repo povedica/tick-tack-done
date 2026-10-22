@@ -289,9 +289,11 @@ test('RF-2324 export downloads query data and RF-2321 primary rail precedes Sear
   await mock(page, false);
   await page.goto('/statistics');
   await expect(page.locator('.stats-kpi-grid')).toBeVisible();
+  await expect(page.locator('.icon-rail > a[href^="/statistics"]')).toBeVisible();
+  await expect(page.locator('.icon-rail > a[href="/dashboard"]')).toBeVisible();
   const targets = await page
     .locator('.icon-rail > a')
-    .evaluateAll((links) => links.map((link) => link.getAttribute('href')));
+    .evaluateAll((links) => links.map((link) => new URL(link.href).pathname));
   expect(targets.indexOf('/statistics')).toBeLessThan(targets.indexOf('/search'));
   expect(targets.indexOf('/dashboard')).toBe(targets.indexOf('/statistics') + 1);
   await expect(page.locator('.sidebar nav a[href="/statistics"]')).toHaveCount(0);

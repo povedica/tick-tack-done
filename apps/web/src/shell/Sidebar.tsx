@@ -1,3 +1,4 @@
+import { markSession } from '../features/auth/session';
 import { AccountMenu } from './AccountMenu';
 import { runAction } from '../components/run-action';
 import { MODULES, moduleEnabled } from './modules';
@@ -729,6 +730,7 @@ export function Sidebar({
             onClick={() => {
               runAction(
                 api.logout().then(() => {
+                  markSession('anonymous');
                   queryClient.clear();
                   onNavigate();
                   runAction(Promise.resolve(navigate('/login', { replace: true })));

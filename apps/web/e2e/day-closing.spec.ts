@@ -1,7 +1,9 @@
+import { replySession } from './mock-session';
 import { expect, test } from '@playwright/test';
 
 test('RF-2653: el cierre muestra lo hecho y deja cerrar el día', async ({ page }) => {
   await page.route('**/api/v1/**', async (route) => {
+    if (await replySession(route)) return;
     const url = route.request().url();
     if (
       url.includes('/planning/shutdown/sessions') &&

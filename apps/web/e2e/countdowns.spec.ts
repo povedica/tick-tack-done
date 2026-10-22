@@ -1,3 +1,4 @@
+import { replySession } from './mock-session';
 import { expect, test, type Page } from '@playwright/test';
 
 const item = {
@@ -27,6 +28,7 @@ async function emptyCountdowns(
 ) {
   await page.addInitScript(() => localStorage.setItem('tick-tack-done.account-prefs', '1'));
   await page.route('**/api/v1/**', async (route) => {
+    if (await replySession(route)) return;
     const path = new URL(route.request().url()).pathname;
     let body: unknown = { items: [] };
     if (path === '/api/v1/countdowns') body = { items, next_cursor: null };
@@ -170,6 +172,7 @@ for (const theme of ['light', 'dark']) {
       localStorage.setItem('tick-tack-done.account-prefs', '1');
     }, theme);
     await page.route('**/api/v1/**', async (route) => {
+      if (await replySession(route)) return;
       const url = new URL(route.request().url());
       const body =
         url.pathname === '/api/v1/auth/session'
@@ -262,6 +265,7 @@ test('RF-2451: muestra una tarjeta Countdown con los días calculados por la API
   page,
 }) => {
   await page.route('**/api/v1/**', async (route) => {
+    if (await replySession(route)) return;
     const request = route.request();
     if (request.url().includes('/api/v1/countdowns') && request.method() === 'GET') {
       await route.fulfill({
@@ -283,5 +287,5 @@ test('RF-2451: muestra una tarjeta Countdown con los días calculados por la API
   await expect(page.getByRole('heading', { name: 'Cuenta atrás' })).toBeVisible();
   await expect(page.getByText('Año Nuevo')).toBeVisible();
   await expect(page.getByText('74', { exact: true })).toBeVisible();
-  await expect(page.getByText('Faltan 74 días · 01/01/2027')).toBeVisible();
+  await expect(page.getByText('días · hasta 1 ene 2027')).toBeVisible();
 });

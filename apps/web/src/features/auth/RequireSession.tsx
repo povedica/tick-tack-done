@@ -27,6 +27,7 @@ export function SessionBootstrap() {
     clearSessionUnreachable();
     void api.currentSession().then(
       (session) => {
+        if (check !== sessionCheckGeneration()) return;
         markSession('authenticated', session.csrf_token);
       },
       (error: unknown) => {

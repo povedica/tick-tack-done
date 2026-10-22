@@ -41,9 +41,8 @@ export function markSession(next: SessionStatus, csrf?: string): void {
   if (csrf !== undefined) {
     csrfToken = csrf;
   }
-  if (next === 'authenticated') {
-    generation += 1;
-  }
+  if (next !== 'unknown') generation += 1;
+  if (next === 'anonymous') csrfToken = undefined;
   unreachable = false;
   status = next;
   emit();

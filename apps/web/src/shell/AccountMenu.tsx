@@ -1,3 +1,4 @@
+import { markSession } from '../features/auth/session';
 import { runAction } from '../components/run-action';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router';
@@ -215,6 +216,7 @@ export function AccountMenu() {
                     close();
                     runAction(
                       api.logout().then(() => {
+                        markSession('anonymous');
                         cache.clear();
                         runAction(Promise.resolve(navigate('/login', { replace: true })));
                       }),

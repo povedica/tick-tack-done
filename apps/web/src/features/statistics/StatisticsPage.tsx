@@ -3,6 +3,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type KeyboardEvent,
@@ -125,7 +126,7 @@ export function StatisticsPage() {
   function clear() {
     update({ list: null, tag: null, priority: null });
   }
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (waitingForTimeZone) return;
     if (search.size === 0) {
       const copy = new URLSearchParams(stored);
@@ -296,6 +297,7 @@ export function StatisticsPage() {
                   data-option
                   key={key}
                   type="button"
+                  disabled={waitingForTimeZone}
                   aria-pressed={rangeKey === key}
                   className={rangeKey === key ? 'is-active' : undefined}
                   onClick={() => {
@@ -478,6 +480,7 @@ export function StatisticsPage() {
               id={`stats-tab-${key}`}
               type="button"
               role="tab"
+              disabled={waitingForTimeZone}
               aria-selected={tab === key}
               aria-controls={`stats-panel-${key}`}
               tabIndex={tab === key ? 0 : -1}

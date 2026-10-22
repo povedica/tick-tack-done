@@ -787,6 +787,7 @@
   padding: 7px 0;
 }
 .calendar-page .agenda-row > .task-check-hit {
+  transform: translateY(calc(var(--sp-1) * -0.5));
   margin: 0;
   height: 28px;
   width: 28px;
