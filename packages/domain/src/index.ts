@@ -162,7 +162,7 @@ export type {
   CompleteChildrenPolicy,
   ParentCompletionDecision,
 } from './tasks/completion';
-export { deriveDurationMinutes } from './tasks/duration';
+export { deriveDurationMinutes, endFromDuration } from './tasks/duration';
 export type { DurationDerivation } from './tasks/duration';
 export { normalizeTaskTitle, resolveSubtaskProject } from './tasks/subtask';
 export type { SubtaskProject, TaskTitle } from './tasks/subtask';
@@ -425,3 +425,7 @@ export { recurrenceAnchorWarning } from './recurrence/anchor';
 export type { RecurrenceAnchorWarning } from './recurrence/anchor';
 
 export { listNameKey } from './lists/name';
+
+export { normalizeReminderTrigger } from './reminders/trigger';
+
+export { repairAllDayUtc } from './tasks/repair-allday';

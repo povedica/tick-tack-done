@@ -242,8 +242,8 @@ export class ViewTaskDto {
   @ApiProperty({ nullable: true, type: String })
   repeat_rule!: string | null;
 
-  @ApiProperty({ enum: ['manual', 'import', 'api', 'automation', 'plugin'] })
-  source!: 'manual' | 'import' | 'api' | 'automation' | 'plugin';
+  @ApiProperty({ enum: ['manual', 'import', 'api', 'mcp', 'automation', 'plugin'] })
+  source!: 'manual' | 'import' | 'api' | 'mcp' | 'automation' | 'plugin';
 
   @ApiProperty({ nullable: true, type: String })
   deleted_at!: string | null;

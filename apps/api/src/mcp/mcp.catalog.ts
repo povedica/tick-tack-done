@@ -385,7 +385,7 @@ const CATALOG: readonly McpTool[] = [
   {
     name: 'add_task_reminder',
     description:
-      'Add a reminder. Relative example: type=relative, trigger=TRIGGER:-PT15M (15 minutes before due). Absolute: type=absolute, trigger=TRIGGER, absolute_at=ISO datetime.',
+      'Add a reminder. Relative example: type=relative, trigger=-PT15M (TRIGGER:-PT15M is also accepted; stored canonically as -PT15M) (15 minutes before due). Absolute: type=absolute, trigger=TRIGGER, absolute_at=ISO datetime.',
     scopes: ['reminders:write'],
     inputSchema: objectSchema(
       {
@@ -558,6 +558,7 @@ const CATALOG: readonly McpTool[] = [
       ['session_id', 'expected_revision', 'idempotency_key'],
     ),
   },
+  { name: 'discard_replan', description: 'Discard an owned draft replan without changing tasks. Applied sessions cannot be discarded.', scopes: ['tasks:write'], inputSchema: objectSchema({ session_id: id }, ['session_id']) },
   {
     name: 'replan_day',
     description:
@@ -839,18 +840,13 @@ const CATALOG: readonly McpTool[] = [
   },
 ];
 
-/** Every listing shares paging inputs; existing API keyset cursors stay unchanged. */
-export const MCP_TOOLS: readonly McpTool[] = CATALOG.map((tool) =>
-  tool.name.startsWith('list_')
-    ? {
-        ...tool,
-        inputSchema: {
-          ...tool.inputSchema,
-          properties: { limit, cursor, ...tool.inputSchema.properties },
-        },
-      }
-    : tool,
-);
+/** Every listing shares paging inputs; task activity defaults to a compact summary. */
+const ACTIVITY_TOOLS = new Set(['get_task', 'create_task', 'update_task', 'quick_add', 'complete_task', 'reopen_task', 'cancel_task', 'restore_task', 'detach_occurrence']);
+export const MCP_TOOLS: readonly McpTool[] = CATALOG.map(tool => ({ ...tool, inputSchema: { ...tool.inputSchema, properties: {
+  ...(tool.name.startsWith('list_') ? { limit, cursor } : {}),
+  ...(ACTIVITY_TOOLS.has(tool.name) ? { include_activity: { type: 'string', enum: ['summary', 'full'], description: 'Default summary; full includes stored task snapshots.' } } : {}),
+  ...tool.inputSchema.properties,
+} } }));
 
 export function findTool(name: string): McpTool | undefined {
   return MCP_TOOLS.find((tool) => tool.name === name);

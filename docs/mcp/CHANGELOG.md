@@ -10,3 +10,9 @@
 - TTD-AUD-84: start_focus comparte el ciclo de vida REST; cinco herramientas nuevas pause_focus/resume_focus/finish_focus/abort_focus/get_focus_state, todas con focus:write.
 - TTD-AUD-85.1: api_request conserva data.status/code/message/body y los detalles del error REST.
 - El catálogo final se actualizará con los puntos restantes; no se declara todavía el total de 75 herramientas.
+
+### TTD-AUD-85
+- Versión API 0.2.0 + commit; catálogo con hash Redis persistente y SSE autenticado `notifications/tools/list_changed`.
+- Actividad compacta por defecto, con origen y actor en get_task; `include_activity:full` conserva el detalle anterior.
+- `discard_replan` descarta un borrador propio sin modificar tareas. Una replanificación vacía no crea sesión.
+- Recordatorios normalizados a duración ISO; rangos NLP tienen inicio, fin y duración. Origen `mcp` explícito en capturas y aislamiento.

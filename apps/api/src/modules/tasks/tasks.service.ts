@@ -19,6 +19,8 @@ import {
   parseTaskInstant,
   resolveSubtaskProject,
   parseTrigger,
+  normalizeReminderTrigger,
+  endFromDuration,
   reminderFireAt,
   listVisible,
   projectConstraint,
@@ -333,7 +335,7 @@ export class TasksService {
     user: AuthUser,
     dto: CreateTaskDto,
     keyRaw: string | undefined,
-    source: 'manual' | 'api' = 'manual',
+    source: 'manual' | 'api' | 'mcp' = 'manual',
   ): Promise<Saved> {
     if (
       dto.reminder_trigger !== undefined &&
@@ -430,11 +432,15 @@ export class TasksService {
         : this.nextDate(current.startDate, dto.start_date, 'start_date', timeZone);
       const dueParsed = this.nextDate(current.dueDate, dto.due_date, 'due_date', timeZone);
       const start = startParsed.date;
-      const due = dueParsed.date;
+      let due = dueParsed.date;
       const inferredAllDay =
         (dto.start_date !== undefined && startParsed.dateOnly) ||
         (dto.due_date !== undefined && dueParsed.dateOnly);
       const isAllDay = dto.is_all_day ?? (inferredAllDay ? true : current.isAllDay);
+      if (due === null && dto.due_date === undefined && !isAllDay && (dto.start_date !== undefined || dto.duration_minutes !== undefined)) {
+        const end = endFromDuration(start?.toISOString() ?? null, dto.duration_minutes === undefined ? current.durationMinutes : dto.duration_minutes);
+        if (end !== null) due = new Date(end);
+      }
       this.assertTimed(due, isAllDay, timeZone);
       this.assertTimed(start, isAllDay, timeZone);
       const duration = this.duration(
@@ -643,7 +649,7 @@ export class TasksService {
     });
   }
 
-  async uncomplete(user: AuthUser, id: string): Promise<TaskDetail> {
+  async uncomplete(user: AuthUser, id: string, source: 'api' | 'mcp' | 'web' = user.sessionId === null ? 'api' : 'web'): Promise<TaskDetail> {
     return this.prisma.$transaction(async (tx) => {
       const current = await this.require(tx, user.id, id, false);
       if (current.status !== 'completed' && current.status !== 'cancelled') {
@@ -681,7 +687,7 @@ export class TasksService {
         entityType: 'task',
         entityId: id,
         action: 'updated',
-        data: { task: asJson(taskEventSnapshot(detail)) },
+        data: { task: asJson(taskEventSnapshot(detail)), source },
         previous: { status: current.status },
       });
       return detail;
@@ -776,6 +782,7 @@ export class TasksService {
     id: string,
     dueDate: string,
     title: string | undefined,
+    source: 'manual' | 'api' | 'mcp' = user.sessionId === null ? 'api' : 'manual',
   ): Promise<TaskDetail> {
     return this.prisma.$transaction(async (tx) => {
       const current = await this.require(tx, user.id, id, false);
@@ -801,6 +808,7 @@ export class TasksService {
         await tx.task.update({
           where: { id },
           data: {
+            source,
             repeatRule: null,
             seriesId: null,
             recurrenceOpen: false,
@@ -822,11 +830,11 @@ export class TasksService {
         });
         const detail = await this.load(tx, user, id, false);
         await this.events.record(tx, actorOf(user), {
-          type: DomainEvent.taskUpdated,
+          type: DomainEvent.occurrenceDetached,
           entityType: 'task',
           entityId: id,
           action: 'updated',
-          data: { task: asJson(taskEventSnapshot(detail)), detached: true },
+          data: { task: asJson(taskEventSnapshot(detail)), detached: true, source },
           previous: { repeat_rule: current.repeatRule },
         });
         return detail;
@@ -855,7 +863,7 @@ export class TasksService {
           recurrenceOpen: false,
           sortOrder: current.sortOrder,
           createdById: user.id,
-          source: 'manual',
+          source,
         },
       });
       await tx.taskTag.createMany({
@@ -873,11 +881,11 @@ export class TasksService {
         previous: { repeat_rule: current.repeatRule },
       });
       await this.events.record(tx, actorOf(user), {
-        type: created.kind === 'note' ? DomainEvent.noteCreated : DomainEvent.taskCreated,
+        type: DomainEvent.occurrenceDetached,
         entityType: created.kind === 'note' ? 'note' : 'task',
         entityId: copyId,
         action: 'created',
-        data: { task: asJson(taskEventSnapshot(created)), detached_from: id },
+        data: { task: asJson(taskEventSnapshot(created)), detached_from: id, source },
         previous: null,
       });
       return created;
@@ -1060,7 +1068,7 @@ export class TasksService {
     });
   }
 
-  async restore(user: AuthUser, id: string): Promise<TaskDetail> {
+  async restore(user: AuthUser, id: string, source: 'api' | 'mcp' | 'web' = user.sessionId === null ? 'api' : 'web'): Promise<TaskDetail> {
     return this.prisma.$transaction(async (tx) => {
       const current = await tx.task.findFirst({ where: { id, ownerId: user.id } });
       if (current === null) {
@@ -1103,7 +1111,7 @@ export class TasksService {
         entityType: 'task',
         entityId: id,
         action: 'updated',
-        data: { task: asJson(taskEventSnapshot(detail)) },
+        data: { task: asJson(taskEventSnapshot(detail)), source },
         previous: { deleted_at: current.deletedAt.toISOString() },
       });
       return detail;
@@ -1473,7 +1481,7 @@ export class TasksService {
           data: {
             ownerId: user.id,
             taskId,
-            trigger: dto.trigger.trim(),
+            trigger: normalizeReminderTrigger(dto.trigger) ?? dto.trigger.trim(),
             type: dto.type,
             absoluteAt:
               dto.absolute_at === undefined || dto.absolute_at === null
@@ -1583,7 +1591,7 @@ export class TasksService {
     tx: Tx,
     user: AuthUser,
     dto: CreateTaskDto,
-    source: 'manual' | 'api' = 'manual',
+    source: 'manual' | 'api' | 'mcp' = 'manual',
   ): Promise<CreatedTask> {
     if (dto.parent_id) {
       const key = `task-hierarchy:${user.id}`;
@@ -1649,7 +1657,11 @@ export class TasksService {
       timeZone,
     );
     const start = startParsed.date;
-    const due = dueParsed.date;
+    const inferredAllDay = startParsed.dateOnly || dueParsed.dateOnly;
+    const isAllDay = dto.is_all_day ?? captured?.isAllDay ?? (inferredAllDay ? true : false);
+    const explicitDuration = dto.duration_minutes === undefined ? captured?.durationMinutes ?? null : dto.duration_minutes;
+    const inferredEnd = !isAllDay && dto.due_date === undefined && dueParsed.date === null ? endFromDuration(start?.toISOString() ?? null, explicitDuration) : null;
+    const due = dueParsed.date ?? (inferredEnd === null ? null : new Date(inferredEnd));
     const sortOrder = await this.planTaskSort(
       tx,
       user.id,
@@ -1664,8 +1676,6 @@ export class TasksService {
       due,
       timeZone,
     );
-    const inferredAllDay = startParsed.dateOnly || dueParsed.dateOnly;
-    const isAllDay = dto.is_all_day ?? captured?.isAllDay ?? (inferredAllDay ? true : false);
     this.assertTimed(due, isAllDay, timeZone);
     this.assertTimed(start, isAllDay, timeZone);
     const id = randomUUID();
@@ -2012,7 +2022,7 @@ export class TasksService {
           ownerId: source.ownerId,
           taskId: id,
           type: reminder.type,
-          trigger: reminder.trigger,
+          trigger: normalizeReminderTrigger(reminder.trigger) ?? reminder.trigger,
           absoluteAt: reminder.absoluteAt,
           channel: reminder.channel,
         },
@@ -2494,7 +2504,7 @@ export class TasksService {
         data: {
           ownerId: userId,
           taskId,
-          trigger: explicit,
+          trigger: normalizeReminderTrigger(explicit) ?? explicit,
           type: 'relative',
           channel: 'push',
         },

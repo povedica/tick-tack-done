@@ -1,4 +1,5 @@
 export const DomainEvent = {
+  occurrenceDetached: 'occurrence.detached@v1',
   seriesClosed: 'series.closed@v1',
   taskCreated: 'task.created@v1',
   taskUpdated: 'task.updated@v1',
@@ -9,6 +10,7 @@ export const DomainEvent = {
   planApplied: 'plan.applied@v1',
   planShutdownStarted: 'plan.shutdown_started@v1',
   planShutdownApplied: 'plan.shutdown_applied@v1',
+  planReplanDiscarded: 'plan.replan_discarded@v1',
   planReplanApplied: 'plan.replan_applied@v1',
   taskSomedaySet: 'task.someday_set@v1',
   taskSomedayUnset: 'task.someday_unset@v1',

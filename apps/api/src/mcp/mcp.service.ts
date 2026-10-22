@@ -1,3 +1,4 @@
+import { buildVersion } from '../build-info.js';
 import apiOperations from './api-operations.json' with { type: 'json' };
 import { requestPublicApi } from './mcp-api.js';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
@@ -147,8 +148,8 @@ export class McpService {
       typeof requested === 'string' && PROTOCOLS.has(requested) ? requested : PROTOCOL;
     return {
       protocolVersion,
-      capabilities: { tools: { listChanged: false } },
-      serverInfo: { name: 'reflexionia-tasks', version: '0.1.0' },
+      capabilities: { tools: { listChanged: true } },
+      serverInfo: { name: 'reflexionia-tasks', version: buildVersion() },
       instructions:
         'Tools call the same API v1 operations as the REST API and cannot exceed the token scopes.',
     };
@@ -198,6 +199,7 @@ export class McpService {
     } else if (tool.name === 'api_request') data = await requestPublicApi(args, authorization);
     else data = await this.run(user, tool.name, args, authorization);
     if (tool.name.startsWith('list_')) data = listResult(data, args);
+    if (args.include_activity !== 'full') data = summarizeActivity(data, tool.name === 'get_task');
     return { content: [{ type: 'text', text: JSON.stringify(data) }], isError: false };
   }
 
@@ -315,7 +317,7 @@ export class McpService {
                 ...recurrence,
               },
               undefined,
-              'api',
+              'mcp',
             )
           ).body,
         );
@@ -335,7 +337,7 @@ export class McpService {
                   : { project_id: await this.projectId(user, args) }),
               },
               undefined,
-              'api',
+              'mcp',
             )
           ).body,
         );
@@ -362,14 +364,14 @@ export class McpService {
         return enrichTask(body);
       }
       case 'reopen_task':
-        return enrichTask(await this.tasks.uncomplete(user, requiredUuid(args, 'id')));
+        return enrichTask(await this.tasks.uncomplete(user, requiredUuid(args, 'id'), 'mcp'));
       case 'cancel_task':
         return enrichTask(await this.tasks.cancel(user, requiredUuid(args, 'id')));
       case 'delete_task':
         await this.tasks.remove(user, requiredUuid(args, 'id'));
         return { deleted: true, trashed: true };
       case 'restore_task':
-        return enrichTask(await this.tasks.restore(user, requiredUuid(args, 'id')));
+        return enrichTask(await this.tasks.restore(user, requiredUuid(args, 'id'), 'mcp'));
       case 'list_task_comments': {
         const taskId = requiredUuid(args, 'task_id');
         await this.tasks.get(user, taskId);
@@ -613,6 +615,7 @@ export class McpService {
             requiredUuid(args, 'id'),
             requiredString(args, 'due_date', 40),
             typeof args.title === 'string' ? requiredString(args, 'title', 500) : undefined,
+            'mcp',
           ),
         );
       case 'get_day_load':
@@ -643,6 +646,8 @@ export class McpService {
           revisionOf(args),
           requiredString(args, 'idempotency_key', 200),
         );
+      case 'discard_replan':
+        return this.closing.discardReplan(user, requiredUuid(args, 'session_id'));
       case 'replan_day':
         return this.closing.replanTool(
           user,
@@ -1120,6 +1125,23 @@ function toolError(
 }
 
 /** Normalize legacy unpaged collections while preserving API keyset cursors and groups. */
+function summarizeActivity(value: unknown, includeActor: boolean): unknown {
+  if (!isRecord(value) || !Array.isArray(value.activity)) return value;
+  const activity = collection(value.activity).filter(isRecord).map(entry => {
+    const changes = isRecord(entry.changes) ? entry.changes : {};
+    const payload = isRecord(changes.data) ? changes.data : changes;
+    const task = isRecord(payload.task) ? payload.task : {};
+    const previous = isRecord(changes.previous) ? changes.previous : {};
+    const keys = Object.keys(previous).length ? Object.keys(previous) : ['title', 'content', 'status', 'priority', 'due_date', 'start_date', 'repeat_rule'];
+    const type = typeof changes._event_type === 'string' ? changes._event_type.replace(/@v[0-9]+$/, '') : payload.detached === true ? 'occurrence.detached' : `task.${typeof entry.action === 'string' ? entry.action : 'updated'}`;
+    const source = typeof payload.source === 'string' ? payload.source : typeof task.source === 'string' ? task.source : entry.actor_kind === 'user' ? 'web' : 'api';
+    return { at: entry.created_at ?? null, type, source, changed: keys.filter(key => key !== 'updated_at' && JSON.stringify(previous[key]) !== JSON.stringify(task[key])),
+      ...(includeActor ? { actor: { id: entry.token_id ?? entry.actor_id ?? null, kind: entry.actor_kind ?? 'user', ...(entry.token_name ? { name: entry.token_name } : {}) } } : {}),
+    };
+  });
+  return { ...value, activity };
+}
+
 function collection(value: unknown): unknown[] {
   return Array.isArray(value) ? (value as unknown[]) : [];
 }

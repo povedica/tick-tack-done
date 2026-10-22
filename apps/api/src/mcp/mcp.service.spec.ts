@@ -62,6 +62,7 @@ describe('McpService recurrence mapping', () => {
     $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma)),
   };
 
+  const closing = { replanTool: vi.fn(), discardReplan: vi.fn() };
   let service: McpService;
 
   beforeEach(() => {
@@ -69,7 +70,7 @@ describe('McpService recurrence mapping', () => {
     prisma.tag.findFirst.mockResolvedValue(null);
     service = new McpService(
       tasks as never,
-      {} as never,
+      closing as never,
       lists as never,
       tags as never,
       {} as never,
@@ -120,7 +121,7 @@ describe('McpService recurrence mapping', () => {
         repeat_from: 'due_date',
       }),
       undefined,
-      'api',
+      'mcp',
     );
     const text = JSON.parse(toolText(result)) as {
       repeat_label: string;
@@ -336,7 +337,7 @@ describe('McpService recurrence mapping', () => {
         tag_ids: ['44444444-4444-4444-8444-444444444444'],
       }),
       undefined,
-      'api',
+      'mcp',
     );
   });
 
@@ -365,7 +366,7 @@ describe('McpService recurrence mapping', () => {
         raw_text: 'Prueba parser #Instinct mañana 09:00-09:30',
       }),
       undefined,
-      'api',
+      'mcp',
     );
   });
 
@@ -387,7 +388,7 @@ describe('McpService recurrence mapping', () => {
         arguments: { id: '33333333-3333-4333-8333-333333333333' },
       },
     });
-    expect(tasks.uncomplete).toHaveBeenCalledWith(user, '33333333-3333-4333-8333-333333333333');
+    expect(tasks.uncomplete).toHaveBeenCalledWith(user, '33333333-3333-4333-8333-333333333333', 'mcp');
     await service.handle(user, {
       jsonrpc: '2.0',
       id: 12,
@@ -509,7 +510,7 @@ describe('McpService recurrence mapping', () => {
       user,
       expect.objectContaining({ project_id: '55555555-5555-4555-8555-555555555555' }),
       undefined,
-      'api',
+      'mcp',
     );
   });
   it('TTD-AUD-82: complete_task forwards the explicit children decision', async () => {
@@ -698,6 +699,30 @@ describe('McpService recurrence mapping', () => {
       },
     });
   });
+  it('TTD-AUD-85.3: initialize advertises the versioned changing catalog', async () => {
+    const response = await service.handle(user, { jsonrpc: '2.0', id: 85, method: 'initialize', params: {} });
+    expect(response).toMatchObject({ result: { capabilities: { tools: { listChanged: true } }, serverInfo: { version: expect.stringMatching(/^0\.2\.0\+(?:[a-f0-9]{7}|unknown)$/) } } });
+  });
+  it('TTD-AUD-85.4: discard_replan forwards the owned session id', async () => {
+    closing.discardReplan.mockResolvedValue({ discarded: true });
+    const response = await service.handle(user, { jsonrpc: '2.0', id: 85, method: 'tools/call', params: { name: 'discard_replan', arguments: { session_id: '33333333-3333-4333-8333-333333333333' } } });
+    expect(response).toMatchObject({ result: { isError: false } });
+    expect(closing.discardReplan).toHaveBeenCalledWith(user, '33333333-3333-4333-8333-333333333333');
+  });
+  it('TTD-AUD-85.8: update responses keep a compact activity summary under 2 KB', async () => {
+    const task = { id: '33333333-3333-4333-8333-333333333333', title: 'Small task', repeat_rule: null, time_zone: 'Europe/Madrid', tag_ids: [], activity: Array.from({ length: 4 }, (_, i) => ({ id: String(i), created_at: '2026-10-22T10:00:00Z', action: 'updated', changes: { _event_type: 'task.updated@v1', data: { task: { title: 'old'.repeat(3000) } }, previous: { title: 'old' } } })) };
+    tasks.get.mockResolvedValue(task); tasks.update.mockResolvedValue(task);
+    const response = await service.handle(user, { jsonrpc: '2.0', id: 85, method: 'tools/call', params: { name: 'update_task', arguments: { id: task.id, title: 'New title' } } });
+    expect(Buffer.byteLength(toolText(response))).toBeLessThan(2048);
+    const body = JSON.parse(toolText(response)) as { activity: unknown[] };
+    expect(body.activity[0]).toMatchObject({ type: 'task.updated', changed: ['title'] });
+  });
+  it('TTD-AUD-85.8: get_task can explicitly request full activity', async () => {
+    tasks.get.mockResolvedValue({ id: '33333333-3333-4333-8333-333333333333', repeat_rule: null, activity: [{ changes: { task: { title: 'Full snapshot' } } }] });
+    const response = await service.handle(user, { jsonrpc: '2.0', id: 85, method: 'tools/call', params: { name: 'get_task', arguments: { id: '33333333-3333-4333-8333-333333333333', include_activity: 'full' } } });
+    expect(JSON.parse(toolText(response))).toMatchObject({ activity: [{ changes: { task: { title: 'Full snapshot' } } }] });
+  });
+
 });
 
 function toolText(body: unknown): string {

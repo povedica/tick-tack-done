@@ -52,7 +52,7 @@ export interface ViewTaskJson {
   created_at: string;
   completed_at: string | null;
   repeat_rule: string | null;
-  source: 'manual' | 'import' | 'api' | 'automation' | 'plugin';
+  source: 'manual' | 'import' | 'api' | 'mcp' | 'automation' | 'plugin';
   deleted_at: string | null;
 }
 
@@ -72,7 +72,7 @@ export interface ViewTask extends ArrangedTask {
   readonly deletedAt: string | null;
   readonly completedAt: string | null;
   readonly repeatRule: string | null;
-  readonly source: 'manual' | 'import' | 'api' | 'automation' | 'plugin';
+  readonly source: 'manual' | 'import' | 'api' | 'mcp' | 'automation' | 'plugin';
   readonly subject: FilterSubject;
 }
 

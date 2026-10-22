@@ -6022,7 +6022,7 @@
             "description": "Missing credential or invalid bearer token."
           }
         },
-        "summary": "Stateless Streamable HTTP JSON-RPC (RF-2001). POST returns application/json; a notification returns 202 with an empty body. GET and DELETE on this path return 405 with Allow: POST until a server-sent stream exists. No Mcp-Session-Id. A tool is listed only when the token holds every scope it declares.",
+        "summary": "Stateless Streamable HTTP JSON-RPC (RF-2001). POST returns application/json; a notification returns 202 with an empty body. GET with Accept: text/event-stream offers catalog change notifications; DELETE returns 405. No Mcp-Session-Id. A tool is listed only when the token holds every scope it declares.",
         "tags": [
           "mcp"
         ],
@@ -6036,6 +6036,9 @@
         "operationId": "McpController_get",
         "parameters": [],
         "responses": {
+          "200": {
+            "description": "SSE stream; notifications/tools/list_changed when the persisted catalog hash changed."
+          },
           "401": {
             "description": "Missing credential or invalid bearer token."
           },
@@ -6052,7 +6055,7 @@
             }
           }
         },
-        "summary": "SSE is not offered. Returns 405 so a Streamable HTTP client keeps using POST (RF-2001).",
+        "summary": "Authenticated SSE catalog-change notifications (RF-2001); other Accept headers return 405.",
         "tags": [
           "mcp"
         ],
@@ -6516,6 +6519,35 @@
           }
         },
         "summary": "Propose a light replan (RF-2670)",
+        "tags": [
+          "planning"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/planning/replan/sessions/{id}": {
+      "delete": {
+        "operationId": "DayClosingController_discardReplan",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "Discard an owned replan draft without applying decisions (TTD-AUD-85)",
         "tags": [
           "planning"
         ],
@@ -12938,7 +12970,7 @@
   "info": {
     "title": "Reflexionia Tasks API",
     "description": "Public API for Reflexionia Tasks.",
-    "version": "1.0",
+    "version": "0.2.0",
     "contact": {}
   },
   "tags": [],
@@ -15843,6 +15875,7 @@
               "manual",
               "import",
               "api",
+              "mcp",
               "automation",
               "plugin"
             ]

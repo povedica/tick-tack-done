@@ -59,6 +59,10 @@ async function removeOwner(id: string): Promise<void> {
   await prisma.smartList.deleteMany({ where: { ownerId: id } });
   await prisma.focusSession.deleteMany({ where: { ownerId: id } });
   await prisma.focusSettings.deleteMany({ where: { userId: id } });
+  await prisma.planDecision.deleteMany({ where: { session: { ownerId: id } } });
+  await prisma.planOperation.deleteMany({ where: { ownerId: id } });
+  await prisma.planSession.deleteMany({ where: { ownerId: id } });
+  await prisma.dayPlan.deleteMany({ where: { ownerId: id } });
   await prisma.habitLog.deleteMany({ where: { ownerId: id } });
   await prisma.habit.deleteMany({ where: { ownerId: id } });
   await prisma.task.deleteMany({ where: { ownerId: id } });
@@ -188,18 +192,20 @@ describe('MCP server', () => {
       );
   });
 
-  it('RF-2001: GET and DELETE stay on POST until a server stream exists', async () => {
+  it('TTD-AUD-85.3: authenticated SSE streams catalog changes without a session', async () => {
     const bearer = await tasksBearer(server, owner.email);
 
-    const get = await request(server)
-      .get('/api/v1/mcp')
-      .set(bearer)
-      .set('Accept', 'text/event-stream');
-    expect(get.status).toBe(405);
-    expect(get.text).toBe('');
-    expect(get.headers.allow).toContain('POST');
-    expect(get.headers['mcp-session-id']).toBeUndefined();
-
+    const abort = new AbortController();
+    try {
+      const get = await fetch(`http://127.0.0.1:${process.env.PORT}/api/v1/mcp`, { headers: { ...bearer, Accept: 'text/event-stream' }, signal: abort.signal });
+      expect(get.status).toBe(200);
+      expect(get.headers.get('content-type')).toContain('text/event-stream');
+      expect(get.headers.get('mcp-session-id')).toBeNull();
+      const chunk = await get.body?.getReader().read();
+      expect(new TextDecoder().decode(chunk?.value as Uint8Array | undefined)).toContain('catalog stream');
+    } finally { abort.abort(); }
+    const fallback = await request(server).get('/api/v1/mcp').set(bearer).set('Accept', 'application/json');
+    expect(fallback.status).toBe(405);
     const removed = await request(server).delete('/api/v1/mcp').set(bearer);
     expect(removed.status).toBe(405);
     expect(removed.text).toBe('');
@@ -1044,6 +1050,63 @@ describe('MCP server', () => {
       data: { status: 404, code: 'task_not_found', message: 'Task was not found' },
     });
   });
+  it('TTD-AUD-85.2: reopened, restored and detached activities retain MCP source and actor', async () => {
+    const created = await request(server).post('/api/v1/me/tokens').set('X-Dev-User-Email', owner.email).send({ name: 'R80 activities', scopes: [...API_SCOPES] }).expect(201);
+    const bearer = { Authorization: `Bearer ${String(created.body.token)}` };
+    const call = async (name: string, args: Record<string, unknown>) => {
+      const response = await rpc(server, bearer, 'tools/call', { name, arguments: args });
+      expect(response.body.result.isError).toBe(false);
+      return JSON.parse(toolText(response.body as unknown)) as Record<string, unknown>;
+    };
+    const task = await call('create_task', { title: 'R80 source recurrence', due_date: '2026-10-22', is_all_day: true, recurrence: { freq: 'daily' } });
+    await call('cancel_task', { id: task.id }); await call('reopen_task', { id: task.id });
+    await call('delete_task', { id: task.id }); await call('restore_task', { id: task.id });
+    const detached = await call('detach_occurrence', { id: task.id, due_date: '2026-10-21T22:00:00.000Z' });
+    expect(detached.source).toBe('mcp');
+    const detail = await call('get_task', { id: task.id });
+    const activity = detail.activity as { type: string; source: string; actor: unknown }[];
+    for (const type of ['task.reopened', 'task.restored', 'occurrence.detached']) expect(activity).toEqual(expect.arrayContaining([expect.objectContaining({ type, source: 'mcp', actor: expect.any(Object) })]));
+  });
+  it('TTD-AUD-85.4: empty replans create nothing and an owned draft can be discarded', async () => {
+    const empty = await createOwner('r80-empty-replan');
+    try {
+      const bearer = await tasksBearer(server, empty.email);
+      const response = await rpc(server, bearer, 'tools/call', { name: 'replan_day', arguments: { auto_apply: false } });
+      expect(JSON.parse(toolText(response.body as unknown))).toMatchObject({ session: null, reason: 'nothing_to_replan' });
+      expect(await prisma.planSession.count({ where: { ownerId: empty.id } })).toBe(0);
+      await prisma.task.create({ data: { ownerId: empty.id, projectId: empty.inboxId, createdById: empty.id, title: 'Overdue for replan', dueDate: new Date('2026-01-01T00:00:00Z') } });
+      const proposed = await rpc(server, bearer, 'tools/call', { name: 'replan_day', arguments: { auto_apply: false } });
+      expect(proposed.body).not.toHaveProperty('result.isError', true);
+      const draft = JSON.parse(toolText(proposed.body as unknown)) as { id: string };
+      expect(draft).toHaveProperty('id');
+      const discarded = await rpc(server, bearer, 'tools/call', { name: 'discard_replan', arguments: { session_id: draft.id } });
+      expect(JSON.parse(toolText(discarded.body as unknown))).toMatchObject({ discarded: true });
+      expect((await prisma.planSession.findUniqueOrThrow({ where: { id: draft.id } })).state).toBe('discarded');
+    } finally { await removeOwner(empty.id); }
+  });
+  it('TTD-AUD-85.5: reminder trigger inputs store the same canonical duration', async () => {
+    const token = await request(server).post('/api/v1/me/tokens').set('X-Dev-User-Email', owner.email).send({ name: 'R80 reminders', scopes: [...API_SCOPES] }).expect(201);
+    const bearer = { Authorization: `Bearer ${String(token.body.token)}` };
+    const task = await prisma.task.create({ data: { ownerId: owner.id, projectId: owner.inboxId, createdById: owner.id, title: 'R80 canonical trigger', dueDate: new Date('2026-10-23T10:00:00Z') } });
+    for (const trigger of ['TRIGGER:-PT15M', '-PT15M']) {
+      const response = await rpc(server, bearer, 'tools/call', { name: 'add_task_reminder', arguments: { task_id: task.id, trigger, type: 'relative' } });
+      expect(response.body.result.isError).toBe(false);
+      expect(JSON.parse(toolText(response.body as unknown))).toMatchObject({ trigger: '-PT15M' });
+    }
+  });
+  it('TTD-AUD-85.7/85.8: ranges expose their end and four updates stay under 2 KB', async () => {
+    const bearer = await tasksBearer(server, owner.email);
+    const quick = await rpc(server, bearer, 'tools/call', { name: 'quick_add', arguments: { text: 'R80 range mañana 17:00-17:45' } });
+    const task = JSON.parse(toolText(quick.body as unknown)) as { id: string; start_date: string; due_date: string; duration_minutes: number };
+    expect(Date.parse(task.due_date) - Date.parse(task.start_date)).toBe(45 * 60_000);
+    expect(task.duration_minutes).toBe(45);
+    for (let i = 0; i < 4; i++) await rpc(server, bearer, 'tools/call', { name: 'update_task', arguments: { id: task.id, title: `R80 small update ${i}` } });
+    const updated = await rpc(server, bearer, 'tools/call', { name: 'update_task', arguments: { id: task.id, priority: 'high' } });
+    expect(Buffer.byteLength(toolText(updated.body as unknown))).toBeLessThan(2048);
+    const full = await rpc(server, bearer, 'tools/call', { name: 'get_task', arguments: { id: task.id, include_activity: 'full' } });
+    expect(JSON.parse(toolText(full.body as unknown))).toHaveProperty('activity.0.changes');
+  });
+
 });
 
 function toolText(body: unknown): string {

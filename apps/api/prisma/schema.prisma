@@ -63,6 +63,7 @@ enum RepeatFrom {
 }
 
 enum TaskSource {
+  mcp
   manual
   import
   api

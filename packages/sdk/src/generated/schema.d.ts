@@ -1977,10 +1977,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** SSE is not offered. Returns 405 so a Streamable HTTP client keeps using POST (RF-2001). */
+        /** Authenticated SSE catalog-change notifications (RF-2001); other Accept headers return 405. */
         get: operations["McpController_get"];
         put?: never;
-        /** Stateless Streamable HTTP JSON-RPC (RF-2001). POST returns application/json; a notification returns 202 with an empty body. GET and DELETE on this path return 405 with Allow: POST until a server-sent stream exists. No Mcp-Session-Id. A tool is listed only when the token holds every scope it declares. */
+        /** Stateless Streamable HTTP JSON-RPC (RF-2001). POST returns application/json; a notification returns 202 with an empty body. GET with Accept: text/event-stream offers catalog change notifications; DELETE returns 405. No Mcp-Session-Id. A tool is listed only when the token holds every scope it declares. */
         post: operations["McpController_handle"];
         /** There is no MCP session to close. Returns 405 with Allow: POST (RF-2001). */
         delete: operations["McpController_remove"];
@@ -2162,6 +2162,23 @@ export interface paths {
         /** Propose a light replan (RF-2670) */
         post: operations["DayClosingController_startReplan"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/planning/replan/sessions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Discard an owned replan draft without applying decisions (TTD-AUD-85) */
+        delete: operations["DayClosingController_discardReplan"];
         options?: never;
         head?: never;
         patch?: never;
@@ -4201,7 +4218,7 @@ export interface components {
             completed_at: string | null;
             repeat_rule: string | null;
             /** @enum {string} */
-            source: "manual" | "import" | "api" | "automation" | "plugin";
+            source: "manual" | "import" | "api" | "mcp" | "automation" | "plugin";
             deleted_at: string | null;
         };
         ViewGroupDto: {
@@ -8206,6 +8223,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description SSE stream; notifications/tools/list_changed when the persisted catalog hash changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Missing credential or invalid bearer token. */
             401: {
                 headers: {
@@ -8543,6 +8567,25 @@ export interface operations {
         };
         responses: {
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DayClosingController_discardReplan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };

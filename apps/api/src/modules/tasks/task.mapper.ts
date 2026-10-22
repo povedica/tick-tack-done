@@ -25,7 +25,7 @@ export interface TaskRow {
   assigneeId: string | null;
   createdById: string;
   completedAt: Date | null;
-  source: 'manual' | 'import' | 'api' | 'automation' | 'plugin';
+  source: 'manual' | 'import' | 'api' | 'mcp' | 'automation' | 'plugin';
   version: number;
   createdAt: Date;
   updatedAt: Date;

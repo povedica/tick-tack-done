@@ -1,3 +1,4 @@
+import { McpRevision } from './mcp-revision.js';
 import { Body, Controller, Delete, Get, HttpStatus, Inject, Post, Req, Res } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
@@ -7,12 +8,12 @@ import { Authenticated } from '../auth/scopes.decorator.js';
 import { McpService } from './mcp.service.js';
 
 const POST_SUMMARY =
-  'Stateless Streamable HTTP JSON-RPC (RF-2001). POST returns application/json; a notification returns 202 with an empty body. GET and DELETE on this path return 405 with Allow: POST until a server-sent stream exists. No Mcp-Session-Id. A tool is listed only when the token holds every scope it declares.';
+  'Stateless Streamable HTTP JSON-RPC (RF-2001). POST returns application/json; a notification returns 202 with an empty body. GET with Accept: text/event-stream offers catalog change notifications; DELETE returns 405. No Mcp-Session-Id. A tool is listed only when the token holds every scope it declares.';
 
 @ApiTags('mcp')
 @Controller('mcp')
 export class McpController {
-  constructor(@Inject(McpService) private readonly mcp: McpService) {}
+  constructor(@Inject(McpService) private readonly mcp: McpService, @Inject(McpRevision) private readonly revision: McpRevision) {}
 
   @Post()
   @Authenticated()
@@ -50,8 +51,9 @@ export class McpController {
   @Authenticated()
   @ApiOperation({
     summary:
-      'SSE is not offered. Returns 405 so a Streamable HTTP client keeps using POST (RF-2001).',
+      'Authenticated SSE catalog-change notifications (RF-2001); other Accept headers return 405.',
   })
+  @ApiResponse({ status: 200, description: 'SSE stream; notifications/tools/list_changed when the persisted catalog hash changed.' })
   @ApiResponse({
     status: 405,
     description:
@@ -61,8 +63,16 @@ export class McpController {
     },
   })
   @ApiResponse({ status: 401, description: 'Missing credential or invalid bearer token.' })
-  get(@Res() res: Response): void {
-    this.methodNotAllowed(res);
+  async get(@CurrentUser() user: AuthUser, @Req() req: Request, @Res() res: Response): Promise<void> {
+    if (!req.headers.accept?.includes('text/event-stream')) { this.methodNotAllowed(res); return; }
+    res.status(200).set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' });
+    res.flushHeaders();
+    res.write(': catalog stream\n\n');
+    if (await this.revision.consume(user.tokenId ?? user.sessionId ?? user.id)) {
+      res.write(`event: message\ndata: ${JSON.stringify({ jsonrpc: '2.0', method: 'notifications/tools/list_changed' })}\n\n`);
+    }
+    const heartbeat = setInterval(() => { res.write(': heartbeat\n\n'); }, 25000);
+    req.on('close', () => { clearInterval(heartbeat); });
   }
 
   @Delete()

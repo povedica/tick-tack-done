@@ -14,6 +14,7 @@ import {
   nextDailyReminder,
   nextHabitReminder,
   nextOccurrence,
+  normalizeReminderTrigger,
   readStoredHabit,
   streakBreakOn,
   REMINDER_HORIZON_MS,
@@ -352,7 +353,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     });
     for (const reminder of reminders) {
       const natural = reminderFireAt({
-        trigger: reminder.trigger,
+        trigger: normalizeReminderTrigger(reminder.trigger) ?? reminder.trigger,
         type: reminder.type,
         dueDate: iso(reminder.task.dueDate),
         startDate: iso(reminder.task.startDate),
@@ -1221,7 +1222,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         data: {
           ownerId,
           taskId,
-          trigger: reminder.trigger,
+          trigger: normalizeReminderTrigger(reminder.trigger) ?? reminder.trigger,
           absoluteAt: reminder.absoluteAt,
           type: reminder.type,
           location: reminder.location === null ? Prisma.DbNull : asJson(reminder.location),

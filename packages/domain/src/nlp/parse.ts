@@ -1,3 +1,4 @@
+import { endFromDuration } from '../tasks/duration';
 import {
   addCalendarDays,
   daysInMonth,
@@ -1226,7 +1227,8 @@ function assignSlots(draft: Draft, clock: ClockContext): void {
     }
   }
   if (sawWhen && !sawDue) {
-    draft.due = null;
+    const end = endFromDuration(draft.start?.date ?? null, draft.durationMinutes);
+    draft.due = end === null ? null : { date: end, isAllDay: false };
   }
   finishCapture(draft);
 }
@@ -1254,6 +1256,8 @@ function settleBareClock(draft: Draft, clock: ClockContext): QuickAddSpan[] {
   if (chosen.clock.durationMinutes !== undefined) {
     draft.start = resolved;
     draft.durationMinutes = rangeDuration(resolved, chosen.clock, clock.timeZone);
+    const end = endFromDuration(resolved?.date ?? null, draft.durationMinutes);
+    draft.due = end === null ? null : { date: end, isAllDay: false };
   } else {
     draft.due = resolved;
   }

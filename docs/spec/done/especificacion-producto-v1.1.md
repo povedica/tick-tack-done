@@ -677,7 +677,7 @@ Capa de compatibilidad `GET /open/v1/...` compatible con la forma de la Open API
 Todos versionados (`task.created@v1`). Mínimo:
 
 ```
-series.closed task.created task.updated task.completed task.uncompleted task.reopened task.cancelled task.deleted task.restored task.moved task.due_soon task.overdue plan.applied plan.shutdown_started plan.shutdown_applied plan.replan_applied task.someday_set task.someday_unset
+series.closed task.created task.updated task.completed task.uncompleted task.reopened task.cancelled task.deleted task.restored task.moved task.due_soon task.overdue plan.applied plan.shutdown_started plan.shutdown_applied plan.replan_applied plan.replan_discarded task.someday_set task.someday_unset
 checklist_item.created checklist_item.updated checklist_item.completed checklist_item.uncompleted checklist_item.deleted
 project.created project.updated project.archived project.unarchived project.deleted
 folder.created folder.updated folder.deleted
@@ -935,3 +935,6 @@ Resumen verificado contra la documentación pública (developer.ticktick.com, oc
 ---
 
 _Fin del documento. Mantener versionado junto al código; cada fase cerrada actualiza la sección 19._
+
+
+Actualización r80 (RF-2001): GET autenticado con Accept: text/event-stream ofrece notificaciones de cambio del catálogo; POST sigue sin sesión. Otros GET y DELETE devuelven 405. Eventos añadidos: `occurrence.detached@v1` (tarea, actor y origen) y `plan.replan.discarded@v1` (sesión descartada).

@@ -3683,6 +3683,15 @@
     }
   },
   {
+    "method": "DELETE",
+    "path": "/api/v1/planning/replan/sessions/{id}",
+    "summary": "Discard an owned replan draft without applying decisions (TTD-AUD-85)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
     "method": "PUT",
     "path": "/api/v1/planning/replan/sessions/{id}/decisions/{taskId}",
     "summary": "Override a replan suggestion (RF-2671)",
