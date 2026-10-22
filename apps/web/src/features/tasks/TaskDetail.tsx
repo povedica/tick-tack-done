@@ -1,6 +1,6 @@
 import { runAction } from '../../components/run-action';
 import { type CreateTaskBody, type TaskDetail as Detail } from '@reflexionia/sdk';
-import { describeRepeatRule, parseTrigger } from '@reflexionia/domain';
+import { describeRepeatRule, parseTrigger, recurrenceAnchorWarning } from '@reflexionia/domain';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, Clock, Flag, Repeat } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -174,6 +174,11 @@ export function TaskDetail({
   const reminder = reminders.data?.[0];
   const repeatText =
     task.repeat_rule === null ? null : (describeRepeatRule(task.repeat_rule) ?? task.repeat_rule);
+  const anchorWarning = recurrenceAnchorWarning({
+    repeatRule: task.repeat_rule,
+    dueDate: task.due_date,
+    timeZone: task.time_zone,
+  });
   const projectName =
     (projects.data?.items ?? []).find((project) => project.id === task.project_id)?.name ?? '';
   const tagRows = task.tag_ids.flatMap((id) => {
@@ -416,17 +421,31 @@ export function TaskDetail({
                   ).text}
             </button>
             {repeatText !== null && (task.start_date !== null || task.due_date !== null) ? (
-              <button
-                type="button"
-                className="detail-meta-chip"
-                onClick={() => {
-                  setDateSlot('due');
-                  setDateOpen(true);
-                }}
-              >
-                <Repeat size={14} aria-hidden="true" />
-                {repeatText}
-              </button>
+              <span className="detail-repeat-field">
+                <button
+                  type="button"
+                  className="detail-meta-chip detail-repeat-selector"
+                  onClick={() => {
+                    setDateSlot('due');
+                    setDateOpen(true);
+                  }}
+                >
+                  <Repeat size={14} aria-hidden="true" />
+                  {repeatText}
+                </button>
+                {anchorWarning ? (
+                  <span className="recurrence-anchor-warning" role="status">
+                    {messages.recurrenceAnchorWarning.replace(
+                      '{date}',
+                      new Intl.DateTimeFormat(locale, {
+                        weekday: 'short',
+                        day: 'numeric',
+                        month: 'short',
+                      }).format(new Date(`${anchorWarning.next_matching}T12:00:00Z`)),
+                    )}
+                  </span>
+                ) : null}
+              </span>
             ) : null}
             <button
               type="button"

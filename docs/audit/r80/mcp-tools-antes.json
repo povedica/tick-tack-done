@@ -1,0 +1,1812 @@
+{
+  "tools": [
+    {
+      "name": "api_catalog",
+      "description": "Discover every public API operation and its request schema. Filter by path or summary. Use api_request for operations without a dedicated tool.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "search": {
+            "type": "string"
+          },
+          "details": {
+            "type": "boolean"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "cursor": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "api_request",
+      "description": "Execute any public API v1 operation with the same bearer token, scopes, owner/list restrictions and validation as REST/UI. Use api_catalog first. For task syntax use quick_add/raw_text. Browser-session-only security operations still require a browser session. Binary responses are base64.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "method": {
+            "type": "string",
+            "enum": [
+              "GET",
+              "POST",
+              "PATCH",
+              "PUT",
+              "DELETE"
+            ]
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^/api/v1/"
+          },
+          "body": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "idempotency_key": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "files": {
+            "type": "array",
+            "maxItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "field",
+                "filename",
+                "base64"
+              ],
+              "properties": {
+                "field": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "filename": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "content_type": {
+                  "type": "string"
+                },
+                "base64": {
+                  "type": "string",
+                  "maxLength": 34952536
+                }
+              }
+            }
+          }
+        },
+        "required": [
+          "method",
+          "path"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "list_tasks",
+      "description": "List tasks. Default status is active. Pass status=completed|cancelled|archived|all to include others. Optional filters: tag_id, priority, from/to (due_date bounds as ISO). someday=true lists Someday; the default excludes them. Workflow columns (pending/in progress) are list board columns via column_id (TTD-AUD-53).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "cursor": {
+            "type": "string",
+            "minLength": 1
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "tag_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "from": {
+            "type": "string",
+            "description": "Lower bound for due_date (ISO 8601)."
+          },
+          "to": {
+            "type": "string",
+            "description": "Upper bound for due_date (ISO 8601)."
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "none",
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "someday": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "completed",
+              "archived",
+              "cancelled",
+              "all"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_task",
+      "description": "Read one task.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "create_task",
+      "description": "Create a task. project_id defaults to the inbox. start_date is when you plan to do it; due_date is the deadline. someday parks it out of Today; evening_only reserves it for this evening. Pass tag_ids or tags (names; missing names are created). content is the description. parse=true runs the same quick-add parser as the app on title (#tag, ^list, !priority, natural dates). To make it REPEAT, pass `recurrence` (structured) — the task needs a due_date, which anchors the series. Examples: 'cada día' = {freq:'daily'}; 'cada lunes y jueves' = {freq:'weekly', weekdays:['MO','TH']}; 'cada 19 de mes' = {freq:'monthly', month_day:19}; 'el último viernes del mes' = {freq:'monthly', month_week:{setpos:-1, weekday:'FR'}}; 'cada día laborable' = {freq:'weekly', weekdays:['MO','TU','WE','TH','FR']}. Default interval is 1; 'cada 3 días' = {freq:'daily', interval:3}. End with until (date) or count (N times). repeat_from:'completion_date' repeats from when it was completed ('regar cada 3 días desde que lo hice'). Advanced: pass a raw RRULE string as repeat_rule instead. One occurrence exists at a time; the next one appears after completing the current (see complete_task).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "parent_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Parent task id to create a one-level subtask (TTD-AUD-52)."
+          },
+          "column_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Board column id for workflow (pending / in progress). Prefer this over inventing workflow_state (TTD-AUD-53)."
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 100000,
+            "description": "Task description (Markdown). Distinct from comments and sticky notes."
+          },
+          "tag_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 50,
+            "description": "Tag UUIDs to assign (replaces the whole set when used on update_task)."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "maxItems": 50,
+            "description": "Tag names to assign; missing names are created (same as quick add)."
+          },
+          "parse": {
+            "type": "boolean",
+            "description": "If true, parse title with the quick-add parser (same as the capture box). Explicit fields win over the parse."
+          },
+          "due_date": {
+            "type": "string",
+            "description": "YYYY-MM-DD = all-day in the task time zone; YYYY-MM-DDTHH:mm±hh:mm = timed instant."
+          },
+          "start_date": {
+            "type": "string",
+            "description": "YYYY-MM-DD = all-day in the task time zone; YYYY-MM-DDTHH:mm±hh:mm = timed instant."
+          },
+          "is_all_day": {
+            "type": "boolean"
+          },
+          "duration_minutes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1440,
+            "description": "Kept as given. If start_date and due_date are both set within 24h, must match their span."
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "none",
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "someday": {
+            "type": "boolean"
+          },
+          "evening_only": {
+            "type": "boolean"
+          },
+          "recurrence": {
+            "type": "object",
+            "properties": {
+              "freq": {
+                "type": "string",
+                "enum": [
+                  "daily",
+                  "weekly",
+                  "monthly",
+                  "yearly"
+                ]
+              },
+              "interval": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 999
+              },
+              "weekdays": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "MO",
+                    "TU",
+                    "WE",
+                    "TH",
+                    "FR",
+                    "SA",
+                    "SU"
+                  ]
+                },
+                "description": "Only with freq=weekly."
+              },
+              "month_day": {
+                "type": "integer",
+                "minimum": -31,
+                "maximum": 31,
+                "description": "Only with freq=monthly/yearly. Positive day of month, or negative from month end (-1 = last day)."
+              },
+              "month_week": {
+                "type": "object",
+                "properties": {
+                  "setpos": {
+                    "type": "integer",
+                    "enum": [
+                      1,
+                      2,
+                      3,
+                      4,
+                      -1
+                    ],
+                    "description": "-1 = last."
+                  },
+                  "weekday": {
+                    "type": "string",
+                    "enum": [
+                      "MO",
+                      "TU",
+                      "WE",
+                      "TH",
+                      "FR",
+                      "SA",
+                      "SU"
+                    ]
+                  }
+                },
+                "required": [
+                  "setpos",
+                  "weekday"
+                ],
+                "additionalProperties": false,
+                "description": "Only with freq=monthly: last Friday of the month = {setpos:-1, weekday:'FR'}."
+              },
+              "until": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "description": "End of the series (civil date in the task time zone)."
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "End after N occurrences."
+              }
+            },
+            "required": [
+              "freq"
+            ],
+            "additionalProperties": false
+          },
+          "repeat_rule": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "Advanced raw RRULE (optionally with DTSTART/EXDATE lines). Mutually exclusive with recurrence."
+          },
+          "repeat_from": {
+            "type": "string",
+            "enum": [
+              "due_date",
+              "completion_date"
+            ],
+            "description": "due_date (default): next from the rule grid. completion_date: from when you completed it (habits like 'water every 3 days')."
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "quick_add",
+      "description": "Capture a task from natural language (same parser as the in-app capture box): #tags, ^list, !priority, dates like «mañana 09:00-09:30».",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "complete_task",
+      "description": "Mark a task complete. On a repeating task the next occurrence is created by a scheduler within ~60 s unless materialize_next=true. advance controls the next date: 'one_period' (default, one period after the current due date — an overdue task may repeat in the past) or 'next_future' (first future occurrence; skipped occurrences are gone for good). Use get_task_occurrences to preview.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "advance": {
+            "type": "string",
+            "enum": [
+              "one_period",
+              "next_future"
+            ],
+            "description": "How to pick the next due date for a repeating task. Default 'one_period'."
+          },
+          "materialize_next": {
+            "type": "boolean",
+            "description": "If true, create the next occurrence in this same call instead of waiting for the scheduler (~60 s)."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "reopen_task",
+      "description": "Reopen a completed task (API uncomplete). Workflow columns are separate from status — use column_id when available (TTD-AUD-53).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "cancel_task",
+      "description": "Cancel a task (status=cancelled). Soft-delete uses delete_task instead.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "delete_task",
+      "description": "Soft-delete a task into trash (30-day retention). Requires tasks:trash. Use restore_task to bring it back.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "restore_task",
+      "description": "Restore a soft-deleted task from trash.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "list_task_comments",
+      "description": "List comments on a task (oldest first).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "task_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "add_task_comment",
+      "description": "Add a Markdown comment on a task.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100000
+          }
+        },
+        "required": [
+          "task_id",
+          "body"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "list_task_attachments",
+      "description": "List attachment metadata for a task (id, file_name, mime_type, byte_size). Binary upload/download stays on the REST API (TTD-AUD-51).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "task_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "move_task",
+      "description": "Move a task to another list (and optionally a board column).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "column_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "id",
+          "project_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "add_checklist_item",
+      "description": "Add a checklist item on a task.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "task_id",
+          "title"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "update_checklist_item",
+      "description": "Rename a checklist item.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "item_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "task_id",
+          "item_id",
+          "title"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "complete_checklist_item",
+      "description": "Mark a checklist item complete.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "item_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "task_id",
+          "item_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "uncomplete_checklist_item",
+      "description": "Reopen a checklist item.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "item_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "task_id",
+          "item_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "list_task_reminders",
+      "description": "List reminders on a task (TTD-AUD-52).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "task_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "add_task_reminder",
+      "description": "Add a reminder. Relative example: type=relative, trigger=TRIGGER:-PT15M (15 minutes before due). Absolute: type=absolute, trigger=TRIGGER, absolute_at=ISO datetime.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "trigger": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "relative",
+              "absolute",
+              "location",
+              "daily_digest"
+            ]
+          },
+          "absolute_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "push",
+              "email",
+              "both"
+            ]
+          }
+        },
+        "required": [
+          "task_id",
+          "trigger",
+          "type"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "delete_task_reminder",
+      "description": "Delete a reminder from a task.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reminder_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "task_id",
+          "reminder_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "assign_task",
+      "description": "Assign or unassign a task (assignee_id=null clears). Prefer one account per person plus shared lists for authorship (TTD-AUD-57).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "assignee_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "id",
+          "assignee_id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "update_task",
+      "description": "Update a task. start_date is when you plan to do it; due_date is the deadline and may be cleared without changing when. someday=true clears when and keeps the deadline. tag_ids/tags replace the set; add_tag_ids/add_tags and remove_tag_ids/remove_tags adjust it. content updates the description. column_id sets the board workflow column. parse=true parses the new title like quick add. To change repetition pass recurrence or repeat_rule (same rules as create_task). recurrence:null (or repeat_rule:null) removes the series; changing the rule does not regenerate past occurrences or the series_id unless you clear it. To change list use move_task.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "content": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 100000
+          },
+          "column_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "tag_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 50,
+            "description": "Tag UUIDs to assign (replaces the whole set when used on update_task)."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "maxItems": 50,
+            "description": "Tag names to assign; missing names are created (same as quick add)."
+          },
+          "add_tag_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 50,
+            "description": "Tag UUIDs to assign (replaces the whole set when used on update_task)."
+          },
+          "add_tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "maxItems": 50,
+            "description": "Tag names to assign; missing names are created (same as quick add)."
+          },
+          "remove_tag_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 50,
+            "description": "Tag UUIDs to assign (replaces the whole set when used on update_task)."
+          },
+          "remove_tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "maxItems": 50,
+            "description": "Tag names to assign; missing names are created (same as quick add)."
+          },
+          "parse": {
+            "type": "boolean",
+            "description": "If true, parse title with the quick-add parser. Explicit fields win."
+          },
+          "due_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "YYYY-MM-DD = all-day in the task time zone; YYYY-MM-DDTHH:mm±hh:mm = timed instant; null clears."
+          },
+          "start_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "YYYY-MM-DD = all-day in the task time zone; YYYY-MM-DDTHH:mm±hh:mm = timed instant; null clears."
+          },
+          "is_all_day": {
+            "type": "boolean"
+          },
+          "duration_minutes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1440,
+            "description": "Kept as given. If start_date and due_date are both set within 24h, must match their span."
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "none",
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "someday": {
+            "type": "boolean"
+          },
+          "evening_only": {
+            "type": "boolean"
+          },
+          "recurrence": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "freq": {
+                "type": "string",
+                "enum": [
+                  "daily",
+                  "weekly",
+                  "monthly",
+                  "yearly"
+                ]
+              },
+              "interval": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 999
+              },
+              "weekdays": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "MO",
+                    "TU",
+                    "WE",
+                    "TH",
+                    "FR",
+                    "SA",
+                    "SU"
+                  ]
+                },
+                "description": "Only with freq=weekly."
+              },
+              "month_day": {
+                "type": "integer",
+                "minimum": -31,
+                "maximum": 31,
+                "description": "Only with freq=monthly/yearly. Positive day of month, or negative from month end (-1 = last day)."
+              },
+              "month_week": {
+                "type": "object",
+                "properties": {
+                  "setpos": {
+                    "type": "integer",
+                    "enum": [
+                      1,
+                      2,
+                      3,
+                      4,
+                      -1
+                    ],
+                    "description": "-1 = last."
+                  },
+                  "weekday": {
+                    "type": "string",
+                    "enum": [
+                      "MO",
+                      "TU",
+                      "WE",
+                      "TH",
+                      "FR",
+                      "SA",
+                      "SU"
+                    ]
+                  }
+                },
+                "required": [
+                  "setpos",
+                  "weekday"
+                ],
+                "additionalProperties": false,
+                "description": "Only with freq=monthly: last Friday of the month = {setpos:-1, weekday:'FR'}."
+              },
+              "until": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "description": "End of the series (civil date in the task time zone)."
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "End after N occurrences."
+              }
+            },
+            "required": [
+              "freq"
+            ],
+            "additionalProperties": false,
+            "description": "Structured recurrence, or null to remove the series."
+          },
+          "repeat_rule": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500,
+            "description": "Raw RRULE, or null to clear. Mutually exclusive with recurrence."
+          },
+          "repeat_from": {
+            "type": "string",
+            "enum": [
+              "due_date",
+              "completion_date"
+            ],
+            "description": "due_date (default): next from the rule grid. completion_date: from when you completed it (habits like 'water every 3 days')."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_task_occurrences",
+      "description": "List the theoretical occurrences of a repeating task in a range. Nothing is stored: only the current occurrence exists as a row.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "from",
+          "to"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "detach_occurrence",
+      "description": "Edit or skip ONE occurrence without breaking the series: it is excluded with an EXDATE and becomes (or stops being) its own task.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "due_date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "id",
+          "due_date"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_day_load",
+      "description": "Day load for a morning briefing. Counts active tasks (duration or the default estimate) plus external events overlapping the workday. Evening and Someday tasks do not count. All-day events count as zero. available_minutes is null when the workday is off.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "time_zone": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "start_day_shutdown",
+      "description": "Open a shutdown session for today or yesterday. Returns what was finished and the pending queue. Nothing changes until apply_day_shutdown.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "local_date": {
+            "type": "string"
+          },
+          "time_zone": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "record_shutdown_decision",
+      "description": "Record one shutdown decision: done, plan_day, later, someday, cancel, trash, or skip. plan_day and later take target_date.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "task_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "done",
+              "plan_day",
+              "later",
+              "someday",
+              "cancel",
+              "trash",
+              "skip"
+            ]
+          },
+          "target_date": {
+            "type": "string"
+          },
+          "evening": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "session_id",
+          "task_id",
+          "decision"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "apply_day_shutdown",
+      "description": "Apply a shutdown session. Same idempotency key returns the same result. A stale expected_revision returns revision_conflict.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "idempotency_key": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id",
+          "expected_revision",
+          "idempotency_key"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "replan_day",
+      "description": "Propose where leftover tasks should go. auto_apply defaults to false so a person can confirm before anything moves. Does not place calendar blocks.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "auto_apply": {
+            "type": "boolean"
+          },
+          "idempotency_key": {
+            "type": "string"
+          },
+          "decisions": {
+            "type": "array"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "list_projects",
+      "description": "List task lists.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "cursor": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "create_project",
+      "description": "Create a task list.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "list_tags",
+      "description": "List tags.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "cursor": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "create_tag",
+      "description": "Create a tag.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "list_filters",
+      "description": "List saved filters.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "cursor": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "create_filter",
+      "description": "Save a normal filter that matches a keyword.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "keyword": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "name",
+          "keyword"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "list_smart_lists",
+      "description": "List system smart lists.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "list_smart_list_tasks",
+      "description": "List tasks in one smart list.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "minLength": 1
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "cursor": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "list_habits",
+      "description": "List habits.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "cursor": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "create_habit",
+      "description": "Create a daily habit.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "check_in_habit",
+      "description": "Record a habit check-in for a date.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "date": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "id",
+          "date"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "list_countdowns",
+      "description": "List countdowns. days and effective_date are already calculated in the user timezone.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "archived": {
+            "type": "boolean"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "cursor": {
+            "type": "string",
+            "minLength": 1
+          },
+          "due_within_days": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_countdown",
+      "description": "Read one countdown with days calculated in the user timezone.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "create_countdown",
+      "description": "Create a countdown. Returned days are calculated in the user timezone.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "target_date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "type": {
+            "type": "string"
+          },
+          "emoji": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          },
+          "repeat": {
+            "type": "string"
+          },
+          "day_mode": {
+            "type": "string"
+          },
+          "reminders": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 365
+            }
+          },
+          "notes": {
+            "type": "string"
+          },
+          "show_in_sidebar": {
+            "type": "boolean"
+          },
+          "show_in_smart_list": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "title",
+          "target_date"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "update_countdown",
+      "description": "Update a countdown.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "target_date": {
+            "type": "string"
+          },
+          "pinned": {
+            "type": "boolean"
+          },
+          "archived": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "delete_countdown",
+      "description": "Soft-delete a countdown.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "archive_countdown",
+      "description": "Archive a countdown and stop its reminders.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "unarchive_countdown",
+      "description": "Unarchive a countdown.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "search",
+      "description": "Search tasks, lists and tags. Each group is capped by limit (default 20, max 50).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "cursor": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "q"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "list_notes",
+      "description": "List notes.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "pin_sticky_note",
+      "description": "Pin a sticky note.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "dashboard_snapshot",
+      "description": "Read the dashboard KPIs.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "start_focus",
+      "description": "Start a server-side focus session.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "minutes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 180
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "review_daily",
+      "description": "Propose a daily review. The tool does not apply it.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "list_external_calendars",
+      "description": "List read-only external calendars. Events cannot be edited. With include_available, also list Google calendars that can be added. Times elsewhere are ISO 8601 with an offset.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "include_available": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "list_calendar_events",
+      "description": "List tasks and read-only external events in a range. External events cannot be edited. Times are ISO 8601 with an offset, in the user time zone when the event is all-day.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "include_external": {
+            "type": "boolean"
+          },
+          "subscription_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "from",
+          "to"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "add_external_calendar",
+      "description": "Subscribe to a Google calendar or an iCal URL and run the initial read-only sync. External events cannot be edited.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "google",
+              "ical"
+            ]
+          },
+          "calendar_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "url": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "color": {
+            "type": "string"
+          },
+          "visible": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "provider"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "sync_calendar",
+      "description": "Sync one external calendar, or every external calendar when subscription_id is omitted. Read-only for Google events.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "subscription_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "update_external_calendar",
+      "description": "Rename, recolor or hide an external calendar. Hiding keeps the events stored.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "color": {
+            "type": "string"
+          },
+          "visible": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "remove_external_calendar",
+      "description": "Soft-delete an external calendar and its events.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ]
+}

@@ -7,6 +7,7 @@ export const es = {
   streakActiveDot: 'Racha activa: {days}',
   controlScoreOf: '{score} de 100',
   ...extraEs,
+  recurrenceAnchorWarning: extraEs.recurrenceAnchorWarning,
   countdownTypeMenu: 'Tipo de cuenta atrás',
   countdownDatePlaceholder: 'dd/mm/aaaa',
   countdownInvalidDate: 'Escribe una fecha válida con el formato indicado.',

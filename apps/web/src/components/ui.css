@@ -3057,3 +3057,17 @@ a.link:hover {
   background: var(--accent-soft);
   border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
 }
+
+/* TTD-AUD-81: the warning belongs to the repeat selector, in either detail surface. */
+.detail-repeat-field {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+.recurrence-anchor-warning {
+  font-size: var(--fs-xs);
+  color: var(--warning);
+  line-height: var(--lh-base);
+}

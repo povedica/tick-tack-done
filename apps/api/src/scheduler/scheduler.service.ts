@@ -31,6 +31,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { CalendarService } from '../modules/calendar/calendar.service.js';
 import { DayClosingService } from '../modules/planning/day-closing.service.js';
 import { GoogleSyncService } from '../modules/calendar/google-sync.service.js';
+import { lockRecurrenceSeries } from '../prisma/series-lock.js';
 import type { Tx } from '../prisma/tx.js';
 import { ReminderTransport } from './reminder.transport.js';
 
@@ -212,7 +213,20 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     const due = new Date(next.occurrence.dueDate);
     const start = next.occurrence.startDate === null ? null : new Date(next.occurrence.startDate);
     try {
-      await this.prisma.$transaction(async (tx) => {
+      return await this.prisma.$transaction(async (tx) => {
+        await lockRecurrenceSeries(tx, source.ownerId, seriesId);
+        const current = await tx.task.findFirst({
+          where: { id: source.id, ownerId: source.ownerId, deletedAt: null },
+          select: { recurrenceOpen: true },
+        });
+        if (current === null) return false;
+        if (!current.recurrenceOpen) {
+          const pending = await tx.seriesAdvance.findFirst({
+            where: { seriesId, processedAt: null },
+            select: { id: true },
+          });
+          if (pending === null) return false;
+        }
         await this.insertSuccessor(tx, source, { seriesId, repeatRule, due, start });
         if (meta.series_advance === 'next_future') {
           const cleared = { ...meta };
@@ -222,8 +236,8 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
             data: { metadata: asJson(cleared) },
           });
         }
+        return true;
       });
-      return true;
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         return false;

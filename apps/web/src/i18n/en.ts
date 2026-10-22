@@ -8,6 +8,7 @@ export const en = {
   streakActiveDot: 'Active streak: {days}',
   controlScoreOf: '{score} out of 100',
   ...extraEn,
+  recurrenceAnchorWarning: extraEn.recurrenceAnchorWarning,
   countdownTypeMenu: 'Countdown type',
   countdownDatePlaceholder: 'mm/dd/yyyy',
   countdownInvalidDate: 'Enter a valid date using the indicated format.',

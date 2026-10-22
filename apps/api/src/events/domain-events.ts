@@ -1,4 +1,5 @@
 export const DomainEvent = {
+  seriesClosed: 'series.closed@v1',
   taskCreated: 'task.created@v1',
   taskUpdated: 'task.updated@v1',
   taskCompleted: 'task.completed@v1',

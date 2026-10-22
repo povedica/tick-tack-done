@@ -1031,30 +1031,30 @@ del patrón literal de 75.6 a partir de pruebas simuladas o históricas.
 
 Base actualizada: afc9f5d. Comprobación previa en [r80/verificacion-previa.md](r80/verificacion-previa.md). Una única PR por petición expresa de Pablo.
 
-| ID  | Estado                                               | Evidencia                |
-| --- | ---------------------------------------------------- | ------------------------ |
-| 80  | Implementado; validación local; staging pendiente    | [OAuth](r80/80-oauth.md) |
-| 81  | Pendiente de implementación y aceptación             | PR #75                   |
-| 82  | Pendiente de implementación y aceptación             | PR #75                   |
-| 83  | Pendiente de implementación y aceptación             | PR #75                   |
-| 84  | Pendiente de implementación y aceptación             | PR #75                   |
-| 85  | Pendiente de implementación y aceptación             | PR #75                   |
-| 86  | Implementado; validación local; producción pendiente | PR #75                   |
-| 87  | Pendiente de implementación y aceptación             | PR #75                   |
-| 88  | Pendiente de implementación y aceptación             | PR #75                   |
-| 89  | Pendiente de implementación y aceptación             | PR #75                   |
-| 90  | Pendiente de implementación y aceptación             | PR #75                   |
-| 91  | Pendiente de implementación y aceptación             | PR #75                   |
-| 92  | Pendiente de implementación y aceptación             | PR #75                   |
-| 93  | Pendiente de implementación y aceptación             | PR #75                   |
-| 94  | Pendiente de implementación y aceptación             | PR #75                   |
-| 95  | Pendiente de implementación y aceptación             | PR #75                   |
-| 96  | Pendiente de implementación y aceptación             | PR #75                   |
-| 97  | Pendiente de implementación y aceptación             | PR #75                   |
-| 98  | Pendiente de implementación y aceptación             | PR #75                   |
-| 99  | Pendiente de implementación y aceptación             | PR #75                   |
-| 100 | Pendiente de implementación y aceptación             | PR #75                   |
-| 101 | Pendiente de implementación y aceptación             | PR #75                   |
-| 102 | Pendiente de implementación y aceptación             | PR #75                   |
-| 103 | Pendiente de implementación y aceptación             | PR #75                   |
-| 104 | Pendiente de implementación y aceptación             | PR #75                   |
+| ID  | Estado                                                        | Evidencia                           |
+| --- | ------------------------------------------------------------- | ----------------------------------- |
+| 80  | Implementado; validación local; staging pendiente             | [OAuth](r80/80-oauth.md)            |
+| 81  | Implementado; aceptación local; copia de producción pendiente | [Recurrencia](r80/81-recurrence.md) |
+| 82  | Pendiente de implementación y aceptación                      | PR #75                              |
+| 83  | Pendiente de implementación y aceptación                      | PR #75                              |
+| 84  | Pendiente de implementación y aceptación                      | PR #75                              |
+| 85  | Pendiente de implementación y aceptación                      | PR #75                              |
+| 86  | Implementado; validación local; producción pendiente          | PR #75                              |
+| 87  | Pendiente de implementación y aceptación                      | PR #75                              |
+| 88  | Pendiente de implementación y aceptación                      | PR #75                              |
+| 89  | Pendiente de implementación y aceptación                      | PR #75                              |
+| 90  | Pendiente de implementación y aceptación                      | PR #75                              |
+| 91  | Pendiente de implementación y aceptación                      | PR #75                              |
+| 92  | Pendiente de implementación y aceptación                      | PR #75                              |
+| 93  | Pendiente de implementación y aceptación                      | PR #75                              |
+| 94  | Pendiente de implementación y aceptación                      | PR #75                              |
+| 95  | Pendiente de implementación y aceptación                      | PR #75                              |
+| 96  | Pendiente de implementación y aceptación                      | PR #75                              |
+| 97  | Pendiente de implementación y aceptación                      | PR #75                              |
+| 98  | Pendiente de implementación y aceptación                      | PR #75                              |
+| 99  | Pendiente de implementación y aceptación                      | PR #75                              |
+| 100 | Pendiente de implementación y aceptación                      | PR #75                              |
+| 101 | Pendiente de implementación y aceptación                      | PR #75                              |
+| 102 | Pendiente de implementación y aceptación                      | PR #75                              |
+| 103 | Pendiente de implementación y aceptación                      | PR #75                              |
+| 104 | Pendiente de implementación y aceptación                      | PR #75                              |

@@ -5,11 +5,10 @@ import {
   buildRepeatRule,
   civilDateKey,
   describeRepeatRule,
-  firstAfter,
+  nextOccurrence,
   HABIT_WEEKDAYS,
   parseMentions,
   parseQuickAdd,
-  parseRepeatRule,
   proposeDaily,
   type PlanDecisionKind,
   type RepeatDraft,
@@ -535,18 +534,23 @@ export class McpService {
         }
         const columnId = args.column_id === null ? null : uuidOrEmpty(args.column_id);
         return enrichTask(
-          await this.tasks.update(user, id, {
-            ...(title === undefined ? {} : { title }),
-            ...(args.content === null
-              ? { content: '' }
-              : typeof args.content === 'string'
-                ? { content: args.content }
-                : {}),
-            ...(tagIds === undefined ? {} : { tag_ids: tagIds }),
-            ...(columnId === undefined ? {} : { column_id: columnId }),
-            ...parsedSchedule,
-            ...recurrence,
-          }),
+          await this.tasks.update(
+            user,
+            id,
+            {
+              ...(title === undefined ? {} : { title }),
+              ...(args.content === null
+                ? { content: '' }
+                : typeof args.content === 'string'
+                  ? { content: args.content }
+                  : {}),
+              ...(tagIds === undefined ? {} : { tag_ids: tagIds }),
+              ...(columnId === undefined ? {} : { column_id: columnId }),
+              ...parsedSchedule,
+              ...recurrence,
+            },
+            'mcp',
+          ),
         );
       }
       case 'get_task_occurrences':
@@ -1028,24 +1032,38 @@ function toolError(
   return { content: [{ type: 'text', text }], isError: true };
 }
 
-function enrichTask<T extends { repeat_rule?: string | null; time_zone?: string }>(
-  task: T,
-): T & { repeat_label?: string | null; next_occurrence?: string | null } {
-  const rule = typeof task.repeat_rule === 'string' ? task.repeat_rule : null;
-  if (rule === null || rule.length === 0) {
-    return task;
-  }
-  const label = describeRepeatRule(rule);
-  const parsed = parseRepeatRule(rule);
-  const zone = typeof task.time_zone === 'string' ? task.time_zone : 'UTC';
-  let next: string | null = null;
-  if (parsed.ok) {
-    next = firstAfter(parsed.rule, zone, new Date().toISOString());
-  }
+function enrichTask<
+  T extends {
+    repeat_rule?: string | null;
+    time_zone?: string;
+    due_date?: string | null;
+    start_date?: string | null;
+    completed_at?: string | null;
+    repeat_from?: string;
+    is_all_day?: boolean;
+    series?: { next_due_date: string | null };
+  },
+>(task: T): T & { repeat_label?: string | null; next_occurrence?: string | null } {
+  const rule = task.repeat_rule;
+  if (typeof rule !== 'string' || rule.length === 0) return task;
+  const next = nextOccurrence({
+    repeatRule: rule,
+    repeatFrom: task.repeat_from === 'completion_date' ? 'completion_date' : 'due_date',
+    dueDate: task.due_date ?? null,
+    startDate: task.start_date ?? null,
+    completedAt: task.completed_at ?? null,
+    timeZone: task.time_zone ?? 'UTC',
+    isAllDay: task.is_all_day ?? false,
+    occurrenceIndex: null,
+  });
   return {
     ...task,
-    repeat_label: label,
-    next_occurrence: next,
+    repeat_label: describeRepeatRule(rule),
+    next_occurrence: task.series
+      ? task.series.next_due_date
+      : next.ok
+        ? (next.occurrence?.dueDate ?? null)
+        : null,
   };
 }
 

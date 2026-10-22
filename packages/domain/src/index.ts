@@ -420,3 +420,6 @@ export { bucketWeek, type WeekDayMetric } from './reports/week-metrics';
 export { calendarDragPatch, DRAG_SNAP_MINUTES, type CalendarDragTarget } from './calendar/drag';
 
 export { calendarRepeatedHour, calendarAxisMinute, calendarAxisTarget } from './calendar/drag';
+
+export { recurrenceAnchorWarning } from './recurrence/anchor';
+export type { RecurrenceAnchorWarning } from './recurrence/anchor';

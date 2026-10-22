@@ -20,8 +20,14 @@ const events = new EventRecorder();
 
 export interface CaptureWarning {
   readonly code:
-    'list_not_found' | 'list_created' | 'tag_not_found' | 'tag_created' | 'reminder_without_date';
+    | 'list_not_found'
+    | 'list_created'
+    | 'tag_not_found'
+    | 'tag_created'
+    | 'reminder_without_date'
+    | 'anchor_outside_rule';
   readonly name?: string;
+  readonly next_matching?: string;
 }
 
 /** Fields taken from raw_text after explicit body fields have overridden the parse. */

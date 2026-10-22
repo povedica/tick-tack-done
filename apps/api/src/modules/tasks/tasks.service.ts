@@ -13,6 +13,7 @@ import {
   isRasterImage,
   isIanaTimeZone,
   nextOccurrence,
+  recurrenceAnchorWarning,
   normalizeTaskTitle,
   occurrencesBetween,
   parseTaskInstant,
@@ -43,6 +44,7 @@ import { normalizeIdempotencyKey, requestFingerprint } from '../../idempotency/f
 import { IdempotencyService } from '../../idempotency/idempotency.service.js';
 import { placementPlan } from '../../ordering/placement.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { lockRecurrenceSeries } from '../../prisma/series-lock.js';
 import type { Tx } from '../../prisma/tx.js';
 import {
   assertInboundFiles,
@@ -104,6 +106,7 @@ export interface CompletedTask extends CreatedTask {
 }
 
 export interface TaskDetail extends TaskSummaryJson {
+  readonly warnings?: readonly CaptureWarning[];
   items: ChecklistItemJson[];
   subtasks: TaskSummaryJson[];
   activity: {
@@ -326,9 +329,15 @@ export class TasksService {
     return this.load(this.prisma, user, id, false);
   }
 
-  async update(user: AuthUser, id: string, dto: UpdateTaskDto): Promise<TaskDetail> {
+  async update(
+    user: AuthUser,
+    id: string,
+    dto: UpdateTaskDto,
+    source: 'api' | 'mcp' | 'web' = user.sessionId === null ? 'api' : 'web',
+  ): Promise<TaskDetail> {
     return this.prisma.$transaction(async (tx) => {
       const current = await this.require(tx, user.id, id, false);
+      if (current.seriesId !== null) await lockRecurrenceSeries(tx, user.id, current.seriesId);
       const receivedAt = new Date().toISOString();
       const selected = selectPatch(dto, readClocks(current.fieldClocks), receivedAt);
       if (selected === null) {
@@ -394,7 +403,7 @@ export class TasksService {
         dto.repeat_rule === undefined
           ? current.repeatRule
           : this.canonicalRule(dto.repeat_rule, due, timeZone);
-      const seriesId = repeatRule === null ? null : (current.seriesId ?? current.id);
+      const seriesId = repeatRule === null ? current.seriesId : (current.seriesId ?? current.id);
       const reorder = dto.before_id !== undefined || dto.move_to_end === true;
       const plan = reorder
         ? await this.planTaskSort(
@@ -407,6 +416,24 @@ export class TasksService {
             dto.move_to_end,
           )
         : null;
+      if (dto.repeat_rule === null && current.seriesId !== null) {
+        await tx.task.updateMany({
+          where: { seriesId: current.seriesId, ownerId: user.id },
+          data: { recurrenceOpen: false },
+        });
+        await tx.seriesAdvance.updateMany({
+          where: { seriesId: current.seriesId, processedAt: null },
+          data: { processedAt: new Date() },
+        });
+        await this.events.record(tx, actorOf(user), {
+          type: DomainEvent.seriesClosed,
+          entityType: 'task',
+          entityId: id,
+          action: 'updated',
+          data: { series_id: current.seriesId, source },
+          previous: { recurrence_open: true },
+        });
+      }
       const row = await tx.task.update({
         where: { id },
         data: {
@@ -1636,7 +1663,7 @@ export class TasksService {
       previous: null,
     });
     const created = await this.load(tx, user, row.id, false);
-    const warnings = captured?.warnings ?? [];
+    const warnings = [...(created.warnings ?? []), ...(captured?.warnings ?? [])];
     if (warnings.length === 0) {
       return created;
     }
@@ -2154,8 +2181,14 @@ export class TasksService {
       take: 50,
       include: { token: { select: { name: true, oauthClientId: true } } },
     });
+    const anchorWarning = recurrenceAnchorWarning({
+      repeatRule: row.repeatRule,
+      dueDate: row.dueDate?.toISOString() ?? null,
+      timeZone: row.timeZone,
+    });
     return {
       ...toTaskSummary(row, progressOf(row.checklist)),
+      ...(anchorWarning === null ? {} : { warnings: [anchorWarning] }),
       items: row.checklist.map((item) => toChecklistJson(id, item)),
       subtasks: row.children.map((child) => toTaskSummary(child, progressOf(child.checklist))),
       activity: activity.map((entry) => ({

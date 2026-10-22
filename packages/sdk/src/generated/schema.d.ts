@@ -4288,11 +4288,18 @@ export interface components {
             before_id?: Record<string, never> | null;
             move_to_end?: boolean;
         };
+        CaptureWarningDto: {
+            /** @enum {string} */
+            code: "list_not_found" | "list_created" | "tag_not_found" | "tag_created" | "reminder_without_date" | "anchor_outside_rule";
+            name?: string;
+            next_matching?: string;
+        };
         ChecklistProgressDto: {
             completed: number;
             total: number;
         };
         TaskResponseDto: {
+            warnings?: components["schemas"]["CaptureWarningDto"][];
             id: string;
             project_id: string;
             parent_id: string | null;
@@ -4383,12 +4390,8 @@ export interface components {
             before_id?: Record<string, never> | null;
             move_to_end?: boolean;
         };
-        CaptureWarningDto: {
-            /** @enum {string} */
-            code: "list_not_found" | "list_created" | "tag_not_found" | "tag_created" | "reminder_without_date";
-            name?: string;
-        };
         CreateTaskResponseDto: {
+            warnings?: components["schemas"]["CaptureWarningDto"][];
             id: string;
             project_id: string;
             parent_id: string | null;
@@ -4424,7 +4427,6 @@ export interface components {
             created_at: string;
             updated_at: string;
             deleted_at: string | null;
-            warnings?: components["schemas"]["CaptureWarningDto"][];
         };
         DetachOccurrenceDto: {
             due_date: string;

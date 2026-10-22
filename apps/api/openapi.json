@@ -16213,6 +16213,31 @@
           }
         }
       },
+      "CaptureWarningDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "list_not_found",
+              "list_created",
+              "tag_not_found",
+              "tag_created",
+              "reminder_without_date",
+              "anchor_outside_rule"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "next_matching": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
       "ChecklistProgressDto": {
         "type": "object",
         "properties": {
@@ -16231,6 +16256,12 @@
       "TaskResponseDto": {
         "type": "object",
         "properties": {
+          "warnings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CaptureWarningDto"
+            }
+          },
           "id": {
             "type": "string"
           },
@@ -16588,30 +16619,15 @@
           }
         }
       },
-      "CaptureWarningDto": {
-        "type": "object",
-        "properties": {
-          "code": {
-            "type": "string",
-            "enum": [
-              "list_not_found",
-              "list_created",
-              "tag_not_found",
-              "tag_created",
-              "reminder_without_date"
-            ]
-          },
-          "name": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "code"
-        ]
-      },
       "CreateTaskResponseDto": {
         "type": "object",
         "properties": {
+          "warnings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CaptureWarningDto"
+            }
+          },
           "id": {
             "type": "string"
           },
@@ -16736,12 +16752,6 @@
           "deleted_at": {
             "type": "string",
             "nullable": true
-          },
-          "warnings": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/CaptureWarningDto"
-            }
           }
         },
         "required": [

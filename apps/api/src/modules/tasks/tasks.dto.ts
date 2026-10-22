@@ -540,7 +540,35 @@ export class SnoozeReminderDto {
   until?: string | null;
 }
 
+export class CaptureWarningDto {
+  @ApiProperty({
+    enum: [
+      'list_not_found',
+      'list_created',
+      'tag_not_found',
+      'tag_created',
+      'reminder_without_date',
+      'anchor_outside_rule',
+    ],
+  })
+  code!:
+    | 'list_not_found'
+    | 'list_created'
+    | 'tag_not_found'
+    | 'tag_created'
+    | 'reminder_without_date'
+    | 'anchor_outside_rule';
+
+  @ApiProperty({ required: false })
+  name?: string;
+
+  @ApiProperty({ required: false })
+  next_matching?: string;
+}
+
 export class TaskResponseDto {
+  @ApiProperty({ required: false, type: [CaptureWarningDto] })
+  warnings?: CaptureWarningDto[];
   @ApiProperty()
   id!: string;
 
@@ -643,24 +671,4 @@ export class TaskPageDto {
   next_cursor!: string | null;
 }
 
-export class CaptureWarningDto {
-  @ApiProperty({
-    enum: [
-      'list_not_found',
-      'list_created',
-      'tag_not_found',
-      'tag_created',
-      'reminder_without_date',
-    ],
-  })
-  code!:
-    'list_not_found' | 'list_created' | 'tag_not_found' | 'tag_created' | 'reminder_without_date';
-
-  @ApiProperty({ required: false })
-  name?: string;
-}
-
-export class CreateTaskResponseDto extends TaskResponseDto {
-  @ApiProperty({ required: false, type: [CaptureWarningDto] })
-  warnings?: CaptureWarningDto[];
-}
+export class CreateTaskResponseDto extends TaskResponseDto {}

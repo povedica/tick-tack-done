@@ -195,6 +195,7 @@ describe('McpService recurrence mapping', () => {
       user,
       '33333333-3333-4333-8333-333333333333',
       expect.objectContaining({ repeat_rule: null }),
+      'mcp',
     );
   });
 
@@ -462,6 +463,26 @@ describe('McpService recurrence mapping', () => {
     });
     expect(tasks.move).toHaveBeenCalledWith(user, '33333333-3333-4333-8333-333333333333', {
       project_id: '22222222-2222-4222-8222-222222222222',
+    });
+  });
+  it('TTD-AUD-81: all-day next occurrence is anchored in the due date', async () => {
+    tasks.get.mockResolvedValue({
+      id: '33333333-3333-4333-8333-333333333333',
+      repeat_rule: 'RRULE:FREQ=DAILY',
+      repeat_from: 'due_date',
+      due_date: '2026-10-21T22:00:00.000Z',
+      start_date: null,
+      is_all_day: true,
+      time_zone: 'Europe/Madrid',
+    });
+    const response = await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 81,
+      method: 'tools/call',
+      params: { name: 'get_task', arguments: { id: '33333333-3333-4333-8333-333333333333' } },
+    });
+    expect(JSON.parse(toolText(response))).toMatchObject({
+      next_occurrence: '2026-10-22T22:00:00.000Z',
     });
   });
 });

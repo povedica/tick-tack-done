@@ -1,4 +1,5 @@
 export const extraEs = {
+  recurrenceAnchorWarning: 'La fecha no coincide con la repetición; la próxima será el {date}',
   googleReconnectHint:
     'La autorización de Google ha caducado o se ha revocado. Vuelve a conectar Google.',
   focusShortBreak: 'Descanso corto',
@@ -1101,6 +1102,7 @@ export const extraEs = {
 } as const;
 
 export const extraEn = {
+  recurrenceAnchorWarning: 'The date does not match the recurrence; the next occurrence is {date}',
   googleReconnectHint: 'Google authorization expired or was revoked. Reconnect Google.',
   focusShortBreak: 'Short break',
   focusLongBreak: 'Long break',

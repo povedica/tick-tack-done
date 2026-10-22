@@ -1,3 +1,5 @@
+import { writeFileSync } from 'node:fs';
+import { API_SCOPES } from '../src/auth/scopes.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -152,6 +154,16 @@ describe('MCP server', () => {
     expect(toolText(createList.body as unknown)).toContain('scope_missing: lists:write');
     expect(await prisma.habit.count({ where: { ownerId: owner.id } })).toBe(habits);
     expect(await prisma.project.count({ where: { ownerId: owner.id } })).toBe(projects);
+  });
+
+  it('R80: captures the full tools/list contract with a synthetic owner', async () => {
+    const token = await request(server).post('/api/v1/me/tokens').set('X-Dev-User-Email', owner.email)
+      .send({ name: 'R80 catalog', scopes: [...API_SCOPES] }).expect(201);
+    const response = await rpc(server, { Authorization: `Bearer ${String(token.body.token)}` }, 'tools/list', {});
+    expect(response.status).toBe(200);
+    expect(response.body.result.tools.length).toBeGreaterThanOrEqual(61);
+    const phase = process.env.R80_CAPTURE_CATALOG;
+    if (phase === 'antes' || phase === 'despues') writeFileSync(`../../docs/audit/r80/mcp-tools-${phase}.json`, JSON.stringify(response.body.result, null, 2) + '\n');
   });
 
   it('RF-2001: GET and DELETE stay on POST until a server stream exists', async () => {
@@ -457,6 +469,19 @@ describe('MCP server', () => {
         client_id: clientId,
       });
       expect(rotated.status).toBe(200);
+      const replay = await request(server)
+        .post('/api/v1/oauth/token')
+        .send({
+          grant_type: 'refresh_token',
+          refresh_token: second.body.refresh_token,
+          client_id: clientId,
+        })
+        .expect(200);
+      expect(replay.body).toEqual(rotated.body);
+      await prisma.oauthRefreshToken.update({
+        where: { tokenHash: hashPersonalAccessToken(second.body.refresh_token as string) },
+        data: { rotatedAt: new Date(Date.now() - 61_000) },
+      });
       const reuse = await request(server).post('/api/v1/oauth/token').send({
         grant_type: 'refresh_token',
         refresh_token: second.body.refresh_token,
@@ -618,6 +643,81 @@ describe('MCP server', () => {
       where: { seriesId: plant.series_id, deletedAt: null },
     });
     expect(after).toBe(before);
+  });
+  it('TTD-AUD-81: removing recurrence closes every occurrence before two scheduler cycles', async () => {
+    const bearer = await tasksBearer(server, owner.email);
+    const call = async (name: string, args: Record<string, unknown>) => {
+      const response = await rpc(server, bearer, 'tools/call', { name, arguments: args });
+      expect(response.body.error).toBeUndefined();
+      return JSON.parse(toolText(response.body as unknown)) as Record<string, unknown>;
+    };
+    const first = await call('create_task', {
+      title: 'R80 daily closure',
+      due_date: '2026-10-22',
+      is_all_day: true,
+      recurrence: { freq: 'daily' },
+    });
+    await call('complete_task', { id: first.id });
+    const { SchedulerService } = await import('../src/scheduler/scheduler.service.js');
+    const scheduler = app.get(SchedulerService);
+    await scheduler.run(new Date(), false);
+    const second = await prisma.task.findFirstOrThrow({
+      where: { seriesId: String(first.series_id), ownerId: owner.id, status: 'active' },
+    });
+    await call('update_task', { id: second.id, recurrence: null });
+    await scheduler.run(new Date(), false);
+    await scheduler.run(new Date(), false);
+    expect(
+      await prisma.task.count({ where: { ownerId: owner.id, title: 'R80 daily closure' } }),
+    ).toBe(2);
+    expect(
+      await prisma.task.count({
+        where: { ownerId: owner.id, seriesId: String(first.series_id), recurrenceOpen: true },
+      }),
+    ).toBe(0);
+    expect(
+      await prisma.outboxEvent.count({ where: { ownerId: owner.id, type: 'series.closed@v1' } }),
+    ).toBe(1);
+  });
+  it('TTD-AUD-81: all-day next_occurrence agrees with the series successor', async () => {
+    const bearer = await tasksBearer(server, owner.email);
+    const made = await rpc(server, bearer, 'tools/call', {
+      name: 'create_task',
+      arguments: {
+        title: 'R80 all day',
+        due_date: '2026-10-22',
+        is_all_day: true,
+        recurrence: { freq: 'daily' },
+      },
+    });
+    const first = JSON.parse(toolText(made.body as unknown)) as { id: string };
+    const done = await rpc(server, bearer, 'tools/call', {
+      name: 'complete_task',
+      arguments: { id: first.id },
+    });
+    const body = JSON.parse(toolText(done.body as unknown)) as {
+      next_occurrence: string;
+      series: { next_due_date: string };
+    };
+    expect(body.next_occurrence).toBe(body.series.next_due_date);
+    expect(body.next_occurrence).toBe('2026-10-22T22:00:00.000Z');
+  });
+  it('TTD-AUD-81: warns when a Tuesday anchor does not match BYDAY=MO', async () => {
+    const bearer = await tasksBearer(server, owner.email);
+    const made = await rpc(server, bearer, 'tools/call', {
+      name: 'create_task',
+      arguments: {
+        title: 'R80 Monday anchor',
+        due_date: '2026-10-20',
+        is_all_day: true,
+        recurrence: { freq: 'weekly', weekdays: ['MO'] },
+      },
+    });
+    const body = JSON.parse(toolText(made.body as unknown)) as { warnings: unknown[] };
+    expect(body.warnings).toContainEqual({
+      code: 'anchor_outside_rule',
+      next_matching: '2026-10-26',
+    });
   });
 });
 
