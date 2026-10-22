@@ -24,6 +24,7 @@ import {
   ApiHeader,
   ApiOkResponse,
   ApiOperation,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
@@ -161,6 +162,22 @@ export class TasksController {
       'List tasks. Subtasks stay nested unless flat=true (RF-205). list_id filters one list, same as project_id.',
   })
   @ApiOkResponse({ type: TaskPageDto })
+  @ApiQuery({
+    name: 'from',
+    required: false,
+    description: 'Inclusive bound. YYYY-MM-DD uses the user time zone.',
+  })
+  @ApiQuery({
+    name: 'to',
+    required: false,
+    description: 'Exclusive bound. YYYY-MM-DD uses the user time zone.',
+  })
+  @ApiQuery({
+    name: 'range_field',
+    required: false,
+    enum: ['due', 'start', 'any'],
+    description: 'Default any includes intervals overlapping the range.',
+  })
   async list(
     @CurrentUser() user: AuthUser,
     @Query('limit') limit: string | undefined,
@@ -173,6 +190,9 @@ export class TasksController {
     @Query('include_descendants') includeDescendants: string | undefined,
     @Query('due_before') dueBefore: string | undefined,
     @Query('due_after') dueAfter: string | undefined,
+    @Query('from') from: string | undefined,
+    @Query('to') to: string | undefined,
+    @Query('range_field') rangeField: string | undefined,
     @Query('q') q: string | undefined,
     @Query('flat') flat: string | undefined,
     @Query('sort') sort: string | undefined,
@@ -181,6 +201,8 @@ export class TasksController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
+    if (rangeField !== undefined && !['due', 'start', 'any'].includes(rangeField))
+      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'Invalid range_field');
     const project = optionalUuid(
       projectId ?? listId,
       projectId === undefined ? 'list_id' : 'project_id',
@@ -193,6 +215,9 @@ export class TasksController {
         status: this.status(status),
         ...(priority === undefined ? {} : { priority: this.priority(priority) }),
         ...(tagId === undefined ? {} : { tagId }),
+        ...(from === undefined ? {} : { from }),
+        ...(to === undefined ? {} : { to }),
+        rangeField: rangeField === 'due' || rangeField === 'start' ? rangeField : 'any',
         includeDescendants: includeDescendants !== 'false',
         ...(dueBefore === undefined ? {} : { dueBefore }),
         ...(dueAfter === undefined ? {} : { dueAfter }),

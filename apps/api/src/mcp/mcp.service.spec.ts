@@ -433,6 +433,7 @@ describe('McpService recurrence mapping', () => {
       },
     });
     expect(JSON.parse(toolText(result))).toEqual({
+      next_cursor: null,
       items: [
         {
           id: '55555555-5555-4555-8555-555555555555',
@@ -569,6 +570,33 @@ describe('McpService recurrence mapping', () => {
       expect.objectContaining({ parent_id: null }),
       'mcp',
     );
+  });
+  it('TTD-AUD-83: forwards inclusive start/due range selection', async () => {
+    tasks.list.mockResolvedValue({ items: [], next_cursor: null });
+    await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 83,
+      method: 'tools/call',
+      params: {
+        name: 'list_tasks',
+        arguments: { from: '2026-10-22', to: '2026-10-23', range_field: 'any' },
+      },
+    });
+    expect(tasks.list).toHaveBeenCalledWith(
+      user,
+      expect.objectContaining({ from: '2026-10-22', to: '2026-10-23', rangeField: 'any' }),
+    );
+  });
+  it('TTD-AUD-83: api_catalog exposes an opaque cursor', async () => {
+    const response = await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 83,
+      method: 'tools/call',
+      params: { name: 'api_catalog', arguments: { limit: 2 } },
+    });
+    const result = JSON.parse(toolText(response)) as { items: unknown[]; next_cursor: unknown };
+    expect(result.items).toHaveLength(2);
+    expect(typeof result.next_cursor).toBe('string');
   });
 });
 

@@ -1,4 +1,5 @@
 import { writeFileSync } from 'node:fs';
+import { MCP_TOOLS } from '../src/mcp/mcp.catalog.js';
 import { API_SCOPES } from '../src/auth/scopes.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
@@ -54,6 +55,7 @@ async function removeOwner(id: string): Promise<void> {
     where: { OR: [{ ownerId: id }, { id: { in: clientIds } }] },
   });
   await prisma.filter.deleteMany({ where: { ownerId: id } });
+  await prisma.smartList.deleteMany({ where: { ownerId: id } });
   await prisma.habitLog.deleteMany({ where: { ownerId: id } });
   await prisma.habit.deleteMany({ where: { ownerId: id } });
   await prisma.task.deleteMany({ where: { ownerId: id } });
@@ -850,6 +852,119 @@ describe('MCP server', () => {
     expect(
       toolText((await call({ id: second.id, parent_id: other.id })).body as unknown),
     ).toContain('invalid_parent');
+  });
+  it('TTD-AUD-83: inclusive civil-date ranges include all-day and intersecting intervals', async () => {
+    const bearer = await tasksBearer(server, owner.email);
+    const allDay = await prisma.task.create({
+      data: {
+        ownerId: owner.id,
+        projectId: owner.inboxId,
+        createdById: owner.id,
+        title: 'R80 all-day range',
+        dueDate: new Date('2026-10-21T22:00:00Z'),
+        isAllDay: true,
+      },
+    });
+    const spanning = await prisma.task.create({
+      data: {
+        ownerId: owner.id,
+        projectId: owner.inboxId,
+        createdById: owner.id,
+        title: 'R80 spanning',
+        startDate: new Date('2026-10-22T08:00:00Z'),
+        dueDate: new Date('2026-10-25T08:00:00Z'),
+      },
+    });
+    const range = async (from: string, field: string) => {
+      const response = await rpc(server, bearer, 'tools/call', {
+        name: 'list_tasks',
+        arguments: { from, to: '2026-10-23', range_field: field, limit: 100 },
+      });
+      expect(response.body.result.isError).toBe(false);
+      return (
+        JSON.parse(toolText(response.body as unknown)) as { items: { id: string }[] }
+      ).items.map((task) => task.id);
+    };
+    expect(await range('2026-10-22', 'any')).toEqual(
+      expect.arrayContaining([allDay.id, spanning.id]),
+    );
+    expect(await range('2026-10-22T00:00:00+02:00', 'any')).toContain(allDay.id);
+    expect(await range('2026-10-22', 'due')).not.toContain(spanning.id);
+  });
+  it('TTD-AUD-83: search and catalog use opaque non-repeating pages', async () => {
+    const bearer = await tasksBearer(server, owner.email);
+    for (let i = 0; i < 5; i++)
+      await prisma.task.create({
+        data: {
+          ownerId: owner.id,
+          projectId: owner.inboxId,
+          createdById: owner.id,
+          title: `r80paginationneedle ${i}`,
+        },
+      });
+    for (const [name, args] of [
+      ['search', { q: 'r80paginationneedle' }],
+      ['api_catalog', {}],
+    ] as const) {
+      const first = await rpc(server, bearer, 'tools/call', {
+        name,
+        arguments: { ...args, limit: 2 },
+      });
+      const page = JSON.parse(toolText(first.body as unknown)) as {
+        items: { id?: string; path?: string }[];
+        next_cursor: string;
+      };
+      expect(typeof page.next_cursor).toBe('string');
+      expect(page.items).toHaveLength(2);
+      const second = await rpc(server, bearer, 'tools/call', {
+        name,
+        arguments: { ...args, limit: 2, cursor: page.next_cursor },
+      });
+      const next = JSON.parse(toolText(second.body as unknown)) as {
+        items: { id?: string; path?: string }[];
+      };
+      expect(next.items).toHaveLength(2);
+      expect(
+        next.items
+          .map((item) => JSON.stringify(item))
+          .some((item) => page.items.some((previous) => JSON.stringify(previous) === item)),
+      ).toBe(false);
+    }
+  });
+  it('TTD-AUD-83: every list_* returns items and next_cursor', async () => {
+    const token = await request(server)
+      .post('/api/v1/me/tokens')
+      .set('X-Dev-User-Email', owner.email)
+      .send({ name: 'R80 list contract', scopes: [...API_SCOPES] })
+      .expect(201);
+    const bearer = { Authorization: `Bearer ${String(token.body.token)}` };
+    const task = await prisma.task.create({
+      data: {
+        ownerId: owner.id,
+        projectId: owner.inboxId,
+        createdById: owner.id,
+        title: 'R80 list contract',
+      },
+    });
+    for (const tool of MCP_TOOLS.filter((tool) => tool.name.startsWith('list_'))) {
+      const required = tool.inputSchema.required ?? [];
+      const candidates: Record<string, unknown> = {
+        task_id: task.id,
+        id: task.id,
+        key: 'today',
+        from: '2026-10-22T00:00:00Z',
+        to: '2026-10-23T00:00:00Z',
+      };
+      const args = Object.fromEntries(required.map((key) => [key, candidates[key]]));
+      const response = await rpc(server, bearer, 'tools/call', {
+        name: tool.name,
+        arguments: { ...args, limit: 2 },
+      });
+      expect(response.body.result.isError, tool.name).toBe(false);
+      const page = JSON.parse(toolText(response.body as unknown)) as Record<string, unknown>;
+      expect(Array.isArray(page.items), tool.name).toBe(true);
+      expect(page, tool.name).toHaveProperty('next_cursor');
+    }
   });
 });
 

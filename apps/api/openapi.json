@@ -3770,6 +3770,34 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "range_field",
+            "required": false,
+            "in": "query",
+            "description": "Default any includes intervals overlapping the range.",
+            "schema": {
+              "enum": [
+                "due",
+                "start",
+                "any"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Exclusive bound. YYYY-MM-DD uses the user time zone.",
+            "schema": {}
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Inclusive bound. YYYY-MM-DD uses the user time zone.",
+            "schema": {}
           }
         ],
         "responses": {
@@ -16042,6 +16070,16 @@
       "SearchResponseDto": {
         "type": "object",
         "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "next_cursor": {
+            "type": "string",
+            "nullable": true
+          },
           "text": {
             "type": "string"
           },
@@ -16077,6 +16115,8 @@
           }
         },
         "required": [
+          "items",
+          "next_cursor",
           "text",
           "list",
           "tags",

@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { parseSearchQuery } from '@reflexionia/domain';
 import type { AuthUser } from '../../auth/auth-user.js';
 import { DomainException } from '../../http/domain.exception.js';
+import { offsetOf, offsetPage } from '../../http/offset-page.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { toViewJson, loadViewTasks, type ViewTaskJson } from '../../reading/view-tasks.js';
 import type { SearchGroupDto, SearchHitDto, SearchResponseDto } from './search.dto.js';
@@ -19,8 +20,11 @@ export class SearchService {
     user: AuthUser,
     q: string | undefined,
     typesRaw: string | undefined,
+    paging?: { limit: number; cursor?: string },
   ): Promise<SearchResponseDto> {
     const query = (q ?? '').trim();
+    const offset = paging ? offsetOf(paging.cursor) : 0;
+    const cap = paging ? offset + paging.limit + 1 : LIMIT;
     if (query.length > 200) {
       throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'query is too long');
     }
@@ -28,45 +32,70 @@ export class SearchService {
     const parsed = parseSearchQuery(query);
     const groups: SearchGroupDto[] = [];
     if (types.has('task') || types.has('note')) {
-      const tasks = await this.tasks(user.id, parsed);
+      const tasks = await this.tasks(user, parsed);
       if (types.has('task')) {
         groups.push({
           type: 'task',
-          items: tasks.filter((task) => task.kind === 'task').slice(0, LIMIT),
+          items: tasks.filter((task) => task.kind === 'task').slice(0, cap),
         });
       }
       if (types.has('note')) {
         groups.push({
           type: 'note',
-          items: tasks.filter((task) => task.kind === 'note').slice(0, LIMIT),
+          items: tasks.filter((task) => task.kind === 'note').slice(0, cap),
         });
       }
     }
     if (types.has('list') && parsed.text.length > 0) {
-      groups.push({ type: 'list', items: await this.named(user.id, 'project', parsed.text) });
+      groups.push({ type: 'list', items: await this.named(user, 'project', parsed.text, cap) });
     }
     if (types.has('tag') && parsed.text.length > 0) {
-      groups.push({ type: 'tag', items: await this.named(user.id, 'tag', parsed.text) });
+      groups.push({ type: 'tag', items: await this.named(user, 'tag', parsed.text, cap) });
     }
+    const all = groups.flatMap((group) =>
+      group.items.map((item) => ({
+        ...(typeof item === 'object' && item !== null ? item : {}),
+        type: group.type,
+      })),
+    );
+    const page = offsetPage(all, offset, paging?.limit ?? all.length);
     return {
+      items: page.items,
+      next_cursor: page.next_cursor,
       text: parsed.text,
       list: parsed.listName,
       tags: [...parsed.tagNames],
       priority: parsed.priority,
       done: parsed.done,
-      groups: groups.filter((group) => group.items.length > 0),
+      groups: paging
+        ? groups
+            .map((group) => ({
+              type: group.type,
+              items: page.items.filter((item) => item.type === group.type),
+            }))
+            .filter((group) => group.items.length > 0)
+        : groups.filter((group) => group.items.length > 0),
     };
   }
 
   private async tasks(
-    ownerId: string,
+    user: AuthUser,
     parsed: ReturnType<typeof parseSearchQuery>,
   ): Promise<ViewTaskJson[]> {
+    const ownerId = user.id;
     const projects = await this.prisma.project.findMany({
       where: { ownerId, deletedAt: null },
       select: { id: true, name: true, isInbox: true },
     });
-    const projectIds = this.projectIds(projects, parsed.listName);
+    const projectIds =
+      parsed.listName === null
+        ? user.listIds
+        : this.projectIds(
+            projects.filter(
+              (project) => user.listIds === null || user.listIds.includes(project.id),
+            ),
+            parsed.listName,
+          );
     if (projectIds !== null && projectIds.length === 0) {
       return [];
     }
@@ -83,13 +112,13 @@ export class SearchService {
       deletedAt: null,
       status:
         parsed.done === true ? 'completed' : parsed.done === false ? 'active' : { not: 'archived' },
-      ...(projectIds === null ? {} : { projectId: { in: projectIds } }),
+      ...(projectIds === null ? {} : { projectId: { in: [...projectIds] } }),
       ...(tagIds === null ? {} : { tags: { some: { tagId: { in: tagIds } } } }),
       ...(parsed.priority === null ? {} : { priority: parsed.priority }),
       ...(textIds === null ? {} : { id: { in: [...textIds] } }),
     };
     const rows = await loadViewTasks(this.prisma, where);
-    return rows.slice(0, LIMIT * 2).map((row) => toViewJson(row));
+    return rows.map((row) => toViewJson(row));
   }
 
   private projectIds(
@@ -158,12 +187,14 @@ export class SearchService {
   }
 
   private async named(
-    ownerId: string,
+    user: AuthUser,
     kind: 'project' | 'tag',
     text: string,
+    cap: number,
   ): Promise<SearchHitDto[]> {
     const where = {
-      ownerId,
+      ownerId: user.id,
+      ...(kind === 'project' && user.listIds !== null ? { id: { in: [...user.listIds] } } : {}),
       deletedAt: null,
       name: { contains: text, mode: 'insensitive' as const },
     };
@@ -173,13 +204,13 @@ export class SearchService {
             where,
             select: { id: true, name: true },
             orderBy: { name: 'asc' },
-            take: LIMIT,
+            take: cap,
           })
         : await this.prisma.tag.findMany({
             where,
             select: { id: true, name: true },
             orderBy: { name: 'asc' },
-            take: LIMIT,
+            take: cap,
           });
     return rows.map((row) => ({ id: row.id, name: row.name }));
   }

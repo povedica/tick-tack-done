@@ -20,6 +20,8 @@ import { missingScopes } from '../auth/scopes.js';
 import { DomainEvent } from '../events/domain-events.js';
 import { EventRecorder } from '../events/event-recorder.js';
 import { asJson } from '../http/json.js';
+import { offsetOf, offsetCursor, offsetPage } from '../http/offset-page.js';
+import { projectConstraint } from '@reflexionia/domain';
 import { DomainException } from '../http/domain.exception.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { loadDashboardSnapshot } from '../reading/snapshot.js';
@@ -180,7 +182,7 @@ export class McpService {
           .toLowerCase()
           .includes(typeof args.search === 'string' ? args.search.toLowerCase() : ''),
       );
-      const start = typeof args.cursor === 'number' ? args.cursor : 0;
+      const start = offsetOf(args.cursor);
       const limit = typeof args.limit === 'number' ? args.limit : 50;
       data = {
         items: matches
@@ -191,10 +193,11 @@ export class McpService {
               : { method: operation.method, path: operation.path, summary: operation.summary },
           ),
         total: matches.length,
-        next_cursor: start + limit < matches.length ? start + limit : null,
+        next_cursor: start + limit < matches.length ? offsetCursor(start + limit) : null,
       };
     } else if (tool.name === 'api_request') data = await requestPublicApi(args, authorization);
     else data = await this.run(user, tool.name, args);
+    if (tool.name.startsWith('list_')) data = listResult(data, args);
     return { content: [{ type: 'text', text: JSON.stringify(data) }], isError: false };
   }
 
@@ -227,8 +230,10 @@ export class McpService {
           ...(projectId === undefined ? {} : { projectId }),
           ...(tagId === undefined ? {} : { tagId }),
           ...(priority === undefined ? {} : { priority }),
-          ...(dueAfter === undefined ? {} : { dueAfter }),
-          ...(dueBefore === undefined ? {} : { dueBefore }),
+          ...(dueAfter === undefined ? {} : { from: dueAfter }),
+          rangeField:
+            args.range_field === 'due' || args.range_field === 'start' ? args.range_field : 'any',
+          ...(dueBefore === undefined ? {} : { to: dueBefore }),
           status,
           includeDescendants: true,
           flat: false,
@@ -365,8 +370,8 @@ export class McpService {
         await this.tasks.get(user, taskId);
         const rows = await this.prisma.comment.findMany({
           where: { taskId, deletedAt: null },
-          orderBy: { createdAt: 'asc' },
-          take: limit,
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+          take: offsetOf(args.cursor) + limit + 1,
         });
         return {
           items: rows.map((row) => ({
@@ -769,24 +774,23 @@ export class McpService {
       case 'unarchive_countdown':
         return this.countdowns.archive(user, requiredUuid(args, 'id'), false);
       case 'search': {
-        const result = await this.search.search(user, requiredString(args, 'q', 200), undefined);
-        return {
-          text: result.text,
-          list: result.list,
-          tags: result.tags,
-          priority: result.priority,
-          done: result.done,
-          groups: result.groups.map((group) => ({
-            type: group.type,
-            items: group.items.slice(0, limit),
-          })),
-        };
+        const cursor = cursorOf(args);
+        return this.search.search(user, requiredString(args, 'q', 200), undefined, {
+          limit,
+          ...(cursor === undefined ? {} : { cursor }),
+        });
       }
       case 'list_notes':
         return this.prisma.task.findMany({
-          where: { ownerId: user.id, kind: 'note', deletedAt: null },
+          where: {
+            ownerId: user.id,
+            kind: 'note',
+            deletedAt: null,
+            ...projectConstraint(user.listIds),
+          },
           select: { id: true, title: true, content: true, projectId: true },
-          take: limit,
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: offsetOf(args.cursor) + limit + 1,
         });
       case 'pin_sticky_note':
         return this.prisma.$transaction(async (tx) => {
@@ -1085,6 +1089,24 @@ function toolError(
     isError: true,
     ...(data === undefined ? {} : { data }),
   };
+}
+
+/** Normalize legacy unpaged collections while preserving API keyset cursors and groups. */
+function collection(value: unknown): unknown[] {
+  return Array.isArray(value) ? (value as unknown[]) : [];
+}
+function listResult(value: unknown, args: Record<string, unknown>): unknown {
+  const row = isRecord(value) ? value : {};
+  const groups = collection(row.groups).filter(isRecord);
+  const items = Array.isArray(value)
+    ? collection(value)
+    : Array.isArray(row.items)
+      ? collection(row.items)
+      : groups.length
+        ? groups.flatMap((group) => collection(group.tasks))
+        : [...collection(row.tasks), ...collection(row.external)];
+  if ('next_cursor' in row) return { ...row, items };
+  return { ...row, ...offsetPage(items, offsetOf(args.cursor), limitOf(args)) };
 }
 
 function enrichTask<

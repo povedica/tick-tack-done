@@ -126,6 +126,9 @@ export interface TaskListQuery {
   priority?: Priority;
   tagId?: string;
   includeDescendants: boolean;
+  from?: string;
+  to?: string;
+  rangeField?: 'due' | 'start' | 'any';
   dueBefore?: string;
   dueAfter?: string;
   q?: string;
@@ -181,9 +184,37 @@ export class TasksService {
     if (listFilter.id !== undefined) {
       return { items: [], next_cursor: null };
     }
+    const lower =
+      query.from === undefined ? undefined : this.instant(query.from, 'from', user.timeZone).date;
+    const upper =
+      query.to === undefined ? undefined : this.instant(query.to, 'to', user.timeZone).date;
+    if (lower && upper && lower >= upper)
+      throw new DomainException(HttpStatus.BAD_REQUEST, 'invalid_range', 'from must precede to');
+    const bounds = {
+      ...(lower === undefined ? {} : { gte: lower }),
+      ...(upper === undefined ? {} : { lt: upper }),
+    };
+    const range: Prisma.TaskWhereInput | null =
+      lower === undefined && upper === undefined
+        ? null
+        : query.rangeField === 'due'
+          ? { dueDate: bounds }
+          : query.rangeField === 'start'
+            ? { startDate: bounds }
+            : {
+                OR: [
+                  { dueDate: bounds },
+                  { startDate: bounds },
+                  {
+                    startDate: { not: null, ...(upper === undefined ? {} : { lt: upper }) },
+                    dueDate: { not: null, ...(lower === undefined ? {} : { gte: lower }) },
+                  },
+                ],
+              };
     const rows = await this.prisma.task.findMany({
       where: {
         ownerId: user.id,
+        ...(range === null ? {} : { AND: [range] }),
         ...(query.deleted ? { deletedAt: { not: null } } : { deletedAt: null }),
         ...visibleParents(query),
         ...(listFilter.projectId === undefined ? {} : { projectId: listFilter.projectId }),

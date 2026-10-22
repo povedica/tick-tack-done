@@ -99,7 +99,7 @@ const repeatFromSchema = {
  * every scope it declares (RF-2001). Listings that return next_cursor accept
  * the same cursor string as API v1.
  */
-export const MCP_TOOLS: readonly McpTool[] = [
+const CATALOG: readonly McpTool[] = [
   {
     name: 'api_catalog',
     description:
@@ -109,7 +109,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
       search: { type: 'string' },
       details: { type: 'boolean' },
       limit,
-      cursor: { type: 'integer', minimum: 0 },
+      cursor,
     }),
   },
   {
@@ -145,15 +145,22 @@ export const MCP_TOOLS: readonly McpTool[] = [
   {
     name: 'list_tasks',
     description:
-      'List tasks. Default status is active. Pass status=completed|cancelled|archived|all to include others. Optional filters: tag_id, priority, from/to (due_date bounds as ISO). someday=true lists Someday; the default excludes them. Workflow columns (pending/in progress) are list board columns via column_id (TTD-AUD-53).',
+      'List tasks. Default status is active. Pass status=completed|cancelled|archived|all to include others. Optional filters: tag_id, priority, from/to ([from,to), inclusive start and exclusive end in the user time zone); range_field=due|start|any (default any, including overlapping intervals). someday=true lists Someday; the default excludes them. Workflow columns (pending/in progress) are list board columns via column_id (TTD-AUD-53).',
     scopes: ['tasks:read'],
     inputSchema: objectSchema({
       limit,
       cursor,
       project_id: id,
       tag_id: id,
-      from: { type: 'string', description: 'Lower bound for due_date (ISO 8601).' },
-      to: { type: 'string', description: 'Upper bound for due_date (ISO 8601).' },
+      from: {
+        type: 'string',
+        description: 'Inclusive lower bound. Civil dates use the user time zone.',
+      },
+      range_field: { type: 'string', enum: ['due', 'start', 'any'] },
+      to: {
+        type: 'string',
+        description: 'Exclusive upper bound. Civil dates use the user time zone.',
+      },
       priority: { type: 'string', enum: ['none', 'low', 'medium', 'high'] },
       someday: { type: 'boolean' },
       status: {
@@ -812,6 +819,19 @@ export const MCP_TOOLS: readonly McpTool[] = [
     inputSchema: objectSchema({ id }, ['id']),
   },
 ];
+
+/** Every listing shares paging inputs; existing API keyset cursors stay unchanged. */
+export const MCP_TOOLS: readonly McpTool[] = CATALOG.map((tool) =>
+  tool.name.startsWith('list_')
+    ? {
+        ...tool,
+        inputSchema: {
+          ...tool.inputSchema,
+          properties: { limit, cursor, ...tool.inputSchema.properties },
+        },
+      }
+    : tool,
+);
 
 export function findTool(name: string): McpTool | undefined {
   return MCP_TOOLS.find((tool) => tool.name === name);

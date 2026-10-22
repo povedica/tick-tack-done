@@ -4248,6 +4248,8 @@ export interface components {
             }[];
         };
         SearchResponseDto: {
+            items: Record<string, never>[];
+            next_cursor: string | null;
             text: string;
             list: string | null;
             tags: string[];
@@ -6944,7 +6946,14 @@ export interface operations {
     };
     TasksController_list: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Default any includes intervals overlapping the range. */
+                range_field?: "due" | "start" | "any";
+                /** @description Exclusive bound. YYYY-MM-DD uses the user time zone. */
+                to?: unknown;
+                /** @description Inclusive bound. YYYY-MM-DD uses the user time zone. */
+                from?: unknown;
+            };
             header?: {
                 "X-Dev-User-Email"?: string;
             };
