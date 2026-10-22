@@ -15,7 +15,6 @@ id_*
 *.sqlite
 *.dump
 *.sql.gz
-docs/private/
 *.private.md
 .vite/
 playwright-report/
@@ -25,3 +24,5 @@ backups/
 .DS_Store
 *.log
 docker-compose.worktree.local.yml
+
+/test-artifacts/

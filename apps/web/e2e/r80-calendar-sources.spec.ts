@@ -43,7 +43,7 @@ test('TTD-AUD-93: shared period selector has no native date input', async ({ pag
   const phase = process.env.R80_PHASE ?? 'antes';
   await page.screenshot({
     path: path.resolve(
-      '../../docs/audit/evidencias/r80',
+      '../../test-artifacts/audit/evidencias/r80',
       `93_periodo_${phase}_${info.project.name.replace('-', '_')}.png`,
     ),
     animations: 'disabled',

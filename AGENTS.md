@@ -1,8 +1,8 @@
 # AGENTS.md — guía para agentes de codificación (Cursor y otros)
 
 Este repositorio es un gestor de tareas personal extensible desplegado en
-`todo.reflexionia.com`. La fuente de verdad del producto es la especificación
-`docs/spec/especificacion-producto-v1.1.md` (RF-xx = requisito testeable). Este archivo resume las
+`todo.reflexionia.com`. La referencia histórica del producto es la especificación
+[documentación histórica](https://github.com/povedica/tick-tack-done/blob/340f34be17477ecab681ddc3dbfd790c9346a0ba/docs/spec/done/especificacion-producto-v1.1.md) (RF-xx = requisito testeable). Este archivo resume las
 normas; el detalle vive en `.cursor/rules/*.mdc`, que Cursor aplica automáticamente.
 
 ## Contexto mínimo antes de tocar código
@@ -20,7 +20,6 @@ normas; el detalle vive en `.cursor/rules/*.mdc`, que Cursor aplica automáticam
 - `packages/sdk` — cliente TS de la API generado del OpenAPI.
 - `docker-compose.yml` + `Caddyfile` — despliegue en un VPS con Docker. `docker-compose.dev.yml` — infra local.
 - `scripts/` — seed, backups (RF-1704), utilidades de desarrollo.
-- `docs/` — arquitectura, convenciones, plan por fases y prompts reutilizables.
 
 ## Reglas de oro
 

@@ -1,4 +1,4 @@
-import { writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { r80Fixture } from './r80.fixture';
@@ -44,8 +44,12 @@ test('TTD-AUD-98: record Agenda cold and cached waterfall before optimizing', as
   const cached = await page.evaluate((start) => performance.now() - start, before);
   await Promise.all(pending);
   const phase = process.env.R80_PHASE ?? 'antes';
+  await mkdir(path.resolve('../../test-artifacts/audit/r80'), { recursive: true });
   await writeFile(
-    path.resolve('../../docs/audit/r80', `98-waterfall-${phase}-${info.project.name}.json`),
+    path.resolve(
+      '../../test-artifacts/audit/r80',
+      `98-waterfall-${phase}-${info.project.name}.json`,
+    ),
     JSON.stringify(
       {
         environment:

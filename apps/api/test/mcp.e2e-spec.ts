@@ -1,7 +1,7 @@
 import { fakeDrive } from './helpers/fake-drive.js';
 import { sealField } from '../src/security/field-cipher.js';
 import type { AddressInfo } from 'node:net';
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { MCP_TOOLS } from '../src/mcp/mcp.catalog.js';
 import { API_SCOPES } from '../src/auth/scopes.js';
 import { createHash, randomUUID } from 'node:crypto';
@@ -315,11 +315,13 @@ describe('MCP server', () => {
     expect(response.status).toBe(200);
     expect(response.body.result.tools.length).toBeGreaterThanOrEqual(61);
     const phase = process.env.R80_CAPTURE_CATALOG;
-    if (phase === 'antes' || phase === 'despues')
+    if (phase === 'antes' || phase === 'despues') {
+      mkdirSync('../../test-artifacts/audit/r80', { recursive: true });
       writeFileSync(
-        `../../docs/audit/r80/mcp-tools-${phase}.json`,
+        `../../test-artifacts/audit/r80/mcp-tools-${phase}.json`,
         JSON.stringify(response.body.result, null, 2) + '\n',
       );
+    }
   });
 
   it('TTD-AUD-85.3: authenticated SSE streams catalog changes without a session', async () => {

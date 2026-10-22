@@ -13,7 +13,7 @@ for (const minutes of [15, 30, 60])
     if (process.env.R80_PHASE === 'antes') {
       await page.screenshot({
         path: path.resolve(
-          '../../docs/audit/evidencias/r80',
+          '../../test-artifacts/audit/evidencias/r80',
           `89_bloque-${minutes}_antes_${info.project.name.replace('-', '_')}.png`,
         ),
       });
@@ -27,7 +27,7 @@ for (const minutes of [15, 30, 60])
     await expect(link).toHaveAttribute('aria-label', /Tarea sintética/);
     await page.screenshot({
       path: path.resolve(
-        '../../docs/audit/evidencias/r80',
+        '../../test-artifacts/audit/evidencias/r80',
         `89_bloque-${minutes}_despues_${info.project.name.replace('-', '_')}.png`,
       ),
     });

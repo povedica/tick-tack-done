@@ -9,4 +9,6 @@
 - Acerca de con versiones y diagnóstico sin datos de cuenta.
 - Tarjetas con permisos y activación independientes para Google Calendar y Google Drive sobre una conexión Google y avisos sobre tratamiento de datos.
 
-Implementación y pruebas locales: [estado](docs/audit/ESTADO.md). Las verificaciones externas pendientes se detallan en la PR; estos cambios no se han desplegado. [Contrato MCP](docs/mcp/CHANGELOG.md).
+Por petición de Pablo, se retira `docs/` del árbol. Las evidencias históricas siguen enlazadas en la PR; las nuevas ejecuciones generan artefactos ignorados por Git en `test-artifacts/`.
+
+Implementación y pruebas locales: [estado](https://github.com/povedica/tick-tack-done/blob/340f34be17477ecab681ddc3dbfd790c9346a0ba/docs/audit/ESTADO.md). Las verificaciones externas pendientes se detallan en la PR; estos cambios no se han desplegado. [Contrato MCP](https://github.com/povedica/tick-tack-done/blob/340f34be17477ecab681ddc3dbfd790c9346a0ba/docs/mcp/CHANGELOG.md).

@@ -62,7 +62,7 @@ for (const screen of ['estadisticas', 'reporte-actual', 'reporte-anterior'])
     );
     await page.screenshot({
       path: path.resolve(
-        '../../docs/audit/evidencias/r80',
+        '../../test-artifacts/audit/evidencias/r80',
         `95_${screen}_${process.env.R80_PHASE ?? 'antes'}_${info.project.name.replace('-', '_')}.png`,
       ),
       animations: 'disabled',

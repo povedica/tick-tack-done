@@ -66,7 +66,7 @@ test('TTD-AUD-97: two cards show granted permission and local activation separat
   const capture = (name: string) =>
     page.screenshot({
       path: path.resolve(
-        '../../docs/audit/evidencias/r80',
+        '../../test-artifacts/audit/evidencias/r80',
         `97_${name}_${phase}_${info.project.name.replace('-', '_')}.png`,
       ),
       animations: 'disabled',

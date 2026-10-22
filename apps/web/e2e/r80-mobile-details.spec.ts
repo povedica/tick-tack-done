@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import { r80Fixture } from './r80.fixture';
 test.use({ deviceScaleFactor: 3 });
@@ -14,7 +14,7 @@ async function capture(
   );
   await page.screenshot({
     path: path.resolve(
-      '../../docs/audit/evidencias/r80',
+      '../../test-artifacts/audit/evidencias/r80',
       `96_${name}_${process.env.R80_PHASE ?? 'antes'}_${info.project.name.replace('-', '_')}.png`,
     ),
     animations: 'disabled',
@@ -123,9 +123,10 @@ test('TTD-AUD-96.6: mini calendar and drawer measured at scale 3', async ({ page
     scroll: node.scrollHeight,
     client: node.clientHeight,
   }));
+  await mkdir(path.resolve('../../test-artifacts/audit/r80'), { recursive: true });
   await writeFile(
     path.resolve(
-      '../../docs/audit/r80',
+      '../../test-artifacts/audit/r80',
       `96-minicalendario-${process.env.R80_PHASE ?? 'antes'}-${info.project.name}.json`,
     ),
     JSON.stringify({ cells, drawer, dpr: await page.evaluate(() => devicePixelRatio) }, null, 2),

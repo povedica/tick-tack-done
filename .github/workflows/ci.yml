@@ -120,5 +120,5 @@ jobs:
           name: r80-browser-evidence
           path: |
             apps/web/test-results
-            docs/audit/r80/98-waterfall-despues-*.json
+            test-artifacts/audit/r80/98-waterfall-despues-*.json
           retention-days: 14

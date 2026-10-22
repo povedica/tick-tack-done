@@ -43,7 +43,7 @@ test('TTD-AUD-94: source step offers 18 by default and explains the 17 excluded 
   const screenshot = async (screen: string) =>
     page.screenshot({
       path: path.resolve(
-        '../../docs/audit/evidencias/r80',
+        '../../test-artifacts/audit/evidencias/r80',
         `94_${screen}_${phase}_${info.project.name.replace('-', '_')}.png`,
       ),
       animations: 'disabled',

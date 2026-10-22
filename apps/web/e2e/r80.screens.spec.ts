@@ -87,7 +87,7 @@ for (const screen of screens)
     await page.evaluate(() => document.fonts.ready);
     await page.screenshot({
       path: path.resolve(
-        '../../docs/audit/evidencias/r80',
+        '../../test-artifacts/audit/evidencias/r80',
         `${screen.id}_${screen.name}_${phase}_${info.project.name.replace('-', '_')}.png`,
       ),
       animations: 'disabled',

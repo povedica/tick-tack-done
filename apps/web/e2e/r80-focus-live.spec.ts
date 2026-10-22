@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { API_SCOPES } from '../../api/src/auth/scopes';
@@ -28,8 +28,9 @@ test('TTD-AUD-84: MCP focus changes appear in the real web within two seconds', 
     expect(catalog.status()).toBe(200);
     const result = (await catalog.json()) as { result: { tools: unknown[] } };
     expect(result.result.tools).toHaveLength(75);
+    mkdirSync(path.resolve('../../test-artifacts/audit/r80'), { recursive: true });
     writeFileSync(
-      path.resolve('../../docs/audit/r80/mcp-tools-despues.json'),
+      path.resolve('../../test-artifacts/audit/r80/mcp-tools-despues.json'),
       JSON.stringify(result.result, null, 2) + '\n',
     );
   }
@@ -81,7 +82,10 @@ test('TTD-AUD-84: MCP focus changes appear in the real web within two seconds', 
     const name = info.project.name.replace('-', '_');
     if (process.env.R80_PHASE !== 'despues')
       await page.screenshot({
-        path: path.resolve('../../docs/audit/evidencias/r80', `84_foco-mcp_antes_${name}.png`),
+        path: path.resolve(
+          '../../test-artifacts/audit/evidencias/r80',
+          `84_foco-mcp_antes_${name}.png`,
+        ),
       });
     if (process.env.R80_LIVE_CAPTURE_ONLY === 'antes') return;
     const started = await call('start_focus', {
@@ -95,7 +99,10 @@ test('TTD-AUD-84: MCP focus changes appear in the real web within two seconds', 
     });
     await expect(page.locator('.focus-stage > select').first()).toHaveValue(fixture.taskId);
     await page.screenshot({
-      path: path.resolve('../../docs/audit/evidencias/r80', `84_foco-mcp_despues_${name}.png`),
+      path: path.resolve(
+        '../../test-artifacts/audit/evidencias/r80',
+        `84_foco-mcp_despues_${name}.png`,
+      ),
     });
     await call('pause_focus');
     await expect(page.getByRole('button', { name: 'Continuar', exact: true })).toBeVisible({
