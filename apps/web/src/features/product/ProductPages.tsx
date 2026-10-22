@@ -1,6 +1,6 @@
 import { runAction } from '../../components/run-action';
 import { useEffect, useState } from 'react';
-import { Link, useLocation, useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
 import { Button, ErrorState, SkeletonRows } from '../../components/ui';
@@ -11,9 +11,8 @@ import {
 } from './GoogleAccessActions';
 import { InboundEmailCard } from '../settings/InboundEmailCard';
 import { GoogleCalendarsCard } from '../settings/GoogleCalendarsCard';
-import { fill, useMessages } from '../../i18n';
+import { useMessages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
-import { taskQueryHref } from '../../shell/use-open-task';
 
 function itemsOf(value: unknown): readonly Record<string, unknown>[] {
   if (typeof value !== 'object' || value === null || !('items' in value)) {
@@ -27,14 +26,6 @@ function isRow(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function numberOf(value: unknown): number {
-  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
-}
-
-function clock(seconds: number): string {
-  return `${String(Math.floor(seconds / 60))}:${String(seconds % 60).padStart(2, '0')}`;
-}
-
 function text(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
@@ -43,204 +34,7 @@ export { DashboardPage } from '../dashboard/DashboardPage';
 
 export { ReportsPage, ReviewPage } from './WeeklyPages';
 
-export function FocusPage() {
-  const messages = useMessages();
-  const location = useLocation();
-  const queryClient = useQueryClient();
-  const sessions = useQuery({
-    queryKey: ['focus-sessions'],
-    queryFn: () => api.listFocusSessions(),
-  });
-  const settings = useQuery({
-    queryKey: ['focus-settings'],
-    queryFn: () => api.getFocusSettings(),
-  });
-  const stats = useQuery({ queryKey: ['focus-stats'], queryFn: () => api.focusStats() });
-  const rows = itemsOf(sessions.data);
-  const live = rows.find((row) => row.ended_at === null && numberOf(row.remaining_seconds) > 0);
-  const taskId = typeof live?.task_id === 'string' ? live.task_id : '';
-  const focused = useQuery({
-    queryKey: ['task', taskId],
-    queryFn: () => api.taskDetail(taskId),
-    enabled: taskId.length > 0,
-  });
-  const started = typeof live?.started_at === 'string' ? live.started_at : null;
-  const planned =
-    typeof live?.planned_minutes === 'number'
-      ? live.planned_minutes
-      : typeof settings.data?.pomodoroMinutes === 'number'
-        ? settings.data.pomodoroMinutes
-        : 25;
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (started === null) {
-      return;
-    }
-    const id = window.setInterval(() => {
-      setNow(Date.now());
-    }, 1000);
-    return () => {
-      window.clearInterval(id);
-    };
-  }, [started]);
-  const remaining =
-    started === null
-      ? planned * 60
-      : Math.max(0, planned * 60 - Math.floor((now - Date.parse(started)) / 1000));
-  useEffect(() => {
-    if (started === null || remaining > 0) {
-      return;
-    }
-    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-      new Notification(messages.focusDone);
-    }
-    document.title = messages.focusDone;
-  }, [messages.focusDone, remaining, started]);
-  const pomodoros = numberOf(stats.data?.completed_pomodoros);
-  const minutes = Math.round(numberOf(stats.data?.focus_seconds) / 60);
-  const streak = numberOf(stats.data?.streak_days);
-  const plannedSeconds = planned * 60;
-  const progress =
-    started === null || plannedSeconds <= 0
-      ? 0
-      : Math.min(1, Math.max(0, (plannedSeconds - remaining) / plannedSeconds));
-  const ring = 2 * Math.PI * 54;
-  const loading = sessions.isPending || settings.isPending;
-  if (loading) {
-    return (
-      <section className="screen-page">
-        <h1>{messages.focusTitle}</h1>
-        <SkeletonRows />
-      </section>
-    );
-  }
-  if (sessions.isError || settings.isError) {
-    return (
-      <section className="screen-page">
-        <h1>{messages.focusTitle}</h1>
-        <ErrorState
-          title={fill(messages.loadFailed, messages.focusTitle)}
-          retryLabel={messages.retry}
-          onRetry={() => {
-            runAction(sessions.refetch());
-            runAction(settings.refetch());
-            runAction(stats.refetch());
-          }}
-        />
-      </section>
-    );
-  }
-  return (
-    <section className="screen-page">
-      <h1>{messages.focusTitle}</h1>
-      <p>{messages.focusHint}</p>
-      <p className="ui-muted">{messages.focusLifetime}</p>
-      {focused.data !== undefined ? (
-        <p>
-          <Link to={taskQueryHref(location.pathname, location.search, focused.data.id)}>
-            {focused.data.title}
-          </Link>
-        </p>
-      ) : null}
-      <div className="focus-timer" aria-live="polite">
-        <svg className="focus-timer-ring" viewBox="0 0 120 120" aria-hidden="true">
-          <circle cx="60" cy="60" r="54" />
-          <circle
-            cx="60"
-            cy="60"
-            r="54"
-            style={{
-              strokeDasharray: String(ring),
-              strokeDashoffset: String(ring * (1 - progress)),
-            }}
-          />
-        </svg>
-        <p className="focus-timer-clock detail-title">{clock(remaining)}</p>
-      </div>
-      {started === null ? (
-        <div className="page-toolbar">
-          {[15, 25, 50].map((preset) => (
-            <Button
-              key={preset}
-              aria-pressed={planned === preset}
-              onClick={() => {
-                runAction(
-                  api.updateFocusSettings({ pomodoro_minutes: preset }).then(() => {
-                    runAction(queryClient.invalidateQueries({ queryKey: ['focus-settings'] }));
-                  }),
-                );
-              }}
-            >
-              {String(preset)} min
-            </Button>
-          ))}
-        </div>
-      ) : null}
-      <ul className="widget-grid focus-stats">
-        <li className="widget garden-card">
-          <h3>{messages.streakLabel}</h3>
-          <p className="garden-value">{String(streak)}</p>
-        </li>
-        <li className="widget garden-card">
-          <h3>{messages.focusPomodoros}</h3>
-          <p className="garden-value">{String(pomodoros)}</p>
-        </li>
-        <li className="widget garden-card">
-          <h3>{messages.focusMinutes}</h3>
-          <p className="garden-value">{String(minutes)}</p>
-        </li>
-      </ul>
-      <div className="page-toolbar">
-        {typeof live?.id === 'string' ? (
-          <>
-            <Button
-              variant="primary"
-              onClick={() => {
-                runAction(
-                  api.finishFocus(live.id as string).then(() => {
-                    runAction(queryClient.invalidateQueries({ queryKey: ['focus-sessions'] }));
-                    runAction(queryClient.invalidateQueries({ queryKey: ['focus-stats'] }));
-                    runAction(queryClient.invalidateQueries({ queryKey: ['stats'] }));
-                    runAction(queryClient.invalidateQueries({ queryKey: ['achievements'] }));
-                  }),
-                );
-              }}
-            >
-              {messages.focusFinish}
-            </Button>
-            <Button
-              onClick={() => {
-                runAction(
-                  api.abortFocus(live.id as string).then(() => {
-                    runAction(queryClient.invalidateQueries({ queryKey: ['focus-sessions'] }));
-                    runAction(queryClient.invalidateQueries({ queryKey: ['focus-stats'] }));
-                    runAction(queryClient.invalidateQueries({ queryKey: ['stats'] }));
-                    runAction(queryClient.invalidateQueries({ queryKey: ['achievements'] }));
-                  }),
-                );
-              }}
-            >
-              {messages.cancel}
-            </Button>
-          </>
-        ) : (
-          <Button
-            variant="primary"
-            onClick={() => {
-              runAction(
-                api.startFocus().then(() => {
-                  runAction(queryClient.invalidateQueries({ queryKey: ['focus-sessions'] }));
-                }),
-              );
-            }}
-          >
-            {messages.focusStart}
-          </Button>
-        )}
-      </div>
-    </section>
-  );
-}
+export { FocusPage } from '../focus/FocusPage';
 
 export function CalendarSettings() {
   const messages = useMessages();
@@ -273,11 +67,21 @@ export function CalendarSettings() {
             <p>{messages.calendarFeedHint}</p>
           </div>
         </div>
+        {projects.isPending ? <SkeletonRows /> : null}
+        {projects.isError ? (
+          <ErrorState
+            title={messages.calendarLoadFailed}
+            retryLabel={messages.retry}
+            onRetry={() => {
+              runAction(projects.refetch());
+            }}
+          />
+        ) : null}
         <form
           className="token-form"
           onSubmit={(event) => {
             event.preventDefault();
-            if (projectId.length === 0) {
+            if (projectId.length === 0 || !projects.isSuccess) {
               return;
             }
             runAction(
@@ -295,6 +99,7 @@ export function CalendarSettings() {
           <select
             id="calendar-list"
             className="token-name is-short"
+            disabled={!projects.isSuccess}
             value={projectId}
             onChange={(event) => {
               setPicked(event.target.value);
@@ -306,7 +111,12 @@ export function CalendarSettings() {
               </option>
             ))}
           </select>
-          <Button type="submit" variant="primary" size="sm" disabled={projectId.length === 0}>
+          <Button
+            type="submit"
+            variant="primary"
+            size="sm"
+            disabled={projectId.length === 0 || !projects.isSuccess}
+          >
             {messages.feedCreate}
           </Button>
         </form>
@@ -340,6 +150,16 @@ export function CalendarSettings() {
             <p>{messages.calendarFeedHint}</p>
           </div>
         </div>
+        {feeds.isPending ? <SkeletonRows /> : null}
+        {feeds.isError ? (
+          <ErrorState
+            title={messages.calendarLoadFailed}
+            retryLabel={messages.retry}
+            onRetry={() => {
+              runAction(feeds.refetch());
+            }}
+          />
+        ) : null}
         {feeds.isSuccess && feedRows.length === 0 ? (
           <p className="token-empty">{messages.feedEmptyList}</p>
         ) : null}
@@ -434,7 +254,7 @@ export function CalendarSettings() {
             <h2 id="calendar-google-title">Google</h2>
             <p>{messages.calendarGoogleHint}</p>
           </div>
-          {google.isFetched ? (
+          {google.data !== undefined ? (
             <StatusPill
               on={googleOn}
               onLabel={messages.integrationConnected}
@@ -444,6 +264,16 @@ export function CalendarSettings() {
             />
           ) : null}
         </div>
+        {google.isPending ? <SkeletonRows /> : null}
+        {google.isError ? (
+          <ErrorState
+            title={messages.calendarLoadFailed}
+            retryLabel={messages.retry}
+            onRetry={() => {
+              runAction(google.refetch());
+            }}
+          />
+        ) : null}
         {text(google.data?.account).length > 0 ? (
           <p className="token-meta">{text(google.data?.account)}</p>
         ) : null}

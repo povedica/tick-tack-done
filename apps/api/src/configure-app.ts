@@ -3,6 +3,7 @@ import { type INestApplication, RequestMethod, ValidationPipe } from '@nestjs/co
 import { DocumentBuilder, SwaggerModule, type OpenAPIObject } from '@nestjs/swagger';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
+import { json } from 'express';
 import type { NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
 import { oauthEdgeMiddleware } from './auth/oauth-edge.js';
@@ -25,6 +26,10 @@ export function configureApp(app: INestApplication): void {
     ],
   });
   app.use(oauthEdgeMiddleware);
+  // MCP multipart tools carry one base64 attachment (API limit: 25 MB).
+  app.use('/api/v1/mcp', json({ limit: '35mb' }));
+  // Explicit default: Nest detects jsonParser by name even when mounted on a path.
+  app.use(json({ limit: '100kb' }));
   app.use(
     helmet({
       contentSecurityPolicy: {

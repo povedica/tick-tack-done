@@ -1,7 +1,8 @@
+import { calendarDragPatch } from '@reflexionia/domain';
 import { runAction } from '../../components/run-action';
 import { displayTitle } from '../tasks/displayTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowUpDown, Lightbulb, Menu, Sprout } from 'lucide-react';
+import { ArrowUpDown, Sprout } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { api } from '../../api';
@@ -12,6 +13,7 @@ import { useActionToast } from '../../components/action-toast';
 import { useMessages, type Messages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
 import { warningText } from '../capture/components/CaptureSheet';
+import { allDaySlot } from '../capture/calendar-slot';
 import { openTaskComposer, useCaptureNotice } from '../capture/notice';
 import { TodayPlanStrip, type DayLoadBody } from './TodayPlanStrip';
 import { TodayHabits } from './TodayHabits';
@@ -19,7 +21,7 @@ import './today-support.css';
 import { HABITS_DISMISS_KEY, habitsDismissed } from '../habits/dismiss';
 import { flushOfflineQueue, newMutation, runOrQueue } from '../offline/client';
 import { isTypingTarget } from '../../shell/shortcuts';
-import { useShellActions } from '../../shell/shell-actions';
+import { SidebarFoldButton } from '../../shell/SidebarFoldButton';
 import { collectTags } from '../tasks/collect';
 import { completeBody } from '../tasks/complete-body';
 import { TaskComposer } from '../tasks/TaskComposer';
@@ -70,7 +72,6 @@ const COLLAPSE_KEY = 'tick-tack-done.today.collapsed';
 export function TodayPage() {
   const messages = useMessages();
   const flags = useFeatures((state) => state.flags);
-  const shell = useShellActions();
   const locale = useAppLocale();
   const navigate = useNavigate();
   const location = useLocation();
@@ -80,7 +81,8 @@ export function TodayPage() {
   const showToast = useActionToast((state) => state.show);
   const addRef = useRef<HTMLInputElement>(null);
   const [params, setParams] = useSearchParams();
-  const group = groupFromLocation(params.get('group'), readStored(GROUP_KEY));
+  const [storedGroup, setStoredGroup] = useState(() => readStored(GROUP_KEY));
+  const group = groupFromLocation(params.get('group'), storedGroup);
   const [sort, setSort] = useState<TaskSortKey>(() => parseSort(readStored(SORT_KEY)));
   const [sortDir, setSortDir] = useState<TaskSortDir>(() => parseSortDir(readStored(SORT_DIR_KEY)));
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(
@@ -113,7 +115,66 @@ export function TodayPage() {
       window.removeEventListener('focus', check);
     };
   }, [habitsHidden]);
-  const [matrixLayout, setMatrixLayout] = useState(() => readMatrixLayout('today'));
+  const [matrixLayout, setMatrixLayout] = useState(() => {
+    const requested = params.get('view');
+    return requested === 'list' || requested === 'matrix' || requested === 'kanban'
+      ? requested
+      : readMatrixLayout('today');
+  });
+  useEffect(() => {
+    const requested = params.get('view');
+    if (
+      (requested === 'list' || requested === 'matrix' || requested === 'kanban') &&
+      requested !== matrixLayout
+    )
+      setMatrixLayout(requested);
+  }, [params, matrixLayout]);
+  const remotePrefs = useQuery({
+    queryKey: ['view-preferences', 'today'],
+    queryFn: () => api.getViewPreferences('today'),
+    refetchInterval: 30_000,
+  });
+  useEffect(() => {
+    const value = remotePrefs.data?.preferences;
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+    const remote = value as Record<string, unknown>;
+    if (typeof remote.group === 'string') {
+      localStorage.setItem(GROUP_KEY, remote.group);
+      setStoredGroup(remote.group);
+    }
+    if (typeof remote.sort === 'string') {
+      localStorage.setItem(SORT_KEY, remote.sort);
+      setSort(parseSort(remote.sort));
+    }
+    if (typeof remote.order === 'string') {
+      localStorage.setItem(SORT_DIR_KEY, remote.order);
+      setSortDir(parseSortDir(remote.order));
+    }
+    if (typeof remote.showDetails === 'boolean') setDetails(remote.showDetails);
+    if (typeof remote.hideCompleted === 'boolean') setHideCompleted(remote.hideCompleted);
+    if (
+      !params.has('view') &&
+      (remote.view === 'list' || remote.view === 'kanban' || remote.view === 'matrix')
+    ) {
+      writeMatrixLayout('today', remote.view);
+      setMatrixLayout(remote.view);
+    }
+  }, [remotePrefs.data]);
+  function syncPrefs(patch: Record<string, string | boolean>) {
+    runAction(
+      api.putViewPreferences('today', {
+        view: matrixLayout,
+        group,
+        sort,
+        order: sortDir,
+        showDetails: details,
+        hideCompleted,
+        detailLayout: 'side',
+        syncAcrossDevices: true,
+        ...patch,
+      }),
+    );
+  }
   const jobs = useRef(new Map<string, CompleteJob>());
   const leaveTimers = useRef(new Map<string, number>());
   const tasks = useQuery({
@@ -367,6 +428,8 @@ export function TodayPage() {
 
   function chooseGroup(value: TaskGroupKey): void {
     localStorage.setItem(GROUP_KEY, value);
+    setStoredGroup(value);
+    syncPrefs({ group: value });
     const next = new URLSearchParams(params);
     next.set('group', value);
     setParams(next, { replace: true });
@@ -375,11 +438,13 @@ export function TodayPage() {
 
   function chooseSort(value: TaskSortKey): void {
     setSort(value);
+    syncPrefs({ sort: value });
     localStorage.setItem(SORT_KEY, value);
   }
 
   function chooseDir(value: TaskSortDir): void {
     setSortDir(value);
+    syncPrefs({ order: value });
     localStorage.setItem(SORT_DIR_KEY, value);
   }
 
@@ -492,6 +557,21 @@ export function TodayPage() {
       moreLabel: messages.moreActions,
       untitled: messages.untitled,
       groupKind: overdueLabel ? 'due' : group,
+      onCreate:
+        matrixLayout === 'kanban'
+          ? () => {
+              openTaskComposer({
+                text: '',
+                slot: allDaySlot(calendarDay(new Date().toISOString(), zone), zone),
+                defaultProjectId: inbox?.id,
+                ...(group === 'priority' && ['high', 'medium', 'low', 'none'].includes(sectionId)
+                  ? { priority: sectionId as 'high' | 'medium' | 'low' | 'none' }
+                  : {}),
+                ...(group === 'list' && projectNames.has(sectionId) ? { project: sectionId } : {}),
+                ...(group === 'tag' && tagNames.has(sectionId) ? { tags: [sectionId] } : {}),
+              });
+            }
+          : undefined,
       collapsed: collapsed.has(overdueLabel ? 'overdue' : sectionId),
       selected,
       leaving,
@@ -521,6 +601,51 @@ export function TodayPage() {
         setMenu({ id: task.id, x, y });
       },
       onSelect: chooseSelect,
+      onColumnDrop:
+        matrixLayout === 'kanban' && group !== 'none' && group !== 'priority'
+          ? (taskId: string) => {
+              const task = tasks.data?.find((task) => task.id === taskId);
+              if (!task) return;
+              if (group === 'list' && projectNames.has(sectionId))
+                runAction(
+                  api
+                    .moveTask(taskId, sectionId, null)
+                    .then(() => refreshTaskSurfaces(queryClient)),
+                );
+              if (group === 'tag')
+                patchTask(taskId, {
+                  tag_ids:
+                    sectionId === 'none'
+                      ? []
+                      : [
+                          sectionId,
+                          ...task.tagIds.filter((id) => id !== sectionId && id !== task.tagIds[0]),
+                        ],
+                });
+              if (group === 'due') {
+                if (sectionId === 'none') patchTask(taskId, { due_date: null, start_date: null });
+                else {
+                  const day = overdueLabel
+                    ? shiftDayKey(calendarDay(new Date().toISOString(), task.timeZone), -1)
+                    : sectionId;
+                  if (/^\d{4}-\d{2}-\d{2}$/.test(day))
+                    patchTask(
+                      taskId,
+                      calendarDragPatch(
+                        {
+                          due_date: task.dueDate,
+                          start_date: task.startDate ?? null,
+                          duration_minutes: task.durationMinutes ?? null,
+                          is_all_day: task.allDay,
+                        },
+                        { day, preserveClock: true },
+                        task.timeZone,
+                      ),
+                    );
+                }
+              }
+            }
+          : undefined,
       onPriorityDrop: (taskId: string, priority: TodayTask['priority']) => {
         patchTask(taskId, { priority });
       },
@@ -532,32 +657,25 @@ export function TodayPage() {
     <section className="today" aria-labelledby="today-heading">
       <header className="today-header">
         <div className="page-title">
-          <button
-            type="button"
-            className="icon-button"
-            aria-label={shell.navLabel}
-            onClick={shell.toggleNav}
-          >
-            <Menu size={20} aria-hidden="true" />
-          </button>
+          <SidebarFoldButton />
           <div>
             <h1 id="today-heading">{messages.todayTitle}</h1>
             <p className="today-date">{dateLabel}</p>
           </div>
         </div>
         <div className="page-actions">
-          {flags.matrix ? (
-            <MatrixViewToggle
-              value={matrixLayout}
-              onChange={(next) => {
-                writeMatrixLayout('today', next);
-                setMatrixLayout(next);
-              }}
-            />
-          ) : null}
-          <Link className="icon-button" to="/habits" aria-label={messages.suggestions}>
-            <Lightbulb size={20} aria-hidden="true" />
-          </Link>
+          <MatrixViewToggle
+            showMatrix={flags.matrix}
+            value={matrixLayout}
+            onChange={(next) => {
+              syncPrefs({ view: next });
+              writeMatrixLayout('today', next);
+              setMatrixLayout(next);
+              const query = new URLSearchParams(params);
+              query.set('view', next);
+              setParams(query, { replace: true });
+            }}
+          />
           <div className="group-popover">
             <button
               type="button"
@@ -614,9 +732,15 @@ export function TodayPage() {
           <ViewMenu
             messages={messages}
             details={details}
-            onDetails={setDetails}
+            onDetails={(value) => {
+              setDetails(value);
+              syncPrefs({ showDetails: value });
+            }}
             hideCompleted={hideCompleted}
-            onHideCompleted={setHideCompleted}
+            onHideCompleted={(value) => {
+              setHideCompleted(value);
+              syncPrefs({ hideCompleted: value });
+            }}
             onPrint={() => {
               window.print();
             }}
@@ -634,7 +758,9 @@ export function TodayPage() {
           </ViewMenu>
         </div>
       </header>
-      <TaskComposer inputRef={addRef} viewDay="today" defaultProjectId={inbox?.id} />
+      {matrixLayout !== 'kanban' ? (
+        <TaskComposer inputRef={addRef} viewDay="today" defaultProjectId={inbox?.id} />
+      ) : null}
       <TodayPlanStrip
         load={load.isSuccess ? load.data : undefined}
         loading={load.isPending && showLoad}
@@ -647,7 +773,7 @@ export function TodayPage() {
             <span aria-hidden="true">{item.emoji ?? '⏳'}</span>
             <span>
               <strong>{item.title}</strong>
-              <small>¡Es hoy!</small>
+              <small>{messages.countdownIsToday}</small>
             </span>
           </Link>
         ))}
@@ -656,95 +782,107 @@ export function TodayPage() {
           {actionError}
         </p>
       ) : null}
-      {flags.matrix && matrixLayout === 'matrix' ? (
-        <MatrixBoard scope={{ kind: 'today' }} embedded />
-      ) : (
-        <>
-          {tasks.isPending ? (
+      <div className={matrixLayout === 'kanban' ? 'today-layout is-kanban' : 'today-layout'}>
+        <div className="today-task-groups">
+          {flags.matrix && matrixLayout === 'matrix' ? (
+            <MatrixBoard scope={{ kind: 'today' }} embedded />
+          ) : (
+            <>
+              {tasks.isPending ? (
+                <div aria-hidden="true">
+                  <div className="task-skeleton is-head" />
+                  <div className="task-skeleton" />
+                  <div className="task-skeleton" />
+                  <div className="task-skeleton" />
+                </div>
+              ) : null}
+              {tasks.isError ? (
+                <div className="waiting">
+                  <p className="error">{messages.todayFailed}</p>
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() => {
+                      runAction(tasks.refetch());
+                    }}
+                  >
+                    {messages.retry}
+                  </button>
+                </div>
+              ) : null}
+              {overdueBlock.length > 0 ? (
+                <div id="overdue">
+                  {overdueBlock.map((section) => (
+                    <TaskGroup key="overdue" {...groupProps(section.id, section.tasks, true)} />
+                  ))}
+                </div>
+              ) : (
+                <div id="overdue" hidden />
+              )}
+              {(matrixLayout === 'kanban' && group === 'priority'
+                ? ['high', 'medium', 'low', 'none'].map((id) => ({
+                    id,
+                    tasks: sections.find((section) => section.id === id)?.tasks ?? [],
+                  }))
+                : sections
+              ).map((section) => (
+                <TaskGroup key={section.id} {...groupProps(section.id, section.tasks)} />
+              ))}
+              {showWhen && eveningTasks.length > 0 ? (
+                <section className="plan">
+                  <h2>{messages.eveningTitle}</h2>
+                  <p>{messages.eveningHint.replace('18:00', profile?.evening_start ?? '18:00')}</p>
+                  <TaskGroup {...groupProps('evening', eveningTasks)} />
+                </section>
+              ) : null}
+            </>
+          )}
+        </div>
+        <aside className="today-habits-column" hidden={habitsHidden}>
+          {habits.isPending ? (
             <div aria-hidden="true">
-              <div className="task-skeleton is-head" />
-              <div className="task-skeleton" />
               <div className="task-skeleton" />
               <div className="task-skeleton" />
             </div>
           ) : null}
-          {tasks.isError ? (
-            <div className="waiting">
-              <p className="error">{messages.todayFailed}</p>
+          {habits.isSuccess ? (
+            <TodayHabits
+              habits={habits.data.items}
+              hidden={habitsHidden}
+              collapsed={collapsed.has('habits')}
+              onToggle={(open) => {
+                setCollapsed((current) => {
+                  const next = new Set(current);
+                  if (open) next.delete('habits');
+                  else next.add('habits');
+                  localStorage.setItem(COLLAPSE_KEY, JSON.stringify([...next]));
+                  return next;
+                });
+              }}
+              onDismiss={() => {
+                localStorage.setItem(HABITS_DISMISS_KEY, String(Date.now()));
+                setHabitsHidden(true);
+              }}
+            />
+          ) : habits.isError ? (
+            <p className="today-habit-error" role="alert">
+              {messages.todayHabitLoadError}
               <button
                 type="button"
                 className="text-button"
                 onClick={() => {
-                  runAction(tasks.refetch());
+                  runAction(habits.refetch());
                 }}
               >
                 {messages.retry}
               </button>
-            </div>
+            </p>
           ) : null}
-          {overdueBlock.length > 0 ? (
-            <div id="overdue">
-              {overdueBlock.map((section) => (
-                <TaskGroup key="overdue" {...groupProps(section.id, section.tasks, true)} />
-              ))}
-            </div>
-          ) : (
-            <div id="overdue" hidden />
-          )}
-          {sections.map((section) => (
-            <TaskGroup key={section.id} {...groupProps(section.id, section.tasks)} />
-          ))}
-          {showWhen && eveningTasks.length > 0 ? (
-            <section className="plan">
-              <h2>{messages.eveningTitle}</h2>
-              <p>{messages.eveningHint.replace('18:00', profile?.evening_start ?? '18:00')}</p>
-              <TaskGroup {...groupProps('evening', eveningTasks)} />
-            </section>
-          ) : null}
-        </>
-      )}
-      {habits.isPending ? (
-        <div aria-hidden="true">
-          <div className="task-skeleton" />
-          <div className="task-skeleton" />
-        </div>
-      ) : null}
-      {habits.isSuccess ? (
-        <TodayHabits
-          habits={habits.data.items}
-          hidden={habitsHidden}
-          collapsed={collapsed.has('habits')}
-          onToggle={(open) => {
-            setCollapsed((current) => {
-              const next = new Set(current);
-              if (open) next.delete('habits');
-              else next.add('habits');
-              localStorage.setItem(COLLAPSE_KEY, JSON.stringify([...next]));
-              return next;
-            });
-          }}
-          onDismiss={() => {
-            localStorage.setItem(HABITS_DISMISS_KEY, String(Date.now()));
-            setHabitsHidden(true);
-          }}
-        />
-      ) : habits.isError ? (
-        <p className="today-habit-error" role="alert">
-          {messages.todayHabitLoadError}
-          <button
-            type="button"
-            className="text-button"
-            onClick={() => {
-              runAction(habits.refetch());
-            }}
-          >
-            {messages.retry}
-          </button>
-        </p>
-      ) : null}
+        </aside>
+      </div>
       {(countdowns.data?.items.length ?? 0) > 0 ? (
         <section className="countdown-upcoming">
-          <h2>Próximas fechas</h2>
+          <h2>{messages.upcomingDates}</h2>
           <ul>
             {countdowns.data?.items
               .filter((item) => item.kind !== 'today')

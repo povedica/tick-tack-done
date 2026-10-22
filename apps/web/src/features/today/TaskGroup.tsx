@@ -1,3 +1,4 @@
+import { messagesFor, fill, type Messages } from '../../i18n';
 import {
   AlarmClock,
   Calendar,
@@ -6,6 +7,7 @@ import {
   GripVertical,
   ListChecks,
   MoreHorizontal,
+  Plus,
   Paperclip,
   Pin,
   Repeat,
@@ -13,7 +15,6 @@ import {
 import { Link } from 'react-router';
 import { PriorityCheck } from '../../components/PriorityCheck';
 import { TagChip } from '../../components/ui';
-import { useMessages } from '../../i18n';
 import { displayTitle } from '../tasks/displayTitle';
 import { dragHasTask, setTaskDrag, taskDragId } from './drag';
 import { calendarDay, taskWhen, type TaskGroupKey, type TodayTask } from './groups';
@@ -40,12 +41,14 @@ export function TaskGroup({
   details,
   openTaskId,
   deadlineSoonDays = 2,
+  onCreate,
   onToggle,
   onComplete,
   onOpen,
   onMore,
   onSelect,
   onPriorityDrop,
+  onColumnDrop,
   onFocus,
 }: {
   readonly id: string;
@@ -69,29 +72,49 @@ export function TaskGroup({
   readonly details: boolean;
   readonly openTaskId: string | null;
   readonly deadlineSoonDays?: number;
+  readonly onCreate?: (() => void) | undefined;
   readonly onToggle: (id: string, open: boolean) => void;
   readonly onComplete: (task: TodayTask) => void;
   readonly onOpen: (id: string) => void;
   readonly onMore: (task: TodayTask, x: number, y: number) => void;
   readonly onSelect: (id: string, mode: 'toggle' | 'range' | 'plain') => void;
+  readonly onColumnDrop?: ((taskId: string) => void) | undefined;
   readonly onPriorityDrop: (taskId: string, priority: TodayTask['priority']) => void;
   readonly onFocus: (id: string) => void;
 }) {
-  const messages = useMessages();
   return (
     <details
       id={id}
       className="task-group"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onCreate?.();
+      }}
       open={!collapsed}
       onToggle={(event) => {
         onToggle(id, event.currentTarget.open);
       }}
       onDragOver={(event) => {
-        if (groupKind === 'priority' && dragHasTask(event.dataTransfer)) {
+        if ((groupKind === 'priority' || onColumnDrop) && dragHasTask(event.dataTransfer)) {
           event.preventDefault();
+          event.dataTransfer.dropEffect = 'move';
+          event.currentTarget.dataset.dragOver = 'true';
         }
       }}
+      onDragLeave={(event) => {
+        if (
+          !(event.relatedTarget instanceof Node) ||
+          !event.currentTarget.contains(event.relatedTarget)
+        )
+          delete event.currentTarget.dataset.dragOver;
+      }}
       onDrop={(event) => {
+        delete event.currentTarget.dataset.dragOver;
+        const dropped = taskDragId(event.dataTransfer);
+        if (onColumnDrop && dropped !== null) {
+          event.preventDefault();
+          onColumnDrop(dropped);
+          return;
+        }
         if (groupKind !== 'priority') {
           return;
         }
@@ -107,6 +130,20 @@ export function TaskGroup({
         <ChevronDown className="task-chevron" size={16} aria-hidden="true" />
         <span>{label}</span>
         <span className="task-count">{tasks.length}</span>
+        {onCreate ? (
+          <button
+            type="button"
+            className="kanban-column-add"
+            aria-label={`${messagesFor(locale).addTask}: ${label}`}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onCreate();
+            }}
+          >
+            <Plus size={18} aria-hidden="true" />
+          </button>
+        ) : null}
       </summary>
       <ul className="task-list" data-details={details ? 'on' : 'off'}>
         {tasks.map((task) => {
@@ -132,7 +169,20 @@ export function TaskGroup({
             .filter((item) => item.length > 0)
             .join(' ');
           return (
-            <li key={task.id}>
+            <li
+              key={task.id}
+              draggable={onCreate !== undefined}
+              onDragStart={(event) => {
+                if (onCreate) setTaskDrag(event.dataTransfer, task.id);
+              }}
+              onClick={(event) => {
+                if (
+                  event.target instanceof Element &&
+                  !event.target.closest('button, a, input, label')
+                )
+                  onOpen(task.id);
+              }}
+            >
               <div
                 className={classes}
                 data-task-id={task.id}
@@ -225,15 +275,15 @@ export function TaskGroup({
                       {when.date}
                     </time>
                   ) : null}
-                  {deadlineText(task, deadlineSoonDays, messages) !== null ? (
+                  {deadlineText(task, deadlineSoonDays, messagesFor(locale)) !== null ? (
                     <span
                       className={
-                        deadlineText(task, deadlineSoonDays, messages)?.tone === 'late'
+                        deadlineText(task, deadlineSoonDays, messagesFor(locale))?.tone === 'late'
                           ? 'task-date is-overdue'
                           : 'task-date'
                       }
                     >
-                      {deadlineText(task, deadlineSoonDays, messages)?.label}
+                      {deadlineText(task, deadlineSoonDays, messagesFor(locale))?.label}
                     </span>
                   ) : null}
                   {when.time !== null ? (
@@ -258,6 +308,18 @@ export function TaskGroup({
             </li>
           );
         })}
+        {onCreate ? (
+          <li className="kanban-add-space">
+            <button
+              type="button"
+              aria-label={`${messagesFor(locale).addTask}: ${label}`}
+              onClick={onCreate}
+            >
+              <Plus size={16} aria-hidden="true" />
+              {messagesFor(locale).addTask}
+            </button>
+          </li>
+        ) : null}
       </ul>
     </details>
   );
@@ -266,7 +328,7 @@ export function TaskGroup({
 function deadlineText(
   task: TodayTask,
   soonDays: number,
-  messages: { dueTodayBang: string; dueTomorrowLabel: string; dueInDays: string },
+  messages: Messages,
 ): { readonly label: string; readonly tone: 'soon' | 'late' } | null {
   if (task.isSomeday === true || task.dueDate == null || task.status !== 'active') {
     return null;
@@ -280,16 +342,13 @@ function deadlineText(
     return null;
   }
   if (diff === 0) {
-    return { label: messages.dueTodayBang, tone: 'late' };
+    return { label: messages.deadlineToday, tone: 'late' };
   }
   if (diff === 1) {
-    return { label: messages.dueTomorrowLabel, tone: 'soon' };
+    return { label: messages.deadlineTomorrow, tone: 'soon' };
   }
   if (diff <= soonDays) {
-    return {
-      label: messages.dueInDays.replace('{count}', String(diff)),
-      tone: 'soon',
-    };
+    return { label: fill(messages.deadlineInDays, String(diff)), tone: 'soon' };
   }
   return null;
 }

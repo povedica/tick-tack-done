@@ -237,6 +237,11 @@ describe('RF-2321 temporal boundaries', () => {
   });
 });
 describe('RF-2322 focus', () => {
+  it('TTD-AUD-78: stopwatch contributes focus time without adding a pomodoro', () => {
+    const rows = [focus({ type: 'stopwatch', actualSeconds: 125 })];
+    expect(focusMinutesTotal(rows)).toBeCloseTo(125 / 60);
+    expect(focusPomodoros(rows)).toBe(0);
+  });
   it('RF-2322: retains seconds consistently across totals, days, types and heatmap', () => {
     const rows = [
       focus({ actualSeconds: 29 }),

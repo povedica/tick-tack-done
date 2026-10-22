@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Inject, Patch, Post, Req, Res } from '@nestjs/common';
-import { ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsBoolean, IsNumber, Max, Min } from 'class-validator';
 import type { Request, Response } from 'express';
 import { insideGeofence, readGeofence } from '@reflexionia/domain';
@@ -12,6 +12,7 @@ import { asJson } from '../../http/json.js';
 import { respondJson } from '../../http/respond.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { StatsService } from '../stats/stats.service.js';
+import { achievementSchema } from '../stats/stats.schema.js';
 
 class LocationDto {
   @ApiProperty()
@@ -116,6 +117,7 @@ export class AchievementsController {
 
   @Get()
   @Scopes('profile:read')
+  @ApiOkResponse({ schema: achievementSchema })
   @ApiOperation({
     summary: 'Achievement score shared with Estadísticas (RF-1602 / RF-2321). Off means null.',
   })

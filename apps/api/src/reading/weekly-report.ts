@@ -83,7 +83,11 @@ export async function readWeeklyReport(
     completed,
     created,
     overdue: snapshot.overdue,
-    focus_minutes: focusRows.some((session) => session.type === 'focus') ? focusMinutes : null,
+    focus_minutes: focusRows.some(
+      (session) => session.type === 'focus' || session.type === 'stopwatch',
+    )
+      ? focusMinutes
+      : null,
     habits_done: habits.done,
     habits_expected: habits.expected,
     trend: null,

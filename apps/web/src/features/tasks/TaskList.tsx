@@ -1,6 +1,6 @@
 import { runAction } from '../../components/run-action';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { GripVertical, MoreHorizontal } from 'lucide-react';
+import { GripVertical, MoreHorizontal, Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { ApiError } from '@reflexionia/sdk';
 import { Link, useSearchParams } from 'react-router';
@@ -17,6 +17,7 @@ import { purgeTrashTask } from './purge-trash';
 import { displayTitle } from './displayTitle';
 import { completeBody } from './complete-body';
 import { TaskComposer } from './TaskComposer';
+import { openTaskComposer } from '../capture/notice';
 import { formatTaskRowDate } from './row-date';
 import { isOverdue, isSameDay, type RowModel } from './model';
 import { calendarDay } from '../today/groups';
@@ -110,7 +111,16 @@ export function TaskList({
         data-search={highlightQuery.length > 0 ? 'true' : undefined}
       >
         {visible.map((row) => (
-          <li key={row.id}>
+          <li
+            key={row.id}
+            onClick={(event) => {
+              if (
+                event.target instanceof Element &&
+                !event.target.closest('button, a, input, label')
+              )
+                open(row.id);
+            }}
+          >
             <TaskRow
               messages={messages}
               row={row}
@@ -138,7 +148,7 @@ export function TaskList({
 
   return (
     <div>
-      {createProjectId !== undefined ? (
+      {createProjectId !== undefined && view !== 'kanban' ? (
         <TaskComposer
           defaultProjectId={createProjectId}
           viewDay={createViewDay}
@@ -483,14 +493,46 @@ function Kanban({
                 ? row.columnId === null || row.columnId.length === 0
                 : row.columnId === column.id,
           );
+          const createInColumn = () => {
+            const patch = dateMode ? dateBucketPatch(column.id, null, now) : null;
+            openTaskComposer({
+              text: '',
+              defaultProjectId: projectId,
+              ...(dateMode
+                ? {
+                    date: {
+                      dueDate: patch?.due_date ?? null,
+                      allDay: true,
+                      durationMinutes: null,
+                      reminder: null,
+                      reminderTouched: false,
+                      repeatRule: null,
+                    },
+                  }
+                : { columnId: column.id === 'none' ? null : column.id }),
+            });
+          };
           return (
             <section
               key={column.id}
               className="kanban-col"
+              onClick={(event) => {
+                if (event.target === event.currentTarget) createInColumn();
+              }}
               onDragOver={(event) => {
                 event.preventDefault();
+                event.dataTransfer.dropEffect = 'move';
+                event.currentTarget.classList.add('is-over');
+              }}
+              onDragLeave={(event) => {
+                if (
+                  !(event.relatedTarget instanceof Node) ||
+                  !event.currentTarget.contains(event.relatedTarget)
+                )
+                  event.currentTarget.classList.remove('is-over');
               }}
               onDrop={(event) => {
+                event.currentTarget.classList.remove('is-over');
                 const id = event.dataTransfer.getData('text/plain');
                 if (id.length === 0) {
                   return;
@@ -517,6 +559,14 @@ function Kanban({
                   {items.length}
                   {column.wip_limit != null ? `/${String(column.wip_limit)}` : ''}
                 </span>
+                <button
+                  type="button"
+                  className="kanban-column-add"
+                  aria-label={`${messages.addTask}: ${column.name}`}
+                  onClick={createInColumn}
+                >
+                  <Plus size={18} aria-hidden="true" />
+                </button>
                 {projectId !== undefined && column.id !== 'none' ? (
                   <ColumnLimit
                     label={messages.columnMenu}
@@ -533,6 +583,20 @@ function Kanban({
                 <article
                   key={row.id}
                   className="kanban-card"
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.target === event.currentTarget && event.key === 'Enter') {
+                      event.preventDefault();
+                      onOpen(row.id);
+                    }
+                  }}
+                  onClick={(event) => {
+                    if (
+                      event.target instanceof Element &&
+                      !event.target.closest('button, a, input, label')
+                    )
+                      onOpen(row.id);
+                  }}
                   draggable
                   onDragStart={(event) => {
                     event.dataTransfer.setData('text/plain', row.id);
@@ -571,6 +635,16 @@ function Kanban({
                   </p>
                 </article>
               ))}
+              <div className="kanban-add-space">
+                <button
+                  type="button"
+                  onClick={createInColumn}
+                  aria-label={`${messages.addTask}: ${column.name}`}
+                >
+                  <Plus size={16} aria-hidden="true" />
+                  {messages.addTask}
+                </button>
+              </div>
             </section>
           );
         })}

@@ -1,5 +1,6 @@
+import '../tokens.css';
 import { runAction } from '../../../components/run-action';
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ApiError } from '@reflexionia/sdk';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
@@ -10,8 +11,216 @@ import { tokensApi } from '../api';
 import { groupTokens, tokenExpired } from '../token-groups';
 import { GROUPS, groupedScopes, isSensitiveScope, type Scope } from '../scopes';
 
+function useTokenOnline() {
+  const [online, setOnline] = useState(navigator.onLine);
+  useEffect(() => {
+    const update = () => {
+      setOnline(navigator.onLine);
+    };
+    window.addEventListener('online', update);
+    window.addEventListener('offline', update);
+    return () => {
+      window.removeEventListener('online', update);
+      window.removeEventListener('offline', update);
+    };
+  }, []);
+  return online;
+}
+
+function ConnectedApps({
+  data,
+  loading,
+  failed,
+  retry,
+}: {
+  data: unknown;
+  loading: boolean;
+  failed: boolean;
+  retry: () => void;
+}) {
+  const m = useMessages();
+  const online = useTokenOnline();
+  const cache = useQueryClient();
+  const [confirm, setConfirm] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
+  const activity = useInfiniteQuery({
+    queryKey: ['oauth-activity', selected],
+    enabled: selected !== null,
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam }) => tokensApi.oauthGrantActivity(selected ?? '', pageParam),
+    getNextPageParam: (page) =>
+      typeof page.next_cursor === 'string' ? page.next_cursor : undefined,
+  });
+  const revoke = useMutation({
+    mutationFn: (id: string) => tokensApi.revokeOauthGrant(id),
+    onSuccess: async () => {
+      setConfirm(null);
+      await cache.invalidateQueries({ queryKey: ['oauth-grants'] });
+      await cache.invalidateQueries({ queryKey: ['tokens'] });
+    },
+  });
+  const items = (data as { items?: unknown } | undefined)?.items;
+  const rows = Array.isArray(items)
+    ? (items as {
+        client_id: string;
+        client_name: string;
+        authorized_at: string;
+        last_used_at: string | null;
+        scopes: string[];
+        renewals: number;
+        active_refresh_families: number;
+      }[])
+    : [];
+  return (
+    <section className="token-panel">
+      <h2>{m.tokenAppsTitle}</h2>
+      {loading ? (
+        <SkeletonRows />
+      ) : failed ? (
+        <p role="alert">
+          {m.tokenFailed}
+          <Button onClick={retry}>{m.retry}</Button>
+        </p>
+      ) : rows.length === 0 ? (
+        <p>{m.tokenAppsEmpty}</p>
+      ) : (
+        rows.map((row) => (
+          <article className="token-row" key={row.client_id}>
+            <details>
+              <summary>
+                <strong>{row.client_name}</strong> · {m.tokenActive}
+              </summary>
+              <p>{m.tokenAppDeclaredName}</p>
+              <p className="token-meta">
+                {m.tokenCreatedOn} {new Date(row.authorized_at).toLocaleDateString()} ·{' '}
+                {m.tokenLastUsed}{' '}
+                {row.last_used_at ? new Date(row.last_used_at).toLocaleString() : m.tokenNeverUsed}
+              </p>
+              <p>
+                {row.renewals} {m.tokenAppRenewals}
+              </p>
+              <ul className="token-scope-table">
+                {groupedScopes(row.scopes, m).map((scope) => (
+                  <li key={scope.resource}>
+                    {scope.resource} · {scope.access}
+                    {groupedScopes(row.scopes.filter(isSensitiveScope), m).some(
+                      (sensitive) => sensitive.resource === scope.resource,
+                    ) ? (
+                      <span title={m.scopeSensitive}> ⚠</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+              <Button
+                aria-expanded={selected === row.client_id}
+                onClick={() => {
+                  setSelected(selected === row.client_id ? null : row.client_id);
+                }}
+              >
+                {m.tokenActivity}
+              </Button>
+              {selected === row.client_id ? (
+                activity.isPending ? (
+                  <SkeletonRows />
+                ) : activity.isError ? (
+                  <p role="alert">
+                    {m.tokenFailed}
+                    <Button
+                      onClick={() => {
+                        runAction(activity.refetch());
+                      }}
+                    >
+                      {m.retry}
+                    </Button>
+                  </p>
+                ) : (
+                  <>
+                    <ul className="token-activity">
+                      {activity.data.pages
+                        .flatMap((page) =>
+                          Array.isArray(page.items) ? (page.items as unknown[]) : [],
+                        )
+                        .map((value, index) => {
+                          const entry = value as {
+                            action: string;
+                            entity_type: string;
+                            changes?: unknown;
+                            created_at?: string;
+                          };
+                          return (
+                            <li key={index}>
+                              <span>{activityLine(m, entry)}</span>
+                              {entry.created_at ? (
+                                <time>{new Date(entry.created_at).toLocaleString()}</time>
+                              ) : null}
+                            </li>
+                          );
+                        })}
+                    </ul>
+                    {activity.hasNextPage ? (
+                      <Button
+                        onClick={() => {
+                          runAction(activity.fetchNextPage());
+                        }}
+                      >
+                        {m.tokenLoadMore}
+                      </Button>
+                    ) : null}
+                  </>
+                )
+              ) : null}
+            </details>
+            <Button
+              variant="ghost"
+              disabled={!online}
+              title={!online ? m.offline : undefined}
+              onClick={() => {
+                setConfirm(row.client_id);
+              }}
+            >
+              {m.tokenAppRevoke}
+            </Button>
+            {confirm === row.client_id ? (
+              <div
+                role="alertdialog"
+                aria-label={m.tokenAppRevoke}
+                className="token-confirm"
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') setConfirm(null);
+                }}
+              >
+                <p>{fill(m.tokenRevokeBody, row.client_name)}</p>
+                {revoke.isError ? <p role="alert">{m.tokenRevokeFailed}</p> : null}
+                <Button
+                  autoFocus
+                  onClick={() => {
+                    setConfirm(null);
+                  }}
+                >
+                  {m.cancel}
+                </Button>
+                <Button
+                  variant="danger"
+                  disabled={!online}
+                  loading={revoke.isPending}
+                  onClick={() => {
+                    revoke.mutate(row.client_id);
+                  }}
+                >
+                  {m.tokenAppRevoke}
+                </Button>
+              </div>
+            ) : null}
+          </article>
+        ))
+      )}
+    </section>
+  );
+}
+
 export function TokensPage() {
   const messages = useMessages();
+  const online = useTokenOnline();
   const locale = useAppLocale();
   const inSettings = useLocation().pathname.startsWith('/settings');
   const queryClient = useQueryClient();
@@ -44,6 +253,18 @@ export function TokensPage() {
       }),
     getNextPageParam: (page) => page.next_cursor ?? undefined,
   });
+  const renewals = useQuery({
+    queryKey: ['oauth-renewals'],
+    queryFn: () => tokensApi.oauthRenewals(),
+  });
+  const renewalRows = (Array.isArray(renewals.data?.items) ? renewals.data.items : []) as {
+    client_id: string;
+    client_name: string;
+    count: number;
+  }[];
+  const renewalCount = renewalRows.reduce((sum, row) => sum + row.count, 0);
+  const grants = useQuery({ queryKey: ['oauth-grants'], queryFn: () => tokensApi.oauthGrants() });
+  const [expiry, setExpiry] = useState<30 | 90 | 365 | null>(90);
   const [client, setClient] = useState('Cursor');
   const [composer, setComposer] = useState(false);
   const [name, setName] = useState('');
@@ -57,18 +278,25 @@ export function TokensPage() {
   const [secretCopied, setSecretCopied] = useState(false);
   const [confirmDismissSecret, setConfirmDismissSecret] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
-  const activity = useQuery({
+  const activity = useInfiniteQuery({
     queryKey: ['token-activity', selected],
     enabled: selected !== null,
-    queryFn: () => {
+    initialPageParam: null as string | null,
+    retry: false,
+    queryFn: ({ pageParam }) => {
       if (selected === null) {
         throw new Error('token');
       }
-      return tokensApi.tokenActivity(selected);
+      return tokensApi.tokenActivity(
+        selected,
+        pageParam === null ? undefined : { cursor: pageParam },
+      );
     },
+    getNextPageParam: (page) => page.next_cursor ?? undefined,
   });
+  const activityItems = activity.data?.pages.flatMap((page) => page.items) ?? [];
   const create = useMutation({
-    mutationFn: () => tokensApi.createToken({ name: name.trim(), scopes }),
+    mutationFn: () => tokensApi.createToken({ name: name.trim(), scopes, expires_in_days: expiry }),
     onSuccess: async (created) => {
       setSecret(created.token);
       setSecretCopied(false);
@@ -164,21 +392,28 @@ export function TokensPage() {
             {copied === 'url' ? messages.copied : messages.mcpCopyUrl}
           </Button>
         </div>
-        <label className="token-kicker">
-          {messages.mcpClient}
-          <select
-            value={client}
-            onChange={(event) => {
-              setClient(event.target.value);
-            }}
-          >
-            {['Cursor', 'ChatGPT', 'Claude'].map((name) => (
-              <option key={name}>{name}</option>
-            ))}
-          </select>
-        </label>
-        {client !== 'Cursor' ? <p>{messages.mcpOAuthHelp}</p> : null}
-        {client === 'Cursor' ? (
+        <div role="tablist" aria-label={messages.mcpClient} className="focus-modes">
+          {['Cursor', 'Claude', 'ChatGPT', 'Otro'].map((name) => (
+            <button
+              key={name}
+              role="tab"
+              aria-selected={client === name}
+              onClick={() => {
+                setClient(name);
+              }}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+        {client === 'ChatGPT' || client === 'Claude' ? (
+          <ol>
+            <li>{messages.mcpOAuthStep1}</li>
+            <li>{messages.mcpOAuthStep2}</li>
+            <li>{messages.mcpOAuthStep3}</li>
+          </ol>
+        ) : null}
+        {client === 'Cursor' || client === 'Otro' ? (
           <>
             <pre className="token-snippet">{snippet}</pre>
             <Button
@@ -194,6 +429,14 @@ export function TokensPage() {
         ) : null}
       </section>
 
+      <ConnectedApps
+        data={grants.data}
+        loading={grants.isPending}
+        failed={grants.isError}
+        retry={() => {
+          runAction(grants.refetch());
+        }}
+      />
       {secret !== null ? (
         <div className="token-secret">
           <p className="sr-only" aria-live="polite">
@@ -243,7 +486,7 @@ export function TokensPage() {
       <section className="token-panel" aria-labelledby="token-new-title">
         <div className="token-panel-head">
           <div>
-            <h2 id="token-new-title">{messages.tokenNew}</h2>
+            <h2 id="token-new-title">{messages.tokenManualGroup}</h2>
           </div>
           <Button
             type="button"
@@ -262,12 +505,20 @@ export function TokensPage() {
             className="token-form"
             onSubmit={(event) => {
               event.preventDefault();
-              if (name.trim().length === 0 || scopes.length === 0 || create.isPending) {
+              if (!online || name.trim().length === 0 || scopes.length === 0 || create.isPending) {
                 return;
               }
               create.mutate();
             }}
           >
+            <Button
+              type="button"
+              onClick={() => {
+                setComposer(false);
+              }}
+            >
+              {messages.cancel}
+            </Button>
             <p>{messages.tokenNewHint}</p>
             <label className="token-label" htmlFor="token-name">
               {messages.tokenName}
@@ -283,10 +534,33 @@ export function TokensPage() {
                 setError(null);
               }}
             />
+            <fieldset className="token-expiry" role="radiogroup">
+              <legend>{messages.tokenExpiresIn}</legend>
+              {([30, 90, 365, null] as const).map((days) => (
+                <label key={String(days)}>
+                  <input
+                    type="radio"
+                    name="expiry"
+                    checked={expiry === days}
+                    onChange={() => {
+                      setExpiry(days);
+                    }}
+                  />
+                  {days === null
+                    ? messages.tokenExpiresNever
+                    : `${String(days)} ${messages.tokenExpiryDays}`}
+                </label>
+              ))}
+            </fieldset>
             <div className="token-resources" role="group" aria-label={messages.tokenScopes}>
               {GROUPS.map((group) => (
-                <div key={group.name} className="token-resource">
-                  <span>{messages[group.name]}</span>
+                <details
+                  key={group.name}
+                  name="token-permissions"
+                  open={window.innerWidth >= 1024}
+                  className="token-resource"
+                >
+                  <summary>{messages[group.name]}</summary>
                   <span className="token-choices">
                     {group.choices.map((choice) => {
                       const on = scopes.includes(choice.id);
@@ -318,14 +592,14 @@ export function TokensPage() {
                       );
                     })}
                   </span>
-                </div>
+                </details>
               ))}
             </div>
             {error !== null ? <p role="alert">{error}</p> : null}
             <Button
               type="submit"
               variant="primary"
-              disabled={name.trim().length === 0 || scopes.length === 0}
+              disabled={!online || name.trim().length === 0 || scopes.length === 0}
               loading={create.isPending}
             >
               {create.isPending ? messages.tokenSaving : messages.tokenCreate}
@@ -352,7 +626,7 @@ export function TokensPage() {
         {tokens.isSuccess && items.length === 0 ? (
           <p className="token-empty">{messages.tokenEmpty}</p>
         ) : null}
-        {groupTokens(items).map((group) => (
+        {groupTokens(items.filter((token) => token.oauth_client_id === null)).map((group) => (
           <section key={group.id} className="token-group">
             <h2 className="token-group-title">{group.name ?? messages.tokenManualGroup}</h2>
             {group.items.map((token) => {
@@ -376,16 +650,32 @@ export function TokensPage() {
                           : messages.tokenActive}
                     </span>
                   </div>
-                  <ul className="token-scope-table" title={token.scopes.join(', ')}>
-                    {groupedScopes(token.scopes, messages).map((row) => (
-                      <li key={row.resource}>
-                        <span>{row.resource}</span>
-                        <span>{row.access}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <details>
+                    <summary>
+                      {token.scopes.length} {messages.tokenScopesSummary} ·{' '}
+                      {token.scopes.filter(isSensitiveScope).length} ⚠
+                    </summary>
+                    <ul className="token-scope-table" title={token.scopes.join(', ')}>
+                      {groupedScopes(token.scopes, messages).map((row) => (
+                        <li key={row.resource}>
+                          <span>
+                            {row.resource}
+                            {groupedScopes(token.scopes.filter(isSensitiveScope), messages).some(
+                              (sensitive) => sensitive.resource === row.resource,
+                            ) ? (
+                              <span title={messages.scopeSensitive}> ⚠</span>
+                            ) : null}
+                          </span>
+                          <span>{row.access}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
                   <p className="token-meta">
-                    {messages.tokenCreatedOn} {when(token.created_at, locale)}
+                    {messages.tokenCreatedOn} {when(token.created_at, locale)} ·{' '}
+                    {token.expires_at
+                      ? `${messages.tokenExpiresOn} ${when(token.expires_at, locale)}`
+                      : messages.tokenExpiresNever}
                     {' · '}
                     {token.last_used_at === null
                       ? messages.tokenNeverUsed
@@ -407,8 +697,9 @@ export function TokensPage() {
                       <Button
                         type="button"
                         size="sm"
-                        variant="danger"
+                        variant="ghost"
                         onClick={() => {
+                          if (!online) return;
                           setConfirmId(token.id);
                           setRevokeError(null);
                         }}
@@ -437,6 +728,7 @@ export function TokensPage() {
                           type="button"
                           size="sm"
                           variant="danger"
+                          disabled={!online}
                           loading={revoke.isPending}
                           onClick={() => {
                             setRevokeError(null);
@@ -449,26 +741,17 @@ export function TokensPage() {
                     </div>
                   ) : null}
                   {open ? (
-                    <div>
-                      {activity.isSuccess && activity.data.items.length === 0 ? (
+                    <div
+                      role="region"
+                      aria-label={messages.tokenActivity}
+                      aria-busy={activity.isFetching}
+                    >
+                      {activity.isPending ? <SkeletonRows /> : null}
+                      {activity.isSuccess && activityItems.length === 0 ? (
                         <p className="token-meta">{messages.tokenActivityEmpty}</p>
                       ) : null}
-                      {activity.isPending ? <SkeletonRows /> : null}
-                      {activity.isError ? (
-                        <p role="alert">
-                          {messages.tokenFailed}
-                          <Button
-                            type="button"
-                            onClick={() => {
-                              runAction(activity.refetch());
-                            }}
-                          >
-                            {messages.retry}
-                          </Button>
-                        </p>
-                      ) : null}
                       <ul className="token-activity">
-                        {(activity.data?.items ?? []).map((entry) => (
+                        {activityItems.map((entry) => (
                           <li key={entry.id}>
                             <span>{activityLine(messages, entry)}</span>
                             <time dateTime={entry.created_at}>
@@ -477,6 +760,36 @@ export function TokensPage() {
                           </li>
                         ))}
                       </ul>
+                      {activity.isError ? (
+                        <p role="alert">
+                          {messages.tokenActivityFailed}
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => {
+                              runAction(
+                                activity.isFetchNextPageError
+                                  ? activity.fetchNextPage()
+                                  : activity.refetch(),
+                              );
+                            }}
+                          >
+                            {messages.retry}
+                          </Button>
+                        </p>
+                      ) : null}
+                      {activity.hasNextPage && !activity.isFetchNextPageError ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          loading={activity.isFetchingNextPage}
+                          onClick={() => {
+                            runAction(activity.fetchNextPage());
+                          }}
+                        >
+                          {messages.tokenLoadMore}
+                        </Button>
+                      ) : null}
                     </div>
                   ) : null}
                 </article>
@@ -509,17 +822,26 @@ export function TokensPage() {
           </p>
         ) : null}
         {revokedTokens.isPending ? <SkeletonRows /> : null}
-        {revokedTotal > 0 ? (
+        {revokedTotal > 0 || renewalCount > 0 ? (
           <details className="token-revoked">
             <summary>
-              {messages.tokensRevokedFold} ({String(revokedTotal)})
+              {messages.tokensRevokedFold} ({String(revokedTotal + renewalCount)})
             </summary>
             <ul className="token-revoked-list">
+              {renewalRows.map((row) => (
+                <li key={row.client_id} className="token-revoked-row">
+                  {row.client_name} · {row.count} {messages.tokenAppRenewals}
+                </li>
+              ))}
               {revokedItems.map((token) => (
                 <li key={token.id} className="token-revoked-row">
                   <div>
                     <strong>{token.client_name ?? token.name}</strong>
                     <span className="token-meta">
+                      {token.revoked_reason === 'reuse'
+                        ? messages.tokenRevokedReasonReuse
+                        : messages.tokenRevokedReasonUser}{' '}
+                      ·{' '}
                       {token.oauth_client_id === null
                         ? messages.tokenManualGroup
                         : `${messages.tokenAuthorization} · ${token.client_name ?? token.name}`}

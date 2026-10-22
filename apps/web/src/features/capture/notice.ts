@@ -1,4 +1,20 @@
 import { create } from 'zustand';
+import type { DateDraft } from '../../components/DatePopover';
+import type { CalendarSlot } from './calendar-slot';
+
+export interface CaptureDraft {
+  readonly text: string;
+  readonly content?: string;
+  readonly date?: DateDraft | null;
+  readonly priority?: 'none' | 'low' | 'medium' | 'high' | undefined;
+  readonly project?: string | null;
+  readonly columnId?: string | null;
+  readonly tags?: string[] | null;
+  readonly files?: File[];
+  readonly kind?: 'task' | 'note';
+  readonly slot?: CalendarSlot | undefined;
+  readonly defaultProjectId?: string | undefined;
+}
 
 export interface CaptureWarningNotice {
   readonly code:
@@ -37,6 +53,7 @@ export function noticesFrom(warnings: unknown): CaptureWarningNotice[] {
 }
 
 export interface CaptureNotice {
+  readonly when?: string | null;
   readonly title: string;
   readonly warnings: readonly CaptureWarningNotice[];
 }
@@ -60,28 +77,26 @@ export const useCaptureNotice = create<NoticeStore>((set) => ({
 interface CaptureOpenState {
   open: boolean;
   text: string;
-  show: (text?: string) => void;
+  draft: CaptureDraft | undefined;
+  show: (value?: string | CaptureDraft) => void;
   hide: () => void;
 }
 
 export const useCaptureOpen = create<CaptureOpenState>((set) => ({
   open: false,
   text: '',
-  show: (text = '') => {
-    set({ open: true, text });
+  draft: undefined,
+  show: (value = '') => {
+    const draft = typeof value === 'string' ? undefined : value;
+    set({ open: true, text: typeof value === 'string' ? value : value.text, draft });
   },
   hide: () => {
-    set({ open: false, text: '' });
+    set({ open: false, text: '', draft: undefined });
   },
 }));
 
-/** The list composer is the TickTick field. The sheet is only the fallback. */
-export function openTaskComposer(text = ''): void {
-  const field = document.querySelector<HTMLInputElement>('.quick-add input, .inline-add input');
-  if (field !== null && text.length === 0) {
-    field.scrollIntoView({ block: 'center' });
-    field.focus();
-    return;
-  }
+/** Global shortcuts always open the same task card used by calendar capture. */
+export function openTaskComposer(text: string | CaptureDraft = ''): void {
+  if (useCaptureOpen.getState().open) return;
   useCaptureOpen.getState().show(text);
 }

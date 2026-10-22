@@ -1,56 +1,56 @@
 # Seguimiento de la auditoría TTD
 
-Registro incremental del trabajo solicitado el 21/10/2026. Los hallazgos pendientes
+Registro incremental del trabajo solicitado el 21/10/2026. Por instrucción posterior del usuario, los hallazgos restantes se acumulan en una sola PR con commits y pushes parciales. Los hallazgos pendientes
 siguen el orden de prioridad de la petición; no se consideran cerrados.
 
-| ID         | Estado    | PR                                                                                                                   | Notas                                                                                                                                                                       |
-| ---------- | --------- | -------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| TTD-AUD-01 | corregido | [#60](https://github.com/povedica/tick-tack-done/pull/60), [#70](https://github.com/povedica/tick-tack-done/pull/70) | Fecha efectiva en filtros y filas; inicio/duración en API de vistas y SDK. Tests de dominio, formato, mapeo, SQL e integración.                                             |
-| TTD-AUD-02 | corregido | [#61](https://github.com/povedica/tick-tack-done/pull/61)                                                            | Rangos ES/EN, título limpio, inicio y duración; tests del parser y creación real por API, incluidos cambios DST.                                                            |
-| TTD-AUD-03 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-04 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-05 | corregido | [#68](https://github.com/povedica/tick-tack-done/pull/68)                                                            | Menú vertical acotado al viewport, sin desbordamiento; flechas/Inicio/Fin/Escape y retorno del foco. Regresión Chromium a 1280 y 360 px.                                    |
-| TTD-AUD-06 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-07 | corregido | [#69](https://github.com/povedica/tick-tack-done/pull/69)                                                            | Accesos de navegación/detalle condicionados a ui y kill de la API existente; estado directo, error y reintento; screen-page común.                                          |
-| TTD-AUD-08 | aplazado  | —                                                                                                                    | F-1…F-10 excluidos por petición expresa. No se añade configuración ni activación; la disponibilidad y maquetación de ttd se corrigen con TTD-AUD-07.                        |
-| TTD-AUD-09 | corregido | [#72](https://github.com/povedica/tick-tack-done/pull/72)                                                            | Panel y Estadísticas comparten contador, lunes local y exclusión de canceladas; etiqueta esta semana y periodo API coherente. Tests UTC, cambio de día local y DST.         |
-| TTD-AUD-10 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-11 | corregido | [#67](https://github.com/povedica/tick-tack-done/pull/67)                                                            | Constructor común API/automatización, lunes local, payload completo v2; test de límite semanal UTC/local con tareas, hábitos y foco. Históricos preservados.                |
-| TTD-AUD-12 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-13 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-14 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-15 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-16 | aplazado  | —                                                                                                                    | Pendiente de reproducción antes de modificar el código.                                                                                                                     |
-| TTD-AUD-17 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-18 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-19 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-20 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-21 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-22 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-23 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-24 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-25 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-26 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-27 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-28 | corregido | [#66](https://github.com/povedica/tick-tack-done/pull/66)                                                            | runAction común aplicado a promesas UI sin rechazo; MutationCache global, avisos accesibles ES/EN, rollback y respaldo unhandledrejection; lint no admite void como escape. |
-| TTD-AUD-29 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-30 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-31 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-32 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-33 | aplazado  | —                                                                                                                    | Pendiente de reproducción antes de modificar el código.                                                                                                                     |
-| TTD-AUD-34 | aplazado  | —                                                                                                                    | Pendiente de reproducción antes de modificar el código.                                                                                                                     |
-| TTD-AUD-35 | corregido | [#63](https://github.com/povedica/tick-tack-done/pull/63)                                                            | Activos y revocados paginados; agrupación por ID de aplicación; recuento del servidor excluye rotaciones automáticas. Reproducido con 80 rotaciones y 56 activos.           |
-| TTD-AUD-36 | corregido | [#63](https://github.com/povedica/tick-tack-done/pull/63)                                                            | Caducidad expuesta desde el modelo existente; estado Caducado en la UI, sin perder la opción de revocar.                                                                    |
-| TTD-AUD-37 | corregido | [#62](https://github.com/povedica/tick-tack-done/pull/62)                                                            | Reproducido PostgreSQL 25P02; nombre interno OAuth único antes del INSERT, sin reintentos en transacción abortada. Tests de reautorización y choque manual.                 |
-| TTD-AUD-38 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-39 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-40 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-41 | corregido | [#64](https://github.com/povedica/tick-tack-done/pull/64)                                                            | Utilidad compartida: Gestionar separado de Escritura, Cuenta atrás en formulario y marca de permisos sensibles.                                                             |
-| TTD-AUD-42 | corregido | [#64](https://github.com/povedica/tick-tack-done/pull/64)                                                            | Sensibles desmarcados, defaults sin webhooks/automatizaciones, internos excluidos, etiquetas ES/EN, componentes y estados de la app.                                        |
-| TTD-AUD-43 | corregido | [#65](https://github.com/povedica/tick-tack-done/pull/65)                                                            | Reconectar con cuenta conectada; confirmación compartida Google/Drive informa de Calendar y Drive; errores visibles y parámetro de retorno eliminado.                       |
-| TTD-AUD-44 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-45 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
-| TTD-AUD-46 | aplazado  | —                                                                                                                    | Pendiente, según el orden de prioridad.                                                                                                                                     |
+| ID         | Estado                       | PR                                                                                                                   | Notas                                                                                                                                                                       |
+| ---------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| TTD-AUD-01 | corregido                    | [#60](https://github.com/povedica/tick-tack-done/pull/60), [#70](https://github.com/povedica/tick-tack-done/pull/70) | Fecha efectiva en filtros y filas; inicio/duración en API de vistas y SDK. Tests de dominio, formato, mapeo, SQL e integración.                                             |
+| TTD-AUD-02 | corregido                    | [#61](https://github.com/povedica/tick-tack-done/pull/61)                                                            | Rangos ES/EN, título limpio, inicio y duración; tests del parser y creación real por API, incluidos cambios DST.                                                            |
+| TTD-AUD-03 | externo pendiente de validar | [#71](https://github.com/povedica/tick-tack-done/pull/71)                                                            | Atajos de día completo: implementado por Cursor; no se duplica ni se considera validado en #73.                                                                             |
+| TTD-AUD-04 | externo pendiente de validar | [#71](https://github.com/povedica/tick-tack-done/pull/71)                                                            | Fecha efectiva y hora de fin: implementado por Cursor; no se duplica ni se considera validado en #73.                                                                       |
+| TTD-AUD-05 | corregido                    | [#68](https://github.com/povedica/tick-tack-done/pull/68)                                                            | Menú vertical acotado al viewport, sin desbordamiento; flechas/Inicio/Fin/Escape y retorno del foco. Regresión Chromium a 1280 y 360 px.                                    |
+| TTD-AUD-06 | externo pendiente de validar | [#71](https://github.com/povedica/tick-tack-done/pull/71)                                                            | Guardado y refresco del detalle: implementado por Cursor; no se duplica ni se considera validado en #73.                                                                    |
+| TTD-AUD-07 | corregido                    | [#69](https://github.com/povedica/tick-tack-done/pull/69)                                                            | Accesos de navegación/detalle condicionados a ui y kill de la API existente; estado directo, error y reintento; screen-page común.                                          |
+| TTD-AUD-08 | aplazado                     | —                                                                                                                    | F-1…F-10 excluidos por petición expresa. No se añade configuración ni activación; la disponibilidad y maquetación de ttd se corrigen con TTD-AUD-07.                        |
+| TTD-AUD-09 | corregido                    | [#72](https://github.com/povedica/tick-tack-done/pull/72)                                                            | Panel y Estadísticas comparten contador, lunes local y exclusión de canceladas; etiqueta esta semana y periodo API coherente. Tests UTC, cambio de día local y DST.         |
+| TTD-AUD-10 | aplazado                     | [#71](https://github.com/povedica/tick-tack-done/pull/71)                                                            | Arreglo en curso por otro agente; no se duplica. Prueba PostgreSQL adicional confirma segundos reales y totales por periodo.                                                |
+| TTD-AUD-11 | corregido                    | [#67](https://github.com/povedica/tick-tack-done/pull/67)                                                            | Constructor común API/automatización, lunes local, payload completo v2; test de límite semanal UTC/local con tareas, hábitos y foco. Históricos preservados.                |
+| TTD-AUD-12 | externo pendiente de validar | [#71](https://github.com/povedica/tick-tack-done/pull/71)                                                            | Puntuación N/100: implementado por Cursor; no se duplica ni se considera validado en #73.                                                                                   |
+| TTD-AUD-13 | externo pendiente de validar | [#71](https://github.com/povedica/tick-tack-done/pull/71)                                                            | Controles de filtros: implementado por Cursor; no se duplica ni se considera validado en #73.                                                                               |
+| TTD-AUD-14 | externo pendiente de validar | [#71](https://github.com/povedica/tick-tack-done/pull/71)                                                            | Matriz: arreglo parcial: implementado por Cursor; no se duplica ni se considera validado en #73.                                                                            |
+| TTD-AUD-15 | externo pendiente de validar | [#71](https://github.com/povedica/tick-tack-done/pull/71)                                                            | Acciones de papelera: implementado por Cursor; no se duplica ni se considera validado en #73.                                                                               |
+| TTD-AUD-16 | externo pendiente de validar | [#71](https://github.com/povedica/tick-tack-done/pull/71)                                                            | Purga optimista y rollback: implementado por Cursor; no se duplica ni se considera validado en #73.                                                                         |
+| TTD-AUD-17 | externo pendiente de validar | [#71](https://github.com/povedica/tick-tack-done/pull/71)                                                            | Botones Crear: implementado por Cursor; no se duplica ni se considera validado en #73.                                                                                      |
+| TTD-AUD-18 | externo pendiente de validar | [#71](https://github.com/povedica/tick-tack-done/pull/71)                                                            | Salida tras borrar lista: implementado por Cursor; no se duplica ni se considera validado en #73.                                                                           |
+| TTD-AUD-19 | externo pendiente de validar | [#71](https://github.com/povedica/tick-tack-done/pull/71)                                                            | Página no encontrada: implementado por Cursor; no se duplica ni se considera validado en #73.                                                                               |
+| TTD-AUD-20 | externo pendiente de validar | [#71](https://github.com/povedica/tick-tack-done/pull/71)                                                            | Anillo de foco y presets: implementado por Cursor; no se duplica ni se considera validado en #73.                                                                           |
+| TTD-AUD-21 | corregido                    | [#73](https://github.com/povedica/tick-tack-done/pull/73)                                                            | Cabecera de escritorio en una línea y ancho de selector acotado. Regresión Chromium fallaba con dos líneas. El recorte de emoji no se reprodujo en inspección local.        |
+| TTD-AUD-22 | corregido                    | [#73](https://github.com/povedica/tick-tack-done/pull/73)                                                            | Fondos por tokens con variantes oscuras; texto y número legibles en las 13 variantes y 6 acentos. Contraste calculado en Chromium ≥4,5:1, incluidos fondos del degradado.   |
+| TTD-AUD-23 | corregido                    | [#73](https://github.com/povedica/tick-tack-done/pull/73)                                                            | Checkbox/radio en fila; fecha civil ES/EN editable con formato explícito, valida días imposibles y envía ISO sin zona. Selects y modal conservan el estilo común.           |
+| TTD-AUD-24 | corregido                    | [#73](https://github.com/povedica/tick-tack-done/pull/73)                                                            | Popover controlado: elegir, Escape, clic fuera y reemplazar por menú de tarjeta cierran el anterior; foco restaurado; icono de agrupar distinguible.                        |
+| TTD-AUD-25 | corregido                    | [#73](https://github.com/povedica/tick-tack-done/pull/73)                                                            | Tokens de lateral y rail por tema; selección, hover e iconos legibles. Doce combinaciones tema/acento verificadas en Chromium, incluido selector de tema.                   |
+| TTD-AUD-26 | corregido                    | [#73](https://github.com/povedica/tick-tack-done/pull/73)                                                            | Botón de acceso usa var(--accent); regresiones violeta y verde que fallaban antes. Registro comparte selector CSS; formulario deshabilitado en este entorno.                |
+| TTD-AUD-27 | parcial                      | [#73](https://github.com/povedica/tick-tack-done/pull/73), [#71](https://github.com/povedica/tick-tack-done/pull/71) | #73 centraliza Ticky, avisos de Hoy y contexto de proyectos; #71 cuentas atrás. Razones de Control con códigos públicos; pendiente validar combinación con #71.             |
+| TTD-AUD-28 | corregido                    | [#66](https://github.com/povedica/tick-tack-done/pull/66)                                                            | runAction común aplicado a promesas UI sin rechazo; MutationCache global, avisos accesibles ES/EN, rollback y respaldo unhandledrejection; lint no admite void como escape. |
+| TTD-AUD-29 | externo pendiente de validar | [#71](https://github.com/povedica/tick-tack-done/pull/71)                                                            | Sesión caducada: implementado por Cursor; no se duplica ni se considera validado en #73.                                                                                    |
+| TTD-AUD-30 | externo pendiente de validar | [#71](https://github.com/povedica/tick-tack-done/pull/71)                                                            | Boundary por ruta: implementado por Cursor; no se duplica ni se considera validado en #73.                                                                                  |
+| TTD-AUD-31 | parcial                      | [#73](https://github.com/povedica/tick-tack-done/pull/73), [#71](https://github.com/povedica/tick-tack-done/pull/71) | #73 paleta y ajustes de calendario; #71 foco/filtros/matriz/cuentas atrás/funcionalidades/jornada. Rail: contador no disponible y reintento. Pendiente validar combinación. |
+| TTD-AUD-32 | externo pendiente de validar | [#71](https://github.com/povedica/tick-tack-done/pull/71)                                                            | Confirmaciones y plurales: implementado por Cursor; no se duplica ni se considera validado en #73.                                                                          |
+| TTD-AUD-33 | externo pendiente de validar | [#71](https://github.com/povedica/tick-tack-done/pull/71)                                                            | Navegación móvil: implementado por Cursor; no se duplica ni se considera validado en #73.                                                                                   |
+| TTD-AUD-34 | corregido parcialmente       | [#73](https://github.com/povedica/tick-tack-done/pull/73)                                                            | Reproducida petición /me prematura en login; sincronización montada solo dentro de AppShell autenticado. Pendiente confirmar los cuatro errores originales en despliegue.   |
+| TTD-AUD-35 | corregido                    | [#63](https://github.com/povedica/tick-tack-done/pull/63)                                                            | Activos y revocados paginados; agrupación por ID de aplicación; recuento del servidor excluye rotaciones automáticas. Reproducido con 80 rotaciones y 56 activos.           |
+| TTD-AUD-36 | corregido                    | [#63](https://github.com/povedica/tick-tack-done/pull/63)                                                            | Caducidad expuesta desde el modelo existente; estado Caducado en la UI, sin perder la opción de revocar.                                                                    |
+| TTD-AUD-37 | corregido                    | [#62](https://github.com/povedica/tick-tack-done/pull/62)                                                            | Reproducido PostgreSQL 25P02; nombre interno OAuth único antes del INSERT, sin reintentos en transacción abortada. Tests de reautorización y choque manual.                 |
+| TTD-AUD-38 | parcial                      | [#73](https://github.com/povedica/tick-tack-done/pull/73), [#71](https://github.com/povedica/tick-tack-done/pull/71) | #73 pagina actividad, carga y errores con reintento; #71 aporta etiquetas de peticiones y ciclo de vida, pendientes de integrar y validar.                                  |
+| TTD-AUD-39 | externo pendiente de validar | [#71](https://github.com/povedica/tick-tack-done/pull/71)                                                            | Errores de tokens: implementado por Cursor; no se duplica ni se considera validado en #73.                                                                                  |
+| TTD-AUD-40 | externo pendiente de validar | [#71](https://github.com/povedica/tick-tack-done/pull/71)                                                            | Accesibilidad del secreto: implementado por Cursor; no se duplica ni se considera validado en #73.                                                                          |
+| TTD-AUD-41 | corregido                    | [#64](https://github.com/povedica/tick-tack-done/pull/64)                                                            | Utilidad compartida: Gestionar separado de Escritura, Cuenta atrás en formulario y marca de permisos sensibles.                                                             |
+| TTD-AUD-42 | corregido                    | [#64](https://github.com/povedica/tick-tack-done/pull/64)                                                            | Sensibles desmarcados, defaults sin webhooks/automatizaciones, internos excluidos, etiquetas ES/EN, componentes y estados de la app.                                        |
+| TTD-AUD-43 | corregido                    | [#65](https://github.com/povedica/tick-tack-done/pull/65)                                                            | Reconectar con cuenta conectada; confirmación compartida Google/Drive informa de Calendar y Drive; errores visibles y parámetro de retorno eliminado.                       |
+| TTD-AUD-44 | externo pendiente de validar | [#71](https://github.com/povedica/tick-tack-done/pull/71)                                                            | Confirmación de integraciones: implementado por Cursor; no se duplica ni se considera validado en #73.                                                                      |
+| TTD-AUD-45 | externo pendiente de validar | [#71](https://github.com/povedica/tick-tack-done/pull/71)                                                            | Rotación webhook: implementado por Cursor; no se duplica ni se considera validado en #73.                                                                                   |
+| TTD-AUD-46 | externo pendiente de validar | [#71](https://github.com/povedica/tick-tack-done/pull/71)                                                            | Estilo de revocados: implementado por Cursor; no se duplica ni se considera validado en #73.                                                                                |
 
 ## TTD-AUD-01: criterios de aceptación
 
@@ -274,3 +274,188 @@ OpenAPI regenerado sin diferencias.
 Validación TTD-AUD-09: typecheck, lint y suites completas (289 dominio,
 110 web, 101 API, 9 SDK); integración 126 pasan y 2 omitidos.
 Regresión Chromium del KPI en verde; OpenAPI/SDK regenerados.
+
+## Coordinación y validación de foco
+
+La PR #71 pertenece al agente que sigue trabajando con la auditoría ampliada.
+Este trabajo continúa en otra PR acumulativa, sin modificar su rama ni duplicar
+TTD-AUD-10 y los cambios 54/55/56/60/61/65 ya iniciados allí.
+Una prueba PostgreSQL adicional comprueba iniciar y terminar tras 81 s: se
+persisten 81 s y un pomodoro; ambas APIs coinciden para el mismo periodo.
+No se reproduce un registro incorrecto de actualSeconds. RF-1204/RF-1205.
+
+## TTD-AUD-22/26: colores del tema
+
+- Regresiones Chromium antes del cambio: texto blanco sobre pasteles en oscuro y números de bajo contraste en claro; acceso ignoraba acentos violeta/verde.
+- Paleta de cuentas atrás centralizada en tokens.css, con variantes oscuras; números usan accent-ink y metadatos ink-3. También se corrigen accent-ink/soft oscuros para los cinco acentos alternativos.
+- Se comprueban 13 colores × 6 acentos × 2 temas, texto/número/fecha, componiendo alfa sobre el fondo e incluyendo los tres colores del degradado. Umbral ≥4,5:1. Inspección visual local; sin publicar capturas.
+- Login probado con violeta/verde; registro comparte el selector, pero el formulario está desactivado por configuración y requiere comprobación si se habilita.
+- RF-1903, RF-2402 y RF-2451. Solo CSS/tokens, sin cambios de comportamiento o contrato.
+
+## TTD-AUD-21/23: cabecera y diálogo
+
+- Regresiones antes del cambio: título desktop de dos líneas y casillas apiladas en móvil. Ahora cabecera de una línea; casillas/radios junto al texto y sin desbordamiento horizontal a 360 px.
+- Fecha civil con formato explícito ES dd/mm/aaaa y EN mm/dd/yyyy, independiente de la configuración de fecha del navegador. Se rechazan 31/02, años no bisiestos y otros días imposibles; al guardar 23/11/2026 se envía 2026-11-23.
+- La API conserva el contrato target_date. Modal y selects ya usan los estilos comunes; no se modifica su comportamiento. El recorte del emoji no se reproduce en las capturas locales revisadas.
+- RF-2402, RF-2451, RF-2452 y RF-2453. Regresiones Chromium y siete casos de formato/validación civil.
+
+Validación del bloque 21/22/23/26: typecheck y suites completas (289 dominio,
+117 web, 101 API y 9 SDK); lint global comprobado y corrección localizada del
+parser civil verificada con lint dirigido. Siete tests de fecha civil y seis
+regresiones Chromium en verde. Inspección visual del diálogo a 360 px.
+
+## TTD-AUD-24: menús de cuentas atrás
+
+- Regresión previa confirmada: Escape conservaba el details de Nueva abierto.
+- Estado único para crear/tarjeta; ambos usan Popover con ancla, flechas y Escape. Elegir tipo abre el diálogo y cierra el menú; un menú reemplaza al otro y clic fuera lo cierra.
+- Escape restaura foco en el disparador; botón común admite ref de React 19 para el ancla. Regresiones del menú de tareas y del diálogo de fecha conservadas. Icono de agrupación cambiado a ListFilter.
+- RF-2452, RF-2454 y RF-1902. Sin cambios de API ni de acciones de cuenta atrás.
+
+## TTD-AUD-25: contraste de navegación
+
+- Reproducción confirmada: selección lateral oscura 2,36:1.
+- Fondos de hover/selección y tinta del rail pasan a tokens; claro conserva el lateral y el rail oscurece su hover para mantener contraste. Oscuro usa fondo de selección del acento y tinta clara en iconos.
+- Doce combinaciones (dos temas, seis acentos): texto lateral seleccionado/hover y botón de tema ≥4,5:1; iconos activos/hover ≥3:1. Medición Chromium compone los fondos semitransparentes sobre sus ancestros.
+- Los tokens accent-ink/soft oscuros de los acentos alternativos se corrigieron en el bloque TTD-AUD-22. RF-1903. Sin cambiar estructura ni destinos de navegación.
+
+## Coordinación con #71 y TTD-AUD-34
+
+Revisión de solo lectura de #71 a `1da4a10b7dd7faa7fbf6bd3068f71741cf386182`.
+Los estados externos describen código presente en esa PR; requieren validación e
+integración y no equivalen a hallazgos cerrados. No se ha enviado ningún commit a
+su rama. Quedan huecos declarados allí en 14, 27, 31 y 38.
+
+En Chromium local, `/login` solicitaba `/me` sin sesión y generaba un 401
+innecesario. `AccountPreferenceSync` se monta ahora dentro del shell protegido,
+conservando la sincronización al entrar. La regresión fallaba por esa petición y
+pasa después. No hay errores de JavaScript ni de consola inesperados en la carga
+local; el 401 del sondeo explícito `/auth/session` se considera una respuesta
+esperada cuando no existe sesión. Esto no identifica retrospectivamente los cuatro
+errores sin analizar de la auditoría ni sustituye la comprobación en producción.
+
+Validación: ESLint y TypeScript web; 13 regresiones Chromium de login y contraste
+(todas las combinaciones de tema/acento). El test de contraste espera el final de
+la aplicación asíncrona de preferencias antes de medir. Sin cambios de contrato,
+modelo ni eventos. Complementa el requisito transversal de autenticación de 10.1.
+
+## TTD-AUD-38: paginación de actividad
+
+- SDK: `tokenActivity(id, {cursor, limit})` conserva la llamada anterior sin opciones
+  y usa los parámetros públicos existentes. La regresión fallaba al perder cursor
+  y límite; los diez tests SDK pasan después del cambio.
+- UI: consulta infinita por token, esqueleto inicial, error ES/EN y Reintentar,
+  Cargar más, `aria-busy` y región con nombre. Un fallo al cargar la página siguiente
+  conserva las entradas previas; Reintentar solicita esa página, sin reiniciar la lista.
+- Chromium reproduce error inicial 503, recuperación, segunda página 503 y nueva
+  recuperación: aparecen las dos entradas, sin duplicados y sin Cargar más al acabar.
+- Sin cambio de API, OpenAPI, modelo ni eventos. RF-2002. La presentación de método,
+  ruta, resultado y ciclo de vida sigue en #71; no se declara cerrado el hallazgo.
+
+## TTD-AUD-27: textos de Ticky, Hoy y proyectos
+
+- Textos centrales ES/EN en conversación, permisos, propuestas y rutinas de la UI
+  web de ttd. Fechas y días de semana siguen el idioma elegido; sin cambios de
+  capacidades ni del servicio Ticky externo (F-1…F-10 siguen excluidos).
+- Errores locales del stream traducidos; errores HTTP conservan status y code
+  estructurados y muestran un texto del idioma elegido. Los conflictos de rutina
+  se reconocen por 409, sin buscar palabras españolas en la frase del servidor.
+- Avisos de vencimiento, cuenta atrás de Hoy y contexto de proyectos usan i18n.
+- Regresión Chromium falla contra TickyPage anterior y pasa después. Comprueba
+  conversación, permisos, rutinas/día de semana, modelo y propuesta inválida en
+  inglés; otra prueba verifica Due today. Tests de transporte verifican inglés y
+  preservación de código/status. Un guard AST impide textos fijos en JSX y atributos
+  accesibles de los cuatro componentes Ticky.
+- 120 tests web, ESLint y TypeScript web en verde. Quedan pendientes las razones
+  estructuradas de Control y la combinación con cuentas atrás de #71.
+
+## TTD-AUD-31: paleta y calendario
+
+- Paleta: esqueleto y error con Reintentar tanto al cargar listas como al buscar;
+  un 503 no se presenta como ausencia de resultados. La regresión también confirmó
+  que la lista subyacente interceptaba el clic en Reintentar: la capa fija de la
+  paleta usa ahora el nivel de modal existente (50).
+- Ajustes de calendario: estados de proyectos, feeds y Google con reintento;
+  creación deshabilitada si no se han cargado las listas. No se muestra una píldora
+  de desconexión cuando falla la consulta de estado.
+- Calendarios Google: carga/error al consultar conexión, calendarios y suscripciones;
+  vacío solo cuando ambas consultas terminan correctamente. Datos cacheados se
+  conservan al refrescar, sin esqueleto que los sustituya.
+- Chromium verifica 503 y recuperación en búsqueda, feeds y Google; confirma que
+  el botón de la paleta recibe el clic y aparecen los resultados tras reintentar.
+  ESLint y TypeScript web en verde. Sin API, eventos ni modelo nuevos; RF-1502 y
+  RF-2004, sobre endpoints públicos existentes.
+
+El rail distingue carga (…) y error (!) de un contador real; el nombre accesible
+explica el fallo y ofrece Reintentar desde el mismo botón. La prueba fallaba antes
+por no existir ese estado y recupera el contador 1 tras reintentar. RF-901.
+
+## TTD-AUD-27: razones estructuradas de Control
+
+- Dominio conserva la fórmula y el desempate y añade `topDeductionReason` con código
+  y parámetros numéricos. La frase antigua se mantiene como campo deprecado, sin
+  forzar una ruptura de clientes existentes.
+- Contrato documentado en OpenAPI para overview, stats/achievement y
+  me/achievements. UI traduce los códigos mediante i18n y elimina las expresiones
+  regulares sobre frases españolas. Una respuesta antigua o desconocida usa un
+  mensaje traducido que remite al desglose, sin exponer la frase en otro idioma.
+- Seis regresiones de dominio fallaban antes por faltar la razón estructurada.
+  Cubren los cinco códigos y null al no haber deducción, datos o puntuación activa.
+  Siete pruebas de formato cubren ES/EN y datos desconocidos o inválidos.
+- Integración PostgreSQL: nueve tests de Estadísticas pasan, incluida la misma
+  razón en los tres endpoints. Chromium falla con la UI anterior y pasa con códigos,
+  aunque se cambie por completo la frase del servidor. RF-1602 / RF-2321.
+- Sin migración ni eventos nuevos: cambia la representación de una lectura;
+  no se modifica el cálculo ni la persistencia de la puntuación.
+
+Validación del corte de razones de Control: `pnpm lint`, `pnpm typecheck` y
+`pnpm test` completos en verde (295 dominio, 127 web, 101 API y 10 SDK).
+Integración completa: 127 pasan, 2 omitidos. OpenAPI y SDK regenerados; segunda
+regeneración de OpenAPI idéntica. Formato comprobado en los archivos publicables,
+sin modificar los documentos o evidencias locales ajenos al corte.
+
+La ampliación de E2E detectó comprobaciones antiguas adelantadas al diseño final
+(malla/overflow de gráficas) y selectores que incluían enlaces ocultos del menú de
+cuenta o un summary sustituido por botón. Se conserva cada criterio y se sincroniza
+la medición del diseño; los selectores apuntan a los enlaces visibles y al botón
+accesible actual. No se ha cambiado el diseño de Estadísticas para satisfacer tests.
+
+Límite de la batería ampliada: el test existente TSK-2 falla en Agenda a 1280 px
+cómodo (desviación 2 px; exige ≤1,5). Reproducido también al sustituir temporalmente
+todos los fuentes web modificados por su versión de `origin/main`, restaurados
+inmediatamente después. No es una regresión de este corte ni se ha relajado el
+umbral. Las 35 pruebas de Estadísticas pasan por bloques, y los nuevos tests 27,
+31 y 38 pasan; no se declara verde la batería ui-ux-v2 completa por ese fallo previo.
+
+## TTD-AUD-74: creación rápida desde calendario (alcance añadido)
+
+Implementado en esta misma PR por instrucción expresa del usuario. Documento de
+alcance: `docs/audit/ttd-codex-calendario-quick-add.md`. RF-1102, RF-102,
+RF-601/602/604. No cambia el contrato de API ni las reglas del servidor.
+
+| Criterio                               | Comprobación                                                                                                                                                         |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Clic Semana/Día/Varios días y fantasma | Chromium: 13:35 → 13:30; POST inicio 11:30Z, fin 12:00Z, 30 min en Europe/Madrid; tarea aparece a 648 px sin recarga                                                 |
+| Mes/Varias semanas y todo el día       | Chromium: celda y fila all-day; medianoche local, celda resaltada y chip pasado con token danger                                                                     |
+| Parser gana al hueco                   | Unitario y Chromium: fecha, prioridad, etiqueta y lista explícitas quedan para el parser, sin sobrescribir con el contexto                                           |
+| Lista de contexto                      | Selector y parámetro project_id; regresión del rango confirma project_id=context                                                                                     |
+| Arrastre                               | Chromium ratón y gesto táctil largo: 09:00–10:30 = 90 min; unitario limita cruce de día y admite selección inversa                                                   |
+| Teclado y cierre                       | Enter crea; Escape quita fantasma y devuelve foco; Tab permanece dentro; flechas mueven hora del hueco enfocado                                                      |
+| Clic fuera                             | Vacío cierra; con texto/descripción/adjuntos/metadatos conserva el formulario y evita navegación accidental                                                          |
+| Más opciones                           | Mismo TaskComposer; conserva título, descripción, fechas, duración, prioridad, lista, etiquetas y archivos. Prueba con nota.txt                                      |
+| Móvil y posición                       | Hoja 390×844 con safe area, toque y arrastre largo; prueba en cuatro esquinas y borde derecho de escritorio                                                          |
+| Zona y DST                             | Unitarios: medianoche Madrid, repetición 25/10/2026 (ocurrencia posterior), hora inexistente de marzo avanza al primer hueco válido; duración transcurrida coherente |
+| Componente                             | Dos tests con composer real: render, foco, Enter, Escape, retorno de foco y expansión del borrador                                                                   |
+
+Validación previa a integrar main: ESLint y TypeScript web; 135 tests web en verde;
+12 E2E nuevos y 5 regresiones del composer pasan. Regresión de tarea solo con inicio
+restablecida en Agenda; el resto de vistas usa fecha efectiva para mostrar las tareas.
+La prueba de clic de Semana fallaba contra Places/HourGrid anteriores, al no abrir
+ningún diálogo. `@floating-ui/react` aporta offset/flip/shift y referencia virtual.
+
+El arrastre de varios días en Mes queda fuera de este corte, como permite el
+apartado opcional del documento. La hoja admite crear día completo en ambas vistas.
+Capturas de pruebas solo locales; no se añaden imágenes/PDF/HTML a esta PR.
+
+Siguiente paso autorizado: integrar main con #71 ya fusionada, resolver conflictos
+y repetir validación conjunta. Después se aplica en un commit aparte el nuevo
+ajuste de iconos activos/inactivos del rail, conservando la segunda columna.

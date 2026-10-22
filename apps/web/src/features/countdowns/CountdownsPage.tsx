@@ -1,8 +1,7 @@
 import { runAction } from '../../components/run-action';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { LayoutGrid, Plus } from 'lucide-react';
+import { ListFilter, Plus } from 'lucide-react';
 import { useRef, useState } from 'react';
-import { Popover } from '../../components/Popover';
 import { Button, EmptyState, ErrorState, SkeletonRows } from '../../components/ui';
 import { UndoToastStack } from '../../components/UndoToast';
 import { fill, useMessages } from '../../i18n';
@@ -12,15 +11,16 @@ import { CountdownDialog } from './CountdownDialog';
 import { countdownsApi, type Countdown, type CountdownDraft, type CountdownType } from './api';
 import { groupCountdowns, TYPE_LABEL } from './presentation';
 import './countdowns.css';
+import { Popover } from '../../components/Popover';
 
 export function CountdownsPage() {
   const messages = useMessages();
+  const newAnchor = useRef<HTMLButtonElement>(null);
+  const [menu, setMenu] = useState<string | null>(null);
   const client = useQueryClient();
   const [archived, setArchived] = useState(false);
   const [grouped, setGrouped] = useState(false);
-  const [newOpen, setNewOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Countdown | null>(null);
-  const newAnchor = useRef<HTMLButtonElement>(null);
   const [dialog, setDialog] = useState<{ type: CountdownType; countdown?: Countdown } | null>(null);
   const [deleted, setDeleted] = useState<
     readonly { id: string; title: string; countdown: Countdown }[]
@@ -45,7 +45,7 @@ export function CountdownsPage() {
     },
     onSuccess: async () => {
       setDialog(null);
-      setNewOpen(false);
+      setMenu(null);
       await refresh();
     },
   });
@@ -66,16 +66,27 @@ export function CountdownsPage() {
           key={item.id}
           countdown={item}
           archived={archived}
+          menuOpen={menu === item.id}
+          onToggleMenu={() => {
+            setMenu((current) => (current === item.id ? null : item.id));
+          }}
+          onCloseMenu={() => {
+            setMenu(null);
+          }}
           onEdit={() => {
+            setMenu(null);
             setDialog({ type: item.type, countdown: item });
           }}
           onPin={() => {
+            setMenu(null);
             runAction(countdownsApi.update(item.id, { pinned: !item.pinned }).then(refresh));
           }}
           onArchive={() => {
+            setMenu(null);
             archive.mutate({ item, restore: archived });
           }}
           onDelete={() => {
+            setMenu(null);
             setPendingDelete(item);
           }}
         />
@@ -101,42 +112,40 @@ export function CountdownsPage() {
         <div className="countdown-toolbar">
           {!archived ? (
             <>
-              <button
+              <Button
                 ref={newAnchor}
-                type="button"
-                aria-expanded={newOpen}
+                className="countdown-new"
+                variant="primary"
                 aria-haspopup="menu"
+                aria-expanded={menu === 'create'}
                 onClick={() => {
-                  setNewOpen((current) => !current);
+                  setMenu((current) => (current === 'create' ? null : 'create'));
                 }}
               >
                 <Plus size={18} /> {messages.countdownNew}
-              </button>
+              </Button>
               <Popover
-                open={newOpen}
-                label={messages.countdownNew}
-                anchor={newAnchor}
+                open={menu === 'create'}
+                label={messages.countdownTypeMenu}
                 onClose={() => {
-                  setNewOpen(false);
+                  setMenu(null);
                 }}
+                anchor={newAnchor}
+                className="popover countdown-menu"
               >
-                <div className="countdown-menu" role="menu">
-                  {(Object.entries(TYPE_LABEL) as [CountdownType, string][]).map(
-                    ([type, label]) => (
-                      <button
-                        type="button"
-                        key={type}
-                        role="menuitem"
-                        onClick={() => {
-                          setNewOpen(false);
-                          setDialog({ type });
-                        }}
-                      >
-                        {label}
-                      </button>
-                    ),
-                  )}
-                </div>
+                {(Object.entries(TYPE_LABEL) as [CountdownType, string][]).map(([type, label]) => (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    key={type}
+                    onClick={() => {
+                      setDialog({ type });
+                      setMenu(null);
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
               </Popover>
             </>
           ) : null}
@@ -148,7 +157,7 @@ export function CountdownsPage() {
               setGrouped((current) => !current);
             }}
           >
-            <LayoutGrid size={20} />
+            <ListFilter size={20} />
             <span className="sr-only">{messages.countdownGroupByType}</span>
           </button>
         </div>

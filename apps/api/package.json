@@ -11,7 +11,7 @@
     "typecheck": "pnpm --filter @reflexionia/domain build && tsc --noEmit",
     "test": "vitest run",
     "test:integration": "vitest run --config vitest.config.integration.ts",
-    "openapi:generate": "node dist/scripts/generate-openapi.js",
+    "openapi:generate": "node dist/scripts/generate-openapi.js && node ../../scripts/generate-mcp-catalog.mjs",
     "seed": "tsx prisma/seed.ts",
     "prisma": "prisma",
     "postinstall": "prisma generate"

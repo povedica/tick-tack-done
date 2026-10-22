@@ -1,3 +1,5 @@
+import { TodayMark } from '../../components/period/TodayMark';
+import { useCalendarToday } from '../../components/period/useCalendarToday';
 import { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { Button } from '../../components/ui';
@@ -12,7 +14,6 @@ function monday(date: string): string {
 export function WeekPicker({
   value,
   available,
-  today,
   onSelect,
 }: {
   readonly value: string;
@@ -21,6 +22,7 @@ export function WeekPicker({
   readonly onSelect: (week: string) => void;
 }) {
   const copy = useWeeklyCopy();
+  const today = useCalendarToday();
   const selected = value || monday(today);
   const [open, setOpen] = useState(false);
   const [month, setMonth] = useState(selected.slice(0, 7));
@@ -161,7 +163,9 @@ export function WeekPicker({
                   }
                 }}
               >
-                <span>{new Date(`${date}T12:00:00Z`).getUTCDate()}</span>
+                <TodayMark today={date === today}>
+                  {new Date(`${date}T12:00:00Z`).getUTCDate()}
+                </TodayMark>
               </button>
             ))}
           </div>

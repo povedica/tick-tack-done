@@ -1,7 +1,7 @@
+import { useMessages } from '../../i18n';
 import { runAction } from '../../components/run-action';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { useMessages } from '../../i18n';
 import { collectProjects } from '../tasks/collect';
 import { tickyApi, type TickyAuthority } from './api';
 
@@ -24,12 +24,12 @@ export function TickySettings() {
         setOpen(event.currentTarget.open);
       }}
     >
-      <summary>{messages.tickyPermsSummary}</summary>
+      <summary>{messages.tickyPermissions}</summary>
       {authority.isError || projects.isError ? (
-        <p role="alert">{messages.tickyPermsLoadFailed}</p>
+        <p role="alert">{messages.tickyPermissionsFailed}</p>
       ) : null}
       {authority.data === undefined || projects.data === undefined ? (
-        <p>{messages.tickyPermsLoading}</p>
+        <p>{messages.tickyPermissionsLoading}</p>
       ) : (
         <SettingsForm
           authority={authority.data}
@@ -50,6 +50,13 @@ function SettingsForm({
   readonly projects: readonly { id: string; name: string }[];
 }) {
   const messages = useMessages();
+  const permissions: Readonly<Record<string, string>> = {
+    'tasks:create': messages.tickyPermissionCreate,
+    'tasks:update': messages.tickyPermissionUpdate,
+    'calendar:read': messages.tickyPermissionCalendar,
+    'ticky:routines:read': messages.tickyPermissionRoutinesRead,
+    'ticky:routines:write': messages.tickyPermissionRoutinesWrite,
+  };
   const queryClient = useQueryClient();
   const [lists, setLists] = useState(authority.list_ids);
   const [scopes, setScopes] = useState(authority.action_scopes);
@@ -58,13 +65,6 @@ function SettingsForm({
   const [start, setStart] = useState(authority.workday_start ?? '');
   const [end, setEnd] = useState(authority.workday_end ?? '');
   const [notice, setNotice] = useState('');
-  const permissions: Readonly<Record<string, string>> = {
-    'tasks:create': messages.tickyScopeCreate,
-    'tasks:update': messages.tickyScopeUpdate,
-    'calendar:read': messages.tickyScopeCalendar,
-    'ticky:routines:read': messages.tickyScopeRoutinesRead,
-    'ticky:routines:write': messages.tickyScopeRoutinesWrite,
-  };
   useEffect(() => {
     setLists(authority.list_ids);
     setScopes(authority.action_scopes);
@@ -76,7 +76,7 @@ function SettingsForm({
   const save = useMutation({
     mutationFn: (patch: Record<string, unknown>) => tickyApi.updateAuthority(patch),
     onSuccess: () => {
-      setNotice(messages.tickyPermsSaved);
+      setNotice(messages.tickyPermissionsSaved);
       runAction(queryClient.invalidateQueries({ queryKey: ['ticky'] }));
     },
     onError: (error: Error) => {
@@ -98,9 +98,9 @@ function SettingsForm({
         });
       }}
     >
-      <p>{messages.tickyPermsIntro}</p>
+      <p>{messages.tickyListsHint}</p>
       <label>
-        {messages.tickyAutonomy}{' '}
+        {messages.tickyAssistanceLevel}{' '}
         <select
           value={autonomy}
           disabled={save.isPending}
@@ -108,9 +108,9 @@ function SettingsForm({
             setAutonomy(Number(event.target.value));
           }}
         >
-          <option value={0}>{messages.tickyAutonomy0}</option>
-          <option value={1}>{messages.tickyAutonomy1}</option>
-          <option value={2}>{messages.tickyAutonomy2}</option>
+          <option value={0}>{messages.tickyAutonomyOff}</option>
+          <option value={1}>{messages.tickyAutonomyRead}</option>
+          <option value={2}>{messages.tickyAutonomyPrepare}</option>
         </select>
       </label>
       <fieldset disabled={save.isPending}>
@@ -135,7 +135,7 @@ function SettingsForm({
         ))}
       </fieldset>
       <label>
-        {messages.tickyInboxCapture}{' '}
+        {messages.tickyCaptureInbox}{' '}
         <select
           value={inbox}
           disabled={save.isPending}
@@ -143,7 +143,7 @@ function SettingsForm({
             setInbox(event.target.value);
           }}
         >
-          <option value="">{messages.tickyInboxNone}</option>
+          <option value="">{messages.tickyNoCaptureInbox}</option>
           {projects
             .filter((project) => lists.includes(project.id))
             .map((project) => (
@@ -154,7 +154,7 @@ function SettingsForm({
         </select>
       </label>
       <fieldset disabled={save.isPending}>
-        <legend>{messages.tickyExplicitPerms}</legend>
+        <legend>{messages.tickyExplicitPermissions}</legend>
         {Object.entries(permissions)
           .filter(([scope]) => authority.fine_scopes.includes(scope))
           .map(([scope, label]) => (
@@ -172,9 +172,9 @@ function SettingsForm({
             </label>
           ))}
       </fieldset>
-      <p>{messages.tickyCapacityHint}</p>
+      <p>{messages.tickyCapacityUnknown}</p>
       <label>
-        {messages.tickyWorkStart}{' '}
+        {messages.tickyWorkdayStart}{' '}
         <input
           type="time"
           value={start}
@@ -184,7 +184,7 @@ function SettingsForm({
         />
       </label>
       <label>
-        {messages.tickyWorkEnd}{' '}
+        {messages.tickyWorkdayEnd}{' '}
         <input
           type="time"
           value={end}
@@ -194,7 +194,7 @@ function SettingsForm({
         />
       </label>
       <button type="submit" disabled={save.isPending}>
-        {messages.tickySavePerms}
+        {messages.tickySavePermissions}
       </button>
       <div className="ticky-actions">
         <button
@@ -213,7 +213,7 @@ function SettingsForm({
             save.mutate({ revoked: !authority.revoked });
           }}
         >
-          {authority.revoked ? messages.tickyRestoreAuth : messages.tickyRevoke}
+          {authority.revoked ? messages.tickyRestoreAuthority : messages.tickyRevokeAuthority}
         </button>
       </div>
       <p role="status">{notice}</p>

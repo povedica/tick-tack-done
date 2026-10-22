@@ -17,6 +17,36 @@ const base: ControlInput = {
   usageDays: 0,
 };
 describe('RF-1602 Control v3', () => {
+  it.each([
+    [
+      { overdue: { under7: 0, d8to30: 0, over30: 20 }, usageDays: 7 },
+      { code: 'overdue', params: { count: 20, oldCount: 20, points: 25 } },
+    ],
+    [
+      { planned: 20, onTime: 0, usageDays: 7 },
+      { code: 'on_time', params: { actual: 0, target: 20 } },
+    ],
+    [
+      { habitExpected: 10, habitDone: 0, usageDays: 7 },
+      { code: 'habits', params: { actual: 0, target: 10 } },
+    ],
+    [
+      { lifetimePomodoros: 1, pomodoros: 0, usageDays: 7 },
+      { code: 'focus', params: { actual: 0, target: 10 } },
+    ],
+    [{ usageDays: 1 }, { code: 'usage', params: { actual: 1, target: 7 } }],
+  ])('TTD-AUD-27: exposes a locale-independent deduction for %j', (patch, reason) => {
+    expect(controlScore({ ...base, ...patch })).toMatchObject({ topDeductionReason: reason });
+  });
+
+  it('TTD-AUD-27: has no reason without a deduction, data, or enabled scoring', () => {
+    for (const input of [
+      base,
+      { ...base, enabled: false, usageDays: 1 },
+      { ...base, usageDays: 7 },
+    ])
+      expect(controlScore(input)).toMatchObject({ topDeductionReason: null });
+  });
   it('returns no score without observed data or when disabled', () => {
     expect(controlScore(base).score).toBeNull();
     expect(controlScore({ ...base, enabled: false, usageDays: 7 }).score).toBeNull();

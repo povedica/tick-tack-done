@@ -11,16 +11,30 @@
 
 .countdown-header {
   justify-content: space-between;
+  flex-wrap: wrap;
+}
+.countdown-title-select {
+  flex: 1;
+  min-width: 0;
 }
 .countdown-title-select h1 {
   margin: 0;
-  flex-shrink: 0;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 .countdown-title-select select {
   border: 0;
   color: var(--ink-2);
   background: transparent;
+  width: auto;
+  max-width: 12rem;
+}
+.countdown-toolbar {
+  flex-shrink: 0;
+}
+.countdown-toolbar .countdown-new {
+  display: flex;
+  gap: var(--sp-1);
 }
 .countdown-toolbar > button,
 .countdown-toolbar summary,
@@ -99,52 +113,42 @@
   box-shadow: var(--shadow-sm);
 }
 .countdown-card[data-color='blue'] {
-  background: var(--countdown-blue-bg, #e8f0ff);
-  color: var(--countdown-blue-ink, inherit);
+  background: var(--countdown-blue-bg);
 }
 .countdown-card[data-color='teal'] {
-  background: var(--countdown-teal-bg, #daf5f1);
-  color: var(--countdown-teal-ink, inherit);
+  background: var(--countdown-teal-bg);
 }
 .countdown-card[data-color='green'] {
-  background: var(--countdown-green-bg, #e3f5df);
-  color: var(--countdown-green-ink, inherit);
+  background: var(--countdown-green-bg);
 }
 .countdown-card[data-color='lime'] {
-  background: var(--countdown-lime-bg, #f0f8d8);
-  color: var(--countdown-lime-ink, inherit);
+  background: var(--countdown-lime-bg);
 }
 .countdown-card[data-color='orange'] {
-  background: var(--countdown-orange-bg, #fff0d6);
-  color: var(--countdown-orange-ink, inherit);
+  background: var(--countdown-orange-bg);
 }
 .countdown-card[data-color='red'] {
-  background: var(--countdown-red-bg, #ffebeb);
-  color: var(--countdown-red-ink, inherit);
+  background: var(--countdown-red-bg);
 }
 .countdown-card[data-color='pink'] {
-  background: var(--countdown-pink-bg, #ffe8f0);
-  color: var(--countdown-pink-ink, inherit);
+  background: var(--countdown-pink-bg);
 }
 .countdown-card[data-color='purple'] {
-  background: var(--countdown-purple-bg, #f1eaff);
-  color: var(--countdown-purple-ink, inherit);
+  background: var(--countdown-purple-bg);
 }
 .countdown-card[data-color='navy'] {
-  background: var(--countdown-navy-bg, #e5ebf9);
-  color: var(--countdown-navy-ink, inherit);
+  background: var(--countdown-navy-bg);
 }
 .countdown-card[data-color='brown'] {
-  background: var(--countdown-brown-bg, #f4ebe5);
-  color: var(--countdown-brown-ink, inherit);
+  background: var(--countdown-brown-bg);
 }
 .countdown-card[data-color='black'] {
-  background: var(--countdown-black-bg, #2c2c2c);
-  color: var(--countdown-black-ink, #fff);
+  background: var(--countdown-black-bg);
+  color: var(--countdown-black-ink);
 }
 .countdown-card[data-color='rainbow'] {
-  background: var(--countdown-rainbow-bg, linear-gradient(135deg, #eaf1ff, #ffedf5, #fff4d9));
-  color: var(--countdown-rainbow-ink, inherit);
+  background-color: var(--countdown-blue-bg);
+  background-image: var(--countdown-rainbow-bg);
 }
 .countdown-card header {
   justify-content: space-between;
@@ -176,21 +180,21 @@
   display: block;
   margin: auto 0 0.4rem;
   text-align: center;
-  color: var(--accent);
+  color: var(--accent-ink);
   font-size: clamp(2.25rem, 5vw, 4rem);
   line-height: 1;
 }
 .countdown-card[data-color='black'] .countdown-number {
-  color: #fff;
+  color: var(--countdown-black-ink);
 }
 .countdown-card p {
   margin: 0;
   text-align: center;
-  color: var(--ink-2);
+  color: var(--ink-3);
   font-size: 0.875rem;
 }
 .countdown-card[data-color='black'] p {
-  color: #e6e6e6;
+  color: var(--countdown-black-muted);
 }
 .countdown-dialog {
   display: grid;
@@ -215,6 +219,22 @@
   display: flex;
   align-items: center;
   gap: var(--sp-2);
+}
+.countdown-dialog label:has(> input[type='checkbox']),
+.countdown-dialog label:has(> input[type='radio']) {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: var(--tap);
+}
+.countdown-dialog input[type='checkbox'],
+.countdown-dialog input[type='radio'] {
+  flex: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  margin: 0;
+  accent-color: var(--accent);
 }
 .countdown-dialog-actions {
   justify-content: flex-end;

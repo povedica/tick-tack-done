@@ -1,3 +1,5 @@
+import { TodayMark } from '../components/period/TodayMark';
+import { useCalendarToday } from '../components/period/useCalendarToday';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
@@ -27,7 +29,7 @@ export function CalendarSidebar({
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
   const cells = useMemo(() => monthCells(cursor, weekStart), [cursor, weekStart]);
-  const todayKey = localDateParam(new Date());
+  const todayKey = useCalendarToday();
   const monthLabel = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(
     cursor,
   );
@@ -38,6 +40,7 @@ export function CalendarSidebar({
   });
   return (
     <aside
+      id="section-sidebar"
       className="sidebar calendar-sidebar"
       data-collapsed={collapsed ? 'true' : 'false'}
       data-concealed={concealed ? 'true' : 'false'}
@@ -79,6 +82,7 @@ export function CalendarSidebar({
             return (
               <Link
                 key={key}
+                aria-current={key === todayKey ? 'date' : undefined}
                 to={`/calendar/day?date=${key}`}
                 className={[
                   'calendar-mini-day',
@@ -91,7 +95,7 @@ export function CalendarSidebar({
                   onNavigate?.();
                 }}
               >
-                {day.getDate()}
+                <TodayMark today={key === todayKey}>{day.getDate()}</TodayMark>
               </Link>
             );
           })}

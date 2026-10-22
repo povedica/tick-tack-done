@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from 'react';
+import type { ButtonHTMLAttributes, CSSProperties, ReactNode, Ref } from 'react';
 import './ui.css';
 import { TagIcon } from './TagIcon';
 
@@ -15,6 +15,7 @@ export function Button({
   readonly variant?: ButtonVariant;
   readonly size?: ButtonSize;
   readonly loading?: boolean;
+  readonly ref?: Ref<HTMLButtonElement>;
 }) {
   return (
     <button

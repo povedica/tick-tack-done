@@ -313,6 +313,7 @@ export type {
   OpenTaskWrite,
 } from './open/ticktick';
 export {
+  focusElapsedSeconds,
   cappedFocusSeconds,
   DEFAULT_FOCUS_SETTINGS,
   focusSessionStatus,
@@ -328,7 +329,7 @@ export type {
   FocusStats,
 } from './focus/cycle';
 export { controlScore, FOCUS_WEEKLY_TARGET } from './achievements/score';
-export type { ControlInput, ControlScore } from './achievements/score';
+export type { ControlInput, ControlScore, ControlDeductionReason } from './achievements/score';
 export {
   ageOnComplete,
   buildDayBuckets,
@@ -415,3 +416,7 @@ export { overdueAgeGroups } from './dashboard/kpis';
 export { gardenHabits, uniqueGardenEvents, gardenTagActivity } from './dashboard/executive';
 
 export { bucketWeek, type WeekDayMetric } from './reports/week-metrics';
+
+export { calendarDragPatch, DRAG_SNAP_MINUTES, type CalendarDragTarget } from './calendar/drag';
+
+export { calendarRepeatedHour, calendarAxisMinute, calendarAxisTarget } from './calendar/drag';

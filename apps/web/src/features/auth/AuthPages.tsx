@@ -4,7 +4,7 @@ import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
 import { createApiClient } from '@reflexionia/sdk';
 import { sessionMode } from '../../api';
 import { BrandMark } from '../../components/BrandMark';
-import { messagesFor } from '../../i18n';
+import { messagesFor, useMessages } from '../../i18n';
 import { markSession, sessionStatus, subscribeSession } from './session';
 import './auth.css';
 
@@ -195,6 +195,7 @@ function useRegistrationOpen(): boolean | null {
 }
 
 function AuthCard({ title, children }: { readonly title: string; readonly children: ReactNode }) {
+  const m = useMessages();
   return (
     <main className="auth-screen">
       <section className="auth-card">
@@ -203,6 +204,9 @@ function AuthCard({ title, children }: { readonly title: string; readonly childr
           <h1>{title}</h1>
         </header>
         {children}
+        <nav>
+          <Link to="/privacy">{m.privacyTitle}</Link> · <Link to="/terms">{m.termsTitle}</Link>
+        </nav>
       </section>
     </main>
   );

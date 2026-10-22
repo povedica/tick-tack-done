@@ -18,7 +18,8 @@ function allowedRedirects(): ReadonlySet<string> {
 export const GOOGLE_SCOPES = [
   'openid',
   'email',
-  'https://www.googleapis.com/auth/calendar',
+  'https://www.googleapis.com/auth/calendar.calendarlist.readonly',
+  'https://www.googleapis.com/auth/calendar.events',
   'https://www.googleapis.com/auth/drive.file',
 ].join(' ');
 
@@ -77,6 +78,7 @@ export function authorizeUrl(redirect: string, state: string): string {
   url.searchParams.set('response_type', 'code');
   url.searchParams.set('scope', GOOGLE_SCOPES);
   url.searchParams.set('access_type', 'offline');
+  url.searchParams.set('include_granted_scopes', 'true');
   url.searchParams.set('prompt', 'consent');
   url.searchParams.set('state', state);
   return url.toString();

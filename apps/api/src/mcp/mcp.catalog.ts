@@ -101,6 +101,48 @@ const repeatFromSchema = {
  */
 export const MCP_TOOLS: readonly McpTool[] = [
   {
+    name: 'api_catalog',
+    description:
+      'Discover every public API operation and its request schema. Filter by path or summary. Use api_request for operations without a dedicated tool.',
+    scopes: [],
+    inputSchema: objectSchema({
+      search: { type: 'string' },
+      details: { type: 'boolean' },
+      limit,
+      cursor: { type: 'integer', minimum: 0 },
+    }),
+  },
+  {
+    name: 'api_request',
+    description:
+      'Execute any public API v1 operation with the same bearer token, scopes, owner/list restrictions and validation as REST/UI. Use api_catalog first. For task syntax use quick_add/raw_text. Browser-session-only security operations still require a browser session. Binary responses are base64.',
+    scopes: [],
+    inputSchema: objectSchema(
+      {
+        method: { type: 'string', enum: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'] },
+        path: { type: 'string', pattern: '^/api/v1/' },
+        body: { type: 'object', additionalProperties: true },
+        idempotency_key: { type: 'string', maxLength: 200 },
+        files: {
+          type: 'array',
+          maxItems: 1,
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['field', 'filename', 'base64'],
+            properties: {
+              field: { type: 'string', minLength: 1 },
+              filename: { type: 'string', minLength: 1 },
+              content_type: { type: 'string' },
+              base64: { type: 'string', maxLength: 34952536 },
+            },
+          },
+        },
+      },
+      ['method', 'path'],
+    ),
+  },
+  {
     name: 'list_tasks',
     description:
       'List tasks. Default status is active. Pass status=completed|cancelled|archived|all to include others. Optional filters: tag_id, priority, from/to (due_date bounds as ISO). someday=true lists Someday; the default excludes them. Workflow columns (pending/in progress) are list board columns via column_id (TTD-AUD-53).',

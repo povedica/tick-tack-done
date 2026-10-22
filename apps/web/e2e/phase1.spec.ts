@@ -1,8 +1,12 @@
+import { replySession } from './mock-session';
 import { expect, test } from '@playwright/test';
 
-test('criterio 5: crear, editar y completar sin red converge al reconectar', async ({ page }) => {
+test.use({ locale: 'es-ES' });
+
+test('RF-701: el editor de recurrencia permite usar la regla avanzada', async ({ page }) => {
   const created: string[] = [];
   await page.route('**/api/v1/**', async (route) => {
+    if (await replySession(route)) return;
     const request = route.request();
     if (request.url().includes('/api/v1/projects')) {
       await route.fulfill({

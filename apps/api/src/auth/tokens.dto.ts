@@ -4,6 +4,7 @@ import {
   ArrayNotEmpty,
   IsArray,
   IsIn,
+  IsOptional,
   IsString,
   MaxLength,
   MinLength,
@@ -13,6 +14,11 @@ import { API_SCOPES } from './scopes.js';
 const SCOPE_VALUES: string[] = [...API_SCOPES];
 
 export class CreateTokenDto {
+  @ApiProperty({ required: false, nullable: true, enum: [30, 90, 365] })
+  @IsOptional()
+  @IsIn([30, 90, 365, null])
+  expires_in_days?: number | null;
+
   @ApiProperty({
     minLength: 1,
     maxLength: 80,
@@ -32,6 +38,9 @@ export class CreateTokenDto {
 }
 
 export class TokenDto {
+  @ApiProperty({ required: false, nullable: true, enum: ['user', 'rotated', 'reuse'] })
+  revoked_reason?: 'user' | 'rotated' | 'reuse' | null;
+
   @ApiProperty()
   id!: string;
 
@@ -115,4 +124,18 @@ export class ActivityPageDto {
 
   @ApiProperty({ nullable: true, type: String })
   next_cursor!: string | null;
+}
+
+export class OauthGrantDto {
+  @ApiProperty() client_id!: string;
+  @ApiProperty() client_name!: string;
+  @ApiProperty() authorized_at!: string;
+  @ApiProperty({ nullable: true, type: String }) last_used_at!: string | null;
+  @ApiProperty() active_access_tokens!: number;
+  @ApiProperty() active_refresh_families!: number;
+  @ApiProperty() renewals!: number;
+  @ApiProperty({ type: [String] }) scopes!: string[];
+}
+export class OauthGrantPageDto {
+  @ApiProperty({ type: [OauthGrantDto] }) items!: OauthGrantDto[];
 }

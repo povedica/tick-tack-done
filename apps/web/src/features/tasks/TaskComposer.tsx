@@ -1,6 +1,8 @@
 import { runAction } from '../../components/run-action';
 import {
   CalendarDays,
+  Bell,
+  Repeat2,
   ChevronDown,
   Check,
   Flag,
@@ -12,8 +14,10 @@ import {
   Plus,
   Mic,
   Send,
+  MoreHorizontal,
+  X,
 } from 'lucide-react';
-import { useMemo, useRef, useState, type RefObject } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CreateTaskBody } from '@reflexionia/sdk';
 import { api } from '../../api';
@@ -27,14 +31,21 @@ import { textSegments } from '../capture/draft';
 import { noticesFrom, useCaptureNotice, type CaptureNotice } from '../capture/notice';
 import { useSpeech } from '../capture/speech';
 import { newMutation, runOrQueue } from '../offline/client';
-import { formatDueChip } from '../today/groups';
+import { slotToTaskBody } from '../capture/calendar-slot';
+import type { CaptureDraft } from '../capture/notice';
+import { calendarDay, formatDueChip } from '../today/groups';
 import { collectTags } from './collect';
 import { refreshTaskSurfaces } from './refresh';
 import './composer.css';
 import { useComposerCopy } from './composer-text';
 
 export function TaskComposer({
-  defaultProjectId,
+  defaultProjectId: contextProjectId,
+  initialDraft,
+  calendar = false,
+  onDraftChange,
+  onBusyChange,
+  onExpand,
   viewDay = null,
   inputRef,
   onCreated,
@@ -43,6 +54,11 @@ export function TaskComposer({
   autoFocus = false,
   onDismiss,
 }: {
+  readonly initialDraft?: CaptureDraft | undefined;
+  readonly calendar?: boolean;
+  readonly onDraftChange?: (dirty: boolean) => void;
+  readonly onBusyChange?: ((busy: boolean) => void) | undefined;
+  readonly onExpand?: ((draft: CaptureDraft) => void) | undefined;
   readonly initialText?: string;
   readonly autoFocus?: boolean;
   readonly onDismiss?: () => void;
@@ -53,6 +69,8 @@ export function TaskComposer({
   readonly onCreated?: (() => void) | undefined;
 }) {
   const messages = useMessages();
+  const defaultProjectId = initialDraft?.defaultProjectId ?? contextProjectId;
+  const viewSlot = initialDraft?.slot;
   const locale = useAppLocale();
   const cache = useQueryClient();
   const ownInput = useRef<HTMLInputElement>(null);
@@ -61,18 +79,40 @@ export function TaskComposer({
   const dateButton = useRef<HTMLButtonElement>(null);
   const menuButton = useRef<HTMLButtonElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
-  const [text, setText] = useState(initialText);
+  const descriptionInput = useRef<HTMLTextAreaElement>(null);
+  const [slashAt, setSlashAt] = useState<number | null>(null);
+  const firstCommand = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (slashAt === null) return;
+    const frame = requestAnimationFrame(() => firstCommand.current?.focus());
+    return () => {
+      cancelAnimationFrame(frame);
+    };
+  }, [slashAt]);
+  const [text, setText] = useState(initialDraft?.text ?? initialText);
   const speech = useSpeech(captureLanguage(locale), setText);
   const [panel, setPanel] = useState<'date' | 'more' | 'lists' | 'tags' | 'templates' | null>(null);
-  const [date, setDate] = useState<DateDraft | null>(null);
-  const [priority, setPriority] = useState<'none' | 'low' | 'medium' | 'high' | undefined>();
-  const [project, setProject] = useState<string | null>(null);
-  const [tags, setTags] = useState<string[] | null>(null);
-  const [kind, setKind] = useState<'task' | 'note'>('task');
-  const [content, setContent] = useState('');
-  const [details, setDetails] = useState(false);
-  const [files, setFiles] = useState<File[]>([]);
+  const [date, setDate] = useState<DateDraft | null>(initialDraft?.date ?? null);
+  const [priority, setPriority] = useState<'none' | 'low' | 'medium' | 'high' | undefined>(
+    initialDraft?.priority,
+  );
+  const [project, setProject] = useState<string | null>(initialDraft?.project ?? null);
+  const [tags, setTags] = useState<string[] | null>(initialDraft?.tags ?? null);
+  const [kind, setKind] = useState<'task' | 'note'>(initialDraft?.kind ?? 'task');
+  const [content, setContent] = useState(initialDraft?.content ?? '');
+  const descriptionCaret = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    if (descriptionCaret.current === null) return;
+    descriptionInput.current?.focus();
+    descriptionInput.current?.setSelectionRange(descriptionCaret.current, descriptionCaret.current);
+    descriptionCaret.current = null;
+  }, [content]);
+  const [details, setDetails] = useState(calendar || (initialDraft?.content?.length ?? 0) > 0);
+  const [files, setFiles] = useState<File[]>(initialDraft?.files ?? []);
   const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    onBusyChange?.(busy);
+  }, [busy, onBusyChange]);
   const lock = useRef(false);
   const attempt = useRef<{ fingerprint: string; mutation: ReturnType<typeof newMutation> } | null>(
     null,
@@ -81,7 +121,22 @@ export function TaskComposer({
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
   const account = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
-  const zone = account.data?.time_zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const zone =
+    viewSlot?.timeZone ??
+    account.data?.time_zone ??
+    Intl.DateTimeFormat().resolvedOptions().timeZone;
+  useEffect(() => {
+    onDraftChange?.(
+      text.trim().length > 0 ||
+        content.trim().length > 0 ||
+        files.length > 0 ||
+        JSON.stringify(tags) !== JSON.stringify(initialDraft?.tags ?? null) ||
+        date !== (initialDraft?.date ?? null) ||
+        priority !== initialDraft?.priority ||
+        project !== (initialDraft?.project ?? null) ||
+        kind !== (initialDraft?.kind ?? 'task'),
+    );
+  }, [text, content, files, tags, date, priority, project, kind, initialDraft, onDraftChange]);
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
   const tagQuery = useQuery({ queryKey: ['tags'], queryFn: collectTags });
   const request = useMemo(
@@ -92,16 +147,25 @@ export function TaskComposer({
         now: new Date().toISOString(),
         timeZone: zone,
         viewDay,
+        viewSlot,
         defaultProjectId,
       }),
-    [text, locale, zone, viewDay, defaultProjectId],
+    [text, locale, zone, viewDay, viewSlot, defaultProjectId],
   );
   const dateValue = useMemo<DateDraft>(
     () =>
       date ?? {
         dueDate: request.parsed.start?.date ?? request.parsed.due?.date ?? request.dueDate,
-        allDay: request.parsed.start?.isAllDay ?? request.parsed.due?.isAllDay ?? true,
-        durationMinutes: request.parsed.durationMinutes ?? null,
+        allDay:
+          request.parsed.start?.isAllDay ??
+          request.parsed.due?.isAllDay ??
+          request.body.is_all_day ??
+          true,
+        durationMinutes:
+          request.parsed.durationMinutes ??
+          (typeof request.body.duration_minutes === 'number'
+            ? request.body.duration_minutes
+            : null),
         reminder: request.parsed.reminderTrigger,
         reminderTouched: false,
         repeatRule: request.parsed.repeatRule,
@@ -135,6 +199,23 @@ export function TaskComposer({
           empty: messages.noDate,
           today: messages.dateToday,
         }).text;
+  const endInstant =
+    dateValue.dueDate !== null && !dateValue.allDay && dateValue.durationMinutes !== null
+      ? new Date(Date.parse(dateValue.dueDate) + dateValue.durationMinutes * 60_000)
+      : null;
+  const dateRangeLabel =
+    endInstant === null
+      ? dateLabel
+      : `${dateLabel} – ${new Intl.DateTimeFormat(locale, {
+          timeZone: zone,
+          ...(calendarDay(endInstant.toISOString(), zone) !==
+          calendarDay(dateValue.dueDate ?? endInstant.toISOString(), zone)
+            ? { day: 'numeric' as const, month: 'short' as const }
+            : {}),
+          hour: '2-digit',
+          minute: '2-digit',
+          hourCycle: 'h23',
+        }).format(endInstant)}`;
   const priorities = {
     high: messages.priorityHigh,
     medium: messages.priorityMedium,
@@ -145,7 +226,14 @@ export function TaskComposer({
   const labels = useComposerCopy();
   function close() {
     setPanel(null);
-    field.current?.focus();
+    requestAnimationFrame(() => {
+      // A user may already have moved to the description before this frame.
+      if (
+        document.activeElement !== descriptionInput.current &&
+        document.activeElement !== field.current
+      )
+        field.current?.focus();
+    });
   }
   async function submit() {
     if (lock.current || request.parsed.title.trim().length === 0) return;
@@ -159,6 +247,35 @@ export function TaskComposer({
     setStatus('');
     setPanel(null);
     try {
+      const calendarDate =
+        date === null || viewSlot === undefined
+          ? {}
+          : date.dueDate === null
+            ? { start_date: null, due_date: null, duration_minutes: null }
+            : !date.allDay && date.durationMinutes === null
+              ? {
+                  start_date: null,
+                  due_date: date.dueDate,
+                  duration_minutes: null,
+                  is_all_day: false,
+                  time_zone: zone,
+                }
+              : {
+                  start_date: null,
+                  duration_minutes: null,
+                  ...slotToTaskBody(
+                    {
+                      start: date.dueDate,
+                      end: date.allDay
+                        ? null
+                        : new Date(
+                            Date.parse(date.dueDate) + (date.durationMinutes ?? 30) * 60_000,
+                          ).toISOString(),
+                      allDay: date.allDay,
+                    },
+                    zone,
+                  ),
+                };
       let queued = false;
       let notice: CaptureNotice = { title: request.parsed.title, warnings: [] };
       if (continuation.current === null) {
@@ -169,6 +286,12 @@ export function TaskComposer({
           kind,
           content,
           ...(project === null ? {} : { project_id: project }),
+          ...(initialDraft?.columnId === undefined
+            ? {}
+            : {
+                column_id:
+                  project !== null && project !== defaultProjectId ? null : initialDraft.columnId,
+              }),
           ...(priority === undefined ? {} : { priority }),
           ...(date === null
             ? {}
@@ -180,6 +303,7 @@ export function TaskComposer({
                 repeat_rule: date.repeatRule,
                 ...(date.reminderTouched ? { reminder_trigger: date.reminder } : {}),
               }),
+          ...calendarDate,
         } as unknown as CreateTaskBody;
         const fingerprint = JSON.stringify(body);
         if (attempt.current?.fingerprint !== fingerprint)
@@ -196,7 +320,11 @@ export function TaskComposer({
         queued = result.queued;
         if (result.result) {
           continuation.current = { id: result.result.id, uploaded: 0 };
-          notice = { title: result.result.title, warnings: noticesFrom(result.result.warnings) };
+          notice = {
+            title: result.result.title,
+            warnings: noticesFrom(result.result.warnings),
+            when: dateValue.dueDate,
+          };
           useCaptureNotice.getState().setNotice(notice);
         }
       }
@@ -233,9 +361,21 @@ export function TaskComposer({
   }
   const frozen = busy || continuation.current !== null;
   return (
-    <div className="task-composer">
+    <div className={calendar ? 'task-composer is-calendar' : 'task-composer'}>
       <form
         className="quick-add task-composer-form"
+        aria-busy={busy}
+        onKeyDown={(event) => {
+          if (
+            event.key === 'Enter' &&
+            (event.ctrlKey || event.metaKey) &&
+            !event.nativeEvent.isComposing
+          ) {
+            event.preventDefault();
+            event.stopPropagation();
+            runAction(submit());
+          }
+        }}
         onSubmit={(event) => {
           event.preventDefault();
           runAction(submit());
@@ -261,7 +401,9 @@ export function TaskComposer({
               className={text ? 'is-mirroring' : ''}
               value={text}
               disabled={frozen}
-              placeholder={fill(messages.addTaskTo, listLabel)}
+              placeholder={
+                calendar ? messages.calendarQuickTitle : fill(messages.addTaskTo, listLabel)
+              }
               autoComplete="off"
               onChange={(event) => {
                 setText(event.target.value);
@@ -283,9 +425,21 @@ export function TaskComposer({
           </div>
           <button
             ref={dateButton}
-            className="composer-date"
+            className={
+              calendar &&
+              dateValue.dueDate &&
+              calendarDay(dateValue.dueDate, zone) < calendarDay(new Date().toISOString(), zone)
+                ? 'composer-date is-past'
+                : 'composer-date'
+            }
             type="button"
-            aria-label={messages.kindDate}
+            aria-label={[
+              messages.kindDate,
+              dateValue.repeatRule ? messages.repeatRow : null,
+              dateValue.reminder ? messages.reminderRow : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
             aria-expanded={panel === 'date'}
             disabled={frozen}
             onClick={() => {
@@ -293,20 +447,30 @@ export function TaskComposer({
             }}
           >
             <CalendarDays size={15} aria-hidden="true" />
-            <span>{dateLabel}</span>
+            <span>{dateRangeLabel}</span>
+            {dateValue.repeatRule ? (
+              <span className="composer-date-indicator" title={messages.repeatRow}>
+                <Repeat2 size={15} aria-hidden="true" />
+              </span>
+            ) : null}
+            {dateValue.reminder ? (
+              <span className="composer-date-indicator" title={messages.reminderRow}>
+                <Bell size={15} aria-hidden="true" />
+              </span>
+            ) : null}
           </button>
           <button
             ref={menuButton}
             className="composer-options"
             type="button"
-            aria-label={labels.options}
+            aria-label={calendar ? messages.kindPriority : labels.options}
             aria-expanded={panel !== null && panel !== 'date'}
             disabled={frozen}
             onClick={() => {
               setPanel(panel === 'more' ? null : 'more');
             }}
           >
-            {chosenPriority !== 'none' ? (
+            {calendar || chosenPriority !== 'none' ? (
               <Flag size={15} color={`var(--prio-${chosenPriority})`} aria-hidden="true" />
             ) : (
               <ChevronDown size={17} aria-hidden="true" />
@@ -323,12 +487,32 @@ export function TaskComposer({
         </div>
         {details ? (
           <textarea
+            ref={descriptionInput}
             className="composer-content"
             aria-label={messages.addDescription}
+            placeholder={calendar ? messages.calendarQuickDescription : undefined}
+            onKeyDown={(event) => {
+              if (
+                calendar &&
+                event.key === 'Enter' &&
+                !event.ctrlKey &&
+                !event.metaKey &&
+                !event.shiftKey &&
+                !event.nativeEvent.isComposing
+              ) {
+                event.preventDefault();
+                runAction(submit());
+              }
+            }}
             value={content}
             disabled={frozen}
             onChange={(event) => {
-              setContent(event.target.value);
+              const next = event.target.value;
+              const caret = event.target.selectionStart;
+              setContent(next);
+              if (next[caret - 1] === '/' && (caret === 1 || next[caret - 2] === '\n')) {
+                setSlashAt(caret - 1);
+              }
             }}
           />
         ) : null}
@@ -362,6 +546,58 @@ export function TaskComposer({
             {kind === 'note' ? <span>{messages.noteBadge}</span> : null}
           </div>
         ) : null}
+        {calendar ? (
+          <div className="composer-calendar-footer">
+            <button
+              type="button"
+              disabled={frozen}
+              onClick={() => {
+                setPanel('lists');
+              }}
+            >
+              <Inbox size={14} />
+              {listLabel}
+            </button>
+            <button
+              type="button"
+              disabled={frozen}
+              aria-label={messages.kindTag}
+              onClick={() => {
+                setPanel('tags');
+              }}
+            >
+              <Tag size={14} />
+              <Plus size={12} />
+            </button>
+            <button
+              type="button"
+              disabled={frozen}
+              aria-label={messages.calendarQuickMore}
+              onClick={() => {
+                setPanel('more');
+              }}
+            >
+              <MoreHorizontal size={16} aria-hidden="true" />
+            </button>
+            {onDismiss ? (
+              <button
+                type="button"
+                disabled={frozen}
+                aria-label={messages.cancel}
+                onClick={onDismiss}
+              >
+                <X size={18} aria-hidden="true" />
+              </button>
+            ) : null}
+            <button
+              type="submit"
+              aria-label={messages.calendarQuickAdd}
+              disabled={busy || !request.parsed.title.trim()}
+            >
+              <Send size={22} aria-hidden="true" />
+            </button>
+          </div>
+        ) : null}
       </form>
       <input
         ref={fileInput}
@@ -369,10 +605,53 @@ export function TaskComposer({
         multiple
         hidden
         onChange={(event) => {
-          setFiles((old) => [...old, ...Array.from(event.target.files ?? [])]);
+          const selectedFiles = Array.from(event.target.files ?? []);
+          setFiles((old) => [...old, ...selectedFiles]);
           event.target.value = '';
         }}
       />
+      {slashAt !== null ? (
+        <Popover
+          open
+          anchor={descriptionInput}
+          label={messages.commands}
+          className="popover description-commands"
+          onClose={() => {
+            setSlashAt(null);
+          }}
+        >
+          <div role="menu" aria-label={messages.commands}>
+            {[
+              { label: messages.descriptionHeading, prefix: '## ', suffix: '' },
+              { label: messages.descriptionList, prefix: '- ', suffix: '' },
+              { label: messages.descriptionChecklist, prefix: '- [ ] ', suffix: '' },
+              { label: messages.descriptionQuote, prefix: '> ', suffix: '' },
+              { label: messages.descriptionCode, prefix: '```\n', suffix: '\n```' },
+            ].map((command) => (
+              <button
+                key={command.label}
+                ref={command.label === messages.descriptionHeading ? firstCommand : undefined}
+                type="button"
+                role="menuitem"
+                className="popover-row"
+                onClick={() => {
+                  descriptionCaret.current = slashAt + command.prefix.length;
+                  setContent(
+                    (current) =>
+                      current.slice(0, slashAt) +
+                      command.prefix +
+                      command.suffix +
+                      current.slice(slashAt + 1),
+                  );
+                  setSlashAt(null);
+                }}
+              >
+                {command.label}
+              </button>
+            ))}
+          </div>
+        </Popover>
+      ) : null}
       {panel === 'date' ? (
         <DatePopover
           open
@@ -392,6 +671,32 @@ export function TaskComposer({
       >
         {panel === 'more' ? (
           <>
+            {onExpand ? (
+              <button
+                type="button"
+                className="popover-row"
+                disabled={frozen}
+                onClick={() => {
+                  onExpand({
+                    ...(initialDraft?.columnId === undefined
+                      ? {}
+                      : { columnId: initialDraft.columnId }),
+                    text,
+                    content,
+                    date,
+                    priority,
+                    project,
+                    tags,
+                    files,
+                    kind,
+                    slot: viewSlot,
+                    defaultProjectId,
+                  });
+                }}
+              >
+                {messages.calendarQuickExpand}
+              </button>
+            ) : null}
             <p className="popover-label">{messages.kindPriority}</p>
             <div className="composer-priorities">
               {(['high', 'medium', 'low', 'none'] as const).map((p) => (

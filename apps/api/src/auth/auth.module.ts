@@ -1,3 +1,4 @@
+import { ViewPreferencesController } from './view-preferences.controller.js';
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { AccountService } from './account.service.js';
@@ -20,6 +21,7 @@ import { TokensService } from './tokens.service.js';
 @Module({
   controllers: [
     MeController,
+    ViewPreferencesController,
     TokensController,
     AuthController,
     OauthController,

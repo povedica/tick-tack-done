@@ -30,7 +30,7 @@ import {
   authorizeErrorDescription,
   oauthAuthorizeErrorRedirect,
 } from './oauth-error.js';
-import { classifyRefresh, revokeRefreshFamily } from './oauth-refresh.js';
+import { lockOauthGrant, classifyRefresh, revokeRefreshFamily } from './oauth-refresh.js';
 import { acceptsPkceMethod, pkceMatches } from './pkce.js';
 import { publicOrigin } from './public-origin.js';
 import { isDynamicRedirectUri, isExactRedirect } from './redirect-uri.js';
@@ -369,6 +369,7 @@ export class OauthService {
     const expiresAt = new Date(Date.now() + ACCESS_TTL_MS);
     try {
       return await this.prisma.$transaction(async (tx) => {
+        await lockOauthGrant(tx, row.userId, row.clientId);
         const marked = await tx.oauthRefreshToken.updateMany({
           where: { id: row.id, rotatedAt: null, revokedAt: null },
           data: { rotatedAt: new Date() },
@@ -417,6 +418,7 @@ export class OauthService {
       readonly event: string;
     },
   ): Promise<OauthTokenResponseDto> {
+    await lockOauthGrant(tx, input.owner.id, input.clientId);
     const user: AuthUser = {
       id: input.owner.id,
       email: input.owner.email,

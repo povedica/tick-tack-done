@@ -1,7 +1,6 @@
-import { fill, useMessages, type Messages } from '../../../i18n';
-import type { CaptureWarningNotice } from '../notice';
-import { TaskComposer } from '../../tasks/TaskComposer';
-import { Button } from '../../../components/ui';
+import { fill, type Messages } from '../../../i18n';
+import type { CaptureDraft, CaptureWarningNotice } from '../notice';
+import { QuickAddPopover } from './QuickAddPopover';
 
 interface CreatedCapture {
   readonly title: string;
@@ -9,42 +8,22 @@ interface CreatedCapture {
 }
 export function CaptureSheet({
   initialText,
+  initialDraft,
   onClose,
   onCreated,
 }: {
   readonly initialText: string;
+  readonly initialDraft?: CaptureDraft | undefined;
   readonly onClose: () => void;
   readonly onCreated: (created: CreatedCapture) => void;
 }) {
-  const messages = useMessages();
   return (
-    <div
-      className="sheet"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="capture-sheet-title"
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-      onKeyDown={(event) => {
-        if (event.key === 'Escape') onClose();
-      }}
-    >
-      <div className="capture-card">
-        <h1 id="capture-sheet-title">{messages.captureTitle}</h1>
-        <TaskComposer
-          initialText={initialText}
-          autoFocus
-          onCaptured={onCreated}
-          onDismiss={onClose}
-        />
-        <div className="capture-card-footer">
-          <Button type="button" onClick={onClose}>
-            {messages.cancel}
-          </Button>
-        </div>
-      </div>
-    </div>
+    <QuickAddPopover
+      initialText={initialText}
+      initialDraft={initialDraft}
+      onClose={onClose}
+      onCreated={onCreated}
+    />
   );
 }
 

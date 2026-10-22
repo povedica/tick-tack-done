@@ -273,6 +273,14 @@ describe('RF-2321–2324 statistics API', () => {
     expect(stats.body.score).toBeLessThanOrEqual(100);
     expect(stats.body.components.tasks.max).toBe(50);
     expect(stats.body.components.usage.days).toBe(0);
+    expect(stats.body.topDeductionReason).toMatchObject({
+      code: expect.stringMatching(/^(overdue|on_time|habits|focus|usage)$/),
+      params: expect.any(Object),
+    });
+    const overview = await api().get(`stats/overview?${query}`).expect(200);
+    expect(overview.body.summary.achievement.topDeductionReason).toEqual(
+      stats.body.topDeductionReason,
+    );
   });
   it('RF-2324 / §9: aggregates are available without leaking titles through focus or export', async () => {
     const path = `/api/v1/stats/focus?${query}`;

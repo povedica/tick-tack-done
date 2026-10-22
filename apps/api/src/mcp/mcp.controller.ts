@@ -1,6 +1,6 @@
-import { Body, Controller, Delete, Get, HttpStatus, Inject, Post, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpStatus, Inject, Post, Req, Res } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import type { AuthUser } from '../auth/auth-user.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import { Authenticated } from '../auth/scopes.decorator.js';
@@ -36,8 +36,9 @@ export class McpController {
     @CurrentUser() user: AuthUser,
     @Body() body: unknown,
     @Res() res: Response,
+    @Req() req: Request,
   ): Promise<void> {
-    const result = await this.mcp.handle(user, body);
+    const result = await this.mcp.handle(user, body, req.headers.authorization);
     if (result === null) {
       res.status(HttpStatus.ACCEPTED).end();
       return;

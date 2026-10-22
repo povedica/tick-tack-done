@@ -1,9 +1,96 @@
 :root {
+  --today-mark-bg: color-mix(in srgb, var(--accent) 88%, black);
+  --today-mark-ink: var(--on-accent);
+  --today-mark-hover-bg: color-mix(in srgb, var(--today-mark-bg) 90%, white);
+  --today-mark-size: 1.75rem;
+  --today-size-header: 1.75rem;
+  --today-size-header-mobile: 1.625rem;
+  --today-size-month: 1.375rem;
+  --today-size-month-mobile: 1.25rem;
+  --today-size-mini: 1.375rem;
+  --today-size-mini-mobile: 1.75rem;
+  --today-size-picker: 1.5rem;
+  --today-size-picker-mobile: 2rem;
+  --today-size-year: 1.25rem;
+
+  --mobile-sidebar-w: 88vw;
+  --shell-drawer-z: 40;
+  --shell-scrim-z: 35;
+  --shell-scrim-blur: var(--overlay-backdrop-blur);
+  --shell-scrim-bg: var(--overlay-backdrop-bg);
+  --account-progress-value-fs: 1.125rem;
+  --account-progress-label-fs: 0.6875rem;
+  --account-progress-value-gap: 0.125rem;
+  --account-menu-w: 16rem;
+  --account-menu-z: 2000;
+  --account-sheet-max-h: 85dvh;
+  --account-border-w: 1px;
+  --account-focus-w: 2px;
+  --account-row-h: 2rem;
+  --account-avatar-size: 1.75rem;
+  --account-identity-avatar: 2rem;
+  --account-progress-track: 0.25rem;
+  --account-loading-h: 2.5rem;
+
+  --calendar-mobile-header-h: 3.25rem;
+  --calendar-day-number-size: 2rem;
+  --calendar-hour-gutter-width: 3rem;
+  --calendar-hour-label-font: 0.6875rem;
+  --calendar-now-line-width: 1px;
+  --calendar-now-dot-size: 0.25rem;
+  --calendar-allday-font: 0.6875rem;
+  --calendar-allday-row-height: 1.25rem;
+  --calendar-allday-more-width: 2rem;
+  --calendar-allday-check-size: 0.8125rem;
+  --calendar-week-font: 0.75rem;
+  --calendar-week-day-header-h: 1.5rem;
+  --calendar-week-today-size: 1.125rem;
+  --calendar-week-chip-gap: 0.1875rem;
+  --calendar-week-mini-font: 0.6875rem;
+  --calendar-week-mini-day: 1.25rem;
+  --calendar-mobile-title-font: 1.125rem;
+  --calendar-outside-day-ink: color-mix(in srgb, var(--ink-3) 65%, var(--surface));
+  --calendar-outside-day-weight: 400;
+  --calendar-day-sheet-height-mobile: 92dvh;
+  --calendar-drag-highlight-width: 0.125rem;
+  --calendar-drag-ghost-bg: var(--accent-soft);
+  --calendar-drag-ghost-border: var(--accent);
+  --calendar-drag-lift-shadow: var(--shadow-lg);
+  --calendar-resize-handle-height: 0.375rem;
+  --calendar-resize-handle-height-touch: 1rem;
+  --overlay-backdrop-bg: rgb(0 0 0 / 45%);
+  --overlay-backdrop-blur: 0.25rem;
+  --calendar-day-sheet-close-ink: #000;
+  --calendar-views-width: 15rem;
+  --calendar-views-backdrop-z: 1999;
+  --calendar-filter-active-ink: #000;
+  --calendar-filter-width: 18rem;
+  --calendar-filter-badge-size: 0.875rem;
+  --calendar-filter-badge-font: 0.625rem;
+  --year-day-gap: 0.125rem;
+  --year-day-padding: 0.0625rem;
+  --year-board-gap: clamp(0.5rem, 1.5vh, 1rem);
+  --year-day-font: 0.6875rem;
+  --year-day-font-mobile: 0.625rem;
+  --year-today-size: 1rem;
+  --cal-two-weeks-cell-h: clamp(8rem, 22dvh, 12rem);
+  --cal-two-weeks-cell-h-mobile: clamp(5.5rem, 14dvh, 7rem);
+  --calendar-quick-width: 19rem;
+  --ghost-bg: var(--accent-soft);
+  --ghost-border: var(--accent);
   color-scheme: light;
 
   --bg: #ffffff;
   --sidebar-bg: #f2f5fe;
   --rail-bg: #4772fa;
+  --rail-ink: #ffffff;
+  --rail-icon-inactive: rgb(255 255 255 / 0.55);
+  --rail-icon-hover: rgb(255 255 255 / 0.75);
+  --rail-icon-active: #ffffff;
+  --rail-tooltip-bg: #242424;
+  --rail-tooltip-ink: #ffffff;
+  --sidebar-hover-bg: rgb(255 255 255 / 0.38);
+  --sidebar-active-bg: rgb(255 255 255 / 0.62);
   --surface: #ffffff;
   --surface-2: rgba(25, 25, 25, 0.04);
   --surface-3: rgba(25, 25, 25, 0.03);
@@ -48,7 +135,33 @@
   --chart-7: #3dbe74;
   --chart-8: #b3b3b3;
 
+  --focus-panel-w: clamp(20rem, 30vw, 30rem);
+  --focus-ring-size: 15rem;
+  --focus-clock-fs: 2.5rem;
+  --focus-ring-track: var(--border);
+  --focus-ring-stroke: 1.5;
+  --focus-ring-progress-stroke: 2;
   --focus-ring: #4772fa;
+
+  --countdown-blue-bg: #e8f0ff;
+  --countdown-teal-bg: #daf5f1;
+  --countdown-green-bg: #e3f5df;
+  --countdown-lime-bg: #f0f8d8;
+  --countdown-orange-bg: #fff0d6;
+  --countdown-red-bg: #ffebeb;
+  --countdown-pink-bg: #ffe8f0;
+  --countdown-purple-bg: #f1eaff;
+  --countdown-navy-bg: #e5ebf9;
+  --countdown-brown-bg: #f4ebe5;
+  --countdown-black-bg: #2c2c2c;
+  --countdown-black-ink: #ffffff;
+  --countdown-black-muted: #e6e6e6;
+  --countdown-rainbow-bg: linear-gradient(
+    135deg,
+    var(--countdown-blue-bg),
+    var(--countdown-pink-bg),
+    var(--countdown-orange-bg)
+  );
 
   --font-serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
   --font-sans:
@@ -100,11 +213,95 @@
 }
 
 [data-theme='dark'] {
+  --calendar-mobile-header-h: 3.25rem;
+  --calendar-day-number-size: 2rem;
+  --calendar-hour-gutter-width: 3rem;
+  --calendar-hour-label-font: 0.6875rem;
+  --calendar-now-line-width: 1px;
+  --calendar-now-dot-size: 0.25rem;
+  --calendar-allday-font: 0.6875rem;
+  --calendar-allday-row-height: 1.25rem;
+  --calendar-allday-more-width: 2rem;
+  --calendar-allday-check-size: 0.8125rem;
+  --calendar-week-font: 0.75rem;
+  --calendar-week-day-header-h: 1.5rem;
+  --calendar-week-today-size: 1.125rem;
+  --calendar-week-chip-gap: 0.1875rem;
+  --calendar-week-mini-font: 0.6875rem;
+  --calendar-week-mini-day: 1.25rem;
+  --calendar-mobile-title-font: 1.125rem;
+  --calendar-outside-day-ink: color-mix(in srgb, var(--ink-3) 65%, var(--surface));
+  --calendar-outside-day-weight: 400;
+  --calendar-day-sheet-height-mobile: 92dvh;
+  --calendar-drag-highlight-width: 0.125rem;
+  --calendar-drag-ghost-bg: var(--accent-soft);
+  --calendar-drag-ghost-border: var(--accent);
+  --calendar-drag-lift-shadow: var(--shadow-lg);
+  --calendar-resize-handle-height: 0.375rem;
+  --calendar-resize-handle-height-touch: 1rem;
+  --overlay-backdrop-bg: rgb(0 0 0 / 45%);
+  --overlay-backdrop-blur: 0.25rem;
+  --calendar-day-sheet-close-ink: #000;
+  --calendar-views-width: 15rem;
+  --calendar-views-backdrop-z: 1999;
+  --calendar-filter-active-ink: #fff;
+  --calendar-filter-width: 18rem;
+  --calendar-filter-badge-size: 0.875rem;
+  --calendar-filter-badge-font: 0.625rem;
+  --year-day-gap: 0.125rem;
+  --year-day-padding: 0.0625rem;
+  --year-board-gap: clamp(0.5rem, 1.5vh, 1rem);
+  --year-day-font: 0.6875rem;
+  --year-day-font-mobile: 0.625rem;
+  --year-today-size: 1rem;
+  --cal-two-weeks-cell-h: clamp(8rem, 22dvh, 12rem);
+  --cal-two-weeks-cell-h-mobile: clamp(5.5rem, 14dvh, 7rem);
+  --today-mark-bg: color-mix(in srgb, var(--accent) 88%, black);
+  --today-mark-ink: var(--on-accent);
+  --today-mark-hover-bg: color-mix(in srgb, var(--today-mark-bg) 90%, white);
+  --today-mark-size: 1.75rem;
+  --today-size-header: 1.75rem;
+  --today-size-header-mobile: 1.625rem;
+  --today-size-month: 1.375rem;
+  --today-size-month-mobile: 1.25rem;
+  --today-size-mini: 1.375rem;
+  --today-size-mini-mobile: 1.75rem;
+  --today-size-picker: 1.5rem;
+  --today-size-picker-mobile: 2rem;
+  --today-size-year: 1.25rem;
+
+  --mobile-sidebar-w: 88vw;
+  --shell-drawer-z: 40;
+  --shell-scrim-z: 35;
+  --shell-scrim-blur: var(--overlay-backdrop-blur);
+  --shell-scrim-bg: rgb(0 0 0 / 0.6);
+  --account-progress-value-fs: 1.125rem;
+  --account-progress-label-fs: 0.6875rem;
+  --account-progress-value-gap: 0.125rem;
+  --account-menu-w: 16rem;
+  --account-menu-z: 2000;
+  --account-sheet-max-h: 85dvh;
+  --account-border-w: 1px;
+  --account-focus-w: 2px;
+  --account-row-h: 2rem;
+  --account-avatar-size: 1.75rem;
+  --account-identity-avatar: 2rem;
+  --account-progress-track: 0.25rem;
+  --account-loading-h: 2.5rem;
+
   color-scheme: dark;
 
   --bg: #242424;
   --sidebar-bg: #1c1c1c;
-  --rail-bg: #2e2e2e;
+  --rail-bg: #242424;
+  --rail-ink: #ffffff;
+  --rail-icon-inactive: rgb(255 255 255 / 0.55);
+  --rail-icon-hover: rgb(255 255 255 / 0.75);
+  --rail-icon-active: #ffffff;
+  --rail-tooltip-bg: #242424;
+  --rail-tooltip-ink: #ffffff;
+  --sidebar-hover-bg: var(--surface-2);
+  --sidebar-active-bg: var(--accent-soft);
   --surface: #222222;
   --surface-2: rgba(255, 255, 255, 0.04);
   --surface-3: rgba(255, 255, 255, 0.03);
@@ -147,32 +344,39 @@
   --chart-7: #3dbe74;
   --chart-8: #b3b3b3;
 
+  --focus-panel-w: clamp(20rem, 30vw, 30rem);
+  --focus-ring-size: 15rem;
+  --focus-clock-fs: 2.5rem;
+  --focus-ring-track: var(--border);
+  --focus-ring-stroke: 1.5;
+  --focus-ring-progress-stroke: 2;
   --focus-ring: #4772fa;
+
+  --countdown-blue-bg: #1b2a45;
+  --countdown-teal-bg: #14332e;
+  --countdown-green-bg: #21351c;
+  --countdown-lime-bg: #30361b;
+  --countdown-orange-bg: #3b2d17;
+  --countdown-red-bg: #3d2222;
+  --countdown-pink-bg: #3d2230;
+  --countdown-purple-bg: #2e2540;
+  --countdown-navy-bg: #202b43;
+  --countdown-brown-bg: #332820;
 
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.2);
   --shadow-md: 0 8px 24px rgb(0 0 0 / 0.28);
   --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.36);
 
   /* TTD-AUD-22: countdown card contrast on dark surfaces */
-  --countdown-blue-bg: #1e3a5f;
   --countdown-blue-ink: #dbeafe;
-  --countdown-teal-bg: #134e4a;
   --countdown-teal-ink: #ccfbf1;
-  --countdown-green-bg: #14532d;
   --countdown-green-ink: #dcfce7;
-  --countdown-lime-bg: #3f6212;
   --countdown-lime-ink: #ecfccb;
-  --countdown-orange-bg: #7c2d12;
   --countdown-orange-ink: #ffedd5;
-  --countdown-red-bg: #7f1d1d;
   --countdown-red-ink: #fee2e2;
-  --countdown-pink-bg: #831843;
   --countdown-pink-ink: #fce7f3;
-  --countdown-purple-bg: #4c1d95;
   --countdown-purple-ink: #ede9fe;
-  --countdown-navy-bg: #1e293b;
   --countdown-navy-ink: #e2e8f0;
-  --countdown-brown-bg: #44403c;
   --countdown-brown-ink: #f5f5f4;
   --countdown-black-bg: #0a0a0a;
   --countdown-black-ink: #fafafa;
@@ -228,6 +432,31 @@
   --accent-ink: #292524;
   --focus-ring: #44403c;
   --rail-bg: #44403c;
+}
+
+[data-theme='dark'][data-accent='violet'] {
+  --accent-ink: #ddd6fe;
+  --accent-soft: rgb(124 58 237 / 0.28);
+}
+
+[data-theme='dark'][data-accent='teal'] {
+  --accent-ink: #99f6e4;
+  --accent-soft: rgb(20 184 166 / 0.18);
+}
+
+[data-theme='dark'][data-accent='amber'] {
+  --accent-ink: #fde68a;
+  --accent-soft: rgb(245 158 11 / 0.18);
+}
+
+[data-theme='dark'][data-accent='rose'] {
+  --accent-ink: #fecdd3;
+  --accent-soft: rgb(244 63 94 / 0.2);
+}
+
+[data-theme='dark'][data-accent='slate'] {
+  --accent-ink: #e7e5e4;
+  --accent-soft: rgb(168 162 158 / 0.18);
 }
 
 :root[data-density='compact'] {

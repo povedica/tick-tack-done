@@ -63,3 +63,9 @@ export async function revokeRefreshChainsForAccess(
   }
   return extra;
 }
+
+/** Serialize application revocation with refresh issuance for the same owner/client. */
+export async function lockOauthGrant(tx: Tx, ownerId: string, clientId: string): Promise<void> {
+  const key = `oauth-grant:${ownerId}:${clientId}`;
+  await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtextextended(${key}, 0))`;
+}

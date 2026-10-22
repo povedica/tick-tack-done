@@ -1,7 +1,6 @@
 import { runAction } from '../../../components/run-action';
 import type { ViewPage } from '@reflexionia/sdk';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Menu } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { api } from '../../../api';
@@ -9,9 +8,11 @@ import { completeBody } from '../../tasks/complete-body';
 import { ViewMenu } from '../../../components/ViewMenu';
 import { useMessages, type Messages } from '../../../i18n';
 import { useAppLocale } from '../../../i18n/locale';
-import { useShellActions } from '../../../shell/shell-actions';
+import { SidebarFoldButton } from '../../../shell/SidebarFoldButton';
 import { MatrixBoard, MatrixViewToggle } from '../../matrix/MatrixBoard';
 import { readMatrixLayout, writeMatrixLayout } from '../../matrix/layout';
+import { matrixScopeKey, type MatrixScope } from '../../matrix/scope';
+import type { MatrixLayout } from '../../matrix/layout';
 import { useFeatures } from '../../settings/feature-flags';
 import { newMutation, runOrQueue } from '../../offline/client';
 import {
@@ -169,7 +170,6 @@ export function Board({
 }) {
   const queryClient = useQueryClient();
   const locale = useAppLocale();
-  const shell = useShellActions();
   const flags = useFeatures((state) => state.flags);
   const [params, setParams] = useSearchParams();
   const [prefs, setPrefs] = useState(() =>
@@ -178,22 +178,45 @@ export function Board({
       hideCompleted: !revealCompleted,
     }),
   );
+  const remotePrefs = useQuery({
+    queryKey: ['view-preferences', viewKey],
+    queryFn: () => api.getViewPreferences(viewKey),
+    refetchInterval: 30_000,
+  });
+  useEffect(() => {
+    const remote = remotePrefs.data?.preferences;
+    if (remote && typeof remote === 'object' && !Array.isArray(remote)) {
+      const next = patchViewPrefs(viewKey, remote);
+      setPrefs(next);
+    }
+  }, [remotePrefs.data, viewKey]);
   const groupBy: GroupBy = prefs.group;
   const sort: Sort = prefs.sort;
   const details = prefs.showDetails;
   const hideCompleted = prefs.hideCompleted;
-  const [matrixLayout, setMatrixLayout] = useState(() =>
-    matrixListId === undefined ? 'list' : readMatrixLayout(`list:${matrixListId}`),
-  );
+  const matrixScope: MatrixScope | undefined =
+    matrixListId !== undefined
+      ? { kind: 'list', listId: matrixListId }
+      : createViewDay === 'tomorrow'
+        ? { kind: 'tomorrow' }
+        : createViewDay === 'today'
+          ? { kind: 'today' }
+          : undefined;
+  const scopeKey = matrixScope ? matrixScopeKey(matrixScope) : viewKey;
+  const [matrixLayout, setMatrixLayout] = useState<MatrixLayout>(() => readMatrixLayout(scopeKey));
   useEffect(() => {
-    if (matrixListId === undefined) {
-      return;
-    }
-    setMatrixLayout(readMatrixLayout(`list:${matrixListId}`));
-  }, [matrixListId]);
+    setMatrixLayout(readMatrixLayout(scopeKey));
+  }, [scopeKey]);
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
   const inboxId = projects.data?.items.find((project) => project.is_inbox)?.id;
   const view = parseView(params.get('view') ?? prefs.view);
+  useEffect(() => {
+    if (view === 'kanban' && params.get('view') !== 'kanban') {
+      const query = new URLSearchParams(params);
+      query.set('view', 'kanban');
+      setParams(query, { replace: true });
+    }
+  }, [view, params, setParams]);
   const page = useQuery({
     queryKey: [...queryKey, groupBy, sort],
     queryFn: () => load(groupBy, sort),
@@ -212,10 +235,18 @@ export function Board({
     );
 
   function savePrefs(patch: Partial<typeof prefs>): void {
-    setPrefs(patchViewPrefs(viewKey, patch));
+    const next = patchViewPrefs(viewKey, patch);
+    setPrefs(next);
+    runAction(
+      api
+        .putViewPreferences(viewKey, { ...next, syncAcrossDevices: true })
+        .then(() => queryClient.invalidateQueries({ queryKey: ['view-preferences', viewKey] })),
+    );
   }
 
   function chooseView(next: BoardView): void {
+    setMatrixLayout(next === 'kanban' ? 'kanban' : 'list');
+    writeMatrixLayout(scopeKey, next === 'kanban' ? 'kanban' : 'list');
     savePrefs({ view: next });
     const query = new URLSearchParams(params);
     query.set('view', next);
@@ -226,27 +257,27 @@ export function Board({
     <main className="screen-page">
       <header className="today-header">
         <div className="page-title">
-          <button
-            type="button"
-            className="icon-button"
-            aria-label={shell.navLabel}
-            onClick={shell.toggleNav}
-          >
-            <Menu size={20} aria-hidden="true" />
-          </button>
+          <SidebarFoldButton />
           <h1>{title}</h1>
         </div>
         <div className="page-actions">
           {headerActions}
-          {flags.matrix && matrixListId !== undefined ? (
-            <MatrixViewToggle
-              value={matrixLayout}
-              onChange={(next) => {
-                writeMatrixLayout(`list:${matrixListId}`, next);
+          <MatrixViewToggle
+            showMatrix={flags.matrix && matrixScope !== undefined}
+            value={
+              matrixLayout === 'matrix' && matrixScope !== undefined
+                ? 'matrix'
+                : view === 'kanban'
+                  ? 'kanban'
+                  : 'list'
+            }
+            onChange={(next) => {
+              if (next === 'matrix') {
+                writeMatrixLayout(scopeKey, next);
                 setMatrixLayout(next);
-              }}
-            />
-          ) : null}
+              } else chooseView(next);
+            }}
+          />
           <span className="ui-badge">
             {page.isPending
               ? '—'
@@ -309,8 +340,8 @@ export function Board({
       {notice !== undefined ? <p>{notice}</p> : null}
       {note && rows.length === 0 ? <p>{messages.noteEmpty}</p> : null}
       {page.isError ? <p className="error">{messages.previewFailed}</p> : null}
-      {flags.matrix && matrixListId !== undefined && matrixLayout === 'matrix' ? (
-        <MatrixBoard scope={{ kind: 'list', listId: matrixListId }} embedded />
+      {flags.matrix && matrixScope !== undefined && matrixLayout === 'matrix' ? (
+        <MatrixBoard scope={matrixScope} embedded />
       ) : (
         <TaskList
           messages={messages}

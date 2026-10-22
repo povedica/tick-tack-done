@@ -11,6 +11,8 @@ import { statsApi } from './api';
 import { rangeFor } from './range';
 import { useStatisticsText } from './text';
 import './control.css';
+import { useMessages } from '../../i18n';
+import { controlDeductionText } from './control-deduction';
 
 type Row = Record<string, unknown>;
 const row = (value: unknown): Row =>
@@ -37,6 +39,7 @@ export function ControlSummary({
   readonly outOf?: boolean;
 }) {
   const data = row(value);
+  const messages = useMessages();
   const { t, number, locale } = useStatisticsText();
   const score = typeof data.score === 'number' ? data.score : null;
   const components = row(data.components);
@@ -45,6 +48,9 @@ export function ControlSummary({
   const weekAgo = typeof lastDate === 'string' ? addCalendarDays(lastDate, -7) : null;
   const previous = history.find((item) => item.date === weekAgo)?.score;
   const delta = score !== null && typeof previous === 'number' ? score - previous : null;
+  const deduction =
+    controlDeductionText(data.topDeductionReason, messages, locale) ??
+    (typeof data.topDeduction === 'string' ? messages.controlReasonFallback : null);
   return (
     <div className="control-summary">
       <p className="control-value">
@@ -78,9 +84,7 @@ export function ControlSummary({
           );
         })}
       </dl>
-      {typeof data.topDeduction === 'string' ? (
-        <p>{locale.startsWith('en') ? englishDeduction(data.topDeduction) : data.topDeduction}</p>
-      ) : null}
+      {deduction === null ? null : <p>{deduction}</p>}
       <details>
         <summary>{t('formula')}</summary>
         <p>{t('controlFormula')}</p>
@@ -187,21 +191,4 @@ export function ControlChip({ compact = false }: { readonly compact?: boolean })
         : null}
     </>
   );
-}
-
-// Translate the API's controlled reason vocabulary without recalculating the score.
-function englishDeduction(text: string): string {
-  return text
-    .replace(
-      /^(\d+) vencidas( de más de 30 días)?: -(\d+) en Tareas$/,
-      (_, count: string, old: string | undefined, points: string) =>
-        `${count} overdue tasks${old ? ' over 30 days old' : ''}: -${points} in Tasks`,
-    )
-    .replace(
-      /^Tareas a tiempo: (.*) en los últimos 14 días$/,
-      'On-time tasks: $1 in the last 14 days',
-    )
-    .replace(/^Hábitos: (.*) días cumplidos$/, 'Habits: $1 scheduled days completed')
-    .replace(/^Foco: (.*) pomodoros esta semana$/, 'Focus: $1 pomodoros this week')
-    .replace(/^Uso: (.*) días registrados$/, 'Use: $1 recorded days');
 }

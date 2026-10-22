@@ -46,7 +46,7 @@ export function viewDays(view: string, cursor: Date, weekStart: 'monday' | 'sund
   if (view === 'multi-day') {
     return spanDays(day, 3);
   }
-  if (view === 'multi-week') {
+  if (view === 'two-weeks') {
     return spanDays(startOfWeek(day, weekStart), 14);
   }
   if (view === 'quarter') {
@@ -76,12 +76,12 @@ export function shiftView(
       ? 30
       : view === 'week'
         ? 7
-        : view === 'multi-week'
+        : view === 'two-weeks'
           ? 14
           : view === 'multi-day'
             ? 3
             : 1;
-  const origin = view === 'week' || view === 'multi-week' ? startOfWeek(cursor, weekStart) : cursor;
+  const origin = view === 'week' || view === 'two-weeks' ? startOfWeek(cursor, weekStart) : cursor;
   return new Date(origin.getFullYear(), origin.getMonth(), origin.getDate() + delta * step);
 }
 
@@ -134,17 +134,16 @@ export function localToday(now: Date): Date {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate());
 }
 
-export function tasksOnCell<T extends { due_date: string | null; time_zone?: string | null }>(
-  tasks: readonly T[],
-  day: Date,
-  timeZone = 'Europe/Madrid',
-): T[] {
+export function tasksOnCell<
+  T extends { due_date: string | null; start_date?: string | null; time_zone?: string | null },
+>(tasks: readonly T[], day: Date, timeZone = 'Europe/Madrid'): T[] {
   const key = localDateParam(day);
   return tasks.filter((task) => {
-    if (task.due_date === null || task.due_date.length === 0) {
+    const effective = task.start_date ?? task.due_date;
+    if (effective === null || effective.length === 0) {
       return false;
     }
-    return calendarDateKey(task.due_date, task.time_zone ?? timeZone) === key;
+    return calendarDateKey(effective, task.time_zone ?? timeZone) === key;
   });
 }
 

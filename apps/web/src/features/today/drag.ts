@@ -2,6 +2,7 @@ export const TASK_MIME = 'application/x-tick-task';
 
 export function setTaskDrag(data: DataTransfer, id: string): void {
   data.setData(TASK_MIME, id);
+  data.setData('text/plain', id);
   data.effectAllowed = 'move';
 }
 

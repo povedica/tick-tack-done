@@ -1,3 +1,6 @@
+import { createPortal } from 'react-dom';
+import { TodayMark } from '../../components/period/TodayMark';
+import { useCalendarToday } from '../../components/period/useCalendarToday';
 import { useRef, useState, type ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Popover } from '../../components/Popover';
@@ -38,12 +41,28 @@ export function CalendarMenu({
       >
         {trigger ?? label}
       </button>
+      {open && (className === 'calendar-mobile-views' || className === 'calendar-filter-menu')
+        ? createPortal(
+            <div
+              className="calendar-views-backdrop"
+              aria-hidden="true"
+              onMouseDown={(event) => {
+                event.preventDefault();
+              }}
+            />,
+            document.body,
+          )
+        : null}
       <Popover
         open={open}
         anchor={anchor}
         label={label}
         onClose={close}
-        className="calendar-popover"
+        className={
+          className === 'calendar-filter-menu'
+            ? 'calendar-popover calendar-filter-popover'
+            : 'calendar-popover'
+        }
       >
         {children(close)}
       </Popover>
@@ -99,7 +118,7 @@ function CalendarJump({
   const weekStart = usePreferences((state) => state.weekStart);
   const [month, setMonth] = useState(() => new Date(date.getFullYear(), date.getMonth(), 1));
   const cells = monthCells(month, weekStart);
-  const today = localDateParam(new Date());
+  const today = useCalendarToday();
   const fullDate = (day: Date) => day.toLocaleDateString(locale, { dateStyle: 'full' });
   return (
     <div className="calendar-jump">
@@ -166,7 +185,7 @@ function CalendarJump({
               onPick(day);
             }}
           >
-            {day.getDate()}
+            <TodayMark today={localDateParam(day) === today}>{day.getDate()}</TodayMark>
           </button>
         ))}
       </div>

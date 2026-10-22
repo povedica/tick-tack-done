@@ -10,7 +10,9 @@ export function UndoToastStack({
   undoLabel,
   onUndo,
   onExpire,
+  durationMs = UNDO_MS,
 }: {
+  readonly durationMs?: number;
   readonly items: readonly { readonly id: string; readonly title: string }[];
   readonly message: string;
   readonly undoLabel: string;
@@ -25,6 +27,7 @@ export function UndoToastStack({
       {items.map((item) => (
         <UndoToast
           key={item.id}
+          durationMs={durationMs}
           id={item.id}
           text={fill(message, item.title)}
           undoLabel={undoLabel}
@@ -37,19 +40,21 @@ export function UndoToastStack({
 }
 
 function UndoToast({
+  durationMs,
   id,
   text,
   undoLabel,
   onUndo,
   onExpire,
 }: {
+  readonly durationMs: number;
   readonly id: string;
   readonly text: string;
   readonly undoLabel: string;
   readonly onUndo: (id: string) => void;
   readonly onExpire: (id: string) => void;
 }) {
-  const remaining = useRef(UNDO_MS);
+  const remaining = useRef(durationMs);
   const [hover, setHover] = useState(false);
   const [focus, setFocus] = useState(false);
   const paused = hover || focus;

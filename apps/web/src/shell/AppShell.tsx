@@ -1,11 +1,11 @@
 import { runAction } from '../components/run-action';
-import { ControlChip } from '../features/statistics/ControlSummary';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState, type CSSProperties } from 'react';
 import { Outlet, useLocation, useSearchParams } from 'react-router';
 import { api } from '../api';
 import { dismissPopover } from '../components/popover-stack';
 import { LocationWatch } from '../features/product/ProductPages';
+import { Popover } from '../components/Popover';
 import { TaskDetail } from '../features/tasks/TaskDetail';
 import { useQueryClient } from '@tanstack/react-query';
 import { useActionToast } from '../components/action-toast';
@@ -26,6 +26,7 @@ import { ScreenBoundary } from './ErrorBoundary';
 import { sectionOf, sectionShowsDetailPane, sectionShowsSidebar } from './section-of';
 import { Sidebar } from './Sidebar';
 import { isSidebarShortcut, isTypingTarget } from './shortcuts';
+import { AccountPreferenceSync } from '../theme/AccountPreferenceSync';
 
 export function AppShell() {
   const messages = useMessages();
@@ -42,7 +43,15 @@ export function AppShell() {
   const showSidebar = sectionShowsSidebar(section);
   const showDetailPane = sectionShowsDetailPane(section) && !narrow;
   const sidebarCollapsed = !showSidebar || collapsed;
-  const detailOpen = showDetailPane || taskId !== null;
+  const requestedView = new URLSearchParams(location.search).get('view');
+  const kanban =
+    requestedView === 'kanban' ||
+    (requestedView === null &&
+      location.pathname === '/today' &&
+      localStorage.getItem('tick-tack-done.matrix.view.today') === 'kanban');
+  const detailOpen =
+    (showDetailPane && (!kanban || taskId !== null)) || (narrow && taskId !== null);
+  const floatingDetail = !narrow && !sectionShowsDetailPane(section) && taskId !== null;
 
   useEffect(() => {
     const on = (): void => {
@@ -131,9 +140,13 @@ export function AppShell() {
     <ShellActionsProvider
       value={{
         toggleNav,
-        navLabel: collapsed ? messages.expandSidebar : messages.collapseSidebar,
+        navLabel: (narrow ? drawer : !sidebarCollapsed)
+          ? messages.collapseSidebar
+          : messages.expandSidebar,
+        navExpanded: narrow ? drawer : !sidebarCollapsed,
       }}
     >
+      <AccountPreferenceSync />
       <div
         className="shell"
         data-sidebar={sidebarCollapsed ? 'collapsed' : 'expanded'}
@@ -145,20 +158,18 @@ export function AppShell() {
       >
         <FocusTitle />
         <IconRail
-          collapsed={sidebarCollapsed}
-          onToggleCollapsed={toggleNav}
           onCapture={() => {
             closeDrawer();
             openTaskComposer();
           }}
         />
-        {section === 'calendar' ? (
+        {section === 'calendar' && !narrow ? (
           <CalendarSidebar
             collapsed={sidebarCollapsed}
-            concealed={narrow ? !drawer : sidebarCollapsed}
+            concealed={sidebarCollapsed}
             onNavigate={closeDrawer}
           />
-        ) : showSidebar ? (
+        ) : narrow || showSidebar ? (
           <Sidebar
             collapsed={sidebarCollapsed}
             mobileSection={narrow ? drawerSection : undefined}
@@ -183,11 +194,6 @@ export function AppShell() {
           }}
         />
         <div className="center">
-          {narrow ? (
-            <div className="mobile-control-bar">
-              <ControlChip />
-            </div>
-          ) : null}
           {online ? null : (
             <p className="offline-banner" role="status">
               {messages.offline}. {messages.pendingSync}.
@@ -214,6 +220,18 @@ export function AppShell() {
             ) : (
               <DetailEmpty />
             )}
+          </div>
+        ) : null}
+        {floatingDetail ? (
+          <div className="ui-scrim task-detail-overlay">
+            <Popover
+              open
+              label={messages.taskTitle}
+              onClose={closeDetail}
+              className="task-detail-dialog"
+            >
+              <TaskDetail taskId={taskId} onClose={closeDetail} />
+            </Popover>
           </div>
         ) : null}
         <FocusCloser />
@@ -258,6 +276,7 @@ function FocusTitle() {
 function CaptureHost() {
   const open = useCaptureOpen((state) => state.open);
   const text = useCaptureOpen((state) => state.text);
+  const draft = useCaptureOpen((state) => state.draft);
   const hide = useCaptureOpen((state) => state.hide);
   const queryClient = useQueryClient();
   const showToast = useActionToast((state) => state.show);
@@ -267,6 +286,7 @@ function CaptureHost() {
   return (
     <CaptureSheet
       initialText={text}
+      initialDraft={draft}
       onClose={hide}
       onCreated={(created) => {
         const warning = created.warnings

@@ -1,3 +1,4 @@
+import { replySession } from './mock-session';
 import { expect, test, type Page, type Route } from '@playwright/test';
 
 test.use({ locale: 'es-ES' });
@@ -42,15 +43,29 @@ function viewTask(id: string, title: string, status: string) {
     kind: 'task',
     status,
     content: '',
+    is_all_day: true,
+    start_date: null,
+    duration_minutes: null,
+    completed_at: status === 'completed' ? '2026-10-21T12:00:00Z' : null,
+    deleted_at: title.includes('borrado') ? '2026-10-21T12:00:00Z' : null,
+    repeat_rule: null,
+    source: 'web',
   };
 }
 
 function viewPage(task: ReturnType<typeof viewTask>) {
-  return { count: 1, groups: [{ key: 'all', name: '', tasks: [task] }] };
+  return {
+    count: 1,
+    next_cursor: null,
+    group_by: 'none',
+    sort: 'manual',
+    groups: [{ key: 'all', name: '', tasks: [task] }],
+  };
 }
 
 async function mockApi(page: Page, created: { body: string | null }): Promise<void> {
   await page.route('**/api/v1/**', async (route: Route) => {
+    if (await replySession(route)) return;
     const request = route.request();
     const url = request.url();
     if (request.method() === 'POST' && url.endsWith('/api/v1/tasks')) {
@@ -140,8 +155,7 @@ test('S1: el sidebar sigue el orden de la spec y oculta Asignadas a mí', async 
     'Todas',
     'Bandeja',
     'Sin fecha',
-    'Añadidas hace poco',
-    'Completadas',
+    'Recientes',
   ]);
   await expect(page.getByRole('link', { name: /Asignadas a mí/ })).toHaveCount(0);
   await expect(page.getByRole('link', { name: /Papelera/ })).toBeVisible();
@@ -153,7 +167,7 @@ test('F1 y F2: quick-add en Hoy pone fecha, vacía el campo y muestra la tarea',
   const created = { body: null as string | null };
   await mockApi(page, created);
   await page.goto('/today');
-  const input = page.getByLabel('Añadir tarea');
+  const input = page.locator('.today .task-composer input[name=title]');
   await input.fill('Informe');
   await input.press('Enter');
   await expect(input).toHaveValue('');

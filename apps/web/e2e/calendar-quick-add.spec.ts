@@ -1,0 +1,698 @@
+import { expect, test, type Page } from '@playwright/test';
+
+// The account zone must win over the browser's zone.
+test.use({ timezoneId: 'America/New_York', hasTouch: true });
+
+async function fixture(page: Page, failFirst = false) {
+  const posts: Record<string, unknown>[] = [];
+  const tasks: Record<string, unknown>[] = [];
+  await page.clock.install({ time: new Date('2026-10-21T10:00:00Z') });
+  await page.addInitScript(() => localStorage.setItem('tick-tack-done.account-prefs', '1'));
+  await page.route('**/api/v1/**', async (route) => {
+    const path = new URL(route.request().url()).pathname.replace('/api/v1', '');
+    let body: unknown = { items: [], next_cursor: null };
+    if (path === '/me' || path === '/auth/session')
+      body = {
+        id: 'user',
+        email: 'test@example.test',
+        display_name: 'Test',
+        csrf_token: 'test',
+        time_zone: 'Europe/Madrid',
+        locale: 'es',
+        features: {},
+      };
+    if (path === '/projects')
+      body = {
+        items: [
+          { id: 'inbox', name: 'Bandeja', is_inbox: true, closed: false },
+          { id: 'context', name: 'Trabajo', is_inbox: false, closed: false },
+        ],
+        next_cursor: null,
+      };
+    if (path === '/tags') body = { items: [{ id: 'tag', name: 'trabajo' }], next_cursor: null };
+    if (path === '/tasks') {
+      if (route.request().method() === 'POST') {
+        if (failFirst) {
+          failFirst = false;
+          await route.fulfill({
+            status: 500,
+            json: { error: { code: 'failed', message: 'Failed' } },
+          });
+          return;
+        }
+        const input = route.request().postDataJSON() as Record<string, unknown>;
+        posts.push(input);
+        const created = {
+          id: 'created-' + String(posts.length),
+          project_id: input.project_id ?? 'inbox',
+          title: input.raw_text,
+          content: input.content ?? '',
+          kind: 'task',
+          status: 'active',
+          priority: input.priority ?? 'none',
+          start_date: input.start_date ?? null,
+          due_date: input.due_date ?? null,
+          is_all_day: input.is_all_day ?? true,
+          time_zone: 'Europe/Madrid',
+          duration_minutes: input.duration_minutes ?? null,
+          tag_ids: [],
+          parent_id: null,
+          column_id: null,
+          repeat_rule: null,
+          checklist_progress: { completed: 0, total: 0 },
+          created_at: '2026-10-21T10:00:00Z',
+          completed_at: null,
+        };
+        tasks.push(created);
+        body = created;
+      } else body = { items: tasks, next_cursor: null };
+    }
+    if (path === '/calendar/events') body = { external: [], tasks: [] };
+    await route.fulfill({ status: route.request().method() === 'POST' ? 201 : 200, json: body });
+  });
+  return posts;
+}
+
+async function point(page: Page, day: string, hour: number) {
+  await expect(page.locator('.hour-col').first()).toBeVisible();
+  await page.locator('.hour-board').evaluate((node, hour) => {
+    node.scrollTop = Math.max(0, hour - 2) * 48;
+  }, hour);
+  const dated = page.locator(`.hour-col[data-day="${day}"]`);
+  const columns = page.locator('.hour-col');
+  const column = (await dated.count())
+    ? dated
+    : columns.nth(
+        (await columns.count()) === 7 ? (new Date(`${day}T12:00:00Z`).getUTCDay() + 6) % 7 : 0,
+      );
+  const box = await column.boundingBox();
+  if (!box) throw new Error('Missing calendar column');
+  const repeated = await page.locator('.hour-board').getAttribute('data-calendar-repeated-hour');
+  const axisHour = repeated !== null && hour >= Number(repeated) + 1 ? hour + 1 : hour;
+  return { x: box.x + box.width / 2, y: box.y + axisHour * 48 };
+}
+
+for (const view of ['week', 'day', 'multi-day']) {
+  test(`TTD-AUD-74: ${view} snaps a click and renders the created task at its start`, async ({
+    page,
+  }) => {
+    const posts = await fixture(page);
+    await page.goto(`/calendar/${view}?date=2026-10-24`);
+    const position = await point(page, '2026-10-24', 13 + 35 / 60);
+    await page.mouse.click(position.x, position.y);
+    const dialog = page.getByRole('dialog', { name: '¿Qué quieres hacer?', exact: true });
+    await expect(dialog).toBeVisible();
+    await expect(page.locator('.hour-ghost')).toContainText('13:30');
+    if (view === 'week')
+      await page.screenshot({ path: test.info().outputPath('quick-add-week.png') });
+    await dialog.getByRole('textbox', { name: 'Añadir tarea', exact: true }).fill('Comprar pan');
+    await page.keyboard.press('Enter');
+    await expect.poll(() => posts.length).toBe(1);
+    expect(posts[0]).toMatchObject({
+      start_date: '2026-10-24T11:30:00.000Z',
+      due_date: '2026-10-24T12:00:00.000Z',
+      duration_minutes: 30,
+      is_all_day: false,
+      time_zone: 'Europe/Madrid',
+    });
+    await expect(page.locator('.hour-ghost')).toHaveCount(0);
+    await expect(page.locator('.calendar-hour-task')).toContainText('Comprar pan');
+    const repeatedHour = await page
+      .locator('.hour-board')
+      .getAttribute('data-calendar-repeated-hour');
+    await expect(page.locator('.calendar-hour-task')).toHaveCSS(
+      'top',
+      `${(13.5 + (repeatedHour === null ? 0 : 1)) * 48}px`,
+    );
+  });
+}
+
+test('TTD-AUD-74: drag selects 90 minutes and keeps the selected context list', async ({
+  page,
+}) => {
+  const posts = await fixture(page);
+  await page.goto('/calendar/week?date=2026-10-24&project_id=context');
+  const position = await point(page, '2026-10-24', 9);
+  await page.mouse.move(position.x, position.y);
+  await page.mouse.down();
+  await page.mouse.move(position.x, position.y + 73, { steps: 8 });
+  await page.mouse.up();
+  const dialog = page.locator('.calendar-quick-add');
+  await dialog.getByRole('textbox', { name: 'Añadir tarea', exact: true }).fill('Reunión');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => posts.length).toBe(1);
+  expect(posts[0]).toMatchObject({
+    project_id: 'context',
+    start_date: '2026-10-24T07:00:00.000Z',
+    due_date: '2026-10-24T08:30:00.000Z',
+    duration_minutes: 90,
+  });
+});
+
+test('TTD-AUD-74: month uses local midnight, shows a past date, and keeps text outside', async ({
+  page,
+}) => {
+  const posts = await fixture(page);
+  await page.goto('/calendar/month?date=2026-10-24');
+  const cell = page.locator('.cal-cell[data-day="2026-10-09"]');
+  await cell.click({ position: { x: 20, y: 50 } });
+  await expect(cell).toHaveClass(/is-drafting/);
+  const dialog = page.locator('.calendar-quick-add');
+  await expect(dialog.locator('.composer-date')).toHaveClass(/is-past/);
+  await dialog.getByRole('textbox', { name: 'Añadir tarea', exact: true }).fill('Cumpleaños');
+  await page.locator('.calendar-toolbar').click({ position: { x: 4, y: 4 } });
+  await expect(dialog.getByRole('textbox', { name: 'Añadir tarea', exact: true })).toHaveValue(
+    'Cumpleaños',
+  );
+  await dialog.getByRole('button', { name: 'Añadir', exact: true }).click();
+  await expect.poll(() => posts.length).toBe(1);
+  expect(posts[0]).toMatchObject({ due_date: '2026-10-08T22:00:00.000Z', is_all_day: true });
+  expect(posts[0]).not.toHaveProperty('start_date');
+});
+
+test('TTD-AUD-74: Escape restores focus and empty outside click removes the ghost', async ({
+  page,
+}) => {
+  const posts = await fixture(page);
+  await page.goto('/calendar/day?date=2026-10-24');
+  const column = page.locator('.hour-col');
+  await column.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.calendar-quick-add')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(column).toBeFocused();
+  await expect(page.locator('.hour-ghost')).toHaveCount(0);
+  expect(posts).toHaveLength(0);
+  const position = await point(page, '2026-10-24', 16 + 35 / 60);
+  await page.mouse.click(position.x, position.y);
+  await expect(page.locator('.hour-ghost')).toContainText('16:30');
+  await page.locator('.calendar-toolbar').click({ position: { x: 4, y: 4 } });
+  await expect(page.locator('.calendar-quick-add')).toHaveCount(0);
+  await expect(page.locator('.hour-ghost')).toHaveCount(0);
+});
+
+test('TTD-AUD-74: More options preserves content and dates in the full composer', async ({
+  page,
+}) => {
+  const posts = await fixture(page);
+  await page.goto('/calendar/day?date=2026-10-24&project_id=context');
+  const position = await point(page, '2026-10-24', 9);
+  await page.touchscreen.tap(position.x, position.y);
+  const dialog = page.locator('.calendar-quick-add:not(.is-centered)');
+  await dialog.getByRole('textbox', { name: 'Añadir tarea', exact: true }).fill('Revisar');
+  await dialog.locator('textarea').fill('Descripción conservada');
+  await dialog.getByRole('button', { name: 'Prioridad', exact: true }).click();
+  await page.getByRole('button', { name: 'Alta', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Etiqueta', exact: true }).click();
+  await page.getByRole('checkbox', { name: 'trabajo', exact: true }).check();
+  await page.keyboard.press('Escape');
+  await dialog.locator('input[type="file"]').setInputFiles({
+    name: 'nota.txt',
+    mimeType: 'text/plain',
+    buffer: Buffer.from('Adjunto de prueba'),
+  });
+  await dialog.getByRole('button', { name: 'Más', exact: true }).click();
+  await page.getByRole('button', { name: 'Más opciones', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  const sheet = page.locator('.calendar-quick-add.is-centered');
+  await expect(sheet.locator('input[name="title"]')).toHaveValue('Revisar');
+  await expect(sheet.locator('textarea')).toHaveValue('Descripción conservada');
+  await expect(sheet).toContainText('nota.txt');
+  await sheet.locator('input[name="title"]').press('Enter');
+  await expect.poll(() => posts.length).toBe(1);
+  expect(posts[0]).toMatchObject({
+    content: 'Descripción conservada',
+    project_id: 'context',
+    duration_minutes: 30,
+    start_date: '2026-10-24T07:00:00.000Z',
+    tag_ids: ['tag'],
+    priority: 'high',
+  });
+});
+
+test('TTD-AUD-74: parser date, priority, tags and list override the clicked slot', async ({
+  page,
+}) => {
+  const posts = await fixture(page);
+  await page.goto('/calendar/day?date=2026-10-24&project_id=context');
+  const position = await point(page, '2026-10-24', 9);
+  await page.mouse.click(position.x, position.y);
+  const title = page.locator('.calendar-quick-add input[name="title"]');
+  await title.fill('Llamar a Ana #trabajo !alta ^casa mañana 10:00');
+  await expect(page.locator('.calendar-quick-add .composer-date')).toContainText('10:00');
+  await expect(page.locator('.calendar-quick-add .composer-calendar-footer')).toContainText('casa');
+  await title.press('Enter');
+  await expect.poll(() => posts.length).toBe(1);
+  expect(posts[0]?.raw_text).toBe('Llamar a Ana #trabajo !alta ^casa mañana 10:00');
+  for (const key of [
+    'start_date',
+    'due_date',
+    'duration_minutes',
+    'project_id',
+    'priority',
+    'tag_ids',
+  ])
+    expect(posts[0]).not.toHaveProperty(key);
+});
+
+test('TTD-AUD-74: all-day row, two-weeks, and Tab focus containment', async ({ page }) => {
+  const posts = await fixture(page);
+  await page.goto('/calendar/day?date=2026-10-24');
+  const row = page.locator('.hour-allday-cell');
+  await row.focus();
+  await page.keyboard.press('Space');
+  const dialog = page.locator('.calendar-quick-add');
+  await expect(dialog).toBeVisible();
+  await dialog.locator('input[name="title"]').fill('Día completo');
+  await dialog.getByRole('button', { name: 'Añadir', exact: true }).focus();
+  await page.keyboard.press('Tab');
+  expect(await dialog.evaluate((node) => node.contains(document.activeElement))).toBe(true);
+  await dialog.locator('input[name="title"]').press('Enter');
+  await expect.poll(() => posts.length).toBe(1);
+  expect(posts[0]).toMatchObject({ due_date: '2026-10-23T22:00:00.000Z', is_all_day: true });
+  await page.goto('/calendar/two-weeks?date=2026-10-24');
+  const cell = page.locator('.cal-cell[data-day="2026-10-24"]');
+  await cell.focus();
+  await page.keyboard.press('Enter');
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(cell).toBeFocused();
+});
+
+test('TTD-AUD-74: mobile uses a large inset modal and desktop stays inside the viewport', async ({
+  page,
+}) => {
+  await fixture(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/calendar/day?date=2026-10-24');
+  const position = await point(page, '2026-10-24', 13 + 35 / 60);
+  await page.touchscreen.tap(position.x, position.y);
+  const dialog = page.locator('.calendar-quick-add');
+  await expect(dialog).toBeVisible();
+  const box = await dialog.boundingBox();
+  await page.screenshot({ path: '/tmp/quick-add-mobile.png' });
+  expect(box?.x).toBe(12);
+  expect(box?.height).toBeCloseTo(844 * 0.69, 0);
+  expect(box?.y).toBeCloseTo(844 * 0.155, 0);
+  await expect(page.locator('.calendar-quick-add-backdrop')).toHaveCSS(
+    'backdrop-filter',
+    'blur(4px)',
+  );
+  const send = dialog.getByRole('button', { name: 'Añadir', exact: true });
+  await expect(send.locator('svg')).toHaveCount(1);
+  await expect(send).toHaveText('');
+  await expect(send).toHaveCSS('border-width', '0px');
+  await expect(dialog.locator('.composer-date span')).toHaveCSS('max-width', 'none');
+  await expect(dialog.locator('.composer-date span')).toHaveCSS('text-overflow', 'clip');
+  await page.keyboard.press('Escape');
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/calendar/week?date=2026-10-24');
+  const edge = await point(page, '2026-10-25', 16);
+  await page.mouse.click(edge.x, edge.y);
+  await expect(dialog).toBeVisible();
+  await expect
+    .poll(async () => {
+      const b = await dialog.boundingBox();
+      return !!b && b.x >= 8 && b.y >= 8 && b.x + b.width <= 1272 && b.y + b.height <= 792;
+    })
+    .toBe(true);
+});
+
+test('TTD-AUD-74: day popover fits all four viewport corners', async ({ page }) => {
+  await fixture(page);
+  await page.goto('/calendar/day?date=2026-10-24');
+  for (const hour of [0.1, 23.9]) {
+    await point(page, '2026-10-24', hour);
+    const column = await page.locator('.hour-col').boundingBox();
+    if (!column) throw new Error('Missing column');
+    for (const x of [column.x + 2, column.x + column.width - 2]) {
+      await page.mouse.click(x, column.y + hour * 48);
+      const dialog = page.locator('.calendar-quick-add');
+      await expect(dialog).toBeVisible();
+      await expect
+        .poll(async () => {
+          const box = await dialog.boundingBox();
+          return (
+            !!box &&
+            box.x >= 8 &&
+            box.y >= 8 &&
+            box.x + box.width <= 1272 &&
+            box.y + box.height <= 712
+          );
+        })
+        .toBe(true);
+      await page.keyboard.press('Escape');
+    }
+  }
+});
+
+test('TTD-AUD-74: touch hold and drag selects a range on mobile', async ({ page }) => {
+  const posts = await fixture(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/calendar/day?date=2026-10-24');
+  const position = await point(page, '2026-10-24', 9);
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [position] });
+  await page.waitForTimeout(400); // Deliberate long-press gesture, not a rendering wait.
+  await cdp.send('Input.dispatchTouchEvent', {
+    type: 'touchMove',
+    touchPoints: [{ x: position.x, y: position.y + 73 }],
+  });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  const dialog = page.locator('.calendar-quick-add');
+  await expect(dialog).toBeVisible();
+  await dialog.locator('input[name="title"]').fill('Rango móvil');
+  await dialog.getByRole('button', { name: 'Añadir', exact: true }).click();
+  await expect.poll(() => posts.length).toBe(1);
+  expect(posts[0]).toMatchObject({
+    duration_minutes: 90,
+    start_date: '2026-10-24T07:00:00.000Z',
+    due_date: '2026-10-24T08:30:00.000Z',
+  });
+});
+
+test('icon rail keeps only the routed section active in both themes', async ({ page }) => {
+  await fixture(page);
+  await page.goto('/calendar/week?date=2026-10-24');
+  const rail = page.locator('.icon-rail');
+  const active = rail.locator('> a[aria-current="page"]');
+  const inactive = rail.locator('> a.rail-section-inactive').first();
+  await expect(active).toHaveCount(1);
+  await expect(active).toHaveAccessibleName('Calendario');
+  await expect(active.locator('svg')).toHaveAttribute('data-variant', 'heavy');
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate(
+      (value) => document.documentElement.setAttribute('data-theme', value),
+      theme,
+    );
+    await expect(active).toHaveCSS('color', 'rgb(255, 255, 255)');
+    await expect(active).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    await expect(inactive).toHaveCSS('color', 'rgba(255, 255, 255, 0.55)');
+    await inactive.hover();
+    await page.clock.runFor(200);
+    await expect(inactive).toHaveCSS('color', 'rgba(255, 255, 255, 0.75)');
+    await expect(inactive).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    expect(await inactive.evaluate((node) => getComputedStyle(node, '::after').visibility)).toBe(
+      'visible',
+    );
+    await page.mouse.move(500, 100);
+    await inactive.focus();
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Shift+Tab');
+    await expect(inactive).toBeFocused();
+    await expect(inactive).toHaveCSS('outline-style', 'solid');
+    await page.screenshot({ path: `/tmp/ttd-rail-${theme}.png` });
+    await inactive.blur();
+  }
+});
+
+test('RF-601: picking a start time defaults Until to 30 minutes and keeps a custom duration', async ({
+  page,
+}) => {
+  await fixture(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/calendar/month?date=2026-10-24');
+  await page.locator('[data-day="2026-10-24"]').click();
+  await page.locator('.calendar-quick-add .composer-date').click();
+  const date = page.locator('.date-popover');
+  await date.getByLabel('Hora', { exact: true }).fill('23:45');
+  await expect(date.getByLabel('Hasta', { exact: true })).toHaveValue('00:15');
+  await date.getByLabel('Hora', { exact: true }).fill('10:00');
+  await date.getByLabel('Hasta', { exact: true }).fill('11:00');
+  await date.getByLabel('Hora', { exact: true }).fill('12:00');
+  await expect(date.getByLabel('Hasta', { exact: true })).toHaveValue('13:00');
+  await date.getByRole('button', { name: /^Recordatorio/ }).click();
+  await date.getByRole('button', { name: '5 min antes', exact: true }).click();
+  await date.getByRole('button', { name: /^Repetir/ }).click();
+  await date.getByRole('button', { name: 'Cada día', exact: true }).click();
+  await date.getByRole('button', { name: 'OK', exact: true }).click();
+  await expect(page.locator('.calendar-quick-add .composer-date')).toContainText('13:00');
+  await expect(page.locator('.calendar-quick-add .composer-date')).toContainText('12:00');
+  await expect(page.locator('.composer-date-indicator[title="Repetir"]')).toBeVisible();
+  await expect(page.locator('.composer-date-indicator[title="Recordatorio"]')).toBeVisible();
+});
+
+for (const view of ['week', 'month', 'year', 'quarter', 'agenda']) {
+  test(`RF-1102: blank day space opens quick add in ${view}`, async ({ page }) => {
+    const posts = await fixture(page);
+    await page.setViewportSize({ width: view === 'quarter' ? 1280 : 390, height: 844 });
+    await page.goto(`/calendar/${view}?date=2026-10-24`);
+    const target =
+      view === 'week'
+        ? page.locator('.mobile-week-items').first()
+        : view === 'month'
+          ? page.locator('[data-day="2026-10-24"]')
+          : view === 'agenda'
+            ? page.locator('.agenda-day').first()
+            : page.locator('.year-day:not(.is-outside)').first();
+    const selectedDay =
+      view === 'week'
+        ? new URL(
+            (await page.locator('.mobile-week-day-link').first().getAttribute('href')) ?? '',
+            'http://localhost',
+          ).searchParams.get('date')
+        : view === 'month'
+          ? '2026-10-24'
+          : view === 'agenda'
+            ? await target.getAttribute('data-agenda-day')
+            : new URL(
+                (await target.getAttribute('href')) ?? '',
+                'http://localhost',
+              ).searchParams.get('date');
+    const targetBox = await target.boundingBox();
+    await target.click({
+      position:
+        view === 'quarter' && targetBox
+          ? { x: targetBox.width / 2, y: targetBox.height - 3 }
+          : { x: 2, y: 2 },
+    });
+    await expect(page.locator('.calendar-quick-add')).toBeVisible();
+    await page.locator('.calendar-quick-add input[name="title"]').fill('Nueva tarea');
+    await page
+      .locator('.calendar-quick-add')
+      .getByRole('button', { name: 'Añadir', exact: true })
+      .click();
+    await expect.poll(() => posts.length).toBe(1);
+    expect(posts[0]?.is_all_day).toBe(true);
+    expect(
+      new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' }).format(
+        new Date(String(posts[0]?.due_date)),
+      ),
+    ).toBe(selectedDay);
+  });
+}
+
+test('RF-202: description slash commands insert Markdown and keep the draft', async ({ page }) => {
+  const posts = await fixture(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/calendar/month?date=2026-10-24');
+  await page.locator('[data-day="2026-10-24"]').click({ position: { x: 2, y: 2 } });
+  const dialog = page.locator('.calendar-quick-add');
+  const body = dialog.locator('textarea');
+  await dialog.locator('input[name="title"]').fill('Preparar viaje');
+  await body.fill('/');
+  const menu = page.getByRole('menu', { name: 'Comandos', exact: true });
+  await expect(menu).toBeVisible();
+  await expect(menu.getByRole('menuitem').first()).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect(body).toHaveValue('- [ ] ');
+  await expect(body).toBeFocused();
+  await body.pressSequentially('Maleta');
+  await body.press('Shift+Enter');
+  await body.pressSequentially('/');
+  await expect(menu).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
+  await expect(dialog).toBeVisible();
+  await expect(body).toHaveValue('- [ ] Maleta\n/');
+  await body.fill('https://example.com');
+  await expect(menu).toHaveCount(0);
+  await body.fill('/');
+  await page.getByRole('menuitem', { name: 'Bloque de código', exact: true }).click();
+  await expect(body).toHaveValue('```\n\n```');
+  await body.pressSequentially('code');
+  await expect(body).toHaveValue('```\ncode\n```');
+  await dialog.getByRole('button', { name: 'Añadir', exact: true }).click();
+  await expect.poll(() => posts.length).toBe(1);
+  expect(posts[0]?.content).toBe('```\ncode\n```');
+});
+
+for (const width of [1280, 390]) {
+  test(`76 global N uses the calendar card and protects its draft ${width}`, async ({ page }) => {
+    const posts = await fixture(page);
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto('/calendar/agenda?date=2026-10-21');
+    await expect(page.locator('.calendar-toolbar')).toBeVisible();
+    await page.keyboard.press('n');
+    const card = page.locator('.calendar-quick-add.is-centered');
+    await expect(card).toBeVisible();
+    await expect(card.getByRole('button', { name: 'Bandeja', exact: true })).toBeVisible();
+    await expect(card.getByRole('button', { name: 'Etiqueta', exact: true })).toBeVisible();
+    await expect(card.getByRole('textbox', { name: 'Añadir descripción' })).toBeVisible();
+    const title = card.locator('input[name=title]');
+    await expect(title).toBeFocused();
+    await title.fill('Borrador compartido');
+    await title.press('Escape');
+    await expect(card.getByRole('alertdialog')).toBeVisible();
+    await expect(card.locator('.composer-discard')).toHaveCSS(
+      'background-color',
+      'rgba(0, 0, 0, 0)',
+    );
+    await page.screenshot({ path: `/tmp/composer-discard-centered-${width}.png` });
+    await card.getByRole('button', { name: 'Seguir editando' }).click();
+    await expect(title).toHaveValue('Borrador compartido');
+    await card.getByRole('button', { name: 'Bandeja', exact: true }).click();
+    await page.getByRole('button', { name: 'Trabajo', exact: true }).click();
+    await expect(card.getByRole('button', { name: 'Trabajo', exact: true })).toBeVisible();
+    const description = card.locator('textarea');
+    await description.fill('Descripción');
+    await description.press('Shift+Enter');
+    await expect(description).toHaveValue('Descripción\n');
+    await page.screenshot({ path: `/tmp/composer-unified-${width}.png` });
+    await description.press('Control+Enter');
+    await expect.poll(() => posts.length).toBe(1);
+    expect(posts[0]).toMatchObject({ project_id: 'context', content: 'Descripción\n' });
+    await expect(card).toHaveCount(0);
+    await page.keyboard.press('n');
+    await page.locator('.calendar-quick-add input[name=title]').fill('Descartar');
+    await page
+      .locator('.calendar-quick-add')
+      .getByRole('button', { name: 'Cancelar', exact: true })
+      .click();
+    await page.getByRole('button', { name: 'Descartar', exact: true }).click();
+    await expect(card).toHaveCount(0);
+    await page.keyboard.press('n');
+    await expect(page.locator('.calendar-quick-add input[name=title]')).toHaveValue('');
+  });
+}
+
+for (const width of [1280, 390]) {
+  test(`76 plus opens the same card and follows the visible keyboard viewport ${width}`, async ({
+    page,
+  }) => {
+    await fixture(page);
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto('/calendar/agenda?date=2026-10-21');
+    // Use the accessible name shared by the desktop rail and the mobile plus.
+    const plus = page
+      .getByRole('button', { name: 'Nueva tarea', exact: true })
+      .filter({ visible: true });
+    await expect(plus).toBeVisible();
+    await plus.click();
+    const card = page.locator('.calendar-quick-add.is-centered');
+    await expect(card.getByRole('button', { name: 'Etiqueta', exact: true })).toBeVisible();
+    await expect(card.locator('.composer-calendar-footer button')).toHaveCount(5);
+    if (width < 700) {
+      await page.evaluate(() => {
+        Object.defineProperty(window.visualViewport!, 'height', { configurable: true, value: 400 });
+        Object.defineProperty(window.visualViewport!, 'offsetTop', {
+          configurable: true,
+          value: 30,
+        });
+        window.visualViewport!.dispatchEvent(new Event('resize'));
+      });
+      await expect.poll(async () => (await card.boundingBox())!.height).toBeCloseTo(400 * 0.69, 0);
+      const footer = await card.locator('.composer-calendar-footer').boundingBox();
+      expect(footer!.y + footer!.height).toBeLessThanOrEqual(430);
+      await page.screenshot({ path: '/tmp/composer-visible-keyboard-390.png' });
+      await card.locator('input[name=title]').fill('Conservar con gesto');
+      await card.locator('.composer-swipe-handle').evaluate((node) => {
+        const touch = (y: number) => new Touch({ identifier: 1, target: node, clientY: y });
+        node.dispatchEvent(new TouchEvent('touchstart', { bubbles: true, touches: [touch(10)] }));
+        node.dispatchEvent(
+          new TouchEvent('touchend', { bubbles: true, changedTouches: [touch(100)] }),
+        );
+      });
+      await expect(card.getByRole('alertdialog')).toBeVisible();
+      await card.getByRole('button', { name: 'Seguir editando' }).click();
+      await expect(card.locator('input[name=title]')).toHaveValue('Conservar con gesto');
+      await card.locator('input[name=title]').fill('');
+    }
+    await card.getByRole('button', { name: 'Cancelar', exact: true }).click();
+    await expect(card).toHaveCount(0);
+    await expect(plus).toBeFocused();
+  });
+}
+
+test('76 global editor preserves its draft after a failed save and retries once', async ({
+  page,
+}) => {
+  const posts = await fixture(page, true);
+  await page.goto('/calendar/agenda?date=2026-10-21');
+  await expect(page.locator('.calendar-toolbar')).toBeVisible();
+  await page.keyboard.press('n');
+  const card = page.locator('.calendar-quick-add');
+  await card.locator('input[name=title]').fill('Guardar sin perder');
+  await card.getByRole('button', { name: 'Añadir', exact: true }).click();
+  await expect(card.getByRole('alert')).toBeVisible();
+  await expect(card.locator('input[name=title]')).toHaveValue('Guardar sin perder');
+  await card.getByRole('button', { name: 'Añadir', exact: true }).click();
+  await expect.poll(() => posts.length).toBe(1);
+  await expect(card).toHaveCount(0);
+});
+
+for (const width of [1280, 390]) {
+  test(`RF-601 inline times are editable without a picker and can be cleared ${width}`, async ({
+    page,
+  }) => {
+    await fixture(page);
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto('/calendar/agenda?date=2026-10-21');
+    await expect(page.locator('.calendar-toolbar')).toBeVisible();
+    await page.keyboard.press('n');
+    await page.locator('.calendar-quick-add .composer-date').click();
+    const date = page.locator('.date-popover');
+    const start = date.getByRole('textbox', { name: 'Hora', exact: true });
+    await expect(start).toBeVisible();
+    await expect(start).toHaveAttribute('type', 'time');
+    expect((await start.boundingBox())!.width).toBeLessThanOrEqual(120);
+    await expect(start).toHaveAttribute('placeholder', 'HH:mm');
+    await start.fill('10:00');
+    const end = date.getByRole('textbox', { name: 'Hasta', exact: true });
+    await expect(end).toHaveValue('10:30');
+    await end.fill('11:15');
+    await end.press('Enter');
+    await expect(end).toHaveValue('11:15');
+    await date.getByRole('button', { name: 'Hasta: Sin hora', exact: true }).click();
+    await expect(end).toHaveValue('');
+    await expect(start).toHaveValue('10:00');
+    await date.getByRole('button', { name: 'Hora: Sin hora', exact: true }).click();
+    await expect(start).toHaveValue('');
+    await expect(end).toHaveCount(0);
+    const bounds = await date.boundingBox();
+    expect(bounds!.x).toBeGreaterThanOrEqual(12);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width - 12);
+    const anchor = await page.locator('.calendar-quick-add .composer-date').boundingBox();
+    expect(bounds!.x).toBeCloseTo(
+      Math.max(12, Math.min(anchor!.x + 16, width - bounds!.width - 12)),
+      0,
+    );
+    expect(bounds!.y).toBeLessThanOrEqual(anchor!.y + anchor!.height - 9);
+    await page.screenshot({ path: `/tmp/date-inline-time-${width}.png` });
+  });
+}
+
+test('RF-601 clearing Until in calendar capture persists a time without an end', async ({
+  page,
+}) => {
+  const posts = await fixture(page);
+  await page.goto('/calendar/day?date=2026-10-24');
+  const pos = await point(page, '2026-10-24', 10);
+  await page.mouse.click(pos.x, pos.y);
+  const card = page.locator('.calendar-quick-add');
+  await card.locator('input[name=title]').fill('Sin hora fin');
+  await card.locator('.composer-date').click();
+  const date = page.locator('.date-popover');
+  await date.getByRole('button', { name: 'Hasta: Sin hora', exact: true }).click();
+  await date.getByRole('button', { name: 'OK', exact: true }).click();
+  await card.getByRole('button', { name: 'Añadir', exact: true }).click();
+  await expect.poll(() => posts.length).toBe(1);
+  expect(posts[0]).toMatchObject({
+    duration_minutes: null,
+    start_date: null,
+    is_all_day: false,
+    due_date: '2026-10-24T08:00:00.000Z',
+  });
+});

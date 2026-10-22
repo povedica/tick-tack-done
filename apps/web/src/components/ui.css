@@ -139,7 +139,9 @@
   z-index: 50;
   display: grid;
   place-items: center;
-  background: rgb(25 25 25 / 0.4);
+  background: var(--overlay-backdrop-bg);
+  -webkit-backdrop-filter: blur(var(--overlay-backdrop-blur));
+  backdrop-filter: blur(var(--overlay-backdrop-blur));
 }
 
 .ui-modal {
@@ -693,17 +695,6 @@
 
 .year-day.is-outside {
   color: color-mix(in srgb, var(--ink) 35%, transparent);
-}
-
-.year-day.is-today .year-num {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.35rem;
-  height: 1.35rem;
-  border-radius: var(--radius-full);
-  background: var(--accent);
-  color: var(--ink-inverse);
 }
 
 .year-marks {
@@ -2359,17 +2350,6 @@
   text-align: center;
 }
 
-.cal-cell.is-today strong {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: var(--radius-full);
-  background: var(--accent);
-  color: var(--ink-inverse);
-}
-
 .cal-cell.is-outside > strong {
   color: var(--ink-3);
 }
@@ -2456,19 +2436,6 @@ a.link:hover {
 
 .hour-headers h2.is-today {
   color: var(--accent);
-}
-
-.hour-headers h2.is-today span {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 1.75rem;
-  padding: 0 6px;
-  margin: 2px auto 0;
-  border-radius: 999px;
-  background: var(--accent);
-  color: var(--ink-inverse);
-  line-height: 1.5rem;
 }
 
 .hour-allday-label {
@@ -2727,94 +2694,6 @@ a.link:hover {
   }
 }
 
-.account-menu {
-  position: relative;
-  color: var(--ink);
-}
-.account-menu summary {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  min-height: 36px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  list-style: none;
-}
-.account-menu summary::-webkit-details-marker {
-  display: none;
-}
-.account-menu summary:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-.account-avatar {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--surface);
-  color: var(--accent);
-  font-size: var(--fs-base);
-  font-weight: 600;
-}
-.account-menu .menu-card {
-  position: fixed;
-  z-index: 100;
-  top: 12px;
-  left: calc(var(--sidebar-rail) + 8px);
-  right: auto;
-  min-width: 0;
-  width: min(240px, calc(100vw - 24px));
-  max-height: calc(100dvh - 24px);
-  overflow: auto;
-  display: grid;
-  gap: 4px;
-  box-sizing: border-box;
-  font-size: var(--fs-base);
-}
-.account-menu .menu-card a,
-.account-menu .menu-card button {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 10px;
-  width: 100%;
-  height: auto;
-  min-height: 36px;
-  padding: 8px;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--ink);
-  font: inherit;
-  text-decoration: none;
-  text-align: left;
-}
-.account-menu .menu-card a:hover,
-.account-menu .menu-card button:hover {
-  background: var(--surface-2);
-}
-.account-menu .menu-card svg {
-  flex-shrink: 0;
-}
-.account-menu .menu-card p {
-  margin: 4px 8px 8px;
-  overflow-wrap: anywhere;
-  color: var(--ink-2);
-}
-.account-menu .menu-card strong {
-  color: var(--ink);
-}
-@media (max-width: 1023px) {
-  .sidebar > .account-menu {
-    margin: 8px 20px;
-  }
-  .account-menu .menu-card {
-    top: 56px;
-    left: 12px;
-  }
-}
 .hour-board {
   overflow-y: auto;
   max-height: 70vh;
@@ -2887,10 +2766,6 @@ a.link:hover {
 @media (min-width: 1024px) {
   .calendar-year .year-day {
     min-height: 1.35rem;
-  }
-  .calendar-year .year-day.is-today .year-num {
-    width: 1.15rem;
-    height: 1.15rem;
   }
 }
 
@@ -3065,4 +2940,120 @@ a.link:hover {
 }
 .consent-redirect {
   overflow-wrap: anywhere;
+}
+
+/* TTD-AUD-75.7: the day number itself owns the circle in every surface. */
+.today-mark {
+  display: inline-grid;
+  place-items: center;
+  box-sizing: border-box;
+  inline-size: var(--today-mark-size);
+  block-size: var(--today-mark-size);
+  padding: 0;
+  border-radius: 50%;
+  aspect-ratio: 1;
+  background: var(--today-mark-bg);
+  color: var(--today-mark-ink);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.hour-headers {
+  --today-mark-size: var(--today-size-header);
+}
+.cal-cell {
+  --today-mark-size: var(--today-size-month);
+}
+.year-day {
+  --today-mark-size: var(--today-size-year);
+}
+.calendar-mini-day {
+  --today-mark-size: var(--today-size-mini);
+}
+.week-calendar-grid,
+.calendar-jump-grid {
+  --today-mark-size: var(--today-size-picker);
+}
+.calendar-page .hour-headers h2 > .today-mark {
+  font-size: var(--fs-md);
+  line-height: 1;
+  min-width: 0;
+}
+.week-calendar-grid button .today-mark,
+.calendar-page .year-num.today-mark {
+  width: var(--today-mark-size);
+  height: var(--today-mark-size);
+  background: var(--today-mark-bg);
+  color: var(--today-mark-ink);
+  outline: none;
+}
+.calendar-mini-day:hover .today-mark,
+.cal-cell button:hover .today-mark,
+.cal-cell a:hover .today-mark {
+  background: var(--today-mark-hover-bg);
+}
+@media (max-width: 1023px) {
+  .hour-headers {
+    --today-mark-size: var(--today-size-header-mobile);
+  }
+  .cal-cell {
+    --today-mark-size: var(--today-size-month-mobile);
+  }
+  .calendar-mini-day {
+    --today-mark-size: var(--today-size-mini-mobile);
+  }
+  .week-calendar-grid,
+  .calendar-jump-grid {
+    --today-mark-size: var(--today-size-picker-mobile);
+  }
+}
+
+.kanban-col {
+  flex: 0 0 300px;
+  max-width: 360px;
+  border: 0;
+  background: transparent;
+}
+.kanban-col > h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 40px;
+  margin: 0 0 var(--sp-2);
+}
+.kanban-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-3);
+  box-shadow: var(--shadow-sm);
+  min-width: 0;
+}
+.kanban-card-title {
+  min-width: 0;
+}
+.kanban-card-title > button {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+  height: auto;
+}
+.kanban-card-title > .task-check-hit {
+  flex: 0 0 20px;
+  min-width: 20px;
+}
+.kanban-card-meta {
+  padding-inline-start: 26px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.kanban-card {
+  cursor: pointer;
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+}
+.kanban-card:hover {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
 }

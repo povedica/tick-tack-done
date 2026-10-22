@@ -18,6 +18,8 @@ export function Popover({
   children,
   anchor,
   width: widthProp,
+  offsetX = 0,
+  offsetY = 0,
 }: {
   readonly open: boolean;
   readonly label: string;
@@ -27,11 +29,17 @@ export function Popover({
   readonly anchor?: RefObject<HTMLElement | null> | undefined;
   /** Preferred width; omit for content-sized between 220 and 320 (TTD-AUD-64). */
   readonly width?: number | undefined;
+  readonly offsetX?: number;
+  readonly offsetY?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState<CSSProperties>({});
+  const [position, setPosition] = useState<CSSProperties | null>(null);
   useLayoutEffect(() => {
-    if (!open || !anchor) return;
+    if (!open) {
+      setPosition(null);
+      return;
+    }
+    if (!anchor) return;
     function place() {
       const target = anchor?.current;
       const node = ref.current;
@@ -39,21 +47,24 @@ export function Popover({
       const box = target.getBoundingClientRect();
       const preferred =
         widthProp ??
-        (node.classList.contains('date-popover')
-          ? 320
-          : Math.min(320, Math.max(220, node.scrollWidth || 260)));
+        (node.classList.contains('calendar-popover')
+          ? node.getBoundingClientRect().width
+          : node.classList.contains('date-popover')
+            ? 320
+            : Math.min(320, Math.max(220, node.scrollWidth || 260)));
       const width = Math.min(preferred, window.innerWidth - 24);
       const maxHeight = Math.min(window.innerHeight * 0.7, window.innerHeight - 24);
       const below = window.innerHeight - box.bottom - 12;
       const above = box.top - 12;
-      const top =
+      const preferredTop =
         below >= Math.min(node.scrollHeight, maxHeight) || below >= above
           ? box.bottom + 6
           : Math.max(12, box.top - Math.min(node.scrollHeight, maxHeight) - 6);
+      const top = Math.max(12, preferredTop + offsetY);
       setPosition({
         position: 'fixed',
         top,
-        left: Math.max(12, Math.min(box.left, window.innerWidth - width - 12)),
+        left: Math.max(12, Math.min(box.left + offsetX, window.innerWidth - width - 12)),
         right: 'auto',
         width,
         maxHeight: Math.max(120, Math.min(maxHeight, window.innerHeight - top - 12)),
@@ -71,7 +82,7 @@ export function Popover({
       window.removeEventListener('resize', place);
       window.removeEventListener('scroll', place, true);
     };
-  }, [open, anchor, widthProp]);
+  }, [open, anchor, widthProp, offsetX, offsetY]);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   useEffect(() => {
@@ -172,7 +183,8 @@ export function Popover({
     );
     (first ?? ref.current).focus();
     return () => {
-      if (!anchor && previous instanceof HTMLElement && previous.isConnected) previous.focus();
+      if (anchor?.current?.isConnected) anchor.current.focus();
+      else if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
     };
   }, [open, anchor]);
   useEffect(() => {
@@ -191,7 +203,24 @@ export function Popover({
   }
   const content = (
     <div
-      style={anchor ? position : undefined}
+      style={
+        anchor
+          ? (position ?? {
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              visibility: 'hidden',
+              width:
+                widthProp ??
+                (className?.includes('calendar-popover')
+                  ? 'var(--calendar-views-width)'
+                  : className?.includes('date-popover')
+                    ? 320
+                    : 260),
+              maxWidth: 'calc(100vw - 24px)',
+            })
+          : undefined
+      }
       ref={ref}
       className={className ?? 'popover'}
       role="dialog"

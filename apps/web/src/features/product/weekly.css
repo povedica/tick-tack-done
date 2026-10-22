@@ -321,7 +321,9 @@
   box-shadow: 0 16px 64px var(--accent-soft);
 }
 .week-calendar::backdrop {
-  background: color-mix(in srgb, var(--ink) 30%, transparent);
+  background: var(--overlay-backdrop-bg);
+  -webkit-backdrop-filter: blur(var(--overlay-backdrop-blur));
+  backdrop-filter: blur(var(--overlay-backdrop-blur));
 }
 .week-calendar-head,
 .week-month-nav {
@@ -376,10 +378,6 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-}
-.week-calendar-grid button[aria-current='date'] span {
-  outline: 1px solid var(--accent);
-  outline-offset: -1px;
 }
 .week-calendar-grid .is-outside {
   color: var(--ink-3);

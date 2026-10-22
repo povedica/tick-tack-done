@@ -2,6 +2,9 @@ import { useAppLocale } from '../../i18n/locale';
 export function useComposerCopy() {
   const english = useAppLocale().startsWith('en');
   return {
+    discardTitle: english ? 'Discard draft?' : '¿Descartar el borrador?',
+    discard: english ? 'Discard' : 'Descartar',
+    keepEditing: english ? 'Keep editing' : 'Seguir editando',
     options: english ? 'Task options' : 'Opciones de tarea',
     templates: english ? 'Add from template' : 'Añadir desde plantilla',
     noTemplates: english ? 'No saved templates' : 'No hay plantillas guardadas',

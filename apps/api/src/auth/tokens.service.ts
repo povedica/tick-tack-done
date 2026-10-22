@@ -20,7 +20,7 @@ import { isApiScope, isOauthScope } from './scopes.js';
 import { requireBrowserSession } from './session-access.js';
 import { TokenAudit } from './token-audit.js';
 import { newPersonalAccessToken } from './token-secret.js';
-import { revokeRefreshChainsForAccess } from './oauth-refresh.js';
+import { lockOauthGrant, revokeRefreshChainsForAccess } from './oauth-refresh.js';
 
 interface TokenRow {
   id: string;
@@ -33,6 +33,8 @@ interface TokenRow {
   lastUsedAt: Date | null;
   revokedAt: Date | null;
   oauthClient?: { name: string } | null;
+  refreshTokens?: { rotatedAt: Date | null }[];
+  activity?: { changes: Prisma.JsonValue }[];
 }
 
 @Injectable()
@@ -48,6 +50,7 @@ export class TokensService {
     limitRaw: unknown,
     cursorRaw: string | undefined,
     status?: string,
+    kind?: string,
   ): Promise<TokenPageDto> {
     const limit = pageLimit(limitRaw);
     const cursor = decodeTimeCursor(cursorRaw);
@@ -58,9 +61,20 @@ export class TokensService {
         'status must be active or revoked',
       );
     }
+    if (kind !== undefined && kind !== 'personal' && kind !== 'oauth')
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'kind must be personal or oauth',
+      );
     const where: Prisma.PersonalAccessTokenWhereInput = {
       ownerId: user.id,
       deletedAt: null,
+      ...(kind === 'personal'
+        ? { oauthClientId: null }
+        : kind === 'oauth'
+          ? { oauthClientId: { not: null } }
+          : {}),
       ...(status === 'active' ? { revokedAt: null } : {}),
       ...(status === 'revoked'
         ? { revokedAt: { not: null }, refreshTokens: { none: { rotatedAt: { not: null } } } }
@@ -92,6 +106,11 @@ export class TokensService {
           oauthClientId: true,
           expiresAt: true,
           oauthClient: { select: { name: true } },
+          refreshTokens: { select: { rotatedAt: true } },
+          activity: {
+            where: { entityType: 'oauth_token', action: 'deleted' },
+            select: { changes: true },
+          },
         },
       }),
       this.prisma.personalAccessToken.count({ where }),
@@ -103,6 +122,7 @@ export class TokensService {
     user: AuthUser,
     nameRaw: string,
     scopes: readonly string[],
+    expiresInDays?: number | null,
   ): Promise<TokenCreatedDto> {
     requireBrowserSession(user);
     const name = nameRaw.trim();
@@ -121,6 +141,12 @@ export class TokensService {
         'scopes must be a non-empty list of known scopes',
       );
     }
+    if (expiresInDays != null && ![30, 90, 365].includes(expiresInDays))
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'Invalid token lifetime',
+      );
     const issued = newPersonalAccessToken();
     try {
       const row = await this.prisma.$transaction(async (tx) => {
@@ -131,6 +157,8 @@ export class TokensService {
             tokenHash: issued.hash,
             tokenPrefix: issued.prefix,
             scopes: unique,
+            expiresAt:
+              expiresInDays == null ? null : new Date(Date.now() + expiresInDays * 86_400_000),
           },
         });
         const body = toToken(created);
@@ -236,6 +264,153 @@ export class TokensService {
     return { id: created.id, token: issued.token };
   }
 
+  async renewals(user: AuthUser) {
+    requireBrowserSession(user);
+    const groups = await this.prisma.oauthRefreshToken.groupBy({
+      by: ['clientId'],
+      where: { userId: user.id, rotatedAt: { not: null } },
+      _count: { _all: true },
+    });
+    const clients = await this.prisma.oauthClient.findMany({
+      where: { id: { in: groups.map((group) => group.clientId) } },
+      select: { id: true, name: true },
+    });
+    return {
+      items: groups.map((group) => ({
+        client_id: group.clientId,
+        client_name: clients.find((client) => client.id === group.clientId)?.name ?? '',
+        count: group._count._all,
+        revoked_reason: 'rotated',
+      })),
+    };
+  }
+
+  async grants(user: AuthUser) {
+    requireBrowserSession(user);
+    const now = new Date();
+    const [tokens, refresh] = await Promise.all([
+      this.prisma.personalAccessToken.findMany({
+        where: { ownerId: user.id, deletedAt: null, oauthClientId: { not: null } },
+        include: { oauthClient: { select: { name: true } } },
+      }),
+      this.prisma.oauthRefreshToken.findMany({
+        where: { userId: user.id },
+        select: {
+          clientId: true,
+          familyId: true,
+          revokedAt: true,
+          expiresAt: true,
+          rotatedAt: true,
+        },
+      }),
+    ]);
+    const ids = [
+      ...new Set(tokens.map((row) => row.oauthClientId).filter((id): id is string => id !== null)),
+    ];
+    return {
+      items: ids
+        .flatMap((id) => {
+          const rows = tokens.filter((row) => row.oauthClientId === id);
+          const live = rows.filter(
+            (row) => row.revokedAt === null && (row.expiresAt === null || row.expiresAt > now),
+          );
+          const families = new Set(
+            refresh
+              .filter((row) => row.clientId === id && row.revokedAt === null && row.expiresAt > now)
+              .map((row) => row.familyId),
+          );
+          if (live.length === 0 && families.size === 0) return [];
+          const used =
+            rows
+              .flatMap((row) => (row.lastUsedAt ? [row.lastUsedAt.toISOString()] : []))
+              .sort()
+              .at(-1) ?? null;
+          return [
+            {
+              client_id: id,
+              client_name: rows[0]?.oauthClient?.name ?? '',
+              authorized_at:
+                rows.map((row) => row.createdAt.toISOString()).sort()[0] ?? now.toISOString(),
+              last_used_at: used,
+              active_access_tokens: live.length,
+              active_refresh_families: families.size,
+              renewals: refresh.filter((row) => row.clientId === id && row.rotatedAt !== null)
+                .length,
+              scopes: [
+                ...new Set(
+                  [
+                    ...live,
+                    ...rows.filter(
+                      (row) =>
+                        refresh.some(
+                          (item) =>
+                            item.clientId === id && item.revokedAt === null && item.expiresAt > now,
+                        ) && row.revokedAt === null,
+                    ),
+                  ].flatMap((row) => row.scopes),
+                ),
+              ],
+            },
+          ];
+        })
+        .sort((a, b) => (b.last_used_at ?? '').localeCompare(a.last_used_at ?? '')),
+    };
+  }
+
+  async revokeGrant(user: AuthUser, clientId: string): Promise<void> {
+    requireBrowserSession(user);
+    await this.prisma.$transaction(async (tx) => {
+      await lockOauthGrant(tx, user.id, clientId);
+      const rows = await tx.personalAccessToken.findMany({
+        where: { ownerId: user.id, oauthClientId: clientId, deletedAt: null },
+        select: { id: true, revokedAt: true },
+      });
+      if (rows.length === 0)
+        throw new DomainException(HttpStatus.NOT_FOUND, 'not_found', 'Application was not found');
+      const now = new Date();
+      await tx.personalAccessToken.updateMany({
+        where: { ownerId: user.id, oauthClientId: clientId, revokedAt: null },
+        data: { revokedAt: now },
+      });
+      await tx.oauthRefreshToken.updateMany({
+        where: { userId: user.id, clientId, revokedAt: null },
+        data: { revokedAt: now },
+      });
+      for (const row of rows.filter((item) => item.revokedAt === null)) {
+        await this.audit.lifecycle(tx, { ownerId: user.id, tokenId: row.id, kind: 'revoked' });
+        await this.events.record(tx, actorOf(user), {
+          type: DomainEvent.tokenRevoked,
+          entityType: 'oauth_token',
+          entityId: row.id,
+          action: 'deleted',
+          data: { client_id: clientId },
+          previous: null,
+        });
+      }
+    });
+  }
+
+  async grantActivity(
+    user: AuthUser,
+    clientId: string,
+    limitRaw: unknown,
+    cursorRaw: string | undefined,
+  ): Promise<ActivityPageDto> {
+    requireBrowserSession(user);
+    const rows = await this.prisma.personalAccessToken.findMany({
+      where: { ownerId: user.id, oauthClientId: clientId },
+      select: { id: true },
+    });
+    if (rows.length === 0)
+      throw new DomainException(HttpStatus.NOT_FOUND, 'not_found', 'Application was not found');
+    return this.activityPage(
+      user.id,
+      rows.map((row) => row.id),
+      limitRaw,
+      cursorRaw,
+    );
+  }
+
   async activity(
     user: AuthUser,
     tokenId: string,
@@ -262,7 +437,7 @@ export class TokensService {
 
   private async activityPage(
     ownerId: string,
-    tokenId: string | null,
+    tokenId: string | readonly string[] | null,
     limitRaw: unknown,
     cursorRaw: string | undefined,
   ): Promise<ActivityPageDto> {
@@ -272,7 +447,9 @@ export class TokensService {
       where: {
         ownerId,
         deletedAt: null,
-        ...(tokenId === null ? {} : { tokenId }),
+        ...(tokenId === null
+          ? {}
+          : { tokenId: typeof tokenId === 'string' ? tokenId : { in: [...tokenId] } }),
         ...(cursor === null
           ? {}
           : {
@@ -299,6 +476,20 @@ export class TokensService {
 function toToken(row: TokenRow): TokenDto {
   return {
     id: row.id,
+    revoked_reason:
+      row.revokedAt === null
+        ? null
+        : row.activity?.some(
+              (item) =>
+                typeof item.changes === 'object' &&
+                item.changes !== null &&
+                !Array.isArray(item.changes) &&
+                item.changes.outcome === 'reused',
+            )
+          ? 'reuse'
+          : row.refreshTokens?.some((item) => item.rotatedAt !== null)
+            ? 'rotated'
+            : 'user',
     name: row.name,
     token_prefix: row.tokenPrefix,
     oauth_client_id: row.oauthClientId,

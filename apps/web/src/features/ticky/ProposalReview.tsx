@@ -1,8 +1,8 @@
+import { useMessages } from '../../i18n';
+import { useAppLocale } from '../../i18n/locale';
 import { runAction } from '../../components/run-action';
 import { actionBlocked, validateProposal, type ProposalBody } from '@reflexionia/domain';
 import { useEffect, useState } from 'react';
-import { useMessages } from '../../i18n';
-import { useAppLocale } from '../../i18n/locale';
 import { tickyApi } from './api';
 
 export function ProposalReview({
@@ -16,7 +16,7 @@ export function ProposalReview({
   const locale = useAppLocale();
   const [proposal, setProposal] = useState<ProposalBody | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
-  const [notice, setNotice] = useState(messages.tickyVerifyingProposal);
+  const [notice, setNotice] = useState(messages.tickyProposalChecking);
   const [busy, setBusy] = useState(false);
   const [applied, setApplied] = useState(false);
   useEffect(() => {
@@ -24,7 +24,6 @@ export function ProposalReview({
     setSelected([]);
     setApplied(false);
     setProposal(null);
-    setNotice(messages.tickyVerifyingProposal);
     runAction(
       (async () => {
         try {
@@ -38,7 +37,7 @@ export function ProposalReview({
           new Intl.DateTimeFormat(locale, { timeZone: candidate.timezone }).format(new Date());
           if (!active.signal.aborted) {
             setProposal(candidate);
-            setNotice(messages.tickySelectChanges);
+            setNotice(messages.tickyProposalSelect);
           }
         } catch {
           if (!active.signal.aborted) setNotice(messages.tickyProposalInvalid);
@@ -48,18 +47,18 @@ export function ProposalReview({
     return () => {
       active.abort();
     };
-  }, [locale, messages, value]);
+  }, [value, locale, messages]);
 
   async function approve() {
     if (proposal === null || busy || applied || selected.length === 0) return;
     setBusy(true);
-    setNotice(messages.tickyApplying);
+    setNotice(messages.tickyProposalApplying);
     try {
       await tickyApi.storeProposal(proposal);
       await tickyApi.approve(proposal.proposal_id, proposal.approval_digest ?? '', selected);
     } catch {
       // A failed response does not establish whether a domain effect happened.
-      setNotice(messages.tickyCheckingLedger);
+      setNotice(messages.tickyProposalLedger);
     } finally {
       const statuses = await Promise.all(
         selected.map(async (id) => {
@@ -74,8 +73,8 @@ export function ProposalReview({
         (status) => 'status' in status && status.status === 'applied',
       ).length;
       setNotice(
-        messages.tickyConfirmed
-          .replace('{done}', String(confirmed))
+        messages.tickyChangesConfirmed
+          .replace('{confirmed}', String(confirmed))
           .replace('{total}', String(selected.length)),
       );
       setApplied(true);
@@ -90,10 +89,8 @@ export function ProposalReview({
       {proposal === null ? null : (
         <>
           <p>
-            {messages.tickyExpires}:{' '}
-            {new Date(proposal.expires_at).toLocaleString(locale, {
-              timeZone: proposal.timezone,
-            })}{' '}
+            {messages.tickyExpires}{' '}
+            {new Date(proposal.expires_at).toLocaleString(locale, { timeZone: proposal.timezone })}{' '}
             ({proposal.timezone})
           </p>
           {proposal.items.map((item) => (
@@ -113,19 +110,19 @@ export function ProposalReview({
               <span>
                 {item.tool} · {messages.tickyVersion} {item.expected_version}
                 <br />
-                {messages.tickyBefore}: {JSON.stringify(item.before)}
+                {messages.tickyBefore} {JSON.stringify(item.before)}
                 <br />
-                {messages.tickyAfter}: {JSON.stringify(item.after)}
+                {messages.tickyAfter} {JSON.stringify(item.after)}
                 {actionBlocked(item) === null ? null : (
                   <>
                     <br />
-                    {messages.tickyNeedsReview}
+                    {messages.tickyAdditionalReview}
                   </>
                 )}
               </span>
             </label>
           ))}
-          {!executionEnabled ? <p>{messages.tickyExecOff}</p> : null}
+          {!executionEnabled ? <p>{messages.tickyExecutionOff}</p> : null}
           <button
             type="button"
             disabled={

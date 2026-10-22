@@ -170,7 +170,7 @@ export function TickyPage({ taskHint }: { readonly taskHint?: string }) {
       {flags.data.routines ? <TickyRoutines /> : null}
       <div className="ticky-actions">
         <label>
-          Conversación{' '}
+          {messages.tickyConversation}{' '}
           <select
             aria-label={messages.tickyConversation}
             value={threadId ?? ''}
@@ -185,7 +185,7 @@ export function TickyPage({ taskHint }: { readonly taskHint?: string }) {
             ) : null}
             {threads.data?.items.map((item, index) => (
               <option key={item.id} value={item.id}>
-                {messages.tickyConversationN.replace('{n}', String(index + 1))}
+                {messages.tickyConversation} {index + 1}
               </option>
             ))}
           </select>
@@ -202,12 +202,12 @@ export function TickyPage({ taskHint }: { readonly taskHint?: string }) {
                   setLog([
                     result.state === 'deleted'
                       ? messages.tickyConversationDeleted
-                      : messages.tickyDeletePending,
+                      : messages.tickyConversationDeletePending,
                   ]);
                   runAction(queryClient.invalidateQueries({ queryKey: ['ticky'] }));
                 })
                 .catch(() => {
-                  setLog([messages.tickyDeleteFailed]);
+                  setLog([messages.tickyConversationDeleteFailed]);
                 });
             }}
           >
@@ -321,7 +321,7 @@ export function TickyPage({ taskHint }: { readonly taskHint?: string }) {
                   });
               }}
             >
-              {messages.tickyCancelQuery}
+              {messages.tickyCancelRequest}
             </button>
           )}
         </div>

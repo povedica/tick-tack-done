@@ -487,7 +487,7 @@ Decisión de Pablo (sección 21): los hábitos entran en fase 1 con sus recordat
 ### 9.16 Estadísticas y logros — V2
 
 - RF-1601: Panel de productividad: completadas por periodo, focus acumulado, hábitos, tareas creadas vs completadas.
-- RF-1602: Puntuación de logros (niveles por consistencia). Opcional y desactivable.
+- RF-1602: Puntuación de logros (niveles por consistencia). Opcional y desactivable. La razón principal de pérdida de Control se expone como `topDeductionReason: {code, params}` (o `null`), con códigos `overdue`, `on_time`, `habits`, `focus` y `usage` y parámetros numéricos. La UI traduce el código en su idioma; `topDeduction` se mantiene como texto legado deprecado para compatibilidad.
 
 ### 9.17 Exportación y backup — MVP; importación aplazada
 
@@ -634,7 +634,7 @@ Recordatorios: `GET/POST/DELETE /api/v1/tasks/{id}/reminders[/{rid}]`, `POST /ap
 
 Hábitos: `GET/POST /api/v1/habits`, `GET/PATCH/DELETE /api/v1/habits/{id}`, `POST /api/v1/habits/{id}/checkins` ({date, count, note}), `GET /api/v1/habits/{id}/stats`.
 
-Focus: `POST /api/v1/focus/sessions` (start), `POST /api/v1/focus/sessions/{id}/finish | /abort`, `GET /api/v1/focus/sessions?from&to`, `GET /api/v1/focus/stats?period=`, `GET/PATCH /api/v1/focus/settings`.
+Focus: `POST /api/v1/focus/sessions` (start; `type=stopwatch` o duración por sesión `planned_minutes`), `POST /api/v1/focus/sessions/{id}/pause | /resume` (persisten pausas), `POST /api/v1/focus/sessions/{id}/finish | /abort`, `GET /api/v1/focus/sessions?from&to&cursor&limit` (título de tarea, pausas y cursor), `GET /api/v1/focus/stats?tz=` (zona IANA, por defecto cuenta; totales y resumen de hoy), `GET/PATCH /api/v1/focus/settings`.
 
 Notas: mismas rutas de tasks con `kind=note` + `GET /api/v1/notes` atajo filtrado.
 
@@ -656,7 +656,9 @@ OAuth2 Authorization Code + PKCE: `POST /api/v1/oauth/clients`, `GET /api/v1/oau
 
 Sync: `GET /api/v1/sync?since=<event_id>&limit=`.
 
-MCP (RF-2001): `POST /api/v1/mcp` (JSON-RPC, `application/json`; notificación → 202). `GET` y `DELETE /api/v1/mcp` → 405 hasta que exista SSE de servidor a cliente. Sin `Mcp-Session-Id` mientras no haya sesión. Tools en `MCP_TOOLS`, nunca con más privilegios que el PAT. Paginación con el `cursor` de la API v1.
+Preferencias de vista (TTD-AUD-59): `GET/PUT /api/v1/me/view-preferences/{key}`, por propietario, con scopes `profile:read/write`; cada cambio publica `account.view_preference_updated@v1`.
+
+MCP (RF-2001): `POST /api/v1/mcp` (JSON-RPC, `application/json`; notificación → 202). `GET` y `DELETE /api/v1/mcp` → 405 hasta que exista SSE de servidor a cliente. Sin `Mcp-Session-Id` mientras no haya sesión. Tools en `MCP_TOOLS`, nunca con más privilegios que el PAT. `api_catalog` descubre el contrato generado de OpenAPI; `api_request` permite las operaciones restantes a través de los mismos guards HTTP, incluido multipart con un archivo base64 de hasta 25 MB. Las operaciones que requieren sesión de navegador conservan esa restricción. Paginación con el `cursor` de la API v1.
 
 Rutas que esta entrega añade al resumen: `GET/PUT /api/v1/matrix/rules`; `POST /api/v1/calendar/subscriptions/{id}/refresh`; `POST /api/v1/calendar/subscriptions/{id}/push`; `GET /feeds/{token}.ics` (fuera de `/api/v1`); `GET/POST/PATCH/DELETE /api/v1/sticky-notes`; `POST /api/v1/tasks/{id}/convert`; `GET /api/v1/tasks/{id}/attachments/{attachmentId}/thumbnail`; `GET /api/v1/events/stream`; `GET/POST/DELETE /api/v1/webhooks` y `POST /api/v1/webhooks/{id}/ping`; `GET/POST /api/v1/automations` y `POST /api/v1/automations/{id}/run`; `GET/POST/DELETE /api/v1/projects/{id}/members`, `POST /api/v1/projects/{id}/presence`, `GET /api/v1/projects/{id}/activity`, `GET/POST /api/v1/tasks/{id}/comments`, `POST /api/v1/tasks/{id}/assignee`; `GET/POST/DELETE /api/v1/plugins`; `POST /api/v1/me/totp`, `POST /api/v1/me/totp/confirm`, `POST /api/v1/me/totp/disable`; `POST /api/v1/me/location`; `GET/PATCH /api/v1/me/achievements`; `GET /api/v1/integrations/telegram`, `POST /api/v1/integrations/telegram/link`, `POST /api/v1/integrations/telegram/webhook`; `GET /api/v1/integrations/drive`, `POST /api/v1/integrations/drive/attachments`. `/open/v1` queda descrito en 10.4 y no lleva el prefijo `/api/v1`.
 
@@ -683,7 +685,8 @@ column.created column.updated column.deleted
 tag.created tag.updated tag.deleted tag.merged
 habit.created habit.updated habit.deleted habit.checkin habit.streak_broken habit.goal_met
 filter.created filter.updated filter.deleted smart_list.updated token.created token.revoked session.created session.revoked account.deleted account.password_changed oauth.token_issued oauth.token_refreshed
-focus.session_started focus.session_finished focus.session_aborted
+focus.session_started focus.session_finished focus.session_aborted focus.session_paused focus.session_resumed focus.settings_updated
+account.view_preference_updated
 reminder.fired
 note.created note.updated
 calendar.event_imported calendar.subscribed calendar.feed_rotated

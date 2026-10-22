@@ -2,7 +2,7 @@ import { runAction } from '../../components/run-action';
 import { type CreateTaskBody, type TaskDetail as Detail } from '@reflexionia/sdk';
 import { describeRepeatRule, parseTrigger } from '@reflexionia/domain';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, CalendarDays, Clock, Flag, Repeat } from 'lucide-react';
+import { CalendarDays, Clock, Flag, Repeat } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { api } from '../../api';
@@ -265,14 +265,6 @@ export function TaskDetail({
 
   return (
     <aside className="detail-panel" aria-label={messages.taskTitle}>
-      <button
-        type="button"
-        className="icon-button detail-back"
-        aria-label={messages.close}
-        onClick={onClose}
-      >
-        <ArrowLeft size={20} aria-hidden="true" />
-      </button>
       <DetailHeader
         taskId={task.id}
         title={task.title}

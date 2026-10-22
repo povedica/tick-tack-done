@@ -1,8 +1,9 @@
+import { useMessages, type Messages } from '../../i18n';
+import { useAppLocale } from '../../i18n/locale';
 import { runAction } from '../../components/run-action';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type SyntheticEvent } from 'react';
-import { useMessages } from '../../i18n';
-import { tickyApi, type TickyRoutine, type TickyRoutineDraft } from './api';
+import { tickyApi, TickyApiError, type TickyRoutine, type TickyRoutineDraft } from './api';
 
 function emptyDraft(): TickyRoutineDraft {
   return {
@@ -18,8 +19,30 @@ function hourValue(value: string): string {
   return value.slice(0, 5);
 }
 
+function nextRun(value: string | null, messages: Messages, locale: string): string {
+  if (value === null) return messages.tickyNoNextRun;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return messages.tickySchedulePending;
+  return new Intl.DateTimeFormat(locale, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
+}
+
+function issueText(issue: TickyRoutine['schedule_issue'], messages: Messages): string | null {
+  if (issue === 'ambiguous_local_time') return messages.tickyAmbiguousTime;
+  if (issue === 'nonexistent_local_time') return messages.tickyNonexistentTime;
+  return null;
+}
+
 export function TickyRoutines() {
   const messages = useMessages();
+  const locale = useAppLocale();
+  const weekdays = Array.from({ length: 7 }, (_, i) =>
+    new Intl.DateTimeFormat(locale, { weekday: 'long', timeZone: 'UTC' }).format(
+      new Date(Date.UTC(2026, 0, 5 + i)),
+    ),
+  );
   const queryClient = useQueryClient();
   const routines = useQuery({ queryKey: ['ticky', 'routines'], queryFn: tickyApi.routines });
   const authority = useQuery({ queryKey: ['ticky', 'authority'], queryFn: tickyApi.authority });
@@ -27,15 +50,6 @@ export function TickyRoutines() {
   const [editing, setEditing] = useState<TickyRoutine | null>(null);
   const [notice, setNotice] = useState('');
   const canWrite = authority.data?.action_scopes.includes('ticky:routines:write') === true;
-  const weekdays = [
-    messages.tickyWeekMon,
-    messages.tickyWeekTue,
-    messages.tickyWeekWed,
-    messages.tickyWeekThu,
-    messages.tickyWeekFri,
-    messages.tickyWeekSat,
-    messages.tickyWeekSun,
-  ];
   const finish = () => {
     setEditing(null);
     setDraft(emptyDraft());
@@ -60,7 +74,7 @@ export function TickyRoutines() {
     onSuccess: finish,
     onError: (error: Error) => {
       setNotice(
-        error.message.includes('409') || error.message.includes('cambió')
+        error instanceof TickyApiError && error.status === 409
           ? messages.tickyRoutineConflict
           : error.message,
       );
@@ -70,7 +84,7 @@ export function TickyRoutines() {
   const pause = useMutation({
     mutationFn: tickyApi.pauseRoutine,
     onSuccess: () => {
-      setNotice(messages.tickyRoutinePausedNotice);
+      setNotice(messages.tickyRoutinePaused);
       runAction(queryClient.invalidateQueries({ queryKey: ['ticky', 'routines'] }));
     },
     onError: (error: Error) => {
@@ -78,22 +92,6 @@ export function TickyRoutines() {
     },
   });
   const saving = create.isPending || update.isPending || pause.isPending;
-
-  function nextRun(value: string | null): string {
-    if (value === null) return messages.tickyNextRunNone;
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return messages.tickyNextRunPending;
-    return new Intl.DateTimeFormat(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    }).format(date);
-  }
-
-  function issueText(issue: TickyRoutine['schedule_issue']): string | null {
-    if (issue === 'ambiguous_local_time') return messages.tickyIssueAmbiguous;
-    if (issue === 'nonexistent_local_time') return messages.tickyIssueMissing;
-    return null;
-  }
 
   function editRoutine(routine: TickyRoutine) {
     setEditing(routine);
@@ -125,7 +123,7 @@ export function TickyRoutines() {
 
   return (
     <section className="ticky-routines" aria-labelledby="ticky-routines-title">
-      <h2 id="ticky-routines-title">{messages.tickyRoutinesTitle}</h2>
+      <h2 id="ticky-routines-title">{messages.tickyRoutines}</h2>
       <p>{messages.tickyRoutinesHint}</p>
       {routines.isPending || authority.isPending ? <p>{messages.tickyRoutinesLoading}</p> : null}
       {routines.isError || authority.isError ? (
@@ -134,25 +132,33 @@ export function TickyRoutines() {
       {routines.data?.items.length === 0 ? <p>{messages.tickyRoutinesEmpty}</p> : null}
       <ul className="ticky-routine-list">
         {routines.data?.items.map((routine) => {
-          const issue = issueText(routine.schedule_issue);
+          const issue = issueText(routine.schedule_issue, messages);
           return (
             <li key={routine.id} className="ticky-routine">
               <div>
                 <strong>
                   {routine.kind === 'daily_plan'
-                    ? messages.tickyRoutineDaily
-                    : messages.tickyRoutineWeekly}
+                    ? messages.tickyDailyPlan
+                    : messages.tickyWeeklyReview}
                   {routine.kind === 'weekly_review' && routine.weekday !== null
                     ? ` · ${weekdays[routine.weekday] ?? ''}`
                     : ''}
                 </strong>
                 <p>
-                  {hourValue(routine.local_hour)} · {routine.timezone} · {routine.window_minutes}{' '}
-                  min
+                  {hourValue(routine.local_hour)} · {routine.timezone} · {messages.tickyWindow}{' '}
+                  {messages.tickyMinutes.replace('{name}', String(routine.window_minutes))}
                 </p>
-                <p>{routine.enabled ? nextRun(routine.next_at) : messages.tickyRoutinePaused}</p>
-                {issue === null ? null : <p role="alert">{issue}</p>}
-                {routine.shadow ? <small>{messages.tickyRoutineShadow}</small> : null}
+                <p>
+                  {routine.enabled
+                    ? nextRun(routine.next_at, messages, locale)
+                    : messages.tickyPaused}
+                </p>
+                {issue === null ? null : (
+                  <p role="alert">
+                    {issue} {messages.tickyEditTime}
+                  </p>
+                )}
+                {routine.shadow ? <small>{messages.tickyShadowMode}</small> : null}
               </div>
               {canWrite ? (
                 <div className="ticky-actions">
@@ -163,7 +169,7 @@ export function TickyRoutines() {
                       editRoutine(routine);
                     }}
                   >
-                    {messages.tickyRoutineEdit}
+                    {messages.tickyEdit}
                   </button>
                   {routine.enabled ? (
                     <button
@@ -173,7 +179,7 @@ export function TickyRoutines() {
                         pause.mutate(routine.id);
                       }}
                     >
-                      {messages.tickyRoutinePause}
+                      {messages.tickyPauseRoutine}
                     </button>
                   ) : null}
                 </div>
@@ -184,9 +190,9 @@ export function TickyRoutines() {
       </ul>
       {canWrite ? (
         <form className="ticky-routine-form" onSubmit={submit}>
-          <h3>{editing === null ? messages.tickyRoutineCreate : messages.tickyRoutineEditTitle}</h3>
+          <h3>{editing === null ? messages.tickyCreateRoutine : messages.tickyEditRoutine}</h3>
           <label>
-            {messages.tickyRoutineType}{' '}
+            {messages.tickyType}{' '}
             <select
               value={draft.kind}
               disabled={saving}
@@ -197,13 +203,13 @@ export function TickyRoutines() {
                 }));
               }}
             >
-              <option value="daily_plan">{messages.tickyRoutineDaily}</option>
-              <option value="weekly_review">{messages.tickyRoutineWeekly}</option>
+              <option value="daily_plan">{messages.tickyDailyPlan}</option>
+              <option value="weekly_review">{messages.tickyWeeklyReview}</option>
             </select>
           </label>
           {draft.kind === 'weekly_review' ? (
             <label>
-              {messages.tickyRoutineDay}{' '}
+              {messages.tickyDay}{' '}
               <select
                 value={draft.weekday ?? 0}
                 disabled={saving}
@@ -220,7 +226,7 @@ export function TickyRoutines() {
             </label>
           ) : null}
           <label>
-            {messages.tickyLocalHour}{' '}
+            {messages.tickyLocalTime}{' '}
             <input
               type="time"
               required
@@ -245,7 +251,7 @@ export function TickyRoutines() {
             />
           </label>
           <label>
-            {messages.tickyWindowMinutes}{' '}
+            {messages.tickyPrepareWindow}{' '}
             <input
               type="number"
               required
@@ -267,11 +273,11 @@ export function TickyRoutines() {
                 setDraft((value) => ({ ...value, enabled: event.target.checked }));
               }}
             />
-            {messages.tickyAutoShadow}
+            {messages.tickyAutoPrepare}
           </label>
           <div className="ticky-actions">
             <button type="submit" disabled={saving || draft.timezone.trim().length === 0}>
-              {messages.repeatSave}
+              {messages.tickySave}
             </button>
             {editing !== null ? (
               <button

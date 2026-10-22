@@ -4,6 +4,7 @@ import { useMessages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
 import type { Countdown, CountdownDraft, CountdownType, RepeatRule } from './api';
 import { TYPE_LABEL } from './presentation';
+import { formatCountdownDay, parseCountdownDay } from './civil-date';
 
 const REMINDER_OFFSETS = [0, 1, 2, 3, 7] as const;
 const COLORS = [
@@ -50,10 +51,12 @@ export function CountdownDialog({
   readonly onClose: () => void;
   readonly onSave: (draft: CountdownDraft) => void;
 }) {
-  const messages = useMessages();
   const locale = useAppLocale();
-  const dateLang = locale.toLowerCase().startsWith('en') ? 'en-GB' : 'es-ES';
+  const messages = useMessages();
   const [draft, setDraft] = useState(() => draftFor(type, countdown));
+  const [dateText, setDateText] = useState(() =>
+    formatCountdownDay(countdown?.targetDate.slice(0, 10) ?? '', locale),
+  );
   const [customDays, setCustomDays] = useState('');
   const offsetDays = new Set(
     draft.reminders.filter((item) => !item.constant).map((item) => item.offsetDays),
@@ -157,12 +160,19 @@ export function CountdownDialog({
         <label>
           {messages.countdownDateField}
           <input
-            type="date"
-            lang={dateLang}
-            value={draft.targetDate}
+            type="text"
+            placeholder={messages.countdownDatePlaceholder}
+            value={dateText}
             required
+            aria-invalid={dateText.length > 0 && draft.targetDate.length === 0}
             onChange={(event) => {
-              setDraft({ ...draft, targetDate: event.target.value });
+              const text = event.target.value;
+              const iso = parseCountdownDay(text, locale);
+              event.target.setCustomValidity(
+                iso === null && text.length > 0 ? messages.countdownInvalidDate : '',
+              );
+              setDateText(text);
+              setDraft({ ...draft, targetDate: iso ?? '' });
             }}
           />
         </label>

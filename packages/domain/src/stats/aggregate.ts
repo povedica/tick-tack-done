@@ -470,7 +470,7 @@ export function productiveStreak(
 export function focusMinutesTotal(sessions: readonly StatsFocusRow[]): number {
   let seconds = 0;
   for (const session of sessions) {
-    if (session.type === 'focus') {
+    if (session.type === 'focus' || session.type === 'stopwatch') {
       seconds += session.actualSeconds;
     }
   }

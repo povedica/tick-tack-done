@@ -366,6 +366,218 @@
         ]
       }
     },
+    "/api/v1/me/view-preferences/{key}": {
+      "get": {
+        "operationId": "ViewPreferencesController_get",
+        "parameters": [
+          {
+            "name": "key",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Read view preferences for the current account (TTD-AUD-59)",
+        "tags": [
+          "me"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "ViewPreferencesController_put",
+        "parameters": [
+          {
+            "name": "key",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ViewPreferenceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Persist view preferences across devices (TTD-AUD-59)",
+        "tags": [
+          "me"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/me/oauth/renewals": {
+      "get": {
+        "operationId": "TokensController_renewals",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Count automatic OAuth renewals by application (RF-2002)",
+        "tags": [
+          "me"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/me/oauth/grants": {
+      "get": {
+        "operationId": "TokensController_grants",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OauthGrantPageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List connected OAuth applications (RF-2002)",
+        "tags": [
+          "me"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/me/oauth/grants/{clientId}/revoke": {
+      "post": {
+        "operationId": "TokensController_revokeGrant",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "clientId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Revoke all access and refresh tokens for an application (RF-2002)",
+        "tags": [
+          "me"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/me/oauth/grants/{clientId}/activity": {
+      "get": {
+        "operationId": "TokensController_grantActivity",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "clientId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityPageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Read application activity across OAuth renewals (RF-2002)",
+        "tags": [
+          "me"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/me/tokens": {
       "get": {
         "operationId": "TokensController_list",
@@ -387,6 +599,18 @@
               "enum": [
                 "active",
                 "revoked"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "kind",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "personal",
+                "oauth"
               ],
               "type": "string"
             }
@@ -7299,6 +7523,35 @@
                             },
                             "topDeduction": {
                               "type": "string",
+                              "nullable": true,
+                              "deprecated": true,
+                              "description": "Legacy Spanish text. Use topDeductionReason for localized presentation."
+                            },
+                            "topDeductionReason": {
+                              "type": "object",
+                              "properties": {
+                                "code": {
+                                  "type": "string",
+                                  "enum": [
+                                    "overdue",
+                                    "on_time",
+                                    "habits",
+                                    "focus",
+                                    "usage"
+                                  ]
+                                },
+                                "params": {
+                                  "type": "object",
+                                  "additionalProperties": {
+                                    "type": "number"
+                                  },
+                                  "description": "overdue: count, oldCount, points; other codes: actual, target."
+                                }
+                              },
+                              "required": [
+                                "code",
+                                "params"
+                              ],
                               "nullable": true
                             },
                             "history": {
@@ -7328,6 +7581,7 @@
                             "label",
                             "components",
                             "topDeduction",
+                            "topDeductionReason",
                             "history"
                           ]
                         }
@@ -8959,6 +9213,35 @@
                     },
                     "topDeduction": {
                       "type": "string",
+                      "nullable": true,
+                      "deprecated": true,
+                      "description": "Legacy Spanish text. Use topDeductionReason for localized presentation."
+                    },
+                    "topDeductionReason": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "overdue",
+                            "on_time",
+                            "habits",
+                            "focus",
+                            "usage"
+                          ]
+                        },
+                        "params": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "number"
+                          },
+                          "description": "overdue: count, oldCount, points; other codes: actual, target."
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "params"
+                      ],
                       "nullable": true
                     },
                     "history": {
@@ -8988,6 +9271,7 @@
                     "label",
                     "components",
                     "topDeduction",
+                    "topDeductionReason",
                     "history"
                   ]
                 }
@@ -9378,6 +9662,35 @@
                                 },
                                 "topDeduction": {
                                   "type": "string",
+                                  "nullable": true,
+                                  "deprecated": true,
+                                  "description": "Legacy Spanish text. Use topDeductionReason for localized presentation."
+                                },
+                                "topDeductionReason": {
+                                  "type": "object",
+                                  "properties": {
+                                    "code": {
+                                      "type": "string",
+                                      "enum": [
+                                        "overdue",
+                                        "on_time",
+                                        "habits",
+                                        "focus",
+                                        "usage"
+                                      ]
+                                    },
+                                    "params": {
+                                      "type": "object",
+                                      "additionalProperties": {
+                                        "type": "number"
+                                      },
+                                      "description": "overdue: count, oldCount, points; other codes: actual, target."
+                                    }
+                                  },
+                                  "required": [
+                                    "code",
+                                    "params"
+                                  ],
                                   "nullable": true
                                 },
                                 "history": {
@@ -9407,6 +9720,7 @@
                                 "label",
                                 "components",
                                 "topDeduction",
+                                "topDeductionReason",
                                 "history"
                               ]
                             }
@@ -11042,6 +11356,64 @@
         ]
       }
     },
+    "/api/v1/focus/sessions/{id}/pause": {
+      "post": {
+        "operationId": "FocusController_pause",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Pause a running focus session (RF-1205)",
+        "tags": [
+          "focus"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/focus/sessions/{id}/resume": {
+      "post": {
+        "operationId": "FocusController_resume",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Resume a paused focus session (RF-1205)",
+        "tags": [
+          "focus"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/focus/stats": {
       "get": {
         "operationId": "FocusController_stats",
@@ -12021,7 +12393,271 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "score": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 100,
+                      "nullable": true
+                    },
+                    "label": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "components": {
+                      "type": "object",
+                      "properties": {
+                        "tasks": {
+                          "type": "object",
+                          "properties": {
+                            "earned": {
+                              "type": "number"
+                            },
+                            "max": {
+                              "type": "number"
+                            },
+                            "configured": {
+                              "type": "boolean"
+                            },
+                            "cumplimiento": {
+                              "type": "object",
+                              "properties": {
+                                "earned": {
+                                  "type": "number"
+                                },
+                                "max": {
+                                  "type": "number"
+                                },
+                                "onTime": {
+                                  "type": "integer"
+                                },
+                                "planned": {
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "earned",
+                                "max",
+                                "onTime",
+                                "planned"
+                              ]
+                            },
+                            "atrasadas": {
+                              "type": "object",
+                              "properties": {
+                                "earned": {
+                                  "type": "number"
+                                },
+                                "max": {
+                                  "type": "number"
+                                },
+                                "open": {
+                                  "type": "integer"
+                                },
+                                "penalty": {
+                                  "type": "number"
+                                },
+                                "byAge": {
+                                  "type": "object",
+                                  "properties": {
+                                    "under7": {
+                                      "type": "integer"
+                                    },
+                                    "d8to30": {
+                                      "type": "integer"
+                                    },
+                                    "over30": {
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "required": [
+                                    "under7",
+                                    "d8to30",
+                                    "over30"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "earned",
+                                "max",
+                                "open",
+                                "penalty",
+                                "byAge"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "earned",
+                            "max",
+                            "configured",
+                            "cumplimiento",
+                            "atrasadas"
+                          ]
+                        },
+                        "habits": {
+                          "type": "object",
+                          "properties": {
+                            "earned": {
+                              "type": "number"
+                            },
+                            "max": {
+                              "type": "number"
+                            },
+                            "configured": {
+                              "type": "boolean"
+                            },
+                            "done": {
+                              "type": "integer"
+                            },
+                            "expected": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "earned",
+                            "max",
+                            "configured",
+                            "done",
+                            "expected"
+                          ]
+                        },
+                        "focus": {
+                          "type": "object",
+                          "properties": {
+                            "earned": {
+                              "type": "number"
+                            },
+                            "max": {
+                              "type": "number"
+                            },
+                            "configured": {
+                              "type": "boolean"
+                            },
+                            "pomodoros": {
+                              "type": "integer"
+                            },
+                            "target": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "earned",
+                            "max",
+                            "configured",
+                            "pomodoros",
+                            "target"
+                          ]
+                        },
+                        "usage": {
+                          "type": "object",
+                          "properties": {
+                            "earned": {
+                              "type": "number"
+                            },
+                            "max": {
+                              "type": "number"
+                            },
+                            "configured": {
+                              "type": "boolean"
+                            },
+                            "days": {
+                              "type": "integer"
+                            },
+                            "windowDays": {
+                              "type": "integer"
+                            }
+                          },
+                          "required": [
+                            "earned",
+                            "max",
+                            "configured",
+                            "days",
+                            "windowDays"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "tasks",
+                        "habits",
+                        "focus",
+                        "usage"
+                      ],
+                      "nullable": true
+                    },
+                    "topDeduction": {
+                      "type": "string",
+                      "nullable": true,
+                      "deprecated": true,
+                      "description": "Legacy Spanish text. Use topDeductionReason for localized presentation."
+                    },
+                    "topDeductionReason": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "overdue",
+                            "on_time",
+                            "habits",
+                            "focus",
+                            "usage"
+                          ]
+                        },
+                        "params": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "number"
+                          },
+                          "description": "overdue: count, oldCount, points; other codes: actual, target."
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "params"
+                      ],
+                      "nullable": true
+                    },
+                    "history": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "date": {
+                            "type": "string",
+                            "format": "date"
+                          },
+                          "score": {
+                            "type": "number",
+                            "nullable": true
+                          }
+                        },
+                        "required": [
+                          "date",
+                          "score"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "enabled",
+                    "score",
+                    "label",
+                    "components",
+                    "topDeduction",
+                    "topDeductionReason",
+                    "history"
+                  ]
+                }
+              }
+            }
           }
         },
         "summary": "Achievement score shared with Estadísticas (RF-1602 / RF-2321). Off means null.",
@@ -12694,9 +13330,200 @@
           "auth"
         ]
       },
+      "ViewPreferenceDto": {
+        "type": "object",
+        "properties": {
+          "view": {
+            "type": "string",
+            "enum": [
+              "list",
+              "kanban",
+              "timeline",
+              "matrix"
+            ]
+          },
+          "group": {
+            "type": "string",
+            "enum": [
+              "none",
+              "section",
+              "date",
+              "tag",
+              "priority",
+              "due",
+              "list"
+            ]
+          },
+          "sort": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "date",
+              "priority",
+              "title",
+              "created",
+              "due"
+            ]
+          },
+          "order": {
+            "type": "string",
+            "enum": [
+              "asc",
+              "desc"
+            ]
+          },
+          "showDetails": {
+            "type": "boolean"
+          },
+          "hideCompleted": {
+            "type": "boolean"
+          },
+          "detailLayout": {
+            "type": "string",
+            "enum": [
+              "side",
+              "popup"
+            ]
+          },
+          "syncAcrossDevices": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "view",
+          "group",
+          "sort",
+          "order",
+          "showDetails",
+          "hideCompleted",
+          "detailLayout",
+          "syncAcrossDevices"
+        ]
+      },
+      "OauthGrantDto": {
+        "type": "object",
+        "properties": {
+          "client_id": {
+            "type": "string"
+          },
+          "client_name": {
+            "type": "string"
+          },
+          "authorized_at": {
+            "type": "string"
+          },
+          "last_used_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "active_access_tokens": {
+            "type": "number"
+          },
+          "active_refresh_families": {
+            "type": "number"
+          },
+          "renewals": {
+            "type": "number"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "client_id",
+          "client_name",
+          "authorized_at",
+          "last_used_at",
+          "active_access_tokens",
+          "active_refresh_families",
+          "renewals",
+          "scopes"
+        ]
+      },
+      "OauthGrantPageDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OauthGrantDto"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "ActivityEntryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "entity_type": {
+            "type": "string"
+          },
+          "entity_id": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "changes": {
+            "type": "object"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "token_id": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "entity_type",
+          "entity_id",
+          "action",
+          "changes",
+          "created_at",
+          "token_id"
+        ]
+      },
+      "ActivityPageDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActivityEntryDto"
+            }
+          },
+          "next_cursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ]
+      },
       "TokenDto": {
         "type": "object",
         "properties": {
+          "revoked_reason": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "user",
+              "rotated",
+              "reuse"
+            ]
+          },
           "id": {
             "type": "string"
           },
@@ -12777,6 +13604,15 @@
       "CreateTokenDto": {
         "type": "object",
         "properties": {
+          "expires_in_days": {
+            "type": "number",
+            "nullable": true,
+            "enum": [
+              30,
+              90,
+              365
+            ]
+          },
           "name": {
             "type": "string",
             "minLength": 1,
@@ -12836,6 +13672,15 @@
       "TokenCreatedDto": {
         "type": "object",
         "properties": {
+          "revoked_reason": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "user",
+              "rotated",
+              "reuse"
+            ]
+          },
           "id": {
             "type": "string"
           },
@@ -12892,61 +13737,6 @@
           "revoked_at",
           "client_name",
           "token"
-        ]
-      },
-      "ActivityEntryDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "entity_type": {
-            "type": "string"
-          },
-          "entity_id": {
-            "type": "string"
-          },
-          "action": {
-            "type": "string"
-          },
-          "changes": {
-            "type": "object"
-          },
-          "created_at": {
-            "type": "string"
-          },
-          "token_id": {
-            "type": "string",
-            "nullable": true
-          }
-        },
-        "required": [
-          "id",
-          "entity_type",
-          "entity_id",
-          "action",
-          "changes",
-          "created_at",
-          "token_id"
-        ]
-      },
-      "ActivityPageDto": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ActivityEntryDto"
-            }
-          },
-          "next_cursor": {
-            "type": "string",
-            "nullable": true
-          }
-        },
-        "required": [
-          "items",
-          "next_cursor"
         ]
       },
       "RegistrationStatusDto": {
@@ -16806,12 +17596,18 @@
       "StartDto": {
         "type": "object",
         "properties": {
+          "planned_minutes": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 180
+          },
           "type": {
             "type": "string",
             "enum": [
               "focus",
               "short_break",
-              "long_break"
+              "long_break",
+              "stopwatch"
             ]
           },
           "task_id": {
