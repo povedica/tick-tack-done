@@ -10,6 +10,7 @@ const screens = [
   { id: 90, name: 'fecha-detalle', route: '/today?task=task', date: true },
   { id: 84, name: 'foco', route: '/focus' },
   { id: 101, name: 'foco', route: '/focus' },
+  { id: 101, name: 'ajustes-foco', route: phase === 'antes' ? '/settings' : '/settings/focus' },
   { id: 81, name: 'ancla-repeticion', route: '/today?task=task' },
   { id: 87, name: 'calendario-dia', route: '/calendar/day?date=2026-10-22' },
   { id: 88, name: 'calendario-dos-semanas', route: '/calendar/two-weeks?date=2026-10-22' },
@@ -33,6 +34,7 @@ for (const screen of screens)
     await expect(page.locator('.center').first()).toBeVisible();
     const theme = info.project.name.endsWith('dark') ? 'dark' : 'light';
     await page.evaluate((theme) => (document.documentElement.dataset.theme = theme), theme);
+    if (screen.id === 101 && screen.name === 'foco' && phase === 'despues') await page.getByRole('button', {name: 'Editar duración'}).click();
     if (screen.composer) {
       await page.keyboard.press('n');
       await expect(page.locator('.calendar-quick-add').first()).toBeVisible();

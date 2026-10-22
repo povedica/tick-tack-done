@@ -172,6 +172,25 @@ describe('MCP server', () => {
     expect(await prisma.project.count({ where: { ownerId: owner.id } })).toBe(projects);
   });
 
+  it('TTD-AUD-101: MCP settings validate and finish atomically starts an opted-in break', async () => {
+    const token = await request(server).post('/api/v1/me/tokens').set('X-Dev-User-Email',owner.email).send({name:'Synthetic focus settings',scopes:['focus:read','focus:write']}).expect(201);
+    const headers={Authorization:`Bearer ${String(token.body.token)}`};
+    const changed=await rpc(server,headers,'tools/call',{name:'update_focus_settings',arguments:{pomodoro_minutes:45,auto_start_breaks:true,short_break_minutes:5,daily_goal:8,volume:70}});
+    expect(changed.body.result.isError).toBe(false);
+    const state=await rpc(server,headers,'tools/call',{name:'get_focus_state',arguments:{}});
+    expect(JSON.parse(toolText(state.body as unknown)).settings).toMatchObject({pomodoroMinutes:45,autoStartBreaks:true,dailyGoal:8});
+    await request(server).put('/api/v1/focus/settings').set(headers).send({pomodoro_minutes:200}).expect(400);
+    const session=await request(server).post('/api/v1/focus/sessions').set(headers).send({planned_minutes:1}).expect(201);
+    await prisma.focusSession.update({where:{id:String(session.body.id)},data:{startedAt:new Date(Date.now()-60000)}});
+    const started=performance.now();
+    await request(server).post(`/api/v1/focus/sessions/${String(session.body.id)}/finish`).set(headers).send({}).expect(200);
+    const active=await prisma.focusSession.findMany({where:{ownerId:owner.id,endedAt:null,type:'short_break'}});
+    expect(active).toHaveLength(1);expect(performance.now()-started).toBeLessThan(1000);
+    await request(server).post(`/api/v1/focus/sessions/${String(session.body.id)}/finish`).set(headers).send({}).expect(404);
+    await request(server).post(`/api/v1/focus/sessions/${String(active[0]?.id)}/abort`).set(headers).expect(200);
+    await request(server).put('/api/v1/focus/settings').set(headers).send({auto_start_breaks:false}).expect(200);
+  });
+
   it('TTD-AUD-100: automatic links reconcile and MCP manual links survive text edits', async () => {
     const bearer = await tasksBearer(server, owner.email);
     const call = async (name: string, args: Record<string, unknown>) => {

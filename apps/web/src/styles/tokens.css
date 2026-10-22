@@ -1,4 +1,8 @@
 :root {
+  --focus-preset-h: 28px;
+  --focus-duration-w: 64px;
+  --focus-control-w: 140px;
+  --focus-settings-w: 640px;
   --google-confirm-width: 30rem;
   --calendar-mini-border-w: 1px;
   --calendar-mobile-mini-h: calc(var(--calendar-mobile-mini-head-h) + 6 * var(--tap) + 2 * var(--sp-1) + var(--calendar-mini-border-w));
@@ -226,6 +230,10 @@
 }
 
 [data-theme='dark'] {
+  --focus-preset-h: 28px;
+  --focus-duration-w: 64px;
+  --focus-control-w: 140px;
+  --focus-settings-w: 640px;
   --calendar-mobile-header-h: 3.25rem;
   --calendar-day-number-size: 2rem;
   --calendar-hour-gutter-width: 3rem;

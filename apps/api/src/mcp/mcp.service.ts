@@ -854,6 +854,8 @@ export class McpService {
           },
           authorization,
         );
+      case 'update_focus_settings':
+        return this.focusApi({method:'PUT',path:'/api/v1/focus/settings',body:args},authorization);
       case 'get_focus_state':
         return this.focusApi({ method: 'GET', path: '/api/v1/focus/state' }, authorization);
       case 'pause_focus':

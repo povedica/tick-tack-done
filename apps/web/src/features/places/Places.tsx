@@ -2569,7 +2569,7 @@ const SETTINGS_GROUPS = [
   ],
   [
     'groupWork',
-    ['/settings/capture', '/settings/notifications', '/settings/smart-lists', '/settings/calendar'],
+    ['/settings/capture', '/settings/focus', '/settings/notifications', '/settings/smart-lists', '/settings/calendar'],
   ],
   [
     'groupAdvanced',
@@ -2593,6 +2593,7 @@ function settingsLabel(messages: Messages, path: string): string {
     '/settings/features': messages.settingsFeatures,
     '/settings/appearance': messages.appearanceTitle,
     '/settings/capture': messages.settingsCapture,
+    '/settings/focus': messages.focusSettingsTitle,
     '/settings/notifications': messages.settingsNotifications,
     '/settings/smart-lists': messages.settingsSmart,
     '/settings/calendar': messages.settingsCalendar,

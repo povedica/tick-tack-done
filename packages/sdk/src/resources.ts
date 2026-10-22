@@ -642,7 +642,7 @@ export function resourceMethods(http: Http): ResourceClient {
     getFocusSettings: () =>
       ask('GET', '/api/v1/focus/settings', undefined, undefined, isJsonObject),
     updateFocusSettings: (body) =>
-      ask('PATCH', '/api/v1/focus/settings', body, undefined, isJsonObject),
+      ask('PUT', '/api/v1/focus/settings', body, undefined, isJsonObject),
     listNotes: () => ask('GET', '/api/v1/notes', undefined, undefined, isJsonObject),
     listStickies: () => ask('GET', '/api/v1/sticky-notes', undefined, undefined, isJsonObject),
     createSticky: (text) => ask('POST', '/api/v1/sticky-notes', { text }, undefined, isJsonObject),

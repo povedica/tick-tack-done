@@ -1,3 +1,4 @@
+import { playFocusSound } from '../features/focus/sounds';
 import { useMessages } from '../i18n';
 import { focusElapsedSeconds } from '@reflexionia/domain';
 import { runAction } from '../components/run-action';
@@ -6,6 +7,8 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 
 export interface ActiveFocus {
+  readonly type: string;
+  readonly paused: boolean;
   readonly id: string;
   readonly taskId: string | null;
   readonly remaining: number;
@@ -16,14 +19,23 @@ export interface ActiveFocus {
 export function useActiveFocus(): ActiveFocus | null {
   const sessions = useQuery({
     queryKey: ['focus-sessions'],
-    queryFn: () => api.listFocusSessions('active'),
+    queryFn: () => api.listFocusSessions(),
     refetchInterval: 1000,
   });
   const settings = useQuery({
     queryKey: ['focus-settings'],
     queryFn: () => api.getFocusSettings(),
+    refetchInterval: 4000,
   });
-  const live = firstLive(sessions.data);
+  const candidate = firstLive(sessions.data);
+  const remembered = useRef<Record<string, unknown> | null>(null);
+  if (candidate) remembered.current = candidate;
+  else if (
+    remembered.current &&
+    rows(sessions.data).some((row) => row.id === remembered.current?.id && row.ended_at !== null)
+  )
+    remembered.current = null;
+  const live = candidate ?? remembered.current;
   const started = text(live?.started_at);
   const planned =
     numberOf(live?.planned_minutes) ||
@@ -53,6 +65,8 @@ export function useActiveFocus(): ActiveFocus | null {
   });
   const remaining = Math.max(0, planned * 60 - elapsed);
   return {
+    type: text(live.type),
+    paused: typeof live.paused_at === 'string',
     id: text(live.id),
     taskId: text(live.task_id).length > 0 ? text(live.task_id) : null,
     remaining: live.type === 'stopwatch' ? elapsed : remaining,
@@ -66,8 +80,23 @@ export function useActiveFocus(): ActiveFocus | null {
 export function FocusCloser() {
   const messages = useMessages();
   const account = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
+  const settings = useQuery({
+    queryKey: ['focus-settings'],
+    queryFn: () => api.getFocusSettings(),
+    refetchInterval: 4000,
+  });
   const queryClient = useQueryClient();
   const focus = useActiveFocus();
+  const ambient =
+    typeof settings.data?.ambientSound === 'string' ? settings.data.ambientSound : 'none';
+  const volume = typeof settings.data?.volume === 'number' ? settings.data.volume : 70;
+  useEffect(() => {
+    if (focus?.type !== 'focus' || focus.paused) return;
+    const audio = playFocusSound(ambient, volume, true);
+    return () => {
+      audio?.pause();
+    };
+  }, [focus?.id, focus?.type, focus?.paused, ambient, volume]);
   const closed = useRef<string | null>(null);
   const id = focus !== null && focus.planned > 0 && focus.remaining === 0 ? focus.id : '';
   useEffect(() => {
@@ -77,6 +106,10 @@ export function FocusCloser() {
     closed.current = id;
     runAction(
       api.finishFocus(id).then(() => {
+        playFocusSound(
+          typeof settings.data?.alarmSound === 'string' ? settings.data.alarmSound : 'bell',
+          typeof settings.data?.volume === 'number' ? settings.data.volume : 70,
+        );
         if (
           account.data?.focus_notifications !== false &&
           typeof Notification !== 'undefined' &&

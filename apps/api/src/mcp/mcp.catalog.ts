@@ -806,6 +806,18 @@ const CATALOG: readonly McpTool[] = [
     }),
   })),
   {
+    name: 'update_focus_settings',
+    description: 'Update owned Pomodoro settings, durations, auto-start, local sound, volume and daily goal.',
+    scopes: ['focus:write'],
+    inputSchema: objectSchema({
+      pomodoro_minutes:{type:'integer',minimum:5,maximum:180,multipleOf:5},
+      short_break_minutes:{type:'integer',minimum:1,maximum:60}, long_break_minutes:{type:'integer',minimum:5,maximum:90},
+      cycles_before_long_break:{type:'integer',minimum:1,maximum:12}, auto_start_breaks:{type:'boolean'}, auto_start_focus:{type:'boolean'},
+      alarm_sound:{type:'string',enum:['none','bell','chime','digital']}, volume:{type:'integer',minimum:0,maximum:100},
+      ambient_sound:{type:'string',enum:['none','tick','rain','white_noise']}, daily_goal:{type:'integer',minimum:1,maximum:20},
+    }, []),
+  },
+  {
     name: 'get_focus_state',
     description: 'Read the current owned session, focus settings and today totals.',
     scopes: ['focus:write'],

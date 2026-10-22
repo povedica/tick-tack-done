@@ -29,3 +29,7 @@
 ## TTD-AUD-100
 
 Añade list_task_links, add_task_link y remove_task_link. get_task incluye links; catálogo de 72 herramientas (69 anteriores + 3). Enlaces independientes de Drive, autenticación/scopes y owner conservados.
+
+## TTD-AUD-101
+
+Añade update_focus_settings (focus:write) mediante PUT /focus/settings; get_focus_state.settings expone auto-inicios, sonido, volumen, ambiente y meta. Catálogo 73 herramientas.

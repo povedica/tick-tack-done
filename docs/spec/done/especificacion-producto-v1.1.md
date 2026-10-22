@@ -949,3 +949,5 @@ Actualización r80 (RF-2001): GET autenticado con Accept: text/event-stream ofre
 Eventos r80, RF-203/RF-2005: `attachment.removed@v1` (task_id y trash_in_drive) e `integration.google.reauth_required@v1` (google_status). `drive.attached@v1` contiene solo metadatos, actor y origen; ningún binario.
 
 TTD-AUD-100 (RF-201/RF-202/RF-2001/RF-2002): TaskLink pertenece a Tasks; GET/POST /tasks/{id}/links y DELETE /tasks/{id}/links/{linkId}. Detección pura al capturar/editar título/contenido, preserva manuales. Eventos `task.link_added@v1` y `task.link_removed@v1` (task_id y metadatos/link_id). El unfurl opcional guarda solo título (200 caracteres), HTML público limitado a 256 KiB/3 segundos totales/3 redirecciones; resolución fijada por salto. Una URL privada puede guardarse sin consultarla.
+
+TTD-AUD-101 (RF-1201/1203/1205): GET/PUT/PATCH /focus/settings expone duraciones, auto_start_breaks, auto_start_focus, alarm_sound, volume, ambient_sound y daily_goal. focus.settings_updated@v1 incluye las preferencias. Los MP3 de la web son síntesis CC0 local; los archivos no son adjuntos de usuario.

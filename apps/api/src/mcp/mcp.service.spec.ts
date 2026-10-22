@@ -789,6 +789,12 @@ describe('McpService recurrence mapping', () => {
     });
   });
 
+  it('TTD-AUD-101: settings tool uses the public PUT contract with focus scope', async () => {
+    transport.mockResolvedValue({status:200,body:{pomodoroMinutes:45}});
+    await service.handle({...user,scopes:['focus:write']},{jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'update_focus_settings',arguments:{pomodoro_minutes:45}}},'Bearer synthetic');
+    expect(transport).toHaveBeenCalledWith(expect.objectContaining({method:'PUT',path:'/api/v1/focus/settings',body:{pomodoro_minutes:45}}),'Bearer synthetic');
+  });
+
   it('TTD-AUD-100: link tools keep the authenticated owner and task', async () => {
     const id = '33333333-3333-4333-8333-333333333333';
     tasks.listLinks.mockResolvedValue({items:[], next_cursor:null});

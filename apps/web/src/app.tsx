@@ -1,3 +1,4 @@
+import { FocusSettingsPage } from './features/settings/FocusSettingsPage';
 import { composerContextFor } from './features/capture/context';
 import { PolicyPage } from './features/auth/PolicyPage';
 import { runAction } from './components/run-action';
@@ -200,6 +201,7 @@ function Shell() {
               <Route path="account" element={<AccountPage />} />
               <Route path="workday" element={<WorkdaySettings />} />
               <Route path="capture" element={<CaptureSettings />} />
+              <Route path="focus" element={<FocusSettingsPage />} />
               <Route path="notifications" element={<NotificationSettings />} />
               <Route path="smart-lists" element={<SmartListsPage />} />
               <Route path="calendar" element={<CalendarSettings />} />

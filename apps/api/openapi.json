@@ -11887,10 +11887,52 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FocusSettingsResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Focus settings (RF-1201)",
+        "tags": [
+          "focus"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "FocusController_putSettings",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FocusSettingsResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Save focus durations, auto-start, local sounds, volume and daily goal (TTD-AUD-101)",
         "tags": [
           "focus"
         ],
@@ -11915,7 +11957,14 @@
         },
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FocusSettingsResponseDto"
+                }
+              }
+            }
           }
         },
         "summary": "Update focus settings (RF-1201)",
@@ -18301,6 +18350,69 @@
           }
         }
       },
+      "FocusSettingsResponseDto": {
+        "type": "object",
+        "properties": {
+          "pomodoroMinutes": {
+            "type": "number"
+          },
+          "shortBreakMinutes": {
+            "type": "number"
+          },
+          "longBreakMinutes": {
+            "type": "number"
+          },
+          "cyclesBeforeLongBreak": {
+            "type": "number"
+          },
+          "autoStartBreaks": {
+            "type": "boolean"
+          },
+          "autoStartFocus": {
+            "type": "boolean"
+          },
+          "alarmSound": {
+            "type": "string",
+            "enum": [
+              "none",
+              "bell",
+              "chime",
+              "digital"
+            ]
+          },
+          "volume": {
+            "type": "number"
+          },
+          "ambientSound": {
+            "type": "string",
+            "enum": [
+              "none",
+              "tick",
+              "rain",
+              "white_noise"
+            ]
+          },
+          "dailyGoal": {
+            "type": "number"
+          },
+          "strictMode": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "pomodoroMinutes",
+          "shortBreakMinutes",
+          "longBreakMinutes",
+          "cyclesBeforeLongBreak",
+          "autoStartBreaks",
+          "autoStartFocus",
+          "alarmSound",
+          "volume",
+          "ambientSound",
+          "dailyGoal",
+          "strictMode"
+        ]
+      },
       "SettingsDto": {
         "type": "object",
         "properties": {
@@ -18318,6 +18430,46 @@
           },
           "strict_mode": {
             "type": "boolean"
+          },
+          "auto_start_breaks": {
+            "type": "boolean",
+            "default": false
+          },
+          "auto_start_focus": {
+            "type": "boolean",
+            "default": false
+          },
+          "alarm_sound": {
+            "type": "string",
+            "enum": [
+              "none",
+              "bell",
+              "chime",
+              "digital"
+            ],
+            "default": "bell"
+          },
+          "volume": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "default": 70
+          },
+          "ambient_sound": {
+            "type": "string",
+            "enum": [
+              "none",
+              "tick",
+              "rain",
+              "white_noise"
+            ],
+            "default": "none"
+          },
+          "daily_goal": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 20,
+            "default": 8
           }
         }
       },

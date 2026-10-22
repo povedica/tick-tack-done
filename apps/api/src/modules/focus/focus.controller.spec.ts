@@ -1,3 +1,6 @@
+import { validate } from 'class-validator';
+import { plainToInstance } from 'class-transformer';
+import { SettingsDto } from './focus.controller.js';
 import { expect, it } from 'vitest';
 import { FocusController } from './focus.controller.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
@@ -23,3 +26,30 @@ it.each([true, false])(
     expect(result.elapsed_seconds).toBe(28);
   },
 );
+
+it('TTD-AUD-101: settings validate supported ranges and five-minute pomo steps', async () => {
+  expect(
+    await validate(
+      plainToInstance(SettingsDto, {
+        pomodoro_minutes: 45,
+        long_break_minutes: 90,
+        auto_start_breaks: true,
+        alarm_sound: 'bell',
+        volume: 70,
+        daily_goal: 8,
+      }),
+    ),
+  ).toHaveLength(0);
+  for (const dto of [
+    { pomodoro_minutes: 200 },
+    { pomodoro_minutes: 26 },
+    { pomodoro_minutes: 1 },
+    { short_break_minutes: 61 },
+    { long_break_minutes: 4 },
+    { volume: 101 },
+    { daily_goal: 21 },
+    { alarm_sound: 'external-url' },
+  ]) {
+    expect((await validate(plainToInstance(SettingsDto, dto))).length).toBeGreaterThan(0);
+  }
+});

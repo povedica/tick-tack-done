@@ -1078,3 +1078,5 @@ Base actualizada: afc9f5d. Comprobación previa en [r80/verificacion-previa.md](
 - TTD-AUD-98: waterfall previo medido (no se reproduce 20 s), ventana ±30 días y paginación bidireccional implementadas. Bundle de producción cumple 3 s/1,5 s; 16 regresiones y límites unitarios en verde. r80/98.md.
 
 - TTD-AUD-100: enlaces API/MCP/web implementados; dominio, SSRF/unfurl, integración PostgreSQL y cuatro Playwright locales en verde. Migración down/reapply local verificada; r80/100.md. Validación externa pendiente.
+
+- TTD-AUD-101: ajustes API/MCP, presets y sonidos locales implementados. Unitarias, integración PostgreSQL y 8 Playwright locales en verde; migración reversible probada. Auto-inicio al cerrar sesión; cierre sin clientes abiertos no validado. r80/101.md.

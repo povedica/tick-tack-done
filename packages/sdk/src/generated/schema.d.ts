@@ -3053,7 +3053,8 @@ export interface paths {
         };
         /** Focus settings (RF-1201) */
         get: operations["FocusController_getSettings"];
-        put?: never;
+        /** Save focus durations, auto-start, local sounds, volume and daily goal (TTD-AUD-101) */
+        put: operations["FocusController_putSettings"];
         post?: never;
         delete?: never;
         options?: never;
@@ -4857,12 +4858,45 @@ export interface components {
         FinishDto: {
             note?: string;
         };
+        FocusSettingsResponseDto: {
+            pomodoroMinutes: number;
+            shortBreakMinutes: number;
+            longBreakMinutes: number;
+            cyclesBeforeLongBreak: number;
+            autoStartBreaks: boolean;
+            autoStartFocus: boolean;
+            /** @enum {string} */
+            alarmSound: "none" | "bell" | "chime" | "digital";
+            volume: number;
+            /** @enum {string} */
+            ambientSound: "none" | "tick" | "rain" | "white_noise";
+            dailyGoal: number;
+            strictMode: boolean;
+        };
         SettingsDto: {
             pomodoro_minutes?: number;
             short_break_minutes?: number;
             long_break_minutes?: number;
             cycles_before_long_break?: number;
             strict_mode?: boolean;
+            /** @default false */
+            auto_start_breaks: boolean;
+            /** @default false */
+            auto_start_focus: boolean;
+            /**
+             * @default bell
+             * @enum {string}
+             */
+            alarm_sound: "none" | "bell" | "chime" | "digital";
+            /** @default 70 */
+            volume: number;
+            /**
+             * @default none
+             * @enum {string}
+             */
+            ambient_sound: "none" | "tick" | "rain" | "white_noise";
+            /** @default 8 */
+            daily_goal: number;
         };
         EstimateDto: {
             estimated_pomodoros: number;
@@ -10791,7 +10825,32 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["FocusSettingsResponseDto"];
+                };
+            };
+        };
+    };
+    FocusController_putSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettingsDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FocusSettingsResponseDto"];
+                };
             };
         };
     };
@@ -10812,7 +10871,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["FocusSettingsResponseDto"];
+                };
             };
         };
     };
