@@ -1,4 +1,6 @@
 import { composerContextFor } from '../capture/context';
+import { useAgendaQuery } from '../calendar/use-agenda-query';
+import { agendaPageRange } from '../calendar/agenda-range';
 import { useCalendarDrag } from './use-calendar-drag';
 import { useCalendarTaskChange, type CalendarTaskChange } from './use-calendar-task-change';
 import { SidebarFoldButton } from '../../shell/SidebarFoldButton';
@@ -37,7 +39,7 @@ import '../calendar/calendar.css';
 import { PriorityCheck } from '../../components/PriorityCheck';
 import { displayTitle } from '../tasks/displayTitle';
 import { ApiError, type Project, type Task } from '@reflexionia/sdk';
-import { keepPreviousData, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Fragment,
   useCallback,
@@ -326,7 +328,9 @@ function ProcessCard({
         <PeriodNavigator
           title={messages.processDate}
           date={new Date()}
-          onPick={(date) => { onDate('date', date.toISOString()); }}
+          onPick={(date) => {
+            onDate('date', date.toISOString());
+          }}
         />
         <label>
           {messages.processMove}
@@ -471,18 +475,19 @@ export function CalendarPage() {
   );
   const agendaToday = useCalendarToday(timeZone);
   const agendaOrigin = localKey(cursor);
-  const [agendaWindow, setAgendaWindow] = useState({ origin: agendaOrigin, before: 1, after: 2 });
-  const agendaBounds =
-    agendaWindow.origin === agendaOrigin
-      ? agendaWindow
-      : { origin: agendaOrigin, before: 1, after: 2 };
+  const agendaQuery = useAgendaQuery(agendaOrigin, timeZone, current === 'agenda');
+  const initialAgendaRange = agendaPageRange(agendaOrigin, 0, timeZone);
   const agendaScroll = useRef<HTMLDivElement>(null);
   const agendaAnchor = useRef<{ key: string; top: number } | null>(null);
   const agendaInitialized = useRef('');
-  const agendaMonthTarget = useRef<string | null>(null);
   const [agendaEdges, setAgendaEdges] = useState({ start: false, end: false });
-  const agendaStart = new Date(cursor.getFullYear(), cursor.getMonth() - agendaBounds.before, 1);
-  const agendaEnd = new Date(cursor.getFullYear(), cursor.getMonth() + agendaBounds.after, 1);
+  const agendaScrollIntent = useRef(false);
+  const agendaStart =
+    dayFromParam(agendaQuery.data?.pages[0]?.range.startDay ?? initialAgendaRange.startDay) ??
+    cursor;
+  const agendaEnd =
+    dayFromParam(agendaQuery.data?.pages.at(-1)?.range.endDay ?? initialAgendaRange.endDay) ??
+    cursor;
   const agendaDays: Date[] = [];
   if (current === 'agenda') {
     for (let day = new Date(agendaStart); day < agendaEnd; day.setDate(day.getDate() + 1)) {
@@ -501,9 +506,9 @@ export function CalendarPage() {
       : allCells;
   const cells = filteredCells;
   const range = current === 'year' ? yearQueryRange(cursor) : monthQueryRange(cells);
-  const tasks = useQuery<Task[]>({
+  const rangedTasks = useQuery<Task[]>({
+    enabled: current !== 'agenda',
     queryKey: ['calendar-tasks', range.dueAfter, range.dueBefore],
-    ...(current === 'agenda' ? { placeholderData: keepPreviousData } : {}),
     queryFn: () =>
       collectTasks((query) => api.listTasks(query), {
         status: 'active',
@@ -513,16 +518,40 @@ export function CalendarPage() {
         dueBefore: range.dueBefore,
       }),
   });
-  const externalQuery = useQuery<Awaited<ReturnType<typeof api.calendarEvents>>>({
+  const tasks =
+    current === 'agenda'
+      ? { ...agendaQuery, data: agendaQuery.data?.pages.flatMap((page) => page.tasks) }
+      : rangedTasks;
+  const rangedEvents = useQuery<Awaited<ReturnType<typeof api.calendarEvents>>>({
+    enabled: current !== 'agenda',
     queryKey: ['calendar-events', range.dueAfter, range.dueBefore],
-    ...(current === 'agenda' ? { placeholderData: keepPreviousData } : {}),
     queryFn: () => api.calendarEvents(range.dueAfter, range.dueBefore),
   });
+  const externalQuery =
+    current === 'agenda'
+      ? {
+          ...agendaQuery,
+          data: agendaQuery.data
+            ? {
+                tasks: agendaQuery.data.pages.flatMap((page) =>
+                  Array.isArray(page.events.tasks) ? (page.events.tasks as unknown[]) : [],
+                ),
+                external: agendaQuery.data.pages.flatMap((page) =>
+                  Array.isArray(page.events.external) ? (page.events.external as unknown[]) : [],
+                ),
+              }
+            : undefined,
+        }
+      : rangedEvents;
   const startTaskIds = Array.isArray(externalQuery.data?.tasks)
     ? externalQuery.data.tasks.flatMap((value: unknown) => {
         if (typeof value !== 'object' || value === null) return [];
         const row = value as { id?: unknown; start_date?: unknown; due_date?: unknown };
-        return typeof row.id === 'string' && typeof row.start_date === 'string' ? [row.id] : [];
+        return typeof row.id === 'string' &&
+          typeof row.start_date === 'string' &&
+          !(tasks.data ?? []).some((task) => task.id === row.id)
+          ? [row.id]
+          : [];
       })
     : [];
   const startTasks = useQuery({
@@ -537,15 +566,7 @@ export function CalendarPage() {
       return;
     }
     if (!node) return;
-    if (agendaMonthTarget.current && !tasks.isFetching && !externalQuery.isFetching) {
-      const month = node.querySelector<HTMLElement>(
-        `[data-agenda-month="${agendaMonthTarget.current}"]`,
-      );
-      if (month)
-        node.scrollTop += month.getBoundingClientRect().top - node.getBoundingClientRect().top;
-      agendaMonthTarget.current = null;
-      agendaAnchor.current = null;
-    } else if (agendaAnchor.current) {
+    if (agendaAnchor.current) {
       if (tasks.isFetching || externalQuery.isFetching) return;
       const anchor = node.querySelector<HTMLElement>(
         `[data-agenda-day="${agendaAnchor.current.key}"]`,
@@ -567,6 +588,7 @@ export function CalendarPage() {
   });
   const extendAgenda = (direction: -1 | 1) => {
     if (tasks.isFetching || externalQuery.isFetching) return;
+    agendaScrollIntent.current = false;
     const node = agendaScroll.current;
     if (node) {
       const anchor = [...node.querySelectorAll<HTMLElement>('[data-agenda-day]')].find(
@@ -578,16 +600,7 @@ export function CalendarPage() {
           top: anchor.getBoundingClientRect().top,
         };
     }
-    agendaMonthTarget.current = localKey(
-      direction > 0
-        ? agendaEnd
-        : new Date(agendaStart.getFullYear(), agendaStart.getMonth() - 1, 1),
-    ).slice(0, 7);
-    setAgendaWindow({
-      ...agendaBounds,
-      before: agendaBounds.before + (direction < 0 ? 1 : 0),
-      after: agendaBounds.after + (direction > 0 ? 1 : 0),
-    });
+    runAction(direction < 0 ? agendaQuery.fetchPreviousPage() : agendaQuery.fetchNextPage());
   };
   const subscriptions = useQuery({
     queryKey: ['calendar-subscriptions'],
@@ -597,6 +610,7 @@ export function CalendarPage() {
   const [picked, setPicked] = useState<string | null>(null);
   const external = (Array.isArray(externalQuery.data?.external) ? externalQuery.data.external : [])
     .filter(isExternalEvent)
+    .filter((event, index, all) => all.findIndex((other) => other.id === event.id) === index)
     .filter((event) => sourceSelected(sourceParams.get('cals'), event.subscription_id ?? ''));
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
   const colors = useMemo(() => {
@@ -803,8 +817,11 @@ export function CalendarPage() {
           title={fill(messages.loadFailed, messages.calendarTitle)}
           retryLabel={messages.retry}
           onRetry={() => {
-            runAction(tasks.refetch());
-            runAction(externalQuery.refetch());
+            if (current === 'agenda') runAction(agendaQuery.refetch());
+            else {
+              runAction(rangedTasks.refetch());
+              runAction(rangedEvents.refetch());
+            }
             if (startTaskIds.length) runAction(startTasks.refetch());
           }}
         />
@@ -871,6 +888,31 @@ export function CalendarPage() {
           {current === 'agenda' ? (
             <div
               className="calendar-agenda-timeline"
+              tabIndex={0}
+              role="region"
+              aria-label={messages.calAgenda}
+              onWheel={(event) => {
+                agendaScrollIntent.current = true;
+                const node = event.currentTarget;
+                if (
+                  event.deltaY > 0 &&
+                  node.scrollHeight - node.scrollTop - node.clientHeight < 120
+                )
+                  extendAgenda(1);
+                else if (event.deltaY < 0 && node.scrollTop < 120) extendAgenda(-1);
+              }}
+              onTouchMove={() => {
+                agendaScrollIntent.current = true;
+              }}
+              onKeyDown={(event) => {
+                if (
+                  event.target === event.currentTarget &&
+                  ['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', ' '].includes(
+                    event.key,
+                  )
+                )
+                  agendaScrollIntent.current = true;
+              }}
               ref={agendaScroll}
               data-at-start={agendaEdges.start}
               data-at-end={agendaEdges.end}
@@ -880,6 +922,16 @@ export function CalendarPage() {
                   start: node.scrollTop <= 1,
                   end: node.scrollHeight - node.scrollTop - node.clientHeight <= 1,
                 });
+                if (
+                  agendaScrollIntent.current &&
+                  agendaInitialized.current === agendaOrigin &&
+                  !agendaQuery.isFetching &&
+                  node.scrollHeight > node.clientHeight
+                ) {
+                  if (node.scrollTop < 120) extendAgenda(-1);
+                  else if (node.scrollHeight - node.scrollTop - node.clientHeight < 120)
+                    extendAgenda(1);
+                }
               }}
             >
               <Button

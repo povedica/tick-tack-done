@@ -4,15 +4,18 @@ export const extraEs = {
   googleDrivePermission: 'Drive: solo ficheros creados por ttd',
   googleReauthStatus: 'Reconectar',
   googleDisconnectedStatus: 'Desconectado',
-  googleDisconnectCalendars: 'Los calendarios dejan de sincronizarse. Los eventos importados se conservan salvo que marques la casilla.',
-  googleDisconnectAttachments: 'Los adjuntos siguen en tu Drive como enlaces; no se pueden subir nuevos.',
+  googleDisconnectCalendars:
+    'Los calendarios dejan de sincronizarse. Los eventos importados se conservan salvo que marques la casilla.',
+  googleDisconnectAttachments:
+    'Los adjuntos siguen en tu Drive como enlaces; no se pueden subir nuevos.',
   googleDisconnectRevoke: 'La autorización se revoca también en Google.',
   googleDisconnectRemoveEvents: 'Borrar también los eventos importados',
   googleDisconnectedNotice: 'Google desconectado. Puedes revocarlo también en',
   statsAllCompleted: 'Completadas (todas)',
   statsPlanCompliance: 'Cumplimiento del plan',
   statsPlanCount: '{completed} de {planned} con fecha ({rate} %)',
-  statsCompletionHelp: 'Completadas dentro del periodo con fecha límite en el periodo, divididas entre todas las tareas con fecha límite en el periodo, excluidas las canceladas, por 100. El total también incluye completadas sin fecha.',
+  statsCompletionHelp:
+    'Completadas dentro del periodo con fecha límite en el periodo, divididas entre todas las tareas con fecha límite en el periodo, excluidas las canceladas, por 100. El total también incluye completadas sin fecha.',
   statsCompletionHelpLabel: 'Cómo se calcula el cumplimiento',
   reportThroughToday: 'En curso · hasta hoy, {date}',
   planSources: 'Elige qué revisar',
@@ -27,7 +30,8 @@ export const extraEs = {
   driveConnect: 'Conectar Google Drive',
   driveReconnect: 'Reconectar Google Drive',
   driveRequired: 'Para adjuntar ficheros, conecta Google Drive',
-  driveMetadataOnly: 'Los ficheros se guardan en tu Drive. Hasta 100 MiB por fichero y 50 por tarea.',
+  driveMetadataOnly:
+    'Los ficheros se guardan en tu Drive. Hasta 100 MiB por fichero y 50 por tarea.',
   driveMissing: 'Ya no está en Drive',
   driveRemove: 'Quitar de la tarea',
   driveRemoveQuestion: '¿Quitar “{name}” de la tarea?',
@@ -166,8 +170,8 @@ export const extraEs = {
   calendarItems: 'elementos',
   calendarSwipe: 'Desliza para ver los siete días',
   calendarAgendaWindow: 'Amplía la agenda con los botones de cada extremo',
-  calendarAgendaPrevious: 'Ver mes anterior',
-  calendarAgendaNext: 'Ver mes siguiente',
+  calendarAgendaPrevious: 'Cargar 30 días anteriores',
+  calendarAgendaNext: 'Cargar 30 días siguientes',
   calWeekNumber: 'Semana ISO',
   navigationOrderTitle: 'Orden de los módulos',
   navigationOrderHint:
@@ -1149,7 +1153,8 @@ export const extraEn = {
   googleDrivePermission: 'Drive: only files created by ttd',
   googleReauthStatus: 'Reconnect',
   googleDisconnectedStatus: 'Disconnected',
-  googleDisconnectCalendars: 'Calendars stop syncing. Imported events are kept unless you select the checkbox.',
+  googleDisconnectCalendars:
+    'Calendars stop syncing. Imported events are kept unless you select the checkbox.',
   googleDisconnectAttachments: 'Attachments stay in your Drive as links; new uploads are disabled.',
   googleDisconnectRevoke: 'Authorization is also revoked at Google.',
   googleDisconnectRemoveEvents: 'Also delete imported events',
@@ -1157,7 +1162,8 @@ export const extraEn = {
   statsAllCompleted: 'Completed (all)',
   statsPlanCompliance: 'Plan completion',
   statsPlanCount: '{completed} of {planned} with a due date ({rate} %)',
-  statsCompletionHelp: 'Tasks completed within the period and due within the period divided by all tasks due within the period, excluding cancelled tasks, times 100. The total also includes completed tasks without a due date.',
+  statsCompletionHelp:
+    'Tasks completed within the period and due within the period divided by all tasks due within the period, excluding cancelled tasks, times 100. The total also includes completed tasks without a due date.',
   statsCompletionHelpLabel: 'How plan completion is calculated',
   reportThroughToday: 'In progress · through today, {date}',
   planSources: 'Choose what to review',
@@ -1308,8 +1314,8 @@ export const extraEn = {
   calendarItems: 'items',
   calendarSwipe: 'Swipe to see all seven days',
   calendarAgendaWindow: 'Extend the agenda using the buttons at either end',
-  calendarAgendaPrevious: 'View previous month',
-  calendarAgendaNext: 'View next month',
+  calendarAgendaPrevious: 'Load previous 30 days',
+  calendarAgendaNext: 'Load next 30 days',
   calWeekNumber: 'ISO week',
   navigationOrderTitle: 'Module order',
   navigationOrderHint:

@@ -63,8 +63,8 @@ Base actualizada: `afc9f5d`. [Comprobación previa](docs/audit/r80/verificacion-
 |97|El diálogo muestra los tres efectos; «Cancelar» no cambia nada.|✅ 7 unitarias, 2 e2e PostgreSQL, 4 Playwright; ambos viewports/temas|[Evidencia](docs/audit/r80/97.md)|
 |97|Tras confirmar: `googleRefreshToken = null`, la llamada a `revoke` se hace (mock en el test) y los adjuntos existentes se siguen abriendo en Drive.|✅ 7 unitarias, 2 e2e PostgreSQL, 4 Playwright; ambos viewports/temas|[Evidencia](docs/audit/r80/97.md)|
 |97|Capturas antes/después de la tarjeta y del diálogo, en escritorio y móvil.|✅ 7 unitarias, 2 e2e PostgreSQL, 4 Playwright; ambos viewports/temas|[Evidencia](docs/audit/r80/97.md)|
-|98|Playwright con `performance.now()` desde la navegación hasta el primer `[data-agenda-day]` → ≤ 3000 ms en CI (frío) y ≤ 1500 ms en la segunda visita.|❌ pendiente de implementación/verificación|—|
-|98|Waterfall antes/después en la PR.|❌ pendiente de implementación/verificación|—|
+|98|Playwright con `performance.now()` desde la navegación hasta el primer `[data-agenda-day]` → ≤ 3000 ms en CI (frío) y ≤ 1500 ms en la segunda visita.|✅ performance.now sobre bundle de producción local; cuatro viewports/temas, sin reproducir 20 s|[Waterfall y límites](docs/audit/r80/98.md)|
+|98|Waterfall antes/después en la PR.|✅ performance.now sobre bundle de producción local; cuatro viewports/temas, sin reproducir 20 s|[Waterfall y límites](docs/audit/r80/98.md)|
 |99|**Nada en el servidor:**|❌ pendiente de implementación/verificación|—|
 |99|**BD:** `SELECT column_name FROM information_schema.columns WHERE table_name='attachments'` **no** devuelve `storage_key`, `thumbnail_key` ni ninguna columna `bytea`.|❌ pendiente de implementación/verificación|—|
 |99|**Subida web directa:** en la pestaña de red de DevTools, el `PUT` del binario va a `www.googleapis.com/upload/drive/v3/…` y **ninguna** petición a `todo.reflexionia.com` lleva más de 4 KB de cuerpo. Captura del waterfall en la PR.|❌ pendiente de implementación/verificación|—|

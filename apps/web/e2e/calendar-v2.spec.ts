@@ -924,49 +924,36 @@ test('RF-1101 monthly vertical touch navigation changes months', async ({ page }
   await expect(page.locator('h1')).toHaveText('octubre de 2026');
 });
 
-test('RF-1101 agenda starts today and loads months only on explicit request', async ({ page }) => {
+test('RF-1101 / TTD-AUD-98 agenda starts today and loads adjacent bounded pages on scroll', async ({
+  page,
+}) => {
   await fixture(page);
   await page.setViewportSize({ width: 390, height: 844 });
-  const ranges: string[] = [];
+  const ranges: URL[] = [];
   page.on('request', (request) => {
-    if (request.url().includes('/tasks?')) ranges.push(request.url());
+    const url = new URL(request.url());
+    if (url.pathname.endsWith('/tasks') && url.searchParams.has('due_after')) ranges.push(url);
   });
   await page.goto('/calendar/agenda');
   const timeline = page.locator('.calendar-agenda-timeline');
-  const today = timeline.locator('[data-agenda-day="2026-10-20"]');
-  await expect(today).toBeVisible();
-  const toolbar = page.locator('.calendar-toolbar');
-  await expect(toolbar.getByRole('button')).toHaveCount(3);
-  await expect(toolbar.locator('.calendar-period, .calendar-nav, .calendar-add')).toHaveCount(0);
-  await expect(today).toBeInViewport();
-  const initialRange = new URL(ranges.at(-1)!);
-  expect(initialRange.searchParams.get('due_after')).toBe('2026-08-31T21:59:59.999Z');
-  expect(initialRange.searchParams.get('due_before')).toBe('2026-11-30T23:00:00.000Z');
-  await timeline.evaluate((node) => {
-    node.scrollTop = (node.scrollHeight - node.clientHeight) / 2;
-  });
-  await expect(timeline.locator('.calendar-agenda-extend').first()).toBeHidden();
-  await expect(timeline.locator('.calendar-agenda-extend').last()).toBeHidden();
-  expect(await timeline.locator('[data-agenda-day]').count()).toBeLessThan(10);
+  await expect(timeline.locator('[data-agenda-day="2026-10-20"]')).toBeInViewport();
+  const initial = ranges[0]!;
+  expect(initial.searchParams.get('due_after')).toBe('2026-09-19T21:59:59.999Z');
+  expect(initial.searchParams.get('due_before')).toBe('2026-11-19T23:00:00.000Z');
   const initialRequests = ranges.length;
-  await timeline.evaluate((node) => {
-    node.scrollTop = node.scrollHeight;
-  });
-  await expect(timeline.getByRole('button', { name: 'Ver mes siguiente' })).toBeVisible();
-  await expect(timeline.getByRole('button', { name: 'Ver mes siguiente' })).toHaveText(
-    'diciembre de 2026',
-  );
-  await expect(
-    timeline.getByRole('button', { name: 'Ver mes siguiente' }).locator('svg'),
-  ).toHaveCount(1);
-  expect(ranges.length).toBe(initialRequests);
-  await timeline.getByRole('button', { name: 'Ver mes siguiente' }).click();
+  await timeline.hover();
+  await page.mouse.wheel(0, 10000);
+  await page.clock.runFor(200);
   await expect.poll(() => ranges.length).toBeGreaterThan(initialRequests);
+  const next = ranges.at(-1)!;
+  expect(
+    Date.parse(next.searchParams.get('due_before')!) -
+      Date.parse(next.searchParams.get('due_after')!),
+  ).toBeLessThanOrEqual(31 * 86400000 + 1);
   const nextRequests = ranges.length;
-  await timeline.evaluate((node) => {
-    node.scrollTop = 0;
-  });
-  await timeline.getByRole('button', { name: 'Ver mes anterior' }).click();
+  await expect(timeline.locator('.calendar-agenda-extend').last()).toBeEnabled();
+  await page.mouse.wheel(0, -10000);
+  await page.clock.runFor(200);
   await expect.poll(() => ranges.length).toBeGreaterThan(nextRequests);
 });
 
@@ -999,12 +986,14 @@ test('RF-1902 mobile calendar bottom bar opens lists and main navigation separat
   await expect(page.locator('.sidebar')).not.toHaveAttribute('data-mobile-section');
 });
 
-test('RF-1101 desktop agenda header keeps only filters and view icons', async ({ page }) => {
+test('RF-1101 / TTD-AUD-93 desktop agenda header keeps filters in the sidebar', async ({
+  page,
+}) => {
   await fixture(page);
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/calendar/agenda');
   const toolbar = page.locator('.calendar-toolbar');
-  await expect(toolbar.getByRole('button')).toHaveCount(3);
+  await expect(toolbar.getByRole('button')).toHaveCount(2);
   await expect(toolbar.locator('.calendar-period, .calendar-nav, .calendar-add')).toHaveCount(0);
   await toolbar.getByRole('button', { name: 'Calendario', exact: true }).click();
   await expect(page.locator('.calendar-mobile-navigation')).toHaveCount(0);
@@ -1039,19 +1028,22 @@ test('RF-1101 agenda loads December and keeps navigation across empty months', a
   await page.goto('/calendar/agenda');
   const timeline = page.locator('.calendar-agenda-timeline');
   async function nextMonth() {
-    await timeline.evaluate((node) => {
-      node.scrollTop = node.scrollHeight;
-    });
-    await timeline.getByRole('button', { name: 'Ver mes siguiente' }).click();
+    const response = page.waitForResponse((response) =>
+      response.url().includes('/calendar/events'),
+    );
+    await timeline.hover();
+    await page.mouse.wheel(0, 10000);
+    await page.clock.runFor(200);
+    await response;
   }
   await expect(timeline.locator('[data-agenda-month="2026-11"]')).toHaveCount(1);
   await nextMonth();
   await expect(timeline.getByText('Evento de diciembre', { exact: true })).toBeVisible();
-  await expect(timeline.locator('[data-agenda-month="2026-12"]')).toBeInViewport();
+  await expect(timeline.locator('[data-agenda-month="2026-12"]')).toHaveCount(1);
   await nextMonth();
-  await expect(timeline.locator('[data-agenda-month="2027-01"]')).toBeInViewport();
+  await expect(timeline.locator('[data-agenda-month="2027-01"]')).toHaveCount(1);
   await nextMonth();
-  await expect(timeline.locator('[data-agenda-month="2027-02"]')).toBeInViewport();
+  await expect(timeline.locator('[data-agenda-month="2027-02"]')).toHaveCount(1);
 });
 
 for (const width of [390, 1280]) {
