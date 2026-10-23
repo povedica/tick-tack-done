@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { emailConfigured } from '../mail/send-email.js';
 
 const EXAMPLE_SECRETS = [
   'generar-con-openssl-rand-hex-32',
@@ -24,8 +25,10 @@ export function assertRuntimeConfig(): void {
   if (secret.length < 32 || example) {
     throw new Error('APP_SECRET must be at least 32 characters and must not be an example value');
   }
-  if ((process.env.SMTP_FROM ?? '').length === 0) {
-    throw new Error('SMTP_FROM is required when NODE_ENV=production');
+  if (!emailConfigured()) {
+    throw new Error(
+      'Configure RESEND_API_KEY and EMAIL_FROM, or SMTP_HOST and SMTP_FROM, when NODE_ENV=production',
+    );
   }
   if ((process.env.VAPID_SUBJECT ?? '').length === 0) {
     throw new Error('VAPID_SUBJECT is required when NODE_ENV=production');

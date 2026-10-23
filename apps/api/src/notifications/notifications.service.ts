@@ -1,4 +1,6 @@
 import { setTelegramStatus } from '../integrations/telegram-status.js';
+import { telegramConfigured } from '../integrations/config.js';
+import { emailConfigured } from '../mail/send-email.js';
 import { isUUID } from 'class-validator';
 import { asJson } from '../http/json.js';
 import { Inject, Injectable } from '@nestjs/common';
@@ -52,7 +54,7 @@ export class NotificationsService {
           configured: !!process.env.VAPID_PUBLIC_KEY,
           public_key: process.env.VAPID_PUBLIC_KEY ?? '',
         },
-        email: { address: owner.email, configured: !!process.env.SMTP_HOST },
+        email: { address: owner.email, configured: emailConfigured() },
         telegram: {
           linked: !!telegram,
           status: state?.status ?? (telegram ? 'connected' : 'not_linked'),
@@ -115,13 +117,14 @@ export class NotificationsService {
         'push_not_subscribed',
         'This browser has no push subscription',
       );
-    if (channel === 'email' && (!process.env.SMTP_HOST || !process.env.SMTP_FROM))
+    if (channel === 'email' && !emailConfigured())
       throw new DomainException(503, 'email_not_configured', 'Email is not configured');
     if (channel === 'telegram' && !owner.telegramLinks.length)
       throw new DomainException(409, 'telegram_not_linked', 'Telegram is not linked');
-    if (channel === 'telegram' && !process.env.TELEGRAM_BOT_TOKEN)
+    if (channel === 'telegram' && !(await telegramConfigured(this.prisma, user.id)))
       throw new DomainException(503, 'telegram_not_configured', 'Telegram is not configured');
     const result = await this.transport.deliver({
+      ownerId: user.id,
       channel: channel === 'email' ? 'email' : 'push',
       allowPush: channel === 'push',
       allowEmail: channel === 'email',

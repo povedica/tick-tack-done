@@ -1,4 +1,5 @@
 import { deliverNotification } from '../notifications/deliver.js';
+import type { DeliveryResult } from './reminder.transport.js';
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { Prisma, type ReminderChannel } from '@prisma/client';
@@ -988,6 +989,38 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
               title: typeof payload.title === 'string' ? payload.title : 'Recordatorio',
               body: typeof payload.body === 'string' ? payload.body : '',
             });
+        if (emailNeedsReconciliation(result)) {
+          await this.prisma.reminderDelivery.update({
+            where: { id: row.id },
+            data: {
+              status: 'failed',
+              nextRetryAt: null,
+              reconcileRequired: true,
+              channelState: asJson(result),
+              leaseUntil: null,
+            },
+          });
+          continue;
+        }
+        if (['failed', 'unknown', 'rate_limited'].includes(result.email)) {
+          const attempts = row.attempts + 1;
+          const delay =
+            result.retry_after_seconds !== null
+              ? result.retry_after_seconds * 1000
+              : retryDelayMs(attempts);
+          await this.prisma.reminderDelivery.update({
+            where: { id: row.id },
+            data: {
+              status: 'failed',
+              attempts,
+              nextRetryAt: delay === null ? null : new Date(now.getTime() + delay),
+              payload: asJson({ ...payload, delivery: result }),
+              channelState: asJson(result),
+              leaseUntil: null,
+            },
+          });
+          continue;
+        }
         await this.prisma.$transaction(async (tx) => {
           await tx.reminderDelivery.update({
             where: { id: row.id },
@@ -1035,7 +1068,23 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
       }
       const notice = noticeCopy(row.kind, payload, now);
       const result = await deliverNotification(this.prisma, this.transport, row, now, notice);
-      if (result.telegram === 'unknown' || result.telegram === 'disconnected') {
+      if (emailNeedsReconciliation(result)) {
+        await this.prisma.reminderDelivery.update({
+          where: { id: row.id },
+          data: {
+            status: 'failed',
+            nextRetryAt: null,
+            reconcileRequired: true,
+            channelState: asJson(result),
+            leaseUntil: null,
+          },
+        });
+        continue;
+      }
+      if (
+        (result.telegram === 'unknown' || result.telegram === 'disconnected') &&
+        !['failed', 'unknown', 'rate_limited'].includes(result.email)
+      ) {
         await this.prisma.reminderDelivery.update({
           where: { id: row.id },
           data: {
@@ -1051,7 +1100,11 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         });
         continue;
       }
-      if (result.telegram === 'failed' || result.telegram === 'rate_limited') {
+      if (
+        result.telegram === 'failed' ||
+        result.telegram === 'rate_limited' ||
+        ['failed', 'unknown', 'rate_limited'].includes(result.email)
+      ) {
         const attempts = row.attempts + 1;
         const delay =
           result.retry_after_seconds !== null
@@ -1311,4 +1364,8 @@ function shiftCalendarDate(date: string, amount: number): string {
   const value = new Date(`${date}T00:00:00.000Z`);
   value.setUTCDate(value.getUTCDate() + amount);
   return value.toISOString().slice(0, 10);
+}
+
+function emailNeedsReconciliation(result: DeliveryResult): boolean {
+  return result.email_reconcile_required === true;
 }

@@ -5,6 +5,7 @@ import { EventRecorder } from '../../events/event-recorder.js';
 import { DomainException } from '../../http/domain.exception.js';
 import { IntegrationsController } from './integrations.controller.js';
 import type { TelegramBotService } from './telegram-bot.service.js';
+import type { TelegramSettingsService } from './telegram-settings.service.js';
 import type { TasksService } from '../tasks/tasks.service.js';
 import type { AuthUser } from '../../auth/auth-user.js';
 import type { Response } from 'express';
@@ -33,6 +34,7 @@ describe('TTD-AUD-97 Google disconnect', () => {
         prisma,
         events,
         {} as TelegramBotService,
+        {} as TelegramSettingsService,
         {} as TasksService,
       );
       const status = vi.fn().mockReturnThis();
@@ -91,6 +93,7 @@ describe('TTD-AUD-86 / RF-2006 user credential isolation', () => {
       prisma,
       new EventRecorder(),
       {} as TelegramBotService,
+      {} as TelegramSettingsService,
       {
         linkDriveFile: vi
           .fn()

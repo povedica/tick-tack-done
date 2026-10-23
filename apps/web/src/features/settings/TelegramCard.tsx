@@ -8,6 +8,7 @@ import { useAppLocale } from '../../i18n/locale';
 import { failureMessage } from '../../failure';
 import { TotpQr } from './TotpQr';
 import './telegram.css';
+import { TelegramBotSettings } from './TelegramBotSettings';
 function text(value: unknown) {
   return typeof value === 'string' ? value : '';
 }
@@ -132,6 +133,12 @@ export function TelegramCard() {
               : m.notificationNotLinked}
         </span>
       </div>
+      <TelegramBotSettings
+        status={query.data}
+        onSaved={() => {
+          setPairing(null);
+        }}
+      />
       {notice ? <p role="status">{notice}</p> : null}
       {linked ? (
         <>
@@ -243,7 +250,7 @@ export function TelegramCard() {
           ) : null}
         </>
       ) : (
-        <p>{m.integrationSoon}</p>
+        <p>{m.telegramUnconfigured}</p>
       )}
       {error ? <p role="alert">{error}</p> : null}
       {confirm ? (
