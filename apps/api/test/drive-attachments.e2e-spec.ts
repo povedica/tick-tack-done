@@ -202,8 +202,15 @@ describe('TTD-AUD-99 Drive-only attachments', () => {
     expect(
       await prisma.attachment.count({ where: { taskId: String(email.body.id), source: 'email' } }),
     ).toBe(1);
-    process.env.TELEGRAM_BOT_TOKEN = 'synthetic-bot';
-    process.env.TELEGRAM_WEBHOOK_SECRET = 'synthetic_webhook_secret_99';
+    await prisma.telegramBotConfiguration.create({
+      data: {
+        ownerId: owner.id,
+        botId: 'drive-attachment-test',
+        username: 'synthetic_bot',
+        token: sealField('synthetic-bot'),
+        webhookSecret: sealField('synthetic_webhook_secret_99'),
+      },
+    });
     const driveFetch = globalThis.fetch;
     vi.stubGlobal('fetch', (input: string | URL | Request, init?: RequestInit) => {
       const url = typeof input === 'string' || input instanceof URL ? input.toString() : input.url;
@@ -222,8 +229,8 @@ describe('TTD-AUD-99 Drive-only attachments', () => {
     await prisma.telegramLink.create({ data: { ownerId: owner.id, chatId } });
     try {
       await request(server)
-        .post('/api/v1/integrations/telegram/webhook')
-        .set('x-telegram-bot-api-secret-token', process.env.TELEGRAM_WEBHOOK_SECRET)
+        .post(`/api/v1/integrations/telegram/webhook/${owner.id}`)
+        .set('x-telegram-bot-api-secret-token', 'synthetic_webhook_secret_99')
         .send({
           update_id: Math.floor(Math.random() * 1000000000),
           message: {
@@ -239,8 +246,7 @@ describe('TTD-AUD-99 Drive-only attachments', () => {
       expect(await readdir(prohibited).catch(() => [])).toEqual([]);
     } finally {
       vi.stubGlobal('fetch', driveFetch);
-      delete process.env.TELEGRAM_BOT_TOKEN;
-      delete process.env.TELEGRAM_WEBHOOK_SECRET;
+      await prisma.telegramBotConfiguration.deleteMany({ where: { ownerId: owner.id } });
       await prisma.telegramLink.deleteMany({ where: { ownerId: owner.id } });
     }
   });

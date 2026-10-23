@@ -9,6 +9,16 @@ describe('TelegramBotService', () => {
     const createTask = vi.fn();
     const send = vi.fn(() => Promise.resolve({}));
     const prisma = {
+      telegramBotConfiguration: {
+        findUnique: vi.fn(() =>
+          Promise.resolve({
+            token: 'unit-token',
+            webhookSecret: 'unit_secret',
+            botId: 'unit',
+            username: 'unit_bot',
+          }),
+        ),
+      },
       telegramUpdateReceipt: {
         create: vi.fn(() => Promise.resolve({})),
       },
@@ -38,22 +48,26 @@ describe('TelegramBotService', () => {
       { record: vi.fn() },
       { create: createTask } as never,
       { createProject } as never,
-      { call: send } as never,
+      { call: send, withConfiguration: () => ({ call: send }) } as never,
     );
-    const outcome = await service.handle({
-      update_id: 42,
-      message: { message_id: 1, chat: { id: 7 }, text: 'nueva lista Viaje' },
-    });
+    const outcome = await service.handle(
+      {
+        update_id: 42,
+        message: { message_id: 1, chat: { id: 7 }, text: 'nueva lista Viaje' },
+      },
+      'owner',
+    );
     expect(outcome.action).toBe('text');
     expect(createTask).not.toHaveBeenCalled();
     expect(createProject).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'owner' }),
       { name: 'Viaje' },
-      'telegram-list-42',
+      'telegram-list-unit-42',
     );
     expect(send).toHaveBeenCalledWith(
       'sendMessage',
       expect.objectContaining({ text: 'Lista creada: Viaje.' }),
+      'owner',
     );
     expect(prisma.task.count).not.toHaveBeenCalled();
   });
@@ -77,6 +91,16 @@ describe('TelegramBotService', () => {
     );
     const send = vi.fn((_method: string, body: { text: string }) => Promise.resolve(body));
     const prisma = {
+      telegramBotConfiguration: {
+        findUnique: vi.fn(() =>
+          Promise.resolve({
+            token: 'unit-token',
+            webhookSecret: 'unit_secret',
+            botId: 'unit',
+            username: 'unit_bot',
+          }),
+        ),
+      },
       telegramUpdateReceipt: {
         create: vi.fn(() => Promise.resolve({})),
       },
@@ -105,16 +129,19 @@ describe('TelegramBotService', () => {
       { record: vi.fn() },
       { create: createTask } as never,
       { createProject: vi.fn() } as never,
-      { call: send } as never,
+      { call: send, withConfiguration: () => ({ call: send }) } as never,
     );
-    const outcome = await service.handle({
-      update_id: 7,
-      message: {
-        message_id: 1,
-        chat: { id: 7 },
-        text: 'Recoger mañana a Markus del cole a las 16:00 !high #cole',
+    const outcome = await service.handle(
+      {
+        update_id: 7,
+        message: {
+          message_id: 1,
+          chat: { id: 7 },
+          text: 'Recoger mañana a Markus del cole a las 16:00 !high #cole',
+        },
       },
-    });
+      'owner',
+    );
     expect(outcome.action).toBe('text');
     expect(createTask).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'owner', timeZone: 'Europe/Madrid' }),
@@ -122,7 +149,7 @@ describe('TelegramBotService', () => {
         raw_text: 'Recoger mañana a Markus del cole a las 16:00 !high #cole',
         metadata: { capture: 'telegram' },
       },
-      'telegram-7',
+      'telegram-unit-7',
     );
     const sent = send.mock.calls[0]?.[1];
     expect(sent?.text).toContain('Guardada: Recoger a Markus del cole.');
@@ -136,6 +163,16 @@ describe('TelegramBotService', () => {
   it('APP-07a: unlinked chats are not auto-bound to the sole owner', async () => {
     const send = vi.fn(() => Promise.resolve({}));
     const prisma = {
+      telegramBotConfiguration: {
+        findUnique: vi.fn(() =>
+          Promise.resolve({
+            token: 'unit-token',
+            webhookSecret: 'unit_secret',
+            botId: 'unit',
+            username: 'unit_bot',
+          }),
+        ),
+      },
       telegramUpdateReceipt: {
         create: vi.fn(() => Promise.resolve({})),
       },
@@ -151,12 +188,15 @@ describe('TelegramBotService', () => {
       { record: vi.fn() },
       { create: vi.fn() } as never,
       { createProject: vi.fn() } as never,
-      { call: send } as never,
+      { call: send, withConfiguration: () => ({ call: send }) } as never,
     );
-    const outcome = await service.handle({
-      update_id: 99,
-      message: { message_id: 1, chat: { id: 55 }, text: 'hola' },
-    });
+    const outcome = await service.handle(
+      {
+        update_id: 99,
+        message: { message_id: 1, chat: { id: 55 }, text: 'hola' },
+      },
+      'owner',
+    );
     expect(outcome.action).toBe('unlinked');
     expect(prisma.user.findMany).not.toHaveBeenCalled();
     expect(send).toHaveBeenCalledWith(
@@ -164,6 +204,7 @@ describe('TelegramBotService', () => {
       expect.objectContaining({
         text: expect.stringContaining('código'),
       }),
+      'owner',
     );
   });
 });

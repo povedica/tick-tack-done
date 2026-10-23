@@ -1,5 +1,20 @@
 # Historial de cambios
 
+## Staging — Telegram por usuario y Resend (23 de octubre de 2026)
+
+- RF-2003: configuración cifrada de un bot exclusivo por usuario en Ajustes →
+  Integraciones, webhook propio y aislamiento de chats, respuestas, adjuntos y
+  avisos. Se conservan QR, perfil, bloqueo y preferencias; las credenciales
+  globales de Telegram dejan de utilizarse.
+- Evento versionado `telegram.bot_configured@v1`: datos saneados con usuario del
+  bot y estado del webhook, sin tokens ni secretos.
+- RF-802/RF-808: correo transaccional por Resend con `RESEND_API_KEY` y
+  `EMAIL_FROM`; recordatorios con idempotencia y reintentos que conservan los
+  canales ya enviados. SMTP se mantiene para desarrollo local.
+- Se conservan las migraciones y mejoras ya presentes en staging. La selección
+  explícita de configuración usa `RUNTIME_ENV_FILE`; el despliegue conserva las
+  claves y los datos existentes y actualiza solo las credenciales de integración.
+
 ## Sin publicar — PR75
 
 - Staging aislado con Compose, PostgreSQL/Redis, redes y secretos propios; configuración y retirada a página estática preparadas. Activación pública y aceptación externa pendientes.

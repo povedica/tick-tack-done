@@ -14,6 +14,7 @@ it('TTD-AUD-80 / RF-2001: HTTP OAuth and MCP survive a real API process restart'
   const database = new URL(process.env.DATABASE_URL ?? '');
   if (
     database.pathname !== '/ttd_r80' &&
+    !(database.hostname === 'postgres' && database.pathname === '/todo_staging_release_check') &&
     !(
       process.env.CI === 'true' &&
       database.pathname === '/reflexionia_test' &&

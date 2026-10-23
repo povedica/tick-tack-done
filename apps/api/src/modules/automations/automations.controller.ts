@@ -183,7 +183,7 @@ export class AutomationEngine implements OnModuleInit {
       return 'create_task';
     }
     if (action.type === 'notify') {
-      if (action.channel === 'telegram' && !telegramConfigured()) {
+      if (action.channel === 'telegram' && !(await telegramConfigured(this.prisma, ownerId))) {
         return 'telegram_not_configured';
       }
       if (action.channel === 'report') {

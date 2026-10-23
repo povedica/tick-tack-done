@@ -5190,7 +5190,7 @@
   {
     "method": "GET",
     "path": "/api/v1/integrations/telegram",
-    "summary": "Telegram bot status. Without TELEGRAM_BOT_TOKEN it stays stopped (RF-2003).",
+    "summary": "Estado del bot de Telegram configurado por el usuario desde Ajustes (RF-2003).",
     "parameters": [],
     "request_body": {}
   },
@@ -5200,6 +5200,38 @@
     "summary": "Unlink Telegram chats from this account (RF-2003)",
     "parameters": [],
     "request_body": {}
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/integrations/telegram/settings",
+    "summary": "Validar y guardar cifrado el bot propio del usuario (RF-2003).",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": { "token": { "type": "string", "writeOnly": true } },
+            "required": ["token"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/integrations/telegram/webhook/{ownerId}",
+    "summary": "Actualización del bot propio autenticada por secreto independiente (RF-2003).",
+    "parameters": [
+      { "name": "ownerId", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": { "schema": { "type": "object", "additionalProperties": true } }
+      }
+    }
   },
   {
     "method": "POST",
@@ -5236,20 +5268,9 @@
   {
     "method": "POST",
     "path": "/api/v1/integrations/telegram/webhook",
-    "summary": "Inbound Telegram update. Creates the task and replies in the chat (RF-2003). Refuses to run when the bot token is missing.",
+    "summary": "Retirado: configura tu bot desde Ajustes y usa el webhook específico del usuario (RF-2003).",
     "parameters": [],
-    "request_body": {
-      "required": true,
-      "content": {
-        "application/json": {
-          "schema": {
-            "type": "object",
-            "additionalProperties": true,
-            "description": "Telegram Update: message text, voice, photo, or callback_query."
-          }
-        }
-      }
-    }
+    "request_body": {}
   },
   {
     "method": "GET",

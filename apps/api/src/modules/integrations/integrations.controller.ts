@@ -14,6 +14,7 @@ import {
   Inject,
   Post,
   Patch,
+  Put,
   Param,
   Query,
   Req,
@@ -42,9 +43,10 @@ import { CurrentUser } from '../../auth/current-user.decorator.js';
 import { Public, Scopes } from '../../auth/scopes.decorator.js';
 import { DomainEvent } from '../../events/domain-events.js';
 import { EventRecorder } from '../../events/event-recorder.js';
-import { googleConfigured, telegramConfigured } from '../../integrations/config.js';
+import { googleConfigured } from '../../integrations/config.js';
 import { telegramSecretMatches } from '../../integrations/telegram-secret.js';
 import { authorizeUrl, readState, redirectFor, signState } from './google-oauth.js';
+import { TelegramSettingsService } from './telegram-settings.service.js';
 import { TelegramBotService } from './telegram-bot.service.js';
 import { asJson } from '../../http/json.js';
 import { DomainException } from '../../http/domain.exception.js';
@@ -53,11 +55,19 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { openField, sealField } from '../../security/field-cipher.js';
 import { TasksService } from '../tasks/tasks.service.js';
 
-class TelegramStatusDto {
+class TelegramConfigurationDto {
   @ApiProperty() configured!: boolean;
+  @ApiProperty() can_manage!: boolean;
+  @ApiProperty({ enum: ['none', 'settings'] }) source!: string;
+  @ApiProperty() webhook_registered!: boolean;
+  @ApiProperty({ type: String, nullable: true }) webhook_url!: string | null;
+  @ApiProperty({ enum: ['unconfigured', 'local_only', 'registered'] }) webhook_state!: string;
+  @ApiProperty({ type: String, nullable: true }) updated_at!: string | null;
+  @ApiProperty({ type: String, nullable: true }) username!: string | null;
+}
+class TelegramStatusDto extends TelegramConfigurationDto {
   @ApiProperty() linked!: boolean;
   @ApiProperty({ type: String, nullable: true }) bot_username!: string | null;
-  @ApiProperty({ type: String, nullable: true }) username!: string | null;
   @ApiProperty({ type: String, nullable: true }) display_name!: string | null;
   @ApiProperty({ type: String, nullable: true }) linked_at!: string | null;
   @ApiProperty({ enum: ['not_linked', 'connected', 'blocked'] }) status!: string;
@@ -70,6 +80,14 @@ class TelegramPairingResponseDto {
   @ApiProperty() expires_at!: string;
   @ApiProperty({ type: String, nullable: true }) bot_username!: string | null;
   @ApiProperty({ type: String, nullable: true }) deep_link!: string | null;
+  @ApiProperty({ type: String, nullable: true }) url!: string | null;
+}
+
+class TelegramSettingsDto {
+  @ApiProperty({ writeOnly: true })
+  @IsString()
+  @MaxLength(200)
+  token!: string;
 }
 
 class LinkDto {
@@ -125,6 +143,7 @@ export class IntegrationsController {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
     @Inject(TelegramBotService) private readonly telegram: TelegramBotService,
+    @Inject(TelegramSettingsService) private readonly settings: TelegramSettingsService,
     @Inject(TasksService) private readonly tasks: TasksService,
   ) {}
 
@@ -132,7 +151,7 @@ export class IntegrationsController {
   @ApiOkResponse({ type: TelegramStatusDto })
   @Scopes('profile:read')
   @ApiOperation({
-    summary: 'Telegram bot status. Without TELEGRAM_BOT_TOKEN it stays stopped (RF-2003).',
+    summary: 'Estado del bot de Telegram configurado por el usuario desde Ajustes (RF-2003).',
   })
   async status(
     @CurrentUser() user: AuthUser,
@@ -146,22 +165,76 @@ export class IntegrationsController {
       where: { id: user.id },
       select: { telegramEnabled: true },
     });
+    const status = await this.settings.status(user);
     respondJson(
       req,
       res,
       200,
       {
-        configured: telegramConfigured(),
-        bot_username: await this.telegram.botUsername(),
+        ...status,
+        bot_username: status.username,
         username: link?.username ?? null,
         display_name: link?.displayName ?? null,
         linked_at: link?.createdAt.toISOString() ?? null,
         status: link?.status ?? 'not_linked',
         enabled: owner.telegramEnabled,
-        voice: telegramConfigured() && present('TELEGRAM_VOICE_PROVIDER'),
-        photo: telegramConfigured(),
-        linked: link !== null,
+        voice: status.configured && present('TELEGRAM_VOICE_PROVIDER'),
+        photo: status.configured,
+        linked: status.configured && link !== null,
       },
+      false,
+    );
+  }
+
+  @Put('telegram/settings')
+  @ApiOkResponse({ type: TelegramConfigurationDto })
+  @Scopes('profile:write')
+  @ApiOperation({ summary: 'Validar y guardar cifrado el bot propio del usuario (RF-2003).' })
+  async saveTelegram(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: TelegramSettingsDto,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(req, res, 200, await this.settings.save(user, dto.token), false);
+  }
+
+  @Post('telegram/webhook/:ownerId')
+  @Public()
+  @ApiOperation({
+    summary: 'Actualización del bot propio autenticada por secreto independiente (RF-2003).',
+  })
+  @ApiBody({ schema: { type: 'object', additionalProperties: true } })
+  async ownedWebhook(
+    @Param('ownerId') ownerId: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    // Each webhook requires the secret stored for its owner.
+    const row = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      ownerId,
+    )
+      ? await this.prisma.telegramBotConfiguration.findUnique({ where: { ownerId } })
+      : null;
+    if (
+      row === null ||
+      !telegramSecretMatches(
+        req.header('x-telegram-bot-api-secret-token'),
+        openField(row.webhookSecret),
+      )
+    ) {
+      throw new DomainException(HttpStatus.UNAUTHORIZED, 'unauthorized', 'Invalid bot secret');
+    }
+    respondJson(
+      req,
+      res,
+      200,
+      await this.telegram.handle(req.body, ownerId, {
+        token: openField(row.token),
+        secret: openField(row.webhookSecret),
+        botId: row.botId,
+        username: row.username,
+      }),
       false,
     );
   }
@@ -187,7 +260,7 @@ export class IntegrationsController {
         previous: null,
       });
     });
-    for (const link of links) await this.telegram.farewell(link.chatId);
+    for (const link of links) await this.telegram.farewell(user.id, link.chatId);
     res.status(204).end();
   }
 
@@ -238,27 +311,15 @@ export class IntegrationsController {
   @Public()
   @ApiOperation({
     summary:
-      'Inbound Telegram update. Creates the task and replies in the chat (RF-2003). Refuses to run when the bot token is missing.',
+      'Retirado: configura tu bot desde Ajustes y usa el webhook específico del usuario (RF-2003).',
+    deprecated: true,
   })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      additionalProperties: true,
-      description: 'Telegram Update: message text, voice, photo, or callback_query.',
-    },
-  })
-  async webhook(@Req() req: Request, @Res() res: Response): Promise<void> {
-    if (!telegramConfigured()) {
-      throw new DomainException(
-        HttpStatus.SERVICE_UNAVAILABLE,
-        'telegram_not_configured',
-        'Set TELEGRAM_BOT_TOKEN. The bot is not calling Telegram.',
-      );
-    }
-    if (!telegramSecretMatches(req.header('x-telegram-bot-api-secret-token'))) {
-      throw new DomainException(HttpStatus.UNAUTHORIZED, 'unauthorized', 'Invalid bot secret');
-    }
-    respondJson(req, res, 200, await this.telegram.handle(req.body), false);
+  webhook(): never {
+    throw new DomainException(
+      HttpStatus.GONE,
+      'telegram_user_bot_required',
+      'Configura tu propio bot desde Ajustes → Integraciones. El webhook global está deshabilitado.',
+    );
   }
 
   @Get('google')

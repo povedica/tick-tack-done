@@ -18,6 +18,7 @@ interface NotificationJob {
   taskId: string | null;
   payload: Prisma.JsonValue;
   fireAt: Date;
+  channelState?: Prisma.JsonValue;
 }
 export async function deliverNotification(
   prisma: PrismaService,
@@ -124,6 +125,9 @@ export async function deliverNotification(
     action = { delivery_id: row.id, token, url: `/today?task=${row.taskId}` };
   }
   const result = await transport.deliver({
+    ownerId: row.ownerId,
+    deliveryId: row.id,
+    previous: row.channelState,
     channel: 'both',
     allowEmail: allowed.has('email'),
     allowPush: allowed.has('push'),

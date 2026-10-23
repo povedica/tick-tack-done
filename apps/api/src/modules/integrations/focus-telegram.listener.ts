@@ -3,6 +3,7 @@ import { DomainEvent } from '../../events/domain-events.js';
 import type { DomainBusEvent } from '../../events/event-bus.js';
 import { EventRouter } from '../../events/event-router.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { telegramConfiguration } from '../../integrations/telegram-configuration.js';
 import { TelegramApi } from './telegram-api.js';
 
 const FOCUS_TYPES = new Set<string>([
@@ -25,9 +26,9 @@ export class FocusTelegramListener implements OnModuleInit {
   }
 
   private async onEvent(event: DomainBusEvent): Promise<void> {
-    if (!FOCUS_TYPES.has(event.type) || (process.env.TELEGRAM_BOT_TOKEN ?? '').length === 0) {
-      return;
-    }
+    if (!FOCUS_TYPES.has(event.type)) return;
+    const configuration = await telegramConfiguration(this.prisma, event.ownerId);
+    if (configuration.token.length === 0) return;
     const user = await this.prisma.user.findFirst({
       where: { id: event.ownerId, deletedAt: null },
       select: {
@@ -60,7 +61,9 @@ export class FocusTelegramListener implements OnModuleInit {
           ? `✅ Foco terminado: ${title}`
           : `Foco cancelado: ${title}`;
     try {
-      await this.telegram.call('sendMessage', { chat_id: chatId, text });
+      await this.telegram
+        .withConfiguration(configuration)
+        .call('sendMessage', { chat_id: chatId, text }, event.ownerId);
     } catch {
       return;
     }

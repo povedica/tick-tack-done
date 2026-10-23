@@ -6,6 +6,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, expect, it, vi } from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/configure-app.js';
+import { sealField } from '../src/security/field-cipher.js';
 import { deliverNotification } from '../src/notifications/deliver.js';
 import { ReminderTransport } from '../src/scheduler/reminder.transport.js';
 import type { PrismaService } from '../src/prisma/prisma.service.js';
@@ -17,8 +18,6 @@ let blocked = false;
 const calls: { method: string; body: Record<string, unknown> }[] = [];
 beforeAll(async () => {
   vi.stubEnv('AUTH_MODE', 'dev');
-  vi.stubEnv('TELEGRAM_BOT_TOKEN', 'synthetic-token');
-  vi.stubEnv('TELEGRAM_WEBHOOK_SECRET', 'synthetic-webhook-secret');
   vi.stubGlobal(
     'fetch',
     vi.fn((url: unknown, init?: RequestInit) => {
@@ -48,6 +47,15 @@ beforeAll(async () => {
   });
   ownerId = owner.id;
   email = owner.email;
+  await prisma.telegramBotConfiguration.create({
+    data: {
+      ownerId,
+      botId: '77103',
+      username: 'synthetic_bot',
+      token: sealField('synthetic-token'),
+      webhookSecret: sealField('synthetic-webhook-secret'),
+    },
+  });
   const module = await Test.createTestingModule({ imports: [AppModule] }).compile();
   app = module.createNestApplication();
   configureApp(app);
@@ -59,6 +67,7 @@ afterAll(async () => {
     await prisma.outboxEvent.deleteMany({ where: { ownerId } });
     await prisma.activityLog.deleteMany({ where: { ownerId } });
     await prisma.reminderDelivery.deleteMany({ where: { ownerId } });
+    await prisma.telegramBotConfiguration.deleteMany({ where: { ownerId } });
     await prisma.user.delete({ where: { id: ownerId } });
   }
   await prisma.$disconnect();
@@ -68,7 +77,7 @@ afterAll(async () => {
 function api() {
   return request(app.getHttpServer() as Parameters<typeof request>[0]);
 }
-it('TTD-AUD-103: cached getMe creates a ten-minute deep link, webhook pairs and exposes the profile', async () => {
+it('TTD-AUD-103: saved bot creates a ten-minute deep link, owned webhook pairs and exposes the profile', async () => {
   const response = await api()
     .post('/api/v1/integrations/telegram/pairing')
     .set('X-Dev-User-Email', email)
@@ -78,7 +87,7 @@ it('TTD-AUD-103: cached getMe creates a ten-minute deep link, webhook pairs and 
   );
   expect(Date.parse(String(response.body.expires_at)) - Date.now()).toBeGreaterThan(590000);
   await api()
-    .post('/api/v1/integrations/telegram/webhook')
+    .post(`/api/v1/integrations/telegram/webhook/${ownerId}`)
     .set('X-Telegram-Bot-Api-Secret-Token', 'synthetic-webhook-secret')
     .send({
       update_id: Date.now(),
@@ -100,7 +109,7 @@ it('TTD-AUD-103: cached getMe creates a ten-minute deep link, webhook pairs and 
     status: 'connected',
     enabled: true,
   });
-  expect(calls.filter((call) => call.method === 'getMe')).toHaveLength(1);
+  expect(calls.filter((call) => call.method === 'getMe')).toHaveLength(0);
 });
 it('TTD-AUD-103: 403 marks blocked in integration and matrix, recheck restores it, unlink sends farewell', async () => {
   blocked = true;
@@ -132,7 +141,7 @@ it('TTD-AUD-103: 403 marks blocked in integration and matrix, recheck restores i
   const row = await prisma.reminderDelivery.create({
     data: { ownerId, kind: 'task', dedupeKey: randomUUID(), fireAt: new Date(), channel: 'push' },
   });
-  await deliverNotification(prisma as PrismaService, new ReminderTransport(), row, new Date(), {
+  await deliverNotification(prisma as PrismaService, app.get(ReminderTransport), row, new Date(), {
     title: 'Synthetic',
     body: 'After unlink',
   });

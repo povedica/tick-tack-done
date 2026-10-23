@@ -6,6 +6,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, expect, it, vi } from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/configure-app.js';
+import { sealField } from '../src/security/field-cipher.js';
 import { ReminderTransport, type ReminderMessage } from '../src/scheduler/reminder.transport.js';
 import { deliverNotification } from '../src/notifications/deliver.js';
 import type { PrismaService } from '../src/prisma/prisma.service.js';
@@ -35,6 +36,15 @@ beforeAll(async () => {
   });
   ownerId = owner.id;
   email = owner.email;
+  await prisma.telegramBotConfiguration.create({
+    data: {
+      ownerId,
+      botId: `notifications-${randomUUID()}`,
+      username: 'synthetic_bot',
+      token: sealField('synthetic-token'),
+      webhookSecret: sealField('synthetic-secret'),
+    },
+  });
   const project = await prisma.project.create({
     data: { ownerId, name: 'Synthetic notifications' },
   });
@@ -60,6 +70,7 @@ afterAll(async () => {
     await prisma.reminderDelivery.deleteMany({ where: { ownerId } });
     await prisma.task.deleteMany({ where: { ownerId } });
     await prisma.project.deleteMany({ where: { ownerId } });
+    await prisma.telegramBotConfiguration.deleteMany({ where: { ownerId } });
     await prisma.user.delete({ where: { id: ownerId } });
   }
   await prisma.$disconnect();
@@ -130,13 +141,7 @@ it('TTD-AUD-102: quiet 23:00 defers push/Telegram to civil 08:00 while email sen
   expect(deferred).toHaveLength(2);
 });
 it('TTD-AUD-102: real test endpoint uses only owned destinations and refuses recipient overrides', async () => {
-  const names = [
-    'VAPID_PUBLIC_KEY',
-    'VAPID_PRIVATE_KEY',
-    'SMTP_HOST',
-    'SMTP_FROM',
-    'TELEGRAM_BOT_TOKEN',
-  ] as const;
+  const names = ['VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'SMTP_HOST', 'SMTP_FROM'] as const;
   const old = Object.fromEntries(names.map((name) => [name, process.env[name]]));
   for (const name of names) process.env[name] = 'synthetic-config';
   await prisma.pushSubscription.create({

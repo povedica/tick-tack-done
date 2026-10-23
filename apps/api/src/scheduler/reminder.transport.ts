@@ -1,5 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import nodemailer from 'nodemailer';
+import { Inject, Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { telegramConfiguration } from '../integrations/telegram-configuration.js';
+import { sendEmail, type EmailResult } from '../mail/send-email.js';
+
 import webpush from 'web-push';
 
 export interface PushTarget {
@@ -14,6 +17,9 @@ export interface TelegramButton {
 }
 
 export interface ReminderMessage {
+  readonly ownerId?: string;
+  readonly deliveryId?: string;
+  readonly previous?: unknown;
   readonly channel: 'push' | 'email' | 'both';
   readonly allowPush?: boolean;
   readonly allowEmail?: boolean;
@@ -31,6 +37,8 @@ export type ChannelOutcome =
   'sent' | 'skipped' | 'failed' | 'unknown' | 'rate_limited' | 'disconnected';
 
 export interface DeliveryResult {
+  readonly email_first_attempt_at?: string;
+  readonly email_reconcile_required?: boolean;
   readonly email: ChannelOutcome;
   readonly push: ChannelOutcome;
   readonly telegram: ChannelOutcome;
@@ -40,52 +48,71 @@ export interface DeliveryResult {
 
 @Injectable()
 export class ReminderTransport {
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
   async deliver(message: ReminderMessage): Promise<DeliveryResult> {
     const wantsEmail =
       message.allowEmail !== false && (message.channel === 'email' || message.channel === 'both');
     const wantsPush =
       message.allowPush !== false && (message.channel === 'push' || message.channel === 'both');
-    const telegram = await this.telegram(message);
+    const prior =
+      typeof message.previous === 'object' && message.previous !== null
+        ? (message.previous as Record<string, unknown>)
+        : {};
+    const telegram: {
+      status: ChannelOutcome;
+      messageId: number | null;
+      retryAfter: number | null;
+    } =
+      prior.telegram === 'sent' || prior.telegram === 'unknown' || prior.telegram === 'disconnected'
+        ? {
+            status: prior.telegram,
+            messageId:
+              typeof prior.telegram_message_id === 'number' ? prior.telegram_message_id : null,
+            retryAfter: null,
+          }
+        : await this.telegram(message);
+    const firstAttempt =
+      typeof prior.email_first_attempt_at === 'string'
+        ? prior.email_first_attempt_at
+        : new Date().toISOString();
+    // Resend retains idempotency keys for 24h; after downtime keep uncertain mail for reconciliation.
+    const expired =
+      prior.email === 'unknown' &&
+      (!Number.isFinite(Date.parse(firstAttempt)) ||
+        Date.now() - Date.parse(firstAttempt) >= 23 * 60 * 60_000);
+    const email: EmailResult = wantsEmail
+      ? expired
+        ? { status: 'unknown', retryAfter: null }
+        : prior.email === 'sent'
+          ? { status: 'sent', retryAfter: null }
+          : await this.email(message)
+      : { status: 'skipped', retryAfter: null };
     return {
-      email: wantsEmail ? await this.email(message) : 'skipped',
-      push: wantsPush ? await this.push(message) : 'skipped',
+      ...(wantsEmail
+        ? { email_first_attempt_at: firstAttempt, email_reconcile_required: expired }
+        : {}),
+      email: email.status,
+      push: wantsPush ? (prior.push === 'sent' ? 'sent' : await this.push(message)) : 'skipped',
       telegram: telegram.status,
       telegram_message_id: telegram.messageId,
-      retry_after_seconds: telegram.retryAfter,
+      retry_after_seconds:
+        telegram.retryAfter === null && email.retryAfter === null
+          ? null
+          : Math.max(telegram.retryAfter ?? 0, email.retryAfter ?? 0),
     };
   }
 
-  private async email(message: ReminderMessage): Promise<ChannelOutcome> {
-    const host = process.env.SMTP_HOST ?? '';
-    if (host.length === 0 || message.email === null) {
-      return 'skipped';
-    }
-    try {
-      const user = process.env.SMTP_USER ?? '';
-      const pass = process.env.SMTP_PASS ?? '';
-      const transport = nodemailer.createTransport({
-        host,
-        port: Number(process.env.SMTP_PORT ?? '1025'),
-        secure: false,
-        connectionTimeout: 3000,
-        greetingTimeout: 3000,
-        socketTimeout: 8000,
-        ...(user.length > 0 ? { auth: { user, pass } } : {}),
-      });
-      const from = process.env.SMTP_FROM ?? '';
-      if (from.length === 0) {
-        return 'skipped';
-      }
-      await transport.sendMail({
-        from,
-        to: message.email,
-        subject: message.title,
-        text: message.body,
-      });
-      return 'sent';
-    } catch {
-      return 'failed';
-    }
+  private email(message: ReminderMessage): Promise<EmailResult> {
+    return message.email === null
+      ? Promise.resolve({ status: 'skipped', retryAfter: null })
+      : sendEmail({
+          to: message.email,
+          subject: message.title,
+          text: message.body,
+          ...(message.deliveryId === undefined
+            ? {}
+            : { idempotencyKey: `reminder/${message.deliveryId}` }),
+        });
   }
 
   private async push(message: ReminderMessage): Promise<ChannelOutcome> {
@@ -134,7 +161,7 @@ export class ReminderTransport {
     messageId: number | null;
     retryAfter: number | null;
   }> {
-    const token = process.env.TELEGRAM_BOT_TOKEN ?? '';
+    const { token } = await telegramConfiguration(this.prisma, message.ownerId);
     const chatId = message.telegramChatId;
     if (
       message.allowTelegram === false ||
@@ -143,6 +170,13 @@ export class ReminderTransport {
       chatId.length === 0
     ) {
       return { status: 'skipped', messageId: null, retryAfter: null };
+    }
+    if (message.ownerId !== undefined) {
+      const link = await this.prisma.telegramLink.findFirst({
+        where: { ownerId: message.ownerId, chatId, deletedAt: null },
+        select: { id: true },
+      });
+      if (link === null) return { status: 'skipped', messageId: null, retryAfter: null };
     }
     try {
       const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {

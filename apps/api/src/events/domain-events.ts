@@ -108,6 +108,7 @@ export const DomainEvent = {
   attachmentRemoved: 'attachment.removed@v1',
   googleReauthRequired: 'integration.google.reauth_required@v1',
   telegramLinked: 'telegram.linked@v1',
+  telegramBotConfigured: 'telegram.bot_configured@v1',
   telegramUnlinked: 'telegram.unlinked@v1',
   googleDisconnected: 'google.disconnected@v1',
   reportGenerated: 'report.generated@v1',
