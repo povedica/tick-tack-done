@@ -46,9 +46,9 @@ La exportación anterior fue rechazada por auto-review y no se ejecutó. No se r
 
 ## 6. Acceso al destino del backup cifrado de producción
 
-Los cron actuales fallan por falta de `APP_DIR`; el último intento externo falló por no tener refresh token de Google. Además, el host necesita la herramienta de cifrado `age`. Codex puede preparar las herramientas, corregir el cron y verificar la restauración: esos pasos no los tiene que hacer Pablo.
+Los cron actuales fallan por falta de `APP_DIR`; el último intento externo falló por no tener refresh token de Google. Codex ya ha instalado `age` 1.3.2 desde su distribución oficial, verificado su SHA-256 y probado el cifrado/descifrado con texto sintético. La identidad de recuperación se conserva en un archivo privado fuera del repositorio. Codex corregirá el cron y verificará la restauración antes de publicar: esos pasos no los tiene que hacer Pablo.
 
-**Necesario de Pablo:** completar el consentimiento de Drive de la cuenta de producción que posee el destino ya configurado, o indicar un destino externo alternativo autorizado para el backup cifrado. Codex comprobará la compatibilidad antes de subir nada y entregará la clave de recuperación por una ruta privada para que Pablo la guarde fuera del VPS. No hay que facilitar un dump ni pegar una clave en el chat.
+**Necesario de Pablo:** completar el consentimiento de Drive de la cuenta de producción que posee el destino ya configurado, o indicar un destino externo alternativo autorizado para el backup cifrado. Codex comprobará la compatibilidad antes de subir nada y entregará la clave de recuperación por una ruta privada para que Pablo la guarde fuera del VPS; guardarla es la intervención humana necesaria para recuperar el backup si se pierde el servidor. No hay que facilitar un dump ni pegar una clave en el chat.
 
 ## Después de estas intervenciones
 
