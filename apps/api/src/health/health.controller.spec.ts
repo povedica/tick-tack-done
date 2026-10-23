@@ -2,7 +2,7 @@ import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { configureApp } from '../configure-app.js';
+import { configureApp, createOpenApiDocument } from '../configure-app.js';
 import { HealthModule } from './health.module.js';
 
 type SuperTestApp = Parameters<typeof request>[0];
@@ -27,7 +27,13 @@ describe('HealthController', () => {
     const response = await request(app.getHttpServer() as SuperTestApp)
       .get('/api/v1/health')
       .expect(200);
-    expect(response.body).toEqual({ status: 'ok', commit: 'unknown' });
+    expect(response.body).toMatchObject({
+      status: 'ok',
+      commit: 'unknown',
+      version: '0.2.0',
+      built_at: 'unknown',
+      mcp_version: '0.2.0+unknown',
+    });
     expect(response.headers['x-request-id']).toEqual(expect.any(String));
   });
 
@@ -40,6 +46,17 @@ describe('HealthController', () => {
         code: 'not_found',
         message: 'Cannot GET /api/v1/missing',
         details: null,
+      },
+    });
+  });
+  it('documents every build identifier as a string in the public OpenAPI contract', () => {
+    const document = createOpenApiDocument(app);
+    expect(document.components?.schemas?.HealthResponseDto).toMatchObject({
+      properties: {
+        commit: { type: 'string' },
+        version: { type: 'string' },
+        built_at: { type: 'string' },
+        mcp_version: { type: 'string' },
       },
     });
   });

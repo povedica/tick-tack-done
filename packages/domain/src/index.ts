@@ -162,7 +162,7 @@ export type {
   CompleteChildrenPolicy,
   ParentCompletionDecision,
 } from './tasks/completion';
-export { deriveDurationMinutes } from './tasks/duration';
+export { deriveDurationMinutes, endFromDuration } from './tasks/duration';
 export type { DurationDerivation } from './tasks/duration';
 export { normalizeTaskTitle, resolveSubtaskProject } from './tasks/subtask';
 export type { SubtaskProject, TaskTitle } from './tasks/subtask';
@@ -420,3 +420,24 @@ export { bucketWeek, type WeekDayMetric } from './reports/week-metrics';
 export { calendarDragPatch, DRAG_SNAP_MINUTES, type CalendarDragTarget } from './calendar/drag';
 
 export { calendarRepeatedHour, calendarAxisMinute, calendarAxisTarget } from './calendar/drag';
+
+export { recurrenceAnchorWarning } from './recurrence/anchor';
+export type { RecurrenceAnchorWarning } from './recurrence/anchor';
+
+export { listNameKey } from './lists/name';
+
+export { normalizeReminderTrigger } from './reminders/trigger';
+
+export { repairAllDayUtc } from './tasks/repair-allday';
+
+export { extractUrls, normalizeTaskUrl } from './links/extract';
+
+export { autoStartNextPhase } from './focus/cycle';
+
+export {
+  NOTIFICATION_KINDS,
+  NOTIFICATION_CHANNELS,
+  notificationDefault,
+  notificationQuietUntil,
+} from './reminders/preferences';
+export type { NotificationKind, NotificationChannel } from './reminders/preferences';

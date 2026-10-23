@@ -1,8 +1,14 @@
+import { composerContextFor } from '../capture/context';
+import { useAgendaQuery } from '../calendar/use-agenda-query';
+import { agendaPageRange } from '../calendar/agenda-range';
 import { useCalendarDrag } from './use-calendar-drag';
 import { useCalendarTaskChange, type CalendarTaskChange } from './use-calendar-task-change';
 import { SidebarFoldButton } from '../../shell/SidebarFoldButton';
 import { DayWeekStrip } from '../calendar/DayWeekStrip';
-import { CalendarFilterRow } from '../calendar/CalendarFilterRow';
+import { CalendarSources } from '../calendar/CalendarSources';
+import { sourceSelected } from '../calendar/source-selection';
+import { useCalendarSources } from '../calendar/use-calendar-sources';
+import { PeriodNavigator } from '../../components/period/PeriodNavigator';
 import { useVerticalCalendarNavigation } from '../calendar/useVerticalCalendarNavigation';
 import { TodayMark } from '../../components/period/TodayMark';
 import { useCalendarToday } from '../../components/period/useCalendarToday';
@@ -25,7 +31,6 @@ import {
   List,
   Check,
   ListFilter,
-  Tag,
   X,
 } from 'lucide-react';
 import { CalendarTaskMark } from '../calendar/CalendarTaskMark';
@@ -34,7 +39,7 @@ import '../calendar/calendar.css';
 import { PriorityCheck } from '../../components/PriorityCheck';
 import { displayTitle } from '../tasks/displayTitle';
 import { ApiError, type Project, type Task } from '@reflexionia/sdk';
-import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Fragment,
   useCallback,
@@ -277,7 +282,6 @@ export function InboxPage() {
 
 function ProcessCard({
   messages,
-  locale,
   taskTitle,
   projects,
   onDate,
@@ -321,14 +325,11 @@ function ProcessCard({
         >
           {messages.processWeek}
         </Button>
-        <input
-          type="date"
-          lang={locale.toLowerCase().startsWith('en') ? 'en-CA' : 'es-ES'}
-          aria-label={messages.processDate}
-          onChange={(event) => {
-            if (event.target.value.length > 0) {
-              onDate('date', `${event.target.value}T12:00:00.000Z`);
-            }
+        <PeriodNavigator
+          title={messages.processDate}
+          date={new Date()}
+          onPick={(date) => {
+            onDate('date', date.toISOString());
           }}
         />
         <label>
@@ -362,6 +363,7 @@ function ProcessCard({
 }
 
 export function CalendarPage() {
+  const composerClient = useQueryClient();
   const taskChange = useCalendarTaskChange();
   const [draft, setDraft] = useState<{ slot: CalendarSlot; anchor: SlotAnchor } | null>(null);
   const [createdNotice, setCreatedNotice] = useState('');
@@ -389,8 +391,24 @@ export function CalendarPage() {
   const contextProject = params.get('project_id') ?? params.get('list') ?? undefined;
   const filterId = params.get('filter_id') ?? '';
   const tagId = params.get('tag_id') ?? '';
-  const filters = useQuery({ queryKey: ['filters'], queryFn: () => api.listFilters() });
-  const tags = useQuery({ queryKey: ['tags'], queryFn: collectTags });
+  const { params: sourceParams } = useCalendarSources();
+  const selectedFilters = (sourceParams.get('filters') ?? '')
+    .split(',')
+    .filter((id) => id && id !== '-');
+  const filterResults = useQueries({
+    queries: selectedFilters.map((id) => ({
+      queryKey: ['calendar-filter-tasks', id],
+      queryFn: () => collectFilterTasks(id, {}),
+    })),
+  });
+  const selectedTaskIds = selectedFilters.length
+    ? new Set(
+        filterResults.flatMap(
+          (result) =>
+            result.data?.groups.flatMap((group) => group.tasks.map((task) => task.id)) ?? [],
+        ),
+      )
+    : null;
   const filterTasks = useQuery({
     queryKey: ['calendar-filter-tasks', filterId],
     queryFn: () => collectFilterTasks(filterId, {}),
@@ -399,13 +417,6 @@ export function CalendarPage() {
   const filterTaskIds = filterId
     ? new Set(filterTasks.data?.groups.flatMap((group) => group.tasks.map((task) => task.id)) ?? [])
     : null;
-  const selectFilter = (key: string, value: string) => {
-    const query = new URLSearchParams(window.location.search);
-    if (key === 'project_id') query.delete('list');
-    if (value) query.set(key, value);
-    else query.delete(key);
-    setParams(query);
-  };
   const createAt = (slot: CalendarSlot, anchor: SlotAnchor) => {
     if (draft === null) setDraft({ slot, anchor });
   };
@@ -415,13 +426,7 @@ export function CalendarPage() {
   const requestedView = view === 'multi-week' ? 'two-weeks' : view;
   const knownView = CAL_VIEWS.includes(requestedView as (typeof CAL_VIEWS)[number]);
   const current =
-    mobile && requestedView === 'quarter'
-      ? 'month'
-      : mobile && requestedView === 'two-weeks'
-        ? 'week'
-        : knownView
-          ? requestedView
-          : 'month';
+    mobile && requestedView === 'quarter' ? 'month' : knownView ? requestedView : 'month';
   const ViewIcon = calendarViewIcon(current ?? 'month');
   const weekStart = usePreferences((state) => state.weekStart);
   const [cursor, setCursor] = useState(
@@ -430,7 +435,7 @@ export function CalendarPage() {
 
   useEffect(() => {
     // Preserve links and filters when opening desktop-only views on mobile.
-    if (mobile && (requestedView === 'quarter' || requestedView === 'two-weeks')) {
+    if (mobile && requestedView === 'quarter') {
       const query = new URLSearchParams(params);
       query.delete('weeks');
       runAction(
@@ -470,18 +475,19 @@ export function CalendarPage() {
   );
   const agendaToday = useCalendarToday(timeZone);
   const agendaOrigin = localKey(cursor);
-  const [agendaWindow, setAgendaWindow] = useState({ origin: agendaOrigin, before: 1, after: 2 });
-  const agendaBounds =
-    agendaWindow.origin === agendaOrigin
-      ? agendaWindow
-      : { origin: agendaOrigin, before: 1, after: 2 };
+  const agendaQuery = useAgendaQuery(agendaOrigin, timeZone, current === 'agenda');
+  const initialAgendaRange = agendaPageRange(agendaOrigin, 0, timeZone);
   const agendaScroll = useRef<HTMLDivElement>(null);
   const agendaAnchor = useRef<{ key: string; top: number } | null>(null);
   const agendaInitialized = useRef('');
-  const agendaMonthTarget = useRef<string | null>(null);
   const [agendaEdges, setAgendaEdges] = useState({ start: false, end: false });
-  const agendaStart = new Date(cursor.getFullYear(), cursor.getMonth() - agendaBounds.before, 1);
-  const agendaEnd = new Date(cursor.getFullYear(), cursor.getMonth() + agendaBounds.after, 1);
+  const agendaScrollIntent = useRef(false);
+  const agendaStart =
+    dayFromParam(agendaQuery.data?.pages[0]?.range.startDay ?? initialAgendaRange.startDay) ??
+    cursor;
+  const agendaEnd =
+    dayFromParam(agendaQuery.data?.pages.at(-1)?.range.endDay ?? initialAgendaRange.endDay) ??
+    cursor;
   const agendaDays: Date[] = [];
   if (current === 'agenda') {
     for (let day = new Date(agendaStart); day < agendaEnd; day.setDate(day.getDate() + 1)) {
@@ -500,9 +506,9 @@ export function CalendarPage() {
       : allCells;
   const cells = filteredCells;
   const range = current === 'year' ? yearQueryRange(cursor) : monthQueryRange(cells);
-  const tasks = useQuery<Task[]>({
+  const rangedTasks = useQuery<Task[]>({
+    enabled: current !== 'agenda',
     queryKey: ['calendar-tasks', range.dueAfter, range.dueBefore],
-    ...(current === 'agenda' ? { placeholderData: keepPreviousData } : {}),
     queryFn: () =>
       collectTasks((query) => api.listTasks(query), {
         status: 'active',
@@ -512,16 +518,40 @@ export function CalendarPage() {
         dueBefore: range.dueBefore,
       }),
   });
-  const externalQuery = useQuery<Awaited<ReturnType<typeof api.calendarEvents>>>({
+  const tasks =
+    current === 'agenda'
+      ? { ...agendaQuery, data: agendaQuery.data?.pages.flatMap((page) => page.tasks) }
+      : rangedTasks;
+  const rangedEvents = useQuery<Awaited<ReturnType<typeof api.calendarEvents>>>({
+    enabled: current !== 'agenda',
     queryKey: ['calendar-events', range.dueAfter, range.dueBefore],
-    ...(current === 'agenda' ? { placeholderData: keepPreviousData } : {}),
     queryFn: () => api.calendarEvents(range.dueAfter, range.dueBefore),
   });
+  const externalQuery =
+    current === 'agenda'
+      ? {
+          ...agendaQuery,
+          data: agendaQuery.data
+            ? {
+                tasks: agendaQuery.data.pages.flatMap((page) =>
+                  Array.isArray(page.events.tasks) ? (page.events.tasks as unknown[]) : [],
+                ),
+                external: agendaQuery.data.pages.flatMap((page) =>
+                  Array.isArray(page.events.external) ? (page.events.external as unknown[]) : [],
+                ),
+              }
+            : undefined,
+        }
+      : rangedEvents;
   const startTaskIds = Array.isArray(externalQuery.data?.tasks)
     ? externalQuery.data.tasks.flatMap((value: unknown) => {
         if (typeof value !== 'object' || value === null) return [];
         const row = value as { id?: unknown; start_date?: unknown; due_date?: unknown };
-        return typeof row.id === 'string' && typeof row.start_date === 'string' ? [row.id] : [];
+        return typeof row.id === 'string' &&
+          typeof row.start_date === 'string' &&
+          !(tasks.data ?? []).some((task) => task.id === row.id)
+          ? [row.id]
+          : [];
       })
     : [];
   const startTasks = useQuery({
@@ -536,15 +566,7 @@ export function CalendarPage() {
       return;
     }
     if (!node) return;
-    if (agendaMonthTarget.current && !tasks.isFetching && !externalQuery.isFetching) {
-      const month = node.querySelector<HTMLElement>(
-        `[data-agenda-month="${agendaMonthTarget.current}"]`,
-      );
-      if (month)
-        node.scrollTop += month.getBoundingClientRect().top - node.getBoundingClientRect().top;
-      agendaMonthTarget.current = null;
-      agendaAnchor.current = null;
-    } else if (agendaAnchor.current) {
+    if (agendaAnchor.current) {
       if (tasks.isFetching || externalQuery.isFetching) return;
       const anchor = node.querySelector<HTMLElement>(
         `[data-agenda-day="${agendaAnchor.current.key}"]`,
@@ -566,6 +588,7 @@ export function CalendarPage() {
   });
   const extendAgenda = (direction: -1 | 1) => {
     if (tasks.isFetching || externalQuery.isFetching) return;
+    agendaScrollIntent.current = false;
     const node = agendaScroll.current;
     if (node) {
       const anchor = [...node.querySelectorAll<HTMLElement>('[data-agenda-day]')].find(
@@ -577,27 +600,18 @@ export function CalendarPage() {
           top: anchor.getBoundingClientRect().top,
         };
     }
-    agendaMonthTarget.current = localKey(
-      direction > 0
-        ? agendaEnd
-        : new Date(agendaStart.getFullYear(), agendaStart.getMonth() - 1, 1),
-    ).slice(0, 7);
-    setAgendaWindow({
-      ...agendaBounds,
-      before: agendaBounds.before + (direction < 0 ? 1 : 0),
-      after: agendaBounds.after + (direction > 0 ? 1 : 0),
-    });
+    runAction(direction < 0 ? agendaQuery.fetchPreviousPage() : agendaQuery.fetchNextPage());
   };
   const subscriptions = useQuery({
     queryKey: ['calendar-subscriptions'],
     queryFn: () => api.listCalendarSubscriptions(),
   });
-  const [showTasks, setShowTasks] = useState(true);
   const [openEvent, setOpenEvent] = useState<ExternalEventView | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
-  const external = (
-    Array.isArray(externalQuery.data?.external) ? externalQuery.data.external : []
-  ).filter(isExternalEvent);
+  const external = (Array.isArray(externalQuery.data?.external) ? externalQuery.data.external : [])
+    .filter(isExternalEvent)
+    .filter((event, index, all) => all.findIndex((other) => other.id === event.id) === index)
+    .filter((event) => sourceSelected(sourceParams.get('cals'), event.subscription_id ?? ''));
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
   const colors = useMemo(() => {
     const map = new Map<string, string>();
@@ -608,27 +622,32 @@ export function CalendarPage() {
     }
     return map;
   }, [projects.data]);
-  const dated = showTasks
-    ? [...(tasks.data ?? []), ...(startTasks.data ?? [])]
-        .filter(
-          (task, index, all) =>
-            (task.start_date ?? task.due_date) !== null &&
-            (contextProject === undefined || task.project_id === contextProject) &&
-            (!tagId || task.tag_ids.includes(tagId)) &&
-            (!filterTaskIds || filterTaskIds.has(task.id)) &&
-            task.kind === 'task' &&
-            all.findIndex((other) => other.id === task.id) === index,
-        )
-        .map((task) => ({ ...task, due_date: task.start_date ?? task.due_date })) // Calendar display date only; mutations still address the original task ID.
-    : [];
+  const dated = [...(tasks.data ?? []), ...(startTasks.data ?? [])]
+    .filter(
+      (task, index, all) =>
+        (task.start_date ?? task.due_date) !== null &&
+        (contextProject === undefined || task.project_id === contextProject) &&
+        (!tagId || task.tag_ids.includes(tagId)) &&
+        (!filterTaskIds || filterTaskIds.has(task.id)) &&
+        (!selectedTaskIds || selectedTaskIds.has(task.id)) &&
+        sourceSelected(sourceParams.get('lists'), task.project_id) &&
+        (sourceParams.get('tags') === null ||
+          task.tag_ids.some((id) => sourceSelected(sourceParams.get('tags'), id))) &&
+        task.kind === 'task' &&
+        all.findIndex((other) => other.id === task.id) === index,
+    )
+    .map((task) => ({ ...task, due_date: task.start_date ?? task.due_date })); // Calendar display date only; mutations still address the original task ID.
   const activeFilterCount =
     Number(!!contextProject) +
     Number(!!filterId) +
     Number(!!tagId) +
     Number(workweek && (current === 'week' || current === 'multi-day')) +
-    Number(!showTasks) +
+    ['lists', 'tags', 'cals', 'filters'].filter((key) => sourceParams.has(key)).length +
     subscriptionItems(subscriptions.data).filter((subscription) => !subscription.visible).length;
-  const title = calendarTitle(locale, current ?? 'month', cursor, cells);
+  const title =
+    current === 'day' && mobile
+      ? new Intl.DateTimeFormat(locale, { month: 'short', year: 'numeric' }).format(cursor)
+      : calendarTitle(locale, current ?? 'month', cursor, cells);
   const move = (delta: number): void => {
     const next = shiftView(cursor, current ?? 'month', delta, weekStart);
     setCursor(next);
@@ -700,7 +719,7 @@ export function CalendarPage() {
             className="calendar-add"
             aria-label={messages.captureTitle}
             onClick={() => {
-              openTaskComposer();
+              openTaskComposer(composerContextFor(window.location, { cache: composerClient }));
             }}
           >
             <Plus size={17} aria-hidden="true" />
@@ -728,51 +747,7 @@ export function CalendarPage() {
         >
           {() => (
             <div className="calendar-filter-content">
-              <CalendarFilterRow
-                label={messages.kindList}
-                accessibleLabel={messages.calendarQuickContext}
-                icon={<List aria-hidden="true" />}
-                value={contextProject ?? ''}
-                options={[
-                  { value: '', label: messages.calendarQuickAllLists },
-                  ...(projects.data?.items ?? [])
-                    .filter((project) => !project.closed && project.kind !== 'NOTE')
-                    .map((project) => ({ value: project.id, label: project.name })),
-                ]}
-                onChange={(value) => {
-                  selectFilter('project_id', value);
-                }}
-              />
-              <CalendarFilterRow
-                label={messages.filtersTitle}
-                icon={<ListFilter aria-hidden="true" />}
-                value={filterId}
-                options={[
-                  { value: '', label: messages.calendarFilterAll },
-                  ...(filters.data?.items ?? []).map((filter) => ({
-                    value: filter.id,
-                    label: filter.name,
-                  })),
-                ]}
-                onChange={(value) => {
-                  selectFilter('filter_id', value);
-                }}
-              />
-              <CalendarFilterRow
-                label={messages.tagsTitle}
-                icon={<Tag aria-hidden="true" />}
-                value={tagId}
-                options={[
-                  { value: '', label: messages.calendarFilterAll },
-                  ...(tags.data?.items ?? []).map((tag) => ({ value: tag.id, label: tag.name })),
-                ]}
-                onChange={(value) => {
-                  selectFilter('tag_id', value);
-                }}
-              />
-              {filters.isError || tags.isError || subscriptions.isError || filterTasks.isError ? (
-                <p role="alert">{messages.saveFailed}</p>
-              ) : null}
+              <CalendarSources />
               {current === 'week' || current === 'multi-day' ? (
                 <label>
                   <input
@@ -789,12 +764,6 @@ export function CalendarPage() {
                   {messages.calWorkweek}
                 </label>
               ) : null}
-              <CalendarVisibility
-                messages={messages}
-                showTasks={showTasks}
-                onTasks={setShowTasks}
-                subscriptions={subscriptionItems(subscriptions.data)}
-              />
             </div>
           )}
         </CalendarMenu>
@@ -806,7 +775,7 @@ export function CalendarPage() {
           {(close) => (
             <div className="calendar-view-links mobile-view-links">
               {['agenda', 'year', 'month', 'week', 'two-weeks', 'multi-day', 'day', 'quarter']
-                .filter((item) => !mobile || (item !== 'quarter' && item !== 'two-weeks'))
+                .filter((item) => !mobile || item !== 'quarter')
                 .map((item) => {
                   const Icon = calendarViewIcon(item);
                   return (
@@ -826,7 +795,7 @@ export function CalendarPage() {
           )}
         </CalendarMenu>
       </header>
-      {current === 'day' ? (
+      {current === 'day' && mobile ? (
         <DayWeekStrip
           selected={cursor}
           weekStart={weekStart}
@@ -848,8 +817,11 @@ export function CalendarPage() {
           title={fill(messages.loadFailed, messages.calendarTitle)}
           retryLabel={messages.retry}
           onRetry={() => {
-            runAction(tasks.refetch());
-            runAction(externalQuery.refetch());
+            if (current === 'agenda') runAction(agendaQuery.refetch());
+            else {
+              runAction(rangedTasks.refetch());
+              runAction(rangedEvents.refetch());
+            }
             if (startTaskIds.length) runAction(startTasks.refetch());
           }}
         />
@@ -916,6 +888,31 @@ export function CalendarPage() {
           {current === 'agenda' ? (
             <div
               className="calendar-agenda-timeline"
+              tabIndex={0}
+              role="region"
+              aria-label={messages.calAgenda}
+              onWheel={(event) => {
+                agendaScrollIntent.current = true;
+                const node = event.currentTarget;
+                if (
+                  event.deltaY > 0 &&
+                  node.scrollHeight - node.scrollTop - node.clientHeight < 120
+                )
+                  extendAgenda(1);
+                else if (event.deltaY < 0 && node.scrollTop < 120) extendAgenda(-1);
+              }}
+              onTouchMove={() => {
+                agendaScrollIntent.current = true;
+              }}
+              onKeyDown={(event) => {
+                if (
+                  event.target === event.currentTarget &&
+                  ['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', ' '].includes(
+                    event.key,
+                  )
+                )
+                  agendaScrollIntent.current = true;
+              }}
               ref={agendaScroll}
               data-at-start={agendaEdges.start}
               data-at-end={agendaEdges.end}
@@ -925,6 +922,16 @@ export function CalendarPage() {
                   start: node.scrollTop <= 1,
                   end: node.scrollHeight - node.scrollTop - node.clientHeight <= 1,
                 });
+                if (
+                  agendaScrollIntent.current &&
+                  agendaInitialized.current === agendaOrigin &&
+                  !agendaQuery.isFetching &&
+                  node.scrollHeight > node.clientHeight
+                ) {
+                  if (node.scrollTop < 120) extendAgenda(-1);
+                  else if (node.scrollHeight - node.scrollTop - node.clientHeight < 120)
+                    extendAgenda(1);
+                }
               }}
             >
               <Button
@@ -1095,7 +1102,11 @@ function calendarTitle(locale: string, view: string, cursor: Date, cells: readon
     return `${start} – ${end}`;
   }
   if (view === 'day') {
-    return new Intl.DateTimeFormat(locale, { month: 'long' }).format(cursor);
+    return new Intl.DateTimeFormat(locale, {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }).format(cursor);
   }
   const first = cells[0] ?? cursor;
   const last = cells.at(-1) ?? cursor;
@@ -1195,12 +1206,13 @@ function DayGrid({
         const room = cell.clientHeight - list.offsetTop - 4;
         const heights = children.map((child) => child.offsetHeight + 3);
         const total = heights.reduce((sum, height) => sum + height, 0);
-        const reserve = total > room || hiddenBars.has(key) ? 26 : 0;
+        const maxItems = node.closest('.calendar-two-weeks') ? 5 : Number.POSITIVE_INFINITY;
+        const reserve = total > room || children.length > maxItems || hiddenBars.has(key) ? 26 : 0;
         let used = 0;
         let hidden = hiddenBars.get(key) ?? 0;
         children.forEach((child, index) => {
           used += heights[index] ?? 0;
-          const visible = used <= room - reserve;
+          const visible = index < maxItems && used <= room - reserve;
           child.style.visibility = visible ? 'visible' : 'hidden';
           child.inert = !visible;
           child.setAttribute('aria-hidden', String(!visible));
@@ -2230,83 +2242,6 @@ function subscriptionItems(
   });
 }
 
-function CalendarVisibility({
-  messages,
-  showTasks,
-  onTasks,
-  subscriptions,
-}: {
-  readonly messages: Messages;
-  readonly showTasks: boolean;
-  readonly onTasks: (value: boolean) => void;
-  readonly subscriptions: readonly {
-    id: string;
-    summary: string | null;
-    color: string | null;
-    visible: boolean;
-  }[];
-}) {
-  const queryClient = useQueryClient();
-  const [pending, setPending] = useState<Readonly<Record<string, boolean>>>({});
-  return (
-    <>
-      <label>
-        <input
-          type="checkbox"
-          checked={showTasks}
-          onChange={() => {
-            onTasks(!showTasks);
-          }}
-        />
-        {messages.calendarTasks}
-      </label>
-      <fieldset className="calendar-sources">
-        <legend>
-          <CalendarDays aria-hidden="true" />
-          {messages.calendarSource}
-        </legend>
-        {subscriptions.length === 0 ? (
-          <p className="calendar-sources-empty">{messages.calendarNoSubscriptions}</p>
-        ) : null}
-        {subscriptions.map((row) => (
-          <label key={row.id}>
-            <input
-              type="checkbox"
-              checked={pending[row.id] ?? row.visible}
-              disabled={pending[row.id] !== undefined}
-              onChange={() => {
-                if (!navigator.onLine) {
-                  return;
-                }
-                const visible = !row.visible;
-                setPending((current) => ({ ...current, [row.id]: visible }));
-                runAction(
-                  api
-                    .updateCalendarSubscription(row.id, { visible })
-                    .then(() =>
-                      Promise.all([
-                        queryClient.invalidateQueries({ queryKey: ['calendar-subscriptions'] }),
-                        queryClient.invalidateQueries({ queryKey: ['calendar-events'] }),
-                      ]),
-                    )
-                    .finally(() => {
-                      setPending((current) => {
-                        return Object.fromEntries(
-                          Object.entries(current).filter(([id]) => id !== row.id),
-                        );
-                      });
-                    }),
-                );
-              }}
-            />
-            {row.summary ?? row.id}
-          </label>
-        ))}
-      </fieldset>
-    </>
-  );
-}
-
 function calendarViewIcon(view: string) {
   return (
     {
@@ -2635,7 +2570,13 @@ const SETTINGS_GROUPS = [
   ],
   [
     'groupWork',
-    ['/settings/capture', '/settings/notifications', '/settings/smart-lists', '/settings/calendar'],
+    [
+      '/settings/capture',
+      '/settings/focus',
+      '/settings/notifications',
+      '/settings/smart-lists',
+      '/settings/calendar',
+    ],
   ],
   [
     'groupAdvanced',
@@ -2648,17 +2589,20 @@ const SETTINGS_GROUPS = [
       '/settings/sharing',
       '/settings/data',
       '/settings/shortcuts',
+      '/settings/about',
     ],
   ],
 ] as const;
 
 function settingsLabel(messages: Messages, path: string): string {
   const labels: Record<string, string> = {
+    '/settings/about': messages.aboutTitle,
     '/settings/account': messages.settingsAccount,
     '/settings/workday': messages.settingsWorkday,
     '/settings/features': messages.settingsFeatures,
     '/settings/appearance': messages.appearanceTitle,
     '/settings/capture': messages.settingsCapture,
+    '/settings/focus': messages.focusSettingsTitle,
     '/settings/notifications': messages.settingsNotifications,
     '/settings/smart-lists': messages.settingsSmart,
     '/settings/calendar': messages.settingsCalendar,
@@ -3195,242 +3139,6 @@ export function CaptureSettings() {
   );
 }
 
-const REMINDER_VALUES = ['-PT0M', '-PT5M', '-PT15M', '-PT30M', '-PT1H', '-P1D'] as const;
-
-export function NotificationSettings() {
-  const messages = useMessages();
-  const locale = useAppLocale();
-  const timeLang = locale.toLowerCase().startsWith('en') ? 'en-GB' : 'es-ES';
-  const queryClient = useQueryClient();
-  const me = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
-  const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
-  const saved = me.data?.daily_reminder_time ?? '';
-  const savedDefault = reminderValue(me.data, 'default_reminder_trigger');
-  const [showAllLists, setShowAllLists] = useState(false);
-  const [draft, setDraft] = useState<string | null>(null);
-  const [defaultDraft, setDefaultDraft] = useState<string | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
-  const [push, setPush] = useState<NotificationPermission | 'missing'>(pushPermission);
-  const [listOverrides, setListOverrides] = useState<Readonly<Record<string, string>>>({});
-  const value = draft ?? saved;
-  const defaultReminder = defaultDraft ?? savedDefault;
-  const reminderLabels: Record<(typeof REMINDER_VALUES)[number], string> = {
-    '-PT0M': messages.reminderAtTime,
-    '-PT5M': messages.reminder5,
-    '-PT15M': messages.reminder15,
-    '-PT30M': messages.reminder30,
-    '-PT1H': messages.reminderHour,
-    '-P1D': messages.reminderDay,
-  };
-  return (
-    <section className="token-settings">
-      <header className="page-header">
-        <div>
-          <h1>{messages.settingsNotifications}</h1>
-          <p className="lede">{messages.notificationsLede}</p>
-        </div>
-      </header>
-      <section className="token-panel">
-        <form
-          className="token-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (me.data === undefined || value === saved) {
-              return;
-            }
-            setStatus(null);
-            void api
-              .updateMe({ daily_reminder_time: value.length === 0 ? null : value })
-              .then(() => {
-                setDraft(null);
-                setStatus(messages.saved);
-              })
-              .catch(() => {
-                setStatus(messages.saveFailed);
-              });
-          }}
-        >
-          <label className="token-label" htmlFor="daily-reminder">
-            {messages.dailyReminder}
-          </label>
-          <input
-            id="daily-reminder"
-            className="token-name is-time"
-            type="time"
-            lang={timeLang}
-            step={60}
-            value={value}
-            onChange={(event) => {
-              setDraft(event.target.value);
-              setStatus(null);
-            }}
-          />
-          <p className="token-meta">{messages.quietLocal}</p>
-          <Button
-            type="submit"
-            variant="primary"
-            size="sm"
-            disabled={me.data === undefined || value === saved}
-          >
-            {messages.reminderSaveDaily}
-          </Button>
-          {status !== null ? <p role="status">{status}</p> : null}
-        </form>
-      </section>
-      <section className="token-panel">
-        <form
-          className="token-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (me.data === undefined || defaultReminder === savedDefault) {
-              return;
-            }
-            setStatus(null);
-            void api
-              .updateMe({
-                default_reminder_trigger: defaultReminder.length === 0 ? null : defaultReminder,
-              })
-              .then(() => {
-                setDefaultDraft(null);
-                setStatus(messages.saved);
-                runAction(queryClient.invalidateQueries({ queryKey: ['me'] }));
-              })
-              .catch(() => {
-                setStatus(messages.saveFailed);
-              });
-          }}
-        >
-          <label className="token-label" htmlFor="default-reminder">
-            {messages.defaultReminder}
-          </label>
-          <select
-            id="default-reminder"
-            className="token-name is-short"
-            value={defaultReminder}
-            onChange={(event) => {
-              setDefaultDraft(event.target.value);
-              setStatus(null);
-            }}
-          >
-            <option value="">{messages.reminderNone}</option>
-            {REMINDER_VALUES.map((item) => (
-              <option key={item} value={item}>
-                {reminderLabels[item]}
-              </option>
-            ))}
-          </select>
-          <p className="token-meta">{messages.defaultReminderHint}</p>
-          <Button
-            type="submit"
-            variant="primary"
-            size="sm"
-            disabled={me.data === undefined || defaultReminder === savedDefault}
-          >
-            {messages.reminderSaveDefault}
-          </Button>
-        </form>
-      </section>
-      <section className="token-panel is-list" aria-label={messages.listReminders}>
-        <div className="token-panel-head">
-          <div>
-            <h2>{messages.listReminders}</h2>
-            <p>{messages.listRemindersHint}</p>
-          </div>
-        </div>
-        <Button
-          type="button"
-          aria-pressed={showAllLists}
-          onClick={() => {
-            setShowAllLists(!showAllLists);
-          }}
-        >
-          {showAllLists ? messages.reminderHideLists : messages.reminderShowLists}
-        </Button>
-        {(projects.data?.items ?? [])
-          .filter(
-            (list) =>
-              showAllLists || (listOverrides[list.id] ?? listReminderValue(list)).length > 0,
-          )
-          .map((list) => {
-            const current = listOverrides[list.id] ?? listReminderValue(list);
-            return (
-              <label className="token-row" key={list.id}>
-                <span>{list.name}</span>
-                <select
-                  className="token-name is-short"
-                  aria-label={list.name}
-                  value={current}
-                  onChange={(event) => {
-                    const next = event.target.value;
-                    setListOverrides((previous) => ({ ...previous, [list.id]: next }));
-                    runAction(
-                      api
-                        .updateProject(list.id, {
-                          default_reminder_trigger: next.length === 0 ? null : next,
-                        })
-                        .then(() => {
-                          runAction(queryClient.invalidateQueries({ queryKey: ['projects'] }));
-                        }),
-                    );
-                  }}
-                >
-                  <option value="">{messages.reminderInherit}</option>
-                  <option value="off">{messages.reminderNone}</option>
-                  {REMINDER_VALUES.map((item) => (
-                    <option key={item} value={item}>
-                      {reminderLabels[item]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            );
-          })}
-      </section>
-      <section className="token-panel">
-        <div className="token-panel-head">
-          <div>
-            <h2>{messages.pushTitle}</h2>
-            <p>{pushText(messages, push)}</p>
-          </div>
-        </div>
-        {push === 'default' ? (
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => {
-              if (typeof Notification === 'undefined') {
-                setPush('missing');
-                return;
-              }
-              runAction(
-                Notification.requestPermission().then((next) => {
-                  setPush(next);
-                }),
-              );
-            }}
-          >
-            {messages.pushEnable}
-          </Button>
-        ) : null}
-      </section>
-    </section>
-  );
-}
-
-function reminderValue(me: unknown, key: string): string {
-  if (typeof me !== 'object' || me === null) {
-    return '';
-  }
-  const value = (me as Record<string, unknown>)[key];
-  return typeof value === 'string' ? value : '';
-}
-
-function listReminderValue(list: Project): string {
-  const value = (list as Project & { default_reminder_trigger?: string | null })
-    .default_reminder_trigger;
-  return typeof value === 'string' ? value : '';
-}
-
 function timeZones(current: string): readonly string[] {
   const known =
     typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('timeZone') : [];
@@ -3448,26 +3156,6 @@ function stringsOf(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === 'string')
     : [];
-}
-
-function pushPermission(): NotificationPermission | 'missing' {
-  if (typeof Notification === 'undefined') {
-    return 'missing';
-  }
-  return Notification.permission;
-}
-
-function pushText(messages: Messages, permission: NotificationPermission | 'missing'): string {
-  if (permission === 'granted') {
-    return messages.pushGranted;
-  }
-  if (permission === 'denied') {
-    return messages.pushDenied;
-  }
-  if (permission === 'default') {
-    return messages.pushDefault;
-  }
-  return messages.pushMissing;
 }
 
 export function GapPage({ title, body }: { readonly title: string; readonly body: string }) {

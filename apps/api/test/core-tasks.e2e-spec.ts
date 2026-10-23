@@ -344,7 +344,7 @@ describe('core tasks API', () => {
     expect(loaded.body.repeat_rule).toBe(rule);
   });
 
-  it('RF-203: stores an attachment and downloads it as a file', async () => {
+  it('RF-203 / TTD-AUD-99: unconnected owners cannot upload local attachments', async () => {
     const api = authed(owner.email);
     const task = await api
       .post('/api/v1/tasks')
@@ -353,12 +353,9 @@ describe('core tasks API', () => {
     const uploaded = await api
       .post(`/api/v1/tasks/${task.body.id}/attachments`)
       .attach('file', Buffer.from('hola'), { filename: 'nota.txt', contentType: 'text/plain' })
-      .expect(201);
-    const downloaded = await api
-      .get(`/api/v1/tasks/${task.body.id}/attachments/${uploaded.body.id}`)
-      .expect(200);
-    expect(downloaded.text).toBe('hola');
-    expect(downloaded.headers['content-disposition']).toContain('nota.txt');
+      .expect(409);
+    expect(uploaded.body.error.code).toBe('drive_not_connected');
+    expect(await prisma.attachment.count({ where: { taskId: task.body.id as string } })).toBe(0);
   });
 
   it('RF-502: sorts high priority ahead of none', async () => {

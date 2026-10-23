@@ -257,3 +257,13 @@ export function reminderDisposition(
   }
   return catchUp ? 'late' : 'fire';
 }
+
+/** RF-801: store one relative duration form while retaining an explicit start anchor. */
+export function normalizeReminderTrigger(input: string): string | null {
+  const text = input.trim().toUpperCase();
+  const parsed = parseTrigger(text);
+  if (!parsed.ok) return null;
+  if (parsed.kind === 'absolute') return text;
+  const duration = text.split(':').at(-1) ?? text;
+  return parsed.related === 'start' ? `TRIGGER;RELATED=START:${duration}` : duration;
+}

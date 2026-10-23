@@ -48,15 +48,22 @@ export async function patchChecklistItem(
   await taskFetch('PATCH', `/api/v1/tasks/${taskId}/items/${itemId}`, body);
 }
 
-export async function deleteAttachment(taskId: string, attachmentId: string): Promise<void> {
-  await taskFetch('DELETE', `/api/v1/tasks/${taskId}/attachments/${attachmentId}`);
+export async function deleteAttachment(
+  taskId: string,
+  attachmentId: string,
+  trashInDrive = false,
+): Promise<void> {
+  await taskFetch(
+    'DELETE',
+    `/api/v1/tasks/${taskId}/attachments/${attachmentId}?trash_in_drive=${String(trashInDrive)}`,
+  );
 }
 
 export function attachmentHref(taskId: string, attachmentId: string): string {
   return `/api/v1/tasks/${taskId}/attachments/${attachmentId}`;
 }
 
-async function taskFetch(method: string, path: string, body?: unknown): Promise<unknown> {
+export async function taskFetch(method: string, path: string, body?: unknown): Promise<unknown> {
   const options = apiOptions();
   const headers: Record<string, string> = { accept: 'application/json' };
   if (options.devUserEmail !== undefined && options.devUserEmail.length > 0) {

@@ -425,7 +425,7 @@ test('RF-601: picking a start time defaults Until to 30 minutes and keeps a cust
   await date.getByRole('button', { name: '5 min antes', exact: true }).click();
   await date.getByRole('button', { name: /^Repetir/ }).click();
   await date.getByRole('button', { name: 'Cada día', exact: true }).click();
-  await date.getByRole('button', { name: 'OK', exact: true }).click();
+  await date.getByRole('button', { name: 'Hecho', exact: true }).click();
   await expect(page.locator('.calendar-quick-add .composer-date')).toContainText('13:00');
   await expect(page.locator('.calendar-quick-add .composer-date')).toContainText('12:00');
   await expect(page.locator('.composer-date-indicator[title="Repetir"]')).toBeVisible();
@@ -686,7 +686,7 @@ test('RF-601 clearing Until in calendar capture persists a time without an end',
   await card.locator('.composer-date').click();
   const date = page.locator('.date-popover');
   await date.getByRole('button', { name: 'Hasta: Sin hora', exact: true }).click();
-  await date.getByRole('button', { name: 'OK', exact: true }).click();
+  await date.getByRole('button', { name: 'Hecho', exact: true }).click();
   await card.getByRole('button', { name: 'Añadir', exact: true }).click();
   await expect.poll(() => posts.length).toBe(1);
   expect(posts[0]).toMatchObject({

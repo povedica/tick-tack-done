@@ -1,5 +1,5 @@
 import { HttpStatus } from '@nestjs/common';
-import { ATTACHMENT_MAX_BYTES } from './attachment-storage.js';
+import { ATTACHMENT_MAX_BYTES } from '../../drive/attachment-limits.js';
 import { DomainException } from '../../http/domain.exception.js';
 
 const MIME = /^[a-z0-9!#$&^_.+-]+\/[a-z0-9!#$&^_.+-]+$/;

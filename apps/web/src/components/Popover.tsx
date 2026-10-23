@@ -20,6 +20,7 @@ export function Popover({
   width: widthProp,
   offsetX = 0,
   offsetY = 0,
+  mobileSheet = false,
 }: {
   readonly open: boolean;
   readonly label: string;
@@ -31,19 +32,44 @@ export function Popover({
   readonly width?: number | undefined;
   readonly offsetX?: number;
   readonly offsetY?: number;
+  readonly mobileSheet?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const touchStart = useRef<number | null>(null);
+  const [sheet, setSheet] = useState(false);
   const [position, setPosition] = useState<CSSProperties | null>(null);
   useLayoutEffect(() => {
     if (!open) {
       setPosition(null);
       return;
     }
-    if (!anchor) return;
+    if (!anchor && !mobileSheet) return;
     function place() {
       const target = anchor?.current;
       const node = ref.current;
-      if (!target || !node) return;
+      if (!node) return;
+      const viewport = window.visualViewport;
+      const viewWidth = viewport?.width ?? window.innerWidth;
+      const viewHeight = viewport?.height ?? window.innerHeight;
+      const viewLeft = viewport?.offsetLeft ?? 0;
+      const viewTop = viewport?.offsetTop ?? 0;
+      const isSheet = mobileSheet && window.matchMedia('(max-width: 768px)').matches;
+      setSheet(isSheet);
+      if (isSheet) {
+        setPosition({
+          position: 'fixed',
+          left: viewLeft,
+          top: 'auto',
+          bottom: Math.max(0, window.innerHeight - viewTop - viewHeight),
+          width: viewWidth,
+          maxWidth: viewWidth,
+          maxHeight: `min(var(--sheet-max-h-mobile), ${String(viewHeight)}px)`,
+          zIndex: 2000,
+          overflow: 'auto',
+        });
+        return;
+      }
+      if (!target) return;
       const box = target.getBoundingClientRect();
       const preferred =
         widthProp ??
@@ -52,22 +78,25 @@ export function Popover({
           : node.classList.contains('date-popover')
             ? 320
             : Math.min(320, Math.max(220, node.scrollWidth || 260)));
-      const width = Math.min(preferred, window.innerWidth - 24);
-      const maxHeight = Math.min(window.innerHeight * 0.7, window.innerHeight - 24);
-      const below = window.innerHeight - box.bottom - 12;
-      const above = box.top - 12;
+      const width = Math.min(preferred, viewWidth - 24);
+      const maxHeight = Math.min(viewHeight * 0.7, viewHeight - 24);
+      const below = viewTop + viewHeight - box.bottom - 12;
+      const above = box.top - viewTop - 12;
       const preferredTop =
         below >= Math.min(node.scrollHeight, maxHeight) || below >= above
           ? box.bottom + 6
-          : Math.max(12, box.top - Math.min(node.scrollHeight, maxHeight) - 6);
-      const top = Math.max(12, preferredTop + offsetY);
+          : Math.max(viewTop + 12, box.top - Math.min(node.scrollHeight, maxHeight) - 6);
+      const top = Math.max(viewTop + 12, preferredTop + offsetY);
       setPosition({
         position: 'fixed',
         top,
-        left: Math.max(12, Math.min(box.left + offsetX, window.innerWidth - width - 12)),
+        left: Math.max(
+          viewLeft + 12,
+          Math.min(box.left + offsetX, viewLeft + viewWidth - width - 12),
+        ),
         right: 'auto',
         width,
-        maxHeight: Math.max(120, Math.min(maxHeight, window.innerHeight - top - 12)),
+        maxHeight: Math.max(120, Math.min(maxHeight, viewTop + viewHeight - top - 12)),
         zIndex: 2000,
         overflow: 'auto',
       });
@@ -75,14 +104,18 @@ export function Popover({
     place();
     const observer = new ResizeObserver(place);
     if (ref.current) observer.observe(ref.current);
+    window.visualViewport?.addEventListener('resize', place);
+    window.visualViewport?.addEventListener('scroll', place);
     window.addEventListener('resize', place);
     window.addEventListener('scroll', place, true);
     return () => {
       observer.disconnect();
+      window.visualViewport?.removeEventListener('resize', place);
+      window.visualViewport?.removeEventListener('scroll', place);
       window.removeEventListener('resize', place);
       window.removeEventListener('scroll', place, true);
     };
-  }, [open, anchor, widthProp, offsetX, offsetY]);
+  }, [open, anchor, widthProp, offsetX, offsetY, mobileSheet]);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   useEffect(() => {
@@ -193,18 +226,22 @@ export function Popover({
       return;
     }
     const rect = node.getBoundingClientRect();
-    const limit = window.innerHeight - 12;
+    if (mobileSheet && window.matchMedia('(max-width: 768px)').matches) return;
+    const limit =
+      (window.visualViewport?.height ?? window.innerHeight) +
+      (window.visualViewport?.offsetTop ?? 0) -
+      12;
     if (rect.bottom > limit) {
       node.style.maxHeight = `${String(Math.max(160, rect.height - (rect.bottom - limit)))}px`;
     }
-  }, [open, children]);
+  }, [open, children, mobileSheet]);
   if (!open) {
     return null;
   }
   const content = (
     <div
       style={
-        anchor
+        anchor || sheet
           ? (position ?? {
               position: 'fixed',
               top: 0,
@@ -222,14 +259,36 @@ export function Popover({
           : undefined
       }
       ref={ref}
-      className={className ?? 'popover'}
+      className={`${className ?? 'popover'}${sheet ? ' is-bottom-sheet' : ''}`}
       role="dialog"
       aria-modal="true"
       aria-label={label}
       tabIndex={-1}
     >
+      {sheet ? (
+        <div
+          className="sheet-handle"
+          aria-hidden="true"
+          onPointerDown={(event) => {
+            touchStart.current = event.clientY;
+            event.currentTarget.setPointerCapture(event.pointerId);
+          }}
+          onPointerUp={(event) => {
+            if (touchStart.current !== null && event.clientY - touchStart.current > 64) onClose();
+            touchStart.current = null;
+          }}
+        />
+      ) : null}
       {children}
     </div>
   );
-  return anchor ? createPortal(content, document.body) : content;
+  const result = sheet ? (
+    <>
+      <div className="date-sheet-backdrop" aria-hidden="true" onClick={onClose} />
+      {content}
+    </>
+  ) : (
+    content
+  );
+  return anchor || sheet ? createPortal(result, document.body) : result;
 }

@@ -1,6 +1,9 @@
 import type { Tx } from '../prisma/tx.js';
 
-export type RefreshDisposition = 'rotate' | 'reuse' | 'expired' | 'unknown';
+export const OAUTH_REFRESH_GRACE_MS = 60_000;
+export const OAUTH_ACCESS_OVERLAP_MS = 120_000;
+
+export type RefreshDisposition = 'rotate' | 'replay' | 'reuse' | 'expired' | 'unknown';
 
 export function classifyRefresh(
   row: {
@@ -13,11 +16,11 @@ export function classifyRefresh(
   if (row === null) {
     return 'unknown';
   }
-  if (row.rotatedAt !== null || row.revokedAt !== null) {
-    return 'reuse';
-  }
-  if (row.expiresAt.getTime() <= now.getTime()) {
-    return 'expired';
+  if (row.revokedAt !== null) return 'reuse';
+  if (row.expiresAt.getTime() <= now.getTime()) return 'expired';
+  if (row.rotatedAt !== null) {
+    const elapsed = now.getTime() - row.rotatedAt.getTime();
+    return elapsed >= 0 && elapsed <= OAUTH_REFRESH_GRACE_MS ? 'replay' : 'reuse';
   }
   return 'rotate';
 }

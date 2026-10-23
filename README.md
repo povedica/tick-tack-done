@@ -6,7 +6,7 @@ servidor MCP y API REST con PATs de scopes granulares desde la fase 1.
 
 Proyecto personal, sin afiliación con TickTick ni Appest. La capa /open/v1 solo ofrece compatibilidad con su Open API pública.
 
-La fuente de verdad del producto es `docs/spec/especificacion-producto-v1.1.md`.
+La fuente de verdad del producto es [documentación histórica](https://github.com/povedica/tick-tack-done/blob/340f34be17477ecab681ddc3dbfd790c9346a0ba/docs/spec/done/especificacion-producto-v1.1.md).
 Las normas para agentes de codificación están en `AGENTS.md` y `.cursor/rules/`.
 
 ## Requisitos
@@ -35,7 +35,6 @@ apps/web          React + Vite PWA (offline-first)
 packages/domain   reglas de negocio puras (recurrencias, filtros, NLP) — sin frameworks
 packages/sdk      cliente TS generado del OpenAPI
 scripts/          backups (RF-1704), utilidades
-docs/             arquitectura, migraciones, testing, seguridad, roadmap, prompts para Cursor
 ```
 
 ## Comandos
@@ -50,6 +49,6 @@ docs/             arquitectura, migraciones, testing, seguridad, roadmap, prompt
 
 ## Despliegue
 
-`docs/deployment.md`: Docker Compose + Caddy (HTTPS automático) en un VPS con Docker,
+[documentación histórica](https://github.com/povedica/tick-tack-done/blob/340f34be17477ecab681ddc3dbfd790c9346a0ba/docs/deployment.md): Docker Compose + Caddy (HTTPS automático) en un VPS con Docker,
 migraciones al arrancar, backup diario externo y prueba de restauración semanal por cron.
 La política de avisos está en `SECURITY.md`. Licencia MIT.

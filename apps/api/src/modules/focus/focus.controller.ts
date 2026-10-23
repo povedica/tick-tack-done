@@ -8,13 +8,21 @@ import {
   Param,
   ParseUUIDPipe,
   Patch,
+  Put,
   Post,
   Query,
   ValidationPipe,
   Req,
   Res,
 } from '@nestjs/common';
-import { ApiOperation, ApiProperty, ApiQuery, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBody,
+  ApiOperation,
+  ApiProperty,
+  ApiQuery,
+  ApiTags,
+  ApiOkResponse,
+} from '@nestjs/swagger';
 import {
   IsBoolean,
   isUUID,
@@ -24,11 +32,14 @@ import {
   IsString,
   IsUUID,
   Max,
+  MaxLength,
   Min,
+  IsDivisibleBy,
 } from 'class-validator';
 import type { Request, Response } from 'express';
 import {
   focusElapsedSeconds,
+  autoStartNextPhase,
   DEFAULT_FOCUS_SETTINGS,
   focusSessionStatus,
   focusStats,
@@ -70,11 +81,20 @@ class StartDto {
   ambient_sound?: string;
 }
 
-class SettingsDto {
+class FinishDto {
+  @ApiProperty({ required: false, maxLength: 2000 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
+}
+
+export class SettingsDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsInt()
-  @Min(1)
+  @Min(5)
+  @IsDivisibleBy(5)
   @Max(180)
   pomodoro_minutes?: number;
 
@@ -88,8 +108,8 @@ class SettingsDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsInt()
-  @Min(1)
-  @Max(60)
+  @Min(5)
+  @Max(90)
   long_break_minutes?: number;
 
   @ApiProperty({ required: false })
@@ -103,6 +123,49 @@ class SettingsDto {
   @IsOptional()
   @IsBoolean()
   strict_mode?: boolean;
+
+  @ApiProperty({ required: false, default: false })
+  @IsOptional()
+  @IsBoolean()
+  auto_start_breaks?: boolean;
+  @ApiProperty({ required: false, default: false })
+  @IsOptional()
+  @IsBoolean()
+  auto_start_focus?: boolean;
+  @ApiProperty({ required: false, enum: ['none', 'bell', 'chime', 'digital'], default: 'bell' })
+  @IsOptional()
+  @IsIn(['none', 'bell', 'chime', 'digital'])
+  alarm_sound?: string;
+  @ApiProperty({ required: false, minimum: 0, maximum: 100, default: 70 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  volume?: number;
+  @ApiProperty({ required: false, enum: ['none', 'tick', 'rain', 'white_noise'], default: 'none' })
+  @IsOptional()
+  @IsIn(['none', 'tick', 'rain', 'white_noise'])
+  ambient_sound?: string;
+  @ApiProperty({ required: false, minimum: 1, maximum: 20, default: 8 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  daily_goal?: number;
+}
+
+class FocusSettingsResponseDto {
+  @ApiProperty() pomodoroMinutes!: number;
+  @ApiProperty() shortBreakMinutes!: number;
+  @ApiProperty() longBreakMinutes!: number;
+  @ApiProperty() cyclesBeforeLongBreak!: number;
+  @ApiProperty() autoStartBreaks!: boolean;
+  @ApiProperty() autoStartFocus!: boolean;
+  @ApiProperty({ enum: ['none', 'bell', 'chime', 'digital'] }) alarmSound!: string;
+  @ApiProperty() volume!: number;
+  @ApiProperty({ enum: ['none', 'tick', 'rain', 'white_noise'] }) ambientSound!: string;
+  @ApiProperty() dailyGoal!: number;
+  @ApiProperty() strictMode!: boolean;
 }
 
 class EstimateDto {
@@ -163,6 +226,24 @@ export class FocusController {
         throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
     }
     const row = await this.prisma.$transaction(async (tx) => {
+      const key = `focus-session:${user.id}`;
+      await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtextextended(${key}, 0))`;
+      const candidates = await tx.focusSession.findMany({
+        where: { ownerId: user.id, endedAt: null, deletedAt: null },
+      });
+      const active = candidates.find(
+        (candidate) =>
+          candidate.type === 'stopwatch' ||
+          candidate.pausedAt !== null ||
+          (this.json(candidate, new Date()).remaining_seconds ?? 0) > 0,
+      );
+      if (active !== undefined)
+        throw new DomainException(
+          HttpStatus.CONFLICT,
+          'focus_already_running',
+          'A focus session is already running',
+          { session_id: active.id },
+        );
       const created = await tx.focusSession.create({
         data: {
           ownerId: user.id,
@@ -170,7 +251,7 @@ export class FocusController {
           type,
           plannedMinutes: planned,
           startedAt: new Date(),
-          ambientSound: dto.ambient_sound ?? null,
+          ambientSound: dto.ambient_sound ?? settings.ambientSound,
         },
       });
       await this.events.record(tx, actorOf(user), {
@@ -189,13 +270,23 @@ export class FocusController {
   @Post('sessions/:id/finish')
   @Scopes('focus:write')
   @ApiOperation({ summary: 'Finish a session and name the next phase (RF-1201)' })
+  @ApiBody({ type: FinishDto, required: false })
   async finish(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
+    @Body(
+      new ValidationPipe({
+        expectedType: FinishDto,
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    )
+    dto: FinishDto | undefined,
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    respondJson(req, res, 200, await this.close(user, id, true), false);
+    respondJson(req, res, 200, await this.close(user, id, true, dto?.note), false);
   }
 
   @Post('sessions/:id/abort')
@@ -364,6 +455,67 @@ export class FocusController {
     );
   }
 
+  @Get('state')
+  @Scopes('focus:write')
+  @ApiOperation({ summary: 'Current owned focus session, settings and daily totals (TTD-AUD-84)' })
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      required: ['session', 'settings', 'today'],
+      properties: {
+        session: { type: 'object', nullable: true, additionalProperties: true },
+        settings: { type: 'object', additionalProperties: true },
+        today: {
+          type: 'object',
+          properties: { pomos: { type: 'integer' }, minutes: { type: 'number' } },
+        },
+      },
+    },
+  })
+  async state(
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    const [rows, settings] = await Promise.all([
+      this.prisma.focusSession.findMany({
+        where: sessionAccess(user),
+        include: { task: { select: { id: true, title: true } } },
+        orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
+      }),
+      this.settingsOf(user.id),
+    ]);
+    const current = rows.find(
+      (session) =>
+        session.endedAt === null &&
+        (session.type === 'stopwatch' ||
+          session.pausedAt !== null ||
+          (this.json(session, new Date()).remaining_seconds ?? 0) > 0),
+    );
+    const stats = focusStats(
+      rows.map((row) => ({
+        type: row.type,
+        startedAt: row.startedAt.toISOString(),
+        actualSeconds: row.actualSeconds,
+        completed: row.completed,
+        listId: null,
+        tagNames: [],
+      })),
+      user.timeZone,
+    );
+    respondJson(
+      req,
+      res,
+      200,
+      {
+        session: current ? this.json(current, new Date()) : null,
+        settings,
+        today: { pomos: stats.today_pomodoros, minutes: stats.today_focus_seconds / 60 },
+      },
+      false,
+    );
+  }
+
   @Get('stats')
   @Scopes('focus:read')
   @ApiOperation({ summary: 'Focus statistics (RF-1204)' })
@@ -408,6 +560,7 @@ export class FocusController {
   @Get('settings')
   @Scopes('focus:read')
   @ApiOperation({ summary: 'Focus settings (RF-1201)' })
+  @ApiOkResponse({ type: FocusSettingsResponseDto })
   async getSettings(
     @CurrentUser() user: AuthUser,
     @Req() req: Request,
@@ -417,9 +570,33 @@ export class FocusController {
     respondJson(req, res, 200, settings, false);
   }
 
+  @Put('settings')
+  @ApiOkResponse({ type: FocusSettingsResponseDto })
+  @Scopes('focus:write')
+  @ApiOperation({
+    summary: 'Save focus durations, auto-start, local sounds, volume and daily goal (TTD-AUD-101)',
+  })
+  async putSettings(
+    @CurrentUser() user: AuthUser,
+    @Body(
+      new ValidationPipe({
+        expectedType: SettingsDto,
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    )
+    dto: SettingsDto,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    return this.patchSettings(user, dto, req, res);
+  }
+
   @Patch('settings')
   @Scopes('focus:write')
   @ApiOperation({ summary: 'Update focus settings (RF-1201)' })
+  @ApiOkResponse({ type: FocusSettingsResponseDto })
   async patchSettings(
     @CurrentUser() user: AuthUser,
     @Body(
@@ -439,6 +616,12 @@ export class FocusController {
         where: { userId: user.id },
         create: {
           userId: user.id,
+          autoStartBreaks: dto.auto_start_breaks ?? false,
+          autoStartFocus: dto.auto_start_focus ?? false,
+          alarmSound: dto.alarm_sound ?? 'bell',
+          volume: dto.volume ?? 70,
+          ambientSound: dto.ambient_sound ?? 'none',
+          dailyGoal: dto.daily_goal ?? 8,
           pomodoroMinutes: dto.pomodoro_minutes ?? DEFAULT_FOCUS_SETTINGS.pomodoroMinutes,
           shortBreakMinutes: dto.short_break_minutes ?? DEFAULT_FOCUS_SETTINGS.shortBreakMinutes,
           longBreakMinutes: dto.long_break_minutes ?? DEFAULT_FOCUS_SETTINGS.longBreakMinutes,
@@ -447,6 +630,14 @@ export class FocusController {
           strictMode: dto.strict_mode ?? false,
         },
         update: {
+          ...(dto.auto_start_breaks === undefined
+            ? {}
+            : { autoStartBreaks: dto.auto_start_breaks }),
+          ...(dto.auto_start_focus === undefined ? {} : { autoStartFocus: dto.auto_start_focus }),
+          ...(dto.alarm_sound === undefined ? {} : { alarmSound: dto.alarm_sound }),
+          ...(dto.volume === undefined ? {} : { volume: dto.volume }),
+          ...(dto.ambient_sound === undefined ? {} : { ambientSound: dto.ambient_sound }),
+          ...(dto.daily_goal === undefined ? {} : { dailyGoal: dto.daily_goal }),
           ...(dto.pomodoro_minutes !== undefined ? { pomodoroMinutes: dto.pomodoro_minutes } : {}),
           ...(dto.short_break_minutes !== undefined
             ? { shortBreakMinutes: dto.short_break_minutes }
@@ -471,6 +662,12 @@ export class FocusController {
             short_break_minutes: saved.shortBreakMinutes,
             long_break_minutes: saved.longBreakMinutes,
             cycles_before_long_break: saved.cyclesBeforeLongBreak,
+            auto_start_breaks: saved.autoStartBreaks,
+            auto_start_focus: saved.autoStartFocus,
+            alarm_sound: saved.alarmSound,
+            volume: saved.volume,
+            ambient_sound: saved.ambientSound,
+            daily_goal: saved.dailyGoal,
           },
         },
         previous: null,
@@ -503,7 +700,7 @@ export class FocusController {
     respondJson(req, res, 200, { id: row.id, estimated_pomodoros: row.estimatedPomodoros }, false);
   }
 
-  private async close(user: AuthUser, id: string, completed: boolean) {
+  private async close(user: AuthUser, id: string, completed: boolean, note?: string) {
     const current = await this.prisma.focusSession.findFirst({
       where: { id, ...sessionAccess(user) },
     });
@@ -527,6 +724,8 @@ export class FocusController {
       ? nextFocusPhase(current.type, finished + (current.type === 'focus' ? 1 : 0), settings)
       : null;
     const row = await this.prisma.$transaction(async (tx) => {
+      const key = `focus-session:${user.id}`;
+      await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtextextended(${key}, 0))`;
       const changed = await tx.focusSession.updateMany({
         where: { id, ownerId: user.id, endedAt: null },
         data: { endedAt: now, actualSeconds: actual, completed },
@@ -538,17 +737,72 @@ export class FocusController {
         entityType: 'focus_session',
         entityId: id,
         action: 'updated',
-        data: { session: { id, actual_seconds: actual, completed } },
+        data: {
+          session: {
+            id,
+            actual_seconds: actual,
+            completed,
+            ...(note === undefined ? {} : { note }),
+          },
+        },
         previous: null,
       });
+      if (completed && next && autoStartNextPhase(current.type, settings)) {
+        const candidates = await tx.focusSession.findMany({
+          where: { ownerId: user.id, endedAt: null, deletedAt: null },
+        });
+        const running = candidates.some(
+          (candidate) =>
+            candidate.type === 'stopwatch' ||
+            candidate.pausedAt !== null ||
+            (this.json(candidate, now).remaining_seconds ?? 0) > 0,
+        );
+        if (!running) {
+          const started = await tx.focusSession.create({
+            data: {
+              ownerId: user.id,
+              type: next.type,
+              plannedMinutes: next.plannedMinutes,
+              taskId: next.type === 'focus' ? current.taskId : null,
+              startedAt: now,
+              ambientSound: settings.ambientSound,
+            },
+          });
+          await this.events.record(tx, actorOf(user), {
+            type: DomainEvent.focusSessionStarted,
+            entityType: 'focus_session',
+            entityId: started.id,
+            action: 'created',
+            data: {
+              session: {
+                id: started.id,
+                type: started.type,
+                planned_minutes: started.plannedMinutes,
+              },
+            },
+            previous: null,
+          });
+        }
+      }
       return saved;
     });
-    return { ...this.json(row, now), next };
+    return {
+      ...this.json(row, now),
+      next,
+      auto_started: completed && autoStartNextPhase(current.type, settings),
+    };
   }
 
   private async settingsOf(userId: string) {
     const row = await this.prisma.focusSettings.findUnique({ where: { userId } });
     return {
+      autoStartBreaks: row?.autoStartBreaks ?? false,
+      autoStartFocus: row?.autoStartFocus ?? false,
+      alarmSound: row?.alarmSound ?? 'bell',
+      volume: row?.volume ?? 70,
+      ambientSound: row?.ambientSound ?? 'none',
+      dailyGoal: row?.dailyGoal ?? 8,
+      strictMode: row?.strictMode ?? false,
       pomodoroMinutes: row?.pomodoroMinutes ?? DEFAULT_FOCUS_SETTINGS.pomodoroMinutes,
       shortBreakMinutes: row?.shortBreakMinutes ?? DEFAULT_FOCUS_SETTINGS.shortBreakMinutes,
       longBreakMinutes: row?.longBreakMinutes ?? DEFAULT_FOCUS_SETTINGS.longBreakMinutes,
@@ -582,7 +836,7 @@ export class FocusController {
       paused_seconds: row.pausedSeconds,
       elapsed_seconds: focusElapsedSeconds({
         startedAt: row.startedAt.toISOString(),
-        now: now.toISOString(),
+        now: (row.endedAt ?? now).toISOString(),
         pausedAt: row.pausedAt?.toISOString() ?? null,
         pausedSeconds: row.pausedSeconds,
       }),

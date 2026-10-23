@@ -257,6 +257,94 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/me/notifications/settings",
+    "summary": "Owned 8×3 notification matrix, channel availability and civil quiet hours",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/me/notifications/settings",
+    "summary": "Update notification preferences and quiet hours; no MCP write tool",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "preferences": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "task",
+                        "focus_end",
+                        "daily_digest",
+                        "shutdown_digest",
+                        "overdue",
+                        "due_soon",
+                        "habit",
+                        "countdown"
+                      ]
+                    },
+                    "channel": { "type": "string", "enum": ["push", "email", "telegram"] },
+                    "enabled": { "type": "boolean" }
+                  },
+                  "required": ["kind", "channel", "enabled"]
+                }
+              },
+              "quiet_hours": {
+                "type": "object",
+                "properties": {
+                  "start": { "type": "string", "nullable": true },
+                  "end": { "type": "string", "nullable": true },
+                  "days": { "type": "array", "items": { "type": "number" } },
+                  "allow_high": { "type": "boolean" }
+                },
+                "required": ["start", "end", "days", "allow_high"]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/me/notifications/test",
+    "summary": "Send a real test only to the authenticated owner; reports precise channel errors",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "channel": { "type": "string", "enum": ["push", "email", "telegram"] }
+            },
+            "required": ["channel"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/notifications/deliveries",
+    "summary": "Last 50 owned channel outcomes, cursor paginated; quiet deferrals retain their reason",
+    "parameters": [
+      { "name": "cursor", "required": true, "in": "query", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/me/view-preferences/{key}",
     "summary": "Read view preferences for the current account (TTD-AUD-59)",
     "parameters": [
@@ -2280,6 +2368,27 @@
         "in": "header",
         "required": false,
         "schema": { "type": "string" }
+      },
+      {
+        "name": "range_field",
+        "required": false,
+        "in": "query",
+        "description": "Default any includes intervals overlapping the range.",
+        "schema": { "enum": ["due", "start", "any"], "type": "string" }
+      },
+      {
+        "name": "to",
+        "required": false,
+        "in": "query",
+        "description": "Exclusive bound. YYYY-MM-DD uses the user time zone.",
+        "schema": {}
+      },
+      {
+        "name": "from",
+        "required": false,
+        "in": "query",
+        "description": "Inclusive bound. YYYY-MM-DD uses the user time zone.",
+        "schema": {}
       }
     ],
     "request_body": {}
@@ -2391,6 +2500,7 @@
           "schema": {
             "type": "object",
             "properties": {
+              "parent_id": { "type": "object", "nullable": true },
               "column_id": { "type": "object" },
               "title": { "type": "string", "maxLength": 500 },
               "content": { "type": "string" },
@@ -2433,6 +2543,66 @@
         "schema": { "type": "string" }
       },
       { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/tasks/{id}/links",
+    "summary": "List task links (auto and manual), available without Google Drive",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tasks/{id}/links",
+    "summary": "Add a manual http/https/mailto link. Optional title uses public HTML only, 3s/256KiB/3 redirects maximum.",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "url": { "type": "string", "maxLength": 4096 },
+              "title": { "type": "string", "maxLength": 200 }
+            },
+            "required": ["url"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/tasks/{id}/links/{linkId}",
+    "summary": "Remove a link from its owning task",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } },
+      { "name": "linkId", "required": true, "in": "path", "schema": { "type": "string" } }
     ],
     "request_body": {}
   },
@@ -2813,96 +2983,8 @@
   },
   {
     "method": "POST",
-    "path": "/api/v1/tasks/{id}/attachments",
-    "summary": "Attach a file to a task (RF-203)",
-    "parameters": [
-      {
-        "name": "X-Dev-User-Email",
-        "in": "header",
-        "required": false,
-        "schema": { "type": "string" }
-      },
-      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
-    ],
-    "request_body": {
-      "required": true,
-      "content": {
-        "multipart/form-data": {
-          "schema": {
-            "type": "object",
-            "properties": { "file": { "type": "string", "format": "binary" } }
-          }
-        }
-      }
-    }
-  },
-  {
-    "method": "GET",
-    "path": "/api/v1/tasks/{id}/attachments",
-    "summary": "List attachments of a task",
-    "parameters": [
-      {
-        "name": "X-Dev-User-Email",
-        "in": "header",
-        "required": false,
-        "schema": { "type": "string" }
-      },
-      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
-    ],
-    "request_body": {}
-  },
-  {
-    "method": "GET",
-    "path": "/api/v1/tasks/{id}/attachments/{attachmentId}/thumbnail",
-    "summary": "Download the image thumbnail (RF-203)",
-    "parameters": [
-      {
-        "name": "X-Dev-User-Email",
-        "in": "header",
-        "required": false,
-        "schema": { "type": "string" }
-      },
-      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } },
-      { "name": "attachmentId", "required": true, "in": "path", "schema": { "type": "string" } }
-    ],
-    "request_body": {}
-  },
-  {
-    "method": "GET",
-    "path": "/api/v1/tasks/{id}/attachments/{attachmentId}",
-    "summary": "Download an attachment",
-    "parameters": [
-      {
-        "name": "X-Dev-User-Email",
-        "in": "header",
-        "required": false,
-        "schema": { "type": "string" }
-      },
-      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } },
-      { "name": "attachmentId", "required": true, "in": "path", "schema": { "type": "string" } }
-    ],
-    "request_body": {}
-  },
-  {
-    "method": "DELETE",
-    "path": "/api/v1/tasks/{id}/attachments/{attachmentId}",
-    "summary": "Delete an attachment",
-    "parameters": [
-      {
-        "name": "X-Dev-User-Email",
-        "in": "header",
-        "required": false,
-        "schema": { "type": "string" }
-      },
-      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } },
-      { "name": "attachmentId", "required": true, "in": "path", "schema": { "type": "string" } }
-    ],
-    "request_body": {}
-  },
-  {
-    "method": "POST",
     "path": "/api/v1/inbound/email",
-    "summary": "Deliver an email-to-task message (RF-105). The recipient token authenticates the call. Content is stored and never executed.",
+    "summary": "Create an email-to-task capture (RF-105). Send recipient, subject, text and message_id fields before files. Files stream directly to the owner’s Drive (25 MiB each, 10 files); without Drive the task is saved with an attachment warning.",
     "parameters": [],
     "request_body": {
       "required": true,
@@ -2922,6 +3004,167 @@
         }
       }
     }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/reminders/{id}/action",
+    "summary": "Complete, snooze ten minutes or open with a single-use notification capability. No session or Bearer token is accepted as a substitute.",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "action": { "type": "string", "enum": ["complete", "snooze", "open"] },
+              "token": { "type": "string" }
+            },
+            "required": ["action", "token"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/integrations/drive/picker-config",
+    "summary": "Public browser Picker configuration for the connected owner. The API never returns its Google access or refresh token.",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tasks/{taskId}/attachments/drive-session",
+    "summary": "Start a direct browser-to-Drive resumable upload (100 MiB/file, 50/task). Requires connected Drive; no access token is returned.",
+    "parameters": [
+      { "name": "taskId", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string", "maxLength": 240 },
+              "mime_type": { "type": "string" },
+              "size": { "type": "number", "maximum": 104857600 }
+            },
+            "required": ["name", "mime_type", "size"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tasks/{taskId}/attachments/drive-complete",
+    "summary": "Verify a signed upload id and Drive file metadata; store metadata only.",
+    "parameters": [
+      { "name": "taskId", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "drive_file_id": { "type": "string" },
+              "upload_id": { "type": "string" }
+            },
+            "required": ["drive_file_id", "upload_id"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tasks/{taskId}/attachments/drive-link",
+    "summary": "Link an existing file authorized by Google Picker; metadata only, no copying.",
+    "parameters": [
+      { "name": "taskId", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": { "drive_file_id": { "type": "string" } },
+            "required": ["drive_file_id"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/tasks/{taskId}/attachments",
+    "summary": "Stream multipart directly to the user’s Drive (25 MiB/file, 50/task, <=8 MiB buffered). Requires Google Drive connected; ttd stores metadata only.",
+    "parameters": [
+      { "name": "taskId", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "multipart/form-data": {
+          "schema": {
+            "type": "object",
+            "required": ["file"],
+            "properties": { "file": { "type": "string", "format": "binary" } }
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/tasks/{taskId}/attachments",
+    "summary": "List Drive attachment metadata and availability. Files remain links after disconnecting Google.",
+    "parameters": [
+      { "name": "taskId", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/tasks/{taskId}/attachments/{id}",
+    "summary": "Redirect to the existing Drive web link. No binary download or cache on ttd.",
+    "parameters": [
+      { "name": "taskId", "required": true, "in": "path", "schema": { "type": "string" } },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/tasks/{taskId}/attachments/{id}",
+    "summary": "Remove attachment metadata. Optional trash_in_drive moves the file to Drive trash first; a Drive failure keeps the metadata.",
+    "parameters": [
+      { "name": "taskId", "required": true, "in": "path", "schema": { "type": "string" } },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } },
+      {
+        "name": "trash_in_drive",
+        "required": false,
+        "in": "query",
+        "schema": { "type": "boolean" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/attachments/{id}/preview",
+    "summary": "Fetch only a fresh Drive thumbnail URL and redirect without caching; never downloads thumbnail bytes.",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
   },
   {
     "method": "GET",
@@ -3659,6 +3902,15 @@
         }
       }
     }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/planning/replan/sessions/{id}",
+    "summary": "Discard an owned replan draft without applying decisions (TTD-AUD-85)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
   },
   {
     "method": "PUT",
@@ -4514,7 +4766,17 @@
     "parameters": [
       { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
     ],
-    "request_body": {}
+    "request_body": {
+      "required": false,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": { "note": { "type": "string", "maxLength": 2000 } }
+          }
+        }
+      }
+    }
   },
   {
     "method": "POST",
@@ -4545,6 +4807,13 @@
   },
   {
     "method": "GET",
+    "path": "/api/v1/focus/state",
+    "summary": "Current owned focus session, settings and daily totals (TTD-AUD-84)",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "GET",
     "path": "/api/v1/focus/stats",
     "summary": "Focus statistics (RF-1204)",
     "parameters": [],
@@ -4556,6 +4825,43 @@
     "summary": "Focus settings (RF-1201)",
     "parameters": [],
     "request_body": {}
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/focus/settings",
+    "summary": "Save focus durations, auto-start, local sounds, volume and daily goal (TTD-AUD-101)",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "pomodoro_minutes": { "type": "number" },
+              "short_break_minutes": { "type": "number" },
+              "long_break_minutes": { "type": "number" },
+              "cycles_before_long_break": { "type": "number" },
+              "strict_mode": { "type": "boolean" },
+              "auto_start_breaks": { "type": "boolean", "default": false },
+              "auto_start_focus": { "type": "boolean", "default": false },
+              "alarm_sound": {
+                "type": "string",
+                "enum": ["none", "bell", "chime", "digital"],
+                "default": "bell"
+              },
+              "volume": { "type": "number", "minimum": 0, "maximum": 100, "default": 70 },
+              "ambient_sound": {
+                "type": "string",
+                "enum": ["none", "tick", "rain", "white_noise"],
+                "default": "none"
+              },
+              "daily_goal": { "type": "number", "minimum": 1, "maximum": 20, "default": 8 }
+            }
+          }
+        }
+      }
+    }
   },
   {
     "method": "PATCH",
@@ -4573,7 +4879,21 @@
               "short_break_minutes": { "type": "number" },
               "long_break_minutes": { "type": "number" },
               "cycles_before_long_break": { "type": "number" },
-              "strict_mode": { "type": "boolean" }
+              "strict_mode": { "type": "boolean" },
+              "auto_start_breaks": { "type": "boolean", "default": false },
+              "auto_start_focus": { "type": "boolean", "default": false },
+              "alarm_sound": {
+                "type": "string",
+                "enum": ["none", "bell", "chime", "digital"],
+                "default": "bell"
+              },
+              "volume": { "type": "number", "minimum": 0, "maximum": 100, "default": 70 },
+              "ambient_sound": {
+                "type": "string",
+                "enum": ["none", "tick", "rain", "white_noise"],
+                "default": "none"
+              },
+              "daily_goal": { "type": "number", "minimum": 1, "maximum": 20, "default": 8 }
             }
           }
         }
@@ -4883,6 +5203,13 @@
   },
   {
     "method": "POST",
+    "path": "/api/v1/integrations/telegram/recheck",
+    "summary": "Check that the linked Telegram bot can send again after being unblocked",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
     "path": "/api/v1/integrations/telegram/pairing",
     "summary": "Issue a one-time pairing code. Send /start <code> in Telegram (APP-07a). Does not accept raw chat_id.",
     "parameters": [],
@@ -4934,21 +5261,36 @@
   {
     "method": "DELETE",
     "path": "/api/v1/integrations/google",
-    "summary": "Disconnect Google Calendar and Drive (RF-2004)",
-    "parameters": [],
+    "summary": "Disconnect and revoke all Google services; keep imported events unless explicitly requested (RF-2004)",
+    "parameters": [
+      {
+        "name": "remove_imported_events",
+        "required": false,
+        "in": "query",
+        "description": "Soft-delete imported Google events; existing Drive attachment links are always kept.",
+        "schema": { "default": false, "type": "boolean" }
+      }
+    ],
     "request_body": {}
   },
   {
     "method": "GET",
     "path": "/api/v1/integrations/google/start",
-    "summary": "Build the Google consent URL. The browser completes it (RF-2004).",
-    "parameters": [],
+    "summary": "Request Calendar, Drive or both using incremental Google consent (RF-2004/2005).",
+    "parameters": [
+      {
+        "name": "service",
+        "required": false,
+        "in": "query",
+        "schema": { "enum": ["calendar", "drive", "all"], "type": "string" }
+      }
+    ],
     "request_body": {}
   },
   {
     "method": "GET",
     "path": "/api/v1/integrations/google/callback",
-    "summary": "Google redirects here with the authorization code (RF-2004).",
+    "summary": "Google OAuth callback; persist only actually granted scopes (RF-2004/2005).",
     "parameters": [],
     "request_body": {}
   },
@@ -4958,6 +5300,27 @@
     "summary": "Google Drive status. No call is made without credentials (RF-2005).",
     "parameters": [],
     "request_body": {}
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/integrations/google/services/{service}",
+    "summary": "Activate or deactivate Calendar/Drive locally. This does not revoke Google permissions.",
+    "parameters": [
+      { "name": "service", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "required": ["enabled"],
+            "additionalProperties": false,
+            "properties": { "enabled": { "type": "boolean" } }
+          }
+        }
+      }
+    }
   },
   {
     "method": "POST",

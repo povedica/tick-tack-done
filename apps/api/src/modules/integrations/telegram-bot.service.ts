@@ -1,3 +1,5 @@
+import { setTelegramStatus } from '../../integrations/telegram-status.js';
+import { Readable } from 'node:stream';
 import { createHash, randomBytes } from 'node:crypto';
 import { HttpStatus, Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import {
@@ -15,7 +17,6 @@ import { asJson } from '../../http/json.js';
 import { DomainException } from '../../http/domain.exception.js';
 import { readTelegramUpdate, type TelegramIncoming } from '../../integrations/telegram-update.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { ATTACHMENT_MAX_BYTES } from '../tasks/attachment-storage.js';
 import type { TaskSummaryJson } from '../tasks/task.mapper.js';
 import { ListsService } from '../lists/lists.service.js';
 import type { CaptureWarning } from '../tasks/quick-add.js';
@@ -78,7 +79,7 @@ export class TelegramBotService implements OnModuleInit {
     }
   }
 
-  async createPairing(user: AuthUser): Promise<{ code: string; expires_at: string }> {
+  async createPairing(user: AuthUser) {
     const code = randomBytes(16).toString('base64url');
     const expiresAt = new Date(Date.now() + PAIRING_TTL_MS);
     await this.prisma.telegramPairing.create({
@@ -88,7 +89,49 @@ export class TelegramBotService implements OnModuleInit {
         expiresAt,
       },
     });
-    return { code, expires_at: expiresAt.toISOString() };
+    const bot_username = await this.telegram.botUsername();
+    return {
+      code,
+      expires_at: expiresAt.toISOString(),
+      bot_username,
+      deep_link: bot_username ? `https://t.me/${bot_username}?start=${code}` : null,
+    };
+  }
+
+  botUsername() {
+    return this.telegram.botUsername();
+  }
+  async recheck(user: AuthUser) {
+    const link = await this.prisma.telegramLink.findFirst({
+      where: { ownerId: user.id, deletedAt: null },
+    });
+    if (!link) throw new DomainException(409, 'telegram_not_linked', 'Telegram is not linked');
+    try {
+      await this.telegram.call('sendMessage', {
+        chat_id: link.chatId,
+        text: 'Telegram conectado a tick-tack-done',
+      });
+      await setTelegramStatus(this.prisma, user.id, 'connected');
+    } catch (caught) {
+      if (
+        caught instanceof DomainException &&
+        typeof caught.getResponse() === 'object' &&
+        (caught.getResponse() as { code?: unknown }).code === 'telegram_blocked'
+      )
+        await setTelegramStatus(this.prisma, user.id, 'blocked');
+      throw caught;
+    }
+    return { connected: true };
+  }
+  async farewell(chatId: string) {
+    try {
+      await this.telegram.call('sendMessage', {
+        chat_id: chatId,
+        text: 'Desvinculado de tick-tack-done',
+      });
+    } catch {
+      /* Unlinking locally must succeed after Telegram revokes access. */
+    }
   }
 
   async handle(body: unknown): Promise<TelegramOutcome> {
@@ -101,7 +144,12 @@ export class TelegramBotService implements OnModuleInit {
       return { called_telegram: false, action: 'duplicate' };
     }
     if (incoming.kind === 'text') {
-      const paired = await this.tryPair(incoming.chatId, incoming.text);
+      const paired = await this.tryPair(
+        incoming.chatId,
+        incoming.text,
+        incoming.username ?? null,
+        incoming.displayName ?? null,
+      );
       if (paired !== null) {
         await this.send(incoming.chatId, plain(paired));
         return { called_telegram: true, action: 'paired' };
@@ -158,7 +206,12 @@ export class TelegramBotService implements OnModuleInit {
     }
   }
 
-  private async tryPair(chatId: string, text: string): Promise<string | null> {
+  private async tryPair(
+    chatId: string,
+    text: string,
+    username: string | null,
+    displayName: string | null,
+  ): Promise<string | null> {
     const match = /^\/start(?:@\w+)?(?:\s+|_)([A-Za-z0-9_-]{16,})$/.exec(text.trim());
     if (match === null) {
       return null;
@@ -180,8 +233,15 @@ export class TelegramBotService implements OnModuleInit {
       }
       await tx.telegramLink.upsert({
         where: { chatId },
-        create: { ownerId: row.ownerId, chatId },
-        update: { ownerId: row.ownerId, deletedAt: null },
+        create: { ownerId: row.ownerId, chatId, username, displayName, status: 'connected' },
+        update: {
+          ownerId: row.ownerId,
+          deletedAt: null,
+          username,
+          displayName,
+          status: 'connected',
+          createdAt: new Date(),
+        },
       });
       await this.events.record(
         tx,
@@ -291,6 +351,25 @@ export class TelegramBotService implements OnModuleInit {
   }
 
   private async callback(user: AuthUser, incoming: TelegramIncoming): Promise<string> {
+    const notification = /^n([cso]):([0-9a-f-]{36}):([A-Za-z0-9_-]{24})$/.exec(
+      incoming.callbackData,
+    );
+    if (notification) {
+      const action =
+        notification[1] === 'c' ? 'complete' : notification[1] === 's' ? 'snooze' : 'open';
+      const result = await this.tasks.notificationAction(
+        notification[2] ?? '',
+        notification[3] ?? '',
+        action,
+        user.id,
+      );
+      return action === 'open'
+        ? `${process.env.APP_URL ?? 'https://todo.reflexionia.com'}${result.url}`
+        : action === 'complete'
+          ? 'Tarea completada'
+          : 'Recordatorio pospuesto 10 minutos';
+    }
+
     if (incoming.callbackData.startsWith('s:')) {
       await this.snoozeButton(user, incoming);
       return 'snooze';
@@ -483,11 +562,6 @@ export class TelegramBotService implements OnModuleInit {
   }
 
   private async photo(user: AuthUser, incoming: TelegramIncoming): Promise<void> {
-    const file = await this.telegram.download(incoming.fileId);
-    if (file.bytes.length > ATTACHMENT_MAX_BYTES) {
-      await this.send(incoming.chatId, plain('La foto pasa de 25 MB.'));
-      return;
-    }
     const caption = incoming.caption.trim();
     const draft =
       caption.length > 0 ? { raw_text: caption } : await this.inboxTask(user.id, 'Foto');
@@ -496,20 +570,28 @@ export class TelegramBotService implements OnModuleInit {
       { ...draft, metadata: { capture: 'telegram' } },
       `telegram-${incoming.updateId}`,
     );
+    let lead = 'Guardada con foto';
     if (!created.replayed) {
-      const name = file.filePath.split('/').pop() ?? 'foto.jpg';
-      await this.tasks.addAttachment(user, created.body.id, {
-        originalname: name,
-        mimetype: mimeOf(name),
-        size: file.bytes.length,
-        buffer: file.bytes,
-      });
+      try {
+        await this.tasks.assertAttachmentConnected(user);
+        const file = await this.telegram.downloadStream(incoming.fileId);
+        await this.tasks.streamAttachment(
+          user,
+          created.body.id,
+          file.filePath.split('/').pop() ?? 'foto.jpg',
+          file.source,
+          'telegram',
+        );
+      } catch (error) {
+        const code =
+          error instanceof DomainException ? (error.getResponse() as { code?: string }).code : null;
+        if (code !== 'drive_not_connected' && code !== 'drive_reauth_required') throw error;
+        lead = 'No he guardado el adjunto: conecta Google Drive en Ajustes > Integraciones';
+      }
     }
     await this.send(
       incoming.chatId,
-      plain(
-        await this.confirmation(user, created.body, created.body.warnings, 'Guardada con foto'),
-      ),
+      plain(await this.confirmation(user, created.body, created.body.warnings, lead)),
     );
   }
 
@@ -789,11 +871,12 @@ export class TelegramBotService implements OnModuleInit {
         'Set TELEGRAM_VOICE_PROVIDER to a transcription URL',
       );
     }
-    const file = await this.telegram.download(fileId);
+    const file = await this.telegram.downloadStream(fileId);
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'content-type': 'application/octet-stream' },
-      body: file.bytes,
+      body: Readable.from(file.source),
+      duplex: 'half',
       signal: AbortSignal.timeout(20_000),
     });
     if (!response.ok) {
@@ -807,20 +890,36 @@ export class TelegramBotService implements OnModuleInit {
   }
 
   private async send(chatId: string, reply: Reply): Promise<void> {
-    await this.telegram.call('sendMessage', {
-      chat_id: chatId,
-      text: reply.text,
-      ...(reply.html ? { parse_mode: 'HTML' } : {}),
-      ...(reply.buttons.length === 0
-        ? {}
-        : {
-            reply_markup: {
-              inline_keyboard: reply.buttons.map((button) => [
-                { text: button.text, callback_data: button.data },
-              ]),
-            },
-          }),
-    });
+    try {
+      await this.telegram.call('sendMessage', {
+        chat_id: chatId,
+        text: reply.text,
+        ...(reply.html ? { parse_mode: 'HTML' } : {}),
+        ...(reply.buttons.length === 0
+          ? {}
+          : {
+              reply_markup: {
+                inline_keyboard: reply.buttons.map((button) => [
+                  { text: button.text, callback_data: button.data },
+                ]),
+              },
+            }),
+      });
+    } catch (caught) {
+      if (
+        caught instanceof DomainException &&
+        typeof caught.getResponse() === 'object' &&
+        (caught.getResponse() as { code?: unknown }).code === 'telegram_blocked'
+      ) {
+        const link = await this.prisma.telegramLink.findFirst({
+          where: { chatId, deletedAt: null },
+          select: { ownerId: true },
+        });
+        if (link) await setTelegramStatus(this.prisma, link.ownerId, 'blocked');
+        return;
+      }
+      throw caught;
+    }
   }
 
   private query(extra: Partial<TaskListQuery>): TaskListQuery {
@@ -865,20 +964,6 @@ function webBase(): string {
 
 function escapeHtml(value: string): string {
   return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
-}
-
-function mimeOf(name: string): string {
-  const lower = name.toLowerCase();
-  if (lower.endsWith('.png')) {
-    return 'image/png';
-  }
-  if (lower.endsWith('.webp')) {
-    return 'image/webp';
-  }
-  if (lower.endsWith('.gif')) {
-    return 'image/gif';
-  }
-  return 'image/jpeg';
 }
 
 function failureText(error: unknown): string {

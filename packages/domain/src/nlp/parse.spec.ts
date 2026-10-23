@@ -498,7 +498,7 @@ describe('TTD-AUD-02 time ranges', () => {
       const result = parsed(text);
       expect(result.title).toBe('Meeting');
       expect(result.start).toEqual({ date: localDue(1, 9, 0), isAllDay: false });
-      expect(result.due).toBeNull();
+      expect(result.due).toEqual({ date: localDue(1, 9, 30), isAllDay: false });
       expect(result.durationMinutes).toBe(30);
       expect(result.spans.map((span) => text.slice(span.start, span.end)).join(' ')).toBe(range);
     },
@@ -537,4 +537,11 @@ it.each([
   const result = parsed('Meeting mañana 01:30-03:30', 'es', now);
   expect(result.title).toBe('Meeting');
   expect(result.durationMinutes).toBe(minutes);
+});
+
+it('TTD-AUD-85.7 RF-102: a time range includes its end as due', () => {
+  const result = parsed('x mañana 17:00-17:45');
+  expect(result.start?.date).toContain('T15:00:00');
+  expect(result.due?.date).toContain('T15:45:00');
+  expect(result.durationMinutes).toBe(45);
 });

@@ -1,3 +1,4 @@
+import { autoStartNextPhase } from './cycle';
 import { describe, expect, it } from 'vitest';
 import {
   focusElapsedSeconds,
@@ -143,4 +144,20 @@ describe('TTD-AUD-78 RF-1204/1205', () => {
     expect(result.today_pomodoros).toBe(0);
     expect(result.today_focus_seconds).toBe(123);
   });
+});
+
+it('TTD-AUD-101 / RF-1201: auto-start follows the completed phase and remains off by default', () => {
+  expect(autoStartNextPhase('focus', { autoStartBreaks: false, autoStartFocus: false })).toBe(
+    false,
+  );
+  expect(autoStartNextPhase('focus', { autoStartBreaks: true, autoStartFocus: false })).toBe(true);
+  expect(autoStartNextPhase('short_break', { autoStartBreaks: true, autoStartFocus: false })).toBe(
+    false,
+  );
+  expect(autoStartNextPhase('long_break', { autoStartBreaks: false, autoStartFocus: true })).toBe(
+    true,
+  );
+  expect(autoStartNextPhase('stopwatch', { autoStartBreaks: true, autoStartFocus: true })).toBe(
+    false,
+  );
 });

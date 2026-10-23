@@ -271,6 +271,8 @@ function TaskRow({
       : (row.startDate ?? row.dueDate);
   return (
     <div
+      data-task-id={row.id}
+      tabIndex={0}
       className={`task-row${open ? ' is-selected' : ''}${selected ? ' is-batch' : ''}${done ? ' is-done' : ''}`}
       data-selected={open ? 'true' : undefined}
       draggable={manualOrder}

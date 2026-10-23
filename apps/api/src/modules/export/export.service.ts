@@ -28,7 +28,23 @@ export class ExportService {
         this.prisma.folder.findMany({ where: { ownerId } }),
         this.prisma.project.findMany({ where: { ownerId } }),
         this.prisma.tag.findMany({ where: { ownerId } }),
-        this.prisma.task.findMany({ where: { ownerId }, include: { checklist: true, tags: true } }),
+        this.prisma.task.findMany({
+          where: { ownerId },
+          include: {
+            checklist: true,
+            tags: true,
+            attachments: {
+              where: { deletedAt: null },
+              select: {
+                driveFileId: true,
+                fileName: true,
+                mimeType: true,
+                byteSize: true,
+                webViewLink: true,
+              },
+            },
+          },
+        }),
         this.prisma.habit.findMany({ where: { ownerId }, include: { logs: true } }),
         this.prisma.filter.findMany({ where: { ownerId } }),
         this.prisma.smartList.findMany({ where: { ownerId } }),
@@ -38,7 +54,16 @@ export class ExportService {
       folders: folders.map(jsonSafe),
       projects: projects.map(jsonSafe),
       tags: tags.map(jsonSafe),
-      tasks: tasks.map(jsonSafe),
+      tasks: tasks.map(({ attachments, ...task }) => ({
+        ...jsonSafe(task),
+        attachments: attachments.map((attachment) => ({
+          drive_file_id: attachment.driveFileId,
+          file_name: attachment.fileName,
+          mime_type: attachment.mimeType,
+          byte_size: Number(attachment.byteSize),
+          web_view_link: attachment.webViewLink,
+        })),
+      })),
       habits: habits.map(jsonSafe),
       filters: filters.map(jsonSafe),
       smart_lists: smartLists.map(jsonSafe),

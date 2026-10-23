@@ -528,7 +528,7 @@ describe('V1 and V2 product', () => {
       const files = await session()
         .get(`/api/v1/tasks/${photoTask?.id ?? ''}/attachments`)
         .expect(200);
-      expect(files.body.items.length).toBeGreaterThan(0);
+      expect(files.body.items).toHaveLength(0);
       expect(paths.some((item) => item.endsWith('/sendMessage'))).toBe(true);
 
       const denied = await request(server)
@@ -556,7 +556,16 @@ describe('V1 and V2 product', () => {
     process.env.GOOGLE_REFRESH_TOKEN = 'env-should-not-be-used';
     await prisma.user.update({
       where: { id: userId },
-      data: { googleRefreshToken: 'stored-refresh-token' },
+      data: {
+        googleRefreshToken: 'stored-refresh-token',
+        googleGrantedScopes: [
+          'https://www.googleapis.com/auth/calendar.calendarlist.readonly',
+          'https://www.googleapis.com/auth/calendar.events',
+          'https://www.googleapis.com/auth/drive.file',
+        ],
+        googleCalendarEnabled: true,
+        googleDriveEnabled: true,
+      },
     });
     const methods: string[] = [];
     const refreshUsed: string[] = [];
@@ -607,9 +616,20 @@ describe('V1 and V2 product', () => {
         if (url.includes('alt=media')) {
           return new Response(Buffer.from('pdf-bytes'), { status: 200 });
         }
-        return new Response(JSON.stringify({ name: 'notas.pdf', mimeType: 'application/pdf' }), {
-          status: 200,
-        });
+        return new Response(
+          JSON.stringify({
+            id: 'file-2',
+            name: 'notas.pdf',
+            mimeType: 'application/pdf',
+            size: '9',
+            webViewLink: 'https://drive.google.com/file/d/file-2/view',
+            parents: [],
+            appProperties: {},
+          }),
+          {
+            status: 200,
+          },
+        );
       }
       return original(input, init);
     };
@@ -663,7 +683,7 @@ describe('V1 and V2 product', () => {
           copy: true,
         })
         .expect(201);
-      expect(attached.body.copied).toBe(true);
+      expect(attached.body.copied).toBe(false);
     } finally {
       globalThis.fetch = original;
       delete process.env.GOOGLE_CLIENT_ID;
@@ -673,7 +693,44 @@ describe('V1 and V2 product', () => {
     }
   });
 
-  it('RF-2005: a Drive link is stored and nothing is copied', async () => {
+  it('TTD-AUD-86: a global token never authorizes an unconnected user for Drive or Calendar', async () => {
+    process.env.GOOGLE_CLIENT_ID = 'synthetic-client';
+    process.env.GOOGLE_CLIENT_SECRET = 'synthetic-secret';
+    process.env.GOOGLE_REFRESH_TOKEN = 'synthetic-global-account';
+    const original = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = () => {
+      calls++;
+      return Promise.reject(new Error('Cross-account Google request'));
+    };
+    try {
+      const task = await session()
+        .post('/api/v1/tasks')
+        .send({ project_id: projectId, title: 'Credential isolation' })
+        .expect(201);
+      const drive = await session()
+        .post('/api/v1/integrations/drive/attachments')
+        .send({
+          task_id: task.body.id,
+          file_id: 'synthetic-file',
+          url: 'https://drive.google.com/file/d/synthetic-file',
+          name: 'Synthetic',
+          copy: true,
+        })
+        .expect(409);
+      expect(drive.body.error.code).toBe('drive_not_connected');
+      const calendar = await session().get('/api/v1/calendar/google/calendars').expect(409);
+      expect(calendar.body.error.code).toBe('google_not_connected');
+      expect(calls).toBe(0);
+    } finally {
+      globalThis.fetch = original;
+      delete process.env.GOOGLE_CLIENT_ID;
+      delete process.env.GOOGLE_CLIENT_SECRET;
+      delete process.env.GOOGLE_REFRESH_TOKEN;
+    }
+  });
+
+  it('RF-2005 / TTD-AUD-99: linking an existing Drive file also requires a connection', async () => {
     const task = await session()
       .post('/api/v1/tasks')
       .send({ project_id: projectId, title: 'con drive' })
@@ -686,8 +743,8 @@ describe('V1 and V2 product', () => {
         url: 'https://drive.google.com/file/d/file-1',
         name: 'notas.pdf',
       })
-      .expect(201);
-    expect(attached.body.copied).toBe(false);
+      .expect(409);
+    expect(attached.body.error.code).toBe('drive_not_connected');
   });
 
   it('RF-806: a location reminder stays quiet when the point is outside the fence', async () => {

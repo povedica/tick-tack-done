@@ -1,3 +1,4 @@
+import { normalizeReminderTrigger } from './trigger';
 import { describe, expect, it } from 'vitest';
 import {
   isAccountReminderTrigger,
@@ -192,4 +193,8 @@ describe('reminders', () => {
     );
     expect(reminderDisposition('nope', now, false)).toBe('beyond_horizon');
   });
+});
+
+it.each(['TRIGGER:-PT15M', '-PT15M'])('TTD-AUD-85.5 RF-801 normalizes %s', (trigger) => {
+  expect(normalizeReminderTrigger(trigger)).toBe('-PT15M');
 });

@@ -1,3 +1,4 @@
+import { GOOGLE_ACCESS_SELECT, googleServiceAccess } from '../../integrations/google-access.js';
 import { Body, Controller, Get, Inject, Patch, Query, Req, Res } from '@nestjs/common';
 import { ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsArray, IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
@@ -140,7 +141,7 @@ export class DashboardController {
       this.prisma.habit.count({ where: { ownerId: user.id, deletedAt: null, archived: false } }),
       this.prisma.user.findUniqueOrThrow({
         where: { id: user.id },
-        select: { googleRefreshToken: true, telegramEnabled: true },
+        select: { ...GOOGLE_ACCESS_SELECT, telegramEnabled: true },
       }),
       this.prisma.telegramLink.findFirst({
         where: { ownerId: user.id, deletedAt: null },
@@ -248,8 +249,8 @@ export class DashboardController {
       },
       integrations: {
         telegram: telegramConfigured() && account.telegramEnabled && telegramLink !== null,
-        google: googleConfigured() && account.googleRefreshToken !== null,
-        drive: driveConfigured() && account.googleRefreshToken !== null,
+        google: googleConfigured() && googleServiceAccess(account, 'calendar').connected,
+        drive: driveConfigured() && googleServiceAccess(account, 'drive').connected,
       },
       focus: {
         seconds: focusSeconds,

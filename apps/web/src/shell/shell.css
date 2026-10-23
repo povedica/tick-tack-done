@@ -1,5 +1,6 @@
 .shell {
   display: grid;
+  transition: grid-template-columns var(--dur-base) ease;
   grid-template-columns: var(--sidebar-rail) var(--sidebar-w) minmax(0, 1fr) 0;
   grid-template-rows: minmax(0, 1fr);
   width: 100%;
@@ -1226,4 +1227,25 @@
 .calendar-toolbar > button.sidebar-fold-button:hover {
   color: var(--ink);
   background: var(--surface-2);
+}
+
+.detail-slot {
+  animation: detail-enter var(--dur-base) ease;
+}
+@keyframes detail-enter {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@media (max-width: 1023px) {
+  .shell[data-drawer='open'] .sidebar {
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
 }

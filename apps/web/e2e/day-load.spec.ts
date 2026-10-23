@@ -76,7 +76,7 @@ for (const width of [1440, 390])
         theme,
       );
       await page.screenshot({
-        path: `../../docs/reviews/assets/day-plan-2026-10-21/${width}-${theme}.png`,
+        path: `../../test-artifacts/reviews/assets/day-plan-2026-10-21/${width}-${theme}.png`,
       });
       await page.getByRole('button', { name: /Aplicar/ }).click();
       await expect(page.getByText('Guardado', { exact: true })).toBeVisible();

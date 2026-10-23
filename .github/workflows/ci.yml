@@ -68,6 +68,15 @@ jobs:
           node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Install PostgreSQL 17 backup client
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl --fail --silent --show-error -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          pgdg_codename="$(lsb_release -cs)"
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${pgdg_codename}-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client-17
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
       - run: pnpm db:deploy
       - run: pnpm test:integration
 
@@ -86,3 +95,30 @@ jobs:
       - run: pnpm --filter api openapi:generate
       - name: El OpenAPI generado no debe tener diff sin commitear
         run: git diff --exit-code apps/api/openapi.json apps/api/src/mcp/api-operations.json
+
+  r80-browser-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @reflexionia/domain build
+      - run: pnpm --filter web build
+      - run: pnpm --filter web exec playwright install --with-deps chromium
+      - name: Verify Agenda timing and Google, links, About and push UI contracts
+        env:
+          R80_PHASE: despues
+          R80_PREVIEW: '1'
+        run: pnpm --filter web exec playwright test --config playwright.r80.config.ts r80-agenda-performance.spec.ts r80-google.spec.ts r80-links.spec.ts r80-about.spec.ts r80-push-actions.spec.ts --workers=1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r80-browser-evidence
+          path: |
+            apps/web/test-results
+            test-artifacts/audit/r80/98-waterfall-despues-*.json
+          retention-days: 14

@@ -1,4 +1,6 @@
 import { Fragment, useEffect, useState } from 'react';
+import { Settings } from 'lucide-react';
+import { playFocusSound } from './sounds';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation } from 'react-router';
 import { focusElapsedSeconds } from '@reflexionia/domain';
@@ -41,15 +43,17 @@ export function FocusPage() {
     queryFn: ({ pageParam }) => api.listFocusSessions(undefined, pageParam),
     getNextPageParam: (page) =>
       typeof page.next_cursor === 'string' ? page.next_cursor : undefined,
-    refetchInterval: 15_000,
+    refetchInterval: 1000,
   });
   const settings = useQuery({
     queryKey: ['focus-settings'],
     queryFn: () => api.getFocusSettings(),
+    refetchInterval: 4000,
   });
   const stats = useQuery({ queryKey: ['focus-stats'], queryFn: () => api.focusStats() });
   const tasks = useQuery({ queryKey: ['focus-tasks'], queryFn: () => api.listTasks({}) });
   const [mode, setMode] = useState<'focus' | 'stopwatch'>('focus');
+  const [editingDuration, setEditingDuration] = useState(false);
   const [preset, setPreset] = useState<number | null>(null);
   const [task, setTask] = useState('');
   const [now, setNow] = useState(Date.now());
@@ -113,8 +117,12 @@ export function FocusPage() {
   const finish = () => {
     act(async () => {
       const result = await api.finishFocus(string(live?.id));
+      playFocusSound(
+        typeof settings.data?.alarmSound === 'string' ? settings.data.alarmSound : 'bell',
+        typeof settings.data?.volume === 'number' ? settings.data.volume : 70,
+      );
       const phase = result.next as { type?: string } | null;
-      setNext(phase?.type ?? null);
+      setNext(result.auto_started === true ? null : (phase?.type ?? null));
     });
   };
   useEffect(() => {
@@ -197,94 +205,23 @@ export function FocusPage() {
               </button>
             ))}
           </div>
-          <details>
-            <summary aria-label={m.focusSettings}>⋯</summary>
-            <div className="focus-settings-popover">
-              <p>{m.focusHint}</p>
-              <form
-                className="focus-settings-form"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  const values = new FormData(event.currentTarget);
-                  act(() =>
-                    api.updateFocusSettings(
-                      Object.fromEntries(
-                        [...values.entries()].map(([key, value]) => [key, Number(value)]),
-                      ),
-                    ),
-                  );
-                }}
-              >
-                {[
-                  [
-                    'pomodoro_minutes',
-                    m.focusModePomo,
-                    numeric(settings.data.pomodoroMinutes) || 25,
-                    180,
-                  ],
-                  [
-                    'short_break_minutes',
-                    m.focusShortBreak,
-                    numeric(settings.data.shortBreakMinutes) || 5,
-                    60,
-                  ],
-                  [
-                    'long_break_minutes',
-                    m.focusLongBreak,
-                    numeric(settings.data.longBreakMinutes) || 15,
-                    60,
-                  ],
-                  [
-                    'cycles_before_long_break',
-                    m.focusCycles,
-                    numeric(settings.data.cyclesBeforeLongBreak) || 4,
-                    12,
-                  ],
-                ].map(([name, label, value, max]) => (
-                  <label key={String(name)}>
-                    {label}
-                    <input
-                      type="number"
-                      name={String(name)}
-                      defaultValue={value}
-                      min={1}
-                      max={Number(max)}
-                      required
-                    />
-                  </label>
-                ))}
-                <Button type="submit" disabled={busy}>
-                  {m.saveChanges}
-                </Button>
-              </form>
-              <Link to="/statistics#focus">{m.navStatistics}</Link>
-              {!live && !stopwatch ? (
-                <div className="page-toolbar">
-                  {[15, 25, 50].map((value) => (
-                    <Button
-                      key={value}
-                      aria-pressed={planned === value}
-                      onClick={() => {
-                        setPreset(value);
-                      }}
-                    >
-                      {value} min
-                    </Button>
-                  ))}
-                </div>
-              ) : null}
-              {live ? (
-                <Button
-                  disabled={busy}
-                  onClick={() => {
-                    setConfirm(true);
-                  }}
-                >
-                  {m.cancel}
-                </Button>
-              ) : null}
-            </div>
-          </details>
+          <Link
+            className="focus-settings-link"
+            to="/settings/focus"
+            aria-label={m.focusSettingsTitle}
+          >
+            <Settings size={20} aria-hidden="true" />
+          </Link>
+          {live ? (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setConfirm(true);
+              }}
+            >
+              {m.cancel}
+            </Button>
+          ) : null}
         </header>
         <div className="focus-stage">
           <select
@@ -317,11 +254,89 @@ export function FocusPage() {
             </svg>
             <div className="focus-clock-wrap">
               <p className="focus-timer-clock" role="timer" aria-live="off">
-                {formatClock(stopwatch ? elapsed : remaining)}
+                {!live && !stopwatch ? (
+                  <button
+                    className="focus-clock-edit"
+                    type="button"
+                    aria-label={m.focusEditDuration}
+                    onClick={() => {
+                      setEditingDuration((value) => !value);
+                    }}
+                  >
+                    {formatClock(remaining)}
+                  </button>
+                ) : (
+                  formatClock(stopwatch ? elapsed : remaining)
+                )}
               </p>
               <small>{timerLabel}</small>
             </div>
           </div>
+          {!live && !stopwatch && editingDuration ? (
+            <div className="focus-quick-duration">
+              <div className="focus-presets">
+                {[15, 25, 45, 60].map((value) => (
+                  <button
+                    type="button"
+                    key={value}
+                    aria-pressed={planned === value}
+                    onClick={() => {
+                      setPreset(value);
+                      act(() =>
+                        api.updateFocusSettings({ pomodoro_minutes: value }).then((saved) => {
+                          cache.setQueryData(['focus-settings'], saved);
+                          setPreset(null);
+                        }),
+                      );
+                    }}
+                  >
+                    {value}
+                  </button>
+                ))}
+              </div>
+              <label>
+                {m.focusPomoDuration}
+                <input
+                  type="number"
+                  min={5}
+                  max={180}
+                  step={5}
+                  value={planned}
+                  onChange={(event) => {
+                    const value = Number(event.target.value);
+                    setPreset(value);
+                    if (event.target.validity.valid)
+                      act(() => api.updateFocusSettings({ pomodoro_minutes: value }));
+                  }}
+                />
+              </label>
+            </div>
+          ) : null}
+          <p className="focus-cycle-progress">
+            {m.focusCycleProgress
+              .replace(
+                '{cycle}',
+                String(
+                  (numeric(stats.data?.completed_pomodoros) %
+                    (numeric(settings.data.cyclesBeforeLongBreak) || 4)) +
+                    1,
+                ),
+              )
+              .replace('{total}', String(numeric(settings.data.cyclesBeforeLongBreak) || 4))
+              .replace(
+                '{remaining}',
+                String(
+                  (numeric(settings.data.cyclesBeforeLongBreak) || 4) -
+                    (numeric(stats.data?.completed_pomodoros) %
+                      (numeric(settings.data.cyclesBeforeLongBreak) || 4)),
+                ),
+              )}
+          </p>
+          <p className="focus-goal-progress">
+            {m.focusGoalProgress
+              .replace('{done}', String(todayPomo))
+              .replace('{goal}', String(numeric(settings.data.dailyGoal) || 8))}
+          </p>
           <div
             role="progressbar"
             aria-label={m.focusTitle}

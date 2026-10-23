@@ -58,7 +58,7 @@ async function fixture(page: Page, fail = false, patches: Record<string, unknown
         time_zone: 'Europe/Madrid',
         is_all_day: request.is_all_day ?? true,
         project_id: request.project_id ?? 'inbox',
-        tag_ids: [],
+        tag_ids: request.tag_ids ?? [],
         tags: [],
         project_name: 'Bandeja',
         column_id: request.column_id ?? null,
@@ -142,7 +142,7 @@ for (const width of [1280, 390]) {
         fullPage: true,
       });
       await calendar.getByRole('button', { name: 'Mañana', exact: true }).click();
-      await calendar.getByRole('button', { name: 'OK', exact: true }).click();
+      await calendar.getByRole('button', { name: 'Hecho', exact: true }).click();
       await page.getByRole('button', { name: 'Opciones de tarea', exact: true }).click();
       const options = page.getByRole('dialog', { name: 'Opciones de tarea' });
       await options.getByRole('button', { name: 'Alta', exact: true }).click();
@@ -206,7 +206,7 @@ test('RF-102/601/801: date, time, duration, recurrence, reminder and list surviv
   await calendar.getByRole('button', { name: '15 min antes', exact: true }).click();
   await calendar.getByRole('button', { name: /^Repetir/ }).click();
   await calendar.getByRole('button', { name: 'Cada semana', exact: true }).click();
-  await calendar.getByRole('button', { name: 'OK', exact: true }).click();
+  await calendar.getByRole('button', { name: 'Hecho', exact: true }).click();
   await page.getByRole('button', { name: 'Opciones de tarea', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Bandeja', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Trabajo', exact: true }).click();
@@ -216,7 +216,7 @@ test('RF-102/601/801: date, time, duration, recurrence, reminder and list surviv
     .getByRole('dialog')
     .getByRole('checkbox', { name: 'personal importante', exact: true })
     .check();
-  await page.getByRole('dialog').getByRole('button', { name: 'OK', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Hecho', exact: true }).click();
   await field.press('Enter');
   await expect(field).toHaveValue('');
   expect(creations).toHaveLength(1);
@@ -506,3 +506,24 @@ for (const path of ['/today?view=list', '/list/work?view=list']) {
     });
   });
 }
+
+for (const path of ['/today', '/tag/tag-1'])
+  test(`TTD-AUD-92 global composer saves inherited context and appears in ${path}`, async ({
+    page,
+  }) => {
+    const posts = await fixture(page);
+    await page.goto(path);
+    await page.keyboard.press('n');
+    const dialog = page.locator('.calendar-quick-add');
+    await expect(dialog).toBeVisible();
+    await dialog.locator('input[name=title]').fill('Nueva con contexto');
+    await dialog.getByRole('button', { name: 'Añadir', exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect.poll(() => posts.length).toBe(1);
+    if (path === '/today')
+      expect(posts[0]).toMatchObject({ due_date: '2026-10-19T22:00:00.000Z', is_all_day: true });
+    else expect(posts[0]?.tag_ids).toEqual(['tag-1']);
+    await expect(
+      page.locator('.task-row').filter({ hasText: 'Nueva con contexto' }).first(),
+    ).toBeVisible();
+  });

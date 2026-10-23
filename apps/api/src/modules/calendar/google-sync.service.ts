@@ -1,3 +1,4 @@
+import { GOOGLE_ACCESS_SELECT } from '../../integrations/google-access.js';
 import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import type { CalendarSubscription } from '@prisma/client';
 import { mapGoogleEvent, type GoogleEventSource } from '@reflexionia/domain';
@@ -17,10 +18,10 @@ import {
   tokenHasCalendarScope,
   type GoogleCalendarEntry,
 } from '../../integrations/google-calendar.js';
+import { userGoogleRefreshToken } from '../../integrations/user-google-token.js';
 import { exchangeGoogleRefreshToken } from '../../integrations/google-token.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { Tx } from '../../prisma/tx.js';
-import { openField } from '../../security/field-cipher.js';
 
 const WINDOW_PAST_MS = 30 * 24 * 60 * 60 * 1000;
 const BACKOFF_MS = 60 * 60 * 1000;
@@ -644,13 +645,9 @@ export class GoogleSyncService {
   private async accessToken(userId: string): Promise<string> {
     const row = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { googleRefreshToken: true },
+      select: { ...GOOGLE_ACCESS_SELECT, email: true },
     });
-    const stored = row?.googleRefreshToken ?? null;
-    const refresh =
-      stored === null || stored.length === 0
-        ? (process.env.GOOGLE_REFRESH_TOKEN ?? '')
-        : openField(stored);
+    const refresh = userGoogleRefreshToken(row);
     if (!googleConfigured() || refresh.length === 0) {
       throw new DomainException(
         HttpStatus.SERVICE_UNAVAILABLE,
@@ -658,7 +655,32 @@ export class GoogleSyncService {
         'Connect Google from settings before reading the calendar',
       );
     }
-    return exchangeGoogleRefreshToken(refresh);
+    try {
+      return await exchangeGoogleRefreshToken(refresh);
+    } catch (error) {
+      if (
+        error instanceof DomainException &&
+        (error.getResponse() as { code?: string }).code === 'google_reconnect_required'
+      ) {
+        await this.prisma.$transaction(async (tx) => {
+          const changed = await tx.user.updateMany({
+            where: { id: userId, googleStatus: { not: 'reauth_required' } },
+            data: { googleStatus: 'reauth_required' },
+          });
+          if (changed.count)
+            await tx.outboxEvent.create({
+              data: {
+                ownerId: userId,
+                type: DomainEvent.googleReauthRequired,
+                actorKind: 'automation',
+                actorId: userId,
+                data: { google_status: 'reauth_required' },
+              },
+            });
+        });
+      }
+      throw error;
+    }
   }
 
   private requireConfigured(): void {

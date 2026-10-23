@@ -4,6 +4,7 @@ import type { ApiClientOptions, PageQuery, Task } from './client';
 
 export type Me = components['schemas']['MeResponseDto'];
 export interface UpdateMeBody {
+  readonly telegram_enabled?: boolean;
   readonly display_name?: string;
   readonly time_zone?: string;
   readonly task_complete_children?: 'ask' | 'complete' | 'leave';
@@ -143,8 +144,26 @@ export interface Attachment {
   readonly file_name: string;
   readonly mime_type: string;
   readonly byte_size: number;
+  readonly drive_file_id: string;
+  readonly web_view_link: string;
+  readonly icon_link: string | null;
+  readonly source: string;
+  readonly drive_state: 'ok' | 'missing' | 'unknown';
 }
 
+export interface TaskLink {
+  readonly id: string;
+  readonly task_id: string;
+  readonly url: string;
+  readonly title: string | null;
+  readonly source: string;
+  readonly created_at: string;
+  readonly updated_at: string;
+}
+export interface TaskLinkPage {
+  readonly items: readonly TaskLink[];
+  readonly next_cursor: string | null;
+}
 export interface AttachmentPage {
   readonly items: readonly Attachment[];
 }
@@ -242,6 +261,9 @@ export interface ResourceClient {
   createChecklistItem(id: string, title: string, idempotencyKey: string): Promise<ChecklistItem>;
   completeChecklistItem(id: string, itemId: string): Promise<ChecklistItem>;
   deleteChecklistItem(id: string, itemId: string): Promise<void>;
+  listTaskLinks(id: string): Promise<TaskLinkPage>;
+  addTaskLink(id: string, body: { url: string; title?: string }): Promise<TaskLink>;
+  removeTaskLink(id: string, linkId: string): Promise<void>;
   listAttachments(id: string): Promise<AttachmentPage>;
   uploadAttachment(id: string, file: Blob, fileName: string): Promise<Attachment>;
   dashboardData(): Promise<JsonObject>;
@@ -294,6 +316,20 @@ export interface ResourceClient {
   resumeFocus(id: string): Promise<JsonObject>;
   finishFocus(id: string): Promise<JsonObject>;
   abortFocus(id: string): Promise<JsonObject>;
+  registerPushSubscription(body: {
+    endpoint: string;
+    p256dh: string;
+    auth: string;
+  }): Promise<JsonObject>;
+  notificationAction(
+    id: string,
+    body: { action: 'complete' | 'snooze' | 'open'; token: string },
+  ): Promise<JsonObject>;
+  getNotificationSettings(): Promise<JsonObject>;
+  updateNotificationSettings(body: JsonObject): Promise<JsonObject>;
+  testNotification(channel: 'push' | 'email' | 'telegram'): Promise<JsonObject>;
+  notificationDeliveries(cursor?: string): Promise<JsonObject>;
+  getHealth(): Promise<JsonObject>;
   getFocusSettings(): Promise<JsonObject>;
   updateFocusSettings(body: JsonObject): Promise<JsonObject>;
   listNotes(): Promise<JsonObject>;
@@ -301,7 +337,8 @@ export interface ResourceClient {
   createSticky(text: string): Promise<JsonObject>;
   integrationStatus(kind: 'telegram' | 'drive' | 'google'): Promise<JsonObject>;
   createTelegramPairing(): Promise<JsonObject>;
-  googleConnect(): Promise<JsonObject>;
+  setGoogleService(service: 'calendar' | 'drive', enabled: boolean): Promise<JsonObject>;
+  googleConnect(service?: 'calendar' | 'drive' | 'all'): Promise<JsonObject>;
   listWebhooks(): Promise<JsonObject>;
   createWebhook(body: JsonObject): Promise<JsonObject>;
   updateWebhook(id: string, body: { active: boolean }): Promise<JsonObject>;
@@ -328,7 +365,8 @@ export interface ResourceClient {
   listCalendarFeeds(): Promise<JsonObject>;
   rotateCalendarFeed(id: string): Promise<JsonObject>;
   revokeCalendarFeed(id: string): Promise<void>;
-  disconnectGoogle(): Promise<void>;
+  disconnectGoogle(options?: { readonly removeImportedEvents?: boolean }): Promise<void>;
+  recheckTelegram(): Promise<JsonObject>;
   disconnectTelegram(): Promise<void>;
   listMembers(projectId: string): Promise<JsonObject>;
   addMember(
@@ -485,6 +523,13 @@ export function resourceMethods(http: Http): ResourceClient {
     async deleteChecklistItem(id, itemId) {
       await ask('DELETE', `/api/v1/tasks/${id}/items/${itemId}`, undefined, undefined, isEmpty);
     },
+    listTaskLinks: (id) =>
+      ask('GET', `/api/v1/tasks/${id}/links`, undefined, undefined, isTaskLinkPage),
+    addTaskLink: (id, body) =>
+      ask('POST', `/api/v1/tasks/${id}/links`, body, undefined, isTaskLink),
+    async removeTaskLink(id, linkId) {
+      await ask('DELETE', `/api/v1/tasks/${id}/links/${linkId}`, undefined, undefined, isEmpty);
+    },
     listAttachments: (id) =>
       ask('GET', `/api/v1/tasks/${id}/attachments`, undefined, undefined, isAttachmentPage),
     uploadAttachment: (id, file, fileName) => upload(http, id, file, fileName),
@@ -623,10 +668,29 @@ export function resourceMethods(http: Http): ResourceClient {
       ask('POST', `/api/v1/focus/sessions/${id}/finish`, undefined, undefined, isJsonObject),
     abortFocus: (id) =>
       ask('POST', `/api/v1/focus/sessions/${id}/abort`, undefined, undefined, isJsonObject),
+    registerPushSubscription: (body) =>
+      ask('POST', '/api/v1/me/push-subscriptions', body, undefined, isJsonObject),
+    notificationAction: (id, body) =>
+      ask('POST', `/api/v1/reminders/${id}/action`, body, undefined, isJsonObject),
+    getNotificationSettings: () =>
+      ask('GET', '/api/v1/me/notifications/settings', undefined, undefined, isJsonObject),
+    updateNotificationSettings: (body) =>
+      ask('PUT', '/api/v1/me/notifications/settings', body, undefined, isJsonObject),
+    testNotification: (channel) =>
+      ask('POST', '/api/v1/me/notifications/test', { channel }, undefined, isJsonObject),
+    notificationDeliveries: (cursor) =>
+      ask(
+        'GET',
+        `/api/v1/me/notifications/deliveries${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`,
+        undefined,
+        undefined,
+        isJsonObject,
+      ),
+    getHealth: () => ask('GET', '/api/v1/health', undefined, undefined, isJsonObject),
     getFocusSettings: () =>
       ask('GET', '/api/v1/focus/settings', undefined, undefined, isJsonObject),
     updateFocusSettings: (body) =>
-      ask('PATCH', '/api/v1/focus/settings', body, undefined, isJsonObject),
+      ask('PUT', '/api/v1/focus/settings', body, undefined, isJsonObject),
     listNotes: () => ask('GET', '/api/v1/notes', undefined, undefined, isJsonObject),
     listStickies: () => ask('GET', '/api/v1/sticky-notes', undefined, undefined, isJsonObject),
     createSticky: (text) => ask('POST', '/api/v1/sticky-notes', { text }, undefined, isJsonObject),
@@ -634,8 +698,22 @@ export function resourceMethods(http: Http): ResourceClient {
       ask('GET', `/api/v1/integrations/${kind}`, undefined, undefined, isJsonObject),
     createTelegramPairing: () =>
       ask('POST', '/api/v1/integrations/telegram/pairing', undefined, undefined, isJsonObject),
-    googleConnect: () =>
-      ask('GET', '/api/v1/integrations/google/start', undefined, undefined, isJsonObject),
+    setGoogleService: (service, enabled) =>
+      ask(
+        'PATCH',
+        `/api/v1/integrations/google/services/${service}`,
+        { enabled },
+        undefined,
+        isJsonObject,
+      ),
+    googleConnect: (service = 'all') =>
+      ask(
+        'GET',
+        `/api/v1/integrations/google/start?service=${service}`,
+        undefined,
+        undefined,
+        isJsonObject,
+      ),
     listWebhooks: () => ask('GET', '/api/v1/webhooks', undefined, undefined, isJsonObject),
     createWebhook: (body) => ask('POST', '/api/v1/webhooks', body, undefined, isJsonObject),
     updateWebhook: (id, body) =>
@@ -697,9 +775,17 @@ export function resourceMethods(http: Http): ResourceClient {
     async revokeCalendarFeed(id) {
       await ask('DELETE', `/api/v1/calendar/feeds/${id}`, undefined, undefined, isEmpty);
     },
-    async disconnectGoogle() {
-      await ask('DELETE', '/api/v1/integrations/google', undefined, undefined, isEmpty);
+    async disconnectGoogle(options) {
+      await ask(
+        'DELETE',
+        `/api/v1/integrations/google${options?.removeImportedEvents ? '?remove_imported_events=true' : ''}`,
+        undefined,
+        undefined,
+        isEmpty,
+      );
     },
+    recheckTelegram: () =>
+      ask('POST', '/api/v1/integrations/telegram/recheck', undefined, undefined, isJsonObject),
     async disconnectTelegram() {
       await ask('DELETE', '/api/v1/integrations/telegram', undefined, undefined, isEmpty);
     },
@@ -927,4 +1013,25 @@ export type StatsAchievement =
   operations['StatsController_achievement']['responses'][200]['content']['application/json'];
 function isStatsAchievement(value: unknown): value is StatsAchievement {
   return isRecord(value) && 'enabled' in value;
+}
+
+function isTaskLink(value: unknown): value is TaskLink {
+  if (!isJsonObject(value)) return false;
+  return (
+    typeof value.id === 'string' &&
+    typeof value.task_id === 'string' &&
+    typeof value.url === 'string' &&
+    (value.title === null || typeof value.title === 'string') &&
+    typeof value.source === 'string' &&
+    typeof value.created_at === 'string' &&
+    typeof value.updated_at === 'string'
+  );
+}
+function isTaskLinkPage(value: unknown): value is TaskLinkPage {
+  return (
+    isJsonObject(value) &&
+    Array.isArray(value.items) &&
+    value.items.every(isTaskLink) &&
+    (value.next_cursor === null || typeof value.next_cursor === 'string')
+  );
 }

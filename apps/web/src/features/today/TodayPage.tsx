@@ -1,3 +1,4 @@
+import { composerContextFor } from '../capture/context';
 import { calendarDragPatch } from '@reflexionia/domain';
 import { runAction } from '../../components/run-action';
 import { displayTitle } from '../tasks/displayTitle';
@@ -70,6 +71,7 @@ const SORT_DIR_KEY = 'tick-tack-done.today.sortDir';
 const COLLAPSE_KEY = 'tick-tack-done.today.collapsed';
 
 export function TodayPage() {
+  const composerClient = useQueryClient();
   const messages = useMessages();
   const flags = useFeatures((state) => state.flags);
   const locale = useAppLocale();
@@ -901,7 +903,7 @@ export function TodayPage() {
             className="ui-button is-primary is-md"
             onClick={() => {
               addRef.current?.focus();
-              openTaskComposer();
+              openTaskComposer(composerContextFor(window.location, { cache: composerClient }));
             }}
           >
             {messages.addTask}

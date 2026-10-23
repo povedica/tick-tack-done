@@ -193,3 +193,15 @@ export function focusElapsedSeconds(input: {
     ? Math.max(0, Math.floor(elapsed) - (input.pausedSeconds ?? 0))
     : 0;
 }
+
+/** RF-1201: opt-in, and a stopwatch never starts a Pomodoro cycle. */
+export function autoStartNextPhase(
+  finished: FocusSessionType,
+  settings: { readonly autoStartBreaks: boolean; readonly autoStartFocus: boolean },
+): boolean {
+  return finished === 'focus'
+    ? settings.autoStartBreaks
+    : finished === 'short_break' || finished === 'long_break'
+      ? settings.autoStartFocus
+      : false;
+}

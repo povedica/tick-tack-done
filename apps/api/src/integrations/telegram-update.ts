@@ -1,6 +1,8 @@
 /** A Telegram update reduced to what the bot acts on. RF-2003. */
 
 export interface TelegramIncoming {
+  readonly username?: string;
+  readonly displayName?: string;
   readonly chatId: string;
   readonly updateId: string;
   readonly kind: 'text' | 'voice' | 'photo' | 'callback';
@@ -48,7 +50,10 @@ export function readTelegramUpdate(body: unknown): TelegramIncoming | null {
     return null;
   }
   if (typeof message.text === 'string' && message.text.trim().length > 0) {
-    return incoming(chatId, updateId, 'text', { text: message.text });
+    return {
+      ...incoming(chatId, updateId, 'text', { text: message.text }),
+      ...profile(message.from),
+    };
   }
   const voice = asRecord(message.voice);
   if (voice !== null && typeof voice.file_id === 'string') {
@@ -100,4 +105,20 @@ function asRecord(value: unknown): Record<string, unknown> | null {
     return null;
   }
   return value as Record<string, unknown>;
+}
+
+function profile(value: unknown): { username?: string; displayName?: string } {
+  const row = asRecord(value);
+  if (!row) return {};
+  const name = [row.first_name, row.last_name]
+    .filter((part): part is string => typeof part === 'string')
+    .join(' ')
+    .trim()
+    .slice(0, 200);
+  return {
+    ...(typeof row.username === 'string' && /^[A-Za-z0-9_]{1,64}$/.test(row.username)
+      ? { username: row.username }
+      : {}),
+    ...(name ? { displayName: name } : {}),
+  };
 }

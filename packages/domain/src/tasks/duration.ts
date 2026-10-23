@@ -36,3 +36,17 @@ export function deriveDurationMinutes(input: {
   }
   return { ok: true, durationMinutes: input.explicit ?? span };
 }
+
+/** RF-602: elapsed minutes on the UTC timeline, preserving DST wall-time resolution at capture. */
+export function endFromDuration(start: string | null, minutes: number | null): string | null {
+  if (
+    start === null ||
+    minutes === null ||
+    !Number.isInteger(minutes) ||
+    minutes < 0 ||
+    minutes > 1440 ||
+    !Number.isFinite(Date.parse(start))
+  )
+    return null;
+  return new Date(Date.parse(start) + minutes * 60_000).toISOString();
+}

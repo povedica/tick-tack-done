@@ -110,6 +110,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/notifications/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Owned 8×3 notification matrix, channel availability and civil quiet hours */
+        get: operations["NotificationsController_settings"];
+        /** Update notification preferences and quiet hours; no MCP write tool */
+        put: operations["NotificationsController_update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/notifications/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send a real test only to the authenticated owner; reports precise channel errors */
+        post: operations["NotificationsController_test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/notifications/deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Last 50 owned channel outcomes, cursor paginated; quiet deferrals retain their reason */
+        get: operations["NotificationsController_deliveries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/view-preferences/{key}": {
         parameters: {
             query?: never;
@@ -1264,6 +1316,41 @@ export interface paths {
         patch: operations["TasksController_update"];
         trace?: never;
     };
+    "/api/v1/tasks/{id}/links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List task links (auto and manual), available without Google Drive */
+        get: operations["TasksController_links"];
+        put?: never;
+        /** Add a manual http/https/mailto link. Optional title uses public HTML only, 3s/256KiB/3 redirects maximum. */
+        post: operations["TasksController_addLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{id}/links/{linkId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a link from its owning task */
+        delete: operations["TasksController_removeLink"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tasks/{id}/occurrences": {
         parameters: {
             query?: never;
@@ -1504,59 +1591,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/tasks/{id}/attachments": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List attachments of a task */
-        get: operations["TasksController_listAttachments"];
-        put?: never;
-        /** Attach a file to a task (RF-203) */
-        post: operations["TasksController_upload"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/tasks/{id}/attachments/{attachmentId}/thumbnail": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Download the image thumbnail (RF-203) */
-        get: operations["TasksController_thumbnail"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/tasks/{id}/attachments/{attachmentId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Download an attachment */
-        get: operations["TasksController_download"];
-        put?: never;
-        post?: never;
-        /** Delete an attachment */
-        delete: operations["TasksController_deleteAttachment"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/inbound/email": {
         parameters: {
             query?: never;
@@ -1566,8 +1600,146 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Deliver an email-to-task message (RF-105). The recipient token authenticates the call. Content is stored and never executed. */
+        /** Create an email-to-task capture (RF-105). Send recipient, subject, text and message_id fields before files. Files stream directly to the owner’s Drive (25 MiB each, 10 files); without Drive the task is saved with an attachment warning. */
         post: operations["InboundEmailController_receive"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reminders/{id}/action": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Complete, snooze ten minutes or open with a single-use notification capability. No session or Bearer token is accepted as a substitute. */
+        post: operations["NotificationActionsController_action"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/drive/picker-config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Public browser Picker configuration for the connected owner. The API never returns its Google access or refresh token. */
+        get: operations["DriveAttachmentsController_pickerConfig"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{taskId}/attachments/drive-session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start a direct browser-to-Drive resumable upload (100 MiB/file, 50/task). Requires connected Drive; no access token is returned. */
+        post: operations["DriveAttachmentsController_start"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{taskId}/attachments/drive-complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verify a signed upload id and Drive file metadata; store metadata only. */
+        post: operations["DriveAttachmentsController_complete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{taskId}/attachments/drive-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Link an existing file authorized by Google Picker; metadata only, no copying. */
+        post: operations["DriveAttachmentsController_link"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{taskId}/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Drive attachment metadata and availability. Files remain links after disconnecting Google. */
+        get: operations["DriveAttachmentsController_list"];
+        put?: never;
+        /** Stream multipart directly to the user’s Drive (25 MiB/file, 50/task, <=8 MiB buffered). Requires Google Drive connected; ttd stores metadata only. */
+        post: operations["DriveAttachmentsController_stream"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{taskId}/attachments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Redirect to the existing Drive web link. No binary download or cache on ttd. */
+        get: operations["DriveAttachmentsController_open"];
+        put?: never;
+        post?: never;
+        /** Remove attachment metadata. Optional trash_in_drive moves the file to Drive trash first; a Drive failure keeps the metadata. */
+        delete: operations["DriveAttachmentsController_remove"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/attachments/{id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fetch only a fresh Drive thumbnail URL and redirect without caching; never downloads thumbnail bytes. */
+        get: operations["DriveAttachmentsController_preview"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1977,10 +2149,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** SSE is not offered. Returns 405 so a Streamable HTTP client keeps using POST (RF-2001). */
+        /** Authenticated SSE catalog-change notifications (RF-2001); other Accept headers return 405. */
         get: operations["McpController_get"];
         put?: never;
-        /** Stateless Streamable HTTP JSON-RPC (RF-2001). POST returns application/json; a notification returns 202 with an empty body. GET and DELETE on this path return 405 with Allow: POST until a server-sent stream exists. No Mcp-Session-Id. A tool is listed only when the token holds every scope it declares. */
+        /** Stateless Streamable HTTP JSON-RPC (RF-2001). POST returns application/json; a notification returns 202 with an empty body. GET with Accept: text/event-stream offers catalog change notifications; DELETE returns 405. No Mcp-Session-Id. A tool is listed only when the token holds every scope it declares. */
         post: operations["McpController_handle"];
         /** There is no MCP session to close. Returns 405 with Allow: POST (RF-2001). */
         delete: operations["McpController_remove"];
@@ -2162,6 +2334,23 @@ export interface paths {
         /** Propose a light replan (RF-2670) */
         post: operations["DayClosingController_startReplan"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/planning/replan/sessions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Discard an owned replan draft without applying decisions (TTD-AUD-85) */
+        delete: operations["DayClosingController_discardReplan"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2890,6 +3079,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/focus/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Current owned focus session, settings and daily totals (TTD-AUD-84) */
+        get: operations["FocusController_state"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/focus/stats": {
         parameters: {
             query?: never;
@@ -2916,7 +3122,8 @@ export interface paths {
         };
         /** Focus settings (RF-1201) */
         get: operations["FocusController_getSettings"];
-        put?: never;
+        /** Save focus durations, auto-start, local sounds, volume and daily goal (TTD-AUD-101) */
+        put: operations["FocusController_putSettings"];
         post?: never;
         delete?: never;
         options?: never;
@@ -3237,6 +3444,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/integrations/telegram/recheck": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check that the linked Telegram bot can send again after being unblocked */
+        post: operations["IntegrationsController_recheckTelegram"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/integrations/telegram/pairing": {
         parameters: {
             query?: never;
@@ -3299,7 +3523,7 @@ export interface paths {
         get: operations["IntegrationsController_google"];
         put?: never;
         post?: never;
-        /** Disconnect Google Calendar and Drive (RF-2004) */
+        /** Disconnect and revoke all Google services; keep imported events unless explicitly requested (RF-2004) */
         delete: operations["IntegrationsController_disconnectGoogle"];
         options?: never;
         head?: never;
@@ -3313,7 +3537,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Build the Google consent URL. The browser completes it (RF-2004). */
+        /** Request Calendar, Drive or both using incremental Google consent (RF-2004/2005). */
         get: operations["IntegrationsController_start"];
         put?: never;
         post?: never;
@@ -3330,7 +3554,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Google redirects here with the authorization code (RF-2004). */
+        /** Google OAuth callback; persist only actually granted scopes (RF-2004/2005). */
         get: operations["IntegrationsController_callback"];
         put?: never;
         post?: never;
@@ -3355,6 +3579,23 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/google/services/{service}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Activate or deactivate Calendar/Drive locally. This does not revoke Google permissions. */
+        patch: operations["IntegrationsController_setGoogleService"];
         trace?: never;
     };
     "/api/v1/integrations/drive/attachments": {
@@ -3622,6 +3863,27 @@ export interface components {
             p256dh: string;
             auth: string;
         };
+        PreferenceDto: {
+            /** @enum {string} */
+            kind: "task" | "focus_end" | "daily_digest" | "shutdown_digest" | "overdue" | "due_soon" | "habit" | "countdown";
+            /** @enum {string} */
+            channel: "push" | "email" | "telegram";
+            enabled: boolean;
+        };
+        QuietHoursDto: {
+            start: string | null;
+            end: string | null;
+            days: number[];
+            allow_high: boolean;
+        };
+        NotificationSettingsWriteDto: {
+            preferences?: components["schemas"]["PreferenceDto"][];
+            quiet_hours?: components["schemas"]["QuietHoursDto"];
+        };
+        NotificationTestDto: {
+            /** @enum {string} */
+            channel: "push" | "email" | "telegram";
+        };
         ViewPreferenceDto: {
             /** @enum {string} */
             view: "list" | "kanban" | "timeline" | "matrix";
@@ -3832,7 +4094,16 @@ export interface components {
             /** @enum {string} */
             status: "ok";
             /** @example unknown */
-            commit: Record<string, never>;
+            commit: string;
+            /** @example 0.2.0 */
+            version: string;
+            /** @example 2026-10-22T10:00:00Z */
+            built_at: string;
+            /**
+             * @description Same serverInfo.version returned by MCP initialize
+             * @example 0.2.0+abcdef1
+             */
+            mcp_version: string;
         };
         CountdownReminderDto: {
             offset_days: number;
@@ -4184,7 +4455,7 @@ export interface components {
             completed_at: string | null;
             repeat_rule: string | null;
             /** @enum {string} */
-            source: "manual" | "import" | "api" | "automation" | "plugin";
+            source: "manual" | "import" | "api" | "mcp" | "automation" | "plugin";
             deleted_at: string | null;
         };
         ViewGroupDto: {
@@ -4248,6 +4519,8 @@ export interface components {
             }[];
         };
         SearchResponseDto: {
+            items: Record<string, never>[];
+            next_cursor: string | null;
             text: string;
             list: string | null;
             tags: string[];
@@ -4288,11 +4561,30 @@ export interface components {
             before_id?: Record<string, never> | null;
             move_to_end?: boolean;
         };
+        TaskLinkResponseDto: {
+            id: string;
+            task_id: string;
+            url: string;
+            title: string | null;
+            /** @enum {string} */
+            source: "auto" | "manual";
+            created_at: string;
+            updated_at: string;
+        };
+        CaptureWarningDto: {
+            /** @enum {string} */
+            code: "list_not_found" | "list_created" | "tag_not_found" | "tag_created" | "reminder_without_date" | "anchor_outside_rule";
+            name?: string;
+            next_matching?: string;
+        };
         ChecklistProgressDto: {
             completed: number;
             total: number;
         };
         TaskResponseDto: {
+            links?: components["schemas"]["TaskLinkResponseDto"][];
+            link_count?: number;
+            warnings?: components["schemas"]["CaptureWarningDto"][];
             id: string;
             project_id: string;
             parent_id: string | null;
@@ -4383,12 +4675,10 @@ export interface components {
             before_id?: Record<string, never> | null;
             move_to_end?: boolean;
         };
-        CaptureWarningDto: {
-            /** @enum {string} */
-            code: "list_not_found" | "list_created" | "tag_not_found" | "tag_created" | "reminder_without_date";
-            name?: string;
-        };
         CreateTaskResponseDto: {
+            links?: components["schemas"]["TaskLinkResponseDto"][];
+            link_count?: number;
+            warnings?: components["schemas"]["CaptureWarningDto"][];
             id: string;
             project_id: string;
             parent_id: string | null;
@@ -4424,7 +4714,14 @@ export interface components {
             created_at: string;
             updated_at: string;
             deleted_at: string | null;
-            warnings?: components["schemas"]["CaptureWarningDto"][];
+        };
+        TaskLinkPageDto: {
+            items: components["schemas"]["TaskLinkResponseDto"][];
+            next_cursor: string | null;
+        };
+        AddTaskLinkDto: {
+            url: string;
+            title?: string;
         };
         DetachOccurrenceDto: {
             due_date: string;
@@ -4453,6 +4750,7 @@ export interface components {
             until?: Record<string, never> | null;
         };
         UpdateTaskDto: {
+            parent_id?: Record<string, never> | null;
             column_id?: Record<string, never>;
             title?: string;
             content?: string;
@@ -4509,6 +4807,35 @@ export interface components {
             time_zone?: string;
             before_id?: Record<string, never> | null;
             move_to_end?: boolean;
+        };
+        NotificationActionDto: {
+            /** @enum {string} */
+            action: "complete" | "snooze" | "open";
+            token: string;
+        };
+        DriveSessionDto: {
+            name: string;
+            mime_type: string;
+            size: number;
+        };
+        DriveCompleteDto: {
+            drive_file_id: string;
+            upload_id: string;
+        };
+        DriveAttachmentResponseDto: {
+            id: string;
+            file_name: string;
+            mime_type: string;
+            byte_size: number;
+            drive_file_id: string;
+            web_view_link: string;
+            icon_link: string | null;
+            source: string;
+            /** @enum {string} */
+            drive_state: "ok" | "missing" | "unknown";
+        };
+        DriveLinkDto: {
+            drive_file_id: string;
         };
         UpdateTickyAuthorityDto: {
             list_ids?: string[];
@@ -4666,12 +4993,48 @@ export interface components {
             task_id?: string;
             ambient_sound?: string;
         };
+        FinishDto: {
+            note?: string;
+        };
+        FocusSettingsResponseDto: {
+            pomodoroMinutes: number;
+            shortBreakMinutes: number;
+            longBreakMinutes: number;
+            cyclesBeforeLongBreak: number;
+            autoStartBreaks: boolean;
+            autoStartFocus: boolean;
+            /** @enum {string} */
+            alarmSound: "none" | "bell" | "chime" | "digital";
+            volume: number;
+            /** @enum {string} */
+            ambientSound: "none" | "tick" | "rain" | "white_noise";
+            dailyGoal: number;
+            strictMode: boolean;
+        };
         SettingsDto: {
             pomodoro_minutes?: number;
             short_break_minutes?: number;
             long_break_minutes?: number;
             cycles_before_long_break?: number;
             strict_mode?: boolean;
+            /** @default false */
+            auto_start_breaks: boolean;
+            /** @default false */
+            auto_start_focus: boolean;
+            /**
+             * @default bell
+             * @enum {string}
+             */
+            alarm_sound: "none" | "bell" | "chime" | "digital";
+            /** @default 70 */
+            volume: number;
+            /**
+             * @default none
+             * @enum {string}
+             */
+            ambient_sound: "none" | "tick" | "rain" | "white_noise";
+            /** @default 8 */
+            daily_goal: number;
         };
         EstimateDto: {
             estimated_pomodoros: number;
@@ -4704,8 +5067,65 @@ export interface components {
             priority_column?: string;
             project_id?: string;
         };
+        TelegramStatusDto: {
+            configured: boolean;
+            linked: boolean;
+            bot_username: string | null;
+            username: string | null;
+            display_name: string | null;
+            linked_at: string | null;
+            /** @enum {string} */
+            status: "not_linked" | "connected" | "blocked";
+            enabled: boolean;
+            voice: boolean;
+            photo: boolean;
+        };
+        TelegramPairingResponseDto: {
+            code: string;
+            expires_at: string;
+            bot_username: string | null;
+            deep_link: string | null;
+        };
         LinkDto: {
             chat_id: string;
+        };
+        GoogleServiceAccessDto: {
+            /** @description True only when the token has the required granted scopes and is not known revoked */
+            authorized: boolean;
+            /** @description Local activation; disabling does not revoke the Google grant */
+            enabled: boolean;
+            connected: boolean;
+            /** @enum {string} */
+            status: "connected" | "disabled" | "permission_required" | "permissions_unknown" | "reauth_required" | "disconnected";
+        };
+        GoogleServicesDto: {
+            calendar: components["schemas"]["GoogleServiceAccessDto"];
+            drive: components["schemas"]["GoogleServiceAccessDto"];
+        };
+        GoogleConnectionStatusDto: {
+            /** @description True only when the token has the required granted scopes and is not known revoked */
+            authorized: boolean;
+            /** @description Local activation; disabling does not revoke the Google grant */
+            enabled: boolean;
+            connected: boolean;
+            /** @enum {string} */
+            status: "connected" | "disabled" | "permission_required" | "permissions_unknown" | "reauth_required" | "disconnected";
+            configured: boolean;
+            account: string | null;
+            has_connection: boolean;
+            connection_status: string;
+            services: components["schemas"]["GoogleServicesDto"];
+        };
+        GoogleIntegrationStatusDto: {
+            /** @description True only when the token has the required granted scopes and is not known revoked */
+            authorized: boolean;
+            /** @description Local activation; disabling does not revoke the Google grant */
+            enabled: boolean;
+            connected: boolean;
+            /** @enum {string} */
+            status: "connected" | "disabled" | "permission_required" | "permissions_unknown" | "reauth_required" | "disconnected";
+            configured: boolean;
+            account: string | null;
         };
         DriveDto: {
             task_id: string;
@@ -4945,6 +5365,100 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    NotificationsController_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    NotificationsController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationSettingsWriteDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    NotificationsController_test: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationTestDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        sent?: boolean;
+                    };
+                };
+            };
+        };
+    };
+    NotificationsController_deliveries: {
+        parameters: {
+            query: {
+                cursor: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
             };
         };
     };
@@ -6941,7 +7455,14 @@ export interface operations {
     };
     TasksController_list: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Default any includes intervals overlapping the range. */
+                range_field?: "due" | "start" | "any";
+                /** @description Exclusive bound. YYYY-MM-DD uses the user time zone. */
+                to?: unknown;
+                /** @description Inclusive bound. YYYY-MM-DD uses the user time zone. */
+                from?: unknown;
+            };
             header?: {
                 "X-Dev-User-Email"?: string;
             };
@@ -7053,6 +7574,78 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["TaskResponseDto"];
                 };
+            };
+        };
+    };
+    TasksController_links: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskLinkPageDto"];
+                };
+            };
+        };
+    };
+    TasksController_addLink: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddTaskLinkDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskLinkResponseDto"];
+                };
+            };
+        };
+    };
+    TasksController_removeLink: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+                linkId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -7443,121 +8036,6 @@ export interface operations {
             };
         };
     };
-    TasksController_listAttachments: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Dev-User-Email"?: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    TasksController_upload: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Dev-User-Email"?: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": {
-                    /** Format: binary */
-                    file?: string;
-                };
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    TasksController_thumbnail: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Dev-User-Email"?: string;
-            };
-            path: {
-                id: string;
-                attachmentId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    TasksController_download: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Dev-User-Email"?: string;
-            };
-            path: {
-                id: string;
-                attachmentId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    TasksController_deleteAttachment: {
-        parameters: {
-            query?: never;
-            header?: {
-                "X-Dev-User-Email"?: string;
-            };
-            path: {
-                id: string;
-                attachmentId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     InboundEmailController_receive: {
         parameters: {
             query?: never;
@@ -7578,6 +8056,250 @@ export interface operations {
         };
         responses: {
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NotificationActionsController_action: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationActionDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        applied?: boolean;
+                        url?: string;
+                    };
+                };
+            };
+        };
+    };
+    DriveAttachmentsController_pickerConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        client_id: string;
+                        api_key: string;
+                        app_id: string;
+                    };
+                };
+            };
+        };
+    };
+    DriveAttachmentsController_start: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DriveSessionDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        upload_url: string;
+                        upload_id: string;
+                    };
+                };
+            };
+        };
+    };
+    DriveAttachmentsController_complete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DriveCompleteDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriveAttachmentResponseDto"];
+                };
+            };
+        };
+    };
+    DriveAttachmentsController_link: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DriveLinkDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriveAttachmentResponseDto"];
+                };
+            };
+        };
+    };
+    DriveAttachmentsController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items?: components["schemas"]["DriveAttachmentResponseDto"][];
+                        next_cursor?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    DriveAttachmentsController_stream: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriveAttachmentResponseDto"];
+                };
+            };
+        };
+    };
+    DriveAttachmentsController_open: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taskId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Drive webViewLink redirect. */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DriveAttachmentsController_remove: {
+        parameters: {
+            query?: {
+                trash_in_drive?: boolean;
+            };
+            header?: never;
+            path: {
+                taskId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DriveAttachmentsController_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Fresh thumbnailLink redirect with Cache-Control: no-store. */
+            302: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8174,6 +8896,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description SSE stream; notifications/tools/list_changed when the persisted catalog hash changed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Missing credential or invalid bearer token. */
             401: {
                 headers: {
@@ -8511,6 +9240,25 @@ export interface operations {
         };
         responses: {
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DayClosingController_discardReplan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10263,7 +11011,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["FinishDto"];
+            };
+        };
         responses: {
             201: {
                 headers: {
@@ -10330,6 +11082,36 @@ export interface operations {
             };
         };
     };
+    FocusController_state: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        session: {
+                            [key: string]: unknown;
+                        } | null;
+                        settings: {
+                            [key: string]: unknown;
+                        };
+                        today: {
+                            pomos?: number;
+                            minutes?: number;
+                        };
+                    };
+                };
+            };
+        };
+    };
     FocusController_stats: {
         parameters: {
             query?: never;
@@ -10360,7 +11142,32 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["FocusSettingsResponseDto"];
+                };
+            };
+        };
+    };
+    FocusController_putSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettingsDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FocusSettingsResponseDto"];
+                };
             };
         };
     };
@@ -10381,7 +11188,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["FocusSettingsResponseDto"];
+                };
             };
         };
     };
@@ -10831,7 +11640,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["TelegramStatusDto"];
+                };
             };
         };
     };
@@ -10852,7 +11663,7 @@ export interface operations {
             };
         };
     };
-    IntegrationsController_pairing: {
+    IntegrationsController_recheckTelegram: {
         parameters: {
             query?: never;
             header?: never;
@@ -10866,6 +11677,25 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    IntegrationsController_pairing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelegramPairingResponseDto"];
+                };
             };
         };
     };
@@ -10926,20 +11756,25 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["GoogleConnectionStatusDto"];
+                };
             };
         };
     };
     IntegrationsController_disconnectGoogle: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Soft-delete imported Google events; existing Drive attachment links are always kept. */
+                remove_imported_events?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            200: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10949,7 +11784,9 @@ export interface operations {
     };
     IntegrationsController_start: {
         parameters: {
-            query?: never;
+            query?: {
+                service?: "calendar" | "drive" | "all";
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -10994,7 +11831,36 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["GoogleIntegrationStatusDto"];
+                };
+            };
+        };
+    };
+    IntegrationsController_setGoogleService: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                service: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    enabled: boolean;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoogleServiceAccessDto"];
+                };
             };
         };
     };

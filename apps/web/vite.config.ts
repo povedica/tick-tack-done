@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -12,7 +13,26 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, path.resolve(root, '../..'), '');
   const api = env.VITE_API_PROXY || 'http://localhost:3000';
 
+  let commit = process.env.GIT_COMMIT || env.GIT_COMMIT || 'unknown';
+  if (commit === 'unknown') {
+    try {
+      commit = execFileSync('git', ['rev-parse', 'HEAD'], {
+        cwd: root,
+        stdio: ['ignore', 'pipe', 'ignore'],
+      })
+        .toString()
+        .trim();
+    } catch {
+      /* Source archives may not contain Git. */
+    }
+  }
   return {
+    define: {
+      __APP_COMMIT__: JSON.stringify(/^[a-f0-9]{7,40}$/i.test(commit) ? commit : 'unknown'),
+      __BUILD_TIME__: JSON.stringify(
+        process.env.BUILD_TIME || env.BUILD_TIME || new Date().toISOString(),
+      ),
+    },
     plugins: [
       react(),
       {

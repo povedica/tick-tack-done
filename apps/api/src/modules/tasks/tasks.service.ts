@@ -1,5 +1,10 @@
+import { normalizeTaskUrl } from '@reflexionia/domain';
+import { linkTitle } from './link-title.js';
+import type { AddTaskLinkDto } from './task-links.dto.js';
+import { reconcileTaskLinks, taskLinkJson } from './task-links.js';
+import { DriveAttachmentsService } from '../../drive/attachments.service.js';
 import { listOverdueTaskIds } from '../../reading/overdue.js';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { Prisma, type Task } from '@prisma/client';
 import {
@@ -10,14 +15,16 @@ import {
   deriveDurationMinutes,
   excludeOccurrence,
   extractMarkdownChecklist,
-  isRasterImage,
   isIanaTimeZone,
   nextOccurrence,
+  recurrenceAnchorWarning,
   normalizeTaskTitle,
   occurrencesBetween,
   parseTaskInstant,
   resolveSubtaskProject,
   parseTrigger,
+  normalizeReminderTrigger,
+  endFromDuration,
   reminderFireAt,
   listVisible,
   projectConstraint,
@@ -43,24 +50,10 @@ import { normalizeIdempotencyKey, requestFingerprint } from '../../idempotency/f
 import { IdempotencyService } from '../../idempotency/idempotency.service.js';
 import { placementPlan } from '../../ordering/placement.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { lockRecurrenceSeries } from '../../prisma/series-lock.js';
 import type { Tx } from '../../prisma/tx.js';
-import {
-  assertInboundFiles,
-  optionalToken,
-  safeMime,
-  untrustedText,
-  type InboundFile,
-} from './inbound-mail.js';
+import { optionalToken, untrustedText } from './inbound-mail.js';
 import { resolveQuickAdd, type CaptureWarning } from './quick-add.js';
-import {
-  acceptedMime,
-  ATTACHMENT_MAX_PER_TASK,
-  ATTACHMENT_USER_QUOTA_BYTES,
-  removeAttachmentFile,
-  resolveAttachment,
-  safeFileName,
-  writeAttachment,
-} from './attachment-storage.js';
 import { encodeTaskCursor, taskKeyset, taskOrderBy, type TaskSort } from './task-cursor.js';
 import {
   progressOf,
@@ -81,6 +74,7 @@ import type {
 } from './tasks.dto.js';
 
 const taskInclude = {
+  links: true,
   tags: { where: { tag: { deletedAt: null } }, select: { tagId: true } },
   checklist: {
     where: { deletedAt: null },
@@ -104,6 +98,8 @@ export interface CompletedTask extends CreatedTask {
 }
 
 export interface TaskDetail extends TaskSummaryJson {
+  links: ReturnType<typeof taskLinkJson>[];
+  readonly warnings?: readonly CaptureWarning[];
   items: ChecklistItemJson[];
   subtasks: TaskSummaryJson[];
   activity: {
@@ -123,6 +119,9 @@ export interface TaskListQuery {
   priority?: Priority;
   tagId?: string;
   includeDescendants: boolean;
+  from?: string;
+  to?: string;
+  rangeField?: 'due' | 'start' | 'any';
   dueBefore?: string;
   dueAfter?: string;
   q?: string;
@@ -158,6 +157,7 @@ export class TasksService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
     @Inject(IdempotencyService) private readonly idempotency: IdempotencyService,
+    @Inject(DriveAttachmentsService) private readonly drive: DriveAttachmentsService,
   ) {}
 
   async list(
@@ -178,9 +178,37 @@ export class TasksService {
     if (listFilter.id !== undefined) {
       return { items: [], next_cursor: null };
     }
+    const lower =
+      query.from === undefined ? undefined : this.instant(query.from, 'from', user.timeZone).date;
+    const upper =
+      query.to === undefined ? undefined : this.instant(query.to, 'to', user.timeZone).date;
+    if (lower && upper && lower >= upper)
+      throw new DomainException(HttpStatus.BAD_REQUEST, 'invalid_range', 'from must precede to');
+    const bounds = {
+      ...(lower === undefined ? {} : { gte: lower }),
+      ...(upper === undefined ? {} : { lt: upper }),
+    };
+    const range: Prisma.TaskWhereInput | null =
+      lower === undefined && upper === undefined
+        ? null
+        : query.rangeField === 'due'
+          ? { dueDate: bounds }
+          : query.rangeField === 'start'
+            ? { startDate: bounds }
+            : {
+                OR: [
+                  { dueDate: bounds },
+                  { startDate: bounds },
+                  {
+                    startDate: { not: null, ...(upper === undefined ? {} : { lt: upper }) },
+                    dueDate: { not: null, ...(lower === undefined ? {} : { gte: lower }) },
+                  },
+                ],
+              };
     const rows = await this.prisma.task.findMany({
       where: {
         ownerId: user.id,
+        ...(range === null ? {} : { AND: [range] }),
         ...(query.deleted ? { deletedAt: { not: null } } : { deletedAt: null }),
         ...visibleParents(query),
         ...(listFilter.projectId === undefined ? {} : { projectId: listFilter.projectId }),
@@ -203,7 +231,10 @@ export class TasksService {
         ...(limitedIds === null ? {} : { id: { in: limitedIds } }),
         ...(taskKeyset(query.sort, query.cursor) ?? {}),
       },
-      include: { tags: { where: { tag: { deletedAt: null } }, select: { tagId: true } } },
+      include: {
+        _count: { select: { links: true } },
+        tags: { where: { tag: { deletedAt: null } }, select: { tagId: true } },
+      },
       orderBy: taskOrderBy(query.sort),
       take: query.limit + 1,
     });
@@ -224,8 +255,7 @@ export class TasksService {
     readonly subject: unknown;
     readonly text: unknown;
     readonly messageId: unknown;
-    readonly files: readonly InboundFile[];
-  }): Promise<CreatedTask> {
+  }): Promise<{ task: CreatedTask; fresh: boolean }> {
     const local = typeof input.recipient === 'string' ? inboundLocalPart(input.recipient) : null;
     if (local === null) {
       throw new DomainException(HttpStatus.UNAUTHORIZED, 'unauthorized', 'Invalid recipient');
@@ -243,7 +273,6 @@ export class TasksService {
     if (subject.trim().length === 0) {
       throw new DomainException(HttpStatus.BAD_REQUEST, 'empty_title', 'title is required');
     }
-    assertInboundFiles(input.files);
     const user: AuthUser = {
       id: owner.id,
       email: owner.email,
@@ -260,6 +289,8 @@ export class TasksService {
     }
     const created = await this.prisma.$transaction(async (tx) => {
       if (messageId !== null) {
+        const key = `inbound-email:${user.id}:${messageId}`;
+        await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtextextended(${key},0))`;
         const existing = await tx.task.findFirst({
           where: {
             ownerId: user.id,
@@ -282,24 +313,14 @@ export class TasksService {
         fresh: true,
       };
     });
-    if (created.fresh) {
-      for (const file of input.files) {
-        await this.addAttachment(user, created.task.id, {
-          originalname: file.originalname,
-          mimetype: safeMime(file.mimetype),
-          size: file.buffer.length,
-          buffer: file.buffer,
-        });
-      }
-    }
-    return created.task;
+    return created;
   }
 
   create(
     user: AuthUser,
     dto: CreateTaskDto,
     keyRaw: string | undefined,
-    source: 'manual' | 'api' = 'manual',
+    source: 'manual' | 'api' | 'mcp' = 'manual',
   ): Promise<Saved> {
     if (
       dto.reminder_trigger !== undefined &&
@@ -322,13 +343,141 @@ export class TasksService {
     });
   }
 
+  async notificationAction(
+    deliveryId: string,
+    token: string,
+    action: 'complete' | 'snooze' | 'open',
+    expectedOwner?: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const row = await tx.notificationAction.findFirst({
+        where: {
+          deliveryId,
+          tokenHash: createHash('sha256').update(token).digest('hex'),
+          usedAt: null,
+          expiresAt: { gt: new Date() },
+          ...(expectedOwner ? { ownerId: expectedOwner } : {}),
+        },
+        include: { delivery: true, owner: true },
+      });
+      if (row?.delivery.taskId == null)
+        throw new DomainException(
+          401,
+          'notification_token_invalid',
+          'Notification action expired or already used',
+        );
+      const claimed = await tx.notificationAction.updateMany({
+        where: { id: row.id, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+      if (claimed.count !== 1)
+        throw new DomainException(
+          401,
+          'notification_token_invalid',
+          'Notification action already used',
+        );
+      const user: AuthUser = {
+        id: row.ownerId,
+        email: row.owner.email,
+        timeZone: row.owner.timeZone,
+        completeChildren: row.owner.taskCompleteChildren,
+        scopes: ['tasks:read', 'tasks:write'],
+        tokenId: null,
+        sessionId: null,
+        listIds: null,
+      };
+      if (action === 'complete') await this.completeIn(tx, user, row.delivery.taskId, null);
+      if (action === 'snooze')
+        await tx.reminderDelivery.create({
+          data: {
+            ownerId: row.ownerId,
+            taskId: row.delivery.taskId,
+            reminderId: row.delivery.reminderId,
+            kind: row.delivery.kind,
+            channel: row.delivery.channel,
+            payload: asJson(row.delivery.payload),
+            dedupeKey: `notification-snooze:${row.id}`,
+            fireAt: new Date(Date.now() + 600000),
+          },
+        });
+      return { applied: true, url: `/today?task=${row.delivery.taskId}` };
+    });
+  }
+
+  async listLinks(user: AuthUser, taskId: string) {
+    await this.get(user, taskId);
+    return {
+      items: (
+        await this.prisma.taskLink.findMany({
+          where: { ownerId: user.id, taskId },
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        })
+      ).map(taskLinkJson),
+      next_cursor: null,
+    };
+  }
+
+  async addLink(user: AuthUser, taskId: string, dto: AddTaskLinkDto) {
+    await this.get(user, taskId);
+    const url = normalizeTaskUrl(dto.url);
+    if (url === null)
+      throw new DomainException(
+        400,
+        'validation_failed',
+        'URL must use http, https or mailto without credentials',
+      );
+    const title = dto.title ?? (await linkTitle(url));
+    return this.prisma.$transaction(async (tx) => {
+      await this.load(tx, user, taskId, false);
+      const row = await tx.taskLink.upsert({
+        where: { taskId_url: { taskId, url } },
+        create: { ownerId: user.id, taskId, url, title, source: 'manual' },
+        update: { title, source: 'manual' },
+      });
+      await this.events.record(tx, actorOf(user), {
+        type: DomainEvent.taskLinkAdded,
+        entityType: 'task',
+        entityId: taskId,
+        action: 'updated',
+        data: { task_id: taskId, link: taskLinkJson(row) },
+        previous: null,
+      });
+      return taskLinkJson(row);
+    });
+  }
+
+  async removeLink(user: AuthUser, taskId: string, linkId: string) {
+    await this.prisma.$transaction(async (tx) => {
+      await this.load(tx, user, taskId, false);
+      const removed = await tx.taskLink.deleteMany({
+        where: { id: linkId, ownerId: user.id, taskId },
+      });
+      if (!removed.count)
+        throw new DomainException(404, 'task_link_not_found', 'Task link was not found');
+      await this.events.record(tx, actorOf(user), {
+        type: DomainEvent.taskLinkRemoved,
+        entityType: 'task',
+        entityId: taskId,
+        action: 'updated',
+        data: { task_id: taskId, link_id: linkId },
+        previous: null,
+      });
+    });
+  }
+
   get(user: AuthUser, id: string): Promise<TaskDetail> {
     return this.load(this.prisma, user, id, false);
   }
 
-  async update(user: AuthUser, id: string, dto: UpdateTaskDto): Promise<TaskDetail> {
+  async update(
+    user: AuthUser,
+    id: string,
+    dto: UpdateTaskDto,
+    source: 'api' | 'mcp' | 'web' = user.sessionId === null ? 'api' : 'web',
+  ): Promise<TaskDetail> {
     return this.prisma.$transaction(async (tx) => {
       const current = await this.require(tx, user.id, id, false);
+      if (current.seriesId !== null) await lockRecurrenceSeries(tx, user.id, current.seriesId);
       const receivedAt = new Date().toISOString();
       const selected = selectPatch(dto, readClocks(current.fieldClocks), receivedAt);
       if (selected === null) {
@@ -357,6 +506,30 @@ export class TasksService {
         return this.load(tx, user, id, false);
       }
       dto = selected.dto;
+      if (dto.parent_id !== undefined) {
+        const key = `task-hierarchy:${user.id}`;
+        await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtextextended(${key}, 0))`;
+        if (dto.parent_id !== null) {
+          const parent = await tx.task.findFirst({
+            where: {
+              id: dto.parent_id,
+              ownerId: user.id,
+              projectId: current.projectId,
+              deletedAt: null,
+            },
+            select: { id: true, parentId: true },
+          });
+          const children = await tx.task.count({
+            where: { parentId: id, ownerId: user.id, deletedAt: null },
+          });
+          if (parent === null || parent.id === id || parent.parentId !== null || children > 0)
+            throw new DomainException(
+              HttpStatus.BAD_REQUEST,
+              'invalid_parent',
+              'Parent must be in the same list without cycles or nested children',
+            );
+        }
+      }
       const previous = await this.load(tx, user, id, false);
       const title = dto.title === undefined ? current.title : this.title(dto.title);
       const timeZone = dto.time_zone === undefined ? current.timeZone : this.zone(dto.time_zone);
@@ -366,11 +539,23 @@ export class TasksService {
         : this.nextDate(current.startDate, dto.start_date, 'start_date', timeZone);
       const dueParsed = this.nextDate(current.dueDate, dto.due_date, 'due_date', timeZone);
       const start = startParsed.date;
-      const due = dueParsed.date;
+      let due = dueParsed.date;
       const inferredAllDay =
         (dto.start_date !== undefined && startParsed.dateOnly) ||
         (dto.due_date !== undefined && dueParsed.dateOnly);
       const isAllDay = dto.is_all_day ?? (inferredAllDay ? true : current.isAllDay);
+      if (
+        due === null &&
+        dto.due_date === undefined &&
+        !isAllDay &&
+        (dto.start_date !== undefined || dto.duration_minutes !== undefined)
+      ) {
+        const end = endFromDuration(
+          start?.toISOString() ?? null,
+          dto.duration_minutes === undefined ? current.durationMinutes : dto.duration_minutes,
+        );
+        if (end !== null) due = new Date(end);
+      }
       this.assertTimed(due, isAllDay, timeZone);
       this.assertTimed(start, isAllDay, timeZone);
       const duration = this.duration(
@@ -394,7 +579,7 @@ export class TasksService {
         dto.repeat_rule === undefined
           ? current.repeatRule
           : this.canonicalRule(dto.repeat_rule, due, timeZone);
-      const seriesId = repeatRule === null ? null : (current.seriesId ?? current.id);
+      const seriesId = repeatRule === null ? current.seriesId : (current.seriesId ?? current.id);
       const reorder = dto.before_id !== undefined || dto.move_to_end === true;
       const plan = reorder
         ? await this.planTaskSort(
@@ -407,10 +592,29 @@ export class TasksService {
             dto.move_to_end,
           )
         : null;
+      if (dto.repeat_rule === null && current.seriesId !== null) {
+        await tx.task.updateMany({
+          where: { seriesId: current.seriesId, ownerId: user.id },
+          data: { recurrenceOpen: false },
+        });
+        await tx.seriesAdvance.updateMany({
+          where: { ownerId: user.id, seriesId: current.seriesId, processedAt: null },
+          data: { processedAt: new Date() },
+        });
+        await this.events.record(tx, actorOf(user), {
+          type: DomainEvent.seriesClosed,
+          entityType: 'task',
+          entityId: id,
+          action: 'updated',
+          data: { series_id: current.seriesId, source },
+          previous: { recurrence_open: true },
+        });
+      }
       const row = await tx.task.update({
         where: { id },
         data: {
           title,
+          ...(dto.parent_id === undefined ? {} : { parentId: dto.parent_id }),
           content,
           timeZone,
           startDate: start,
@@ -431,6 +635,8 @@ export class TasksService {
           ...(selected.changed ? { fieldClocks: asJson(selected.clocks) } : {}),
         },
       });
+      if (dto.title !== undefined || dto.content !== undefined)
+        await reconcileTaskLinks(tx, user.id, id, `${title}\n${content}`);
       if (dto.tag_ids !== undefined) {
         await tx.taskTag.deleteMany({ where: { taskId: id } });
         await this.linkTags(tx, id, dto.tag_ids);
@@ -560,11 +766,19 @@ export class TasksService {
     });
   }
 
-  async uncomplete(user: AuthUser, id: string): Promise<TaskDetail> {
+  async uncomplete(
+    user: AuthUser,
+    id: string,
+    source: 'api' | 'mcp' | 'web' = user.sessionId === null ? 'api' : 'web',
+  ): Promise<TaskDetail> {
     return this.prisma.$transaction(async (tx) => {
       const current = await this.require(tx, user.id, id, false);
-      if (current.status !== 'completed') {
-        return this.load(tx, user, id, false);
+      if (current.status !== 'completed' && current.status !== 'cancelled') {
+        throw new DomainException(
+          HttpStatus.CONFLICT,
+          'not_reopenable',
+          'Only completed or cancelled tasks can be reopened',
+        );
       }
       if (current.seriesId !== null) {
         const successor = await tx.task.findFirst({
@@ -590,12 +804,12 @@ export class TasksService {
       });
       const detail = await this.load(tx, user, id, false);
       await this.events.record(tx, actorOf(user), {
-        type: DomainEvent.taskUncompleted,
+        type: DomainEvent.taskReopened,
         entityType: 'task',
         entityId: id,
         action: 'updated',
-        data: { task: asJson(taskEventSnapshot(detail)) },
-        previous: { status: 'completed' },
+        data: { task: asJson(taskEventSnapshot(detail)), source },
+        previous: { status: current.status },
       });
       return detail;
     });
@@ -689,6 +903,7 @@ export class TasksService {
     id: string,
     dueDate: string,
     title: string | undefined,
+    source: 'manual' | 'api' | 'mcp' = user.sessionId === null ? 'api' : 'manual',
   ): Promise<TaskDetail> {
     return this.prisma.$transaction(async (tx) => {
       const current = await this.require(tx, user.id, id, false);
@@ -714,6 +929,7 @@ export class TasksService {
         await tx.task.update({
           where: { id },
           data: {
+            source,
             repeatRule: null,
             seriesId: null,
             recurrenceOpen: false,
@@ -735,11 +951,11 @@ export class TasksService {
         });
         const detail = await this.load(tx, user, id, false);
         await this.events.record(tx, actorOf(user), {
-          type: DomainEvent.taskUpdated,
+          type: DomainEvent.occurrenceDetached,
           entityType: 'task',
           entityId: id,
           action: 'updated',
-          data: { task: asJson(taskEventSnapshot(detail)), detached: true },
+          data: { task: asJson(taskEventSnapshot(detail)), detached: true, source },
           previous: { repeat_rule: current.repeatRule },
         });
         return detail;
@@ -768,7 +984,7 @@ export class TasksService {
           recurrenceOpen: false,
           sortOrder: current.sortOrder,
           createdById: user.id,
-          source: 'manual',
+          source,
         },
       });
       await tx.taskTag.createMany({
@@ -786,11 +1002,11 @@ export class TasksService {
         previous: { repeat_rule: current.repeatRule },
       });
       await this.events.record(tx, actorOf(user), {
-        type: created.kind === 'note' ? DomainEvent.noteCreated : DomainEvent.taskCreated,
+        type: DomainEvent.occurrenceDetached,
         entityType: created.kind === 'note' ? 'note' : 'task',
         entityId: copyId,
         action: 'created',
-        data: { task: asJson(taskEventSnapshot(created)), detached_from: id },
+        data: { task: asJson(taskEventSnapshot(created)), detached_from: id, source },
         previous: null,
       });
       return created;
@@ -973,7 +1189,11 @@ export class TasksService {
     });
   }
 
-  async restore(user: AuthUser, id: string): Promise<TaskDetail> {
+  async restore(
+    user: AuthUser,
+    id: string,
+    source: 'api' | 'mcp' | 'web' = user.sessionId === null ? 'api' : 'web',
+  ): Promise<TaskDetail> {
     return this.prisma.$transaction(async (tx) => {
       const current = await tx.task.findFirst({ where: { id, ownerId: user.id } });
       if (current === null) {
@@ -1016,7 +1236,7 @@ export class TasksService {
         entityType: 'task',
         entityId: id,
         action: 'updated',
-        data: { task: asJson(taskEventSnapshot(detail)) },
+        data: { task: asJson(taskEventSnapshot(detail)), source },
         previous: { deleted_at: current.deletedAt.toISOString() },
       });
       return detail;
@@ -1199,163 +1419,52 @@ export class TasksService {
     return this.setItemStatus(user, taskId, itemId, 'active');
   }
 
-  async addAttachment(
-    user: AuthUser,
-    taskId: string,
-    file: { originalname: string; mimetype: string; size: number; buffer: Buffer } | undefined,
-  ): Promise<{
-    id: string;
-    file_name: string;
-    mime_type: string;
-    byte_size: number;
-    has_thumbnail: boolean;
-  }> {
-    if (file === undefined || file.buffer.length === 0) {
-      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'file is required');
-    }
-    const mime = acceptedMime(file.buffer);
-    await this.require(this.prisma, user.id, taskId, false);
-    const onTask = await this.prisma.attachment.count({
-      where: { taskId, ownerId: user.id, deletedAt: null },
-    });
-    if (onTask >= ATTACHMENT_MAX_PER_TASK) {
-      throw new DomainException(
-        HttpStatus.PAYLOAD_TOO_LARGE,
-        'attachment_quota',
-        'This task has too many attachments',
-      );
-    }
-    const usage = await this.prisma.attachment.aggregate({
-      where: { ownerId: user.id, deletedAt: null },
-      _sum: { byteSize: true },
-    });
-    if ((usage._sum.byteSize ?? 0) + file.buffer.length > ATTACHMENT_USER_QUOTA_BYTES) {
-      throw new DomainException(
-        HttpStatus.PAYLOAD_TOO_LARGE,
-        'attachment_quota',
-        'Attachment quota exceeded',
-      );
-    }
-    const storageKey = await writeAttachment(user.id, file.buffer);
-    const thumbnailKey =
-      isRasterImage(mime) && file.buffer.length <= 1_500_000
-        ? await writeAttachment(user.id, file.buffer)
-        : null;
-    try {
-      const row = await this.prisma.attachment.create({
-        data: {
-          ownerId: user.id,
-          taskId,
-          fileName: safeFileName(file.originalname),
-          mimeType: mime,
-          byteSize: file.buffer.length,
-          storageKey,
-          thumbnailKey,
-          uploadedById: user.id,
-        },
-      });
-      return {
-        id: row.id,
-        file_name: row.fileName,
-        mime_type: row.mimeType,
-        byte_size: row.byteSize,
-        has_thumbnail: thumbnailKey !== null,
-      };
-    } catch (error) {
-      await removeAttachmentFile(storageKey);
-      if (thumbnailKey !== null) {
-        await removeAttachmentFile(thumbnailKey);
-      }
-      throw error;
-    }
-  }
-
-  async listAttachments(
-    user: AuthUser,
-    taskId: string,
-  ): Promise<
-    {
-      id: string;
-      file_name: string;
-      mime_type: string;
-      byte_size: number;
-      has_thumbnail: boolean;
-    }[]
-  > {
-    await this.require(this.prisma, user.id, taskId, false);
-    const rows = await this.prisma.attachment.findMany({
-      where: { ownerId: user.id, taskId, deletedAt: null },
-      orderBy: { createdAt: 'asc' },
-    });
-    return rows.map((row) => ({
-      id: row.id,
-      file_name: row.fileName,
-      mime_type: row.mimeType,
-      byte_size: row.byteSize,
-      has_thumbnail: row.thumbnailKey !== null,
-    }));
-  }
-
-  async openThumbnail(
-    user: AuthUser,
-    taskId: string,
-    attachmentId: string,
-  ): Promise<{ absolute: string; fileName: string; mimeType: string }> {
-    const row = await this.prisma.attachment.findFirst({
-      where: { id: attachmentId, ownerId: user.id, taskId, deletedAt: null },
-    });
-    if (row?.thumbnailKey == null) {
-      throw new DomainException(
-        HttpStatus.NOT_FOUND,
-        'thumbnail_not_found',
-        'This attachment has no thumbnail',
-      );
-    }
+  async inboundUser(recipient: string): Promise<AuthUser> {
+    const local = inboundLocalPart(recipient);
+    const owner =
+      local === null
+        ? null
+        : await this.prisma.user.findFirst({
+            where: { inboundEmailTokenHash: hashInboundToken(local), deletedAt: null },
+            select: { id: true, email: true, timeZone: true, taskCompleteChildren: true },
+          });
+    if (!owner) throw new DomainException(401, 'unauthorized', 'Invalid recipient');
     return {
-      absolute: resolveAttachment(row.thumbnailKey),
-      fileName: row.fileName,
-      mimeType: row.mimeType,
+      id: owner.id,
+      email: owner.email,
+      timeZone: owner.timeZone,
+      completeChildren: owner.taskCompleteChildren,
+      scopes: ['tasks:write'],
+      tokenId: null,
+      sessionId: null,
+      listIds: null,
     };
   }
-
-  async openAttachment(
+  assertAttachmentConnected(user: AuthUser): Promise<void> {
+    return this.drive.assertConnected(user);
+  }
+  streamAttachment(
     user: AuthUser,
     taskId: string,
-    attachmentId: string,
-  ): Promise<{ absolute: string; fileName: string; mimeType: string }> {
-    const row = await this.prisma.attachment.findFirst({
-      where: { id: attachmentId, ownerId: user.id, taskId, deletedAt: null },
-    });
-    if (row === null) {
-      throw new DomainException(
-        HttpStatus.NOT_FOUND,
-        'attachment_not_found',
-        'Attachment was not found',
-      );
-    }
-    return {
-      absolute: resolveAttachment(row.storageKey),
-      fileName: row.fileName,
-      mimeType: row.mimeType,
-    };
+    name: string,
+    source: AsyncIterable<Uint8Array>,
+    capture = 'api',
+  ) {
+    return this.drive.stream(user, taskId, name, source, capture);
   }
-
-  async deleteAttachment(user: AuthUser, taskId: string, attachmentId: string): Promise<void> {
-    const row = await this.prisma.attachment.findFirst({
-      where: { id: attachmentId, ownerId: user.id, taskId, deletedAt: null },
-    });
-    if (row === null) {
-      throw new DomainException(
-        HttpStatus.NOT_FOUND,
-        'attachment_not_found',
-        'Attachment was not found',
-      );
-    }
-    await this.prisma.attachment.update({
-      where: { id: attachmentId },
-      data: { deletedAt: new Date() },
-    });
-    await removeAttachmentFile(row.storageKey);
+  linkDriveFile(user: AuthUser, taskId: string, fileId: string, source = 'picker') {
+    return this.drive.link(user, taskId, fileId, source);
+  }
+  listAttachments(user: AuthUser, taskId: string) {
+    return this.drive.list(user, taskId);
+  }
+  deleteAttachment(
+    user: AuthUser,
+    taskId: string,
+    id: string,
+    trashInDrive = false,
+  ): Promise<void> {
+    return this.drive.remove(user, taskId, id, trashInDrive);
   }
 
   async listReminders(user: AuthUser, taskId: string): Promise<ReminderJson[]> {
@@ -1386,7 +1495,7 @@ export class TasksService {
           data: {
             ownerId: user.id,
             taskId,
-            trigger: dto.trigger.trim(),
+            trigger: normalizeReminderTrigger(dto.trigger) ?? dto.trigger.trim(),
             type: dto.type,
             absoluteAt:
               dto.absolute_at === undefined || dto.absolute_at === null
@@ -1496,8 +1605,12 @@ export class TasksService {
     tx: Tx,
     user: AuthUser,
     dto: CreateTaskDto,
-    source: 'manual' | 'api' = 'manual',
+    source: 'manual' | 'api' | 'mcp' = 'manual',
   ): Promise<CreatedTask> {
+    if (dto.parent_id) {
+      const key = `task-hierarchy:${user.id}`;
+      await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtextextended(${key}, 0))`;
+    }
     const captured =
       dto.raw_text === undefined
         ? null
@@ -1558,7 +1671,17 @@ export class TasksService {
       timeZone,
     );
     const start = startParsed.date;
-    const due = dueParsed.date;
+    const inferredAllDay = startParsed.dateOnly || dueParsed.dateOnly;
+    const isAllDay = dto.is_all_day ?? captured?.isAllDay ?? (inferredAllDay ? true : false);
+    const explicitDuration =
+      dto.duration_minutes === undefined
+        ? (captured?.durationMinutes ?? null)
+        : dto.duration_minutes;
+    const inferredEnd =
+      !isAllDay && dto.due_date === undefined && dueParsed.date === null
+        ? endFromDuration(start?.toISOString() ?? null, explicitDuration)
+        : null;
+    const due = dueParsed.date ?? (inferredEnd === null ? null : new Date(inferredEnd));
     const sortOrder = await this.planTaskSort(
       tx,
       user.id,
@@ -1573,8 +1696,6 @@ export class TasksService {
       due,
       timeZone,
     );
-    const inferredAllDay = startParsed.dateOnly || dueParsed.dateOnly;
-    const isAllDay = dto.is_all_day ?? captured?.isAllDay ?? (inferredAllDay ? true : false);
     this.assertTimed(due, isAllDay, timeZone);
     this.assertTimed(start, isAllDay, timeZone);
     const id = randomUUID();
@@ -1610,6 +1731,7 @@ export class TasksService {
         metadata: asJson(dto.metadata ?? {}),
       },
     });
+    await reconcileTaskLinks(tx, user.id, row.id, `${title}\n${content}`);
     await this.linkTags(tx, row.id, tagIds);
     if (dto.reminder_trigger !== null) {
       await this.ensureDefaultReminder(
@@ -1636,7 +1758,7 @@ export class TasksService {
       previous: null,
     });
     const created = await this.load(tx, user, row.id, false);
-    const warnings = captured?.warnings ?? [];
+    const warnings = [...(created.warnings ?? []), ...(captured?.warnings ?? [])];
     if (warnings.length === 0) {
       return created;
     }
@@ -1675,6 +1797,9 @@ export class TasksService {
         'Choose what to do with active children',
         {
           active_child_count: decision.activeChildCount,
+          pending_children: activeChildren,
+          pending_checklist: activeItems,
+          hint: 'retry with complete_children',
         },
       );
     }
@@ -1918,7 +2043,7 @@ export class TasksService {
           ownerId: source.ownerId,
           taskId: id,
           type: reminder.type,
-          trigger: reminder.trigger,
+          trigger: normalizeReminderTrigger(reminder.trigger) ?? reminder.trigger,
           absoluteAt: reminder.absoluteAt,
           channel: reminder.channel,
         },
@@ -2154,8 +2279,15 @@ export class TasksService {
       take: 50,
       include: { token: { select: { name: true, oauthClientId: true } } },
     });
+    const anchorWarning = recurrenceAnchorWarning({
+      repeatRule: row.repeatRule,
+      dueDate: row.dueDate?.toISOString() ?? null,
+      timeZone: row.timeZone,
+    });
     return {
       ...toTaskSummary(row, progressOf(row.checklist)),
+      links: row.links.map(taskLinkJson),
+      ...(anchorWarning === null ? {} : { warnings: [anchorWarning] }),
       items: row.checklist.map((item) => toChecklistJson(id, item)),
       subtasks: row.children.map((child) => toTaskSummary(child, progressOf(child.checklist))),
       activity: activity.map((entry) => ({
@@ -2394,7 +2526,7 @@ export class TasksService {
         data: {
           ownerId: userId,
           taskId,
-          trigger: explicit,
+          trigger: normalizeReminderTrigger(explicit) ?? explicit,
           type: 'relative',
           channel: 'push',
         },

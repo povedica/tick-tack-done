@@ -1,11 +1,5 @@
-# Generated from the Nest controllers. Do not format by hand.
+# Generated contracts and test artifacts.
 apps/api/openapi.json
 packages/sdk/src/generated/**
-
-# Lockfile and the versioned spec are not prose to reflow in CI.
 pnpm-lock.yaml
-docs/spec/done/especificacion-producto-v1.1.md
-docs/spec/done/tick-tack-done-ui-spec-v1.0.md
-
-docs/spec/especificacion-producto-v1.1.md
-docs/spec/tick-tack-done-ui-spec-v1.0.md
+test-artifacts/

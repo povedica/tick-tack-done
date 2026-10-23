@@ -1,3 +1,5 @@
+const transport = vi.hoisted(() => vi.fn());
+vi.mock('./mcp-api.js', () => ({ requestPublicApi: transport }));
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HttpStatus } from '@nestjs/common';
 import { DomainException } from '../http/domain.exception.js';
@@ -32,13 +34,18 @@ describe('McpService recurrence mapping', () => {
     updateItem: vi.fn(),
     completeItem: vi.fn(),
     uncompleteItem: vi.fn(),
+    listLinks: vi.fn(),
+    addLink: vi.fn(),
+    removeLink: vi.fn(),
     listAttachments: vi.fn(),
+    linkDriveFile: vi.fn(),
+    deleteAttachment: vi.fn(),
     occurrences: vi.fn(),
     detach: vi.fn(),
   };
   const lists = {
     listProjects: vi.fn().mockResolvedValue({
-      items: [{ id: '22222222-2222-4222-8222-222222222222', is_inbox: true }],
+      items: [{ id: '22222222-2222-4222-8222-222222222222', name: 'Bandeja', is_inbox: true }],
     }),
   };
   const tags = {
@@ -60,6 +67,7 @@ describe('McpService recurrence mapping', () => {
     $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma)),
   };
 
+  const closing = { replanTool: vi.fn(), discardReplan: vi.fn() };
   let service: McpService;
 
   beforeEach(() => {
@@ -67,7 +75,7 @@ describe('McpService recurrence mapping', () => {
     prisma.tag.findFirst.mockResolvedValue(null);
     service = new McpService(
       tasks as never,
-      {} as never,
+      closing as never,
       lists as never,
       tags as never,
       {} as never,
@@ -118,7 +126,7 @@ describe('McpService recurrence mapping', () => {
         repeat_from: 'due_date',
       }),
       undefined,
-      'api',
+      'mcp',
     );
     const text = JSON.parse(toolText(result)) as {
       repeat_label: string;
@@ -195,6 +203,7 @@ describe('McpService recurrence mapping', () => {
       user,
       '33333333-3333-4333-8333-333333333333',
       expect.objectContaining({ repeat_rule: null }),
+      'mcp',
     );
   });
 
@@ -333,7 +342,7 @@ describe('McpService recurrence mapping', () => {
         tag_ids: ['44444444-4444-4444-8444-444444444444'],
       }),
       undefined,
-      'api',
+      'mcp',
     );
   });
 
@@ -362,7 +371,7 @@ describe('McpService recurrence mapping', () => {
         raw_text: 'Prueba parser #Instinct mañana 09:00-09:30',
       }),
       undefined,
-      'api',
+      'mcp',
     );
   });
 
@@ -384,7 +393,11 @@ describe('McpService recurrence mapping', () => {
         arguments: { id: '33333333-3333-4333-8333-333333333333' },
       },
     });
-    expect(tasks.uncomplete).toHaveBeenCalledWith(user, '33333333-3333-4333-8333-333333333333');
+    expect(tasks.uncomplete).toHaveBeenCalledWith(
+      user,
+      '33333333-3333-4333-8333-333333333333',
+      'mcp',
+    );
     await service.handle(user, {
       jsonrpc: '2.0',
       id: 12,
@@ -432,6 +445,7 @@ describe('McpService recurrence mapping', () => {
       },
     });
     expect(JSON.parse(toolText(result))).toEqual({
+      next_cursor: null,
       items: [
         {
           id: '55555555-5555-4555-8555-555555555555',
@@ -463,6 +477,420 @@ describe('McpService recurrence mapping', () => {
     expect(tasks.move).toHaveBeenCalledWith(user, '33333333-3333-4333-8333-333333333333', {
       project_id: '22222222-2222-4222-8222-222222222222',
     });
+  });
+  it('TTD-AUD-81: all-day next occurrence is anchored in the due date', async () => {
+    tasks.get.mockResolvedValue({
+      id: '33333333-3333-4333-8333-333333333333',
+      repeat_rule: 'RRULE:FREQ=DAILY',
+      repeat_from: 'due_date',
+      due_date: '2026-10-21T22:00:00.000Z',
+      start_date: null,
+      is_all_day: true,
+      time_zone: 'Europe/Madrid',
+    });
+    const response = await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 81,
+      method: 'tools/call',
+      params: { name: 'get_task', arguments: { id: '33333333-3333-4333-8333-333333333333' } },
+    });
+    expect(JSON.parse(toolText(response))).toMatchObject({
+      next_occurrence: '2026-10-22T22:00:00.000Z',
+    });
+  });
+  it('TTD-AUD-82: parse:true resolves an existing list without case or accents', async () => {
+    lists.listProjects.mockResolvedValueOnce({
+      items: [
+        { id: '22222222-2222-4222-8222-222222222222', name: 'Bandeja', is_inbox: true },
+        { id: '55555555-5555-4555-8555-555555555555', name: 'Grókbot', is_inbox: false },
+      ],
+      next_cursor: null,
+    });
+    tasks.create.mockResolvedValue({
+      body: { id: '33333333-3333-4333-8333-333333333333', title: 'Llamar', repeat_rule: null },
+    });
+    await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 82,
+      method: 'tools/call',
+      params: { name: 'create_task', arguments: { title: 'Llamar ^grokbot', parse: true } },
+    });
+    expect(tasks.create).toHaveBeenCalledWith(
+      user,
+      expect.objectContaining({ project_id: '55555555-5555-4555-8555-555555555555' }),
+      undefined,
+      'mcp',
+    );
+  });
+  it('TTD-AUD-82: complete_task forwards the explicit children decision', async () => {
+    tasks.complete.mockResolvedValue({ body: { status: 'completed', repeat_rule: null } });
+    await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 82,
+      method: 'tools/call',
+      params: {
+        name: 'complete_task',
+        arguments: { id: '33333333-3333-4333-8333-333333333333', complete_children: 'complete' },
+      },
+    });
+    expect(tasks.complete).toHaveBeenCalledWith(
+      user,
+      '33333333-3333-4333-8333-333333333333',
+      expect.objectContaining({ complete_children: 'complete' }),
+      undefined,
+    );
+  });
+  it('TTD-AUD-82: exposes actionable pending child counts in tool error data', async () => {
+    tasks.complete.mockRejectedValueOnce(
+      new DomainException(HttpStatus.CONFLICT, 'children_need_decision', 'Choose children', {
+        pending_checklist: 1,
+        pending_children: 2,
+        hint: 'retry with complete_children',
+      }),
+    );
+    const result = await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 82,
+      method: 'tools/call',
+      params: { name: 'complete_task', arguments: { id: '33333333-3333-4333-8333-333333333333' } },
+    });
+    expect(result).toMatchObject({
+      result: { isError: true, data: { pending_checklist: 1, pending_children: 2 } },
+    });
+  });
+  it('TTD-AUD-82: update_task accepts and forwards parent_id:null', async () => {
+    tasks.get.mockResolvedValue({
+      id: '33333333-3333-4333-8333-333333333333',
+      repeat_rule: null,
+      tag_ids: [],
+      time_zone: 'Europe/Madrid',
+    });
+    tasks.update.mockResolvedValue({ id: '33333333-3333-4333-8333-333333333333', parent_id: null });
+    const result = await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 82,
+      method: 'tools/call',
+      params: {
+        name: 'update_task',
+        arguments: { id: '33333333-3333-4333-8333-333333333333', parent_id: null },
+      },
+    });
+    expect(result).toMatchObject({ result: { isError: false } });
+    expect(tasks.update).toHaveBeenCalledWith(
+      user,
+      '33333333-3333-4333-8333-333333333333',
+      expect.objectContaining({ parent_id: null }),
+      'mcp',
+    );
+  });
+  it('TTD-AUD-83: forwards inclusive start/due range selection', async () => {
+    tasks.list.mockResolvedValue({ items: [], next_cursor: null });
+    await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 83,
+      method: 'tools/call',
+      params: {
+        name: 'list_tasks',
+        arguments: { from: '2026-10-22', to: '2026-10-23', range_field: 'any' },
+      },
+    });
+    expect(tasks.list).toHaveBeenCalledWith(
+      user,
+      expect.objectContaining({ from: '2026-10-22', to: '2026-10-23', rangeField: 'any' }),
+    );
+  });
+  it('TTD-AUD-83: api_catalog exposes an opaque cursor', async () => {
+    const response = await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 83,
+      method: 'tools/call',
+      params: { name: 'api_catalog', arguments: { limit: 2 } },
+    });
+    const result = JSON.parse(toolText(response)) as { items: unknown[]; next_cursor: unknown };
+    expect(result.items).toHaveLength(2);
+    expect(typeof result.next_cursor).toBe('string');
+  });
+  it('TTD-AUD-84: start_focus uses the public lifecycle with task and stopwatch type', async () => {
+    transport.mockResolvedValue({ status: 201, data: { id: 'session', type: 'stopwatch' } });
+    const result = await service.handle(
+      { ...user, scopes: ['focus:write'] },
+      {
+        jsonrpc: '2.0',
+        id: 84,
+        method: 'tools/call',
+        params: {
+          name: 'start_focus',
+          arguments: { task_id: '33333333-3333-4333-8333-333333333333', type: 'stopwatch' },
+        },
+      },
+      'Bearer synthetic',
+    );
+    expect(result).toMatchObject({ result: { isError: false } });
+    expect(transport).toHaveBeenCalledWith(
+      {
+        method: 'POST',
+        path: '/api/v1/focus/sessions',
+        body: { task_id: '33333333-3333-4333-8333-333333333333', type: 'stopwatch' },
+      },
+      'Bearer synthetic',
+    );
+  });
+  it.each(['pause_focus', 'resume_focus', 'finish_focus', 'abort_focus'])(
+    'TTD-AUD-84: %s targets the current owned session',
+    async (name) => {
+      transport.mockImplementation((args: { method: string }) =>
+        Promise.resolve({
+          status: 200,
+          data:
+            args.method === 'GET'
+              ? { session: { id: '33333333-3333-4333-8333-333333333333' } }
+              : { id: '33333333-3333-4333-8333-333333333333' },
+        }),
+      );
+      const result = await service.handle(
+        { ...user, scopes: ['focus:write'] },
+        { jsonrpc: '2.0', id: 84, method: 'tools/call', params: { name, arguments: {} } },
+        'Bearer synthetic',
+      );
+      expect(result).toMatchObject({ result: { isError: false } });
+      expect(transport).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          method: 'POST',
+          path: `/api/v1/focus/sessions/33333333-3333-4333-8333-333333333333/${name.replace('_focus', '')}`,
+        }),
+        'Bearer synthetic',
+      );
+    },
+  );
+  it('TTD-AUD-84: get_focus_state preserves settings and daily totals', async () => {
+    transport.mockResolvedValue({
+      status: 200,
+      data: { session: null, settings: { pomodoroMinutes: 25 }, today: { pomos: 1, minutes: 25 } },
+    });
+    const response = await service.handle(
+      { ...user, scopes: ['focus:write'] },
+      {
+        jsonrpc: '2.0',
+        id: 84,
+        method: 'tools/call',
+        params: { name: 'get_focus_state', arguments: {} },
+      },
+      'Bearer synthetic',
+    );
+    expect(JSON.parse(toolText(response))).toMatchObject({ session: null, today: { pomos: 1 } });
+  });
+  it('TTD-AUD-85.1: api_request retains structured HTTP failure context', async () => {
+    transport.mockRejectedValueOnce(
+      new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found', {
+        status: 404,
+        code: 'task_not_found',
+        message: 'Task was not found',
+        body: { error: { code: 'task_not_found' } },
+      }),
+    );
+    const result = await service.handle(
+      user,
+      {
+        jsonrpc: '2.0',
+        id: 85,
+        method: 'tools/call',
+        params: {
+          name: 'api_request',
+          arguments: { method: 'GET', path: '/api/v1/tasks/33333333-3333-4333-8333-333333333333' },
+        },
+      },
+      'Bearer synthetic',
+    );
+    expect(result).toMatchObject({
+      result: {
+        isError: true,
+        data: { status: 404, code: 'task_not_found', body: { error: { code: 'task_not_found' } } },
+      },
+    });
+  });
+  it('TTD-AUD-85.3: initialize advertises the versioned changing catalog', async () => {
+    const response = await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 85,
+      method: 'initialize',
+      params: {},
+    });
+    expect(response).toMatchObject({
+      result: {
+        capabilities: { tools: { listChanged: true } },
+        serverInfo: { version: expect.stringMatching(/^0\.2\.0\+(?:[a-f0-9]{7}|unknown)$/) },
+      },
+    });
+  });
+  it('TTD-AUD-85.4: discard_replan forwards the owned session id', async () => {
+    closing.discardReplan.mockResolvedValue({ discarded: true });
+    const response = await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 85,
+      method: 'tools/call',
+      params: {
+        name: 'discard_replan',
+        arguments: { session_id: '33333333-3333-4333-8333-333333333333' },
+      },
+    });
+    expect(response).toMatchObject({ result: { isError: false } });
+    expect(closing.discardReplan).toHaveBeenCalledWith(
+      user,
+      '33333333-3333-4333-8333-333333333333',
+    );
+  });
+  it('TTD-AUD-85.8: update responses keep a compact activity summary under 2 KB', async () => {
+    const task = {
+      id: '33333333-3333-4333-8333-333333333333',
+      title: 'Small task',
+      repeat_rule: null,
+      time_zone: 'Europe/Madrid',
+      tag_ids: [],
+      activity: Array.from({ length: 4 }, (_, i) => ({
+        id: String(i),
+        created_at: '2026-10-22T10:00:00Z',
+        action: 'updated',
+        changes: {
+          _event_type: 'task.updated@v1',
+          data: { task: { title: 'old'.repeat(3000) } },
+          previous: { title: 'old' },
+        },
+      })),
+    };
+    tasks.get.mockResolvedValue(task);
+    tasks.update.mockResolvedValue(task);
+    const response = await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 85,
+      method: 'tools/call',
+      params: { name: 'update_task', arguments: { id: task.id, title: 'New title' } },
+    });
+    expect(Buffer.byteLength(toolText(response))).toBeLessThan(2048);
+    const body = JSON.parse(toolText(response)) as { activity: unknown[] };
+    expect(body.activity[0]).toMatchObject({ type: 'task.updated', changed: ['title'] });
+  });
+  it('TTD-AUD-85.8: get_task can explicitly request full activity', async () => {
+    tasks.get.mockResolvedValue({
+      id: '33333333-3333-4333-8333-333333333333',
+      repeat_rule: null,
+      activity: [{ changes: { task: { title: 'Full snapshot' } } }],
+    });
+    const response = await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 85,
+      method: 'tools/call',
+      params: {
+        name: 'get_task',
+        arguments: { id: '33333333-3333-4333-8333-333333333333', include_activity: 'full' },
+      },
+    });
+    expect(JSON.parse(toolText(response))).toMatchObject({
+      activity: [{ changes: { task: { title: 'Full snapshot' } } }],
+    });
+  });
+
+  it('TTD-AUD-102: notification tools read settings and test only the current owner', async () => {
+    transport.mockResolvedValue({ status: 200, body: { sent: true } });
+    const current = { ...user, scopes: ['profile:read'] };
+    await service.handle(
+      current,
+      {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: 'get_notification_settings', arguments: {} },
+      },
+      'Bearer synthetic',
+    );
+    expect(transport).toHaveBeenLastCalledWith(
+      { method: 'GET', path: '/api/v1/me/notifications/settings' },
+      'Bearer synthetic',
+    );
+    await service.handle(
+      current,
+      {
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'tools/call',
+        params: { name: 'send_test_notification', arguments: { channel: 'email' } },
+      },
+      'Bearer synthetic',
+    );
+    expect(transport).toHaveBeenLastCalledWith(
+      { method: 'POST', path: '/api/v1/me/notifications/test', body: { channel: 'email' } },
+      'Bearer synthetic',
+    );
+  });
+
+  it('TTD-AUD-101: settings tool uses the public PUT contract with focus scope', async () => {
+    transport.mockResolvedValue({ status: 200, body: { pomodoroMinutes: 45 } });
+    await service.handle(
+      { ...user, scopes: ['focus:write'] },
+      {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: 'update_focus_settings', arguments: { pomodoro_minutes: 45 } },
+      },
+      'Bearer synthetic',
+    );
+    expect(transport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: 'PUT',
+        path: '/api/v1/focus/settings',
+        body: { pomodoro_minutes: 45 },
+      }),
+      'Bearer synthetic',
+    );
+  });
+
+  it('TTD-AUD-100: link tools keep the authenticated owner and task', async () => {
+    const id = '33333333-3333-4333-8333-333333333333';
+    tasks.listLinks.mockResolvedValue({ items: [], next_cursor: null });
+    tasks.addLink.mockResolvedValue({ id, url: 'https://example.com/' });
+    for (const [name, args] of [
+      ['list_task_links', { task_id: id }],
+      ['add_task_link', { task_id: id, url: 'https://example.com/', title: 'Example' }],
+      ['remove_task_link', { task_id: id, link_id: id }],
+    ] as const)
+      await service.handle(user, {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name, arguments: args },
+      });
+    expect(tasks.listLinks).toHaveBeenCalledWith(user, id);
+    expect(tasks.addLink).toHaveBeenCalledWith(user, id, {
+      url: 'https://example.com/',
+      title: 'Example',
+    });
+    expect(tasks.removeLink).toHaveBeenCalledWith(user, id, id);
+  });
+
+  it('TTD-AUD-99: linking and removing Drive files preserve owner and the explicit trash choice', async () => {
+    const id = '33333333-3333-4333-8333-333333333333';
+    tasks.linkDriveFile.mockResolvedValue({
+      id: 'attachment',
+      web_view_link: 'https://drive.google.com/file/d/file/view',
+      drive_state: 'ok',
+    });
+    await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: { name: 'link_drive_file', arguments: { task_id: id, drive_file_id: 'file' } },
+    });
+    expect(tasks.linkDriveFile).toHaveBeenCalledWith(user, id, 'file', 'mcp');
+    await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 2,
+      method: 'tools/call',
+      params: {
+        name: 'remove_task_attachment',
+        arguments: { task_id: id, attachment_id: id, trash_in_drive: true },
+      },
+    });
+    expect(tasks.deleteAttachment).toHaveBeenCalledWith(user, id, id, true);
   });
 });
 

@@ -102,7 +102,12 @@ export class DayClosingService {
     evening: boolean,
   ): Promise<Record<string, unknown>> {
     const session = await this.requireOpen(user.id, sessionId);
-    const queue = await this.queue(user.id, session.plan.localDate, session.plan.timeZone);
+    const queue = await this.queue(
+      user.id,
+      session.plan.localDate,
+      session.plan.timeZone,
+      session.kind === 'replan',
+    );
     if (!queue.some((task) => task.id === taskId)) {
       throw new DomainException(
         HttpStatus.NOT_FOUND,
@@ -242,6 +247,8 @@ export class DayClosingService {
   ): Promise<Record<string, unknown>> {
     const zone = user.timeZone;
     const local = date ?? civilDateKey(new Date().toISOString(), zone) ?? '';
+    if ((await this.queue(user.id, local, zone, true)).length === 0)
+      return { session: null, reason: 'nothing_to_replan' };
     const session = await this.startReplan(user, local, zone);
     const id = String(session.id);
     const revision = Number(session.revision);
@@ -265,6 +272,45 @@ export class DayClosingService {
     };
   }
 
+  async discardReplan(user: AuthUser, id: string): Promise<{ discarded: true }> {
+    return this.prisma.$transaction(async (tx) => {
+      const session = await tx.planSession.findFirst({
+        where: { id, ownerId: user.id, kind: 'replan' },
+      });
+      if (session === null)
+        throw new DomainException(
+          HttpStatus.NOT_FOUND,
+          'session_not_found',
+          'Replan session was not found',
+        );
+      if (session.state !== 'draft')
+        throw new DomainException(
+          HttpStatus.CONFLICT,
+          'session_closed',
+          'Only a draft can be discarded',
+        );
+      const changed = await tx.planSession.updateMany({
+        where: { id, ownerId: user.id, state: 'draft', revision: session.revision },
+        data: { state: 'discarded', revision: { increment: 1 } },
+      });
+      if (changed.count !== 1)
+        throw new DomainException(
+          HttpStatus.CONFLICT,
+          'session_changed',
+          'Session changed concurrently',
+        );
+      await this.events.record(tx, actorOf(user), {
+        type: DomainEvent.planReplanDiscarded,
+        entityType: 'plan_session',
+        entityId: id,
+        action: 'updated',
+        data: { session_id: id, state: 'discarded' },
+        previous: { state: 'draft' },
+      });
+      return { discarded: true };
+    });
+  }
+
   private async open(
     user: AuthUser,
     kind: 'shutdown' | 'replan',
@@ -286,7 +332,7 @@ export class DayClosingService {
         );
       }
     }
-    const queue = await this.queue(user.id, localDate, timeZone);
+    const queue = await this.queue(user.id, localDate, timeZone, kind === 'replan');
     const profile = await this.profile(user.id);
     const suggestions =
       kind === 'replan'
@@ -488,6 +534,7 @@ export class DayClosingService {
     ownerId: string,
     localDate: string,
     timeZone: string,
+    includeOverdue = false,
   ): Promise<ClosingTask[]> {
     const rows = await this.prisma.task.findMany({
       where: {
@@ -501,7 +548,15 @@ export class DayClosingService {
       include: { project: { select: { name: true } } },
     });
     const memberIds = new Set(await this.memberIds(ownerId, localDate, timeZone));
-    return rows.filter((row) => memberIds.has(row.id) || this.onDay(row, localDate, timeZone));
+    return rows.filter(
+      (row) =>
+        memberIds.has(row.id) ||
+        this.onDay(row, localDate, timeZone) ||
+        (includeOverdue &&
+          row.dueDate !== null &&
+          (civilDateKey(row.dueDate.toISOString(), row.timeZone || timeZone) ?? localDate) <
+            localDate),
+    );
   }
 
   private onDay(
@@ -658,7 +713,12 @@ export class DayClosingService {
   }
 
   private async view(session: SessionRow, ownerId: string): Promise<Record<string, unknown>> {
-    const queue = await this.queue(ownerId, session.plan.localDate, session.plan.timeZone);
+    const queue = await this.queue(
+      ownerId,
+      session.plan.localDate,
+      session.plan.timeZone,
+      session.kind === 'replan',
+    );
     const counts = countDecisions(
       session.decisions.map((decision) => ({
         task_id: decision.taskId,

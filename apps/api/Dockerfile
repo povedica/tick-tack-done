@@ -18,8 +18,10 @@ RUN pnpm --filter api build && pnpm --filter api exec prisma generate
 FROM node:26-alpine AS runner
 WORKDIR /app
 ARG GIT_COMMIT=unknown
+ARG BUILD_TIME=unknown
 ENV NODE_ENV=production
 ENV GIT_COMMIT=$GIT_COMMIT
+ENV BUILD_TIME=$BUILD_TIME
 # Node 26 no trae corepack. La versión es la de packageManager.
 RUN npm install -g pnpm@9.15.0
 COPY --from=build /app ./

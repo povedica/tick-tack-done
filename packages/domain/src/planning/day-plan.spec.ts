@@ -24,6 +24,25 @@ function task(patch: Partial<PlanTaskInput> & Pick<PlanTaskInput, 'id'>): PlanTa
 }
 
 describe('planQueue', () => {
+  it('TTD-AUD-94: 17 overdue and one today produce 18 candidates or one with an explicit hidden count', () => {
+    const tasks = [
+      task({ id: 'today', dueDate: '2026-10-19T10:00:00Z' }),
+      ...Array.from({ length: 17 }, (_, index) =>
+        task({ id: `old-${index}`, dueDate: '2026-10-18T10:00:00Z' }),
+      ),
+    ];
+    const input = {
+      localDate: LOCAL,
+      timeZone: ZONE,
+      limit: null,
+      sources: { today: true, overdue: true, inbox: false, undated: false },
+    };
+    expect(planQueue(tasks, input).cards).toHaveLength(18);
+    const excluded = planQueue(tasks, { ...input, sources: { ...input.sources, overdue: false } });
+    expect(excluded.cards).toHaveLength(1);
+    expect(excluded.hiddenOverdue).toBe(17);
+    expect(excluded.totals.overdue).toBe(17);
+  });
   it('keeps every commitment due today when the review cap is smaller', () => {
     const queue = planQueue(
       [

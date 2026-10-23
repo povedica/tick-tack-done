@@ -93,6 +93,42 @@ describe('day closing, load and someday', () => {
     };
   }
 
+  it('TTD-AUD-94: source selection returns 18 or one candidate with 17 hidden', async () => {
+    const synthetic = await createOwner('r80-sources');
+    try {
+      await prisma.task.createMany({
+        data: Array.from({ length: 18 }, (_, index) => ({
+          ownerId: synthetic.id,
+          createdById: synthetic.id,
+          projectId: synthetic.inboxId,
+          title: `Source fixture ${index}`,
+          dueDate: new Date(index ? '2026-10-18T22:00:00Z' : DAY),
+          timeZone: ZONE,
+          isAllDay: true,
+        })),
+      });
+      const input = {
+        local_date: '2026-10-20',
+        time_zone: ZONE,
+        today: true,
+        inbox: false,
+        undated: false,
+      };
+      for (const overdue of [true, false]) {
+        const response = await request(server)
+          .post('/api/v1/planning/sessions')
+          .set('X-Dev-User-Email', synthetic.email)
+          .send({ ...input, overdue })
+          .expect(201);
+        expect(response.body.cards).toHaveLength(overdue ? 18 : 1);
+        expect(response.body.hidden_overdue).toBe(overdue ? 0 : 17);
+        expect(response.body.totals.overdue).toBe(17);
+      }
+    } finally {
+      await removeOwner(synthetic.id);
+    }
+  });
+
   it('RF-2641 RF-2646: returns day load and disables it when the workday is empty', async () => {
     const localDate = '2026-10-20';
     const load = await api()

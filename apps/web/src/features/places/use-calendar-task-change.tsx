@@ -1,6 +1,7 @@
 import { runAction } from '../../components/run-action';
 import { useRef, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, type InfiniteData } from '@tanstack/react-query';
+import type { AgendaPage } from '../calendar/use-agenda-query';
 import type { Task, TaskPatch } from '@reflexionia/sdk';
 import { api } from '../../api';
 import { useMessages } from '../../i18n';
@@ -28,6 +29,25 @@ export function useCalendarTaskChange() {
         ),
       );
     }
+    cache.setQueriesData<InfiniteData<AgendaPage>>({ queryKey: ['calendar-agenda'] }, (old) =>
+      old
+        ? {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              tasks: page.tasks.map((task) =>
+                task.id === id
+                  ? {
+                      ...task,
+                      ...patch,
+                      tag_ids: patch.tag_ids ? [...patch.tag_ids] : task.tag_ids,
+                    }
+                  : task,
+              ),
+            })),
+          }
+        : old,
+    );
   };
   const save = async (task: Task, patch: TaskPatch, restoring = false) => {
     if (busy.current.has(task.id)) return;
@@ -36,7 +56,7 @@ export function useCalendarTaskChange() {
     let restore: TaskPatch = {};
     try {
       await Promise.all(
-        ['calendar-tasks', 'calendar-start-tasks'].map((key) =>
+        ['calendar-tasks', 'calendar-start-tasks', 'calendar-agenda'].map((key) =>
           cache.cancelQueries({ queryKey: [key] }),
         ),
       );

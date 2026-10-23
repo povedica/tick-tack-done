@@ -1,3 +1,5 @@
+import { useDriveConnection, rememberDriveReturn } from './use-drive-connection';
+import { uploadAttachmentToDrive } from './drive-upload';
 import { runAction } from '../../components/run-action';
 import {
   CalendarDays,
@@ -69,6 +71,7 @@ export function TaskComposer({
   readonly onCreated?: (() => void) | undefined;
 }) {
   const messages = useMessages();
+  const driveConnection = useDriveConnection();
   const defaultProjectId = initialDraft?.defaultProjectId ?? contextProjectId;
   const viewSlot = initialDraft?.slot;
   const locale = useAppLocale();
@@ -237,6 +240,10 @@ export function TaskComposer({
   }
   async function submit() {
     if (lock.current || request.parsed.title.trim().length === 0) return;
+    if (files.length && !driveConnection.connected) {
+      setError(driveConnection.reconnect ? messages.driveReconnect : messages.driveRequired);
+      return;
+    }
     if (files.length && !navigator.onLine) {
       setError(labels.filesOnline);
       return;
@@ -332,7 +339,7 @@ export function TaskComposer({
       if (saved) {
         for (let i = saved.uploaded; i < files.length; i++) {
           const file = files[i];
-          if (file) await api.uploadAttachment(saved.id, file, file.name);
+          if (file) await uploadAttachmentToDrive(saved.id, file);
           saved.uploaded = i + 1;
         }
       }
@@ -601,6 +608,7 @@ export function TaskComposer({
       </form>
       <input
         ref={fileInput}
+        disabled={!driveConnection.connected}
         type="file"
         multiple
         hidden
@@ -725,6 +733,17 @@ export function TaskComposer({
               <span>{listLabel}</span>
               <ChevronDown size={14} />
             </button>
+            {!driveConnection.connected ? (
+              <a
+                className="popover-row"
+                href="/settings/integrations"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={rememberDriveReturn}
+              >
+                {driveConnection.reconnect ? messages.driveReconnect : messages.driveConnect}
+              </a>
+            ) : null}
             <button
               type="button"
               className="popover-row"
@@ -737,14 +756,19 @@ export function TaskComposer({
             </button>
             <button
               type="button"
+              disabled={!driveConnection.connected}
+              title={driveConnection.reconnect ? messages.driveReconnect : messages.driveRequired}
               className="popover-row"
               onClick={() => {
                 setPanel(null);
-                fileInput.current?.click();
+                if (driveConnection.connected) fileInput.current?.click();
               }}
             >
               <Paperclip size={16} />
               {messages.attachments}
+              {!driveConnection.connected ? (
+                <span className="sr-only">{messages.driveRequired}</span>
+              ) : null}
             </button>
             <button
               type="button"

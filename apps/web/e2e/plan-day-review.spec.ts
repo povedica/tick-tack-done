@@ -126,11 +126,12 @@ for (const width of [1280, 390]) {
     const calls = await fixture(page);
     await page.goto('/plan/day');
     await expect(page.getByRole('heading', { name: 'Plan del día' })).toBeVisible();
-    await expect(page.getByText('Vencida de otra semana')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Continuar', exact: true }).click();
+    await expect(page.getByText('Vencida de otra semana')).toBeVisible();
     await expect(page.getByRole('checkbox', { name: /Revisión diaria recurrente/ })).toBeDisabled();
-    expect(calls[0]?.body).toMatchObject({
+    expect(calls.at(-1)?.body).toMatchObject({
       today: true,
-      overdue: false,
+      overdue: true,
       inbox: false,
       undated: false,
     });
@@ -163,6 +164,8 @@ for (const width of [1280, 390]) {
       await page.setViewportSize({ width, height: 850 });
       await fixture(page, state);
       await page.goto('/plan/day');
+      if (state === 'empty')
+        await page.getByRole('button', { name: 'Continuar', exact: true }).click();
       await expect(
         page.getByText(
           state === 'empty'

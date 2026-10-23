@@ -226,3 +226,120 @@
   font-weight: 500;
   margin-top: var(--sp-4);
 }
+
+.focus-settings-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap);
+  height: var(--tap);
+  color: var(--ink-3);
+}
+.focus-clock-edit {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+}
+.focus-presets {
+  display: flex;
+  gap: var(--sp-2);
+}
+.focus-presets button {
+  position: relative;
+  height: var(--focus-preset-h);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  color: var(--ink);
+  background: var(--surface-2);
+  min-width: var(--tap);
+  font-size: var(--fs-sm);
+}
+.focus-presets button[aria-pressed='true'] {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.focus-presets button::before {
+  content: '';
+  position: absolute;
+  inset-block: calc((var(--focus-preset-h) - var(--tap)) / 2);
+  inset-inline: 0;
+}
+.focus-quick-duration {
+  display: grid;
+  gap: var(--sp-3);
+}
+.focus-quick-duration label {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+  font-size: var(--fs-xs);
+}
+.focus-quick-duration input {
+  width: var(--focus-duration-w);
+  min-height: var(--tap);
+}
+.focus-cycle-progress,
+.focus-goal-progress {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+}
+.focus-settings-page form {
+  max-width: var(--focus-settings-w);
+}
+.focus-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  min-height: var(--settings-row-h);
+  font-size: var(--fs-sm);
+  border-bottom: 1px solid var(--border);
+}
+.focus-setting-row > label,
+.focus-setting-row > span {
+  flex: 1;
+  min-width: 0;
+}
+.focus-stepper,
+.focus-sound-control {
+  display: inline-flex;
+  align-items: center;
+}
+.focus-stepper button,
+.focus-sound-control button {
+  width: var(--tap);
+  height: var(--tap);
+  padding: 0;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--ink);
+}
+.focus-stepper input {
+  width: var(--focus-duration-w);
+  text-align: center;
+}
+.focus-setting-row :is(input, select) {
+  min-height: var(--tap);
+  max-width: var(--focus-control-w);
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.focus-setting-row input[type='range'] {
+  width: var(--focus-control-w);
+}
+@media (max-width: 768px) {
+  .focus-settings-page {
+    padding-inline: var(--sp-3);
+  }
+  .focus-setting-row {
+    gap: var(--sp-2);
+  }
+}

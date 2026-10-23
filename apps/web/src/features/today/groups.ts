@@ -16,6 +16,7 @@ export interface TodayTask {
   readonly checklistTotal: number;
   readonly hasContent: boolean;
   readonly hasRepeat: boolean;
+  readonly linkCount?: number;
   readonly attachmentCount: number;
   readonly source: string;
   readonly status: 'active' | 'completed' | 'archived' | 'cancelled';

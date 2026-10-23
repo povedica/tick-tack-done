@@ -10,20 +10,19 @@ services:
       dockerfile: apps/api/Dockerfile
       args:
         GIT_COMMIT: ${GIT_COMMIT:-unknown}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
     restart: unless-stopped
     env_file:
       - ${RUNTIME_ENV_FILE:?Set RUNTIME_ENV_FILE}
     environment:
       NODE_ENV: production
       GIT_COMMIT: ${GIT_COMMIT:-unknown}
+      BUILD_TIME: ${BUILD_TIME:-unknown}
       AUTH_MODE: ''
       BUS_AUTOSTART: 'true'
       SCHEDULER_AUTOSTART: 'true'
-      ATTACHMENT_DIR: /data/attachments
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?connection_limit=10&pool_timeout=20
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
-    volumes:
-      - attachments:/data/attachments
     read_only: true
     tmpfs:
       - /tmp
@@ -48,6 +47,9 @@ services:
     build:
       context: ../..
       dockerfile: apps/web/Dockerfile
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
     restart: unless-stopped
     read_only: true
     tmpfs:
@@ -106,4 +108,3 @@ networks:
 volumes:
   pgdata:
   redisdata:
-  attachments:

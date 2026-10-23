@@ -1,14 +1,11 @@
+import { GoogleIntegrationCards } from '../settings/DriveCard';
+import { TelegramCard } from '../settings/TelegramCard';
 import { runAction } from '../../components/run-action';
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api';
 import { Button, ErrorState, SkeletonRows } from '../../components/ui';
-import {
-  GoogleAccessActions,
-  googleAuthorizationUrl,
-  googleCallbackNotice,
-} from './GoogleAccessActions';
 import { InboundEmailCard } from '../settings/InboundEmailCard';
 import { GoogleCalendarsCard } from '../settings/GoogleCalendarsCard';
 import { useMessages } from '../../i18n';
@@ -287,62 +284,6 @@ export function CalendarSettings() {
 
 export function IntegrationSettings() {
   const messages = useMessages();
-  const queryClient = useQueryClient();
-  const [params, setParams] = useSearchParams();
-  const [googleFlag, setGoogleFlag] = useState(params.get('google'));
-  const [confirmGoogle, setConfirmGoogle] = useState<'google' | 'drive' | null>(null);
-  useEffect(() => {
-    const callback = googleCallbackNotice(params);
-    if (callback === null) return;
-    setGoogleFlag(callback.notice);
-    setParams(callback.params, { replace: true });
-  }, [params, setParams]);
-  const telegram = useQuery({
-    queryKey: ['telegram'],
-    queryFn: () => api.integrationStatus('telegram'),
-  });
-  const drive = useQuery({ queryKey: ['drive'], queryFn: () => api.integrationStatus('drive') });
-  const google = useQuery({ queryKey: ['google'], queryFn: () => api.integrationStatus('google') });
-  const googleOn = flag(google.data, 'connected');
-  const googleReady = flag(google.data, 'configured');
-  const account = text(google.data?.account);
-  const connectGoogle = useMutation({
-    mutationFn: async () => googleAuthorizationUrl((await api.googleConnect()).url),
-    onSuccess: (url) => {
-      window.location.assign(url);
-    },
-  });
-  const disconnectGoogle = useMutation({
-    mutationFn: () => api.disconnectGoogle(),
-    onSuccess: () => {
-      setConfirmGoogle(null);
-      runAction(google.refetch());
-      runAction(drive.refetch());
-      runAction(queryClient.invalidateQueries({ queryKey: ['google-calendars'] }));
-    },
-  });
-  const busy = connectGoogle.isPending || disconnectGoogle.isPending;
-  function requestDisconnect(source: 'google' | 'drive'): void {
-    disconnectGoogle.reset();
-    setConfirmGoogle(source);
-  }
-  const voice = flag(telegram.data, 'voice');
-  const photo = flag(telegram.data, 'photo');
-  const telegramConfigured = flag(telegram.data, 'configured');
-  const telegramLinked = flag(telegram.data, 'linked');
-  const [pairingCode, setPairingCode] = useState<string | null>(null);
-  const [pairingError, setPairingError] = useState<string | null>(null);
-  const pairTelegram = useMutation({
-    mutationFn: () => api.createTelegramPairing(),
-    onSuccess: (body) => {
-      const code = text(body.code);
-      setPairingCode(code.length > 0 ? code : null);
-      setPairingError(null);
-    },
-    onError: () => {
-      setPairingError(messages.telegramPairingFailed);
-    },
-  });
   return (
     <section className="token-settings">
       <header className="page-header">
@@ -351,183 +292,8 @@ export function IntegrationSettings() {
           <p className="lede">{messages.integrationsHint}</p>
         </div>
       </header>
-      {googleFlag === 'connected' ? (
-        <p className="token-meta" role="status">
-          {messages.googleConnectedNote}
-        </p>
-      ) : null}
-      {connectGoogle.isError ? <p role="alert">{messages.googleErrorNote}</p> : null}
-      {googleFlag === 'error' ? <p role="alert">{messages.googleErrorNote}</p> : null}
-      {googleFlag === 'denied' ? <p role="alert">{messages.googleDeniedNote}</p> : null}
-
-      <section className="token-panel" aria-labelledby="google-title">
-        <div className="token-panel-head">
-          <div>
-            <h2 id="google-title">Google</h2>
-            <p>{messages.googleHint}</p>
-          </div>
-          {google.isSuccess ? (
-            <StatusPill
-              on={googleOn}
-              onLabel={messages.integrationConnected}
-              offLabel={googleReady ? messages.integrationIdle : messages.integrationOff}
-            />
-          ) : null}
-        </div>
-        {account.length > 0 ? <p className="token-meta">{account}</p> : null}
-        {google.isError ? (
-          <p role="alert">
-            {messages.googleErrorNote}
-            <Button
-              type="button"
-              onClick={() => {
-                runAction(google.refetch());
-              }}
-            >
-              {messages.retry}
-            </Button>
-          </p>
-        ) : null}
-        <GoogleAccessActions
-          messages={messages}
-          connected={googleOn}
-          configured={googleReady}
-          confirming={confirmGoogle === 'google'}
-          busy={busy}
-          error={disconnectGoogle.isError ? messages.googleDisconnectFailed : null}
-          onConnect={() => {
-            connectGoogle.mutate();
-          }}
-          onRequestDisconnect={() => {
-            requestDisconnect('google');
-          }}
-          onCancel={() => {
-            setConfirmGoogle(null);
-          }}
-          onConfirm={() => {
-            disconnectGoogle.mutate();
-          }}
-        />
-      </section>
-
-      <section className="token-panel" aria-labelledby="drive-title">
-        <div className="token-panel-head">
-          <div>
-            <h2 id="drive-title">Drive</h2>
-            <p>{messages.driveNeedsGoogle}</p>
-          </div>
-          {drive.isSuccess ? (
-            <StatusPill
-              on={flag(drive.data, 'connected')}
-              onLabel={messages.integrationConnected}
-              offLabel={
-                flag(drive.data, 'configured') ? messages.integrationIdle : messages.integrationSoon
-              }
-            />
-          ) : null}
-        </div>
-        {drive.isError ? (
-          <p role="alert">
-            {messages.googleErrorNote}
-            <Button
-              type="button"
-              onClick={() => {
-                runAction(drive.refetch());
-              }}
-            >
-              {messages.retry}
-            </Button>
-          </p>
-        ) : null}
-        <GoogleAccessActions
-          messages={messages}
-          connected={flag(drive.data, 'connected')}
-          configured={flag(drive.data, 'configured')}
-          confirming={confirmGoogle === 'drive'}
-          busy={busy}
-          error={disconnectGoogle.isError ? messages.googleDisconnectFailed : null}
-          onConnect={() => {
-            connectGoogle.mutate();
-          }}
-          onRequestDisconnect={() => {
-            requestDisconnect('drive');
-          }}
-          onCancel={() => {
-            setConfirmGoogle(null);
-          }}
-          onConfirm={() => {
-            disconnectGoogle.mutate();
-          }}
-        />
-      </section>
-
-      <section className="token-panel" aria-labelledby="telegram-title">
-        <div className="token-panel-head">
-          <div>
-            <h2 id="telegram-title">Telegram</h2>
-            {telegram.isFetched ? (
-              <p>{telegramLinked ? messages.telegramHint : messages.telegramSoon}</p>
-            ) : (
-              <p className="token-meta">…</p>
-            )}
-          </div>
-          {telegram.isFetched ? (
-            <StatusPill
-              on={telegramLinked}
-              onLabel={messages.integrationConnected}
-              offLabel={telegramConfigured ? messages.integrationIdle : messages.integrationSoon}
-            />
-          ) : null}
-        </div>
-        {telegram.isFetched && (voice || photo) ? (
-          <ul className="token-chips">
-            {voice ? <li className="token-chip">{messages.telegramVoice}</li> : null}
-            {photo ? <li className="token-chip">{messages.telegramPhoto}</li> : null}
-          </ul>
-        ) : null}
-        {telegram.isFetched && telegramLinked ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              runAction(
-                api.disconnectTelegram().then(() => {
-                  setPairingCode(null);
-                  runAction(telegram.refetch());
-                }),
-              );
-            }}
-          >
-            {messages.googleDisconnect}
-          </Button>
-        ) : null}
-        {telegram.isFetched && !telegramLinked && telegramConfigured ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="primary"
-            loading={pairTelegram.isPending}
-            onClick={() => {
-              pairTelegram.mutate();
-            }}
-          >
-            {messages.telegramLink}
-          </Button>
-        ) : null}
-        {telegram.isFetched && !telegramLinked && !telegramConfigured ? (
-          <Button type="button" size="sm" disabled>
-            {messages.integrationSoon}
-          </Button>
-        ) : null}
-        {pairingError !== null ? <p role="alert">{pairingError}</p> : null}
-        {pairingCode !== null ? (
-          <p className="token-meta" role="status">
-            {messages.telegramPairingHint.replace('{code}', pairingCode)}
-          </p>
-        ) : null}
-      </section>
-
+      <GoogleIntegrationCards />
+      <TelegramCard />
       <InboundEmailCard />
     </section>
   );

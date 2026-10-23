@@ -129,3 +129,19 @@ describe('MCP tool catalog', () => {
     expect(visibleTools(['tasks:write']).map((tool) => tool.name)).toContain('quick_add');
   });
 });
+
+it('TTD-AUD-82: cancellation explains history, reopening and trash separately', () => {
+  const tool = MCP_TOOLS.find((tool) => tool.name === 'cancel_task');
+  expect(tool?.description).toContain('hidden from lists, kept in history');
+  expect(tool?.description).toContain('reopen_task');
+  expect(tool?.description).toContain('restore_task');
+});
+
+it('TTD-AUD-83: every list tool declares limit and opaque cursor', () => {
+  for (const tool of MCP_TOOLS.filter((tool) => tool.name.startsWith('list_'))) {
+    expect(tool.inputSchema.properties, tool.name).toHaveProperty('cursor');
+    expect(tool.inputSchema.properties, tool.name).toHaveProperty('limit');
+  }
+  const catalog = MCP_TOOLS.find((tool) => tool.name === 'api_catalog');
+  expect(catalog?.inputSchema.properties.cursor).toMatchObject({ type: 'string' });
+});

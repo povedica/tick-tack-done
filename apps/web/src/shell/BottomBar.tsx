@@ -1,3 +1,5 @@
+import { useQueryClient } from '@tanstack/react-query';
+import { composerContextFor } from '../features/capture/context';
 import { CalendarDays, List, MoreHorizontal, Plus, Sun } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router';
 import { openTaskComposer } from '../features/capture/notice';
@@ -45,6 +47,7 @@ export function BottomBar({
   readonly openSection: 'lists' | 'more' | null;
 }) {
   const messages = useMessages();
+  const composerClient = useQueryClient();
   const location = useLocation();
   const calendarActive = location.pathname.startsWith('/calendar');
 
@@ -64,7 +67,7 @@ export function BottomBar({
         aria-label={messages.fab}
         aria-keyshortcuts="N"
         onClick={() => {
-          openTaskComposer();
+          openTaskComposer(composerContextFor(window.location, { cache: composerClient }));
         }}
       >
         <Plus size={22} aria-hidden="true" />

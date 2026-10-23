@@ -1,4 +1,28 @@
 :root {
+  --telegram-qr-size: 160px;
+  --notification-matrix-max-h: 520px;
+  --notification-switch-w: 32px;
+  --notification-switch-h: 18px;
+  --focus-preset-h: 28px;
+  --focus-duration-w: 64px;
+  --focus-control-w: 140px;
+  --focus-settings-w: 640px;
+  --google-confirm-width: 30rem;
+  --calendar-mini-border-w: 1px;
+  --calendar-mobile-mini-h: calc(
+    var(--calendar-mobile-mini-head-h) + 6 * var(--tap) + 2 * var(--sp-1) +
+      var(--calendar-mini-border-w)
+  );
+  --mcp-client-tab-h: 2.25rem;
+  --mcp-client-hit-extra: 0.25rem;
+  --calendar-mobile-week-row-min: 7rem;
+  --calendar-mobile-mini-head-h: 1.5rem;
+  --mcp-config-copy-space: 3rem;
+  --stats-formula-icon-size: 0.875rem;
+  --plan-sources-width: 28rem;
+  --calendar-source-row-h: 2rem;
+  --calendar-source-check-size: 1rem;
+  --calendar-source-mobile-h: 2.75rem;
   --today-mark-bg: color-mix(in srgb, var(--accent) 88%, black);
   --today-mark-ink: var(--on-accent);
   --today-mark-hover-bg: color-mix(in srgb, var(--today-mark-bg) 90%, white);
@@ -73,8 +97,8 @@
   --year-day-font: 0.6875rem;
   --year-day-font-mobile: 0.625rem;
   --year-today-size: 1rem;
-  --cal-two-weeks-cell-h: clamp(8rem, 22dvh, 12rem);
-  --cal-two-weeks-cell-h-mobile: clamp(5.5rem, 14dvh, 7rem);
+  --cal-two-weeks-cell-h: 8rem;
+  --cal-two-weeks-cell-h-mobile: 5.5rem;
   --calendar-quick-width: 19rem;
   --ghost-bg: var(--accent-soft);
   --ghost-border: var(--accent);
@@ -213,6 +237,14 @@
 }
 
 [data-theme='dark'] {
+  --telegram-qr-size: 160px;
+  --notification-matrix-max-h: 520px;
+  --notification-switch-w: 32px;
+  --notification-switch-h: 18px;
+  --focus-preset-h: 28px;
+  --focus-duration-w: 64px;
+  --focus-control-w: 140px;
+  --focus-settings-w: 640px;
   --calendar-mobile-header-h: 3.25rem;
   --calendar-day-number-size: 2rem;
   --calendar-hour-gutter-width: 3rem;
@@ -254,8 +286,8 @@
   --year-day-font: 0.6875rem;
   --year-day-font-mobile: 0.625rem;
   --year-today-size: 1rem;
-  --cal-two-weeks-cell-h: clamp(8rem, 22dvh, 12rem);
-  --cal-two-weeks-cell-h-mobile: clamp(5.5rem, 14dvh, 7rem);
+  --cal-two-weeks-cell-h: 8rem;
+  --cal-two-weeks-cell-h-mobile: 5.5rem;
   --today-mark-bg: color-mix(in srgb, var(--accent) 88%, black);
   --today-mark-ink: var(--on-accent);
   --today-mark-hover-bg: color-mix(in srgb, var(--today-mark-bg) 90%, white);
@@ -482,4 +514,34 @@
     animation-duration: 1ms !important;
     transition-duration: 1ms !important;
   }
+}
+
+:root,
+[data-theme='dark'] {
+  --chip-h: 24px;
+  --chip-h-mobile: 32px;
+  --chip-radius: var(--radius-full);
+  --chip-bg: var(--surface-2);
+  --chip-border: 1px solid var(--border);
+  --chip-fs: var(--fs-xs);
+  --chip-icon: 14px;
+  --chip-max-w: 220px;
+  --sheet-max-h-mobile: min(88dvh, 720px);
+  --sheet-radius: var(--radius-xl);
+  --matrix-cell: 44px;
+  --settings-row-h: 44px;
+  --status-dot: 8px;
+  --cal-day-header-h: 44px;
+  --cal-day-strip-h: 48px;
+  --cal-block-gap: 2px;
+  --sheet-handle-w: 36px;
+  --sheet-handle-h: 4px;
+}
+[data-theme='dark'] {
+  --chip-bg: var(--surface-3);
+}
+
+:root {
+  --asset-disabled-opacity: 0.55;
+  --asset-preview-z: 20;
 }

@@ -34,7 +34,9 @@ export class EventRecorder {
         entityId: event.entityId,
         action: event.action,
         changes:
-          event.previous === null ? event.data : { data: event.data, previous: event.previous },
+          event.previous === null && typeof event.data === 'object' && !Array.isArray(event.data)
+            ? { ...Object.fromEntries(Object.entries(event.data)), _event_type: event.type }
+            : { data: event.data, previous: event.previous, _event_type: event.type },
       },
     });
   }

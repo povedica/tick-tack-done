@@ -17,6 +17,12 @@ export class SearchGroupDto {
 }
 
 export class SearchResponseDto {
+  @ApiProperty({ type: [Object] })
+  items!: Record<string, unknown>[];
+
+  @ApiProperty({ nullable: true, type: String })
+  next_cursor!: string | null;
+
   @ApiProperty()
   text!: string;
 

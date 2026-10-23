@@ -1,6 +1,10 @@
+import { NotificationsPage } from './features/settings/NotificationsPage';
+import { AboutPage } from './features/settings/AboutPage';
+import { FocusSettingsPage } from './features/settings/FocusSettingsPage';
+import { composerContextFor } from './features/capture/context';
 import { PolicyPage } from './features/auth/PolicyPage';
 import { runAction } from './components/run-action';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useNavigate, useSearchParams } from 'react-router';
 import { api } from './api';
@@ -33,7 +37,6 @@ import {
   InboxPage,
   MatrixPage,
   NoteRoute,
-  NotificationSettings,
   SearchPage,
   SettingsHome,
   SettingsLayout,
@@ -199,7 +202,9 @@ function Shell() {
               <Route path="account" element={<AccountPage />} />
               <Route path="workday" element={<WorkdaySettings />} />
               <Route path="capture" element={<CaptureSettings />} />
-              <Route path="notifications" element={<NotificationSettings />} />
+              <Route path="focus" element={<FocusSettingsPage />} />
+              <Route path="about" element={<AboutPage />} />
+              <Route path="notifications" element={<NotificationsPage />} />
               <Route path="smart-lists" element={<SmartListsPage />} />
               <Route path="calendar" element={<CalendarSettings />} />
               <Route path="tokens" element={<TokensPage />} />
@@ -269,6 +274,7 @@ function QuickAddRoute() {
 }
 
 function CaptureHotkey() {
+  const composerClient = useQueryClient();
   useEffect(() => {
     function onKey(event: KeyboardEvent): void {
       const target = event.target;
@@ -293,7 +299,7 @@ function CaptureHotkey() {
           ?.focus();
         return;
       }
-      openTaskComposer();
+      openTaskComposer(composerContextFor(window.location, { cache: composerClient }));
     }
     window.addEventListener('keydown', onKey);
     return () => {

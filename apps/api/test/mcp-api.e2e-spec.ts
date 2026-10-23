@@ -1,3 +1,5 @@
+import { fakeDrive } from './helpers/fake-drive.js';
+import { sealField } from '../src/security/field-cipher.js';
 import { rm } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
@@ -120,6 +122,23 @@ it('RF-2001: generic MCP API transport re-enters bearer scope checks', async () 
         data: Record<string, unknown>;
       };
     };
+    const google = await fakeDrive();
+    process.env.GOOGLE_CLIENT_ID = 'synthetic';
+    process.env.GOOGLE_CLIENT_SECRET = 'synthetic';
+    await db.user.update({
+      where: { id: owner.id },
+      data: {
+        googleRefreshToken: sealField('synthetic-refresh'),
+        googleGrantedScopes: [
+          'https://www.googleapis.com/auth/calendar.calendarlist.readonly',
+          'https://www.googleapis.com/auth/calendar.events',
+          'https://www.googleapis.com/auth/drive.file',
+        ],
+        googleCalendarEnabled: true,
+        googleDriveEnabled: true,
+        googleStatus: 'connected',
+      },
+    });
     const base = `/api/v1/tasks/${String(parsed.data.id)}/attachments`;
     const upload = await writerCall({
       method: 'POST',
@@ -133,12 +152,19 @@ it('RF-2001: generic MCP API transport re-enters bearer scope checks', async () 
         },
       ],
     });
-    const download = await writerCall({ method: 'GET', path: `${base}/${String(upload.data.id)}` });
-    expect(download.data).toMatchObject({ base64: Buffer.from('hola MCP').toString('base64') });
+    expect(upload.data).toMatchObject({ source: 'mcp', byte_size: 8 });
+    const listed = await writerCall({ method: 'GET', path: base });
+    expect(listed.data).toMatchObject({
+      items: [{ id: upload.data.id, source: 'mcp', drive_state: 'ok' }],
+    });
+    await google.close();
+    delete process.env.GOOGLE_CLIENT_ID;
+    delete process.env.GOOGLE_CLIENT_SECRET;
   } finally {
     await db.activityLog.deleteMany({ where: { ownerId: owner.id } });
     await db.outboxEvent.deleteMany({ where: { ownerId: owner.id } });
     await db.attachment.deleteMany({ where: { ownerId: owner.id } });
+    await db.driveFolder.deleteMany({ where: { userId: owner.id } });
     await db.task.deleteMany({ where: { ownerId: owner.id } });
     await db.project.deleteMany({ where: { ownerId: owner.id } });
     await db.personalAccessToken.deleteMany({ where: { ownerId: owner.id } });

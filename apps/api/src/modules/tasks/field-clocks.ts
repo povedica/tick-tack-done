@@ -3,6 +3,7 @@ import type { Prisma } from '@prisma/client';
 import type { UpdateTaskDto } from './tasks.dto.js';
 
 const WATCHED = [
+  'parent_id',
   'title',
   'content',
   'kind',
@@ -71,6 +72,7 @@ export function selectPatch(
 
 function omitSkipped(dto: UpdateTaskDto, skipped: readonly string[]): UpdateTaskDto {
   const {
+    parent_id,
     title,
     content,
     kind,
@@ -91,6 +93,7 @@ function omitSkipped(dto: UpdateTaskDto, skipped: readonly string[]): UpdateTask
   } = dto;
   return {
     ...rest,
+    ...(keep(skipped, 'parent_id', parent_id) ? { parent_id } : {}),
     ...(keep(skipped, 'title', title) ? { title } : {}),
     ...(keep(skipped, 'content', content) ? { content } : {}),
     ...(keep(skipped, 'kind', kind) ? { kind } : {}),

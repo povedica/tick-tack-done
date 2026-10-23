@@ -1,3 +1,4 @@
+import { API_VERSION } from './build-info.js';
 import { randomUUID } from 'node:crypto';
 import { type INestApplication, RequestMethod, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule, type OpenAPIObject } from '@nestjs/swagger';
@@ -60,7 +61,7 @@ export function createOpenApiDocument(app: INestApplication): OpenAPIObject {
   const config = new DocumentBuilder()
     .setTitle('Reflexionia Tasks API')
     .setDescription('Public API for Reflexionia Tasks.')
-    .setVersion('1.0')
+    .setVersion(API_VERSION)
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'PAT' }, 'bearer')
     .build();
   const document = SwaggerModule.createDocument(app, config);

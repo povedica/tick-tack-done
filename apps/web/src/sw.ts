@@ -1,3 +1,4 @@
+import { createApiClient } from '@reflexionia/sdk';
 import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
 import { shareTargetRedirect } from './features/capture/share-target';
 
@@ -48,3 +49,73 @@ function field(form: FormData, name: string): string {
 }
 
 void scope.skipWaiting();
+
+interface PushScope {
+  registration: {
+    showNotification(
+      title: string,
+      options: {
+        body: string;
+        data?: unknown;
+        actions?: readonly { action: string; title: string }[];
+      },
+    ): Promise<void>;
+  };
+  clients: { openWindow(url: string): Promise<unknown> };
+  addEventListener(
+    type: 'push',
+    listener: (event: {
+      data: { json(): unknown } | null;
+      waitUntil(promise: Promise<unknown>): void;
+    }) => void,
+  ): void;
+  addEventListener(
+    type: 'notificationclick',
+    listener: (event: {
+      action: string;
+      notification: { data: unknown; close(): void };
+      waitUntil(promise: Promise<unknown>): void;
+    }) => void,
+  ): void;
+}
+const notifications = self as unknown as PushScope;
+notifications.addEventListener('push', (event) => {
+  const payload = record(event.data?.json());
+  const actions = Array.isArray(payload.actions)
+    ? payload.actions.flatMap((value) => {
+        const item = record(value);
+        return typeof item.action === 'string' && typeof item.title === 'string'
+          ? [{ action: item.action, title: item.title }]
+          : [];
+      })
+    : [];
+  event.waitUntil(
+    notifications.registration.showNotification(
+      typeof payload.title === 'string' ? payload.title : 'tick-tack-done',
+      { body: typeof payload.body === 'string' ? payload.body : '', data: payload.data, actions },
+    ),
+  );
+});
+notifications.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const data = record(event.notification.data);
+  const action =
+    event.action === 'complete' ? 'complete' : event.action === 'snooze' ? 'snooze' : 'open';
+  if (typeof data.delivery_id !== 'string' || typeof data.token !== 'string') return;
+  const client = createApiClient({ baseUrl: '', credentials: 'include' });
+  event.waitUntil(
+    client.notificationAction(data.delivery_id, { token: data.token, action }).then((result) => {
+      if (
+        action === 'open' &&
+        typeof result.url === 'string' &&
+        result.url.startsWith('/') &&
+        !result.url.startsWith('//')
+      )
+        return notifications.clients.openWindow(result.url);
+      return undefined;
+    }),
+  );
+});
+function record(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+}

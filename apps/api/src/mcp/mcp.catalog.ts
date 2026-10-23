@@ -99,7 +99,7 @@ const repeatFromSchema = {
  * every scope it declares (RF-2001). Listings that return next_cursor accept
  * the same cursor string as API v1.
  */
-export const MCP_TOOLS: readonly McpTool[] = [
+const CATALOG: readonly McpTool[] = [
   {
     name: 'api_catalog',
     description:
@@ -109,7 +109,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
       search: { type: 'string' },
       details: { type: 'boolean' },
       limit,
-      cursor: { type: 'integer', minimum: 0 },
+      cursor,
     }),
   },
   {
@@ -145,15 +145,22 @@ export const MCP_TOOLS: readonly McpTool[] = [
   {
     name: 'list_tasks',
     description:
-      'List tasks. Default status is active. Pass status=completed|cancelled|archived|all to include others. Optional filters: tag_id, priority, from/to (due_date bounds as ISO). someday=true lists Someday; the default excludes them. Workflow columns (pending/in progress) are list board columns via column_id (TTD-AUD-53).',
+      'List tasks. Default status is active. Pass status=completed|cancelled|archived|all to include others. Optional filters: tag_id, priority, from/to ([from,to), inclusive start and exclusive end in the user time zone); range_field=due|start|any (default any, including overlapping intervals). someday=true lists Someday; the default excludes them. Workflow columns (pending/in progress) are list board columns via column_id (TTD-AUD-53).',
     scopes: ['tasks:read'],
     inputSchema: objectSchema({
       limit,
       cursor,
       project_id: id,
       tag_id: id,
-      from: { type: 'string', description: 'Lower bound for due_date (ISO 8601).' },
-      to: { type: 'string', description: 'Upper bound for due_date (ISO 8601).' },
+      from: {
+        type: 'string',
+        description: 'Inclusive lower bound. Civil dates use the user time zone.',
+      },
+      range_field: { type: 'string', enum: ['due', 'start', 'any'] },
+      to: {
+        type: 'string',
+        description: 'Exclusive upper bound. Civil dates use the user time zone.',
+      },
       priority: { type: 'string', enum: ['none', 'low', 'medium', 'high'] },
       someday: { type: 'boolean' },
       status: {
@@ -252,6 +259,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     inputSchema: objectSchema(
       {
         id,
+        complete_children: { type: 'string', enum: ['complete', 'leave'] },
         advance: {
           type: 'string',
           enum: ['one_period', 'next_future'],
@@ -269,13 +277,14 @@ export const MCP_TOOLS: readonly McpTool[] = [
   {
     name: 'reopen_task',
     description:
-      'Reopen a completed task (API uncomplete). Workflow columns are separate from status — use column_id when available (TTD-AUD-53).',
+      'Reopen a completed or cancelled task (409 not_reopenable if already active). Workflow columns are separate from status — use column_id when available (TTD-AUD-53).',
     scopes: ['tasks:write'],
     inputSchema: objectSchema({ id }, ['id']),
   },
   {
     name: 'cancel_task',
-    description: 'Cancel a task (status=cancelled). Soft-delete uses delete_task instead.',
+    description:
+      'Cancel a task (status=cancelled; hidden from lists, kept in history). Undo with reopen_task. Soft-delete is delete_task; restore with restore_task.',
     scopes: ['tasks:write'],
     inputSchema: objectSchema({ id }, ['id']),
   },
@@ -311,11 +320,57 @@ export const MCP_TOOLS: readonly McpTool[] = [
     ),
   },
   {
-    name: 'list_task_attachments',
-    description:
-      'List attachment metadata for a task (id, file_name, mime_type, byte_size). Binary upload/download stays on the REST API (TTD-AUD-51).',
+    name: 'list_task_links',
+    description: 'List automatic and manual task links, independent of Google Drive.',
     scopes: ['tasks:read'],
     inputSchema: objectSchema({ task_id: id }, ['task_id']),
+  },
+  {
+    name: 'add_task_link',
+    description:
+      'Add a manual http/https/mailto task link. Private URLs are stored without fetching; optional public HTML title only.',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema(
+      {
+        task_id: id,
+        url: { type: 'string', maxLength: 4096 },
+        title: { type: 'string', maxLength: 200 },
+      },
+      ['task_id', 'url'],
+    ),
+  },
+  {
+    name: 'remove_task_link',
+    description: 'Remove a link from its owning task.',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema({ task_id: id, link_id: id }, ['task_id', 'link_id']),
+  },
+  {
+    name: 'list_task_attachments',
+    description:
+      'List Drive metadata including web_view_link, icon_link, source and drive_state (ok/missing/unknown). Requires Google Drive connected for uploads; files go to the connected Google Drive account; ttd stores metadata only. REST multipart streams to Drive (25 MiB/file, 50/task); direct web uploads allow 100 MiB.',
+    scopes: ['tasks:read'],
+    inputSchema: objectSchema({ task_id: id }, ['task_id']),
+  },
+  {
+    name: 'link_drive_file',
+    description:
+      'Link an existing Google Picker-authorized file to a task without copying it. Requires Google Drive connected; ttd stores metadata only (50 attachments/task).',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema(
+      { task_id: id, drive_file_id: { type: 'string', pattern: '^[a-zA-Z0-9_-]{1,200}$' } },
+      ['task_id', 'drive_file_id'],
+    ),
+  },
+  {
+    name: 'remove_task_attachment',
+    description:
+      'Remove Drive attachment metadata. By default the file stays in Drive. trash_in_drive:true moves it to Drive trash first; an upstream failure preserves the attachment.',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema(
+      { task_id: id, attachment_id: id, trash_in_drive: { type: 'boolean', default: false } },
+      ['task_id', 'attachment_id'],
+    ),
   },
   {
     name: 'move_task',
@@ -376,7 +431,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
   {
     name: 'add_task_reminder',
     description:
-      'Add a reminder. Relative example: type=relative, trigger=TRIGGER:-PT15M (15 minutes before due). Absolute: type=absolute, trigger=TRIGGER, absolute_at=ISO datetime.',
+      'Add a reminder. Relative example: type=relative, trigger=-PT15M (TRIGGER:-PT15M is also accepted; stored canonically as -PT15M) (15 minutes before due). Absolute: type=absolute, trigger=TRIGGER, absolute_at=ISO datetime.',
     scopes: ['reminders:write'],
     inputSchema: objectSchema(
       {
@@ -416,6 +471,7 @@ export const MCP_TOOLS: readonly McpTool[] = [
     inputSchema: objectSchema(
       {
         id,
+        parent_id: { type: ['string', 'null'], format: 'uuid' },
         title: { type: 'string', minLength: 1, maxLength: 500 },
         content: { type: ['string', 'null'], maxLength: 100_000 },
         column_id: { type: ['string', 'null'], format: 'uuid' },
@@ -547,6 +603,13 @@ export const MCP_TOOLS: readonly McpTool[] = [
       },
       ['session_id', 'expected_revision', 'idempotency_key'],
     ),
+  },
+  {
+    name: 'discard_replan',
+    description:
+      'Discard an owned draft replan without changing tasks. Applied sessions cannot be discarded.',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema({ session_id: id }, ['session_id']),
   },
   {
     name: 'replan_day',
@@ -733,9 +796,66 @@ export const MCP_TOOLS: readonly McpTool[] = [
   },
   {
     name: 'start_focus',
-    description: 'Start a server-side focus session.',
+    description: 'Start an owned focus session linked to a task. Rejects another running session.',
     scopes: ['focus:write'],
-    inputSchema: objectSchema({ minutes: { type: 'integer', minimum: 1, maximum: 180 } }),
+    inputSchema: objectSchema({
+      task_id: id,
+      type: { type: 'string', enum: ['pomodoro', 'stopwatch'] },
+      minutes: { type: 'integer', minimum: 1, maximum: 180 },
+    }),
+  },
+  ...(['pause', 'resume', 'finish', 'abort'] as const).map((action) => ({
+    name: `${action}_focus`,
+    description: `${action.charAt(0).toUpperCase()}${action.slice(1)} the current owned focus session, or the supplied session id.`,
+    scopes: ['focus:write'],
+    inputSchema: objectSchema({
+      id,
+      ...(action === 'finish' ? { note: { type: 'string', maxLength: 2000 } } : {}),
+    }),
+  })),
+  {
+    name: 'get_notification_settings',
+    description:
+      'Read the owned notification matrix, channel availability and civil quiet hours. There is no MCP tool to change account notification preferences.',
+    scopes: ['profile:read'],
+    inputSchema: objectSchema({}, []),
+  },
+  {
+    name: 'send_test_notification',
+    description:
+      'Send a real test notification only to the authenticated owner through push, email or linked Telegram; reports precise channel errors.',
+    scopes: ['profile:read'],
+    inputSchema: objectSchema(
+      { channel: { type: 'string', enum: ['push', 'email', 'telegram'] } },
+      ['channel'],
+    ),
+  },
+  {
+    name: 'update_focus_settings',
+    description:
+      'Update owned Pomodoro settings, durations, auto-start, local sound, volume and daily goal.',
+    scopes: ['focus:write'],
+    inputSchema: objectSchema(
+      {
+        pomodoro_minutes: { type: 'integer', minimum: 5, maximum: 180, multipleOf: 5 },
+        short_break_minutes: { type: 'integer', minimum: 1, maximum: 60 },
+        long_break_minutes: { type: 'integer', minimum: 5, maximum: 90 },
+        cycles_before_long_break: { type: 'integer', minimum: 1, maximum: 12 },
+        auto_start_breaks: { type: 'boolean' },
+        auto_start_focus: { type: 'boolean' },
+        alarm_sound: { type: 'string', enum: ['none', 'bell', 'chime', 'digital'] },
+        volume: { type: 'integer', minimum: 0, maximum: 100 },
+        ambient_sound: { type: 'string', enum: ['none', 'tick', 'rain', 'white_noise'] },
+        daily_goal: { type: 'integer', minimum: 1, maximum: 20 },
+      },
+      [],
+    ),
+  },
+  {
+    name: 'get_focus_state',
+    description: 'Read the current owned session, focus settings and today totals.',
+    scopes: ['focus:write'],
+    inputSchema: objectSchema({}),
   },
   {
     name: 'review_daily',
@@ -809,6 +929,38 @@ export const MCP_TOOLS: readonly McpTool[] = [
     inputSchema: objectSchema({ id }, ['id']),
   },
 ];
+
+/** Every listing shares paging inputs; task activity defaults to a compact summary. */
+const ACTIVITY_TOOLS = new Set([
+  'get_task',
+  'create_task',
+  'update_task',
+  'quick_add',
+  'complete_task',
+  'reopen_task',
+  'cancel_task',
+  'restore_task',
+  'detach_occurrence',
+]);
+export const MCP_TOOLS: readonly McpTool[] = CATALOG.map((tool) => ({
+  ...tool,
+  inputSchema: {
+    ...tool.inputSchema,
+    properties: {
+      ...(tool.name.startsWith('list_') ? { limit, cursor } : {}),
+      ...(ACTIVITY_TOOLS.has(tool.name)
+        ? {
+            include_activity: {
+              type: 'string',
+              enum: ['summary', 'full'],
+              description: 'Default summary; full includes stored task snapshots.',
+            },
+          }
+        : {}),
+      ...tool.inputSchema.properties,
+    },
+  },
+}));
 
 export function findTool(name: string): McpTool | undefined {
   return MCP_TOOLS.find((tool) => tool.name === name);

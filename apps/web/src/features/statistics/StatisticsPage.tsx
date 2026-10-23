@@ -19,8 +19,10 @@ import {
   SlidersHorizontal,
   TrendingDown,
   TrendingUp,
+  Info,
 } from 'lucide-react';
 import { api } from '../../api';
+import { useMessages } from '../../i18n';
 import { collectProjects, collectTags } from '../tasks/collect';
 import { isIanaTimeZone } from '@reflexionia/domain';
 import { statsApi, createStatisticsFile, type StatsParams } from './api';
@@ -65,6 +67,7 @@ function keyboardOptions(event: KeyboardEvent<HTMLElement>) {
   buttons[next]?.click();
 }
 export function StatisticsPage() {
+  const messages = useMessages();
   const { t, day, number, duration } = useStatisticsText();
   const navigate = useNavigate();
   const { tab: tabParam } = useParams();
@@ -505,7 +508,7 @@ export function StatisticsPage() {
           {overview.data && tab === 'overview' ? (
             <dl className="stats-summary-facts">
               <div>
-                <dt>{t('completed')}</dt>
+                <dt>{messages.statsAllCompleted}</dt>
                 <dd>{number(num(record(overview.data.summary).completed))}</dd>
               </div>
               <div>
@@ -639,6 +642,8 @@ function Kpi({
   delta,
   points = false,
   onClick,
+  help,
+  compact = false,
 }: {
   readonly label: string;
   readonly value: string;
@@ -646,12 +651,23 @@ function Kpi({
   readonly delta?: number | null;
   readonly points?: boolean;
   readonly onClick?: () => void;
+  readonly help?: { label: string; text: string };
+  readonly compact?: boolean;
 }) {
   const { t, number } = useStatisticsText();
   const content = (
     <>
-      <p className="stats-kpi-label">{label}</p>
-      <p className="stats-kpi-value">{value}</p>
+      <p className="stats-kpi-label">
+        {label}{' '}
+        {help ? (
+          <span aria-label={help.label} title={help.text} className="stats-formula-help">
+            <Info aria-hidden="true" />
+          </span>
+        ) : null}
+      </p>
+      <p className="stats-kpi-value" data-compact={compact}>
+        {value}
+      </p>
       {hint ? <p className="stats-kpi-hint">{hint}</p> : null}
       {delta !== undefined && delta !== null ? (
         <p className={`stats-delta ${delta > 0 ? 'is-up' : delta < 0 ? 'is-down' : 'is-flat'}`}>
@@ -673,6 +689,7 @@ function Kpi({
   );
 }
 function Overview({ data, open }: { readonly data: Row; readonly open: (tab: Tab) => void }) {
+  const messages = useMessages();
   const { t, number, duration, countDays } = useStatisticsText();
   const s = record(data.summary);
   const achievement = record(s.achievement);
@@ -682,7 +699,7 @@ function Overview({ data, open }: { readonly data: Row; readonly open: (tab: Tab
     <div className="stats-body">
       <div className="stats-kpi-grid">
         <Kpi
-          label={t('completed')}
+          label={messages.statsAllCompleted}
           value={number(num(s.completed))}
           hint={`${t('previousValue')}: ${number(num(s.completed_previous))}`}
           delta={num(s.completed_previous) >= 5 ? nullable(s.completed_delta_percent) : null}
@@ -691,9 +708,17 @@ function Overview({ data, open }: { readonly data: Row; readonly open: (tab: Tab
           }}
         />
         <Kpi
-          label={t('rate')}
-          value={s.completion_rate === null ? '—' : `${number(num(s.completion_rate))} %`}
-          hint={`${number(num(s.completion_completed))}/${number(num(s.completion_planned))}`}
+          label={messages.statsPlanCompliance}
+          value={
+            s.completion_rate === null
+              ? '—'
+              : messages.statsPlanCount
+                  .replace('{completed}', number(num(s.completion_completed)))
+                  .replace('{planned}', number(num(s.completion_planned)))
+                  .replace('{rate}', number(Math.round(num(s.completion_rate))))
+          }
+          help={{ label: messages.statsCompletionHelpLabel, text: messages.statsCompletionHelp }}
+          compact
           delta={nullable(s.completion_rate_delta_pt)}
           points
           onClick={() => {

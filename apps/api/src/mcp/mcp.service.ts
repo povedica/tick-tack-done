@@ -1,3 +1,4 @@
+import { buildVersion } from '../build-info.js';
 import apiOperations from './api-operations.json' with { type: 'json' };
 import { requestPublicApi } from './mcp-api.js';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
@@ -5,11 +6,11 @@ import {
   buildRepeatRule,
   civilDateKey,
   describeRepeatRule,
-  firstAfter,
+  nextOccurrence,
+  listNameKey,
   HABIT_WEEKDAYS,
   parseMentions,
   parseQuickAdd,
-  parseRepeatRule,
   proposeDaily,
   type PlanDecisionKind,
   type RepeatDraft,
@@ -20,6 +21,8 @@ import { missingScopes } from '../auth/scopes.js';
 import { DomainEvent } from '../events/domain-events.js';
 import { EventRecorder } from '../events/event-recorder.js';
 import { asJson } from '../http/json.js';
+import { offsetOf, offsetCursor, offsetPage } from '../http/offset-page.js';
+import { projectConstraint } from '@reflexionia/domain';
 import { DomainException } from '../http/domain.exception.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { loadDashboardSnapshot } from '../reading/snapshot.js';
@@ -97,8 +100,14 @@ export class McpService {
         if (code === 'method_not_found') {
           return failure(id, -32601, 'Method not found');
         }
+        const response = error.getResponse();
+        const details = isRecord(response) && isRecord(response.details) ? response.details : {};
         if (body.method === 'tools/call') {
-          return { jsonrpc: '2.0', id, result: toolError(code, message) };
+          return {
+            jsonrpc: '2.0',
+            id,
+            result: toolError(code, message, { status: error.getStatus(), ...details }),
+          };
         }
         return failure(id, -32602, message.length > 0 ? `${code}: ${message}` : code);
       }
@@ -139,8 +148,8 @@ export class McpService {
       typeof requested === 'string' && PROTOCOLS.has(requested) ? requested : PROTOCOL;
     return {
       protocolVersion,
-      capabilities: { tools: { listChanged: false } },
-      serverInfo: { name: 'reflexionia-tasks', version: '0.1.0' },
+      capabilities: { tools: { listChanged: true } },
+      serverInfo: { name: 'reflexionia-tasks', version: buildVersion() },
       instructions:
         'Tools call the same API v1 operations as the REST API and cannot exceed the token scopes.',
     };
@@ -174,7 +183,7 @@ export class McpService {
           .toLowerCase()
           .includes(typeof args.search === 'string' ? args.search.toLowerCase() : ''),
       );
-      const start = typeof args.cursor === 'number' ? args.cursor : 0;
+      const start = offsetOf(args.cursor);
       const limit = typeof args.limit === 'number' ? args.limit : 50;
       data = {
         items: matches
@@ -185,14 +194,21 @@ export class McpService {
               : { method: operation.method, path: operation.path, summary: operation.summary },
           ),
         total: matches.length,
-        next_cursor: start + limit < matches.length ? start + limit : null,
+        next_cursor: start + limit < matches.length ? offsetCursor(start + limit) : null,
       };
     } else if (tool.name === 'api_request') data = await requestPublicApi(args, authorization);
-    else data = await this.run(user, tool.name, args);
+    else data = await this.run(user, tool.name, args, authorization);
+    if (tool.name.startsWith('list_')) data = listResult(data, args);
+    if (args.include_activity !== 'full') data = summarizeActivity(data, tool.name === 'get_task');
     return { content: [{ type: 'text', text: JSON.stringify(data) }], isError: false };
   }
 
-  private async run(user: AuthUser, name: string, args: Record<string, unknown>): Promise<unknown> {
+  private async run(
+    user: AuthUser,
+    name: string,
+    args: Record<string, unknown>,
+    authorization?: string,
+  ): Promise<unknown> {
     const limit = limitOf(args);
     switch (name) {
       case 'list_tasks': {
@@ -221,8 +237,10 @@ export class McpService {
           ...(projectId === undefined ? {} : { projectId }),
           ...(tagId === undefined ? {} : { tagId }),
           ...(priority === undefined ? {} : { priority }),
-          ...(dueAfter === undefined ? {} : { dueAfter }),
-          ...(dueBefore === undefined ? {} : { dueBefore }),
+          ...(dueAfter === undefined ? {} : { from: dueAfter }),
+          rangeField:
+            args.range_field === 'due' || args.range_field === 'start' ? args.range_field : 'any',
+          ...(dueBefore === undefined ? {} : { to: dueBefore }),
           status,
           includeDescendants: true,
           flat: false,
@@ -271,15 +289,26 @@ export class McpService {
         const tagIds = await this.resolveCreateTags(user, args);
         const title = requiredString(args, 'title', 500);
         const parse = args.parse === true;
+        const parsed = parse
+          ? parseQuickAdd(title, 'es', {
+              now: new Date().toISOString(),
+              timeZone: user.timeZone,
+            })
+          : null;
+        const resolution =
+          args.project_id === undefined && parsed?.listName
+            ? await this.parsedList(user, parsed.listName)
+            : null;
+        const projectId = resolution?.id ?? (await this.projectId(user, args));
         const parentId = uuidOrEmpty(args.parent_id);
         const columnId = uuidOrEmpty(args.column_id);
-        return enrichTask(
+        const created = enrichTask(
           (
             await this.tasks.create(
               user,
               {
                 ...(parse ? { raw_text: title } : { title }),
-                project_id: await this.projectId(user, args),
+                project_id: projectId,
                 ...(typeof args.content === 'string' ? { content: args.content } : {}),
                 ...(tagIds === undefined ? {} : { tag_ids: tagIds }),
                 ...(parentId === undefined ? {} : { parent_id: parentId }),
@@ -288,10 +317,13 @@ export class McpService {
                 ...recurrence,
               },
               undefined,
-              'api',
+              'mcp',
             )
           ).body,
         );
+        return resolution?.warning
+          ? { ...created, warnings: [...(created.warnings ?? []), resolution.warning] }
+          : created;
       }
       case 'quick_add': {
         return enrichTask(
@@ -305,7 +337,7 @@ export class McpService {
                   : { project_id: await this.projectId(user, args) }),
               },
               undefined,
-              'api',
+              'mcp',
             )
           ).body,
         );
@@ -322,6 +354,9 @@ export class McpService {
             {
               advance,
               materialize_next: args.materialize_next === true,
+              ...(args.complete_children === 'complete' || args.complete_children === 'leave'
+                ? { complete_children: args.complete_children }
+                : {}),
             },
             undefined,
           )
@@ -329,21 +364,21 @@ export class McpService {
         return enrichTask(body);
       }
       case 'reopen_task':
-        return enrichTask(await this.tasks.uncomplete(user, requiredUuid(args, 'id')));
+        return enrichTask(await this.tasks.uncomplete(user, requiredUuid(args, 'id'), 'mcp'));
       case 'cancel_task':
         return enrichTask(await this.tasks.cancel(user, requiredUuid(args, 'id')));
       case 'delete_task':
         await this.tasks.remove(user, requiredUuid(args, 'id'));
         return { deleted: true, trashed: true };
       case 'restore_task':
-        return enrichTask(await this.tasks.restore(user, requiredUuid(args, 'id')));
+        return enrichTask(await this.tasks.restore(user, requiredUuid(args, 'id'), 'mcp'));
       case 'list_task_comments': {
         const taskId = requiredUuid(args, 'task_id');
         await this.tasks.get(user, taskId);
         const rows = await this.prisma.comment.findMany({
           where: { taskId, deletedAt: null },
-          orderBy: { createdAt: 'asc' },
-          take: limit,
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+          take: offsetOf(args.cursor) + limit + 1,
         });
         return {
           items: rows.map((row) => ({
@@ -385,6 +420,35 @@ export class McpService {
           task_id: task.id,
         };
       }
+      case 'link_drive_file':
+        return this.tasks.linkDriveFile(
+          user,
+          requiredUuid(args, 'task_id'),
+          requiredString(args, 'drive_file_id', 200),
+          'mcp',
+        );
+      case 'remove_task_attachment':
+        await this.tasks.deleteAttachment(
+          user,
+          requiredUuid(args, 'task_id'),
+          requiredUuid(args, 'attachment_id'),
+          args.trash_in_drive === true,
+        );
+        return { removed: true };
+      case 'list_task_links':
+        return this.tasks.listLinks(user, requiredUuid(args, 'task_id'));
+      case 'add_task_link':
+        return this.tasks.addLink(user, requiredUuid(args, 'task_id'), {
+          url: requiredString(args, 'url', 4096),
+          ...(typeof args.title === 'string' ? { title: requiredString(args, 'title', 200) } : {}),
+        });
+      case 'remove_task_link':
+        await this.tasks.removeLink(
+          user,
+          requiredUuid(args, 'task_id'),
+          requiredUuid(args, 'link_id'),
+        );
+        return { removed: true };
       case 'list_task_attachments':
         return {
           items: await this.tasks.listAttachments(user, requiredUuid(args, 'task_id')),
@@ -508,11 +572,18 @@ export class McpService {
         let tagIds = await this.resolveUpdateTags(user, args, existing.tag_ids);
         let title = typeof args.title === 'string' ? requiredString(args, 'title', 500) : undefined;
         let parsedSchedule = schedule;
+        let listWarning: { code: 'list_not_found'; name: string } | null = null;
         if (args.parse === true && title !== undefined) {
           const parsed = parseQuickAdd(title, 'es', {
             now: new Date().toISOString(),
             timeZone: existing.time_zone,
           });
+          if (parsed.listName) {
+            const resolved = await this.parsedList(user, parsed.listName);
+            listWarning = resolved.warning;
+            if (resolved.id !== null && resolved.id !== existing.project_id)
+              await this.tasks.move(user, id, { project_id: resolved.id });
+          }
           title = parsed.title.length > 0 ? parsed.title : title;
           if (tagIds === undefined && parsed.tagNames.length > 0) {
             tagIds = await this.ensureTagNames(user, parsed.tagNames);
@@ -533,21 +604,31 @@ export class McpService {
               : {}),
           };
         }
+        const parentId = args.parent_id === null ? null : uuidOrEmpty(args.parent_id);
         const columnId = args.column_id === null ? null : uuidOrEmpty(args.column_id);
-        return enrichTask(
-          await this.tasks.update(user, id, {
-            ...(title === undefined ? {} : { title }),
-            ...(args.content === null
-              ? { content: '' }
-              : typeof args.content === 'string'
-                ? { content: args.content }
-                : {}),
-            ...(tagIds === undefined ? {} : { tag_ids: tagIds }),
-            ...(columnId === undefined ? {} : { column_id: columnId }),
-            ...parsedSchedule,
-            ...recurrence,
-          }),
+        const updated = enrichTask(
+          await this.tasks.update(
+            user,
+            id,
+            {
+              ...(parentId === undefined ? {} : { parent_id: parentId }),
+              ...(title === undefined ? {} : { title }),
+              ...(args.content === null
+                ? { content: '' }
+                : typeof args.content === 'string'
+                  ? { content: args.content }
+                  : {}),
+              ...(tagIds === undefined ? {} : { tag_ids: tagIds }),
+              ...(columnId === undefined ? {} : { column_id: columnId }),
+              ...parsedSchedule,
+              ...recurrence,
+            },
+            'mcp',
+          ),
         );
+        return listWarning
+          ? { ...updated, warnings: [...(updated.warnings ?? []), listWarning] }
+          : updated;
       }
       case 'get_task_occurrences':
         return this.tasks.occurrences(
@@ -563,6 +644,7 @@ export class McpService {
             requiredUuid(args, 'id'),
             requiredString(args, 'due_date', 40),
             typeof args.title === 'string' ? requiredString(args, 'title', 500) : undefined,
+            'mcp',
           ),
         );
       case 'get_day_load':
@@ -593,6 +675,8 @@ export class McpService {
           revisionOf(args),
           requiredString(args, 'idempotency_key', 200),
         );
+      case 'discard_replan':
+        return this.closing.discardReplan(user, requiredUuid(args, 'session_id'));
       case 'replan_day':
         return this.closing.replanTool(
           user,
@@ -729,24 +813,23 @@ export class McpService {
       case 'unarchive_countdown':
         return this.countdowns.archive(user, requiredUuid(args, 'id'), false);
       case 'search': {
-        const result = await this.search.search(user, requiredString(args, 'q', 200), undefined);
-        return {
-          text: result.text,
-          list: result.list,
-          tags: result.tags,
-          priority: result.priority,
-          done: result.done,
-          groups: result.groups.map((group) => ({
-            type: group.type,
-            items: group.items.slice(0, limit),
-          })),
-        };
+        const cursor = cursorOf(args);
+        return this.search.search(user, requiredString(args, 'q', 200), undefined, {
+          limit,
+          ...(cursor === undefined ? {} : { cursor }),
+        });
       }
       case 'list_notes':
         return this.prisma.task.findMany({
-          where: { ownerId: user.id, kind: 'note', deletedAt: null },
+          where: {
+            ownerId: user.id,
+            kind: 'note',
+            deletedAt: null,
+            ...projectConstraint(user.listIds),
+          },
           select: { id: true, title: true, content: true, projectId: true },
-          take: limit,
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: offsetOf(args.cursor) + limit + 1,
         });
       case 'pin_sticky_note':
         return this.prisma.$transaction(async (tx) => {
@@ -765,27 +848,64 @@ export class McpService {
         });
       case 'dashboard_snapshot':
         return loadDashboardSnapshot(this.prisma, user.id, new Date(), user.timeZone);
-      case 'start_focus': {
-        const minutes = typeof args.minutes === 'number' ? args.minutes : 25;
-        return this.prisma.$transaction(async (tx) => {
-          const created = await tx.focusSession.create({
-            data: {
-              ownerId: user.id,
-              type: 'focus',
-              plannedMinutes: minutes,
-              startedAt: new Date(),
+      case 'start_focus':
+        return this.focusApi(
+          {
+            method: 'POST',
+            path: '/api/v1/focus/sessions',
+            body: {
+              ...(typeof args.task_id === 'string' ? { task_id: args.task_id } : {}),
+              type: args.type === 'stopwatch' ? 'stopwatch' : 'focus',
+              ...(typeof args.minutes === 'number' ? { planned_minutes: args.minutes } : {}),
             },
-          });
-          await this.events.record(tx, actorOf(user), {
-            type: DomainEvent.focusSessionStarted,
-            entityType: 'focus_session',
-            entityId: created.id,
-            action: 'created',
-            data: asJson({ planned_minutes: minutes }),
-            previous: null,
-          });
-          return { id: created.id, planned_minutes: minutes };
-        });
+          },
+          authorization,
+        );
+      case 'get_notification_settings':
+        return this.focusApi(
+          { method: 'GET', path: '/api/v1/me/notifications/settings' },
+          authorization,
+        );
+      case 'send_test_notification':
+        return this.focusApi(
+          {
+            method: 'POST',
+            path: '/api/v1/me/notifications/test',
+            body: { channel: args.channel },
+          },
+          authorization,
+        );
+      case 'update_focus_settings':
+        return this.focusApi(
+          { method: 'PUT', path: '/api/v1/focus/settings', body: args },
+          authorization,
+        );
+      case 'get_focus_state':
+        return this.focusApi({ method: 'GET', path: '/api/v1/focus/state' }, authorization);
+      case 'pause_focus':
+      case 'resume_focus':
+      case 'finish_focus':
+      case 'abort_focus': {
+        const state =
+          args.id === undefined
+            ? await this.focusApi({ method: 'GET', path: '/api/v1/focus/state' }, authorization)
+            : null;
+        const session = isRecord(state) && isRecord(state.session) ? state.session : null;
+        const id = typeof args.id === 'string' ? args.id : session?.id;
+        if (typeof id !== 'string')
+          throw new DomainException(
+            HttpStatus.CONFLICT,
+            'focus_not_running',
+            'No focus session is running',
+          );
+        return this.focusApi(
+          {
+            method: 'POST',
+            path: `/api/v1/focus/sessions/${id}/${name.replace('_focus', '')}`,
+            ...(typeof args.note === 'string' ? { body: { note: args.note } } : {}),
+          },
+          authorization,
+        );
       }
       case 'review_daily': {
         const tasks = await this.prisma.task.findMany({
@@ -883,6 +1003,25 @@ export class McpService {
       default:
         throw new DomainException(HttpStatus.BAD_REQUEST, 'unknown_tool', 'Unknown tool');
     }
+  }
+
+  private async focusApi(args: Record<string, unknown>, authorization?: string): Promise<unknown> {
+    const response = await requestPublicApi(args, authorization);
+    return isRecord(response) ? response.data : response;
+  }
+
+  private async parsedList(
+    user: AuthUser,
+    name: string,
+  ): Promise<{ id: string | null; warning: { code: 'list_not_found'; name: string } | null }> {
+    let cursor: string | undefined;
+    do {
+      const page = await this.lists.listProjects(user, 100, cursor, true);
+      const found = page.items.find((project) => listNameKey(project.name) === listNameKey(name));
+      if (found) return { id: found.id, warning: null };
+      cursor = page.next_cursor ?? undefined;
+    } while (cursor !== undefined);
+    return { id: null, warning: { code: 'list_not_found', name } };
   }
 
   private async projectId(user: AuthUser, args: Record<string, unknown>): Promise<string> {
@@ -1022,30 +1161,115 @@ function exceptionMessage(error: DomainException): string {
 function toolError(
   code: string,
   message?: string,
-): { content: { type: 'text'; text: string }[]; isError: true } {
+  data?: Record<string, unknown>,
+): { content: { type: 'text'; text: string }[]; isError: true; data?: Record<string, unknown> } {
   const text =
     message !== undefined && message.length > 0 && message !== code ? `${code}: ${message}` : code;
-  return { content: [{ type: 'text', text }], isError: true };
+  return {
+    content: [{ type: 'text', text }],
+    isError: true,
+    ...(data === undefined ? {} : { data }),
+  };
 }
 
-function enrichTask<T extends { repeat_rule?: string | null; time_zone?: string }>(
-  task: T,
-): T & { repeat_label?: string | null; next_occurrence?: string | null } {
-  const rule = typeof task.repeat_rule === 'string' ? task.repeat_rule : null;
-  if (rule === null || rule.length === 0) {
-    return task;
-  }
-  const label = describeRepeatRule(rule);
-  const parsed = parseRepeatRule(rule);
-  const zone = typeof task.time_zone === 'string' ? task.time_zone : 'UTC';
-  let next: string | null = null;
-  if (parsed.ok) {
-    next = firstAfter(parsed.rule, zone, new Date().toISOString());
-  }
+/** Normalize legacy unpaged collections while preserving API keyset cursors and groups. */
+function summarizeActivity(value: unknown, includeActor: boolean): unknown {
+  if (!isRecord(value) || !Array.isArray(value.activity)) return value;
+  const activity = collection(value.activity)
+    .filter(isRecord)
+    .map((entry) => {
+      const changes = isRecord(entry.changes) ? entry.changes : {};
+      const payload = isRecord(changes.data) ? changes.data : changes;
+      const task = isRecord(payload.task) ? payload.task : {};
+      const previous = isRecord(changes.previous) ? changes.previous : {};
+      const keys = Object.keys(previous).length
+        ? Object.keys(previous)
+        : ['title', 'content', 'status', 'priority', 'due_date', 'start_date', 'repeat_rule'];
+      const type =
+        typeof changes._event_type === 'string'
+          ? changes._event_type.replace(/@v[0-9]+$/, '')
+          : payload.detached === true
+            ? 'occurrence.detached'
+            : `task.${typeof entry.action === 'string' ? entry.action : 'updated'}`;
+      const source =
+        typeof payload.source === 'string'
+          ? payload.source
+          : typeof task.source === 'string'
+            ? task.source
+            : entry.actor_kind === 'user'
+              ? 'web'
+              : 'api';
+      return {
+        at: entry.created_at ?? null,
+        type,
+        source,
+        changed: keys.filter(
+          (key) =>
+            key !== 'updated_at' && JSON.stringify(previous[key]) !== JSON.stringify(task[key]),
+        ),
+        ...(includeActor
+          ? {
+              actor: {
+                id: entry.token_id ?? entry.actor_id ?? null,
+                kind: entry.actor_kind ?? 'user',
+                ...(entry.token_name ? { name: entry.token_name } : {}),
+              },
+            }
+          : {}),
+      };
+    });
+  return { ...value, activity };
+}
+
+function collection(value: unknown): unknown[] {
+  return Array.isArray(value) ? (value as unknown[]) : [];
+}
+function listResult(value: unknown, args: Record<string, unknown>): unknown {
+  const row = isRecord(value) ? value : {};
+  const groups = collection(row.groups).filter(isRecord);
+  const items = Array.isArray(value)
+    ? collection(value)
+    : Array.isArray(row.items)
+      ? collection(row.items)
+      : groups.length
+        ? groups.flatMap((group) => collection(group.tasks))
+        : [...collection(row.tasks), ...collection(row.external)];
+  if ('next_cursor' in row) return { ...row, items };
+  return { ...row, ...offsetPage(items, offsetOf(args.cursor), limitOf(args)) };
+}
+
+function enrichTask<
+  T extends {
+    repeat_rule?: string | null;
+    time_zone?: string;
+    due_date?: string | null;
+    start_date?: string | null;
+    completed_at?: string | null;
+    repeat_from?: string;
+    is_all_day?: boolean;
+    series?: { next_due_date: string | null };
+  },
+>(task: T): T & { repeat_label?: string | null; next_occurrence?: string | null } {
+  const rule = task.repeat_rule;
+  if (typeof rule !== 'string' || rule.length === 0) return task;
+  const next = nextOccurrence({
+    repeatRule: rule,
+    repeatFrom: task.repeat_from === 'completion_date' ? 'completion_date' : 'due_date',
+    dueDate: task.due_date ?? null,
+    startDate: task.start_date ?? null,
+    completedAt: task.completed_at ?? null,
+    timeZone: task.time_zone ?? 'UTC',
+    isAllDay: task.is_all_day ?? false,
+    occurrenceIndex: null,
+  });
   return {
     ...task,
-    repeat_label: label,
-    next_occurrence: next,
+    repeat_label: describeRepeatRule(rule),
+    next_occurrence: task.series
+      ? task.series.next_due_date
+      : next.ok
+        ? (next.occurrence?.dueDate ?? null)
+        : null,
   };
 }
 

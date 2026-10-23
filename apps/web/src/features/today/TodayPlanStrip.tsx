@@ -2,6 +2,8 @@ import { CalendarCheck, TriangleAlert } from 'lucide-react';
 import { Link } from 'react-router';
 import { useDayPlanStatus } from '../planning/DayPlanEntry';
 import { useMessages } from '../../i18n';
+import { useAppLocale } from '../../i18n/locale';
+import { pluralMessage } from '../../i18n/plural';
 
 export interface DayLoadBody {
   readonly task_minutes: number;
@@ -20,6 +22,7 @@ export function TodayPlanStrip({
   readonly showLoad: boolean;
 }) {
   const m = useMessages();
+  const locale = useAppLocale();
   const status = useDayPlanStatus();
   const saved = status.data?.initial_applied_at != null;
   const hasLoad = showLoad && load !== undefined && Number.isFinite(load.task_minutes);
@@ -42,7 +45,10 @@ export function TodayPlanStrip({
       {hasLoad && load.unestimated_count > 0 ? (
         <span className="today-plan-warning">
           <TriangleAlert size={14} aria-hidden="true" />
-          {m.todayUnestimated.replace('{count}', String(load.unestimated_count))}
+          {pluralMessage(locale, load.unestimated_count, {
+            one: m.todayUnestimated_one,
+            other: m.todayUnestimated_other,
+          })}
         </span>
       ) : null}
       {saved && status.data?.last_applied_at ? (

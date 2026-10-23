@@ -35,6 +35,7 @@ export function toTodayTask(task: Task): TodayTask {
     hasContent: task.content.trim().length > 0,
     hasRepeat: task.repeat_rule !== null,
     attachmentCount: 0,
+    linkCount: task.link_count ?? 0,
     source: task.source,
     status: task.status,
     projectId: task.project_id,

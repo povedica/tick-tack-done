@@ -8,7 +8,7 @@ alwaysApply: false
 - El esquema vive en `apps/api/prisma/schema.prisma` y sigue la sección 5 de la spec: nombres de campos, enums, índices ((project_id, status, sort_order), parcial sobre due_date activas, GIN de tags, FTS de título+contenido).
 - Toda entidad: `id uuid`, `created_at`, `updated_at`, `deleted_at` (soft delete) salvo indicación contraria. Toda entidad cuelga de un owner (multiusuario, D5).
 - Migraciones SOLO con `pnpm db:migrate` (Prisma Migrate). Nunca `db push` contra datos reales. Nunca editar una migración ya aplicada; crea una nueva.
-- Toda migración debe ser reversible: escribe y verifica el `down` (o documenta por qué no lo es). Ver `docs/migrations.md`.
+- Toda migración debe ser reversible: escribe y verifica el `down` (o documenta por qué no lo es). Ver [documentación histórica](https://github.com/povedica/tick-tack-done/blob/340f34be17477ecab681ddc3dbfd790c9346a0ba/docs/migrations.md).
 - Nombres de migración en inglés, descriptivos: `add_habit_goal_jsonb`, no `update2`.
 - Datos semilla en `apps/api/prisma/seed.ts` (ejecuta con `pnpm db:seed`): usuario demo, inbox de sistema, listas/etiquetas/hábitos de ejemplo. Idempotente.
 - Cambios destructivos (drop/rename) en dos pasos: expand (añade lo nuevo) → migrar datos → contract (quita lo viejo), en PRs separados.

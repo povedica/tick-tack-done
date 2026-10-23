@@ -1,3 +1,4 @@
+import { McpRevision } from './mcp-revision.js';
 import { Module } from '@nestjs/common';
 import { FiltersModule } from '../modules/filters/filters.module.js';
 import { CountdownsModule } from '../modules/countdowns/countdowns.module.js';
@@ -24,7 +25,7 @@ import { McpService } from './mcp.service.js';
     CalendarModule,
   ],
   controllers: [McpController],
-  providers: [McpService],
+  providers: [McpService, McpRevision],
 })
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class -- Nest module is decorator-only
 export class McpModule {}

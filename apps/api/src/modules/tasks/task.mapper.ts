@@ -25,11 +25,12 @@ export interface TaskRow {
   assigneeId: string | null;
   createdById: string;
   completedAt: Date | null;
-  source: 'manual' | 'import' | 'api' | 'automation' | 'plugin';
+  source: 'manual' | 'import' | 'api' | 'mcp' | 'automation' | 'plugin';
   version: number;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
+  _count?: { links: number };
   tags?: readonly { tagId: string }[];
 }
 
@@ -46,6 +47,7 @@ export interface ChecklistRow {
 }
 
 export interface TaskSummaryJson {
+  link_count: number;
   id: string;
   project_id: string;
   parent_id: string | null;
@@ -97,6 +99,7 @@ export function toTaskSummary(
 ): TaskSummaryJson {
   return {
     id: row.id,
+    link_count: row._count?.links ?? 0,
     project_id: row.projectId,
     parent_id: row.parentId,
     column_id: row.columnId,

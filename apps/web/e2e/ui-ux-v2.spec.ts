@@ -1391,7 +1391,7 @@ for (const width of [1440, 390]) {
         true,
       );
       await page.screenshot({
-        path: `../../docs/reviews/assets/task-detail-2026-10-21/${width}-${theme}.png`,
+        path: `../../test-artifacts/reviews/assets/task-detail-2026-10-21/${width}-${theme}.png`,
       });
     });
   }

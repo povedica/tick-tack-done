@@ -1,6 +1,5 @@
 import { messagesFor, fill, type Messages } from '../../i18n';
 import {
-  AlarmClock,
   Calendar,
   ChevronDown,
   FileText,
@@ -9,6 +8,7 @@ import {
   MoreHorizontal,
   Plus,
   Paperclip,
+  Link as LinkIcon,
   Pin,
   Repeat,
 } from 'lucide-react';
@@ -18,6 +18,7 @@ import { TagChip } from '../../components/ui';
 import { displayTitle } from '../tasks/displayTitle';
 import { dragHasTask, setTaskDrag, taskDragId } from './drag';
 import { calendarDay, taskWhen, type TaskGroupKey, type TodayTask } from './groups';
+import { CompactTaskTime } from './CompactTaskTime';
 
 export function TaskGroup({
   id,
@@ -258,6 +259,11 @@ export function TaskGroup({
                   {task.hasRepeat ? (
                     <Repeat className="task-icon" size={14} aria-hidden="true" />
                   ) : null}
+                  {(task.linkCount ?? 0) > 0 ? (
+                    <span className="task-link-count">
+                      <LinkIcon size={12} aria-hidden="true" /> {task.linkCount}
+                    </span>
+                  ) : null}
                   {task.attachmentCount > 0 ? (
                     <Paperclip className="task-icon" size={14} aria-hidden="true" />
                   ) : null}
@@ -287,10 +293,11 @@ export function TaskGroup({
                     </span>
                   ) : null}
                   {when.time !== null ? (
-                    <time className="task-time" dateTime={task.dueDate ?? undefined}>
-                      {when.time}
-                      {task.hasReminder ? <AlarmClock size={12} aria-hidden="true" /> : null}
-                    </time>
+                    <CompactTaskTime
+                      value={when.time}
+                      date={task.dueDate}
+                      reminder={task.hasReminder}
+                    />
                   ) : null}
                 </span>
                 <button

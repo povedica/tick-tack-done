@@ -15,6 +15,9 @@ import { displayTitle } from '../tasks/displayTitle';
 import { taskQueryHref } from '../../shell/use-open-task';
 import './weekly.css';
 import { useWeeklyCopy } from './weekly-text';
+import { useMessages } from '../../i18n';
+import { statsApi } from '../statistics/api';
+import { reportDays } from './report-days';
 
 type Row = Record<string, unknown>;
 const row = (v: unknown): Row => (typeof v === 'object' && v !== null ? (v as Row) : {});
@@ -26,6 +29,12 @@ const formatDate = (date: string, locale: string) =>
   new Date(`${date}T12:00:00Z`).toLocaleDateString(locale, { day: 'numeric', month: 'short' });
 
 export function ReportsPage() {
+  const messages = useMessages();
+  const me = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
+  const timeZone = me.data?.time_zone ?? zone;
+  const today = calendarDay(new Date().toISOString(), timeZone);
+  const weekday = new Date(`${today}T12:00:00Z`).getUTCDay();
+  const currentWeek = shiftDayKey(today, -(weekday === 0 ? 6 : weekday - 1));
   const copy = useWeeklyCopy();
   const dateLabel = (date: string) => formatDate(date, copy.locale);
   const { week } = useParams();
@@ -34,7 +43,8 @@ export function ReportsPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const rows = list(row(query.data).items);
-  const listed = week === undefined ? rows[0] : rows.find((r) => r.week === week);
+  const selectedWeek = week ?? currentWeek;
+  const listed = rows.find((r) => r.week === selectedWeek);
   const missing = (error: unknown) => error instanceof ApiError && error.status === 404;
   const detail = useQuery({
     queryKey: ['weekly-report', week],
@@ -42,13 +52,25 @@ export function ReportsPage() {
     enabled: query.isSuccess && week !== undefined && listed === undefined,
     retry: (count, error) => !missing(error) && count < 2,
   });
-  const current = listed ?? (detail.isSuccess ? row(detail.data) : undefined);
+  const current =
+    listed ??
+    (detail.isSuccess
+      ? row(detail.data)
+      : selectedWeek === currentWeek
+        ? { week: currentWeek, payload: {} }
+        : undefined);
   const payload = row(current?.payload);
-  const days = list(payload.days);
   const start = str(current?.week);
-  const today = calendarDay(new Date().toISOString(), str(payload.time_zone) || zone);
   const end = start ? shiftDayKey(start, 6) : '';
   const ongoing = start <= today && today <= end;
+  const statsParams = { from: start, to: end, tz: timeZone };
+  const statistics = useQuery({
+    queryKey: ['stats', 'overview', statsParams],
+    queryFn: () => statsApi.overview(statsParams),
+    enabled: ongoing && !!me.data,
+    staleTime: 60_000,
+  });
+  const days = reportDays(payload.days, statistics.data?.daily, ongoing, start, today);
   const live = useQuery({
     queryKey: ['dashboard'],
     queryFn: () => api.dashboardData(),
@@ -112,16 +134,21 @@ export function ReportsPage() {
         <>
           <p className="week-status">
             {ongoing
-              ? typeof payload.calculated_at === 'string'
-                ? copy.until(
-                    dateLabel(calendarDay(payload.calculated_at, str(payload.time_zone) || zone)),
-                  )
-                : copy.inProgress
+              ? messages.reportThroughToday.replace(
+                  '{date}',
+                  new Date(`${today}T12:00:00Z`).toLocaleDateString(copy.locale, {
+                    weekday: 'short',
+                    day: 'numeric',
+                    month: 'short',
+                    timeZone: 'UTC',
+                  }),
+                )
               : copy.closedWeek}
           </p>
           <p className="week-balance">
             {valid ? copy.balance(completed, created) : copy.unverified}
           </p>
+          {!valid && listed === undefined ? <p>{copy.empty}</p> : null}
           <div className="week-cards">
             <article className="week-card week-main">
               <Link to="/statistics/tasks">{copy.completed}</Link>

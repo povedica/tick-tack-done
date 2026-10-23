@@ -107,6 +107,7 @@ export function IconRail({ onCapture }: { readonly onCapture: () => void }) {
       <button
         type="button"
         className="rail-add"
+        aria-keyshortcuts="N"
         aria-label={messages.fab}
         data-rail-tooltip={messages.fab}
         onClick={onCapture}

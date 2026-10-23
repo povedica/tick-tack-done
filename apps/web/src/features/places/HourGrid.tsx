@@ -29,8 +29,15 @@ import { CalendarTaskMark } from '../calendar/CalendarTaskMark';
 import type { Messages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
 import { taskQueryHref } from '../../shell/use-open-task';
-import { calendarTaskLabel, isCalendarOverdue, tasksOnCell } from './month';
-import { GRID_END_HOUR, GRID_START_HOUR, HOUR_PX, hourBlock, layoutHourItems } from './hour';
+import { calendarTaskLabel, isCalendarOverdue, tasksOnCell, isoWeek } from './month';
+import {
+  GRID_END_HOUR,
+  GRID_START_HOUR,
+  HOUR_PX,
+  hourBlock,
+  layoutHourItems,
+  limitHourLanes,
+} from './hour';
 
 export function HourGrid({
   days,
@@ -82,6 +89,29 @@ export function HourGrid({
     target.closest('a, button, input, textarea, select, .hour-block, .calendar-cell-task');
   const location = useLocation();
   const board = useRef<HTMLDivElement>(null);
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  useLayoutEffect(() => {
+    const node = board.current;
+    if (!node) return;
+    const measure = () => {
+      const next = Object.fromEntries(
+        [...node.querySelectorAll<HTMLElement>('.hour-col')].map((column) => [
+          column.dataset.day ?? '',
+          column.getBoundingClientRect().width,
+        ]),
+      );
+      setColumnWidths((old) => (JSON.stringify(old) === JSON.stringify(next) ? old : next));
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    node.querySelectorAll('.hour-col').forEach((column) => {
+      observer.observe(column);
+    });
+    measure();
+    return () => {
+      observer.disconnect();
+    };
+  }, [days.map((day) => localKey(day)).join(',')]);
   const drag = useCalendarDrag(board, timeZone, onTaskChange);
   const moved = drag.preview?.patch;
   const ghost = moved
@@ -222,7 +252,9 @@ export function HourGrid({
         {drag.announcement}
       </span>
       <div ref={header} className="hour-headers" style={columns}>
-        <span />
+        <span className="hour-week-number">
+          {days.length === 1 ? `S${String(isoWeek(days[0] ?? new Date()))}` : ''}
+        </span>
         {days.map((day) => (
           <h2
             key={localKey(day)}
@@ -294,6 +326,8 @@ export function HourGrid({
                   >
                     <CalendarTaskMark task={task} />
                     <Link
+                      title={task.title}
+                      aria-label={task.title}
                       className={
                         isCalendarOverdue(task.due_date, task.time_zone, new Date())
                           ? 'cal-pill is-overdue'
@@ -432,7 +466,11 @@ export function HourGrid({
                 return { id: `event:${event.id}`, start, end };
               }),
             ];
-            const layout = layoutHourItems(timed);
+            const limited = limitHourLanes(
+              layoutHourItems(timed),
+              days.length === 1 ? (columnWidths[key] ?? 10000) : 10000,
+            );
+            const layout = limited.visible;
             const style = (id: string) => {
               const item = layout.find((item) => item.id === id);
               return item
@@ -440,7 +478,8 @@ export function HourGrid({
                     top: block(item.start, item.end).top,
                     height: block(item.start, item.end).height,
                     left: `${String((item.lane / item.lanes) * 100)}%`,
-                    width: `${String(100 / item.lanes)}%`,
+                    width: `calc(${String(100 / item.lanes)}% - var(--cal-block-gap) * ${String((item.lanes - 1) / item.lanes)})`,
+                    marginLeft: `calc(var(--cal-block-gap) * ${String(item.lane / item.lanes)})`,
                   }
                 : {};
             };
@@ -612,60 +651,110 @@ export function HourGrid({
                       : ''}
                   </div>
                 ) : null}
-                {dayTasks.map((task) => (
-                  <div
-                    key={task.id}
-                    {...drag.bindTask(task)}
-                    className="hour-block calendar-hour-task calendar-chip"
-                    style={
-                      {
-                        ...chipStyle(colors.get(task.project_id)),
-                        ...style(`task:${task.id}`),
-                        height: 'auto',
-                        maxHeight: style(`task:${task.id}`).height,
-                        '--calendar-task-duration-height': `${String(style(`task:${task.id}`).height ?? 24)}px`,
-                      } as CSSProperties & { '--calendar-task-duration-height': string }
-                    }
-                  >
-                    <CalendarTaskMark task={task} />
-                    <Link
-                      className={
-                        isCalendarOverdue(task.due_date, task.time_zone, new Date())
-                          ? 'is-overdue'
-                          : undefined
-                      }
-                      to={taskQueryHref(location.pathname, location.search, task.id)}
-                    >
-                      {calendarTaskLabel(
-                        task.title,
-                        task.due_date,
-                        task.time_zone,
-                        messages.untitled,
-                      )}
-                    </Link>
-                    <button
-                      type="button"
-                      data-calendar-resize
-                      className="calendar-resize-handle"
-                      aria-label={messages.calendarResize}
-                    />
-                  </div>
-                ))}
-                {dayEvents.map((event) => (
+                {limited.overflow.map((item, index) => (
                   <button
-                    key={event.id}
+                    key={`overflow-${String(index)}`}
                     type="button"
-                    {...drag.external}
-                    className="hour-block calendar-chip"
-                    style={{ ...chipStyle(event.color), ...style(`event:${event.id}`) }}
-                    onClick={() => {
-                      onOpenEvent(event);
+                    className="hour-block hour-overflow"
+                    style={{
+                      top: block(item.start, item.end).top,
+                      height: block(item.start, item.end).height,
+                      left: `${String((item.lane / item.lanes) * 100)}%`,
+                      width: `calc(${String(100 / item.lanes)}% - 2px)`,
                     }}
+                    onClick={() => onOpenDay?.(key)}
                   >
-                    <CalendarDays size={13} className="calendar-event-mark" aria-hidden="true" />
-                    <span>{event.title}</span>
+                    +{item.count}
                   </button>
                 ))}
+                {dayTasks
+                  .filter((task) => layout.some((item) => item.id === `task:${task.id}`))
+                  .map((task) => (
+                    <div
+                      key={task.id}
+                      {...drag.bindTask(task)}
+                      className="hour-block calendar-hour-task calendar-chip"
+                      data-task-id={task.id}
+                      data-block-size={
+                        Number(style(`task:${task.id}`).height) < 18
+                          ? 'tiny'
+                          : Number(style(`task:${task.id}`).height) < 32
+                            ? 'compact'
+                            : 'regular'
+                      }
+                      style={
+                        {
+                          ...chipStyle(colors.get(task.project_id)),
+                          ...style(`task:${task.id}`),
+
+                          '--calendar-task-duration-height': `${String(style(`task:${task.id}`).height ?? 24)}px`,
+                        } as CSSProperties & { '--calendar-task-duration-height': string }
+                      }
+                    >
+                      <CalendarTaskMark task={task} />
+                      <Link
+                        title={task.title}
+                        aria-label={task.title}
+                        className={
+                          isCalendarOverdue(task.due_date, task.time_zone, new Date())
+                            ? 'is-overdue'
+                            : undefined
+                        }
+                        to={taskQueryHref(location.pathname, location.search, task.id)}
+                      >
+                        {calendarTaskLabel(
+                          task.title,
+                          task.due_date,
+                          task.time_zone,
+                          messages.untitled,
+                        )}
+                        {Number(style(`task:${task.id}`).height) >= 18 ? (
+                          <time className="hour-task-time">
+                            {' '}
+                            ·{' '}
+                            {new Intl.DateTimeFormat(locale, {
+                              timeZone,
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              hourCycle: 'h23',
+                            }).format(new Date(task.start_date ?? task.due_date ?? ''))}
+                          </time>
+                        ) : null}
+                      </Link>
+                      <button
+                        type="button"
+                        data-calendar-resize
+                        className="calendar-resize-handle"
+                        aria-label={messages.calendarResize}
+                      />
+                    </div>
+                  ))}
+                {dayEvents
+                  .filter((event) => layout.some((item) => item.id === `event:${event.id}`))
+                  .map((event) => (
+                    <button
+                      key={event.id}
+                      type="button"
+                      {...drag.external}
+                      className="hour-block calendar-chip"
+                      title={event.title}
+                      aria-label={event.title}
+                      data-block-size={
+                        Number(style(`event:${event.id}`).height) < 18
+                          ? 'tiny'
+                          : Number(style(`event:${event.id}`).height) < 32
+                            ? 'compact'
+                            : 'regular'
+                      }
+                      style={{ ...chipStyle(event.color), ...style(`event:${event.id}`) }}
+                      onClick={() => {
+                        onOpenEvent(event);
+                      }}
+                    >
+                      <CalendarDays size={13} className="calendar-event-mark" aria-hidden="true" />
+                      <span>{event.title}</span>
+                    </button>
+                  ))}
               </section>
             );
           })}
