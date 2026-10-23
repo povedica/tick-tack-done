@@ -67,9 +67,7 @@ export class TelegramBotService {
     @Inject(TelegramApi) private readonly telegram: TelegramApi,
   ) {}
 
-  async createPairing(
-    user: AuthUser,
-  ): Promise<{
+  async createPairing(user: AuthUser): Promise<{
     code: string;
     expires_at: string;
     url: string | null;
