@@ -319,6 +319,7 @@ model User {
   plugins               PluginInstall[]
   recoveryCodes         RecoveryCode[]
   telegramLinks         TelegramLink[]
+  telegramBotConfiguration TelegramBotConfiguration?
   dayPlans              DayPlan[]
   planSessions          PlanSession[]
   planOperations        PlanOperation[]
@@ -1255,14 +1256,30 @@ model RecoveryCode {
   @@map("recovery_codes")
 }
 
+model TelegramBotConfiguration {
+  id            String   @id @default(uuid()) @db.Uuid
+  ownerId       String   @unique @map("owner_id") @db.Uuid
+  owner         User     @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  token         String
+  webhookSecret String   @map("webhook_secret")
+  botId         String   @unique @map("bot_id")
+  username      String
+  webhookUrl    String?  @map("webhook_url")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("telegram_bot_configuration")
+}
+
 model TelegramLink {
   id        String    @id @default(uuid()) @db.Uuid
   ownerId   String    @map("owner_id") @db.Uuid
   owner     User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  chatId    String    @unique @map("chat_id")
+  chatId    String    @map("chat_id")
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
 
+  @@unique([ownerId, chatId])
   @@index([ownerId])
   @@map("telegram_links")
 }

@@ -7,11 +7,13 @@ import {
   HttpStatus,
   Inject,
   Post,
+  Put,
+  Param,
   Query,
   Req,
   Res,
 } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiProperty, ApiTags, ApiOkResponse } from '@nestjs/swagger';
 import { IsBoolean, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 import type { Request, Response } from 'express';
 import { actorOf, type AuthUser } from '../../auth/auth-user.js';
@@ -19,15 +21,12 @@ import { CurrentUser } from '../../auth/current-user.decorator.js';
 import { Public, Scopes } from '../../auth/scopes.decorator.js';
 import { DomainEvent } from '../../events/domain-events.js';
 import { EventRecorder } from '../../events/event-recorder.js';
-import {
-  driveConfigured,
-  googleConfigured,
-  telegramConfigured,
-} from '../../integrations/config.js';
+import { driveConfigured, googleConfigured } from '../../integrations/config.js';
 import { downloadDriveFile } from '../../integrations/google-drive.js';
 import { exchangeGoogleRefreshToken } from '../../integrations/google-token.js';
 import { telegramSecretMatches } from '../../integrations/telegram-secret.js';
 import { authorizeUrl, readState, redirectFor, signState } from './google-oauth.js';
+import { TelegramSettingsService } from './telegram-settings.service.js';
 import { TelegramBotService } from './telegram-bot.service.js';
 import { asJson } from '../../http/json.js';
 import { DomainException } from '../../http/domain.exception.js';
@@ -36,6 +35,31 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { openField, sealField } from '../../security/field-cipher.js';
 import { ATTACHMENT_MAX_BYTES } from '../tasks/attachment-storage.js';
 import { TasksService } from '../tasks/tasks.service.js';
+
+class TelegramStatusDto {
+  @ApiProperty() configured!: boolean;
+  @ApiProperty() can_manage!: boolean;
+  @ApiProperty({ enum: ['none', 'settings'] }) source!: string;
+  @ApiProperty({ type: String, nullable: true }) username!: string | null;
+  @ApiProperty() webhook_registered!: boolean;
+  @ApiProperty({ type: String, nullable: true }) webhook_url!: string | null;
+  @ApiProperty({ enum: ['unconfigured', 'local_only', 'registered'] })
+  webhook_state!: string;
+  @ApiProperty({ type: String, nullable: true }) updated_at!: string | null;
+}
+
+class TelegramIntegrationStatusDto extends TelegramStatusDto {
+  @ApiProperty() voice!: boolean;
+  @ApiProperty() photo!: boolean;
+  @ApiProperty() linked!: boolean;
+}
+
+class TelegramSettingsDto {
+  @ApiProperty({ writeOnly: true, description: 'Token de BotFather; nunca se devuelve.' })
+  @IsString()
+  @MaxLength(200)
+  token!: string;
+}
 
 class LinkDto {
   @ApiProperty()
@@ -77,13 +101,15 @@ export class IntegrationsController {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
     @Inject(TelegramBotService) private readonly telegram: TelegramBotService,
+    @Inject(TelegramSettingsService) private readonly settings: TelegramSettingsService,
     @Inject(TasksService) private readonly tasks: TasksService,
   ) {}
 
   @Get('telegram')
+  @ApiOkResponse({ type: TelegramIntegrationStatusDto })
   @Scopes('profile:read')
   @ApiOperation({
-    summary: 'Telegram bot status. Without TELEGRAM_BOT_TOKEN it stays stopped (RF-2003).',
+    summary: 'Estado del bot de Telegram configurado por el usuario desde Ajustes (RF-2003).',
   })
   async status(
     @CurrentUser() user: AuthUser,
@@ -94,16 +120,70 @@ export class IntegrationsController {
       where: { ownerId: user.id, deletedAt: null },
       select: { id: true },
     });
+    const status = await this.settings.status(user);
     respondJson(
       req,
       res,
       200,
       {
-        configured: telegramConfigured(),
-        voice: telegramConfigured() && present('TELEGRAM_VOICE_PROVIDER'),
-        photo: telegramConfigured(),
-        linked: link !== null,
+        ...status,
+        voice: status.configured && present('TELEGRAM_VOICE_PROVIDER'),
+        photo: status.configured,
+        linked: status.configured && link !== null,
       },
+      false,
+    );
+  }
+
+  @Put('telegram/settings')
+  @ApiOkResponse({ type: TelegramStatusDto })
+  @Scopes('profile:write')
+  @ApiOperation({ summary: 'Validar y guardar cifrado el bot propio del usuario (RF-2003).' })
+  async saveTelegram(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: TelegramSettingsDto,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    respondJson(req, res, 200, await this.settings.save(user, dto.token), false);
+  }
+
+  @Post('telegram/webhook/:ownerId')
+  @Public()
+  @ApiOperation({
+    summary: 'Actualización del bot propio autenticada por secreto independiente (RF-2003).',
+  })
+  @ApiBody({ schema: { type: 'object', additionalProperties: true } })
+  async ownedWebhook(
+    @Param('ownerId') ownerId: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    // Each webhook requires the secret stored for its owner.
+    const row = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      ownerId,
+    )
+      ? await this.prisma.telegramBotConfiguration.findUnique({ where: { ownerId } })
+      : null;
+    if (
+      row === null ||
+      !telegramSecretMatches(
+        req.header('x-telegram-bot-api-secret-token'),
+        openField(row.webhookSecret),
+      )
+    ) {
+      throw new DomainException(HttpStatus.UNAUTHORIZED, 'unauthorized', 'Invalid bot secret');
+    }
+    respondJson(
+      req,
+      res,
+      200,
+      await this.telegram.handle(req.body, ownerId, {
+        token: openField(row.token),
+        secret: openField(row.webhookSecret),
+        botId: row.botId,
+        username: row.username,
+      }),
       false,
     );
   }
@@ -166,27 +246,15 @@ export class IntegrationsController {
   @Public()
   @ApiOperation({
     summary:
-      'Inbound Telegram update. Creates the task and replies in the chat (RF-2003). Refuses to run when the bot token is missing.',
+      'Retirado: configura tu bot desde Ajustes y usa el webhook específico del usuario (RF-2003).',
+    deprecated: true,
   })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      additionalProperties: true,
-      description: 'Telegram Update: message text, voice, photo, or callback_query.',
-    },
-  })
-  async webhook(@Req() req: Request, @Res() res: Response): Promise<void> {
-    if (!telegramConfigured()) {
-      throw new DomainException(
-        HttpStatus.SERVICE_UNAVAILABLE,
-        'telegram_not_configured',
-        'Set TELEGRAM_BOT_TOKEN. The bot is not calling Telegram.',
-      );
-    }
-    if (!telegramSecretMatches(req.header('x-telegram-bot-api-secret-token'))) {
-      throw new DomainException(HttpStatus.UNAUTHORIZED, 'unauthorized', 'Invalid bot secret');
-    }
-    respondJson(req, res, 200, await this.telegram.handle(req.body), false);
+  webhook(): never {
+    throw new DomainException(
+      HttpStatus.GONE,
+      'telegram_user_bot_required',
+      'Configura tu propio bot desde Ajustes → Integraciones. El webhook global está deshabilitado.',
+    );
   }
 
   @Get('google')

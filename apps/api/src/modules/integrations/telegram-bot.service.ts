@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { HttpStatus, Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
+import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import {
   afternoonInstant,
   formatCaptureReply,
@@ -20,6 +20,7 @@ import type { TaskSummaryJson } from '../tasks/task.mapper.js';
 import { ListsService } from '../lists/lists.service.js';
 import type { CaptureWarning } from '../tasks/quick-add.js';
 import { TasksService, type TaskListQuery } from '../tasks/tasks.service.js';
+import { telegramConfiguration } from '../../integrations/telegram-configuration.js';
 import { TelegramApi } from './telegram-api.js';
 
 const TELEGRAM_BOT_SCOPES = [
@@ -56,9 +57,7 @@ interface Reply {
 }
 
 @Injectable()
-export class TelegramBotService implements OnModuleInit {
-  private readonly logger = new Logger(TelegramBotService.name);
-
+export class TelegramBotService {
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
@@ -67,32 +66,69 @@ export class TelegramBotService implements OnModuleInit {
     @Inject(TelegramApi) private readonly telegram: TelegramApi,
   ) {}
 
-  async onModuleInit(): Promise<void> {
-    if (process.env.VITEST === 'true' || (process.env.TELEGRAM_BOT_TOKEN ?? '').length === 0) {
-      return;
-    }
-    try {
-      await this.telegram.call('setMyCommands', { commands: [...TELEGRAM_BOT_COMMANDS] });
-    } catch {
-      this.logger.warn('setMyCommands failed');
-    }
-  }
-
-  async createPairing(user: AuthUser): Promise<{ code: string; expires_at: string }> {
-    const code = randomBytes(16).toString('base64url');
-    const expiresAt = new Date(Date.now() + PAIRING_TTL_MS);
-    await this.prisma.telegramPairing.create({
-      data: {
-        ownerId: user.id,
-        codeHash: hashSecret(code),
-        expiresAt,
-      },
+  async createPairing(
+    user: AuthUser,
+  ): Promise<{ code: string; expires_at: string; url: string | null }> {
+    return this.prisma.$transaction(async (tx) => {
+      // Same lock as settings: a pairing issued during replacement belongs to the new bot.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`telegram-owner:${user.id}`}, 0))`;
+      const row = await tx.telegramBotConfiguration.findUnique({ where: { ownerId: user.id } });
+      if (row === null) {
+        throw new DomainException(
+          HttpStatus.SERVICE_UNAVAILABLE,
+          'telegram_not_configured',
+          'Configura tu bot en Ajustes.',
+        );
+      }
+      const username = row.username;
+      const code = randomBytes(16).toString('base64url');
+      const expiresAt = new Date(Date.now() + PAIRING_TTL_MS);
+      await tx.telegramPairing.create({
+        data: { ownerId: user.id, codeHash: hashSecret(code), expiresAt },
+      });
+      return {
+        code,
+        expires_at: expiresAt.toISOString(),
+        url: `https://t.me/${username}?start=${code}`,
+      };
     });
-    return { code, expires_at: expiresAt.toISOString() };
   }
 
-  async handle(body: unknown): Promise<TelegramOutcome> {
-    const incoming = readTelegramUpdate(body);
+  async handle(
+    body: unknown,
+    ownerId: string,
+    configuration?: Awaited<ReturnType<typeof telegramConfiguration>>,
+  ): Promise<TelegramOutcome> {
+    const config = configuration ?? (await telegramConfiguration(this.prisma, ownerId));
+    if (config.token.length === 0)
+      throw new DomainException(
+        HttpStatus.SERVICE_UNAVAILABLE,
+        'telegram_not_configured',
+        'Configura tu bot en Ajustes.',
+      );
+    const worker = new TelegramBotService(
+      this.prisma,
+      this.events,
+      this.tasks,
+      this.lists,
+      this.telegram.withConfiguration(config),
+    );
+    return worker.processUpdate(body, ownerId, config.botId);
+  }
+
+  private async processUpdate(
+    body: unknown,
+    ownerId: string,
+    botId: string,
+  ): Promise<TelegramOutcome> {
+    const parsed = readTelegramUpdate(body);
+    const incoming =
+      parsed === null
+        ? null
+        : {
+            ...parsed,
+            updateId: `${botId}-${parsed.updateId}`,
+          };
     if (incoming === null) {
       return { called_telegram: false, action: 'ignored' };
     }
@@ -101,15 +137,16 @@ export class TelegramBotService implements OnModuleInit {
       return { called_telegram: false, action: 'duplicate' };
     }
     if (incoming.kind === 'text') {
-      const paired = await this.tryPair(incoming.chatId, incoming.text);
+      const paired = await this.tryPair(incoming.chatId, incoming.text, ownerId);
       if (paired !== null) {
-        await this.send(incoming.chatId, plain(paired));
+        await this.send(ownerId, incoming.chatId, plain(paired));
         return { called_telegram: true, action: 'paired' };
       }
     }
-    const user = await this.userFor(incoming.chatId);
+    const user = await this.userFor(incoming.chatId, ownerId);
     if (user === null) {
       await this.send(
+        ownerId,
         incoming.chatId,
         plain(
           'Este chat no está vinculado. Genera un código en Ajustes → Integraciones y envía /start <código>.',
@@ -123,25 +160,37 @@ export class TelegramBotService implements OnModuleInit {
         return { called_telegram: true, action };
       }
       if (incoming.kind === 'voice') {
-        const text = await this.transcribe(incoming.fileId);
-        await this.send(incoming.chatId, await this.capture(user, text, incoming.updateId));
+        const text = await this.transcribe(incoming.fileId, user.id);
+        await this.send(
+          ownerId,
+          incoming.chatId,
+          await this.capture(user, text, incoming.updateId),
+        );
         return { called_telegram: true, action: 'voice' };
       }
       if (incoming.kind === 'photo') {
         await this.photo(user, incoming);
         return { called_telegram: true, action: 'photo' };
       }
-      await this.send(incoming.chatId, await this.replyFor(user, incoming.text, incoming.updateId));
+      await this.send(
+        ownerId,
+        incoming.chatId,
+        await this.replyFor(user, incoming.text, incoming.updateId),
+      );
       return { called_telegram: true, action: 'text' };
     } catch (error) {
       if (incoming.kind === 'callback' && incoming.callbackId.length > 0) {
-        await this.telegram.call('answerCallbackQuery', {
-          callback_query_id: incoming.callbackId,
-          text: 'No he podido completarla',
-          show_alert: true,
-        });
+        await this.telegram.call(
+          'answerCallbackQuery',
+          {
+            callback_query_id: incoming.callbackId,
+            text: 'No he podido completarla',
+            show_alert: true,
+          },
+          ownerId,
+        );
       } else {
-        await this.send(incoming.chatId, plain(failureText(error)));
+        await this.send(ownerId, incoming.chatId, plain(failureText(error)));
       }
       return { called_telegram: true, action: 'error' };
     }
@@ -158,19 +207,25 @@ export class TelegramBotService implements OnModuleInit {
     }
   }
 
-  private async tryPair(chatId: string, text: string): Promise<string | null> {
+  private async tryPair(chatId: string, text: string, ownerId: string): Promise<string | null> {
     const match = /^\/start(?:@\w+)?(?:\s+|_)([A-Za-z0-9_-]{16,})$/.exec(text.trim());
     if (match === null) {
       return null;
     }
     const code = match[1] ?? '';
     const row = await this.prisma.telegramPairing.findFirst({
-      where: { codeHash: hashSecret(code), usedAt: null, expiresAt: { gt: new Date() } },
+      where: {
+        ownerId,
+        codeHash: hashSecret(code),
+        usedAt: null,
+        expiresAt: { gt: new Date() },
+      },
     });
     if (row === null) {
       return 'El código de emparejamiento no es válido o ya se usó.';
     }
     await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`telegram-owner:${row.ownerId}`}, 0))`;
       const claimed = await tx.telegramPairing.updateMany({
         where: { id: row.id, usedAt: null },
         data: { usedAt: new Date() },
@@ -179,7 +234,7 @@ export class TelegramBotService implements OnModuleInit {
         throw new DomainException(HttpStatus.CONFLICT, 'pairing_used', 'pairing used');
       }
       await tx.telegramLink.upsert({
-        where: { chatId },
+        where: { ownerId_chatId: { ownerId: row.ownerId, chatId } },
         create: { ownerId: row.ownerId, chatId },
         update: { ownerId: row.ownerId, deletedAt: null },
       });
@@ -310,11 +365,15 @@ export class TelegramBotService implements OnModuleInit {
       token === undefined ||
       (minutes !== null && !Number.isInteger(minutes))
     ) {
-      await this.telegram.call('answerCallbackQuery', {
-        callback_query_id: incoming.callbackId,
-        text: 'No reconozco ese aviso',
-        show_alert: true,
-      });
+      await this.telegram.call(
+        'answerCallbackQuery',
+        {
+          callback_query_id: incoming.callbackId,
+          text: 'No reconozco ese aviso',
+          show_alert: true,
+        },
+        user.id,
+      );
       return;
     }
     const delivery = await this.prisma.reminderDelivery.findFirst({
@@ -322,20 +381,28 @@ export class TelegramBotService implements OnModuleInit {
       select: { id: true, taskId: true, reminderId: true },
     });
     if (delivery?.taskId == null) {
-      await this.telegram.call('answerCallbackQuery', {
-        callback_query_id: incoming.callbackId,
-        text: 'Ese aviso ya no está',
-        show_alert: true,
-      });
+      await this.telegram.call(
+        'answerCallbackQuery',
+        {
+          callback_query_id: incoming.callbackId,
+          text: 'Ese aviso ya no está',
+          show_alert: true,
+        },
+        user.id,
+      );
       return;
     }
     const until = await this.snoozeUntil(user, delivery.taskId, token, minutes);
     if (until === null) {
-      await this.telegram.call('answerCallbackQuery', {
-        callback_query_id: incoming.callbackId,
-        text: 'No puedo aplazar ese aviso',
-        show_alert: true,
-      });
+      await this.telegram.call(
+        'answerCallbackQuery',
+        {
+          callback_query_id: incoming.callbackId,
+          text: 'No puedo aplazar ese aviso',
+          show_alert: true,
+        },
+        user.id,
+      );
       return;
     }
     if (delivery.reminderId !== null) {
@@ -358,11 +425,15 @@ export class TelegramBotService implements OnModuleInit {
       where: { id: delivery.id },
       data: { status: 'cancelled' },
     });
-    await this.telegram.call('answerCallbackQuery', {
-      callback_query_id: incoming.callbackId,
-      text: until.reply,
-    });
-    await this.strike(incoming);
+    await this.telegram.call(
+      'answerCallbackQuery',
+      {
+        callback_query_id: incoming.callbackId,
+        text: until.reply,
+      },
+      user.id,
+    );
+    await this.strike(user, incoming);
   }
 
   private async snoozeUntil(
@@ -421,11 +492,15 @@ export class TelegramBotService implements OnModuleInit {
         },
       });
       if (row === null) {
-        await this.telegram.call('answerCallbackQuery', {
-          callback_query_id: incoming.callbackId,
-          text: 'Ese botón ya no es válido',
-          show_alert: true,
-        });
+        await this.telegram.call(
+          'answerCallbackQuery',
+          {
+            callback_query_id: incoming.callbackId,
+            text: 'Ese botón ya no es válido',
+            show_alert: true,
+          },
+          user.id,
+        );
         return;
       }
       await this.prisma.telegramCallback.update({
@@ -435,30 +510,42 @@ export class TelegramBotService implements OnModuleInit {
       id = row.resourceId;
     } else if (data.startsWith('c:')) {
       // Legacy editable callback ids are refused (APP-07a).
-      await this.telegram.call('answerCallbackQuery', {
-        callback_query_id: incoming.callbackId,
-        text: 'Pide de nuevo la lista para usar botones seguros',
-        show_alert: true,
-      });
+      await this.telegram.call(
+        'answerCallbackQuery',
+        {
+          callback_query_id: incoming.callbackId,
+          text: 'Pide de nuevo la lista para usar botones seguros',
+          show_alert: true,
+        },
+        user.id,
+      );
       return;
     }
     if (!TASK_UUID.test(id)) {
-      await this.telegram.call('answerCallbackQuery', {
-        callback_query_id: incoming.callbackId,
-        text: 'No reconozco esa tarea',
-        show_alert: true,
-      });
+      await this.telegram.call(
+        'answerCallbackQuery',
+        {
+          callback_query_id: incoming.callbackId,
+          text: 'No reconozco esa tarea',
+          show_alert: true,
+        },
+        user.id,
+      );
       return;
     }
     await this.tasks.complete(user, id, {}, `telegram-cb-${incoming.callbackId}`);
-    await this.telegram.call('answerCallbackQuery', {
-      callback_query_id: incoming.callbackId,
-      text: 'Completada',
-    });
-    await this.strike(incoming);
+    await this.telegram.call(
+      'answerCallbackQuery',
+      {
+        callback_query_id: incoming.callbackId,
+        text: 'Completada',
+      },
+      user.id,
+    );
+    await this.strike(user, incoming);
   }
 
-  private async strike(incoming: TelegramIncoming): Promise<void> {
+  private async strike(user: AuthUser, incoming: TelegramIncoming): Promise<void> {
     if (
       incoming.messageId === null ||
       incoming.messageText === null ||
@@ -471,21 +558,25 @@ export class TelegramBotService implements OnModuleInit {
       .replaceAll('<', '&lt;')
       .replaceAll('>', '&gt;');
     try {
-      await this.telegram.call('editMessageText', {
-        chat_id: incoming.chatId,
-        message_id: incoming.messageId,
-        text: `<s>${safe}</s>`,
-        parse_mode: 'HTML',
-      });
+      await this.telegram.call(
+        'editMessageText',
+        {
+          chat_id: incoming.chatId,
+          message_id: incoming.messageId,
+          text: `<s>${safe}</s>`,
+          parse_mode: 'HTML',
+        },
+        user.id,
+      );
     } catch {
       // The task change already landed. A failed edit must not undo it.
     }
   }
 
   private async photo(user: AuthUser, incoming: TelegramIncoming): Promise<void> {
-    const file = await this.telegram.download(incoming.fileId);
+    const file = await this.telegram.download(incoming.fileId, user.id);
     if (file.bytes.length > ATTACHMENT_MAX_BYTES) {
-      await this.send(incoming.chatId, plain('La foto pasa de 25 MB.'));
+      await this.send(user.id, incoming.chatId, plain('La foto pasa de 25 MB.'));
       return;
     }
     const caption = incoming.caption.trim();
@@ -506,6 +597,7 @@ export class TelegramBotService implements OnModuleInit {
       });
     }
     await this.send(
+      user.id,
       incoming.chatId,
       plain(
         await this.confirmation(user, created.body, created.body.warnings, 'Guardada con foto'),
@@ -721,9 +813,13 @@ export class TelegramBotService implements OnModuleInit {
     return `t:${token}`;
   }
 
-  private async userFor(chatId: string): Promise<AuthUser | null> {
+  private async userFor(chatId: string, ownerId: string): Promise<AuthUser | null> {
     const link = await this.prisma.telegramLink.findFirst({
-      where: { chatId, deletedAt: null },
+      where: {
+        chatId,
+        deletedAt: null,
+        ownerId,
+      },
       select: { ownerId: true },
     });
     if (link === null) {
@@ -751,7 +847,7 @@ export class TelegramBotService implements OnModuleInit {
   private async remember(ownerId: string, chatId: string): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       const saved = await tx.telegramLink.upsert({
-        where: { chatId },
+        where: { ownerId_chatId: { ownerId, chatId } },
         create: { ownerId, chatId },
         update: { ownerId, deletedAt: null },
       });
@@ -770,7 +866,7 @@ export class TelegramBotService implements OnModuleInit {
     });
   }
 
-  private async transcribe(fileId: string): Promise<string> {
+  private async transcribe(fileId: string, ownerId: string): Promise<string> {
     const provider = process.env.TELEGRAM_VOICE_PROVIDER?.trim() ?? '';
     let url: URL;
     try {
@@ -789,7 +885,7 @@ export class TelegramBotService implements OnModuleInit {
         'Set TELEGRAM_VOICE_PROVIDER to a transcription URL',
       );
     }
-    const file = await this.telegram.download(fileId);
+    const file = await this.telegram.download(fileId, ownerId);
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'content-type': 'application/octet-stream' },
@@ -806,21 +902,25 @@ export class TelegramBotService implements OnModuleInit {
     return body.text.trim();
   }
 
-  private async send(chatId: string, reply: Reply): Promise<void> {
-    await this.telegram.call('sendMessage', {
-      chat_id: chatId,
-      text: reply.text,
-      ...(reply.html ? { parse_mode: 'HTML' } : {}),
-      ...(reply.buttons.length === 0
-        ? {}
-        : {
-            reply_markup: {
-              inline_keyboard: reply.buttons.map((button) => [
-                { text: button.text, callback_data: button.data },
-              ]),
-            },
-          }),
-    });
+  private async send(ownerId: string | undefined, chatId: string, reply: Reply): Promise<void> {
+    await this.telegram.call(
+      'sendMessage',
+      {
+        chat_id: chatId,
+        text: reply.text,
+        ...(reply.html ? { parse_mode: 'HTML' } : {}),
+        ...(reply.buttons.length === 0
+          ? {}
+          : {
+              reply_markup: {
+                inline_keyboard: reply.buttons.map((button) => [
+                  { text: button.text, callback_data: button.data },
+                ]),
+              },
+            }),
+      },
+      ownerId,
+    );
   }
 
   private query(extra: Partial<TaskListQuery>): TaskListQuery {

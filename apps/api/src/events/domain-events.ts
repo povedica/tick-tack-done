@@ -95,6 +95,7 @@ export const DomainEvent = {
   importCompleted: 'import.completed@v1',
   driveAttached: 'drive.attached@v1',
   telegramLinked: 'telegram.linked@v1',
+  telegramBotConfigured: 'telegram.bot_configured@v1',
   telegramUnlinked: 'telegram.unlinked@v1',
   googleDisconnected: 'google.disconnected@v1',
   reportGenerated: 'report.generated@v1',

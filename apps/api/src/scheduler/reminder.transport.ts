@@ -1,4 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { telegramConfiguration } from '../integrations/telegram-configuration.js';
 import nodemailer from 'nodemailer';
 import webpush from 'web-push';
 
@@ -14,6 +16,7 @@ export interface TelegramButton {
 }
 
 export interface ReminderMessage {
+  readonly ownerId?: string;
   readonly channel: 'push' | 'email' | 'both';
   readonly email: string | null;
   readonly subscriptions: readonly PushTarget[];
@@ -37,6 +40,7 @@ export interface DeliveryResult {
 
 @Injectable()
 export class ReminderTransport {
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
   async deliver(message: ReminderMessage): Promise<DeliveryResult> {
     const wantsEmail = message.channel === 'email' || message.channel === 'both';
     const wantsPush = message.channel === 'push' || message.channel === 'both';
@@ -113,7 +117,7 @@ export class ReminderTransport {
     messageId: number | null;
     retryAfter: number | null;
   }> {
-    const token = process.env.TELEGRAM_BOT_TOKEN ?? '';
+    const { token } = await telegramConfiguration(this.prisma, message.ownerId);
     const chatId = message.telegramChatId;
     if (
       message.allowTelegram === false ||
@@ -122,6 +126,13 @@ export class ReminderTransport {
       chatId.length === 0
     ) {
       return { status: 'skipped', messageId: null, retryAfter: null };
+    }
+    if (message.ownerId !== undefined) {
+      const link = await this.prisma.telegramLink.findFirst({
+        where: { ownerId: message.ownerId, chatId, deletedAt: null },
+        select: { id: true },
+      });
+      if (link === null) return { status: 'skipped', messageId: null, retryAfter: null };
     }
     try {
       const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {

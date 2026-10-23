@@ -300,6 +300,7 @@ export interface ResourceClient {
   listStickies(): Promise<JsonObject>;
   createSticky(text: string): Promise<JsonObject>;
   integrationStatus(kind: 'telegram' | 'drive' | 'google'): Promise<JsonObject>;
+  configureTelegram(token: string): Promise<JsonObject>;
   createTelegramPairing(): Promise<JsonObject>;
   googleConnect(): Promise<JsonObject>;
   listWebhooks(): Promise<JsonObject>;
@@ -632,6 +633,8 @@ export function resourceMethods(http: Http): ResourceClient {
     createSticky: (text) => ask('POST', '/api/v1/sticky-notes', { text }, undefined, isJsonObject),
     integrationStatus: (kind) =>
       ask('GET', `/api/v1/integrations/${kind}`, undefined, undefined, isJsonObject),
+    configureTelegram: (token) =>
+      ask('PUT', '/api/v1/integrations/telegram/settings', { token }, undefined, isJsonObject),
     createTelegramPairing: () =>
       ask('POST', '/api/v1/integrations/telegram/pairing', undefined, undefined, isJsonObject),
     googleConnect: () =>

@@ -8,6 +8,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/configure-app.js';
+import { sealField } from '../src/security/field-cipher.js';
 import { loadRootEnv } from '../src/load-env.js';
 
 type SuperTestApp = Parameters<typeof request>[0];
@@ -405,19 +406,26 @@ describe('V1 and V2 product', () => {
     expect(off.body.score).toBeNull();
   });
 
-  it('RF-2003: the Telegram webhook stops when the bot token is missing', async () => {
+  it('RF-2003: unconfigured users stay disabled and the global webhook is retired', async () => {
     const status = await session().get('/api/v1/integrations/telegram').expect(200);
     expect(status.body.configured).toBe(false);
     const denied = await session()
       .post('/api/v1/integrations/telegram/webhook')
       .send({ text: '/today' })
-      .expect(503);
-    expect(denied.body.error.code).toBe('telegram_not_configured');
+      .expect(410);
+    expect(denied.body.error.code).toBe('telegram_user_bot_required');
   });
 
   it('RF-2003: the webhook creates the task, completes by title and stores a photo', async () => {
-    process.env.TELEGRAM_BOT_TOKEN = 'test-token';
-    process.env.TELEGRAM_WEBHOOK_SECRET = 'telegram-webhook-secret';
+    await prisma.telegramBotConfiguration.create({
+      data: {
+        ownerId: userId,
+        token: sealField('test-token'),
+        webhookSecret: sealField('telegram-webhook-secret'),
+        botId: '40004',
+        username: 'test_bot',
+      },
+    });
     process.env.TELEGRAM_VOICE_PROVIDER = 'https://voice.test/transcribe';
     const paths: string[] = [];
     const original = globalThis.fetch;
@@ -454,7 +462,7 @@ describe('V1 and V2 product', () => {
         .expect(410);
       const pairing = await session().post('/api/v1/integrations/telegram/pairing').expect(201);
       await request(server)
-        .post('/api/v1/integrations/telegram/webhook')
+        .post(`/api/v1/integrations/telegram/webhook/${userId}`)
         .set('x-telegram-bot-api-secret-token', secret)
         .send({
           update_id: updateBase,
@@ -462,7 +470,7 @@ describe('V1 and V2 product', () => {
         })
         .expect(200);
       const created = await request(server)
-        .post('/api/v1/integrations/telegram/webhook')
+        .post(`/api/v1/integrations/telegram/webhook/${userId}`)
         .set('x-telegram-bot-api-secret-token', secret)
         .send({
           update_id: updateBase + 11,
@@ -471,7 +479,7 @@ describe('V1 and V2 product', () => {
         .expect(200);
       expect(created.body).toEqual({ called_telegram: true, action: 'text' });
       const duplicate = await request(server)
-        .post('/api/v1/integrations/telegram/webhook')
+        .post(`/api/v1/integrations/telegram/webhook/${userId}`)
         .set('x-telegram-bot-api-secret-token', secret)
         .send({
           update_id: updateBase + 11,
@@ -486,7 +494,7 @@ describe('V1 and V2 product', () => {
       );
       expect(task).toBeDefined();
       const done = await request(server)
-        .post('/api/v1/integrations/telegram/webhook')
+        .post(`/api/v1/integrations/telegram/webhook/${userId}`)
         .set('x-telegram-bot-api-secret-token', secret)
         .send({
           update_id: updateBase + 12,
@@ -500,7 +508,7 @@ describe('V1 and V2 product', () => {
       expect(after.body.status).toBe('completed');
 
       const voice = await request(server)
-        .post('/api/v1/integrations/telegram/webhook')
+        .post(`/api/v1/integrations/telegram/webhook/${userId}`)
         .set('x-telegram-bot-api-secret-token', secret)
         .send({
           update_id: updateBase + 13,
@@ -510,7 +518,7 @@ describe('V1 and V2 product', () => {
       expect(voice.body).toEqual({ called_telegram: true, action: 'voice' });
 
       const photo = await request(server)
-        .post('/api/v1/integrations/telegram/webhook')
+        .post(`/api/v1/integrations/telegram/webhook/${userId}`)
         .set('x-telegram-bot-api-secret-token', secret)
         .send({
           update_id: updateBase + 14,
@@ -532,7 +540,7 @@ describe('V1 and V2 product', () => {
       expect(paths.some((item) => item.endsWith('/sendMessage'))).toBe(true);
 
       const denied = await request(server)
-        .post('/api/v1/integrations/telegram/webhook')
+        .post(`/api/v1/integrations/telegram/webhook/${userId}`)
         .set('x-telegram-bot-api-secret-token', 'nope')
         .send({ update_id: updateBase + 15, message: { chat: { id: chatId }, text: 'hola' } })
         .expect(401);
@@ -541,11 +549,12 @@ describe('V1 and V2 product', () => {
       globalThis.fetch = original;
       await prisma.telegramUpdateReceipt.deleteMany({
         where: {
-          updateId: { in: [0, 11, 12, 13, 14, 15].map((offset) => String(updateBase + offset)) },
+          updateId: {
+            in: [0, 11, 12, 13, 14, 15].map((offset) => `40004-${String(updateBase + offset)}`),
+          },
         },
       });
-      delete process.env.TELEGRAM_BOT_TOKEN;
-      delete process.env.TELEGRAM_WEBHOOK_SECRET;
+      await prisma.telegramBotConfiguration.deleteMany({ where: { ownerId: userId } });
       delete process.env.TELEGRAM_VOICE_PROVIDER;
     }
   });

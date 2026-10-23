@@ -8,3 +8,16 @@
 5. Datos semilla idempotentes en `apps/api/prisma/seed.ts`.
 6. El export JSON (RF-1703/RF-1705) lleva `schema_version` y un script de migración por versión;
    al cambiar el modelo, decide si sube también la versión del export.
+
+## Bots de Telegram por usuario (RF-2003)
+
+`20261023130823_add_telegram_bot_configuration` añade configuración cifrada por
+propietario y unicidad del identificador de bot. Los chats pasan a ser únicos por
+`(owner_id, chat_id)`; conserva los vínculos globales existentes.
+
+Rollback: ejecutar `scripts/rollback-telegram-settings.sql` con la API detenida.
+El script aborta si un mismo chat aparece en varias cuentas, para no borrar ni
+fusionar vínculos silenciosamente. Antes de retirar la tabla, exportar una copia
+cifrada de la configuración y retirar manualmente los webhooks nuevos si procede.
+La reversión elimina únicamente la configuración nueva; no restaura vínculos
+invalidados al cambiar de bot. Los datos anteriores de chats se conservan.

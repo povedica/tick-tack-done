@@ -3226,12 +3226,46 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Telegram bot status. Without TELEGRAM_BOT_TOKEN it stays stopped (RF-2003). */
+        /** Estado del bot de Telegram configurado por el usuario desde Ajustes (RF-2003). */
         get: operations["IntegrationsController_status"];
         put?: never;
         post?: never;
         /** Unlink Telegram chats from this account (RF-2003) */
         delete: operations["IntegrationsController_unlinkTelegram"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/telegram/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Validar y guardar cifrado el bot propio del usuario (RF-2003). */
+        put: operations["IntegrationsController_saveTelegram"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/telegram/webhook/{ownerId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Actualización del bot propio autenticada por secreto independiente (RF-2003). */
+        post: operations["IntegrationsController_ownedWebhook"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -3280,7 +3314,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Inbound Telegram update. Creates the task and replies in the chat (RF-2003). Refuses to run when the bot token is missing. */
+        /**
+         * Retirado: configura tu bot desde Ajustes y usa el webhook específico del usuario (RF-2003).
+         * @deprecated
+         */
         post: operations["IntegrationsController_webhook"];
         delete?: never;
         options?: never;
@@ -4703,6 +4740,37 @@ export interface components {
             due_column?: string;
             priority_column?: string;
             project_id?: string;
+        };
+        TelegramIntegrationStatusDto: {
+            configured: boolean;
+            can_manage: boolean;
+            /** @enum {string} */
+            source: "none" | "settings";
+            username: string | null;
+            webhook_registered: boolean;
+            webhook_url: string | null;
+            /** @enum {string} */
+            webhook_state: "unconfigured" | "local_only" | "registered";
+            updated_at: string | null;
+            voice: boolean;
+            photo: boolean;
+            linked: boolean;
+        };
+        TelegramSettingsDto: {
+            /** @description Token de BotFather; nunca se devuelve. */
+            token: string;
+        };
+        TelegramStatusDto: {
+            configured: boolean;
+            can_manage: boolean;
+            /** @enum {string} */
+            source: "none" | "settings";
+            username: string | null;
+            webhook_registered: boolean;
+            webhook_url: string | null;
+            /** @enum {string} */
+            webhook_state: "unconfigured" | "local_only" | "registered";
+            updated_at: string | null;
         };
         LinkDto: {
             chat_id: string;
@@ -10831,7 +10899,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["TelegramIntegrationStatusDto"];
+                };
             };
         };
     };
@@ -10845,6 +10915,54 @@ export interface operations {
         requestBody?: never;
         responses: {
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    IntegrationsController_saveTelegram: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TelegramSettingsDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelegramStatusDto"];
+                };
+            };
+        };
+    };
+    IntegrationsController_ownedWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ownerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10897,13 +11015,7 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
-            };
-        };
+        requestBody?: never;
         responses: {
             201: {
                 headers: {

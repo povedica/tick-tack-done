@@ -12123,10 +12123,17 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramIntegrationStatusDto"
+                }
+              }
+            }
           }
         },
-        "summary": "Telegram bot status. Without TELEGRAM_BOT_TOKEN it stays stopped (RF-2003).",
+        "summary": "Estado del bot de Telegram configurado por el usuario desde Ajustes (RF-2003).",
         "tags": [
           "integrations"
         ],
@@ -12153,6 +12160,79 @@
             "bearer": []
           }
         ]
+      }
+    },
+    "/api/v1/integrations/telegram/settings": {
+      "put": {
+        "operationId": "IntegrationsController_saveTelegram",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TelegramSettingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramStatusDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Validar y guardar cifrado el bot propio del usuario (RF-2003).",
+        "tags": [
+          "integrations"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/integrations/telegram/webhook/{ownerId}": {
+      "post": {
+        "operationId": "IntegrationsController_ownedWebhook",
+        "parameters": [
+          {
+            "name": "ownerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Actualización del bot propio autenticada por secreto independiente (RF-2003).",
+        "tags": [
+          "integrations"
+        ],
+        "security": []
       }
     },
     "/api/v1/integrations/telegram/pairing": {
@@ -12207,26 +12287,15 @@
     },
     "/api/v1/integrations/telegram/webhook": {
       "post": {
+        "deprecated": true,
         "operationId": "IntegrationsController_webhook",
         "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": true,
-                "description": "Telegram Update: message text, voice, photo, or callback_query."
-              }
-            }
-          }
-        },
         "responses": {
           "201": {
             "description": ""
           }
         },
-        "summary": "Inbound Telegram update. Creates the task and replies in the chat (RF-2003). Refuses to run when the bot token is missing.",
+        "summary": "Retirado: configura tu bot desde Ajustes y usa el webhook específico del usuario (RF-2003).",
         "tags": [
           "integrations"
         ],
@@ -17749,6 +17818,133 @@
         "required": [
           "csv",
           "title_column"
+        ]
+      },
+      "TelegramIntegrationStatusDto": {
+        "type": "object",
+        "properties": {
+          "configured": {
+            "type": "boolean"
+          },
+          "can_manage": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "none",
+              "settings"
+            ]
+          },
+          "username": {
+            "type": "string",
+            "nullable": true
+          },
+          "webhook_registered": {
+            "type": "boolean"
+          },
+          "webhook_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "webhook_state": {
+            "type": "string",
+            "enum": [
+              "unconfigured",
+              "local_only",
+              "registered"
+            ]
+          },
+          "updated_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "voice": {
+            "type": "boolean"
+          },
+          "photo": {
+            "type": "boolean"
+          },
+          "linked": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "configured",
+          "can_manage",
+          "source",
+          "username",
+          "webhook_registered",
+          "webhook_url",
+          "webhook_state",
+          "updated_at",
+          "voice",
+          "photo",
+          "linked"
+        ]
+      },
+      "TelegramSettingsDto": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "writeOnly": true,
+            "description": "Token de BotFather; nunca se devuelve."
+          }
+        },
+        "required": [
+          "token"
+        ]
+      },
+      "TelegramStatusDto": {
+        "type": "object",
+        "properties": {
+          "configured": {
+            "type": "boolean"
+          },
+          "can_manage": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "none",
+              "settings"
+            ]
+          },
+          "username": {
+            "type": "string",
+            "nullable": true
+          },
+          "webhook_registered": {
+            "type": "boolean"
+          },
+          "webhook_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "webhook_state": {
+            "type": "string",
+            "enum": [
+              "unconfigured",
+              "local_only",
+              "registered"
+            ]
+          },
+          "updated_at": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "configured",
+          "can_manage",
+          "source",
+          "username",
+          "webhook_registered",
+          "webhook_url",
+          "webhook_state",
+          "updated_at"
         ]
       },
       "LinkDto": {

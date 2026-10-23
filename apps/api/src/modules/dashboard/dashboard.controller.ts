@@ -247,7 +247,10 @@ export class DashboardController {
         })),
       },
       integrations: {
-        telegram: telegramConfigured() && account.telegramEnabled && telegramLink !== null,
+        telegram:
+          (await telegramConfigured(this.prisma, user.id)) &&
+          account.telegramEnabled &&
+          telegramLink !== null,
         google: googleConfigured() && account.googleRefreshToken !== null,
         drive: driveConfigured() && account.googleRefreshToken !== null,
       },

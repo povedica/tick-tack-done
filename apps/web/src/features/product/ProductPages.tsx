@@ -9,6 +9,7 @@ import {
   googleAuthorizationUrl,
   googleCallbackNotice,
 } from './GoogleAccessActions';
+import { TelegramBotSettings } from '../settings/TelegramBotSettings';
 import { InboundEmailCard } from '../settings/InboundEmailCard';
 import { GoogleCalendarsCard } from '../settings/GoogleCalendarsCard';
 import { useMessages } from '../../i18n';
@@ -331,12 +332,14 @@ export function IntegrationSettings() {
   const telegramConfigured = flag(telegram.data, 'configured');
   const telegramLinked = flag(telegram.data, 'linked');
   const [pairingCode, setPairingCode] = useState<string | null>(null);
+  const [pairingUrl, setPairingUrl] = useState<string | null>(null);
   const [pairingError, setPairingError] = useState<string | null>(null);
   const pairTelegram = useMutation({
     mutationFn: () => api.createTelegramPairing(),
     onSuccess: (body) => {
       const code = text(body.code);
       setPairingCode(code.length > 0 ? code : null);
+      setPairingUrl(text(body.url) || null);
       setPairingError(null);
     },
     onError: () => {
@@ -465,20 +468,25 @@ export function IntegrationSettings() {
         <div className="token-panel-head">
           <div>
             <h2 id="telegram-title">Telegram</h2>
-            {telegram.isFetched ? (
-              <p>{telegramLinked ? messages.telegramHint : messages.telegramSoon}</p>
-            ) : (
-              <p className="token-meta">…</p>
-            )}
+            {telegram.isFetched ? <p>{messages.telegramHint}</p> : <p className="token-meta">…</p>}
           </div>
           {telegram.isFetched ? (
             <StatusPill
               on={telegramLinked}
               onLabel={messages.integrationConnected}
-              offLabel={telegramConfigured ? messages.integrationIdle : messages.integrationSoon}
+              offLabel={
+                telegramConfigured ? messages.integrationIdle : messages.telegramUnconfigured
+              }
             />
           ) : null}
         </div>
+        <TelegramBotSettings
+          status={telegram.data}
+          onSaved={() => {
+            setPairingCode(null);
+            setPairingUrl(null);
+          }}
+        />
         {telegram.isFetched && (voice || photo) ? (
           <ul className="token-chips">
             {voice ? <li className="token-chip">{messages.telegramVoice}</li> : null}
@@ -494,6 +502,7 @@ export function IntegrationSettings() {
               runAction(
                 api.disconnectTelegram().then(() => {
                   setPairingCode(null);
+                  setPairingUrl(null);
                   runAction(telegram.refetch());
                 }),
               );
@@ -515,10 +524,12 @@ export function IntegrationSettings() {
             {messages.telegramLink}
           </Button>
         ) : null}
-        {telegram.isFetched && !telegramLinked && !telegramConfigured ? (
-          <Button type="button" size="sm" disabled>
-            {messages.integrationSoon}
-          </Button>
+        {pairingUrl !== null ? (
+          <p>
+            <a href={pairingUrl} target="_blank" rel="noreferrer">
+              {messages.telegramOpenLink}
+            </a>
+          </p>
         ) : null}
         {pairingError !== null ? <p role="alert">{pairingError}</p> : null}
         {pairingCode !== null ? (

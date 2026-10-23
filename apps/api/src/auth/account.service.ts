@@ -155,6 +155,7 @@ export class AccountService {
       await tx.session.deleteMany({ where: { userId: ownerId } });
       await tx.oauthAuthorizationCode.deleteMany({ where: { userId: ownerId } });
       await tx.oauthClient.deleteMany({ where: { ownerId } });
+      await tx.telegramBotConfiguration.deleteMany({ where: { ownerId } });
       await tx.user.delete({ where: { id: ownerId } });
     });
   }

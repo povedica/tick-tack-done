@@ -6,6 +6,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/configure-app.js';
+import { sealField } from '../src/security/field-cipher.js';
 import { loadRootEnv } from '../src/load-env.js';
 import { nextOccurrence } from '@reflexionia/domain';
 import { SchedulerService } from '../src/scheduler/scheduler.service.js';
@@ -271,7 +272,15 @@ describe('time API', () => {
 
   it('RF-2003: a fired reminder is also sent to the linked Telegram chat', async () => {
     await prisma.telegramLink.create({ data: { ownerId: owner.id, chatId: '9001' } });
-    process.env.TELEGRAM_BOT_TOKEN = 'test-token';
+    await prisma.telegramBotConfiguration.create({
+      data: {
+        ownerId: owner.id,
+        token: sealField('test-token'),
+        webhookSecret: sealField('test-webhook-secret'),
+        botId: '50005',
+        username: 'reminder_test_bot',
+      },
+    });
     const original = globalThis.fetch;
     const chats: string[] = [];
     globalThis.fetch = async (input, init) => {
@@ -305,7 +314,7 @@ describe('time API', () => {
       expect(chats).toContain('9001');
     } finally {
       globalThis.fetch = original;
-      delete process.env.TELEGRAM_BOT_TOKEN;
+      await prisma.telegramBotConfiguration.deleteMany({ where: { ownerId: owner.id } });
       await prisma.telegramLink.deleteMany({ where: { ownerId: owner.id } });
     }
   });
