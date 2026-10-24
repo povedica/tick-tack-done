@@ -614,7 +614,7 @@ const CATALOG: readonly McpTool[] = [
   {
     name: 'replan_day',
     description:
-      'Propose where leftover tasks should go. auto_apply defaults to false so a person can confirm before anything moves. Does not place calendar blocks.',
+      'Only today or past dates are allowed; candidates are overdue before today in the user time zone. Propose where leftover tasks should go. auto_apply defaults to false so a person can confirm before anything moves. Does not place calendar blocks.',
     scopes: ['tasks:write'],
     inputSchema: objectSchema({
       date: { type: 'string' },

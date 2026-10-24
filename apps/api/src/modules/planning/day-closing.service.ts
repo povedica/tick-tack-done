@@ -109,11 +109,29 @@ export class DayClosingService {
       session.kind === 'replan',
     );
     if (!queue.some((task) => task.id === taskId)) {
-      throw new DomainException(
-        HttpStatus.NOT_FOUND,
-        'task_not_in_plan',
-        'Task is not in this plan',
-      );
+      // Explicit choices may still adjust a task scheduled on this day. Automatic
+      // replan suggestions remain restricted to overdue tasks.
+      const explicit = await this.prisma.task.findFirst({
+        where: {
+          id: taskId,
+          ownerId: user.id,
+          deletedAt: null,
+          status: 'active',
+          kind: 'task',
+          parentId: null,
+          isSomeday: false,
+        },
+      });
+      if (
+        session.kind !== 'replan' ||
+        explicit === null ||
+        !this.onDay(explicit, session.plan.localDate, session.plan.timeZone)
+      )
+        throw new DomainException(
+          HttpStatus.NOT_FOUND,
+          'task_not_in_plan',
+          'Task is not in this plan',
+        );
     }
     const target = this.targetFor(session.plan.localDate, decision, targetDate);
     await this.prisma.planDecision.upsert({
@@ -246,7 +264,15 @@ export class DayClosingService {
     key: string | undefined,
   ): Promise<Record<string, unknown>> {
     const zone = user.timeZone;
-    const local = date ?? civilDateKey(new Date().toISOString(), zone) ?? '';
+    const today = civilDateKey(new Date().toISOString(), zone) ?? '';
+    const local = date ?? today;
+    this.assertDate(local);
+    if (local > today)
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'replan solo para hoy o días pasados',
+      );
     if ((await this.queue(user.id, local, zone, true)).length === 0)
       return { session: null, reason: 'nothing_to_replan' };
     const session = await this.startReplan(user, local, zone);
@@ -547,16 +573,13 @@ export class DayClosingService {
       },
       include: { project: { select: { name: true } } },
     });
+    if (includeOverdue) {
+      const today = civilDateKey(new Date().toISOString(), timeZone) ?? '';
+      const cutoff = this.wallStart(today, timeZone);
+      return rows.filter((row) => row.dueDate !== null && cutoff !== null && row.dueDate < cutoff);
+    }
     const memberIds = new Set(await this.memberIds(ownerId, localDate, timeZone));
-    return rows.filter(
-      (row) =>
-        memberIds.has(row.id) ||
-        this.onDay(row, localDate, timeZone) ||
-        (includeOverdue &&
-          row.dueDate !== null &&
-          (civilDateKey(row.dueDate.toISOString(), row.timeZone || timeZone) ?? localDate) <
-            localDate),
-    );
+    return rows.filter((row) => memberIds.has(row.id) || this.onDay(row, localDate, timeZone));
   }
 
   private onDay(
