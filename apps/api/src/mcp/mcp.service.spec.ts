@@ -39,6 +39,7 @@ describe('McpService recurrence mapping', () => {
     addLink: vi.fn(),
     removeLink: vi.fn(),
     listAttachments: vi.fn(),
+    streamAttachment: vi.fn(),
     linkDriveFile: vi.fn(),
     deleteAttachment: vi.fn(),
     occurrences: vi.fn(),
@@ -937,6 +938,32 @@ describe('McpService recurrence mapping', () => {
     ]);
     expect(result.items).toEqual([item]);
     expect(JSON.stringify(result).length).toBeLessThan(JSON.stringify(original).length * 0.55);
+  });
+  it('TTD-AUD-111: catalog exposes direct streaming upload with the authenticated owner', async () => {
+    const catalog = await service.handle(user, { jsonrpc: '2.0', id: 111, method: 'tools/list' });
+    expect(JSON.stringify(catalog)).toContain('upload_task_attachment');
+    tasks.streamAttachment.mockResolvedValue({ source: 'mcp', drive_state: 'ok' });
+    const result = await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 111,
+      method: 'tools/call',
+      params: {
+        name: 'upload_task_attachment',
+        arguments: {
+          task_id: '33333333-3333-4333-8333-333333333333',
+          filename: 'note.txt',
+          base64: Buffer.from('hello').toString('base64'),
+        },
+      },
+    });
+    expect(JSON.parse(toolText(result))).toEqual({ source: 'mcp', drive_state: 'ok' });
+    expect(tasks.streamAttachment).toHaveBeenCalledWith(
+      user,
+      '33333333-3333-4333-8333-333333333333',
+      'note.txt',
+      expect.anything(),
+      'mcp',
+    );
   });
 });
 

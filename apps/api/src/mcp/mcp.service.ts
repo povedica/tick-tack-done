@@ -1,3 +1,4 @@
+import { attachmentUpload } from './attachment-upload.js';
 import { buildVersion } from '../build-info.js';
 import apiOperations from './api-operations.json' with { type: 'json' };
 import { requestPublicApi } from './mcp-api.js';
@@ -454,6 +455,14 @@ export class McpService {
           requiredUuid(args, 'link_id'),
         );
         return { removed: true };
+      case 'upload_task_attachment':
+        return this.tasks.streamAttachment(
+          user,
+          requiredUuid(args, 'task_id'),
+          requiredString(args, 'filename', 240),
+          attachmentUpload(typeof args.base64 === 'string' ? args.base64 : ''),
+          'mcp',
+        );
       case 'list_task_attachments':
         return {
           items: await this.tasks.listAttachments(user, requiredUuid(args, 'task_id')),
