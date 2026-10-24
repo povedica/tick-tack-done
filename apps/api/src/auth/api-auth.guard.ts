@@ -23,6 +23,7 @@ import { TokenAudit } from './token-audit.js';
 import { createHash } from 'node:crypto';
 import { dayKey } from '@reflexionia/domain';
 import { applyRateLimitHeaders, TokenRateLimiter } from './token-rate-limit.js';
+import { trustedMcpSource } from '../mcp/internal-source.js';
 import { hashPersonalAccessToken, parseBearer } from './token-secret.js';
 
 interface TokenRow {
@@ -102,6 +103,17 @@ export class ApiAuthGuard implements CanActivate {
     applyRateLimitHeaders(response, decision);
     request.user = {
       ...user,
+      requestSource: trustedMcpSource({
+        remoteAddress: request.socket.remoteAddress,
+        method: request.method,
+        path: request.originalUrl,
+        authorization: request.header('authorization') ?? '',
+        source: request.header('x-ttd-source'),
+        timestamp: request.header('x-ttd-internal-time'),
+        proof: request.header('x-ttd-internal-proof'),
+      })
+        ? 'mcp'
+        : 'api',
       scopes: token.scopes,
       tokenId: token.id,
       sessionId: null,

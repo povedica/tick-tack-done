@@ -353,6 +353,21 @@ const CATALOG: readonly McpTool[] = [
     inputSchema: objectSchema({ task_id: id }, ['task_id']),
   },
   {
+    name: 'upload_task_attachment',
+    description:
+      'Upload an attachment directly to the owner Drive without temporary disk files. Requires connected Drive; maximum 25 MiB, 50 attachments per task. MIME type is verified from bytes; HTML is rejected.',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema(
+      {
+        task_id: id,
+        filename: { type: 'string', minLength: 1, maxLength: 240 },
+        base64: { type: 'string' },
+        content_type: { type: 'string', maxLength: 200 },
+      },
+      ['task_id', 'filename', 'base64'],
+    ),
+  },
+  {
     name: 'link_drive_file',
     description:
       'Link an existing Google Picker-authorized file to a task without copying it. Requires Google Drive connected; ttd stores metadata only (50 attachments/task).',
@@ -439,7 +454,11 @@ const CATALOG: readonly McpTool[] = [
         trigger: { type: 'string', minLength: 1, maxLength: 200 },
         type: { type: 'string', enum: ['relative', 'absolute', 'location', 'daily_digest'] },
         absolute_at: { type: ['string', 'null'] },
-        channel: { type: 'string', enum: ['push', 'email', 'both'] },
+        channel: {
+          type: 'string',
+          enum: ['push', 'email', 'both'],
+          description: 'Defaults to configured push, otherwise configured email, otherwise push.',
+        },
       },
       ['task_id', 'trigger', 'type'],
     ),
@@ -614,7 +633,7 @@ const CATALOG: readonly McpTool[] = [
   {
     name: 'replan_day',
     description:
-      'Propose where leftover tasks should go. auto_apply defaults to false so a person can confirm before anything moves. Does not place calendar blocks.',
+      'Only today or past dates are allowed; candidates are overdue before today in the user time zone. Propose where leftover tasks should go. auto_apply defaults to false so a person can confirm before anything moves. Does not place calendar blocks.',
     scopes: ['tasks:write'],
     inputSchema: objectSchema({
       date: { type: 'string' },

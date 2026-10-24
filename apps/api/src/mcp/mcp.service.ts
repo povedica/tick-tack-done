@@ -1,3 +1,4 @@
+import { attachmentUpload } from './attachment-upload.js';
 import { buildVersion } from '../build-info.js';
 import apiOperations from './api-operations.json' with { type: 'json' };
 import { requestPublicApi } from './mcp-api.js';
@@ -91,7 +92,12 @@ export class McpService {
       return null;
     }
     try {
-      const result = await this.dispatch(user, body.method, body.params, authorization);
+      const result = await this.dispatch(
+        { ...user, requestSource: 'mcp' },
+        body.method,
+        body.params,
+        authorization,
+      );
       return { jsonrpc: '2.0', id, result };
     } catch (error) {
       if (error instanceof DomainException) {
@@ -449,6 +455,14 @@ export class McpService {
           requiredUuid(args, 'link_id'),
         );
         return { removed: true };
+      case 'upload_task_attachment':
+        return this.tasks.streamAttachment(
+          user,
+          requiredUuid(args, 'task_id'),
+          requiredString(args, 'filename', 240),
+          attachmentUpload(typeof args.base64 === 'string' ? args.base64 : ''),
+          'mcp',
+        );
       case 'list_task_attachments':
         return {
           items: await this.tasks.listAttachments(user, requiredUuid(args, 'task_id')),
@@ -814,10 +828,30 @@ export class McpService {
         return this.countdowns.archive(user, requiredUuid(args, 'id'), false);
       case 'search': {
         const cursor = cursorOf(args);
-        return this.search.search(user, requiredString(args, 'q', 200), undefined, {
+        const result = await this.search.search(user, requiredString(args, 'q', 200), undefined, {
           limit,
           ...(cursor === undefined ? {} : { cursor }),
         });
+        return {
+          items: result.items,
+          next_cursor: result.next_cursor,
+          text: result.text,
+          list: result.list,
+          tags: result.tags,
+          priority: result.priority,
+          done: result.done,
+          groups: result.groups.map((group) =>
+            group.type === 'task' || group.type === 'note'
+              ? {
+                  type: group.type,
+                  ids: group.items.flatMap((item) =>
+                    isRecord(item) && typeof item.id === 'string' ? [item.id] : [],
+                  ),
+                  count: group.items.length,
+                }
+              : group,
+          ),
+        };
       }
       case 'list_notes':
         return this.prisma.task.findMany({
@@ -1194,11 +1228,9 @@ function summarizeActivity(value: unknown, includeActor: boolean): unknown {
       const source =
         typeof payload.source === 'string'
           ? payload.source
-          : typeof task.source === 'string'
-            ? task.source
-            : entry.actor_kind === 'user'
-              ? 'web'
-              : 'api';
+          : entry.actor_kind === 'user'
+            ? 'web'
+            : 'api';
       return {
         at: entry.created_at ?? null,
         type,
@@ -1240,6 +1272,7 @@ function listResult(value: unknown, args: Record<string, unknown>): unknown {
 
 function enrichTask<
   T extends {
+    status?: string;
     repeat_rule?: string | null;
     time_zone?: string;
     due_date?: string | null;
@@ -1267,9 +1300,11 @@ function enrichTask<
     repeat_label: describeRepeatRule(rule),
     next_occurrence: task.series
       ? task.series.next_due_date
-      : next.ok
-        ? (next.occurrence?.dueDate ?? null)
-        : null,
+      : task.status !== undefined && task.status !== 'active'
+        ? null
+        : next.ok
+          ? (next.occurrence?.dueDate ?? null)
+          : null,
   };
 }
 

@@ -512,7 +512,12 @@ export class CreateReminderDto {
   @IsString()
   absolute_at?: string | null;
 
-  @ApiProperty({ required: false, enum: ['push', 'email', 'both'] })
+  @ApiProperty({
+    required: false,
+    enum: ['push', 'email', 'both'],
+    description:
+      'Defaults to push when VAPID is configured, otherwise email when configured, otherwise push.',
+  })
   @IsOptional()
   @IsIn(['push', 'email', 'both'])
   channel?: 'push' | 'email' | 'both';
@@ -570,6 +575,39 @@ export class CaptureWarningDto {
 
   @ApiProperty({ required: false })
   next_matching?: string;
+}
+
+/** Additive activity contract; existing clients may omit these detail-only entries. */
+export class TaskActivityDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  action!: string;
+
+  @ApiProperty({ type: Object, nullable: true, description: 'Existing event changes payload.' })
+  changes!: unknown;
+
+  @ApiProperty({ format: 'date-time' })
+  created_at!: string;
+
+  @ApiProperty()
+  actor_id!: string;
+
+  @ApiProperty({
+    required: false,
+    example: 'task.completed',
+    description: 'Domain event type without its version suffix, when available.',
+  })
+  type?: string;
+
+  @ApiProperty({
+    required: false,
+    example: 'mcp',
+    description:
+      'Source of this event request, independent of the task capture source (web, api, mcp or automation).',
+  })
+  source?: string;
 }
 
 export class TaskResponseDto {
@@ -671,6 +709,16 @@ export class TaskResponseDto {
   deleted_at!: string | null;
 }
 
+export class TaskDetailResponseDto extends TaskResponseDto {
+  @ApiProperty({
+    required: false,
+    type: [TaskActivityDto],
+    description:
+      'Recent task activity when returning task detail; write responses include their own event.',
+  })
+  activity?: TaskActivityDto[];
+}
+
 export class TaskPageDto {
   @ApiProperty({ type: [TaskResponseDto] })
   items!: TaskResponseDto[];
@@ -679,4 +727,4 @@ export class TaskPageDto {
   next_cursor!: string | null;
 }
 
-export class CreateTaskResponseDto extends TaskResponseDto {}
+export class CreateTaskResponseDto extends TaskDetailResponseDto {}

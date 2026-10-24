@@ -3846,7 +3846,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TaskResponseDto"
+                  "$ref": "#/components/schemas/TaskDetailResponseDto"
                 }
               }
             }
@@ -3988,7 +3988,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "",
             "content": {
               "application/json": {
@@ -4037,7 +4037,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TaskResponseDto"
+                  "$ref": "#/components/schemas/TaskDetailResponseDto"
                 }
               }
             }
@@ -4089,7 +4089,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TaskResponseDto"
+                  "$ref": "#/components/schemas/TaskDetailResponseDto"
                 }
               }
             }
@@ -4356,7 +4356,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TaskResponseDto"
+                  "$ref": "#/components/schemas/TaskDetailResponseDto"
                 }
               }
             }
@@ -4410,7 +4410,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TaskResponseDto"
+                  "$ref": "#/components/schemas/TaskDetailResponseDto"
                 }
               }
             }
@@ -4646,7 +4646,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TaskResponseDto"
+                  "$ref": "#/components/schemas/TaskDetailResponseDto"
                 }
               }
             }
@@ -4690,7 +4690,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TaskResponseDto"
+                  "$ref": "#/components/schemas/TaskDetailResponseDto"
                 }
               }
             }
@@ -4734,7 +4734,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TaskResponseDto"
+                  "$ref": "#/components/schemas/TaskDetailResponseDto"
                 }
               }
             }
@@ -4788,7 +4788,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TaskResponseDto"
+                  "$ref": "#/components/schemas/TaskDetailResponseDto"
                 }
               }
             }
@@ -4827,12 +4827,12 @@
           }
         ],
         "responses": {
-          "200": {
+          "201": {
             "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TaskResponseDto"
+                  "$ref": "#/components/schemas/TaskDetailResponseDto"
                 }
               }
             }
@@ -17538,6 +17538,230 @@
           "next_cursor"
         ]
       },
+      "TaskActivityDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "changes": {
+            "type": "object",
+            "nullable": true,
+            "description": "Existing event changes payload."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "actor_id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "example": "task.completed",
+            "description": "Domain event type without its version suffix, when available."
+          },
+          "source": {
+            "type": "string",
+            "example": "mcp",
+            "description": "Source of this event request, independent of the task capture source (web, api, mcp or automation)."
+          }
+        },
+        "required": [
+          "id",
+          "action",
+          "changes",
+          "created_at",
+          "actor_id"
+        ]
+      },
+      "TaskDetailResponseDto": {
+        "type": "object",
+        "properties": {
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskLinkResponseDto"
+            }
+          },
+          "link_count": {
+            "type": "number"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CaptureWarningDto"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "parent_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "column_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "title": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "task",
+              "note"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "completed",
+              "archived",
+              "cancelled"
+            ]
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "none",
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "is_all_day": {
+            "type": "boolean"
+          },
+          "start_date": {
+            "type": "string",
+            "nullable": true
+          },
+          "due_date": {
+            "type": "string",
+            "nullable": true
+          },
+          "time_zone": {
+            "type": "string"
+          },
+          "duration_minutes": {
+            "type": "number",
+            "nullable": true
+          },
+          "version": {
+            "type": "number",
+            "description": "Monotonic CAS version (>=1). Additive for Ticky expected_version (APP-02a).",
+            "minimum": 1
+          },
+          "is_someday": {
+            "type": "boolean"
+          },
+          "evening_only": {
+            "type": "boolean"
+          },
+          "repeat_rule": {
+            "type": "string",
+            "nullable": true
+          },
+          "repeat_from": {
+            "type": "string",
+            "enum": [
+              "due_date",
+              "completion_date"
+            ]
+          },
+          "series_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "sort_order": {
+            "type": "string"
+          },
+          "tag_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "assignee_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "completed_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "source": {
+            "type": "string"
+          },
+          "checklist_progress": {
+            "$ref": "#/components/schemas/ChecklistProgressDto"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "deleted_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "activity": {
+            "description": "Recent task activity when returning task detail; write responses include their own event.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskActivityDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "parent_id",
+          "column_id",
+          "title",
+          "content",
+          "kind",
+          "status",
+          "priority",
+          "is_all_day",
+          "start_date",
+          "due_date",
+          "time_zone",
+          "duration_minutes",
+          "version",
+          "is_someday",
+          "evening_only",
+          "repeat_rule",
+          "repeat_from",
+          "series_id",
+          "sort_order",
+          "tag_ids",
+          "assignee_id",
+          "created_by",
+          "completed_at",
+          "source",
+          "checklist_progress",
+          "created_at",
+          "updated_at",
+          "deleted_at"
+        ]
+      },
       "BatchTasksDto": {
         "type": "object",
         "properties": {
@@ -17859,6 +18083,13 @@
           "deleted_at": {
             "type": "string",
             "nullable": true
+          },
+          "activity": {
+            "description": "Recent task activity when returning task detail; write responses include their own event.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskActivityDto"
+            }
           }
         },
         "required": [
@@ -17990,7 +18221,8 @@
               "push",
               "email",
               "both"
-            ]
+            ],
+            "description": "Defaults to push when VAPID is configured, otherwise email when configured, otherwise push."
           },
           "constant": {
             "type": "boolean"

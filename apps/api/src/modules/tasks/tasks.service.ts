@@ -1,3 +1,5 @@
+import { allDayMidnight } from './all-day.js';
+import { defaultReminderChannel } from './reminder-channel.js';
 import { normalizeTaskUrl } from '@reflexionia/domain';
 import { linkTitle } from './link-title.js';
 import type { AddTaskLinkDto } from './task-links.dto.js';
@@ -38,10 +40,10 @@ import {
   type Priority,
   type ReminderSnoozePreset,
 } from '@reflexionia/domain';
-import { actorOf, type AuthUser } from '../../auth/auth-user.js';
+import { actorOf, requestSourceOf, type AuthUser } from '../../auth/auth-user.js';
 import { hashInboundToken, inboundLocalPart } from '../../inbound/email-address.js';
 import { DomainEvent } from '../../events/domain-events.js';
-import { EventRecorder } from '../../events/event-recorder.js';
+import { EventRecorder, type RecordedEvent } from '../../events/event-recorder.js';
 import { DomainException } from '../../http/domain.exception.js';
 import { asJson } from '../../http/json.js';
 import { readClocks, selectPatch, stampTerminal } from './field-clocks.js';
@@ -74,6 +76,7 @@ import type {
 } from './tasks.dto.js';
 
 const taskInclude = {
+  _count: { select: { links: true } },
   links: true,
   tags: { where: { tag: { deletedAt: null } }, select: { tagId: true } },
   checklist: {
@@ -105,6 +108,8 @@ export interface TaskDetail extends TaskSummaryJson {
   activity: {
     id: string;
     action: string;
+    type: string;
+    source: string;
     changes: Prisma.JsonValue;
     created_at: string;
     actor_id: string;
@@ -434,7 +439,7 @@ export class TasksService {
         create: { ownerId: user.id, taskId, url, title, source: 'manual' },
         update: { title, source: 'manual' },
       });
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.taskLinkAdded,
         entityType: 'task',
         entityId: taskId,
@@ -454,7 +459,7 @@ export class TasksService {
       });
       if (!removed.count)
         throw new DomainException(404, 'task_link_not_found', 'Task link was not found');
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.taskLinkRemoved,
         entityType: 'task',
         entityId: taskId,
@@ -538,12 +543,16 @@ export class TasksService {
         ? { date: null as Date | null, dateOnly: false }
         : this.nextDate(current.startDate, dto.start_date, 'start_date', timeZone);
       const dueParsed = this.nextDate(current.dueDate, dto.due_date, 'due_date', timeZone);
-      const start = startParsed.date;
+      let start = startParsed.date;
       let due = dueParsed.date;
       const inferredAllDay =
         (dto.start_date !== undefined && startParsed.dateOnly) ||
         (dto.due_date !== undefined && dueParsed.dateOnly);
       const isAllDay = dto.is_all_day ?? (inferredAllDay ? true : current.isAllDay);
+      if (isAllDay) {
+        start = allDayMidnight(start, timeZone);
+        due = allDayMidnight(due, timeZone);
+      }
       if (
         due === null &&
         dto.due_date === undefined &&
@@ -601,7 +610,7 @@ export class TasksService {
           where: { ownerId: user.id, seriesId: current.seriesId, processedAt: null },
           data: { processedAt: new Date() },
         });
-        await this.events.record(tx, actorOf(user), {
+        await this.record(tx, user, {
           type: DomainEvent.seriesClosed,
           entityType: 'task',
           entityId: id,
@@ -658,7 +667,7 @@ export class TasksService {
         await this.cancelDeliveries(tx, [id]);
       }
       const detail = await this.load(tx, user, id, false);
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: this.updateEvent(previous.kind, detail.kind),
         entityType: detail.kind === 'note' ? 'note' : 'task',
         entityId: id,
@@ -687,7 +696,7 @@ export class TasksService {
         data: { status: 'cancelled' },
       });
       for (const child of children) {
-        await this.events.record(tx, actorOf(user), {
+        await this.record(tx, user, {
           type: DomainEvent.taskCancelled,
           entityType: 'task',
           entityId: child.id,
@@ -697,7 +706,7 @@ export class TasksService {
         });
       }
       const detail = await this.load(tx, user, id, false);
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.taskCancelled,
         entityType: 'task',
         entityId: id,
@@ -705,7 +714,7 @@ export class TasksService {
         data: { task: asJson(taskEventSnapshot(detail)) },
         previous: { status: current.status },
       });
-      return detail;
+      return this.load(tx, user, id, false);
     });
   }
 
@@ -735,7 +744,7 @@ export class TasksService {
         },
       });
       const detail = await this.load(tx, user, id, true);
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.taskDeleted,
         entityType: 'task',
         entityId: id,
@@ -803,7 +812,7 @@ export class TasksService {
         data: { status: 'active', completedAt: null, recurrenceOpen: current.repeatRule !== null },
       });
       const detail = await this.load(tx, user, id, false);
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.taskReopened,
         entityType: 'task',
         entityId: id,
@@ -811,7 +820,7 @@ export class TasksService {
         data: { task: asJson(taskEventSnapshot(detail)), source },
         previous: { status: current.status },
       });
-      return detail;
+      return this.load(tx, user, id, false);
     });
   }
 
@@ -850,7 +859,7 @@ export class TasksService {
         },
       });
       const detail = await this.load(tx, user, id, false);
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.taskUpdated,
         entityType: 'task',
         entityId: id,
@@ -858,7 +867,7 @@ export class TasksService {
         data: { task: asJson(taskEventSnapshot(detail)), snoozed_to: preset },
         previous: { due_date: current.dueDate?.toISOString() ?? null },
       });
-      return detail;
+      return this.load(tx, user, id, false);
     });
   }
 
@@ -950,7 +959,7 @@ export class TasksService {
           },
         });
         const detail = await this.load(tx, user, id, false);
-        await this.events.record(tx, actorOf(user), {
+        await this.record(tx, user, {
           type: DomainEvent.occurrenceDetached,
           entityType: 'task',
           entityId: id,
@@ -958,7 +967,7 @@ export class TasksService {
           data: { task: asJson(taskEventSnapshot(detail)), detached: true, source },
           previous: { repeat_rule: current.repeatRule },
         });
-        return detail;
+        return this.load(tx, user, id, false);
       }
       await tx.task.update({ where: { id }, data: { repeatRule: excluded.rule } });
       const copyId = randomUUID();
@@ -993,7 +1002,7 @@ export class TasksService {
         ),
       });
       const created = await this.load(tx, user, copyId, false);
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.taskUpdated,
         entityType: 'task',
         entityId: id,
@@ -1001,7 +1010,7 @@ export class TasksService {
         data: { task: { id, repeat_rule: excluded.rule }, detached_due: dueDate },
         previous: { repeat_rule: current.repeatRule },
       });
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.occurrenceDetached,
         entityType: created.kind === 'note' ? 'note' : 'task',
         entityId: copyId,
@@ -1064,7 +1073,7 @@ export class TasksService {
         });
       }
       const detail = await this.load(tx, user, id, false);
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.taskMoved,
         entityType: 'task',
         entityId: id,
@@ -1072,7 +1081,7 @@ export class TasksService {
         data: { task: asJson(taskEventSnapshot(detail)) },
         previous: { project_id: current.projectId, column_id: current.columnId },
       });
-      return detail;
+      return this.load(tx, user, id, false);
     }
   }
 
@@ -1175,7 +1184,7 @@ export class TasksService {
           data: { deletedAt: now },
         });
         for (const id of dto.ids) {
-          await this.events.record(tx, actorOf(user), {
+          await this.record(tx, user, {
             type: DomainEvent.taskDeleted,
             entityType: 'task',
             entityId: id,
@@ -1231,7 +1240,7 @@ export class TasksService {
       }
       await tx.task.update({ where: { id }, data: { deletedAt: null, parentId } });
       const detail = await this.load(tx, user, id, false);
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.taskRestored,
         entityType: 'task',
         entityId: id,
@@ -1239,7 +1248,7 @@ export class TasksService {
         data: { task: asJson(taskEventSnapshot(detail)), source },
         previous: { deleted_at: current.deletedAt.toISOString() },
       });
-      return detail;
+      return this.load(tx, user, id, false);
     });
   }
 
@@ -1253,7 +1262,7 @@ export class TasksService {
           'Trashed task was not found',
         );
       }
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.taskDeleted,
         entityType: 'task',
         entityId: id,
@@ -1320,7 +1329,7 @@ export class TasksService {
           },
         });
         const body = toChecklistJson(taskId, row);
-        await this.events.record(tx, actorOf(user), {
+        await this.record(tx, user, {
           type: DomainEvent.checklistItemCreated,
           entityType: 'checklist_item',
           entityId: row.id,
@@ -1381,7 +1390,7 @@ export class TasksService {
         },
       });
       const body = toChecklistJson(taskId, row);
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.checklistItemUpdated,
         entityType: 'checklist_item',
         entityId: itemId,
@@ -1400,7 +1409,7 @@ export class TasksService {
         where: { id: itemId },
         data: { deletedAt: new Date() },
       });
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.checklistItemDeleted,
         entityType: 'checklist_item',
         entityId: itemId,
@@ -1501,7 +1510,7 @@ export class TasksService {
               dto.absolute_at === undefined || dto.absolute_at === null
                 ? null
                 : this.instant(dto.absolute_at, 'absolute_at', task.timeZone).date,
-            channel: dto.channel ?? 'push',
+            channel: dto.channel ?? defaultReminderChannel(),
             constant: dto.constant ?? false,
             constantIntervalMinutes:
               dto.constant === true ? (dto.constant_interval_minutes ?? 15) : null,
@@ -1670,7 +1679,7 @@ export class TasksService {
       'due_date',
       timeZone,
     );
-    const start = startParsed.date;
+    let start = startParsed.date;
     const inferredAllDay = startParsed.dateOnly || dueParsed.dateOnly;
     const isAllDay = dto.is_all_day ?? captured?.isAllDay ?? (inferredAllDay ? true : false);
     const explicitDuration =
@@ -1681,7 +1690,11 @@ export class TasksService {
       !isAllDay && dto.due_date === undefined && dueParsed.date === null
         ? endFromDuration(start?.toISOString() ?? null, explicitDuration)
         : null;
-    const due = dueParsed.date ?? (inferredEnd === null ? null : new Date(inferredEnd));
+    let due = dueParsed.date ?? (inferredEnd === null ? null : new Date(inferredEnd));
+    if (isAllDay) {
+      start = allDayMidnight(start, timeZone);
+      due = allDayMidnight(due, timeZone);
+    }
     const sortOrder = await this.planTaskSort(
       tx,
       user.id,
@@ -1749,7 +1762,7 @@ export class TasksService {
       await this.materializeExtract(tx, user, row, extracted.items, dto.extract_as ?? 'checklist');
     }
     const detail = await this.load(tx, user, row.id, false);
-    await this.events.record(tx, actorOf(user), {
+    await this.record(tx, user, {
       type: detail.kind === 'note' ? DomainEvent.noteCreated : DomainEvent.taskCreated,
       entityType: detail.kind === 'note' ? 'note' : 'task',
       entityId: row.id,
@@ -1815,7 +1828,7 @@ export class TasksService {
         data: { status: 'completed', completedAt: now },
       });
       for (const item of items) {
-        await this.events.record(tx, actorOf(user), {
+        await this.record(tx, user, {
           type: DomainEvent.checklistItemCompleted,
           entityType: 'checklist_item',
           entityId: item.id,
@@ -1842,7 +1855,7 @@ export class TasksService {
       });
       completedChildIds = children.map((child) => child.id);
       for (const child of children) {
-        await this.events.record(tx, actorOf(user), {
+        await this.record(tx, user, {
           type: DomainEvent.taskCompleted,
           entityType: 'task',
           entityId: child.id,
@@ -1875,7 +1888,7 @@ export class TasksService {
       },
     });
     const detail = await this.load(tx, user, id, false);
-    await this.events.record(tx, actorOf(user), {
+    await this.record(tx, user, {
       type: DomainEvent.taskCompleted,
       entityType: 'task',
       entityId: id,
@@ -1885,7 +1898,7 @@ export class TasksService {
     });
 
     if (current.repeatRule === null || current.seriesId === null) {
-      return detail;
+      return this.load(tx, user, id, false);
     }
 
     const source = await tx.task.findFirstOrThrow({
@@ -2014,7 +2027,10 @@ export class TasksService {
         recurrenceOpen: true,
         sortOrder: source.sortOrder,
         createdById: source.createdById,
-        source: 'automation',
+        source:
+          requestSourceOf(user) === 'web'
+            ? 'manual'
+            : (requestSourceOf(user) as 'api' | 'mcp' | 'automation'),
       },
     });
     let itemOrder = 0n;
@@ -2055,7 +2071,7 @@ export class TasksService {
       source.tags.map((tag) => tag.tagId),
     );
     const detail = await this.load(tx, user, id, false);
-    await this.events.record(tx, actorOf(user), {
+    await this.record(tx, user, {
       type: source.kind === 'note' ? DomainEvent.noteCreated : DomainEvent.taskCreated,
       entityType: source.kind === 'note' ? 'note' : 'task',
       entityId: id,
@@ -2149,7 +2165,7 @@ export class TasksService {
       }
     }
     const detail = await this.load(tx, user, copy.id, false);
-    await this.events.record(tx, actorOf(user), {
+    await this.record(tx, user, {
       type: DomainEvent.taskCreated,
       entityType: 'task',
       entityId: copy.id,
@@ -2221,7 +2237,7 @@ export class TasksService {
         data: { status, completedAt: status === 'completed' ? new Date() : null },
       });
       const body = toChecklistJson(taskId, row);
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type:
           status === 'completed'
             ? DomainEvent.checklistItemCompleted
@@ -2236,9 +2252,43 @@ export class TasksService {
     });
   }
 
+  private activityType(changes: Prisma.JsonValue, action: string): string {
+    const body =
+      changes !== null && typeof changes === 'object' && !Array.isArray(changes) ? changes : {};
+    return typeof body._event_type === 'string'
+      ? body._event_type.replace(/@v[0-9]+$/, '')
+      : `task.${action}`;
+  }
+
+  private activitySource(changes: Prisma.JsonValue, tokenId: string | null): string {
+    const body =
+      changes !== null && typeof changes === 'object' && !Array.isArray(changes) ? changes : {};
+    const data =
+      body.data !== null && typeof body.data === 'object' && !Array.isArray(body.data)
+        ? body.data
+        : body;
+    return typeof data.source === 'string' ? data.source : tokenId === null ? 'web' : 'api';
+  }
+
+  private record(tx: Tx, user: AuthUser, event: RecordedEvent): Promise<void> {
+    const data =
+      typeof event.data === 'object' && !Array.isArray(event.data)
+        ? (event.data as Prisma.InputJsonObject)
+        : {};
+    return this.events.record(tx, actorOf(user), {
+      ...event,
+      data: {
+        ...data,
+        source:
+          user.requestSource ??
+          (typeof data.source === 'string' ? data.source : requestSourceOf(user)),
+      },
+    });
+  }
+
   private async emitUpdated(tx: Tx, user: AuthUser, id: string): Promise<void> {
     const detail = await this.load(tx, user, id, false);
-    await this.events.record(tx, actorOf(user), {
+    await this.record(tx, user, {
       type: DomainEvent.taskUpdated,
       entityType: 'task',
       entityId: id,
@@ -2263,6 +2313,7 @@ export class TasksService {
         children: {
           where: { deletedAt: null },
           include: {
+            _count: { select: { links: true } },
             tags: { where: { tag: { deletedAt: null } }, select: { tagId: true } },
             checklist: { where: { deletedAt: null }, select: { status: true } },
           },
@@ -2293,6 +2344,8 @@ export class TasksService {
       activity: activity.map((entry) => ({
         id: entry.id,
         action: entry.action,
+        type: this.activityType(entry.changes, entry.action),
+        source: this.activitySource(entry.changes, entry.tokenId),
         changes: entry.changes,
         created_at: entry.createdAt.toISOString(),
         actor_id: entry.actorId,
@@ -2313,6 +2366,8 @@ export class TasksService {
     beforeId: string | null | undefined,
     moveToEnd: boolean | undefined,
   ): Promise<bigint> {
+    const key = `task-order:${projectId}`;
+    await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtextextended(${key}, 0))`;
     const rows = await tx.task.findMany({
       where: { ownerId, projectId, parentId, deletedAt: null },
       select: { id: true, sortOrder: true },
@@ -2528,7 +2583,7 @@ export class TasksService {
           taskId,
           trigger: normalizeReminderTrigger(explicit) ?? explicit,
           type: 'relative',
-          channel: 'push',
+          channel: defaultReminderChannel(),
         },
       });
       return;
@@ -2562,7 +2617,7 @@ export class TasksService {
         taskId,
         trigger,
         type: 'relative',
-        channel: 'push',
+        channel: defaultReminderChannel(),
       },
     });
   }
