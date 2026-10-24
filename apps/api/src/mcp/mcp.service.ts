@@ -819,10 +819,30 @@ export class McpService {
         return this.countdowns.archive(user, requiredUuid(args, 'id'), false);
       case 'search': {
         const cursor = cursorOf(args);
-        return this.search.search(user, requiredString(args, 'q', 200), undefined, {
+        const result = await this.search.search(user, requiredString(args, 'q', 200), undefined, {
           limit,
           ...(cursor === undefined ? {} : { cursor }),
         });
+        return {
+          items: result.items,
+          next_cursor: result.next_cursor,
+          text: result.text,
+          list: result.list,
+          tags: result.tags,
+          priority: result.priority,
+          done: result.done,
+          groups: result.groups.map((group) =>
+            group.type === 'task' || group.type === 'note'
+              ? {
+                  type: group.type,
+                  ids: group.items.flatMap((item) =>
+                    isRecord(item) && typeof item.id === 'string' ? [item.id] : [],
+                  ),
+                  count: group.items.length,
+                }
+              : group,
+          ),
+        };
       }
       case 'list_notes':
         return this.prisma.task.findMany({

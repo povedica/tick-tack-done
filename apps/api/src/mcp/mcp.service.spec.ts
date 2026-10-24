@@ -68,6 +68,7 @@ describe('McpService recurrence mapping', () => {
     $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma)),
   };
 
+  const search = { search: vi.fn() };
   const closing = { replanTool: vi.fn(), discardReplan: vi.fn() };
   let service: McpService;
 
@@ -84,7 +85,7 @@ describe('McpService recurrence mapping', () => {
       {} as never,
       {} as never,
       {} as never,
-      {} as never,
+      search as never,
       prisma as never,
       {} as never,
     );
@@ -911,6 +912,32 @@ describe('McpService recurrence mapping', () => {
       expect(JSON.parse(toolText(result)).next_occurrence).toBeNull();
     },
   );
+  it('TTD-AUD-119: search task groups contain only ids and preserve list groups', async () => {
+    const item = { id: 'task', title: 'long task'.repeat(1000), type: 'task' };
+    const list = { id: 'list', name: 'List' };
+    const original = {
+      items: [item],
+      next_cursor: null,
+      groups: [
+        { type: 'task', items: [item] },
+        { type: 'list', items: [list] },
+      ],
+    };
+    search.search.mockResolvedValue(original);
+    const response = await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 119,
+      method: 'tools/call',
+      params: { name: 'search', arguments: { q: 'long task' } },
+    });
+    const result = JSON.parse(toolText(response));
+    expect(result.groups).toEqual([
+      { type: 'task', ids: ['task'], count: 1 },
+      { type: 'list', items: [list] },
+    ]);
+    expect(result.items).toEqual([item]);
+    expect(JSON.stringify(result).length).toBeLessThan(JSON.stringify(original).length * 0.55);
+  });
 });
 
 function toolText(body: unknown): string {
