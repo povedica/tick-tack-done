@@ -2357,6 +2357,8 @@ export class TasksService {
     beforeId: string | null | undefined,
     moveToEnd: boolean | undefined,
   ): Promise<bigint> {
+    const key = `task-order:${projectId}`;
+    await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtextextended(${key}, 0))`;
     const rows = await tx.task.findMany({
       where: { ownerId, projectId, parentId, deletedAt: null },
       select: { id: true, sortOrder: true },
