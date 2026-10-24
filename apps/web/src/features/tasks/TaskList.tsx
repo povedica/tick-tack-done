@@ -21,6 +21,7 @@ import { openTaskComposer } from '../capture/notice';
 import { formatTaskRowDate } from './row-date';
 import { isOverdue, isSameDay, type RowModel } from './model';
 import { calendarDay } from '../today/groups';
+import './kanban-wt-b.css';
 
 export function TaskList({
   messages,

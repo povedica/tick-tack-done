@@ -1,0 +1,12 @@
+/* RF-1002: shared palette for list and Today boards. */
+:root {
+  --kanban-col-bg: #f3f4f6;
+  --kanban-card-bg: var(--surface);
+  --kanban-col-w: 288px;
+  --kanban-col-w-mobile: calc(100vw - 2 * var(--sp-4) - 32px);
+}
+
+[data-theme='dark'] {
+  --kanban-col-bg: #1a1a1a;
+  --kanban-card-bg: #2a2a2a;
+}

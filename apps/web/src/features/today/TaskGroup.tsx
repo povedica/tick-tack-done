@@ -19,6 +19,7 @@ import { displayTitle } from '../tasks/displayTitle';
 import { dragHasTask, setTaskDrag, taskDragId } from './drag';
 import { calendarDay, taskWhen, type TaskGroupKey, type TodayTask } from './groups';
 import { CompactTaskTime } from './CompactTaskTime';
+import '../tasks/kanban-wt-b.css';
 
 export function TaskGroup({
   id,
