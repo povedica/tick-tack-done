@@ -19,6 +19,10 @@ import { displayTitle } from '../tasks/displayTitle';
 import { dragHasTask, setTaskDrag, taskDragId } from './drag';
 import { calendarDay, taskWhen, type TaskGroupKey, type TodayTask } from './groups';
 import { CompactTaskTime } from './CompactTaskTime';
+import '../tasks/kanban-wt-b.css';
+import { linkCountLabel, wtBMessagesFor } from '../tasks/i18n-wt-b';
+import { KanbanMoveSheet } from '../tasks/KanbanMoveSheet';
+import type { KanbanTab } from '../tasks/KanbanTabs';
 
 export function TaskGroup({
   id,
@@ -51,6 +55,8 @@ export function TaskGroup({
   onPriorityDrop,
   onColumnDrop,
   onFocus,
+  moveColumns,
+  onMove,
 }: {
   readonly id: string;
   readonly label: string;
@@ -82,17 +88,17 @@ export function TaskGroup({
   readonly onColumnDrop?: ((taskId: string) => void) | undefined;
   readonly onPriorityDrop: (taskId: string, priority: TodayTask['priority']) => void;
   readonly onFocus: (id: string) => void;
+  readonly moveColumns?: readonly KanbanTab[] | undefined;
+  readonly onMove?: ((taskId: string, target: string) => Promise<void>) | undefined;
 }) {
   return (
     <details
-      id={id}
+      id={onCreate ? `kanban-column-${id}` : id}
+      data-kanban-column={onCreate ? id : undefined}
       className="task-group"
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onCreate?.();
-      }}
-      open={!collapsed}
+      open={onCreate !== undefined || !collapsed}
       onToggle={(event) => {
-        onToggle(id, event.currentTarget.open);
+        if (!onCreate) onToggle(id, event.currentTarget.open);
       }}
       onDragOver={(event) => {
         if ((groupKind === 'priority' || onColumnDrop) && dragHasTask(event.dataTransfer)) {
@@ -127,7 +133,11 @@ export function TaskGroup({
         onPriorityDrop(taskId, id);
       }}
     >
-      <summary>
+      <summary
+        onClick={(event) => {
+          if (onCreate) event.preventDefault();
+        }}
+      >
         <ChevronDown className="task-chevron" size={16} aria-hidden="true" />
         <span>{label}</span>
         <span className="task-count">{tasks.length}</span>
@@ -146,6 +156,9 @@ export function TaskGroup({
           </button>
         ) : null}
       </summary>
+      {onCreate && tasks.length === 0 ? (
+        <p className="kanban-empty">{wtBMessagesFor(locale).kanbanEmpty}</p>
+      ) : null}
       <ul className="task-list" data-details={details ? 'on' : 'off'}>
         {tasks.map((task) => {
           const namedTags = task.tagIds.flatMap((tagId) => {
@@ -260,7 +273,11 @@ export function TaskGroup({
                     <Repeat className="task-icon" size={14} aria-hidden="true" />
                   ) : null}
                   {(task.linkCount ?? 0) > 0 ? (
-                    <span className="task-link-count">
+                    <span
+                      className="task-link-count"
+                      title={linkCountLabel(task.linkCount ?? 0, locale)}
+                      aria-label={linkCountLabel(task.linkCount ?? 0, locale)}
+                    >
                       <LinkIcon size={12} aria-hidden="true" /> {task.linkCount}
                     </span>
                   ) : null}
@@ -300,17 +317,31 @@ export function TaskGroup({
                     />
                   ) : null}
                 </span>
-                <button
-                  type="button"
-                  className="task-more"
-                  aria-label={moreLabel}
-                  onClick={(event) => {
-                    const rect = event.currentTarget.getBoundingClientRect();
-                    onMore(task, rect.right, rect.bottom);
-                  }}
-                >
-                  <MoreHorizontal size={16} aria-hidden="true" />
-                </button>
+                {moveColumns && onMove ? (
+                  <KanbanMoveSheet
+                    columns={moveColumns}
+                    currentId={id}
+                    moreLabel={moreLabel}
+                    wipExceeded={messagesFor(locale).wipExceeded}
+                    saveFailed={messagesFor(locale).saveFailed}
+                    onMove={(target) => onMove(task.id, target)}
+                    onMore={(x, y) => {
+                      onMore(task, x, y);
+                    }}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    className="task-more"
+                    aria-label={moreLabel}
+                    onClick={(event) => {
+                      const rect = event.currentTarget.getBoundingClientRect();
+                      onMore(task, rect.right, rect.bottom);
+                    }}
+                  >
+                    <MoreHorizontal size={16} aria-hidden="true" />
+                  </button>
+                )}
               </div>
             </li>
           );

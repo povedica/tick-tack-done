@@ -1385,6 +1385,7 @@ a.task-title {
   overflow-x: auto;
   padding-bottom: var(--sp-3);
   min-width: 0;
+  scroll-snap-type: x proximity;
 }
 .today-layout.is-kanban .today-task-groups {
   display: contents;
@@ -1404,12 +1405,15 @@ a.task-title {
 .today-layout.is-kanban .task-group {
   padding: var(--sp-2);
   border-radius: var(--radius-md);
-  background: var(--surface-2);
+  background: var(--kanban-col-bg);
+  scroll-snap-align: start;
+  overflow-y: auto;
+  max-height: calc(100dvh - 220px - env(safe-area-inset-bottom));
 }
 .today-layout.is-kanban .task-row {
   border-radius: var(--radius-sm);
   margin-bottom: var(--sp-2);
-  background: var(--surface);
+  background: var(--kanban-card-bg);
 }
 .today-layout.is-kanban .today-habits-column {
   margin-left: auto;
@@ -1422,20 +1426,18 @@ a.task-title {
 .today-layout.is-kanban .today-task-groups > .task-group,
 .today-layout.is-kanban #overdue > .task-group,
 .today-layout.is-kanban .today-habits-column {
-  flex-basis: 300px;
-  min-width: 280px;
-  max-width: 360px;
-}
-.today-layout.is-kanban .task-group {
-  background: transparent;
-  padding: var(--sp-1);
+  flex: 0 0 var(--kanban-col-w);
+  min-width: 0;
+  max-width: none;
 }
 .today-layout.is-kanban .task-group > summary {
-  position: static;
+  position: sticky;
+  top: 0;
+  z-index: 1;
   min-height: 40px;
   margin-bottom: var(--sp-2);
   padding-inline: var(--sp-2);
-  background: transparent;
+  background: var(--kanban-col-bg);
 }
 .kanban-column-add {
   display: grid;
@@ -1461,7 +1463,7 @@ a.task-title {
   padding: var(--sp-3);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--surface);
+  background: var(--kanban-card-bg);
   box-shadow: var(--shadow-sm);
 }
 .today-layout.is-kanban .task-row > .task-grip {
