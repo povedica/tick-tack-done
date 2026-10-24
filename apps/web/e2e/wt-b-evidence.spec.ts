@@ -11,7 +11,7 @@ test('TTD-AUD-109/108/110/128: evidence', async ({ page }, info) => {
   const theme = info.project.name.endsWith('dark') ? 'dark' : 'light';
   const dir = '../../test-artifacts/audit/evidencias/wt-b';
   await mkdir(dir, { recursive: true });
-  for (const id of ['109', '108', '110'])
+  for (const id of ['109', '108', '110', '128'])
     await page.screenshot({ path: `${dir}/${id}_lista-kanban_${phase}_${width}_${theme}.png` });
   await page.goto('/list/list?view=list');
   await page.locator('.task-row').first().waitFor();

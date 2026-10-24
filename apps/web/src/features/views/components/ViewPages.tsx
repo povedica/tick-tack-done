@@ -24,7 +24,7 @@ import {
 } from '../../tasks/collect';
 import { rowFromTask, rowsFromView, smartApiKey } from '../../tasks/model';
 import { refreshTaskSurfaces } from '../../tasks/refresh';
-import { TaskList } from '../../tasks/TaskList';
+import { TaskList, withLinkCounts, loadVisibleLinkCounts } from '../../tasks/TaskList';
 import type { ViewDay } from '../../capture/quick-add';
 import {
   patchViewPrefs,
@@ -223,9 +223,48 @@ export function Board({
     enabled,
     placeholderData: keepPreviousData,
   });
+  // ViewPage omits link counts; GET /tasks supplies them for this mounted project only.
+  const visibleLinkRows = (page.data?.groups.flatMap((group) => group.tasks) ?? [])
+    .filter(
+      (task) =>
+        (!hideCompleted || task.status !== 'completed') &&
+        task.status !== 'archived' &&
+        (note || task.kind === 'task'),
+    )
+    .map((task) => ({ id: task.id, status: task.status }))
+    .sort((left, right) => left.id.localeCompare(right.id));
+  const visibleLinkStates = [...new Set(visibleLinkRows.map((row) => row.status))];
+  const projectLinks = useQuery({
+    queryKey: ['project-tasks', createProjectId, 'link-counts', visibleLinkRows],
+    queryFn: async ({ signal }) =>
+      (
+        await Promise.all(
+          visibleLinkStates.map((status) =>
+            loadVisibleLinkCounts(
+              (query) => api.listTasks(query),
+              createProjectId ?? '',
+              visibleLinkRows.filter((row) => row.status === status).map((row) => row.id),
+              signal,
+              status,
+            ),
+          ),
+        )
+      ).flat(),
+    enabled:
+      enabled &&
+      createProjectId !== undefined &&
+      (view === 'list' || view === 'kanban') &&
+      matrixLayout !== 'matrix' &&
+      visibleLinkRows.length > 0,
+    refetchInterval: 1000,
+    refetchIntervalInBackground: false,
+  });
   const showNotes = note || viewKey.startsWith('smart:');
   const canCapture = !note && viewKey !== 'smart:trash' && viewKey !== 'smart:completed';
-  const rows = rowsFromView(page.data)
+  const rows = withLinkCounts(
+    rowsFromView(page.data),
+    projectLinks.data ?? page.data?.groups.flatMap((group) => group.tasks) ?? [],
+  )
     .filter((row) => (showNotes ? true : row.kind === 'task'))
     .filter((row) => row.status !== 'archived')
     .map((row) =>
@@ -397,7 +436,10 @@ export function CancelledPage() {
   const tags = useQuery({ queryKey: ['tags'], queryFn: collectTags, staleTime: 5 * 60_000 });
   const names = new Map((projects.data?.items ?? []).map((project) => [project.id, project.name]));
   const tagNames = new Map((tags.data?.items ?? []).map((item) => [item.id, item.name]));
-  const rows = (tasks.data?.items ?? []).map((task) => rowFromTask(task, names, tagNames));
+  const rows = withLinkCounts(
+    (tasks.data?.items ?? []).map((task) => rowFromTask(task, names, tagNames)),
+    tasks.data?.items ?? [],
+  );
   return (
     <main className="screen-page">
       <header className="today-header">
@@ -450,7 +492,10 @@ export function TagViewPage() {
   }
   const names = new Map((projects.data?.items ?? []).map((project) => [project.id, project.name]));
   const tagNames = new Map((tags.data?.items ?? []).map((item) => [item.id, item.name]));
-  const rows = (tasks.data ?? []).map((task) => rowFromTask(task, names, tagNames));
+  const rows = withLinkCounts(
+    (tasks.data ?? []).map((task) => rowFromTask(task, names, tagNames)),
+    tasks.data ?? [],
+  );
   return (
     <main className="screen-page">
       <header className="today-header">

@@ -20,7 +20,7 @@ import { dragHasTask, setTaskDrag, taskDragId } from './drag';
 import { calendarDay, taskWhen, type TaskGroupKey, type TodayTask } from './groups';
 import { CompactTaskTime } from './CompactTaskTime';
 import '../tasks/kanban-wt-b.css';
-import { wtBMessagesFor } from '../tasks/i18n-wt-b';
+import { linkCountLabel, wtBMessagesFor } from '../tasks/i18n-wt-b';
 import { KanbanMoveSheet } from '../tasks/KanbanMoveSheet';
 import type { KanbanTab } from '../tasks/KanbanTabs';
 
@@ -273,7 +273,11 @@ export function TaskGroup({
                     <Repeat className="task-icon" size={14} aria-hidden="true" />
                   ) : null}
                   {(task.linkCount ?? 0) > 0 ? (
-                    <span className="task-link-count">
+                    <span
+                      className="task-link-count"
+                      title={linkCountLabel(task.linkCount ?? 0, locale)}
+                      aria-label={linkCountLabel(task.linkCount ?? 0, locale)}
+                    >
                       <LinkIcon size={12} aria-hidden="true" /> {task.linkCount}
                     </span>
                   ) : null}
@@ -321,7 +325,9 @@ export function TaskGroup({
                     wipExceeded={messagesFor(locale).wipExceeded}
                     saveFailed={messagesFor(locale).saveFailed}
                     onMove={(target) => onMove(task.id, target)}
-                    onMore={(x, y) => onMore(task, x, y)}
+                    onMore={(x, y) => {
+                      onMore(task, x, y);
+                    }}
                   />
                 ) : (
                   <button

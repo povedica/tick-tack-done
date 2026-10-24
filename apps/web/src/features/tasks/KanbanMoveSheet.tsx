@@ -43,7 +43,9 @@ export function KanbanMoveSheet({
     const frame = requestAnimationFrame(() =>
       menu.current?.querySelector<HTMLElement>('[role="menuitem"]:not(:disabled)')?.focus(),
     );
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+    };
   }, [stage]);
   function close() {
     setStage('closed');
@@ -98,7 +100,13 @@ export function KanbanMoveSheet({
         >
           {stage === 'menu' ? (
             <>
-              <button type="button" role="menuitem" onClick={() => setStage('move')}>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setStage('move');
+                }}
+              >
                 {messages.kanbanMoveTo}
               </button>
               {onMore ? (
@@ -127,10 +135,12 @@ export function KanbanMoveSheet({
                   setError(null);
                   void onMove(column.id)
                     .then(close)
-                    .catch((cause: unknown) =>
-                      setError(kanbanMoveError(cause, { wipExceeded, saveFailed })),
-                    )
-                    .finally(() => setPending(false));
+                    .catch((cause: unknown) => {
+                      setError(kanbanMoveError(cause, { wipExceeded, saveFailed }));
+                    })
+                    .finally(() => {
+                      setPending(false);
+                    });
                 }}
               >
                 {column.name} <span>{column.count}</span>

@@ -3,7 +3,7 @@ import { r80Fixture } from './r80.fixture';
 
 export async function wtBFixture(
   page: Page,
-  options: { wip?: boolean; locale?: 'es' | 'en' } = {},
+  options: { wip?: boolean; locale?: 'es' | 'en'; secondPage?: boolean } = {},
 ) {
   await r80Fixture(page);
   await page.addInitScript(
@@ -46,7 +46,8 @@ export async function wtBFixture(
   }));
   await page.route('**/api/v1/**', async (route) => {
     const req = route.request();
-    const path = new URL(req.url()).pathname.replace('/api/v1', '');
+    const url = new URL(req.url());
+    const path = url.pathname.replace('/api/v1', '');
     if (path === '/auth/session' || path === '/me')
       return route.fulfill({
         json: {
@@ -64,14 +65,36 @@ export async function wtBFixture(
     if (path === '/filters/preview')
       return route.fulfill({
         json: {
-          groups: [{ key: 'none', label: '', tasks }],
+          groups: [
+            {
+              key: 'none',
+              label: '',
+              tasks: tasks.map(({ link_count: _linkCount, ...task }) => task),
+            },
+          ],
           count: tasks.length,
           group_by: 'section',
           sort: 'manual',
           next_cursor: null,
         },
       });
-    if (path === '/tasks') return route.fulfill({ json: { items: tasks, next_cursor: null } });
+    const paginated =
+      path === '/tasks' && options.secondPage && url.searchParams.get('project_id') === 'list';
+    const taskItems = tasks.filter(
+      (task) => task.status === (url.searchParams.get('status') ?? 'active'),
+    );
+    if (paginated && !url.searchParams.has('cursor'))
+      return route.fulfill({
+        json: { items: [{ ...tasks[0], id: 'not-in-view', link_count: 0 }], next_cursor: 'second' },
+      });
+    if (paginated && url.searchParams.get('cursor') === 'second')
+      return route.fulfill({ json: { items: taskItems, next_cursor: 'unneeded-third' } });
+    if (paginated)
+      return route.fulfill({
+        status: 500,
+        json: { error: { code: 'unexpected_page', message: 'Should stop at visible rows' } },
+      });
+    if (path === '/tasks') return route.fulfill({ json: { items: taskItems, next_cursor: null } });
     if (path.startsWith('/me/view-preferences'))
       return route.fulfill({ json: { preferences: {} } });
     if (/^\/tasks\/task-\d+$/.test(path) && req.method() === 'PATCH') {

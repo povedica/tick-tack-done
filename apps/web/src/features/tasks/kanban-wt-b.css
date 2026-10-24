@@ -14,6 +14,13 @@
 .kanban-wrap {
   min-width: 0;
 }
+.task-link-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--ink);
+  white-space: nowrap;
+}
 .kanban-tabs {
   display: none;
 }

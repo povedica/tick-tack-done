@@ -30,8 +30,12 @@ export function KanbanTabs({
       },
       { root, threshold: [0.6] },
     );
-    root.querySelectorAll('[data-kanban-column]').forEach((column) => observer.observe(column));
-    return () => observer.disconnect();
+    root.querySelectorAll('[data-kanban-column]').forEach((column) => {
+      observer.observe(column);
+    });
+    return () => {
+      observer.disconnect();
+    };
   }, [board, ids]);
 
   function choose(id: string) {
@@ -51,7 +55,9 @@ export function KanbanTabs({
           aria-controls={`kanban-column-${column.id}`}
           aria-selected={active === column.id}
           tabIndex={active === column.id ? 0 : -1}
-          onClick={() => choose(column.id)}
+          onClick={() => {
+            choose(column.id);
+          }}
           onKeyDown={(event) => {
             if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
             event.preventDefault();

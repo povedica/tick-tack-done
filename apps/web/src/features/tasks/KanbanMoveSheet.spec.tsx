@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { ApiError } from '@reflexionia/sdk';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { kanbanMovePatch } from './TaskList';
 import { kanbanMoveError } from './KanbanMoveSheet';
+vi.mock('./TaskComposer', () => ({ TaskComposer: () => null }));
 describe('RF-204 RF-1002 TTD-AUD-110 moves', () => {
   const now = new Date('2026-10-22T10:00:00Z');
   it('uses the column PATCH including the unassigned column', () => {

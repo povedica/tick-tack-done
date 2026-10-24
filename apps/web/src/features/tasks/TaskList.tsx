@@ -1,6 +1,6 @@
 import { runAction } from '../../components/run-action';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { GripVertical, MoreHorizontal, Plus } from 'lucide-react';
+import { GripVertical, MoreHorizontal, Plus, Link as LinkIcon } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { api } from '../../api';
@@ -22,8 +22,73 @@ import { isOverdue, isSameDay, type RowModel } from './model';
 import { calendarDay } from '../today/groups';
 import './kanban-wt-b.css';
 import { KanbanTabs } from './KanbanTabs';
-import { useWtBMessages } from './i18n-wt-b';
+import { linkCountLabel, useWtBMessages } from './i18n-wt-b';
 import { KanbanMoveSheet, kanbanMoveError } from './KanbanMoveSheet';
+import type { ListTasksQuery } from '@reflexionia/sdk';
+
+export type TaskListRow = RowModel & { readonly linkCount?: number };
+interface LinkCountTask {
+  readonly id: string;
+  readonly link_count?: number;
+}
+
+/** Read only pages needed for the currently displayed rows; cursors do not encode link edits. */
+export async function loadVisibleLinkCounts(
+  list: (
+    query: ListTasksQuery,
+  ) => Promise<{ readonly items: readonly LinkCountTask[]; readonly next_cursor: string | null }>,
+  projectId: string,
+  ids: readonly string[],
+  signal?: AbortSignal,
+  status: NonNullable<ListTasksQuery['status']> = 'active',
+): Promise<LinkCountTask[]> {
+  const pending = new Set(ids);
+  const found: LinkCountTask[] = [];
+  const seen = new Set<string>();
+  let cursor: string | undefined;
+  while (pending.size > 0) {
+    signal?.throwIfAborted();
+    const page = await list({
+      projectId,
+      status,
+      flat: true,
+      limit: 100,
+      sort: 'manual',
+      ...(cursor === undefined ? {} : { cursor }),
+    });
+    for (const task of page.items) if (pending.delete(task.id)) found.push(task);
+    if (page.next_cursor === null || pending.size === 0) break;
+    if (seen.has(page.next_cursor)) throw new Error('Repeated task cursor');
+    seen.add(page.next_cursor);
+    cursor = page.next_cursor;
+  }
+  return found;
+}
+
+/** RF-1001: retain the list payload's link count without changing shared row models. */
+export function withLinkCounts(
+  rows: readonly RowModel[],
+  tasks: readonly LinkCountTask[],
+): TaskListRow[] {
+  const counts = new Map(tasks.map((task) => [task.id, task.link_count ?? 0]));
+  return rows.map((row) => ({ ...row, linkCount: counts.get(row.id) ?? 0 }));
+}
+
+function TaskLinkCount({
+  count = 0,
+  locale,
+}: {
+  readonly count?: number | undefined;
+  readonly locale: string;
+}) {
+  if (count <= 0) return null;
+  const label = linkCountLabel(count, locale);
+  return (
+    <span className="task-link-count" title={label} aria-label={label}>
+      <LinkIcon size={12} aria-hidden="true" /> {count}
+    </span>
+  );
+}
 
 export function TaskList({
   messages,
@@ -42,7 +107,7 @@ export function TaskList({
   highlightQuery = '',
 }: {
   readonly messages: Messages;
-  readonly rows: readonly RowModel[];
+  readonly rows: readonly TaskListRow[];
   readonly locale: string;
   readonly onComplete: (row: RowModel) => void;
   readonly onCreated?: (() => void) | undefined;
@@ -247,7 +312,7 @@ function TaskRow({
   onSelect,
 }: {
   readonly messages: Messages;
-  readonly row: RowModel;
+  readonly row: TaskListRow;
   readonly locale: string;
   readonly now: Date;
   readonly manualOrder: boolean;
@@ -388,6 +453,7 @@ function TaskRow({
           </span>
         ) : null}
         {row.repeat ? <span title={messages.recurrence}>↻</span> : null}
+        <TaskLinkCount count={row.linkCount} locale={locale} />
         {row.checklist.total > 0 ? (
           <span>
             {row.checklist.completed}/{row.checklist.total}
@@ -462,7 +528,7 @@ function Kanban({
   onComplete,
 }: {
   readonly messages: Messages;
-  readonly rows: readonly RowModel[];
+  readonly rows: readonly TaskListRow[];
   readonly columns: readonly {
     readonly id: string;
     readonly name: string;
@@ -640,6 +706,7 @@ function Kanban({
                     </button>
                   </div>
                   <p className="kanban-card-meta">
+                    <TaskLinkCount count={row.linkCount} locale={locale} />
                     {row.tags.slice(0, 2).map((tag) => (
                       <TagChip key={tag.id} label={tag.name} color={tag.color} />
                     ))}
