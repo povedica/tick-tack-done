@@ -91,7 +91,12 @@ export class McpService {
       return null;
     }
     try {
-      const result = await this.dispatch(user, body.method, body.params, authorization);
+      const result = await this.dispatch(
+        { ...user, requestSource: 'mcp' },
+        body.method,
+        body.params,
+        authorization,
+      );
       return { jsonrpc: '2.0', id, result };
     } catch (error) {
       if (error instanceof DomainException) {
@@ -1194,11 +1199,9 @@ function summarizeActivity(value: unknown, includeActor: boolean): unknown {
       const source =
         typeof payload.source === 'string'
           ? payload.source
-          : typeof task.source === 'string'
-            ? task.source
-            : entry.actor_kind === 'user'
-              ? 'web'
-              : 'api';
+          : entry.actor_kind === 'user'
+            ? 'web'
+            : 'api';
       return {
         at: entry.created_at ?? null,
         type,

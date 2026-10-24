@@ -6,6 +6,7 @@ import { DomainException } from '../http/domain.exception.js';
 import { McpService } from './mcp.service.js';
 
 const user = {
+  requestSource: 'mcp' as const,
   id: '11111111-1111-4111-8111-111111111111',
   email: 'mcp@test',
   displayName: 'MCP',

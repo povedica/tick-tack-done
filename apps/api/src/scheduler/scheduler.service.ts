@@ -341,6 +341,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
           series_id: next.seriesId,
         },
         materialized_from: source.id,
+        source: 'automation',
       }),
       previous: null,
     });

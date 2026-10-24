@@ -39,10 +39,10 @@ import {
   type Priority,
   type ReminderSnoozePreset,
 } from '@reflexionia/domain';
-import { actorOf, type AuthUser } from '../../auth/auth-user.js';
+import { actorOf, requestSourceOf, type AuthUser } from '../../auth/auth-user.js';
 import { hashInboundToken, inboundLocalPart } from '../../inbound/email-address.js';
 import { DomainEvent } from '../../events/domain-events.js';
-import { EventRecorder } from '../../events/event-recorder.js';
+import { EventRecorder, type RecordedEvent } from '../../events/event-recorder.js';
 import { DomainException } from '../../http/domain.exception.js';
 import { asJson } from '../../http/json.js';
 import { readClocks, selectPatch, stampTerminal } from './field-clocks.js';
@@ -107,6 +107,7 @@ export interface TaskDetail extends TaskSummaryJson {
   activity: {
     id: string;
     action: string;
+    source: string;
     changes: Prisma.JsonValue;
     created_at: string;
     actor_id: string;
@@ -436,7 +437,7 @@ export class TasksService {
         create: { ownerId: user.id, taskId, url, title, source: 'manual' },
         update: { title, source: 'manual' },
       });
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.taskLinkAdded,
         entityType: 'task',
         entityId: taskId,
@@ -456,7 +457,7 @@ export class TasksService {
       });
       if (!removed.count)
         throw new DomainException(404, 'task_link_not_found', 'Task link was not found');
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.taskLinkRemoved,
         entityType: 'task',
         entityId: taskId,
@@ -603,7 +604,7 @@ export class TasksService {
           where: { ownerId: user.id, seriesId: current.seriesId, processedAt: null },
           data: { processedAt: new Date() },
         });
-        await this.events.record(tx, actorOf(user), {
+        await this.record(tx, user, {
           type: DomainEvent.seriesClosed,
           entityType: 'task',
           entityId: id,
@@ -660,7 +661,7 @@ export class TasksService {
         await this.cancelDeliveries(tx, [id]);
       }
       const detail = await this.load(tx, user, id, false);
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: this.updateEvent(previous.kind, detail.kind),
         entityType: detail.kind === 'note' ? 'note' : 'task',
         entityId: id,
@@ -689,7 +690,7 @@ export class TasksService {
         data: { status: 'cancelled' },
       });
       for (const child of children) {
-        await this.events.record(tx, actorOf(user), {
+        await this.record(tx, user, {
           type: DomainEvent.taskCancelled,
           entityType: 'task',
           entityId: child.id,
@@ -699,7 +700,7 @@ export class TasksService {
         });
       }
       const detail = await this.load(tx, user, id, false);
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.taskCancelled,
         entityType: 'task',
         entityId: id,
@@ -737,7 +738,7 @@ export class TasksService {
         },
       });
       const detail = await this.load(tx, user, id, true);
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.taskDeleted,
         entityType: 'task',
         entityId: id,
@@ -805,7 +806,7 @@ export class TasksService {
         data: { status: 'active', completedAt: null, recurrenceOpen: current.repeatRule !== null },
       });
       const detail = await this.load(tx, user, id, false);
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.taskReopened,
         entityType: 'task',
         entityId: id,
@@ -852,7 +853,7 @@ export class TasksService {
         },
       });
       const detail = await this.load(tx, user, id, false);
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.taskUpdated,
         entityType: 'task',
         entityId: id,
@@ -952,7 +953,7 @@ export class TasksService {
           },
         });
         const detail = await this.load(tx, user, id, false);
-        await this.events.record(tx, actorOf(user), {
+        await this.record(tx, user, {
           type: DomainEvent.occurrenceDetached,
           entityType: 'task',
           entityId: id,
@@ -995,7 +996,7 @@ export class TasksService {
         ),
       });
       const created = await this.load(tx, user, copyId, false);
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.taskUpdated,
         entityType: 'task',
         entityId: id,
@@ -1003,7 +1004,7 @@ export class TasksService {
         data: { task: { id, repeat_rule: excluded.rule }, detached_due: dueDate },
         previous: { repeat_rule: current.repeatRule },
       });
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.occurrenceDetached,
         entityType: created.kind === 'note' ? 'note' : 'task',
         entityId: copyId,
@@ -1066,7 +1067,7 @@ export class TasksService {
         });
       }
       const detail = await this.load(tx, user, id, false);
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.taskMoved,
         entityType: 'task',
         entityId: id,
@@ -1177,7 +1178,7 @@ export class TasksService {
           data: { deletedAt: now },
         });
         for (const id of dto.ids) {
-          await this.events.record(tx, actorOf(user), {
+          await this.record(tx, user, {
             type: DomainEvent.taskDeleted,
             entityType: 'task',
             entityId: id,
@@ -1233,7 +1234,7 @@ export class TasksService {
       }
       await tx.task.update({ where: { id }, data: { deletedAt: null, parentId } });
       const detail = await this.load(tx, user, id, false);
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.taskRestored,
         entityType: 'task',
         entityId: id,
@@ -1255,7 +1256,7 @@ export class TasksService {
           'Trashed task was not found',
         );
       }
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.taskDeleted,
         entityType: 'task',
         entityId: id,
@@ -1322,7 +1323,7 @@ export class TasksService {
           },
         });
         const body = toChecklistJson(taskId, row);
-        await this.events.record(tx, actorOf(user), {
+        await this.record(tx, user, {
           type: DomainEvent.checklistItemCreated,
           entityType: 'checklist_item',
           entityId: row.id,
@@ -1383,7 +1384,7 @@ export class TasksService {
         },
       });
       const body = toChecklistJson(taskId, row);
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.checklistItemUpdated,
         entityType: 'checklist_item',
         entityId: itemId,
@@ -1402,7 +1403,7 @@ export class TasksService {
         where: { id: itemId },
         data: { deletedAt: new Date() },
       });
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.checklistItemDeleted,
         entityType: 'checklist_item',
         entityId: itemId,
@@ -1751,7 +1752,7 @@ export class TasksService {
       await this.materializeExtract(tx, user, row, extracted.items, dto.extract_as ?? 'checklist');
     }
     const detail = await this.load(tx, user, row.id, false);
-    await this.events.record(tx, actorOf(user), {
+    await this.record(tx, user, {
       type: detail.kind === 'note' ? DomainEvent.noteCreated : DomainEvent.taskCreated,
       entityType: detail.kind === 'note' ? 'note' : 'task',
       entityId: row.id,
@@ -1817,7 +1818,7 @@ export class TasksService {
         data: { status: 'completed', completedAt: now },
       });
       for (const item of items) {
-        await this.events.record(tx, actorOf(user), {
+        await this.record(tx, user, {
           type: DomainEvent.checklistItemCompleted,
           entityType: 'checklist_item',
           entityId: item.id,
@@ -1844,7 +1845,7 @@ export class TasksService {
       });
       completedChildIds = children.map((child) => child.id);
       for (const child of children) {
-        await this.events.record(tx, actorOf(user), {
+        await this.record(tx, user, {
           type: DomainEvent.taskCompleted,
           entityType: 'task',
           entityId: child.id,
@@ -1877,7 +1878,7 @@ export class TasksService {
       },
     });
     const detail = await this.load(tx, user, id, false);
-    await this.events.record(tx, actorOf(user), {
+    await this.record(tx, user, {
       type: DomainEvent.taskCompleted,
       entityType: 'task',
       entityId: id,
@@ -2016,7 +2017,10 @@ export class TasksService {
         recurrenceOpen: true,
         sortOrder: source.sortOrder,
         createdById: source.createdById,
-        source: 'automation',
+        source:
+          requestSourceOf(user) === 'web'
+            ? 'manual'
+            : (requestSourceOf(user) as 'api' | 'mcp' | 'automation'),
       },
     });
     let itemOrder = 0n;
@@ -2057,7 +2061,7 @@ export class TasksService {
       source.tags.map((tag) => tag.tagId),
     );
     const detail = await this.load(tx, user, id, false);
-    await this.events.record(tx, actorOf(user), {
+    await this.record(tx, user, {
       type: source.kind === 'note' ? DomainEvent.noteCreated : DomainEvent.taskCreated,
       entityType: source.kind === 'note' ? 'note' : 'task',
       entityId: id,
@@ -2151,7 +2155,7 @@ export class TasksService {
       }
     }
     const detail = await this.load(tx, user, copy.id, false);
-    await this.events.record(tx, actorOf(user), {
+    await this.record(tx, user, {
       type: DomainEvent.taskCreated,
       entityType: 'task',
       entityId: copy.id,
@@ -2223,7 +2227,7 @@ export class TasksService {
         data: { status, completedAt: status === 'completed' ? new Date() : null },
       });
       const body = toChecklistJson(taskId, row);
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type:
           status === 'completed'
             ? DomainEvent.checklistItemCompleted
@@ -2238,9 +2242,35 @@ export class TasksService {
     });
   }
 
+  private activitySource(changes: Prisma.JsonValue, tokenId: string | null): string {
+    const body =
+      changes !== null && typeof changes === 'object' && !Array.isArray(changes) ? changes : {};
+    const data =
+      body.data !== null && typeof body.data === 'object' && !Array.isArray(body.data)
+        ? body.data
+        : body;
+    return typeof data.source === 'string' ? data.source : tokenId === null ? 'web' : 'api';
+  }
+
+  private record(tx: Tx, user: AuthUser, event: RecordedEvent): Promise<void> {
+    const data =
+      typeof event.data === 'object' && !Array.isArray(event.data)
+        ? (event.data as Prisma.InputJsonObject)
+        : {};
+    return this.events.record(tx, actorOf(user), {
+      ...event,
+      data: {
+        ...data,
+        source:
+          user.requestSource ??
+          (typeof data.source === 'string' ? data.source : requestSourceOf(user)),
+      },
+    });
+  }
+
   private async emitUpdated(tx: Tx, user: AuthUser, id: string): Promise<void> {
     const detail = await this.load(tx, user, id, false);
-    await this.events.record(tx, actorOf(user), {
+    await this.record(tx, user, {
       type: DomainEvent.taskUpdated,
       entityType: 'task',
       entityId: id,
@@ -2296,6 +2326,7 @@ export class TasksService {
       activity: activity.map((entry) => ({
         id: entry.id,
         action: entry.action,
+        source: this.activitySource(entry.changes, entry.tokenId),
         changes: entry.changes,
         created_at: entry.createdAt.toISOString(),
         actor_id: entry.actorId,

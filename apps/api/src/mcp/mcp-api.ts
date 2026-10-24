@@ -1,3 +1,4 @@
+import { mcpSourceHeaders } from './internal-source.js';
 import { randomUUID } from 'node:crypto';
 import { once } from 'node:events';
 import { request } from 'node:http';
@@ -64,7 +65,7 @@ export async function requestPublicApi(
             'Content-Type': files.length
               ? `multipart/form-data; boundary=${boundary}`
               : 'application/json',
-            'X-TTD-Source': 'mcp',
+            ...mcpSourceHeaders(method, url.pathname + url.search, authorization),
             ...(typeof args.idempotency_key === 'string'
               ? { 'Idempotency-Key': args.idempotency_key }
               : {}),
