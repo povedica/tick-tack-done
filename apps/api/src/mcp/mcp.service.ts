@@ -1243,6 +1243,7 @@ function listResult(value: unknown, args: Record<string, unknown>): unknown {
 
 function enrichTask<
   T extends {
+    status?: string;
     repeat_rule?: string | null;
     time_zone?: string;
     due_date?: string | null;
@@ -1270,9 +1271,11 @@ function enrichTask<
     repeat_label: describeRepeatRule(rule),
     next_occurrence: task.series
       ? task.series.next_due_date
-      : next.ok
-        ? (next.occurrence?.dueDate ?? null)
-        : null,
+      : task.status !== undefined && task.status !== 'active'
+        ? null
+        : next.ok
+          ? (next.occurrence?.dueDate ?? null)
+          : null,
   };
 }
 

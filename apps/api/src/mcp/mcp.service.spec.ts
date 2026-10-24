@@ -893,6 +893,24 @@ describe('McpService recurrence mapping', () => {
     });
     expect(tasks.deleteAttachment).toHaveBeenCalledWith(user, id, id, true);
   });
+  it.each(['completed', 'cancelled', 'archived'])(
+    'TTD-AUD-118: %s occurrences never expose a next occurrence',
+    async (status) => {
+      tasks.get.mockResolvedValue({
+        id: '33333333-3333-4333-8333-333333333333',
+        status,
+        repeat_rule: 'RRULE:FREQ=DAILY',
+        due_date: '2030-01-01T09:00:00Z',
+      });
+      const result = await service.handle(user, {
+        jsonrpc: '2.0',
+        id: 118,
+        method: 'tools/call',
+        params: { name: 'get_task', arguments: { id: '33333333-3333-4333-8333-333333333333' } },
+      });
+      expect(JSON.parse(toolText(result)).next_occurrence).toBeNull();
+    },
+  );
 });
 
 function toolText(body: unknown): string {
