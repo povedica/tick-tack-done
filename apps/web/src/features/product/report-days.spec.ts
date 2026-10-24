@@ -19,3 +19,18 @@ it('TTD-AUD-95: current report uses live daily aggregates only through today; cl
   expect(reportDays(saved, live, false, '2026-10-19', '2026-10-26')).toEqual(saved);
   expect(reportDays([], undefined, true, '2026-10-19', '2026-10-22')).toEqual([]);
 });
+
+it('TTD-AUD-126 RF-2204: sparse stats daily shape fills seven calendar days and falls back to saved values', () => {
+  const result = reportDays(
+    undefined,
+    [{ date: '2026-10-23', completed: 3, created: 4 }],
+    true,
+    '2026-10-19',
+    '2026-10-23',
+  );
+  expect(result).toHaveLength(7);
+  expect(result[4]).toEqual({ date: '2026-10-23', completed: 3, created: 4 });
+  expect(result[5]).toEqual({ date: '2026-10-24', completed: 0, created: 0 });
+  expect(reportDays(result, undefined, true, '2026-10-19', '2026-10-23')).toEqual(result);
+  expect(reportDays(undefined, [], false, '2026-10-19', '2026-10-26')).toEqual([]);
+});

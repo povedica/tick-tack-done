@@ -145,9 +145,24 @@ export function ReportsPage() {
                 )
               : copy.closedWeek}
           </p>
-          <p className="week-balance">
-            {valid ? copy.balance(completed, created) : copy.unverified}
-          </p>
+          {ongoing && statistics.isError ? (
+            <p role="alert">
+              {copy.loadError}{' '}
+              <Button
+                onClick={() => {
+                  runAction(statistics.refetch());
+                }}
+              >
+                {copy.retry}
+              </Button>
+            </p>
+          ) : ongoing && statistics.isPending ? (
+            <p role="status">{copy.loading}</p>
+          ) : (
+            <p className="week-balance">
+              {valid ? copy.balance(completed, created) : copy.unverified}
+            </p>
+          )}
           {!valid && listed === undefined ? <p>{copy.empty}</p> : null}
           <div className="week-cards">
             <article className="week-card week-main">
