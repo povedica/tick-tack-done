@@ -12890,6 +12890,51 @@
             "bearer": []
           }
         ]
+      },
+      "delete": {
+        "operationId": "IntegrationsController_removeTelegramBot",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "Quitar el bot propio y sus vínculos (RF-2003).",
+        "tags": [
+          "integrations"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/integrations/telegram/settings/retry": {
+      "post": {
+        "operationId": "IntegrationsController_retryTelegramWebhook",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramConfigurationDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Reintentar el registro del webhook propio (RF-2003).",
+        "tags": [
+          "integrations"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/api/v1/integrations/telegram/webhook/{ownerId}": {
@@ -19093,6 +19138,17 @@
       "TelegramStatusDto": {
         "type": "object",
         "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "none",
+              "token_saved",
+              "webhook_ok",
+              "linked",
+              "blocked",
+              "error"
+            ]
+          },
           "configured": {
             "type": "boolean"
           },
@@ -19118,7 +19174,8 @@
             "enum": [
               "unconfigured",
               "local_only",
-              "registered"
+              "registered",
+              "error"
             ]
           },
           "updated_at": {
@@ -19147,9 +19204,11 @@
           "status": {
             "type": "string",
             "enum": [
+              "not_configured",
               "not_linked",
               "connected",
-              "blocked"
+              "blocked",
+              "error"
             ]
           },
           "enabled": {
@@ -19163,6 +19222,7 @@
           }
         },
         "required": [
+          "state",
           "configured",
           "can_manage",
           "source",
@@ -19187,6 +19247,10 @@
           "token": {
             "type": "string",
             "writeOnly": true
+          },
+          "force": {
+            "type": "boolean",
+            "default": false
           }
         },
         "required": [
@@ -19196,6 +19260,17 @@
       "TelegramConfigurationDto": {
         "type": "object",
         "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "none",
+              "token_saved",
+              "webhook_ok",
+              "linked",
+              "blocked",
+              "error"
+            ]
+          },
           "configured": {
             "type": "boolean"
           },
@@ -19221,7 +19296,8 @@
             "enum": [
               "unconfigured",
               "local_only",
-              "registered"
+              "registered",
+              "error"
             ]
           },
           "updated_at": {
@@ -19234,6 +19310,7 @@
           }
         },
         "required": [
+          "state",
           "configured",
           "can_manage",
           "source",

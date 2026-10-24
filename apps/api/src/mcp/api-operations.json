@@ -5212,12 +5212,29 @@
         "application/json": {
           "schema": {
             "type": "object",
-            "properties": { "token": { "type": "string", "writeOnly": true } },
+            "properties": {
+              "token": { "type": "string", "writeOnly": true },
+              "force": { "type": "boolean", "default": false }
+            },
             "required": ["token"]
           }
         }
       }
     }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/integrations/telegram/settings",
+    "summary": "Quitar el bot propio y sus vínculos (RF-2003).",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/integrations/telegram/settings/retry",
+    "summary": "Reintentar el registro del webhook propio (RF-2003).",
+    "parameters": [],
+    "request_body": {}
   },
   {
     "method": "POST",
