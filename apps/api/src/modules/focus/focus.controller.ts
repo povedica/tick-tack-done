@@ -245,6 +245,7 @@ export class FocusController {
           { session_id: active.id },
         );
       const created = await tx.focusSession.create({
+        include: { task: { select: { id: true, title: true } } },
         data: {
           ownerId: user.id,
           taskId: dto.task_id ?? null,
@@ -374,7 +375,10 @@ export class FocusController {
         data: { paused: pause },
         previous: null,
       });
-      return tx.focusSession.findUniqueOrThrow({ where: { id } });
+      return tx.focusSession.findUniqueOrThrow({
+        where: { id },
+        include: { task: { select: { id: true, title: true } } },
+      });
     });
     return this.json(row, now);
   }
@@ -574,7 +578,7 @@ export class FocusController {
   @ApiOkResponse({ type: FocusSettingsResponseDto })
   @Scopes('focus:write')
   @ApiOperation({
-    summary: 'Save focus durations, auto-start, local sounds, volume and daily goal (TTD-AUD-101)',
+    summary: 'Merge focus settings; omitted fields remain unchanged (RF-1201, TTD-AUD-129)',
   })
   async putSettings(
     @CurrentUser() user: AuthUser,
@@ -730,7 +734,10 @@ export class FocusController {
         where: { id, ownerId: user.id, endedAt: null },
         data: { endedAt: now, actualSeconds: actual, completed },
       });
-      const saved = await tx.focusSession.findUniqueOrThrow({ where: { id } });
+      const saved = await tx.focusSession.findUniqueOrThrow({
+        where: { id },
+        include: { task: { select: { id: true, title: true } } },
+      });
       if (changed.count === 0) return saved;
       await this.events.record(tx, actorOf(user), {
         type: completed ? DomainEvent.focusSessionFinished : DomainEvent.focusSessionAborted,

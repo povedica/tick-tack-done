@@ -249,7 +249,7 @@
 }
 .focus-presets button {
   position: relative;
-  height: var(--focus-preset-h);
+  height: 28px;
   border: 1px solid var(--border);
   border-radius: var(--radius-full);
   color: var(--ink);
@@ -264,7 +264,7 @@
 .focus-presets button::before {
   content: '';
   position: absolute;
-  inset-block: calc((var(--focus-preset-h) - var(--tap)) / 2);
+  inset-block: calc((28px - var(--tap)) / 2);
   inset-inline: 0;
 }
 .focus-quick-duration {

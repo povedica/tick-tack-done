@@ -3122,7 +3122,7 @@ export interface paths {
         };
         /** Focus settings (RF-1201) */
         get: operations["FocusController_getSettings"];
-        /** Save focus durations, auto-start, local sounds, volume and daily goal (TTD-AUD-101) */
+        /** Merge focus settings; omitted fields remain unchanged (RF-1201, TTD-AUD-129) */
         put: operations["FocusController_putSettings"];
         post?: never;
         delete?: never;

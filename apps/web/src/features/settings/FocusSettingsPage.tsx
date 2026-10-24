@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import { ApiError } from '@reflexionia/sdk';
+import { useWtEMessages } from './i18n-wt-e';
+import './settings-wt-e.css';
 import { Link } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Play } from 'lucide-react';
@@ -11,6 +14,8 @@ import { runAction } from '../../components/run-action';
 import '../focus/focus.css';
 export function FocusSettingsPage() {
   const m = useMessages();
+  const copy = useWtEMessages();
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const cache = useQueryClient();
   const query = useQuery({
     queryKey: ['focus-settings'],
@@ -27,6 +32,7 @@ export function FocusSettingsPage() {
       : fallback;
   };
   const set = (key: string, next: string | number | boolean) => {
+    setFieldErrors((old) => ({ ...old, [key]: '' }));
     setDraft((old) => ({ ...old, [key]: next }));
   };
   const numbers = [
@@ -36,7 +42,30 @@ export function FocusSettingsPage() {
     ['cyclesBeforeLongBreak', 'cycles_before_long_break', m.focusCycles, 1, 12, 1, 4],
     ['dailyGoal', 'daily_goal', m.focusDailyGoal, 1, 20, 1, 8],
   ] as const;
+  const validation = Object.fromEntries(
+    numbers.map(([key, , , min, max, step, initial]) => {
+      const raw = value(key, initial);
+      const number = Number(raw);
+      const invalid =
+        raw === '' ||
+        !Number.isFinite(number) ||
+        number < min ||
+        number > max ||
+        (number - min) % step !== 0;
+      return [
+        key,
+        invalid
+          ? copy.range
+              .replace('{min}', String(min))
+              .replace('{max}', String(max))
+              .replaceAll('{step}', String(step))
+          : (fieldErrors[key] ?? ''),
+      ];
+    }),
+  );
+  const invalid = Object.values(validation).some(Boolean);
   const save = async () => {
+    if (invalid) return;
     setBusy(true);
     setError('');
     try {
@@ -54,7 +83,15 @@ export function FocusSettingsPage() {
       cache.setQueryData(['focus-settings'], saved);
       setDraft({});
     } catch (caught) {
-      setError(failureMessage(caught, m.settingsFailed));
+      const message = failureMessage(caught, m.settingsFailed);
+      setError(message);
+      if (caught instanceof ApiError && caught.status === 400) {
+        setFieldErrors(
+          Object.fromEntries(
+            numbers.filter(([key]) => key in draft).map(([key]) => [key, message]),
+          ),
+        );
+      }
     } finally {
       setBusy(false);
     }
@@ -96,6 +133,8 @@ export function FocusSettingsPage() {
                 id={`focus-${key}`}
                 type="number"
                 required
+                aria-invalid={!!validation[key]}
+                aria-describedby={validation[key] ? `focus-${key}-error` : undefined}
                 min={min}
                 max={max}
                 step={step}
@@ -114,6 +153,11 @@ export function FocusSettingsPage() {
                 +
               </button>
             </div>
+            {validation[key] ? (
+              <p className="wt-e-field-error" id={`focus-${key}-error`} role="alert">
+                {validation[key]}
+              </p>
+            ) : null}
           </div>
         ))}
         {(
@@ -207,7 +251,7 @@ export function FocusSettingsPage() {
           <Link to="/settings/notifications">{m.settingsNotifications}</Link>
         </div>
         {error ? <p role="alert">{error}</p> : null}
-        <Button type="submit" disabled={busy}>
+        <Button type="submit" disabled={busy || invalid}>
           {m.saveChanges}
         </Button>
       </form>
