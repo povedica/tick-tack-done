@@ -76,7 +76,10 @@ export async function wtBFixture(
       return route.fulfill({ json: { preferences: {} } });
     if (/^\/tasks\/task-\d+$/.test(path) && req.method() === 'PATCH') {
       if (options.wip)
-        return route.fulfill({ status: 409, json: { code: 'wip_exceeded', message: 'WIP' } });
+        return route.fulfill({
+          status: 409,
+          json: { error: { code: 'wip_exceeded', message: 'WIP' } },
+        });
       const task = tasks.find((item) => `/tasks/${item.id}` === path);
       Object.assign(task ?? {}, req.postDataJSON());
       return route.fulfill({ json: task });

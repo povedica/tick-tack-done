@@ -2,7 +2,6 @@ import { runAction } from '../../components/run-action';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { GripVertical, MoreHorizontal, Plus } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
-import { ApiError } from '@reflexionia/sdk';
 import { Link, useSearchParams } from 'react-router';
 import { api } from '../../api';
 import { PriorityCheck } from '../../components/PriorityCheck';
@@ -24,6 +23,7 @@ import { calendarDay } from '../today/groups';
 import './kanban-wt-b.css';
 import { KanbanTabs } from './KanbanTabs';
 import { useWtBMessages } from './i18n-wt-b';
+import { KanbanMoveSheet, kanbanMoveError } from './KanbanMoveSheet';
 
 export function TaskList({
   messages,
@@ -484,6 +484,14 @@ function Kanban({
     ? dateKanbanColumns(messages)
     : [...columns, ...(loose ? [{ id: 'none', name: messages.noSection }] : [])];
   const now = useMemo(() => new Date(), []);
+  async function moveCard(id: string, columnId: string): Promise<void> {
+    setBoardError(null);
+    await api.patchTask(
+      id,
+      kanbanMovePatch(columnId, dateMode, rows.find((row) => row.id === id) ?? null, now),
+    );
+    await refreshTaskSurfaces(queryClient);
+  }
   return (
     <div className="kanban-wrap">
       {boardError !== null ? (
@@ -556,20 +564,9 @@ function Kanban({
                 if (id.length === 0) {
                   return;
                 }
-                const row = rows.find((item) => item.id === id);
-                const body = dateMode
-                  ? dateBucketPatch(column.id, row ?? null, now)
-                  : { column_id: column.id === 'none' ? null : column.id };
-                void api
-                  .patchTask(id, body)
-                  .then(() => refreshTaskSurfaces(queryClient))
-                  .catch((error: unknown) => {
-                    if (error instanceof ApiError && error.code === 'wip_exceeded') {
-                      setBoardError(messages.wipExceeded);
-                      return;
-                    }
-                    setBoardError(messages.saveFailed);
-                  });
+                void moveCard(id, column.id).catch((error: unknown) => {
+                  setBoardError(kanbanMoveError(error, messages));
+                });
               }}
             >
               <h3>
@@ -652,6 +649,23 @@ function Kanban({
                       </time>
                     ) : null}
                   </p>
+                  <KanbanMoveSheet
+                    columns={cols.map((destination) => ({
+                      ...destination,
+                      count: rows.filter((item) =>
+                        dateMode
+                          ? dateBucketOf(item, now) === destination.id
+                          : destination.id === 'none'
+                            ? !item.columnId
+                            : item.columnId === destination.id,
+                      ).length,
+                    }))}
+                    currentId={column.id}
+                    moreLabel={messages.moreActions}
+                    wipExceeded={messages.wipExceeded}
+                    saveFailed={messages.saveFailed}
+                    onMove={(destination) => moveCard(row.id, destination)}
+                  />
                 </article>
               ))}
               <div className="kanban-add-space">
@@ -1047,6 +1061,17 @@ function dateBucketOf(row: RowModel, now: Date): string {
     return 'next7';
   }
   return 'later';
+}
+
+export function kanbanMovePatch(
+  columnId: string,
+  dateMode: boolean,
+  row: RowModel | null,
+  now: Date,
+) {
+  return dateMode
+    ? dateBucketPatch(columnId, row, now)
+    : { column_id: columnId === 'none' ? null : columnId };
 }
 
 function dateBucketPatch(

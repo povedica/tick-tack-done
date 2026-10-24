@@ -21,6 +21,8 @@ import { calendarDay, taskWhen, type TaskGroupKey, type TodayTask } from './grou
 import { CompactTaskTime } from './CompactTaskTime';
 import '../tasks/kanban-wt-b.css';
 import { wtBMessagesFor } from '../tasks/i18n-wt-b';
+import { KanbanMoveSheet } from '../tasks/KanbanMoveSheet';
+import type { KanbanTab } from '../tasks/KanbanTabs';
 
 export function TaskGroup({
   id,
@@ -53,6 +55,8 @@ export function TaskGroup({
   onPriorityDrop,
   onColumnDrop,
   onFocus,
+  moveColumns,
+  onMove,
 }: {
   readonly id: string;
   readonly label: string;
@@ -84,6 +88,8 @@ export function TaskGroup({
   readonly onColumnDrop?: ((taskId: string) => void) | undefined;
   readonly onPriorityDrop: (taskId: string, priority: TodayTask['priority']) => void;
   readonly onFocus: (id: string) => void;
+  readonly moveColumns?: readonly KanbanTab[] | undefined;
+  readonly onMove?: ((taskId: string, target: string) => Promise<void>) | undefined;
 }) {
   return (
     <details
@@ -307,17 +313,29 @@ export function TaskGroup({
                     />
                   ) : null}
                 </span>
-                <button
-                  type="button"
-                  className="task-more"
-                  aria-label={moreLabel}
-                  onClick={(event) => {
-                    const rect = event.currentTarget.getBoundingClientRect();
-                    onMore(task, rect.right, rect.bottom);
-                  }}
-                >
-                  <MoreHorizontal size={16} aria-hidden="true" />
-                </button>
+                {moveColumns && onMove ? (
+                  <KanbanMoveSheet
+                    columns={moveColumns}
+                    currentId={id}
+                    moreLabel={moreLabel}
+                    wipExceeded={messagesFor(locale).wipExceeded}
+                    saveFailed={messagesFor(locale).saveFailed}
+                    onMove={(target) => onMove(task.id, target)}
+                    onMore={(x, y) => onMore(task, x, y)}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    className="task-more"
+                    aria-label={moreLabel}
+                    onClick={(event) => {
+                      const rect = event.currentTarget.getBoundingClientRect();
+                      onMore(task, rect.right, rect.bottom);
+                    }}
+                  >
+                    <MoreHorizontal size={16} aria-hidden="true" />
+                  </button>
+                )}
               </div>
             </li>
           );

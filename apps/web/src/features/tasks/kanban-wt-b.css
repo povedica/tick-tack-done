@@ -17,6 +17,42 @@
 .kanban-tabs {
   display: none;
 }
+.kanban-card .kanban-card-more,
+.today-layout.is-kanban .kanban-card-more {
+  position: static;
+  transform: none;
+  opacity: 1;
+  align-self: flex-end;
+  justify-self: end;
+  min-width: 44px;
+  min-height: 44px;
+}
+.kanban-move-sheet [role='menu'] {
+  display: grid;
+  gap: var(--sp-1);
+}
+.kanban-move-sheet [role='menuitem'] {
+  min-height: 44px;
+  padding: var(--sp-2) var(--sp-3);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.kanban-move-sheet [role='menuitem']:focus-visible,
+.kanban-move-sheet [role='menuitem']:hover {
+  background: var(--accent-soft);
+}
+.kanban-move-sheet [role='menuitem']:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.kanban-move-sheet [role='alert'] {
+  color: var(--danger);
+}
 .kanban-col:has(> p),
 .today-layout.is-kanban .task-group {
   min-height: 120px;
