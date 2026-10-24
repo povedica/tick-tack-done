@@ -1,3 +1,4 @@
+import { Popover } from '../../components/Popover';
 import { useWtAMessages } from '../calendar/i18n-wt-a';
 import { composerContextFor } from '../capture/context';
 import { useAgendaQuery } from '../calendar/use-agenda-query';
@@ -609,6 +610,7 @@ export function CalendarPage() {
   });
   const [openEvent, setOpenEvent] = useState<ExternalEventView | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
+  const pickedAnchor = useRef<HTMLElement | null>(null);
   const external = (Array.isArray(externalQuery.data?.external) ? externalQuery.data.external : [])
     .filter(isExternalEvent)
     .filter((event, index, all) => all.findIndex((other) => other.id === event.id) === index)
@@ -1024,7 +1026,10 @@ export function CalendarPage() {
                 cursor={cursor}
                 outsideMonth
                 onNavigate={current === 'month' ? move : undefined}
-                onPick={setPicked}
+                onPick={(key, element) => {
+                  pickedAnchor.current = element ?? null;
+                  setPicked(key);
+                }}
                 onCreateAt={createAt}
                 draftingDay={draft ? calendarDay(draft.slot.start, timeZone) : null}
                 timeZone={timeZone}
@@ -1037,6 +1042,7 @@ export function CalendarPage() {
       {picked !== null ? (
         <DaySheet
           dayKey={picked}
+          anchor={pickedAnchor}
           tasks={dated}
           events={external}
           messages={messages}
@@ -1155,7 +1161,7 @@ function DayGrid({
   readonly cursor: Date;
   readonly outsideMonth: boolean;
   readonly onNavigate?: ((delta: number) => void) | undefined;
-  readonly onPick?: (dayKey: string) => void;
+  readonly onPick?: (dayKey: string, anchor?: HTMLElement) => void;
   readonly dots?: boolean;
 }) {
   const location = useLocation();
@@ -1370,8 +1376,8 @@ function DayGrid({
                     type="button"
                     aria-label={`${day.toLocaleDateString(locale, { dateStyle: 'full' })}, ${String(chips.length)} ${chips.length === 1 ? messages.calendarItem : messages.calendarItems}`}
                     aria-current={key === todayKey ? 'date' : undefined}
-                    onClick={() => {
-                      onPick(key);
+                    onClick={(event) => {
+                      onPick(key, event.currentTarget);
                     }}
                   >
                     <TodayMark today={key === todayKey}>{day.getDate()}</TodayMark>
@@ -1470,7 +1476,11 @@ function DayGrid({
                       )}
               </div>
               {(overflow[key] ?? 0) > 0 ? (
-                <button type="button" className="calendar-overflow" onClick={() => onPick?.(key)}>
+                <button
+                  type="button"
+                  className="calendar-overflow"
+                  onClick={(event) => onPick?.(key, event.currentTarget)}
+                >
                   +{overflow[key]} {messages.calendarMoreViews.toLocaleLowerCase(locale)}
                 </button>
               ) : null}
@@ -2104,6 +2114,7 @@ function Agenda({
 
 function DaySheet({
   dayKey,
+  anchor,
   onClose,
   tasks,
   events,
@@ -2112,6 +2123,7 @@ function DaySheet({
   onOpenEvent,
 }: {
   readonly dayKey: string;
+  readonly anchor: { current: HTMLElement | null };
   readonly onClose: () => void;
   readonly tasks: readonly Task[];
   readonly events: readonly ExternalEventView[];
@@ -2121,46 +2133,53 @@ function DaySheet({
 }) {
   const locale = useAppLocale();
   const day = dayFromParam(dayKey);
-  const dialog = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    const node = dialog.current;
-    if (node && !node.open) node.showModal();
-    return () => {
-      node?.close();
-    };
-  }, []);
-  if (day === null) {
-    return null;
-  }
-  return (
-    <dialog
-      ref={dialog}
-      className="calendar-day-sheet"
-      aria-label={dayKey}
-      onCancel={(event) => {
-        event.preventDefault();
-        onClose();
-      }}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <Button className="calendar-day-sheet-close" onClick={onClose} aria-label={messages.close}>
+  if (day === null) return null;
+  const heading = (
+    <div className="calendar-day-popover-header">
+      <strong>
+        {new Intl.DateTimeFormat(locale, {
+          weekday: 'short',
+          day: 'numeric',
+          month: 'short',
+        }).format(day)}
+      </strong>
+      <Button onClick={onClose} aria-label={messages.close}>
         <X aria-hidden="true" />
       </Button>
-      <Agenda
-        days={[day]}
-        tasks={tasksOnCell(tasks, day)}
-        events={eventsOnDay(events, day)}
-        locale={locale}
-        messages={messages}
-        colors={colors}
-        onOpenEvent={(event) => {
-          onClose();
-          onOpenEvent(event);
+    </div>
+  );
+  return (
+    <Popover
+      open
+      anchor={anchor}
+      width={320}
+      mobileSheet
+      mobileSheetMaxWidth={767}
+      sheetHeader={heading}
+      label={day.toLocaleDateString(locale, { dateStyle: 'full' })}
+      className="popover calendar-day-popover"
+      onClose={onClose}
+    >
+      <div className="calendar-day-desktop-heading">{heading}</div>
+      <div
+        onClick={(event) => {
+          if (event.target instanceof Element && event.target.closest('a')) onClose();
         }}
-      />
-    </dialog>
+      >
+        <Agenda
+          days={[day]}
+          tasks={tasksOnCell(tasks, day)}
+          events={eventsOnDay(events, day)}
+          locale={locale}
+          messages={messages}
+          colors={colors}
+          onOpenEvent={(event) => {
+            onClose();
+            onOpenEvent(event);
+          }}
+        />
+      </div>
+    </Popover>
   );
 }
 

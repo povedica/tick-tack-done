@@ -27,3 +27,31 @@
 .calendar-filter-popover .sheet-body {
   padding-bottom: calc(var(--sp-3) + env(safe-area-inset-bottom));
 }
+
+.calendar-day-popover {
+  --popover-height-limit: min(60dvh, 480px);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+}
+.calendar-day-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+.calendar-day-popover-header button {
+  min-width: 32px;
+  min-height: 32px;
+}
+.calendar-day-popover .agenda-card > span {
+  white-space: normal;
+  overflow: visible;
+  display: block;
+}
+.calendar-day-popover.is-bottom-sheet .calendar-day-desktop-heading {
+  display: none;
+}
+.calendar-day-popover.is-bottom-sheet {
+  border-radius: var(--sheet-radius) var(--sheet-radius) 0 0;
+}
