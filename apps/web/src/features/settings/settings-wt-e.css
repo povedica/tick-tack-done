@@ -1,0 +1,35 @@
+.wt-e-field-error {
+  color: var(--danger);
+  flex-basis: 100%;
+  margin: 0;
+}
+.focus-setting-row:has(.wt-e-field-error) {
+  flex-wrap: wrap;
+}
+.recurrence-anchor-warning {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  white-space: normal;
+}
+.recurrence-anchor-warning button {
+  min-height: 44px;
+}
+.wt-e-google-services {
+  display: grid;
+  gap: 16px;
+}
+.wt-e-google-service {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.wt-e-google-service p {
+  margin: 0;
+}
+.google-disconnect-dialog {
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+}
