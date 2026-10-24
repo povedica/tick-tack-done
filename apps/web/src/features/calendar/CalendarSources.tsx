@@ -1,4 +1,6 @@
-import { CalendarDays, List, ListFilter, Tag, Layers } from 'lucide-react';
+import { useRef, useState, useEffect } from 'react';
+import { useWtAMessages } from './i18n-wt-a';
+import { CalendarDays, List, ListFilter, Tag, Layers, ChevronRight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../api';
 import { useMessages } from '../../i18n';
@@ -9,6 +11,18 @@ import './sources.css';
 
 export function CalendarSources() {
   const messages = useMessages();
+  const own = useWtAMessages();
+  const allInput = useRef<HTMLInputElement>(null);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('ttd.calendar.sources.open') ?? '{}') as Record<
+        string,
+        boolean
+      >;
+    } catch {
+      return {};
+    }
+  });
   const { params, change } = useCalendarSources();
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
   const tags = useQuery({ queryKey: ['tags'], queryFn: collectTags });
@@ -62,29 +76,62 @@ export function CalendarSources() {
   ];
   const all =
     ['lists', 'tags', 'cals'].every((key) => params.get(key) === null) && !params.get('filters');
+  const any = groups.some(({ key, rows }) =>
+    rows.some(({ id }) =>
+      key === 'filters'
+        ? params.get(key)?.split(',').includes(id)
+        : sourceSelected(params.get(key), id),
+    ),
+  );
+  useEffect(() => {
+    if (allInput.current) allInput.current.indeterminate = !all && any;
+  }, [all, any]);
   return (
     <div className="calendar-sources">
-      <details open>
-        <summary>{messages.calendarAllSources}</summary>
-        <label className="calendar-source-row">
-          <Layers size={16} aria-hidden="true" />
-          <span>{messages.calendarAllSources}</span>
-          <input
-            type="checkbox"
-            checked={all}
-            onChange={() => {
-              change(
-                all
-                  ? { lists: '-', tags: '-', cals: '-', filters: '-' }
-                  : { lists: null, tags: null, cals: null, filters: null },
-              );
-            }}
-          />
-        </label>
-      </details>
+      <label className="calendar-source-row">
+        <Layers size={16} aria-hidden="true" />
+        <span>{messages.calendarAllSources}</span>
+        <input
+          ref={allInput}
+          aria-label={messages.calendarAllSources}
+          type="checkbox"
+          checked={all}
+          onChange={() =>
+            change(
+              all
+                ? { lists: '-', tags: '-', cals: '-', filters: '-' }
+                : { lists: null, tags: null, cals: null, filters: null },
+            )
+          }
+        />
+      </label>
       {groups.map(({ key, label, icon: Icon, rows }) => (
-        <details open key={key}>
-          <summary>{label}</summary>
+        <details
+          open={expanded[key] ?? true}
+          key={key}
+          onToggle={(event) => {
+            const open = event.currentTarget.open;
+            setExpanded((current) => {
+              const next = { ...current, [key]: open };
+              localStorage.setItem('ttd.calendar.sources.open', JSON.stringify(next));
+              return next;
+            });
+          }}
+        >
+          <summary>
+            <ChevronRight size={14} aria-hidden="true" />
+            <span>{label}</span>
+            <small aria-label={own.calendarSourcesCount}>
+              {
+                rows.filter(({ id }) =>
+                  key === 'filters'
+                    ? params.get(key)?.split(',').includes(id)
+                    : sourceSelected(params.get(key), id),
+                ).length
+              }
+              /{rows.length}
+            </small>
+          </summary>
           {rows.map((item) => (
             <label className="calendar-source-row" key={item.id}>
               <Icon

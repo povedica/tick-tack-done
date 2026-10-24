@@ -1,3 +1,4 @@
+import { useWtAMessages } from '../calendar/i18n-wt-a';
 import { composerContextFor } from '../capture/context';
 import { useAgendaQuery } from '../calendar/use-agenda-query';
 import { agendaPageRange } from '../calendar/agenda-range';
@@ -1159,6 +1160,7 @@ function DayGrid({
 }) {
   const location = useLocation();
   const locale = useAppLocale();
+  const own = useWtAMessages();
   const verticalNavigation = useVerticalCalendarNavigation(onNavigate);
   const grid = useRef<HTMLDivElement>(null);
   const drag = useCalendarDrag(grid, timeZone, onTaskChange);
@@ -1276,7 +1278,7 @@ function DayGrid({
       </span>
       {!dots ? (
         <div className="cal-head" aria-label={messages.calWeekNumber}>
-          S
+          {own.calWeekShort}
         </div>
       ) : null}
       {heads.map((label, index) => (
