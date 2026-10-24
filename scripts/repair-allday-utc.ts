@@ -1,6 +1,13 @@
+import { allDayMidnight } from '../apps/api/src/modules/tasks/all-day.js';
 import { PrismaClient } from '../apps/api/node_modules/@prisma/client/index.js';
 import { repairAllDayUtc } from '../packages/domain/src/tasks/repair-allday';
 import { backupBeforeApply, maintenanceMode } from './data-safety';
+function proposedMidnight(value: Date, zone: string): string | null {
+  const proposed = allDayMidnight(value, zone);
+  return proposed !== null && proposed.getTime() !== value.getTime()
+    ? proposed.toISOString()
+    : null;
+}
 async function main(): Promise<void> {
   const mode = maintenanceMode();
   const db = new PrismaClient();
@@ -19,9 +26,15 @@ async function main(): Promise<void> {
     });
     const changes = rows.flatMap((row) => {
       const due =
-        row.dueDate === null ? null : repairAllDayUtc(row.dueDate.toISOString(), row.timeZone);
+        row.dueDate === null
+          ? null
+          : (repairAllDayUtc(row.dueDate.toISOString(), row.timeZone) ??
+            proposedMidnight(row.dueDate, row.timeZone));
       const start =
-        row.startDate === null ? null : repairAllDayUtc(row.startDate.toISOString(), row.timeZone);
+        row.startDate === null
+          ? null
+          : (repairAllDayUtc(row.startDate.toISOString(), row.timeZone) ??
+            proposedMidnight(row.startDate, row.timeZone));
       return due === null && start === null ? [] : [{ row, due, start }];
     });
     console.log(
@@ -29,6 +42,14 @@ async function main(): Promise<void> {
         dry_run: mode.dryRun,
         count: changes.length,
         ids: changes.map((change) => change.row.id),
+        changes: changes.map(({ row, due, start }) => ({
+          id: row.id,
+          time_zone: row.timeZone,
+          previous_due: row.dueDate?.toISOString() ?? null,
+          proposed_due: due,
+          previous_start: row.startDate?.toISOString() ?? null,
+          proposed_start: start,
+        })),
       }),
     );
     if (mode.dryRun) return;

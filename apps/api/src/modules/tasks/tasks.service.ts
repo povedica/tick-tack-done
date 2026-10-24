@@ -1,3 +1,4 @@
+import { allDayMidnight } from './all-day.js';
 import { defaultReminderChannel } from './reminder-channel.js';
 import { normalizeTaskUrl } from '@reflexionia/domain';
 import { linkTitle } from './link-title.js';
@@ -542,12 +543,16 @@ export class TasksService {
         ? { date: null as Date | null, dateOnly: false }
         : this.nextDate(current.startDate, dto.start_date, 'start_date', timeZone);
       const dueParsed = this.nextDate(current.dueDate, dto.due_date, 'due_date', timeZone);
-      const start = startParsed.date;
+      let start = startParsed.date;
       let due = dueParsed.date;
       const inferredAllDay =
         (dto.start_date !== undefined && startParsed.dateOnly) ||
         (dto.due_date !== undefined && dueParsed.dateOnly);
       const isAllDay = dto.is_all_day ?? (inferredAllDay ? true : current.isAllDay);
+      if (isAllDay) {
+        start = allDayMidnight(start, timeZone);
+        due = allDayMidnight(due, timeZone);
+      }
       if (
         due === null &&
         dto.due_date === undefined &&
@@ -1674,7 +1679,7 @@ export class TasksService {
       'due_date',
       timeZone,
     );
-    const start = startParsed.date;
+    let start = startParsed.date;
     const inferredAllDay = startParsed.dateOnly || dueParsed.dateOnly;
     const isAllDay = dto.is_all_day ?? captured?.isAllDay ?? (inferredAllDay ? true : false);
     const explicitDuration =
@@ -1685,7 +1690,11 @@ export class TasksService {
       !isAllDay && dto.due_date === undefined && dueParsed.date === null
         ? endFromDuration(start?.toISOString() ?? null, explicitDuration)
         : null;
-    const due = dueParsed.date ?? (inferredEnd === null ? null : new Date(inferredEnd));
+    let due = dueParsed.date ?? (inferredEnd === null ? null : new Date(inferredEnd));
+    if (isAllDay) {
+      start = allDayMidnight(start, timeZone);
+      due = allDayMidnight(due, timeZone);
+    }
     const sortOrder = await this.planTaskSort(
       tx,
       user.id,
