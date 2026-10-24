@@ -64,6 +64,7 @@ import { countdownLabel } from '../countdowns/presentation';
 import { MatrixBoard, MatrixViewToggle } from '../matrix/MatrixBoard';
 import { readMatrixLayout, writeMatrixLayout } from '../matrix/layout';
 import { useFeatures } from '../settings/feature-flags';
+import { KanbanTabs } from '../tasks/KanbanTabs';
 
 const GROUP_KEY = 'tick-tack-done.today.group';
 const SORT_KEY = 'tick-tack-done.today.sort';
@@ -82,6 +83,7 @@ export function TodayPage() {
   const clearNotice = useCaptureNotice((state) => state.clear);
   const showToast = useActionToast((state) => state.show);
   const addRef = useRef<HTMLInputElement>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
   const [params, setParams] = useSearchParams();
   const [storedGroup, setStoredGroup] = useState(() => readStored(GROUP_KEY));
   const group = groupFromLocation(params.get('group'), storedGroup);
@@ -778,7 +780,33 @@ export function TodayPage() {
           {actionError}
         </p>
       ) : null}
-      <div className={matrixLayout === 'kanban' ? 'today-layout is-kanban' : 'today-layout'}>
+      {matrixLayout === 'kanban' ? (
+        <KanbanTabs
+          board={boardRef}
+          columns={[
+            ...overdueBlock.map((section) => ({
+              id: 'overdue',
+              name: messages.overdueTitle,
+              count: section.tasks.length,
+            })),
+            ...(group === 'priority'
+              ? ['high', 'medium', 'low', 'none'].map((id) => ({
+                  id,
+                  tasks: sections.find((section) => section.id === id)?.tasks ?? [],
+                }))
+              : sections
+            ).map((section) => ({
+              id: section.id,
+              name: sectionLabel(group, section.id, messages, locale, projectNames, tagNames),
+              count: section.tasks.length,
+            })),
+          ]}
+        />
+      ) : null}
+      <div
+        ref={boardRef}
+        className={matrixLayout === 'kanban' ? 'today-layout is-kanban' : 'today-layout'}
+      >
         <div className="today-task-groups">
           {flags.matrix && matrixLayout === 'matrix' ? (
             <MatrixBoard scope={{ kind: 'today' }} embedded />

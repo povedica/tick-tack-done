@@ -10,3 +10,82 @@
   --kanban-col-bg: #1a1a1a;
   --kanban-card-bg: #2a2a2a;
 }
+
+.kanban-wrap {
+  min-width: 0;
+}
+.kanban-tabs {
+  display: none;
+}
+.kanban-col:has(> p),
+.today-layout.is-kanban .task-group {
+  min-height: 120px;
+}
+.kanban-col > p,
+.kanban-empty {
+  color: var(--ink-3);
+  text-align: center;
+  padding: var(--sp-4);
+}
+.kanban-wrap .kanban-add-space > button,
+.today-layout.is-kanban .kanban-add-space > button {
+  min-height: 44px;
+  border: 1px dashed var(--border);
+}
+.today-layout.is-kanban .task-group > summary {
+  min-height: 44px;
+}
+.today-layout.is-kanban .task-chevron {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .kanban-tabs {
+    display: flex;
+    gap: var(--sp-2);
+    overflow-x: auto;
+    max-width: 100%;
+    padding-block: var(--sp-2);
+  }
+  .kanban-tabs > button {
+    flex: 0 0 auto;
+    border: 0;
+    border-radius: var(--radius-lg);
+    min-height: 44px;
+    padding: var(--sp-2) var(--sp-3);
+    background: var(--kanban-col-bg);
+    color: var(--ink);
+    font: inherit;
+    cursor: pointer;
+  }
+  .kanban-tabs > button[aria-selected='true'] {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .kanban,
+  .today-layout.is-kanban {
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: var(--sp-4);
+    padding-inline: var(--sp-4);
+    margin-inline: calc(-1 * var(--sp-4));
+    width: calc(100% + 2 * var(--sp-4));
+    max-width: calc(100% + 2 * var(--sp-4));
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  .kanban .kanban-col,
+  .today-layout.is-kanban .today-task-groups > .task-group,
+  .today-layout.is-kanban #overdue > .task-group {
+    flex: 0 0 var(--kanban-col-w-mobile);
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+  .kanban-col > h3,
+  .today-layout.is-kanban .task-group > summary {
+    min-height: 44px;
+  }
+  .kanban-col,
+  .today-layout.is-kanban .task-group {
+    max-height: calc(100dvh - 240px - var(--bottombar-h, 56px) - env(safe-area-inset-bottom));
+  }
+}

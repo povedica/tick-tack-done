@@ -1,7 +1,7 @@
 import { runAction } from '../../components/run-action';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { GripVertical, MoreHorizontal, Plus } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { ApiError } from '@reflexionia/sdk';
 import { Link, useSearchParams } from 'react-router';
 import { api } from '../../api';
@@ -22,6 +22,8 @@ import { formatTaskRowDate } from './row-date';
 import { isOverdue, isSameDay, type RowModel } from './model';
 import { calendarDay } from '../today/groups';
 import './kanban-wt-b.css';
+import { KanbanTabs } from './KanbanTabs';
+import { useWtBMessages } from './i18n-wt-b';
 
 export function TaskList({
   messages,
@@ -474,6 +476,8 @@ function Kanban({
   const queryClient = useQueryClient();
   const [section, setSection] = useState('');
   const [boardError, setBoardError] = useState<string | null>(null);
+  const boardMessages = useWtBMessages();
+  const boardRef = useRef<HTMLDivElement>(null);
   const dateMode = columns.length === 0;
   const loose = rows.some((row) => row.columnId === null || row.columnId.length === 0);
   const cols = dateMode
@@ -487,7 +491,20 @@ function Kanban({
           {boardError}
         </p>
       ) : null}
-      <div className="kanban">
+      <KanbanTabs
+        board={boardRef}
+        columns={cols.map((column) => ({
+          ...column,
+          count: rows.filter((row) =>
+            dateMode
+              ? dateBucketOf(row, now) === column.id
+              : column.id === 'none'
+                ? !row.columnId
+                : row.columnId === column.id,
+          ).length,
+        }))}
+      />
+      <div className="kanban" ref={boardRef}>
         {cols.map((column) => {
           const items = rows.filter((row) =>
             dateMode
@@ -518,10 +535,9 @@ function Kanban({
           return (
             <section
               key={column.id}
+              id={`kanban-column-${column.id}`}
+              data-kanban-column={column.id}
               className="kanban-col"
-              onClick={(event) => {
-                if (event.target === event.currentTarget) createInColumn();
-              }}
               onDragOver={(event) => {
                 event.preventDefault();
                 event.dataTransfer.dropEffect = 'move';
@@ -581,7 +597,7 @@ function Kanban({
                   />
                 ) : null}
               </h3>
-              {items.length === 0 ? <p>{messages.kanbanEmpty}</p> : null}
+              {items.length === 0 ? <p>{boardMessages.kanbanEmpty}</p> : null}
               {items.map((row) => (
                 <article
                   key={row.id}

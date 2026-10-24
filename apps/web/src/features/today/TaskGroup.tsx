@@ -20,6 +20,7 @@ import { dragHasTask, setTaskDrag, taskDragId } from './drag';
 import { calendarDay, taskWhen, type TaskGroupKey, type TodayTask } from './groups';
 import { CompactTaskTime } from './CompactTaskTime';
 import '../tasks/kanban-wt-b.css';
+import { wtBMessagesFor } from '../tasks/i18n-wt-b';
 
 export function TaskGroup({
   id,
@@ -86,14 +87,12 @@ export function TaskGroup({
 }) {
   return (
     <details
-      id={id}
+      id={onCreate ? `kanban-column-${id}` : id}
+      data-kanban-column={onCreate ? id : undefined}
       className="task-group"
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onCreate?.();
-      }}
-      open={!collapsed}
+      open={onCreate !== undefined || !collapsed}
       onToggle={(event) => {
-        onToggle(id, event.currentTarget.open);
+        if (!onCreate) onToggle(id, event.currentTarget.open);
       }}
       onDragOver={(event) => {
         if ((groupKind === 'priority' || onColumnDrop) && dragHasTask(event.dataTransfer)) {
@@ -128,7 +127,11 @@ export function TaskGroup({
         onPriorityDrop(taskId, id);
       }}
     >
-      <summary>
+      <summary
+        onClick={(event) => {
+          if (onCreate) event.preventDefault();
+        }}
+      >
         <ChevronDown className="task-chevron" size={16} aria-hidden="true" />
         <span>{label}</span>
         <span className="task-count">{tasks.length}</span>
@@ -147,6 +150,9 @@ export function TaskGroup({
           </button>
         ) : null}
       </summary>
+      {onCreate && tasks.length === 0 ? (
+        <p className="kanban-empty">{wtBMessagesFor(locale).kanbanEmpty}</p>
+      ) : null}
       <ul className="task-list" data-details={details ? 'on' : 'off'}>
         {tasks.map((task) => {
           const namedTags = task.tagIds.flatMap((tagId) => {
