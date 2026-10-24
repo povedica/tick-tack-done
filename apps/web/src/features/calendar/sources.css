@@ -26,15 +26,16 @@
 }
 .calendar-source-row input {
   appearance: none;
-  width: var(--calendar-source-check-size);
-  height: var(--calendar-source-check-size);
+  width: 18px;
+  height: 18px;
   border: 1px solid var(--ink-3);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-sm);
+  position: relative;
   flex: none;
 }
 .calendar-source-row input:checked {
   background: var(--accent);
-  box-shadow: inset 0 0 0 3px var(--surface);
+  border-color: var(--accent);
 }
 @media (min-width: 1024px) {
   .calendar-filter-menu {
@@ -76,4 +77,26 @@
 }
 .calendar-sources details[open] > summary > svg {
   transform: rotate(90deg);
+}
+
+.calendar-source-row input:checked::after {
+  content: '';
+  display: block;
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 4px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.calendar-source-row input:indeterminate {
+  background: var(--accent);
+}
+.calendar-source-row input:indeterminate::after {
+  content: '';
+  position: absolute;
+  inset: 7px 3px;
+  background: white;
 }

@@ -107,7 +107,9 @@ export function CalendarSources() {
       </label>
       {groups.map(({ key, label, icon: Icon, rows }) => (
         <details
-          open={expanded[key] ?? true}
+          open={
+            expanded[key] ?? (!window.matchMedia('(max-width: 768px)').matches || key === 'lists')
+          }
           key={key}
           onToggle={(event) => {
             const open = event.currentTarget.open;

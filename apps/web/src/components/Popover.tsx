@@ -21,6 +21,8 @@ export function Popover({
   offsetX = 0,
   offsetY = 0,
   mobileSheet = false,
+  sheetHeader,
+  sheetFooter,
 }: {
   readonly open: boolean;
   readonly label: string;
@@ -33,6 +35,8 @@ export function Popover({
   readonly offsetX?: number;
   readonly offsetY?: number;
   readonly mobileSheet?: boolean;
+  readonly sheetHeader?: ReactNode;
+  readonly sheetFooter?: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const touchStart = useRef<number | null>(null);
@@ -65,7 +69,10 @@ export function Popover({
           maxWidth: viewWidth,
           maxHeight: `min(var(--sheet-max-h-mobile), ${String(viewHeight)}px)`,
           zIndex: 2000,
-          overflow: 'auto',
+          overflow: sheetHeader || sheetFooter ? 'hidden' : 'auto',
+          ...(sheetHeader || sheetFooter
+            ? { display: 'flex', flexDirection: 'column' as const }
+            : {}),
         });
         return;
       }
@@ -115,7 +122,7 @@ export function Popover({
       window.removeEventListener('resize', place);
       window.removeEventListener('scroll', place, true);
     };
-  }, [open, anchor, widthProp, offsetX, offsetY, mobileSheet]);
+  }, [open, anchor, widthProp, offsetX, offsetY, mobileSheet, sheetHeader, sheetFooter]);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   useEffect(() => {
@@ -279,7 +286,15 @@ export function Popover({
           }}
         />
       ) : null}
-      {children}
+      {sheet && (sheetHeader || sheetFooter) ? (
+        <>
+          {sheetHeader ? <div className="sheet-header">{sheetHeader}</div> : null}
+          <div className="sheet-body">{children}</div>
+          {sheetFooter ? <div className="sheet-footer">{sheetFooter}</div> : null}
+        </>
+      ) : (
+        children
+      )}
     </div>
   );
   const result = sheet ? (
