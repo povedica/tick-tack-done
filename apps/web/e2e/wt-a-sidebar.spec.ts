@@ -16,7 +16,7 @@ test('RF-1101 TTD-AUD-105: calendar source scroll and responsive filters', async
   await page.screenshot({
     path: path.resolve(
       '../../test-artifacts/audit/evidencias/wt-a',
-      `105_sidebar_${phase}_${info.project.name}.png`,
+      `105_sidebar_${phase}_${info.project.name.replace('wt-a-', '').replace('-', '_')}.png`,
     ),
   });
   if (phase === 'antes') return;
@@ -52,4 +52,24 @@ test('RF-1101 TTD-AUD-105: calendar source scroll and responsive filters', async
     )
     .toBe(true);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+});
+
+test('RF-1101 TTD-AUD-105: tablet filter remains anchored at 900px', async ({ page }, info) => {
+  test.skip(info.project.name !== 'wt-a-1280-light' || process.env.WT_A_PHASE === 'antes');
+  await wtAFixture(page);
+  await page.setViewportSize({ width: 900, height: 800 });
+  await page.goto('/calendar/month?date=2026-10-28');
+  const filter = page.locator('.calendar-filter-menu > button');
+  await expect(filter).toBeVisible();
+  await filter.click();
+  await expect(page.locator('.calendar-filter-popover')).toBeVisible();
+  await expect(page.locator('.calendar-filter-popover.is-bottom-sheet')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const row = page.locator('.calendar-sidebar .calendar-source-row').first();
+  expect((await row.boundingBox())!.height).toBe(32);
+  const summary = page.locator('.calendar-sidebar summary').first();
+  expect((await summary.boundingBox())!.height).toBe(32);
+  await expect(summary).toContainText('25/25');
+  await expect(page.locator('.cal-head').first()).toHaveText('Sem');
 });

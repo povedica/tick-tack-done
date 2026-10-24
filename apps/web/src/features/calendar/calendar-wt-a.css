@@ -1,3 +1,9 @@
+:root {
+  --calendar-wt-a-panel-bg: #f7f8fc;
+}
+[data-theme='dark'] {
+  --calendar-wt-a-panel-bg: #303030;
+}
 .is-bottom-sheet > .sheet-handle,
 .is-bottom-sheet > .sheet-header,
 .is-bottom-sheet > .sheet-footer {
@@ -44,7 +50,7 @@
   min-width: 32px;
   min-height: 32px;
 }
-.calendar-day-popover .agenda-card > span {
+.popover.calendar-day-popover .agenda-card > span {
   white-space: normal;
   overflow: visible;
   display: block;
@@ -54,4 +60,52 @@
 }
 .calendar-day-popover.is-bottom-sheet {
   border-radius: var(--sheet-radius) var(--sheet-radius) 0 0;
+}
+
+@media (max-width: 768px) {
+  .calendar-month .cal-month.is-dots .cal-dots {
+    display: flex;
+    gap: 3px;
+    flex-wrap: wrap;
+    padding-top: 3px;
+  }
+  .calendar-month .cal-month.is-dots .cal-dots i {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+  }
+  .calendar-month .cal-month.is-dots .calendar-overflow {
+    display: block;
+    min-height: 20px;
+    font-size: 11px;
+  }
+  .calendar-month .cal-month.is-dots .calendar-month-span {
+    display: block !important;
+    height: 3px;
+    min-height: 3px;
+    padding: 0;
+    border: 0;
+    font-size: 0;
+    overflow: hidden;
+  }
+  .calendar-month .cal-month.is-dots .calendar-month-span > * {
+    display: none;
+  }
+}
+
+.popover.calendar-day-popover {
+  background: var(--calendar-wt-a-panel-bg);
+}
+.popover.calendar-day-popover .agenda-month,
+.popover.calendar-day-popover .agenda-day-head,
+.popover.calendar-day-popover .agenda-time.is-all-day {
+  display: none;
+}
+.popover.calendar-day-popover .agenda-day {
+  display: block;
+  border: 0;
+  padding: 0;
+}
+.popover.calendar-day-popover .agenda-time {
+  flex-basis: 86px;
 }

@@ -1000,7 +1000,10 @@ export function CalendarPage() {
           ) : current === 'day' || current === 'week' || current === 'multi-day' ? (
             <HourGrid
               onTaskChange={taskChange.change}
-              onOpenDay={setPicked}
+              onOpenDay={(key, element) => {
+                pickedAnchor.current = element ?? null;
+                setPicked(key);
+              }}
               days={cells}
               tasks={dated}
               events={external}
@@ -1018,6 +1021,7 @@ export function CalendarPage() {
                 onTaskChange={taskChange.change}
                 days={current === 'month' ? monthCells(startOfMonth(cursor), weekStart) : cells}
                 columns={7}
+                monthView={current === 'month'}
                 tasks={dated}
                 events={external}
                 colors={colors}
@@ -1143,6 +1147,7 @@ function DayGrid({
   onNavigate,
   onPick,
   dots = false,
+  monthView = false,
   onCreateAt,
   draftingDay,
   timeZone = 'Europe/Madrid',
@@ -1163,7 +1168,20 @@ function DayGrid({
   readonly onNavigate?: ((delta: number) => void) | undefined;
   readonly onPick?: (dayKey: string, anchor?: HTMLElement) => void;
   readonly dots?: boolean;
+  readonly monthView?: boolean;
 }) {
+  const [narrow, setNarrow] = useState(() => window.matchMedia('(max-width: 768px)').matches);
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 768px)');
+    const update = () => {
+      setNarrow(media.matches);
+    };
+    media.addEventListener('change', update);
+    return () => {
+      media.removeEventListener('change', update);
+    };
+  }, []);
+  const compact = dots || (monthView && narrow);
   const location = useLocation();
   const locale = useAppLocale();
   const own = useWtAMessages();
@@ -1271,9 +1289,9 @@ function DayGrid({
     <div
       ref={grid}
       {...verticalNavigation}
-      className={dots ? 'cal-month is-dots' : 'cal-month'}
+      className={compact ? 'cal-month is-dots' : 'cal-month'}
       style={{
-        gridTemplateColumns: `${dots ? '' : '2rem '}repeat(${String(columns)}, minmax(0, 1fr))`,
+        gridTemplateColumns: `${compact ? '' : '2rem '}repeat(${String(columns)}, minmax(0, 1fr))`,
       }}
     >
       <span id={drag.helpId} className="sr-only">
@@ -1282,8 +1300,12 @@ function DayGrid({
       <span role="status" aria-live="polite" className="sr-only">
         {drag.announcement}
       </span>
-      {!dots ? (
-        <div className="cal-head" aria-label={messages.calWeekNumber}>
+      {!compact ? (
+        <div
+          className="cal-head"
+          aria-label={messages.calWeekNumber}
+          title={messages.calWeekNumber}
+        >
           {own.calWeekShort}
         </div>
       ) : null}
@@ -1311,7 +1333,7 @@ function DayGrid({
           .join(' ');
         return (
           <Fragment key={key}>
-            {!dots && index % columns === 0 ? (
+            {!compact && index % columns === 0 ? (
               <span
                 className="cal-week-number"
                 style={{ gridColumn: 1, gridRow: Math.floor(index / columns) + 2 }}
@@ -1359,11 +1381,11 @@ function DayGrid({
               data-week={Math.floor(index / columns)}
               data-column={(index % columns) + 2}
               style={{
-                gridColumn: (index % columns) + (dots ? 1 : 2),
+                gridColumn: (index % columns) + (compact ? 1 : 2),
                 gridRow: Math.floor(index / columns) + 2,
               }}
               title={
-                dots
+                compact
                   ? chips
                       .map((chip) => (chip.kind === 'task' ? chip.task.title : chip.event.title))
                       .join(' · ')
@@ -1389,7 +1411,7 @@ function DayGrid({
                 )}
               </strong>
               <span className="cal-dots" aria-hidden="true">
-                {chips.map((chip) => (
+                {(compact ? chips.slice(0, 4) : chips).map((chip) => (
                   <i
                     key={chip.kind === 'task' ? chip.task.id : chip.event.id}
                     style={{
@@ -1402,7 +1424,7 @@ function DayGrid({
                 ))}
               </span>
               <div className="calendar-cell-items">
-                {dots
+                {compact
                   ? null
                   : chips
                       .filter(
@@ -1475,13 +1497,14 @@ function DayGrid({
                         ),
                       )}
               </div>
-              {(overflow[key] ?? 0) > 0 ? (
+              {(compact ? chips.length - 4 : (overflow[key] ?? 0)) > 0 ? (
                 <button
                   type="button"
                   className="calendar-overflow"
                   onClick={(event) => onPick?.(key, event.currentTarget)}
                 >
-                  +{overflow[key]} {messages.calendarMoreViews.toLocaleLowerCase(locale)}
+                  +{compact ? chips.length - 4 : overflow[key]}{' '}
+                  {compact ? null : messages.calendarMoreViews.toLocaleLowerCase(locale)}
                 </button>
               ) : null}
             </div>
@@ -1496,12 +1519,14 @@ function DayGrid({
                 {...drag.external}
                 type="button"
                 className="cal-pill calendar-month-span calendar-chip"
+                aria-label={bar.event.title}
+                title={bar.event.title}
                 data-week={bar.weekIndex}
                 data-column={bar.position.column}
                 data-span={bar.position.span}
                 style={{
                   ...chipStyle(bar.event.color),
-                  gridColumn: `${String(bar.position.column)} / span ${String(bar.position.span)}`,
+                  gridColumn: `${String(bar.position.column - (compact ? 1 : 0))} / span ${String(bar.position.span)}`,
                   gridRow: bar.weekIndex + 2,
                 }}
                 onClick={() => {

@@ -53,7 +53,7 @@ export function HourGrid({
   timeZone = 'Europe/Madrid',
 }: {
   readonly onTaskChange?: CalendarTaskChange | undefined;
-  readonly onOpenDay?: ((day: string) => void) | undefined;
+  readonly onOpenDay?: ((day: string, anchor?: HTMLElement) => void) | undefined;
   readonly onCreateAt?: ((slot: CalendarSlot, anchor: SlotAnchor) => void) | undefined;
   readonly draftSlot?: CalendarSlot | null | undefined;
   readonly timeZone?: string;
@@ -351,8 +351,8 @@ export function HourGrid({
                 className="hour-allday-more"
                 style={{ gridRow: '1 / span 2', gridColumn: index + 2 }}
                 aria-label={`${messages.calendarMoreViews}: ${day.toLocaleDateString(locale, { dateStyle: 'full' })}`}
-                onClick={() => {
-                  onOpenDay?.(localKey(day));
+                onClick={(event) => {
+                  onOpenDay?.(localKey(day), event.currentTarget);
                 }}
               >
                 +{allDayTasks(day).length + allDayEvents(day).length - 2}
@@ -662,7 +662,7 @@ export function HourGrid({
                       left: `${String((item.lane / item.lanes) * 100)}%`,
                       width: `calc(${String(100 / item.lanes)}% - 2px)`,
                     }}
-                    onClick={() => onOpenDay?.(key)}
+                    onClick={(event) => onOpenDay?.(key, event.currentTarget)}
                   >
                     +{item.count}
                   </button>
@@ -739,8 +739,8 @@ export function HourGrid({
                       type="button"
                       {...drag.external}
                       className="hour-block calendar-chip"
-                      title={event.title}
-                      aria-label={event.title}
+                      title={`${event.title} · ${new Intl.DateTimeFormat(locale, { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(event.starts_at))}`}
+                      aria-label={`${event.title} · ${new Intl.DateTimeFormat(locale, { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(event.starts_at))}`}
                       data-block-size={
                         Number(style(`event:${event.id}`).height) < 18
                           ? 'tiny'

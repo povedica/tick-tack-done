@@ -1,4 +1,4 @@
-import { type Page } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { r80Fixture } from './r80.fixture';
 export async function wtAFixture(page: Page) {
   await r80Fixture(page, { filtering: true });
@@ -47,6 +47,45 @@ export async function wtAFixture(page: Page) {
       })),
     );
     let body: unknown;
+    if (path === '/calendar/events')
+      body = {
+        external: Array.from({ length: 3 }, (_, i) => ({
+          id: `external-${i}`,
+          title: `Evento externo ${i + 1} completo`,
+          subscription_id: 'Calendario-0',
+          calendar_id: 'Calendario-0',
+          provider: 'ical',
+          time_zone: 'Europe/Madrid',
+          description: null,
+          location: null,
+          color: '#0f766e',
+          is_all_day: false,
+          starts_at: '2026-10-27T08:00:00Z',
+          ends_at: '2026-10-27T09:00:00Z',
+        })),
+        tasks: [],
+      };
+    if (
+      path === '/calendar/events' &&
+      typeof body === 'object' &&
+      body !== null &&
+      'external' in body &&
+      Array.isArray(body.external)
+    )
+      body.external.push({
+        id: 'multi-day',
+        title: 'Evento externo de varios días',
+        subscription_id: 'Calendario-0',
+        calendar_id: 'Calendario-0',
+        provider: 'ical',
+        time_zone: 'UTC',
+        description: null,
+        location: null,
+        color: '#0f766e',
+        is_all_day: true,
+        starts_at: '2026-10-30T00:00:00Z',
+        ends_at: '2026-11-02T00:00:00Z',
+      });
     if (path === '/tasks') body = { items: tasks, next_cursor: null };
     if (path === '/projects') body = { items: source(25, 'Lista'), next_cursor: null };
     if (path === '/tags') body = { items: source(10, 'Etiqueta'), next_cursor: null };
@@ -57,3 +96,23 @@ export async function wtAFixture(page: Page) {
     await route.fulfill({ json: body });
   });
 }
+
+export function contrastRatio(first: string, second: string): number {
+  const light = (value: string) => {
+    const channels = (value.match(/[\d.]+/g) ?? []).slice(0, 3).map((n) => {
+      const c = Number(n) / 255;
+      return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    });
+    return (channels[0] ?? 0) * 0.2126 + (channels[1] ?? 0) * 0.7152 + (channels[2] ?? 0) * 0.0722;
+  };
+  const a = light(first),
+    b = light(second);
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
+
+test.afterEach(async ({ page }, info) => {
+  if (process.env.WT_A_PHASE === 'antes' || info.status === 'skipped') return;
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
+    page.viewportSize()!.width,
+  );
+});

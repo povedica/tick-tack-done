@@ -1,8 +1,8 @@
 import { renderToStaticMarkup } from 'react-dom/server';
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { Popover } from './Popover';
 it('RF-1101: optional sheet slots preserve the desktop DOM', () => {
-  const props = { open: true, label: 'Calendar', onClose: () => {} };
+  const props = { open: true, label: 'Calendar', onClose: vi.fn() };
   const base = renderToStaticMarkup(
     <Popover {...props}>
       <p>Body</p>
@@ -17,11 +17,12 @@ it('RF-1101: optional sheet slots preserve the desktop DOM', () => {
   ).toBe(base);
   expect(base).toContain('<p>Body</p>');
 });
-it('RF-1101: closed popovers render no sheet slots', () =>
+it('RF-1101: closed popovers render no sheet slots', () => {
   expect(
     renderToStaticMarkup(
-      <Popover open={false} label="Calendar" onClose={() => {}}>
+      <Popover open={false} label="Calendar" onClose={vi.fn()}>
         Body
       </Popover>,
     ),
-  ).toBe(''));
+  ).toBe('');
+});

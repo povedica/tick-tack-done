@@ -15,10 +15,13 @@ export function CalendarSources() {
   const allInput = useRef<HTMLInputElement>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() => {
     try {
-      return JSON.parse(localStorage.getItem('ttd.calendar.sources.open') ?? '{}') as Record<
-        string,
-        boolean
-      >;
+      const saved: unknown = JSON.parse(localStorage.getItem('ttd.calendar.sources.open') ?? '{}');
+      if (typeof saved !== 'object' || saved === null || Array.isArray(saved)) return {};
+      return Object.fromEntries(
+        Object.entries(saved).filter(
+          (entry): entry is [string, boolean] => typeof entry[1] === 'boolean',
+        ),
+      );
     } catch {
       return {};
     }
@@ -96,13 +99,13 @@ export function CalendarSources() {
           aria-label={messages.calendarAllSources}
           type="checkbox"
           checked={all}
-          onChange={() =>
+          onChange={() => {
             change(
               all
                 ? { lists: '-', tags: '-', cals: '-', filters: '-' }
                 : { lists: null, tags: null, cals: null, filters: null },
-            )
-          }
+            );
+          }}
         />
       </label>
       {groups.map(({ key, label, icon: Icon, rows }) => (

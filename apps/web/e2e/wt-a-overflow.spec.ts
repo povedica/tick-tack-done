@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import path from 'node:path';
-import { wtAFixture } from './wt-a.fixture';
+import { wtAFixture, contrastRatio } from './wt-a.fixture';
 test('RF-1101 TTD-AUD-130: overflow is anchored with restored focus', async ({ page }, info) => {
   test.skip(!info.project.name.startsWith('wt-a-'));
   await wtAFixture(page);
@@ -12,13 +12,26 @@ test('RF-1101 TTD-AUD-130: overflow is anchored with restored focus', async ({ p
   await page.screenshot({
     path: path.resolve(
       '../../test-artifacts/audit/evidencias/wt-a',
-      `130_overflow_${phase}_${info.project.name}.png`,
+      `130_overflow_${phase}_${info.project.name.replace('wt-a-', '').replace('-', '_')}.png`,
     ),
   });
   if (phase === 'antes') return;
   const panel = page.locator('.calendar-day-popover');
   await expect(panel).toBeVisible();
   await expect(panel.locator('a.agenda-card')).toHaveCount(6);
+  const card = panel.locator('a.agenda-card').first();
+  expect(await card.evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
+  expect(await panel.evaluate((e) => getComputedStyle(e).backgroundColor)).not.toBe(
+    await page
+      .locator('.cal-cell')
+      .first()
+      .evaluate((e) => getComputedStyle(e).backgroundColor),
+  );
+  const colors = await card.evaluate((e) => ({
+    ink: getComputedStyle(e).color,
+    bg: getComputedStyle(e.closest('.calendar-day-popover')!).backgroundColor,
+  }));
+  expect(contrastRatio(colors.ink, colors.bg)).toBeGreaterThanOrEqual(4.5);
   await expect(page.locator('dialog:modal')).toHaveCount(0);
   const box = (await panel.boundingBox())!;
   const anchor = (await button.boundingBox())!;
@@ -35,4 +48,12 @@ test('RF-1101 TTD-AUD-130: overflow is anchored with restored focus', async ({ p
   }
   await page.keyboard.press('Escape');
   await expect(button).toBeFocused();
+  if (page.viewportSize()!.width >= 768) {
+    await page.goto('/calendar/week?date=2026-10-29');
+    const more = page.locator('.hour-allday-more').first();
+    await more.click();
+    await expect(page.locator('.calendar-day-popover a.agenda-card')).toHaveCount(6);
+    await page.keyboard.press('Escape');
+    await expect(more).toBeFocused();
+  }
 });
