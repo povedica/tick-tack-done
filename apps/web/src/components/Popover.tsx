@@ -21,6 +21,9 @@ export function Popover({
   offsetX = 0,
   offsetY = 0,
   mobileSheet = false,
+  mobileSheetMaxWidth = 768,
+  sheetHeader,
+  sheetFooter,
 }: {
   readonly open: boolean;
   readonly label: string;
@@ -33,6 +36,9 @@ export function Popover({
   readonly offsetX?: number;
   readonly offsetY?: number;
   readonly mobileSheet?: boolean;
+  readonly mobileSheetMaxWidth?: number;
+  readonly sheetHeader?: ReactNode;
+  readonly sheetFooter?: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const touchStart = useRef<number | null>(null);
@@ -53,7 +59,8 @@ export function Popover({
       const viewHeight = viewport?.height ?? window.innerHeight;
       const viewLeft = viewport?.offsetLeft ?? 0;
       const viewTop = viewport?.offsetTop ?? 0;
-      const isSheet = mobileSheet && window.matchMedia('(max-width: 768px)').matches;
+      const isSheet =
+        mobileSheet && window.matchMedia(`(max-width: ${String(mobileSheetMaxWidth)}px)`).matches;
       setSheet(isSheet);
       if (isSheet) {
         setPosition({
@@ -65,7 +72,10 @@ export function Popover({
           maxWidth: viewWidth,
           maxHeight: `min(var(--sheet-max-h-mobile), ${String(viewHeight)}px)`,
           zIndex: 2000,
-          overflow: 'auto',
+          overflow: sheetHeader || sheetFooter ? 'hidden' : 'auto',
+          ...(sheetHeader || sheetFooter
+            ? { display: 'flex', flexDirection: 'column' as const }
+            : {}),
         });
         return;
       }
@@ -82,10 +92,15 @@ export function Popover({
       const maxHeight = Math.min(viewHeight * 0.7, viewHeight - 24);
       const below = viewTop + viewHeight - box.bottom - 12;
       const above = box.top - viewTop - 12;
-      const preferredTop =
-        below >= Math.min(node.scrollHeight, maxHeight) || below >= above
-          ? box.bottom + 6
-          : Math.max(viewTop + 12, box.top - Math.min(node.scrollHeight, maxHeight) - 6);
+      const opensBelow = below >= Math.min(node.scrollHeight, maxHeight) || below >= above;
+      const available = Math.max(120, (opensBelow ? below : above) - 6);
+      const panelHeight = Math.min(
+        node.scrollHeight,
+        node.getBoundingClientRect().height || maxHeight,
+        maxHeight,
+        available,
+      );
+      const preferredTop = opensBelow ? box.bottom + 6 : box.top - panelHeight - 6;
       const top = Math.max(viewTop + 12, preferredTop + offsetY);
       setPosition({
         position: 'fixed',
@@ -96,7 +111,7 @@ export function Popover({
         ),
         right: 'auto',
         width,
-        maxHeight: Math.max(120, Math.min(maxHeight, viewTop + viewHeight - top - 12)),
+        maxHeight: `min(${String(Math.max(120, Math.min(maxHeight, available, viewTop + viewHeight - top - 12)))}px, var(--popover-height-limit, 70dvh))`,
         zIndex: 2000,
         overflow: 'auto',
       });
@@ -115,7 +130,17 @@ export function Popover({
       window.removeEventListener('resize', place);
       window.removeEventListener('scroll', place, true);
     };
-  }, [open, anchor, widthProp, offsetX, offsetY, mobileSheet]);
+  }, [
+    open,
+    anchor,
+    widthProp,
+    offsetX,
+    offsetY,
+    mobileSheet,
+    mobileSheetMaxWidth,
+    sheetHeader,
+    sheetFooter,
+  ]);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   useEffect(() => {
@@ -226,7 +251,8 @@ export function Popover({
       return;
     }
     const rect = node.getBoundingClientRect();
-    if (mobileSheet && window.matchMedia('(max-width: 768px)').matches) return;
+    if (mobileSheet && window.matchMedia(`(max-width: ${String(mobileSheetMaxWidth)}px)`).matches)
+      return;
     const limit =
       (window.visualViewport?.height ?? window.innerHeight) +
       (window.visualViewport?.offsetTop ?? 0) -
@@ -234,7 +260,7 @@ export function Popover({
     if (rect.bottom > limit) {
       node.style.maxHeight = `${String(Math.max(160, rect.height - (rect.bottom - limit)))}px`;
     }
-  }, [open, children, mobileSheet]);
+  }, [open, children, mobileSheet, mobileSheetMaxWidth]);
   if (!open) {
     return null;
   }
@@ -279,7 +305,18 @@ export function Popover({
           }}
         />
       ) : null}
-      {children}
+      {sheet && (sheetHeader || sheetFooter) ? (
+        <>
+          {sheetHeader ? <div className="sheet-header">{sheetHeader}</div> : null}
+          <div className="sheet-body">{children}</div>
+          {sheetFooter ? <div className="sheet-footer">{sheetFooter}</div> : null}
+        </>
+      ) : (
+        <>
+          {children}
+          {sheetFooter}
+        </>
+      )}
     </div>
   );
   const result = sheet ? (

@@ -53,7 +53,7 @@ export function HourGrid({
   timeZone = 'Europe/Madrid',
 }: {
   readonly onTaskChange?: CalendarTaskChange | undefined;
-  readonly onOpenDay?: ((day: string) => void) | undefined;
+  readonly onOpenDay?: ((day: string, anchor?: HTMLElement) => void) | undefined;
   readonly onCreateAt?: ((slot: CalendarSlot, anchor: SlotAnchor) => void) | undefined;
   readonly draftSlot?: CalendarSlot | null | undefined;
   readonly timeZone?: string;
@@ -351,8 +351,8 @@ export function HourGrid({
                 className="hour-allday-more"
                 style={{ gridRow: '1 / span 2', gridColumn: index + 2 }}
                 aria-label={`${messages.calendarMoreViews}: ${day.toLocaleDateString(locale, { dateStyle: 'full' })}`}
-                onClick={() => {
-                  onOpenDay?.(localKey(day));
+                onClick={(event) => {
+                  onOpenDay?.(localKey(day), event.currentTarget);
                 }}
               >
                 +{allDayTasks(day).length + allDayEvents(day).length - 2}
@@ -662,7 +662,7 @@ export function HourGrid({
                       left: `${String((item.lane / item.lanes) * 100)}%`,
                       width: `calc(${String(100 / item.lanes)}% - 2px)`,
                     }}
-                    onClick={() => onOpenDay?.(key)}
+                    onClick={(event) => onOpenDay?.(key, event.currentTarget)}
                   >
                     +{item.count}
                   </button>
@@ -693,8 +693,8 @@ export function HourGrid({
                     >
                       <CalendarTaskMark task={task} />
                       <Link
-                        title={task.title}
-                        aria-label={task.title}
+                        title={`${task.title} · ${task.due_date ? new Intl.DateTimeFormat(locale, { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(task.start_date ?? task.due_date)) : ''}`}
+                        aria-label={`${task.title} · ${task.due_date ? new Intl.DateTimeFormat(locale, { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(task.start_date ?? task.due_date)) : ''}`}
                         className={
                           isCalendarOverdue(task.due_date, task.time_zone, new Date())
                             ? 'is-overdue'
@@ -702,12 +702,14 @@ export function HourGrid({
                         }
                         to={taskQueryHref(location.pathname, location.search, task.id)}
                       >
-                        {calendarTaskLabel(
-                          task.title,
-                          task.due_date,
-                          task.time_zone,
-                          messages.untitled,
-                        )}
+                        <span className="hour-task-title">
+                          {calendarTaskLabel(
+                            task.title,
+                            task.due_date,
+                            task.time_zone,
+                            messages.untitled,
+                          )}
+                        </span>
                         {Number(style(`task:${task.id}`).height) >= 18 ? (
                           <time className="hour-task-time">
                             {' '}
@@ -737,8 +739,8 @@ export function HourGrid({
                       type="button"
                       {...drag.external}
                       className="hour-block calendar-chip"
-                      title={event.title}
-                      aria-label={event.title}
+                      title={`${event.title} · ${new Intl.DateTimeFormat(locale, { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(event.starts_at))}`}
+                      aria-label={`${event.title} · ${new Intl.DateTimeFormat(locale, { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(event.starts_at))}`}
                       data-block-size={
                         Number(style(`event:${event.id}`).height) < 18
                           ? 'tiny'
@@ -752,7 +754,19 @@ export function HourGrid({
                       }}
                     >
                       <CalendarDays size={13} className="calendar-event-mark" aria-hidden="true" />
-                      <span>{event.title}</span>
+                      <span className="hour-task-title">{event.title}</span>
+                      {Number(style(`event:${event.id}`).height) >= 18 ? (
+                        <time className="hour-task-time">
+                          {' '}
+                          ·{' '}
+                          {new Intl.DateTimeFormat(locale, {
+                            timeZone,
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hourCycle: 'h23',
+                          }).format(new Date(event.starts_at))}
+                        </time>
+                      ) : null}
                     </button>
                   ))}
               </section>

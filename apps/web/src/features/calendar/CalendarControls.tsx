@@ -1,3 +1,5 @@
+import { useWtAMessages } from './i18n-wt-a';
+import './calendar-wt-a.css';
 import { createPortal } from 'react-dom';
 import { useRef, useState, type ReactNode } from 'react';
 import { Popover } from '../../components/Popover';
@@ -13,6 +15,7 @@ export function CalendarMenu({
   trigger?: ReactNode;
   children: (close: () => void) => ReactNode;
 }) {
+  const own = useWtAMessages();
   const [open, setOpen] = useState(false);
   const anchor = useRef<HTMLButtonElement>(null);
   const close = () => {
@@ -47,6 +50,16 @@ export function CalendarMenu({
           )
         : null}
       <Popover
+        sheetHeader={
+          className === 'calendar-filter-menu' ? (
+            <>
+              <strong>{own.calendarFilterTitle}</strong>
+              <button type="button" onClick={close}>
+                {own.calendarFilterDone}
+              </button>
+            </>
+          ) : undefined
+        }
         mobileSheet={className === 'calendar-filter-menu'}
         open={open}
         anchor={anchor}
