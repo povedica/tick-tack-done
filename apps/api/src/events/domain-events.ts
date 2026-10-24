@@ -109,6 +109,7 @@ export const DomainEvent = {
   googleReauthRequired: 'integration.google.reauth_required@v1',
   telegramLinked: 'telegram.linked@v1',
   telegramBotConfigured: 'telegram.bot_configured@v1',
+  telegramLegacyUnlinked: 'telegram.legacy_unlinked@v1',
   telegramUnlinked: 'telegram.unlinked@v1',
   googleDisconnected: 'google.disconnected@v1',
   reportGenerated: 'report.generated@v1',

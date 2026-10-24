@@ -219,11 +219,11 @@ describe('RF-2003: bots propios desde Ajustes', () => {
 
   it('RF-2003: errores de Telegram no exponen token y no alteran la configuración', async () => {
     rejectMethod = 'getMe';
-    const response = await configure(0, tokens[2] ?? '').expect(502);
+    const response = await configure(0, tokens[2] ?? '').expect(400);
     rejectMethod = '';
     expect(JSON.stringify(response.body)).not.toContain(tokens[2]);
     failNetwork = true;
-    const network = await configure(0, tokens[2] ?? '').expect(502);
+    const network = await configure(0, tokens[2] ?? '').expect(400);
     failNetwork = false;
     expect(JSON.stringify(network.body)).not.toContain(tokens[2]);
     expect((await stored(0)).botId).toBe('10101');
@@ -231,6 +231,9 @@ describe('RF-2003: bots propios desde Ajustes', () => {
   });
 
   it('RF-2003: secreto, códigos y chat aislados; update_id iguales no colisionan entre bots', async () => {
+    vi.stubEnv('PUBLIC_URL', 'https://todo.example.org');
+    await configure(0, tokens[0] ?? '').expect(200);
+    await configure(1, tokens[1] ?? '').expect(200);
     const a = await pairing(0);
     const b = await pairing(1);
     expect(a.body.url).toBe(`https://t.me/bot_10101?start=${String(a.body.code)}`);
@@ -266,12 +269,12 @@ describe('RF-2003: bots propios desde Ajustes', () => {
     ).toBe(true);
   });
 
-  it('RF-2003: registra webhook propio y no guarda cambios si Telegram rechaza el registro', async () => {
+  it('RF-2003: registra webhook propio y conserva un estado recuperable si Telegram rechaza el registro', async () => {
     vi.stubEnv('PUBLIC_URL', 'https://todo.example.org');
     rejectMethod = 'setWebhook';
     await configure(0, tokens[0] ?? '').expect(502);
     rejectMethod = '';
-    expect((await stored(0)).webhookUrl).toBeNull();
+    expect((await stored(0)).webhookUrl).toBe('');
     await configure(0, tokens[0] ?? '').expect(200);
     const row = await stored(0);
     expect(webhooks.get(tokens[0] ?? '')).toBe(
@@ -340,6 +343,102 @@ describe('RF-2003: bots propios desde Ajustes', () => {
       ).usedAt,
     ).toBeNull();
     expect(a.body.code).not.toBe(b.body.code);
+  });
+  it('RF-2003: all six states agree across integration, preferences and delivery', async () => {
+    const original = await stored(0);
+    const owner = account(0);
+    const link = await prisma.telegramLink.create({
+      data: {
+        ownerId: owner.id,
+        botId: original.botId,
+        chatId: 'state-matrix',
+        username: null,
+        displayName: 'No alias',
+      },
+    });
+    for (const state of ['none', 'token_saved', 'webhook_ok', 'linked', 'blocked', 'error']) {
+      await prisma.telegramBotConfiguration.deleteMany({ where: { ownerId: owner.id } });
+      if (state !== 'none')
+        await prisma.telegramBotConfiguration.create({
+          data: {
+            ...original,
+            webhookUrl:
+              state === 'token_saved' ? null : state === 'error' ? '' : original.webhookUrl,
+          },
+        });
+      await prisma.telegramLink.update({
+        where: { id: link.id },
+        data: {
+          deletedAt: state === 'webhook_ok' ? new Date() : null,
+          status: state === 'blocked' ? 'blocked' : 'connected',
+        },
+      });
+      const integration = await request(server)
+        .get('/api/v1/integrations/telegram')
+        .set('X-Dev-User-Email', owner.email)
+        .expect(200);
+      const preferences = await request(server)
+        .get('/api/v1/me/notifications/settings')
+        .set('X-Dev-User-Email', owner.email)
+        .expect(200);
+      expect(integration.body).toMatchObject({ state, linked: state === 'linked' });
+      expect(preferences.body.channels.telegram).toMatchObject({
+        state,
+        linked: state === 'linked',
+      });
+      const delivery = await app.get(ReminderTransport).deliver({
+        ownerId: owner.id,
+        channel: 'push',
+        allowPush: false,
+        email: null,
+        subscriptions: [],
+        telegramChatId: 'stale-chat-from-scheduler',
+        title: 'State test',
+        body: '',
+      });
+      expect(delivery.telegram).toBe(state === 'linked' ? 'sent' : 'skipped');
+      if (state === 'linked')
+        expect(calls.at(-1)).toMatchObject({
+          method: 'sendMessage',
+          body: { chat_id: 'state-matrix' },
+        });
+      if (state === 'linked')
+        await request(server)
+          .post('/api/v1/me/notifications/test')
+          .set('X-Dev-User-Email', owner.email)
+          .send({ channel: 'telegram' })
+          .expect(201);
+      if (state !== 'linked')
+        expect(delivery.telegram_reason).toBe(
+          state === 'none' ? 'not_configured' : state === 'blocked' ? 'blocked' : 'not_linked',
+        );
+      for (const token of tokens)
+        expect(JSON.stringify([integration.body, preferences.body])).not.toContain(token);
+    }
+    await prisma.telegramLink.delete({ where: { id: link.id } });
+    await prisma.telegramBotConfiguration.update({
+      where: { ownerId: owner.id },
+      data: { webhookUrl: original.webhookUrl },
+    });
+  });
+  it('RF-2003: remove bot remains 204 when Telegram refuses webhook deletion', async () => {
+    rejectMethod = 'deleteWebhook';
+    await request(server)
+      .delete('/api/v1/integrations/telegram/settings')
+      .set('X-Dev-User-Email', account(0).email)
+      .expect(204);
+    rejectMethod = '';
+    const result = await request(server)
+      .get('/api/v1/integrations/telegram')
+      .set('X-Dev-User-Email', account(0).email)
+      .expect(200);
+    expect(result.body).toMatchObject({ state: 'none', linked: false, status: 'not_configured' });
+    expect(await prisma.telegramBotConfiguration.count({ where: { ownerId: account(0).id } })).toBe(
+      0,
+    );
+    expect(
+      await prisma.telegramLink.count({ where: { ownerId: account(0).id, deletedAt: null } }),
+    ).toBe(0);
   });
   it('RF-2003: eliminar la cuenta elimina sus credenciales sin bloquear otras cuentas', async () => {
     vi.stubEnv('SMTP_HOST', '');

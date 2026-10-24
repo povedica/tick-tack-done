@@ -3455,6 +3455,24 @@ export interface paths {
         /** Validar y guardar cifrado el bot propio del usuario (RF-2003). */
         put: operations["IntegrationsController_saveTelegram"];
         post?: never;
+        /** Quitar el bot propio y sus vínculos (RF-2003). */
+        delete: operations["IntegrationsController_removeTelegramBot"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/telegram/settings/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reintentar el registro del webhook propio (RF-2003). */
+        post: operations["IntegrationsController_retryTelegramWebhook"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5105,6 +5123,8 @@ export interface components {
             project_id?: string;
         };
         TelegramStatusDto: {
+            /** @enum {string} */
+            state: "none" | "token_saved" | "webhook_ok" | "linked" | "blocked" | "error";
             configured: boolean;
             can_manage: boolean;
             /** @enum {string} */
@@ -5112,7 +5132,7 @@ export interface components {
             webhook_registered: boolean;
             webhook_url: string | null;
             /** @enum {string} */
-            webhook_state: "unconfigured" | "local_only" | "registered";
+            webhook_state: "unconfigured" | "local_only" | "registered" | "error";
             updated_at: string | null;
             username: string | null;
             linked: boolean;
@@ -5120,15 +5140,19 @@ export interface components {
             display_name: string | null;
             linked_at: string | null;
             /** @enum {string} */
-            status: "not_linked" | "connected" | "blocked";
+            status: "not_configured" | "not_linked" | "connected" | "blocked" | "error";
             enabled: boolean;
             voice: boolean;
             photo: boolean;
         };
         TelegramSettingsDto: {
             token: string;
+            /** @default false */
+            force: boolean;
         };
         TelegramConfigurationDto: {
+            /** @enum {string} */
+            state: "none" | "token_saved" | "webhook_ok" | "linked" | "blocked" | "error";
             configured: boolean;
             can_manage: boolean;
             /** @enum {string} */
@@ -5136,7 +5160,7 @@ export interface components {
             webhook_registered: boolean;
             webhook_url: string | null;
             /** @enum {string} */
-            webhook_state: "unconfigured" | "local_only" | "registered";
+            webhook_state: "unconfigured" | "local_only" | "registered" | "error";
             updated_at: string | null;
             username: string | null;
         };
@@ -11736,6 +11760,42 @@ export interface operations {
                 "application/json": components["schemas"]["TelegramSettingsDto"];
             };
         };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelegramConfigurationDto"];
+                };
+            };
+        };
+    };
+    IntegrationsController_removeTelegramBot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    IntegrationsController_retryTelegramWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             200: {
                 headers: {

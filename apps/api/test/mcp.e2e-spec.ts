@@ -190,7 +190,7 @@ describe('MCP server', () => {
       arguments: { channel: 'telegram' },
     });
     expect(failed.body.result.isError).toBe(true);
-    expect(toolText(failed.body as unknown)).toContain('telegram_not_linked');
+    expect(toolText(failed.body as unknown)).toContain('telegram_not_configured');
   });
 
   it('TTD-AUD-101: MCP settings validate and finish atomically starts an opted-in break', async () => {

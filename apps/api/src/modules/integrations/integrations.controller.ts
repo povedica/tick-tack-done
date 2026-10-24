@@ -43,6 +43,7 @@ import { CurrentUser } from '../../auth/current-user.decorator.js';
 import { Public, Scopes } from '../../auth/scopes.decorator.js';
 import { DomainEvent } from '../../events/domain-events.js';
 import { EventRecorder } from '../../events/event-recorder.js';
+import { telegramState } from '../../integrations/telegram-state.js';
 import { googleConfigured } from '../../integrations/config.js';
 import { telegramSecretMatches } from '../../integrations/telegram-secret.js';
 import { authorizeUrl, readState, redirectFor, signState } from './google-oauth.js';
@@ -56,12 +57,15 @@ import { openField, sealField } from '../../security/field-cipher.js';
 import { TasksService } from '../tasks/tasks.service.js';
 
 class TelegramConfigurationDto {
+  @ApiProperty({ enum: ['none', 'token_saved', 'webhook_ok', 'linked', 'blocked', 'error'] })
+  state!: string;
   @ApiProperty() configured!: boolean;
   @ApiProperty() can_manage!: boolean;
   @ApiProperty({ enum: ['none', 'settings'] }) source!: string;
   @ApiProperty() webhook_registered!: boolean;
   @ApiProperty({ type: String, nullable: true }) webhook_url!: string | null;
-  @ApiProperty({ enum: ['unconfigured', 'local_only', 'registered'] }) webhook_state!: string;
+  @ApiProperty({ enum: ['unconfigured', 'local_only', 'registered', 'error'] })
+  webhook_state!: string;
   @ApiProperty({ type: String, nullable: true }) updated_at!: string | null;
   @ApiProperty({ type: String, nullable: true }) username!: string | null;
 }
@@ -70,7 +74,8 @@ class TelegramStatusDto extends TelegramConfigurationDto {
   @ApiProperty({ type: String, nullable: true }) bot_username!: string | null;
   @ApiProperty({ type: String, nullable: true }) display_name!: string | null;
   @ApiProperty({ type: String, nullable: true }) linked_at!: string | null;
-  @ApiProperty({ enum: ['not_linked', 'connected', 'blocked'] }) status!: string;
+  @ApiProperty({ enum: ['not_configured', 'not_linked', 'connected', 'blocked', 'error'] })
+  status!: string;
   @ApiProperty() enabled!: boolean;
   @ApiProperty() voice!: boolean;
   @ApiProperty() photo!: boolean;
@@ -88,6 +93,10 @@ class TelegramSettingsDto {
   @IsString()
   @MaxLength(200)
   token!: string;
+  @ApiProperty({ required: false, default: false })
+  @IsOptional()
+  @IsBoolean()
+  force?: boolean;
 }
 
 class LinkDto {
@@ -158,14 +167,13 @@ export class IntegrationsController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    const link = await this.prisma.telegramLink.findFirst({
-      where: { ownerId: user.id, deletedAt: null },
-    });
+    const current = await telegramState(this.prisma, user.id);
+    const link = current.link;
     const owner = await this.prisma.user.findUniqueOrThrow({
       where: { id: user.id },
       select: { telegramEnabled: true },
     });
-    const status = await this.settings.status(user);
+    const status = await this.settings.status(user, current);
     respondJson(
       req,
       res,
@@ -176,11 +184,11 @@ export class IntegrationsController {
         username: link?.username ?? null,
         display_name: link?.displayName ?? null,
         linked_at: link?.createdAt.toISOString() ?? null,
-        status: link?.status ?? 'not_linked',
+        status: current.status,
         enabled: owner.telegramEnabled,
         voice: status.configured && present('TELEGRAM_VOICE_PROVIDER'),
         photo: status.configured,
-        linked: status.configured && link !== null,
+        linked: current.linked,
       },
       false,
     );
@@ -196,7 +204,24 @@ export class IntegrationsController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    respondJson(req, res, 200, await this.settings.save(user, dto.token), false);
+    respondJson(req, res, 200, await this.settings.save(user, dto.token, dto.force), false);
+  }
+
+  @Delete('telegram/settings')
+  @HttpCode(204)
+  @Scopes('profile:write')
+  @ApiOperation({ summary: 'Quitar el bot propio y sus vínculos (RF-2003).' })
+  async removeTelegramBot(@CurrentUser() user: AuthUser): Promise<void> {
+    await this.settings.remove(user);
+  }
+
+  @Post('telegram/settings/retry')
+  @HttpCode(200)
+  @ApiOkResponse({ type: TelegramConfigurationDto })
+  @Scopes('profile:write')
+  @ApiOperation({ summary: 'Reintentar el registro del webhook propio (RF-2003).' })
+  async retryTelegramWebhook(@CurrentUser() user: AuthUser) {
+    return this.settings.retry(user);
   }
 
   @Post('telegram/webhook/:ownerId')

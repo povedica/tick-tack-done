@@ -336,7 +336,9 @@ export interface ResourceClient {
   listStickies(): Promise<JsonObject>;
   createSticky(text: string): Promise<JsonObject>;
   integrationStatus(kind: 'telegram' | 'drive' | 'google'): Promise<JsonObject>;
-  configureTelegram(token: string): Promise<JsonObject>;
+  configureTelegram(token: string, force?: boolean): Promise<JsonObject>;
+  removeTelegramBot(): Promise<void>;
+  retryTelegramWebhook(): Promise<JsonObject>;
   createTelegramPairing(): Promise<JsonObject>;
   setGoogleService(service: 'calendar' | 'drive', enabled: boolean): Promise<JsonObject>;
   googleConnect(service?: 'calendar' | 'drive' | 'all'): Promise<JsonObject>;
@@ -697,8 +699,26 @@ export function resourceMethods(http: Http): ResourceClient {
     createSticky: (text) => ask('POST', '/api/v1/sticky-notes', { text }, undefined, isJsonObject),
     integrationStatus: (kind) =>
       ask('GET', `/api/v1/integrations/${kind}`, undefined, undefined, isJsonObject),
-    configureTelegram: (token) =>
-      ask('PUT', '/api/v1/integrations/telegram/settings', { token }, undefined, isJsonObject),
+    configureTelegram: (token, force = false) =>
+      ask(
+        'PUT',
+        '/api/v1/integrations/telegram/settings',
+        { token, force },
+        undefined,
+        isJsonObject,
+      ),
+    // wt-c
+    async removeTelegramBot() {
+      await ask('DELETE', '/api/v1/integrations/telegram/settings', undefined, undefined, isEmpty);
+    },
+    retryTelegramWebhook: () =>
+      ask(
+        'POST',
+        '/api/v1/integrations/telegram/settings/retry',
+        undefined,
+        undefined,
+        isJsonObject,
+      ),
     createTelegramPairing: () =>
       ask('POST', '/api/v1/integrations/telegram/pairing', undefined, undefined, isJsonObject),
     setGoogleService: (service, enabled) =>

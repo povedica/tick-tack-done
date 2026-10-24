@@ -27,6 +27,8 @@ const deliver = vi.fn((message: ReminderMessage) =>
   }),
 );
 beforeAll(async () => {
+  vi.stubEnv('PUBLIC_URL', 'https://todo.example.org');
+  const botId = `notifications-${randomUUID()}`;
   const owner = await prisma.user.create({
     data: {
       email: `notifications-${randomUUID()}@example.test`,
@@ -39,7 +41,8 @@ beforeAll(async () => {
   await prisma.telegramBotConfiguration.create({
     data: {
       ownerId,
-      botId: `notifications-${randomUUID()}`,
+      botId,
+      webhookUrl: `https://todo.example.org/api/v1/integrations/telegram/webhook/${ownerId}`,
       username: 'synthetic_bot',
       token: sealField('synthetic-token'),
       webhookSecret: sealField('synthetic-secret'),
@@ -53,7 +56,9 @@ beforeAll(async () => {
     data: { ownerId, projectId, createdById: ownerId, title: 'Synthetic reminder' },
   });
   taskId = task.id;
-  await prisma.telegramLink.create({ data: { ownerId, chatId: `synthetic-${randomUUID()}` } });
+  await prisma.telegramLink.create({
+    data: { ownerId, botId, chatId: `synthetic-${randomUUID()}` },
+  });
   const module = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(ReminderTransport)
     .useValue({ deliver })
@@ -74,6 +79,7 @@ afterAll(async () => {
     await prisma.user.delete({ where: { id: ownerId } });
   }
   await prisma.$disconnect();
+  vi.unstubAllEnvs();
 });
 function api() {
   return request(app.getHttpServer() as Parameters<typeof request>[0]);

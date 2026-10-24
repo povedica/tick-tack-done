@@ -226,7 +226,9 @@ describe('TTD-AUD-99 Drive-only attachments', () => {
       return driveFetch(input, init);
     });
     const chatId = `r80-${randomUUID()}`;
-    await prisma.telegramLink.create({ data: { ownerId: owner.id, chatId } });
+    await prisma.telegramLink.create({
+      data: { ownerId: owner.id, botId: 'drive-attachment-test', chatId },
+    });
     try {
       await request(server)
         .post(`/api/v1/integrations/telegram/webhook/${owner.id}`)
