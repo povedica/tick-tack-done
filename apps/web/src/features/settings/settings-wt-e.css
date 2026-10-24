@@ -33,3 +33,15 @@
   max-height: calc(100dvh - 32px);
   overflow: auto;
 }
+
+.detail-menu .popover-row:disabled {
+  color: var(--ink-3);
+  background: var(--surface-2);
+  cursor: not-allowed;
+}
+.detail-menu .popover-row small {
+  display: block;
+  font-size: var(--fs-xs);
+  font-weight: normal;
+  white-space: normal;
+}

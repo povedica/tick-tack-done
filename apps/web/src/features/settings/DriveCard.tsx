@@ -6,9 +6,12 @@ import { Button } from '../../components/ui';
 import { useMessages } from '../../i18n';
 import { googleAuthorizationUrl } from '../product/GoogleAccessActions';
 import { runAction } from '../../components/run-action';
+import { useWtEMessages } from './i18n-wt-e';
+import './settings-wt-e.css';
 type Service = 'calendar' | 'drive';
 export function GoogleIntegrationCards() {
   const m = useMessages();
+  const copy = useWtEMessages();
   const cache = useQueryClient();
   const [params, setParams] = useSearchParams();
   const [notice, setNotice] = useState('');
@@ -65,13 +68,27 @@ export function GoogleIntegrationCards() {
   };
   return (
     <>
-      <GoogleServiceCard service="calendar" />
-      <GoogleServiceCard service="drive" />
-      <section className="token-panel" aria-label={m.googleConnectionTitle}>
-        <h2>{m.googleConnectionTitle}</h2>
+      <section className="token-panel" aria-label={copy.googleTitle}>
+        <div className="token-panel-head">
+          <h2>{copy.googleTitle}</h2>
+          <span role="status">
+            {google.data?.status === 'reauth_required'
+              ? copy.reconnect
+              : google.data?.has_connection === true
+                ? copy.connected
+                : m.googleDisconnectedStatus}
+          </span>
+        </div>
+        {typeof google.data?.account === 'string' ? (
+          <p className="token-meta">{google.data.account}</p>
+        ) : null}
+        <div className="wt-e-google-services">
+          <GoogleServiceCard service="calendar" />
+          <GoogleServiceCard service="drive" />
+        </div>
         <p className="token-meta">{m.googleSharedNotice}</p>
         <a
-          href="https://myaccount.google.com/connections"
+          href="https://myaccount.google.com/permissions"
           target="_blank"
           rel="noopener noreferrer"
         >
@@ -95,24 +112,43 @@ export function GoogleIntegrationCards() {
                 open('revoke');
               }}
             >
-              {m.googleRevokeAll}
+              {copy.disconnect}
             </Button>
           </div>
         ) : null}
-        {notice ? <p role="status">{notice}</p> : null}
+        {notice ? (
+          <p role="status">
+            {notice === m.googleDisconnectedNotice ? (
+              <>
+                {copy.disconnected}{' '}
+                <a
+                  href="https://myaccount.google.com/permissions"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  myaccount.google.com/permissions
+                </a>
+              </>
+            ) : (
+              notice
+            )}
+          </p>
+        ) : null}
       </section>
       {mode ? (
         <dialog
           ref={dialog}
           className="ui-modal google-disconnect-dialog"
           role="alertdialog"
-          aria-label={mode === 'change' ? m.googleChangePermissions : m.googleRevokeAll}
+          aria-label={mode === 'change' ? m.googleChangePermissions : copy.disconnect}
           onCancel={(event) => {
             event.preventDefault();
             if (!revoke.isPending) setMode(null);
           }}
         >
-          <p>{m.googleRevokeWarning}</p>
+          <p>{copy.calendarEffect}</p>
+          <p>{copy.driveEffect}</p>
+          <p>{copy.revokeEffect}</p>
           {mode === 'change' ? <p>{m.googleReconfigureHelp}</p> : null}
           <label className="google-remove-events">
             <input
@@ -144,7 +180,7 @@ export function GoogleIntegrationCards() {
                 revoke.mutate();
               }}
             >
-              {mode === 'change' ? m.googleRevokeContinue : m.googleRevokeAll}
+              {mode === 'change' ? m.googleRevokeContinue : copy.disconnect}
             </Button>
           </div>
         </dialog>
@@ -154,6 +190,7 @@ export function GoogleIntegrationCards() {
 }
 function GoogleServiceCard({ service }: { readonly service: Service }) {
   const m = useMessages();
+  const copy = useWtEMessages();
   const cache = useQueryClient();
   const calendar = service === 'calendar';
   const name = calendar ? 'Google Calendar' : 'Google Drive';
@@ -188,40 +225,29 @@ function GoogleServiceCard({ service }: { readonly service: Service }) {
     disconnected: m.googleDisconnectedStatus,
   };
   return (
-    <section
-      className="token-panel google-service-card"
-      aria-labelledby={calendar ? 'google-title' : 'drive-title'}
-    >
+    <div className="wt-e-google-service" role="group" aria-label={name}>
       <div className="token-panel-head">
-        <h2 id={calendar ? 'google-title' : 'drive-title'}>{name}</h2>
+        <strong>{name}</strong>
         <span className="token-meta" role="status">
           {query.isPending
             ? m.googlePermissionsUnknown
             : (labels[status] ?? m.googlePermissionsUnknown)}
         </span>
       </div>
-      {typeof query.data?.account === 'string' ? (
-        <p className="token-meta">{query.data.account}</p>
-      ) : null}
-      <p className="token-meta">
-        {calendar ? m.googleCalendarPermission : m.googleDrivePermission}
-      </p>
+      <p className="token-meta">{calendar ? copy.calendarPermission : copy.drivePermission}</p>
       <p className="token-meta">{calendar ? m.googleDataNotice : m.driveDataNotice}</p>
       <div className="token-actions">
         {authorized && (status === 'connected' || status === 'disabled') ? (
-          <Button
-            size="sm"
-            variant="ghost"
+          <input
+            type="checkbox"
+            role="switch"
+            aria-label={name}
+            checked={enabled}
             disabled={toggle.isPending}
-            onClick={() => {
+            onChange={() => {
               toggle.mutate();
             }}
-          >
-            {(enabled ? m.googleDeactivateService : m.googleActivateService).replace(
-              '{service}',
-              name,
-            )}
-          </Button>
+          />
         ) : (
           <Button
             size="sm"
@@ -241,6 +267,6 @@ function GoogleServiceCard({ service }: { readonly service: Service }) {
       {query.isError || connect.isError || toggle.isError ? (
         <p role="alert">{m.settingsFailed}</p>
       ) : null}
-    </section>
+    </div>
   );
 }

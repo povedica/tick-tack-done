@@ -849,6 +849,8 @@ export function TaskDetail({
         onTags={() => {
           setTagsOpen(true);
         }}
+        uploadDisabled={!driveConnection.connected}
+        uploadDisabledReason={wtE.attachRequiresDrive}
         onUpload={() => {
           fileRef.current?.click();
         }}
@@ -921,6 +923,7 @@ export function TaskDetail({
       <input
         ref={fileRef}
         className="sr-only"
+        disabled={!driveConnection.connected}
         type="file"
         aria-label={messages.upload}
         onChange={(event) => {

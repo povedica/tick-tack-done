@@ -30,6 +30,8 @@ export function DetailMenu({
   onDiscard,
   onTags,
   onUpload,
+  uploadDisabled = false,
+  uploadDisabledReason,
   onFocus,
   onActivity,
   onTemplate,
@@ -51,6 +53,8 @@ export function DetailMenu({
   readonly onDiscard: () => void;
   readonly onTags: () => void;
   readonly onUpload: () => void;
+  readonly uploadDisabled?: boolean;
+  readonly uploadDisabledReason?: string;
   readonly onFocus: () => void;
   readonly onActivity: () => void;
   readonly onTemplate: () => void;
@@ -95,6 +99,8 @@ export function DetailMenu({
         label: messages.upload,
         icon: <Paperclip size={16} aria-hidden="true" />,
         run: onUpload,
+        disabled: uploadDisabled,
+        ...(uploadDisabled ? { description: uploadDisabledReason ?? messages.driveRequired } : {}),
       },
       {
         id: 'focus',
@@ -169,13 +175,21 @@ export function DetailMenu({
               type="button"
               className="popover-row"
               role="menuitem"
+              disabled={item.disabled}
+              title={item.description}
+              aria-describedby={item.description ? 'detail-menu-upload-reason' : undefined}
               onClick={() => {
                 item.run();
                 onClose();
               }}
             >
               {item.icon}
-              <span>{item.label}</span>
+              <span>
+                {item.label}
+                {item.description ? (
+                  <small id="detail-menu-upload-reason">{item.description}</small>
+                ) : null}
+              </span>
             </button>
           ))}
         </div>
@@ -215,4 +229,6 @@ interface MenuItem {
   readonly label: string;
   readonly icon: ReactNode;
   readonly run: () => void;
+  readonly disabled?: boolean;
+  readonly description?: string;
 }
