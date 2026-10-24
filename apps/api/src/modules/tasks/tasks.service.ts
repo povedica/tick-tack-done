@@ -74,6 +74,7 @@ import type {
 } from './tasks.dto.js';
 
 const taskInclude = {
+  _count: { select: { links: true } },
   links: true,
   tags: { where: { tag: { deletedAt: null } }, select: { tagId: true } },
   checklist: {
@@ -2263,6 +2264,7 @@ export class TasksService {
         children: {
           where: { deletedAt: null },
           include: {
+            _count: { select: { links: true } },
             tags: { where: { tag: { deletedAt: null } }, select: { tagId: true } },
             checklist: { where: { deletedAt: null }, select: { status: true } },
           },
