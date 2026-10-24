@@ -107,6 +107,7 @@ export interface TaskDetail extends TaskSummaryJson {
   activity: {
     id: string;
     action: string;
+    type: string;
     source: string;
     changes: Prisma.JsonValue;
     created_at: string;
@@ -708,7 +709,7 @@ export class TasksService {
         data: { task: asJson(taskEventSnapshot(detail)) },
         previous: { status: current.status },
       });
-      return detail;
+      return this.load(tx, user, id, false);
     });
   }
 
@@ -814,7 +815,7 @@ export class TasksService {
         data: { task: asJson(taskEventSnapshot(detail)), source },
         previous: { status: current.status },
       });
-      return detail;
+      return this.load(tx, user, id, false);
     });
   }
 
@@ -861,7 +862,7 @@ export class TasksService {
         data: { task: asJson(taskEventSnapshot(detail)), snoozed_to: preset },
         previous: { due_date: current.dueDate?.toISOString() ?? null },
       });
-      return detail;
+      return this.load(tx, user, id, false);
     });
   }
 
@@ -961,7 +962,7 @@ export class TasksService {
           data: { task: asJson(taskEventSnapshot(detail)), detached: true, source },
           previous: { repeat_rule: current.repeatRule },
         });
-        return detail;
+        return this.load(tx, user, id, false);
       }
       await tx.task.update({ where: { id }, data: { repeatRule: excluded.rule } });
       const copyId = randomUUID();
@@ -1075,7 +1076,7 @@ export class TasksService {
         data: { task: asJson(taskEventSnapshot(detail)) },
         previous: { project_id: current.projectId, column_id: current.columnId },
       });
-      return detail;
+      return this.load(tx, user, id, false);
     }
   }
 
@@ -1242,7 +1243,7 @@ export class TasksService {
         data: { task: asJson(taskEventSnapshot(detail)), source },
         previous: { deleted_at: current.deletedAt.toISOString() },
       });
-      return detail;
+      return this.load(tx, user, id, false);
     });
   }
 
@@ -1888,7 +1889,7 @@ export class TasksService {
     });
 
     if (current.repeatRule === null || current.seriesId === null) {
-      return detail;
+      return this.load(tx, user, id, false);
     }
 
     const source = await tx.task.findFirstOrThrow({
@@ -2242,6 +2243,14 @@ export class TasksService {
     });
   }
 
+  private activityType(changes: Prisma.JsonValue, action: string): string {
+    const body =
+      changes !== null && typeof changes === 'object' && !Array.isArray(changes) ? changes : {};
+    return typeof body._event_type === 'string'
+      ? body._event_type.replace(/@v[0-9]+$/, '')
+      : `task.${action}`;
+  }
+
   private activitySource(changes: Prisma.JsonValue, tokenId: string | null): string {
     const body =
       changes !== null && typeof changes === 'object' && !Array.isArray(changes) ? changes : {};
@@ -2326,6 +2335,7 @@ export class TasksService {
       activity: activity.map((entry) => ({
         id: entry.id,
         action: entry.action,
+        type: this.activityType(entry.changes, entry.action),
         source: this.activitySource(entry.changes, entry.tokenId),
         changes: entry.changes,
         created_at: entry.createdAt.toISOString(),

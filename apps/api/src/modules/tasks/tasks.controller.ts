@@ -15,7 +15,14 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
-import { ApiHeader, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import {
+  ApiCreatedResponse,
+  ApiHeader,
+  ApiOkResponse,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { isPriority, type Priority } from '@reflexionia/domain';
 import type { AuthUser } from '../../auth/auth-user.js';
@@ -40,7 +47,7 @@ import {
   SnoozeReminderDto,
   SnoozeTaskDto,
   TaskPageDto,
-  TaskResponseDto,
+  TaskDetailResponseDto,
   UpdateChecklistItemDto,
   UpdateTaskDto,
 } from './tasks.dto.js';
@@ -120,7 +127,7 @@ export class TasksController {
   @Post('trash/:id/restore')
   @Scopes('tasks:write')
   @ApiOperation({ summary: 'Restore a trashed task' })
-  @ApiOkResponse({ type: TaskResponseDto })
+  @ApiOkResponse({ type: TaskDetailResponseDto })
   async restore(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
@@ -224,7 +231,7 @@ export class TasksController {
     summary:
       'Create a task. raw_text is parsed on the server (RF-102); explicit fields override it. Checklist lines can be extracted from Markdown (RF-202).',
   })
-  @ApiOkResponse({ type: CreateTaskResponseDto })
+  @ApiCreatedResponse({ type: CreateTaskResponseDto })
   async create(
     @CurrentUser() user: AuthUser,
     @Body() dto: CreateTaskDto,
@@ -241,7 +248,7 @@ export class TasksController {
   @ApiOperation({
     summary: 'Task detail, checklist progress, subtasks and activity (RF-207, RF-209)',
   })
-  @ApiOkResponse({ type: TaskResponseDto })
+  @ApiOkResponse({ type: TaskDetailResponseDto })
   async get(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
@@ -304,7 +311,7 @@ export class TasksController {
   @Post(':id/occurrences/detach')
   @Scopes('tasks:write')
   @ApiOperation({ summary: 'Detach one occurrence from the series with an EXDATE (RF-705)' })
-  @ApiOkResponse({ type: TaskResponseDto })
+  @ApiOkResponse({ type: TaskDetailResponseDto })
   async detach(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
@@ -318,7 +325,7 @@ export class TasksController {
   @Post(':id/snooze')
   @Scopes('tasks:write')
   @ApiOperation({ summary: 'Move the due date to tomorrow, next week or a chosen date (RF-605)' })
-  @ApiOkResponse({ type: TaskResponseDto })
+  @ApiOkResponse({ type: TaskDetailResponseDto })
   async snooze(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
@@ -402,7 +409,7 @@ export class TasksController {
   @ApiOperation({
     summary: 'Update a task, including kind task/note and priority (RF-204, RF-501)',
   })
-  @ApiOkResponse({ type: TaskResponseDto })
+  @ApiOkResponse({ type: TaskDetailResponseDto })
   async update(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
@@ -430,7 +437,7 @@ export class TasksController {
   @ApiOperation({
     summary: 'Complete a task. Active children require a choice unless a policy is set (RF-206).',
   })
-  @ApiOkResponse({ type: TaskResponseDto })
+  @ApiOkResponse({ type: TaskDetailResponseDto })
   async complete(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
@@ -448,7 +455,7 @@ export class TasksController {
   @ApiOperation({
     summary: 'Mark a task as will-not-do. Cancelled tasks stay out of completed and out of trash.',
   })
-  @ApiOkResponse({ type: TaskResponseDto })
+  @ApiOkResponse({ type: TaskDetailResponseDto })
   async cancel(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
@@ -461,7 +468,7 @@ export class TasksController {
   @Post(':id/uncomplete')
   @Scopes('tasks:write')
   @ApiOperation({ summary: 'Mark a task active again' })
-  @ApiOkResponse({ type: TaskResponseDto })
+  @ApiOkResponse({ type: TaskDetailResponseDto })
   async uncomplete(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
@@ -474,7 +481,7 @@ export class TasksController {
   @Post(':id/move')
   @Scopes('tasks:write')
   @ApiOperation({ summary: 'Move a task between lists or sections (RF-204)' })
-  @ApiOkResponse({ type: TaskResponseDto })
+  @ApiOkResponse({ type: TaskDetailResponseDto })
   async move(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
@@ -488,7 +495,7 @@ export class TasksController {
   @Post(':id/duplicate')
   @Scopes('tasks:write')
   @ApiOperation({ summary: 'Duplicate a task with its checklist and subtasks (RF-204)' })
-  @ApiOkResponse({ type: TaskResponseDto })
+  @ApiCreatedResponse({ type: TaskDetailResponseDto })
   async duplicate(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
