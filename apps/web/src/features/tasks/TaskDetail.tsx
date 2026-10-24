@@ -1,3 +1,6 @@
+import { anchorFix } from './anchor-fix';
+import { useWtEMessages } from '../settings/i18n-wt-e';
+import '../settings/settings-wt-e.css';
 import { useDriveConnection } from './use-drive-connection';
 import { uploadAttachmentToDrive, MAX_DIRECT_ATTACHMENT_BYTES } from './drive-upload';
 import { runAction } from '../../components/run-action';
@@ -44,6 +47,7 @@ export function TaskDetail({
   readonly onClose: () => void;
 }) {
   const messages = useMessages();
+  const wtE = useWtEMessages();
   const driveConnection = useDriveConnection();
   const locale = useAppLocale();
   const contentRef = useRef<HTMLTextAreaElement>(null);
@@ -468,6 +472,32 @@ export function TaskDetail({
                         month: 'short',
                       }).format(new Date(`${anchorWarning.next_matching}T12:00:00Z`)),
                     )}
+                    <button
+                      type="button"
+                      disabled={save.isPending}
+                      onClick={() => {
+                        save.mutate(anchorFix(task, anchorWarning.next_matching));
+                      }}
+                    >
+                      {wtE.move.replace(
+                        '{date}',
+                        new Intl.DateTimeFormat(locale, {
+                          weekday: 'short',
+                          day: 'numeric',
+                          month: 'short',
+                          timeZone: 'UTC',
+                        }).format(new Date(`${anchorWarning.next_matching}T12:00:00Z`)),
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDateSlot('due');
+                        setDateOpen(true);
+                      }}
+                    >
+                      {wtE.rule}
+                    </button>
                   </span>
                 ) : null}
               </span>
