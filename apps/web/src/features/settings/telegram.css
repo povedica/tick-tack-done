@@ -65,3 +65,23 @@
   font-family: var(--font-mono);
   font-size: var(--fs-xs);
 }
+
+/* wt-c: shared state names match the API, including pending and error. */
+.telegram-status[data-status='linked'] {
+  color: var(--success, #15803d);
+}
+.telegram-status[data-status='blocked'],
+.telegram-status[data-status='error'] {
+  color: var(--danger, #b91c1c);
+}
+.telegram-status[data-status='token_saved'],
+.telegram-status[data-status='webhook_ok'] {
+  color: var(--warning, #a16207);
+}
+.telegram-card .telegram-actions {
+  flex-wrap: wrap;
+}
+
+.telegram-status[data-status]::before {
+  background: currentColor;
+}

@@ -1,6 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { telegramConfiguration } from '../integrations/telegram-configuration.js';
+import { telegramState, markTelegramError } from '../integrations/telegram-state.js';
+import {
+  telegramConfiguration,
+  telegramRevisionMatches,
+} from '../integrations/telegram-configuration.js';
 import { sendEmail, type EmailResult } from '../mail/send-email.js';
 
 import webpush from 'web-push';
@@ -42,6 +46,7 @@ export interface DeliveryResult {
   readonly email: ChannelOutcome;
   readonly push: ChannelOutcome;
   readonly telegram: ChannelOutcome;
+  readonly telegram_reason?: 'not_configured' | 'not_linked' | 'blocked' | 'disabled_by_user';
   readonly telegram_message_id: number | null;
   readonly retry_after_seconds: number | null;
 }
@@ -62,6 +67,7 @@ export class ReminderTransport {
       status: ChannelOutcome;
       messageId: number | null;
       retryAfter: number | null;
+      reason?: 'not_configured' | 'not_linked' | 'blocked' | 'disabled_by_user';
     } =
       prior.telegram === 'sent' || prior.telegram === 'unknown' || prior.telegram === 'disconnected'
         ? {
@@ -94,6 +100,7 @@ export class ReminderTransport {
       email: email.status,
       push: wantsPush ? (prior.push === 'sent' ? 'sent' : await this.push(message)) : 'skipped',
       telegram: telegram.status,
+      ...(telegram.reason ? { telegram_reason: telegram.reason } : {}),
       telegram_message_id: telegram.messageId,
       retry_after_seconds:
         telegram.retryAfter === null && email.retryAfter === null
@@ -160,24 +167,30 @@ export class ReminderTransport {
     status: ChannelOutcome;
     messageId: number | null;
     retryAfter: number | null;
+    reason?: 'not_configured' | 'not_linked' | 'blocked' | 'disabled_by_user';
   }> {
-    const { token } = await telegramConfiguration(this.prisma, message.ownerId);
-    const chatId = message.telegramChatId;
-    if (
-      message.allowTelegram === false ||
-      token.length === 0 ||
-      chatId === null ||
-      chatId.length === 0
-    ) {
-      return { status: 'skipped', messageId: null, retryAfter: null };
-    }
-    if (message.ownerId !== undefined) {
-      const link = await this.prisma.telegramLink.findFirst({
-        where: { ownerId: message.ownerId, chatId, deletedAt: null },
-        select: { id: true },
-      });
-      if (link === null) return { status: 'skipped', messageId: null, retryAfter: null };
-    }
+    const state =
+      message.ownerId === undefined ? null : await telegramState(this.prisma, message.ownerId);
+    const reason =
+      state?.reason ??
+      (state === null
+        ? 'not_configured'
+        : message.allowTelegram === false
+          ? 'disabled_by_user'
+          : null);
+    if (reason !== null) return { status: 'skipped', messageId: null, retryAfter: null, reason };
+    const configuration = await telegramConfiguration(this.prisma, message.ownerId);
+    if (!telegramRevisionMatches(state?.configuration ?? null, configuration))
+      return { status: 'skipped', messageId: null, retryAfter: null, reason: 'not_linked' };
+    const { token } = configuration;
+    const chatId = state?.link?.chatId;
+    if (!token || !chatId)
+      return {
+        status: 'skipped',
+        messageId: null,
+        retryAfter: null,
+        reason: !token ? 'not_configured' : 'not_linked',
+      };
     try {
       const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
         method: 'POST',
@@ -191,6 +204,15 @@ export class ReminderTransport {
         }),
         signal: AbortSignal.timeout(8_000),
       });
+      if (response.status === 401 && message.ownerId !== undefined && configuration.revision) {
+        await markTelegramError(
+          this.prisma,
+          message.ownerId,
+          configuration.botId,
+          configuration.revision,
+        );
+        return { status: 'failed', messageId: null, retryAfter: null };
+      }
       if (response.status === 403) {
         return { status: 'disconnected', messageId: null, retryAfter: null };
       }

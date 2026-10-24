@@ -18,6 +18,7 @@ let blocked = false;
 const calls: { method: string; body: Record<string, unknown> }[] = [];
 beforeAll(async () => {
   vi.stubEnv('AUTH_MODE', 'dev');
+  vi.stubEnv('PUBLIC_URL', 'https://todo.example.org');
   vi.stubGlobal(
     'fetch',
     vi.fn((url: unknown, init?: RequestInit) => {
@@ -51,6 +52,7 @@ beforeAll(async () => {
     data: {
       ownerId,
       botId: '77103',
+      webhookUrl: `https://todo.example.org/api/v1/integrations/telegram/webhook/${ownerId}`,
       username: 'synthetic_bot',
       token: sealField('synthetic-token'),
       webhookSecret: sealField('synthetic-webhook-secret'),

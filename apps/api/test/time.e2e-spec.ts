@@ -275,7 +275,10 @@ describe('time API', () => {
   });
 
   it('RF-2003: a fired reminder is also sent to the linked Telegram chat', async () => {
-    await prisma.telegramLink.create({ data: { ownerId: owner.id, chatId: '9001' } });
+    vi.stubEnv('PUBLIC_URL', 'https://todo.example.org');
+    await prisma.telegramLink.create({
+      data: { ownerId: owner.id, botId: '50005', chatId: '9001' },
+    });
     await prisma.telegramBotConfiguration.create({
       data: {
         ownerId: owner.id,
@@ -283,6 +286,7 @@ describe('time API', () => {
         webhookSecret: sealField('test-webhook-secret'),
         botId: '50005',
         username: 'reminder_test_bot',
+        webhookUrl: `https://todo.example.org/api/v1/integrations/telegram/webhook/${owner.id}`,
       },
     });
     const original = globalThis.fetch;
@@ -318,6 +322,7 @@ describe('time API', () => {
       expect(chats).toContain('9001');
     } finally {
       globalThis.fetch = original;
+      vi.unstubAllEnvs();
       await prisma.telegramBotConfiguration.deleteMany({ where: { ownerId: owner.id } });
       await prisma.telegramLink.deleteMany({ where: { ownerId: owner.id } });
     }

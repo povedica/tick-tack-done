@@ -226,6 +226,12 @@ export function NotificationsPage() {
                       role="switch"
                       aria-label={`${labels[kind]} · ${channels[channel]}`}
                       aria-checked={enabled(kind, channel) === true}
+                      disabled={channel === 'telegram' && telegram.linked !== true}
+                      title={
+                        channel === 'telegram' && telegram.linked !== true
+                          ? m.notificationNotLinked
+                          : undefined
+                      }
                       onClick={() => {
                         runAction(
                           save({

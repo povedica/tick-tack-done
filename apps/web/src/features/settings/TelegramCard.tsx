@@ -8,6 +8,7 @@ import { useAppLocale } from '../../i18n/locale';
 import { failureMessage } from '../../failure';
 import { TotpQr } from './TotpQr';
 import './telegram.css';
+import { telegramUiState, useWtCMessages } from './i18n-wt-c';
 import { TelegramBotSettings } from './TelegramBotSettings';
 function text(value: unknown) {
   return typeof value === 'string' ? value : '';
@@ -19,6 +20,7 @@ interface Pairing {
 }
 export function TelegramCard() {
   const m = useMessages();
+  const wt = useWtCMessages();
   const locale = useAppLocale();
   const cache = useQueryClient();
   const [pairing, setPairing] = useState<Pairing | null>(null);
@@ -44,9 +46,9 @@ export function TelegramCard() {
         ? 2000
         : false,
   });
-  const linked = query.data?.linked === true;
-  const configured = query.data?.configured === true;
-  const blocked = query.data?.status === 'blocked';
+  const state = telegramUiState(query.data);
+  const linked = state === 'linked';
+  const blocked = state === 'blocked';
   const code = pairing?.code ?? '';
   const bot = pairing?.bot ?? text(query.data?.bot_username);
   const seconds = Math.max(0, Math.ceil(((pairing?.expires ?? now) - now) / 1000));
@@ -90,8 +92,8 @@ export function TelegramCard() {
     };
   }, []);
   useEffect(() => {
-    if (configured && !linked && pairing === null) runAction(generate());
-  }, [configured, linked, pairing]);
+    if (state === 'webhook_ok' && pairing === null) runAction(generate());
+  }, [state, pairing]);
   useEffect(() => {
     if (linked && previouslyLinked.current === false) {
       setNotice(m.telegramConnectionNotice);
@@ -105,11 +107,11 @@ export function TelegramCard() {
     setError('');
     try {
       await operation();
-      await query.refetch();
-      await cache.invalidateQueries({ queryKey: ['notification-settings'] });
     } catch (caught) {
       setError(failureMessage(caught, m.settingsFailed));
     } finally {
+      await query.refetch();
+      await cache.invalidateQueries({ queryKey: ['notification-settings'] });
       setBusy(false);
     }
   };
@@ -122,15 +124,8 @@ export function TelegramCard() {
     <section className="token-panel telegram-card" aria-labelledby="telegram-title">
       <div className="token-panel-head">
         <h2 id="telegram-title">{m.notificationTelegram}</h2>
-        <span
-          className="telegram-status"
-          data-status={blocked ? 'blocked' : linked ? 'connected' : 'not_linked'}
-        >
-          {blocked
-            ? m.notificationBlocked
-            : linked
-              ? m.integrationConnected
-              : m.notificationNotLinked}
+        <span className="telegram-status" data-status={state}>
+          {wt[state]}
         </span>
       </div>
       <TelegramBotSettings
@@ -140,12 +135,14 @@ export function TelegramCard() {
         }}
       />
       {notice ? <p role="status">{notice}</p> : null}
-      {linked ? (
+      {linked || blocked ? (
         <>
           <p>
-            {m.telegramConnectedAs
-              .replace('{username}', text(query.data?.username) || '—')
-              .replace('{name}', text(query.data?.display_name) || '—')}
+            {text(query.data?.username)
+              ? m.telegramConnectedAs
+                  .replace('{username}', text(query.data?.username))
+                  .replace('{name}', text(query.data?.display_name) || '—')
+              : `${wt.linked}: ${text(query.data?.display_name) || wt.linked}`}
           </p>
           {query.data?.linked_at ? (
             <p className="token-meta">
@@ -171,7 +168,7 @@ export function TelegramCard() {
             <Button
               size="sm"
               variant="ghost"
-              disabled={busy}
+              disabled={busy || blocked}
               onClick={() => {
                 runAction(
                   action(() =>
@@ -207,7 +204,7 @@ export function TelegramCard() {
             </Button>
           </div>
         </>
-      ) : configured ? (
+      ) : state === 'webhook_ok' ? (
         <>
           {link && seconds > 0 ? (
             <>
@@ -249,9 +246,9 @@ export function TelegramCard() {
             </details>
           ) : null}
         </>
-      ) : (
+      ) : state === 'none' ? (
         <p>{m.telegramUnconfigured}</p>
-      )}
+      ) : null}
       {error ? <p role="alert">{error}</p> : null}
       {confirm ? (
         <UnlinkDialog

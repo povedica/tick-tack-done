@@ -12,6 +12,11 @@ export function assertRuntimeConfig(): void {
   if (process.env.NODE_ENV !== 'production') {
     return;
   }
+  if (process.env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_WEBHOOK_SECRET) {
+    new Logger('RuntimeConfig').warn(
+      'Variables de Telegram heredadas ignoradas: Telegram es por usuario.',
+    );
+  }
   if (process.env.GOOGLE_REFRESH_TOKEN) {
     new Logger('RuntimeConfig').warn('GOOGLE_REFRESH_TOKEN ignored in production');
   }

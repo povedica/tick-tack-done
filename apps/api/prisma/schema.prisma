@@ -1296,6 +1296,7 @@ model TelegramBotConfiguration {
 }
 
 model TelegramLink {
+  botId String? @map("bot_id")
   username String?
   displayName String? @map("display_name")
   status String @default("connected")
@@ -1308,6 +1309,7 @@ model TelegramLink {
 
   @@unique([ownerId, chatId])
   @@index([ownerId])
+  @@index([ownerId, botId])
   @@map("telegram_links")
 }
 
