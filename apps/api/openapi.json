@@ -12129,7 +12129,7 @@
             }
           }
         },
-        "summary": "Save focus durations, auto-start, local sounds, volume and daily goal (TTD-AUD-101)",
+        "summary": "Merge focus settings; omitted fields remain unchanged (RF-1201, TTD-AUD-129)",
         "tags": [
           "focus"
         ],
