@@ -1,3 +1,4 @@
+import { defaultReminderChannel } from './reminder-channel.js';
 import { normalizeTaskUrl } from '@reflexionia/domain';
 import { linkTitle } from './link-title.js';
 import type { AddTaskLinkDto } from './task-links.dto.js';
@@ -1502,7 +1503,7 @@ export class TasksService {
               dto.absolute_at === undefined || dto.absolute_at === null
                 ? null
                 : this.instant(dto.absolute_at, 'absolute_at', task.timeZone).date,
-            channel: dto.channel ?? 'push',
+            channel: dto.channel ?? defaultReminderChannel(),
             constant: dto.constant ?? false,
             constantIntervalMinutes:
               dto.constant === true ? (dto.constant_interval_minutes ?? 15) : null,
@@ -2530,7 +2531,7 @@ export class TasksService {
           taskId,
           trigger: normalizeReminderTrigger(explicit) ?? explicit,
           type: 'relative',
-          channel: 'push',
+          channel: defaultReminderChannel(),
         },
       });
       return;
@@ -2564,7 +2565,7 @@ export class TasksService {
         taskId,
         trigger,
         type: 'relative',
-        channel: 'push',
+        channel: defaultReminderChannel(),
       },
     });
   }

@@ -439,7 +439,11 @@ const CATALOG: readonly McpTool[] = [
         trigger: { type: 'string', minLength: 1, maxLength: 200 },
         type: { type: 'string', enum: ['relative', 'absolute', 'location', 'daily_digest'] },
         absolute_at: { type: ['string', 'null'] },
-        channel: { type: 'string', enum: ['push', 'email', 'both'] },
+        channel: {
+          type: 'string',
+          enum: ['push', 'email', 'both'],
+          description: 'Defaults to configured push, otherwise configured email, otherwise push.',
+        },
       },
       ['task_id', 'trigger', 'type'],
     ),

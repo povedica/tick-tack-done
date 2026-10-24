@@ -512,7 +512,12 @@ export class CreateReminderDto {
   @IsString()
   absolute_at?: string | null;
 
-  @ApiProperty({ required: false, enum: ['push', 'email', 'both'] })
+  @ApiProperty({
+    required: false,
+    enum: ['push', 'email', 'both'],
+    description:
+      'Defaults to push when VAPID is configured, otherwise email when configured, otherwise push.',
+  })
   @IsOptional()
   @IsIn(['push', 'email', 'both'])
   channel?: 'push' | 'email' | 'both';
