@@ -693,8 +693,8 @@ export function HourGrid({
                     >
                       <CalendarTaskMark task={task} />
                       <Link
-                        title={task.title}
-                        aria-label={task.title}
+                        title={`${task.title} · ${task.due_date ? new Intl.DateTimeFormat(locale, { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(task.start_date ?? task.due_date)) : ''}`}
+                        aria-label={`${task.title} · ${task.due_date ? new Intl.DateTimeFormat(locale, { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(task.start_date ?? task.due_date)) : ''}`}
                         className={
                           isCalendarOverdue(task.due_date, task.time_zone, new Date())
                             ? 'is-overdue'
@@ -702,12 +702,14 @@ export function HourGrid({
                         }
                         to={taskQueryHref(location.pathname, location.search, task.id)}
                       >
-                        {calendarTaskLabel(
-                          task.title,
-                          task.due_date,
-                          task.time_zone,
-                          messages.untitled,
-                        )}
+                        <span className="hour-task-title">
+                          {calendarTaskLabel(
+                            task.title,
+                            task.due_date,
+                            task.time_zone,
+                            messages.untitled,
+                          )}
+                        </span>
                         {Number(style(`task:${task.id}`).height) >= 18 ? (
                           <time className="hour-task-time">
                             {' '}
@@ -752,7 +754,19 @@ export function HourGrid({
                       }}
                     >
                       <CalendarDays size={13} className="calendar-event-mark" aria-hidden="true" />
-                      <span>{event.title}</span>
+                      <span className="hour-task-title">{event.title}</span>
+                      {Number(style(`event:${event.id}`).height) >= 18 ? (
+                        <time className="hour-task-time">
+                          {' '}
+                          ·{' '}
+                          {new Intl.DateTimeFormat(locale, {
+                            timeZone,
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hourCycle: 'h23',
+                          }).format(new Date(event.starts_at))}
+                        </time>
+                      ) : null}
                     </button>
                   ))}
               </section>

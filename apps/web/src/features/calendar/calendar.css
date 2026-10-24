@@ -1860,3 +1860,21 @@
     min-height: var(--tap);
   }
 }
+
+.calendar-page .hour-block[data-block-size='compact'] > a {
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+}
+.calendar-page .hour-block[data-block-size='compact'] > a .hour-task-title,
+.calendar-page button.hour-block[data-block-size='compact'] > .hour-task-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.calendar-page .hour-block[data-block-size='compact'] .hour-task-time {
+  flex: none;
+  white-space: nowrap;
+}
