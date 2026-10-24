@@ -133,10 +133,42 @@ export function DatePopover({
     onClose();
   }
 
+  const actions = (
+    <div className="popover-actions">
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        onClick={() => {
+          commit({
+            ...draft,
+            dueDate: null,
+            allDay: true,
+            reminder: null,
+            reminderTouched: true,
+            repeatRule: null,
+          });
+        }}
+      >
+        {messages.clearDate}
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        variant="primary"
+        onClick={() => {
+          commit(draft);
+        }}
+      >
+        {messages.dateOk}
+      </Button>
+    </div>
+  );
   return (
     <Popover
       open={open}
       mobileSheet
+      sheetFooter={actions}
       anchor={anchor}
       offsetX={16}
       offsetY={-16}
@@ -564,35 +596,6 @@ export function DatePopover({
           {messages.somedayAction}
         </Button>
       )}
-      <div className="popover-actions">
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={() => {
-            commit({
-              ...draft,
-              dueDate: null,
-              allDay: true,
-              reminder: null,
-              reminderTouched: true,
-              repeatRule: null,
-            });
-          }}
-        >
-          {messages.clearDate}
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="primary"
-          onClick={() => {
-            commit(draft);
-          }}
-        >
-          {messages.dateOk}
-        </Button>
-      </div>
     </Popover>
   );
 }

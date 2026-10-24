@@ -10,7 +10,7 @@ it('RF-1101: optional sheet slots preserve the desktop DOM', () => {
   );
   expect(
     renderToStaticMarkup(
-      <Popover {...props} sheetHeader={<h2>Header</h2>} sheetFooter={<button>Done</button>}>
+      <Popover {...props} sheetHeader={<h2>Header</h2>}>
         <p>Body</p>
       </Popover>,
     ),
@@ -20,7 +20,7 @@ it('RF-1101: optional sheet slots preserve the desktop DOM', () => {
 it('RF-1101: closed popovers render no sheet slots', () =>
   expect(
     renderToStaticMarkup(
-      <Popover open={false} label="Calendar" onClose={() => {}} sheetFooter={<button>Done</button>}>
+      <Popover open={false} label="Calendar" onClose={() => {}}>
         Body
       </Popover>,
     ),

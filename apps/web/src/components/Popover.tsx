@@ -293,7 +293,10 @@ export function Popover({
           {sheetFooter ? <div className="sheet-footer">{sheetFooter}</div> : null}
         </>
       ) : (
-        children
+        <>
+          {children}
+          {sheetFooter}
+        </>
       )}
     </div>
   );

@@ -78,3 +78,29 @@
     min-height: var(--tap);
   }
 }
+
+.date-popover.is-bottom-sheet {
+  padding-bottom: 0;
+}
+.date-popover.is-bottom-sheet > .sheet-handle,
+.date-popover.is-bottom-sheet > .sheet-footer {
+  flex: none;
+}
+.date-popover.is-bottom-sheet > .sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.date-popover.is-bottom-sheet .sheet-footer {
+  padding: var(--sp-2) var(--sp-3) calc(var(--sp-2) + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+.date-popover.is-bottom-sheet .sheet-footer .popover-actions {
+  position: static;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: space-between;
+}
