@@ -4662,6 +4662,67 @@ export interface components {
             items: components["schemas"]["TaskResponseDto"][];
             next_cursor: string | null;
         };
+        TaskActivityDto: {
+            id: string;
+            action: string;
+            /** @description Existing event changes payload. */
+            changes: Record<string, never> | null;
+            /** Format: date-time */
+            created_at: string;
+            actor_id: string;
+            /**
+             * @description Domain event type without its version suffix, when available.
+             * @example task.completed
+             */
+            type?: string;
+            /**
+             * @description Source of this event request, independent of the task capture source (web, api, mcp or automation).
+             * @example mcp
+             */
+            source?: string;
+        };
+        TaskDetailResponseDto: {
+            links?: components["schemas"]["TaskLinkResponseDto"][];
+            link_count?: number;
+            warnings?: components["schemas"]["CaptureWarningDto"][];
+            id: string;
+            project_id: string;
+            parent_id: string | null;
+            column_id: string | null;
+            title: string;
+            content: string;
+            /** @enum {string} */
+            kind: "task" | "note";
+            /** @enum {string} */
+            status: "active" | "completed" | "archived" | "cancelled";
+            /** @enum {string} */
+            priority: "none" | "low" | "medium" | "high";
+            is_all_day: boolean;
+            start_date: string | null;
+            due_date: string | null;
+            time_zone: string;
+            duration_minutes: number | null;
+            /** @description Monotonic CAS version (>=1). Additive for Ticky expected_version (APP-02a). */
+            version: number;
+            is_someday: boolean;
+            evening_only: boolean;
+            repeat_rule: string | null;
+            /** @enum {string} */
+            repeat_from: "due_date" | "completion_date";
+            series_id: string | null;
+            sort_order: string;
+            tag_ids: string[];
+            assignee_id: string | null;
+            created_by: string;
+            completed_at: string | null;
+            source: string;
+            checklist_progress: components["schemas"]["ChecklistProgressDto"];
+            created_at: string;
+            updated_at: string;
+            deleted_at: string | null;
+            /** @description Recent task activity when returning task detail; write responses include their own event. */
+            activity?: components["schemas"]["TaskActivityDto"][];
+        };
         BatchTasksDto: {
             /** @enum {string} */
             action: "complete" | "move" | "tag" | "priority" | "due" | "delete";
@@ -4751,6 +4812,8 @@ export interface components {
             created_at: string;
             updated_at: string;
             deleted_at: string | null;
+            /** @description Recent task activity when returning task detail; write responses include their own event. */
+            activity?: components["schemas"]["TaskActivityDto"][];
         };
         TaskLinkPageDto: {
             items: components["schemas"]["TaskLinkResponseDto"][];
@@ -4775,7 +4838,10 @@ export interface components {
             /** @enum {string} */
             type: "relative" | "absolute" | "location" | "daily_digest";
             absolute_at?: Record<string, never> | null;
-            /** @enum {string} */
+            /**
+             * @description Defaults to push when VAPID is configured, otherwise email when configured, otherwise push.
+             * @enum {string}
+             */
             channel?: "push" | "email" | "both";
             constant?: boolean;
             constant_interval_minutes?: Record<string, never> | null;
@@ -7486,7 +7552,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TaskResponseDto"];
+                    "application/json": components["schemas"]["TaskDetailResponseDto"];
                 };
             };
         };
@@ -7557,7 +7623,7 @@ export interface operations {
             };
         };
         responses: {
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7585,7 +7651,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TaskResponseDto"];
+                    "application/json": components["schemas"]["TaskDetailResponseDto"];
                 };
             };
         };
@@ -7633,7 +7699,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TaskResponseDto"];
+                    "application/json": components["schemas"]["TaskDetailResponseDto"];
                 };
             };
         };
@@ -7753,7 +7819,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TaskResponseDto"];
+                    "application/json": components["schemas"]["TaskDetailResponseDto"];
                 };
             };
         };
@@ -7780,7 +7846,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TaskResponseDto"];
+                    "application/json": components["schemas"]["TaskDetailResponseDto"];
                 };
             };
         };
@@ -7901,7 +7967,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TaskResponseDto"];
+                    "application/json": components["schemas"]["TaskDetailResponseDto"];
                 };
             };
         };
@@ -7924,7 +7990,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TaskResponseDto"];
+                    "application/json": components["schemas"]["TaskDetailResponseDto"];
                 };
             };
         };
@@ -7947,7 +8013,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TaskResponseDto"];
+                    "application/json": components["schemas"]["TaskDetailResponseDto"];
                 };
             };
         };
@@ -7974,7 +8040,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TaskResponseDto"];
+                    "application/json": components["schemas"]["TaskDetailResponseDto"];
                 };
             };
         };
@@ -7992,12 +8058,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TaskResponseDto"];
+                    "application/json": components["schemas"]["TaskDetailResponseDto"];
                 };
             };
         };

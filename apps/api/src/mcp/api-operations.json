@@ -2720,7 +2720,11 @@
                 "enum": ["relative", "absolute", "location", "daily_digest"]
               },
               "absolute_at": { "type": "object", "nullable": true },
-              "channel": { "type": "string", "enum": ["push", "email", "both"] },
+              "channel": {
+                "type": "string",
+                "enum": ["push", "email", "both"],
+                "description": "Defaults to push when VAPID is configured, otherwise email when configured, otherwise push."
+              },
               "constant": { "type": "boolean" },
               "constant_interval_minutes": { "type": "object", "nullable": true },
               "location": { "type": "object", "nullable": true }
