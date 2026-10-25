@@ -26,7 +26,7 @@ export function SortMenu({
           setOpen((current) => !current);
         }}
       >
-        <ArrowUpDown size={20} aria-hidden="true" />
+        <ArrowUpDown size={16} strokeWidth={1.5} aria-hidden="true" />
       </button>
       <Popover
         open={open}
