@@ -32,6 +32,7 @@ function setup() {
 }
 async function transport(telegramLinked = false) {
   vi.stubEnv('PUBLIC_URL', 'https://todo.example.org');
+  const configurationUpdatedAt = new Date();
   const module = await Test.createTestingModule({
     providers: [
       ReminderTransport,
@@ -47,7 +48,7 @@ async function transport(telegramLinked = false) {
                 username: 'unit_bot',
                 webhookUrl:
                   'https://todo.example.org/api/v1/integrations/telegram/webhook/test-owner',
-                updatedAt: new Date(),
+                updatedAt: configurationUpdatedAt,
               }),
           },
           telegramLink: {
