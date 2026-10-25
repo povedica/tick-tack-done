@@ -438,6 +438,7 @@ export const es = {
   statusCompleted: 'Completada',
   groupBy: 'Agrupar',
   sortBy: 'Ordenar',
+  sortOrder: 'Orden',
   groupNone: 'Sin agrupar',
   groupSection: 'Sección',
   groupDate: 'Fecha',

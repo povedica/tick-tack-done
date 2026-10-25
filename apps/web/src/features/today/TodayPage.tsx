@@ -3,12 +3,13 @@ import { calendarDragPatch } from '@reflexionia/domain';
 import { runAction } from '../../components/run-action';
 import { displayTitle } from '../tasks/displayTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowUpDown, Sprout } from 'lucide-react';
+import { Sprout } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { api } from '../../api';
 import type { CreateTaskBody } from '@reflexionia/sdk';
 import { UndoToastStack } from '../../components/UndoToast';
+import { SortMenu } from '../../components/SortMenu';
 import { ViewMenu } from '../../components/ViewMenu';
 import { useActionToast } from '../../components/action-toast';
 import { useMessages, type Messages } from '../../i18n';
@@ -93,7 +94,6 @@ export function TodayPage() {
     () => new Set(readList(COLLAPSE_KEY)),
   );
   const [pins, setPins] = useState<readonly string[]>(() => readPins(readStored(PIN_KEY)));
-  const [groupOpen, setGroupOpen] = useState(false);
   const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set());
   const [leaving, setLeaving] = useState<ReadonlySet<string>>(() => new Set());
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
@@ -455,7 +455,6 @@ export function TodayPage() {
     const next = new URLSearchParams(params);
     next.set('group', value);
     setParams(next, { replace: true });
-    setGroupOpen(false);
   }
 
   function chooseSort(value: TaskSortKey): void {
@@ -698,59 +697,50 @@ export function TodayPage() {
             value={matrixLayout}
             onChange={chooseLayout}
           />
-          <div className="group-popover">
-            <button
-              type="button"
-              className="icon-button"
-              aria-label={messages.groupLabel}
-              aria-expanded={groupOpen}
-              onClick={() => {
-                setGroupOpen((current) => !current);
-              }}
-            >
-              <ArrowUpDown size={20} aria-hidden="true" />
-            </button>
-            {groupOpen ? (
-              <div className="menu-card" role="menu" aria-label={messages.groupLabel}>
-                <p className="popover-label">{messages.groupBy}</p>
+          <SortMenu messages={messages}>
+            <label>
+              {messages.groupBy}
+              <select
+                value={group}
+                onChange={(event) => {
+                  chooseGroup(event.target.value as TaskGroupKey);
+                }}
+              >
                 {(['priority', 'due', 'tag', 'list', 'none'] as const).map((value) => (
-                  <GroupOption
-                    key={value}
-                    label={groupName(value, messages)}
-                    checked={group === value}
-                    onClick={() => {
-                      chooseGroup(value);
-                    }}
-                  />
+                  <option key={value} value={value}>
+                    {groupName(value, messages)}
+                  </option>
                 ))}
-                <p className="popover-label">{messages.sortBy}</p>
+              </select>
+            </label>
+            <label>
+              {messages.sortBy}
+              <select
+                value={sort}
+                onChange={(event) => {
+                  chooseSort(event.target.value as TaskSortKey);
+                }}
+              >
                 {(['due', 'priority', 'title'] as const).map((value) => (
-                  <GroupOption
-                    key={value}
-                    label={sortName(value, messages)}
-                    checked={sort === value}
-                    onClick={() => {
-                      chooseSort(value);
-                    }}
-                  />
+                  <option key={value} value={value}>
+                    {sortName(value, messages)}
+                  </option>
                 ))}
-                <GroupOption
-                  label={messages.sortOldest}
-                  checked={sortDir === 'asc'}
-                  onClick={() => {
-                    chooseDir('asc');
-                  }}
-                />
-                <GroupOption
-                  label={messages.sortNewest}
-                  checked={sortDir === 'desc'}
-                  onClick={() => {
-                    chooseDir('desc');
-                  }}
-                />
-              </div>
-            ) : null}
-          </div>
+              </select>
+            </label>
+            <label>
+              {messages.sortOrder}
+              <select
+                value={sortDir}
+                onChange={(event) => {
+                  chooseDir(event.target.value as TaskSortDir);
+                }}
+              >
+                <option value="asc">{messages.sortOldest}</option>
+                <option value="desc">{messages.sortNewest}</option>
+              </select>
+            </label>
+          </SortMenu>
           <ViewMenu
             messages={messages}
             view={matrixLayout === 'kanban' ? 'kanban' : 'list'}
@@ -779,18 +769,7 @@ export function TodayPage() {
             onPrint={() => {
               window.print();
             }}
-          >
-            {(['priority', 'due', 'tag', 'list', 'none'] as const).map((value) => (
-              <GroupOption
-                key={value}
-                label={groupName(value, messages)}
-                checked={group === value}
-                onClick={() => {
-                  chooseGroup(value);
-                }}
-              />
-            ))}
-          </ViewMenu>
+          />
         </div>
       </header>
       {matrixLayout !== 'kanban' ? (
@@ -1094,28 +1073,6 @@ export function TodayPage() {
         onExpire={expireToast}
       />
     </section>
-  );
-}
-
-function GroupOption({
-  label,
-  checked,
-  onClick,
-}: {
-  readonly label: string;
-  readonly checked: boolean;
-  readonly onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      className="menu-item"
-      role="menuitemradio"
-      aria-checked={checked}
-      onClick={onClick}
-    >
-      {label}
-    </button>
   );
 }
 

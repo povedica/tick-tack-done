@@ -434,6 +434,7 @@ export const en = {
   statusCompleted: 'Completed',
   groupBy: 'Group',
   sortBy: 'Sort',
+  sortOrder: 'Order',
   groupNone: 'No grouping',
   groupSection: 'Section',
   groupDate: 'Date',

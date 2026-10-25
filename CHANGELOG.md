@@ -2,6 +2,12 @@
 
 ## Sin publicar — ajustes visuales PR77
 
+- Cabecera móvil a 18 px y menús a 14 px. Ordenar y agrupar tienen su propio
+  control junto al menú de vistas, con preferencias y orden existentes
+  conservados (RF-1001).
+- Sidebar: grupos desplegados por defecto también en móvil, conservando el
+  plegado elegido por el usuario. Cabeceras más pequeñas y suaves, flechas
+  discretos e icono de carpeta con listas indentadas (RF-302).
 - Listas en móvil: selector de vista dentro del menú de acciones, con Matriz,
   Kanban y Timeline según la vista. Cabecera y menú con texto más compacto;
   desplegable flotante con altura ajustada a la pantalla para evitar recortes

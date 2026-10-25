@@ -20,7 +20,7 @@ for (const width of [360, 390, 1280]) {
             expect(await title.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
           } else await expect(toggle).toBeVisible();
           await header.getByRole('button', { name: 'Acciones', exact: true }).click();
-          const menu = page.locator('.view-menu-popover');
+          const menu = page.locator('.view-menu-popover:not(.sort-menu-popover)');
           await expect(
             menu.getByRole('menuitemradio', { name: 'Kanban', exact: true }),
           ).toBeVisible();
@@ -34,9 +34,6 @@ for (const width of [360, 390, 1280]) {
               );
             }),
           ).toBe(true);
-          await menu.getByRole('menuitem', { name: 'Opciones de vista', exact: true }).click();
-          await print.scrollIntoViewIfNeeded();
-          await expect(print).toBeInViewport();
           const box = await menu.boundingBox();
           expect(box!.y + box!.height).toBeLessThanOrEqual(640);
           expect(box!.x).toBeGreaterThanOrEqual(0);
@@ -44,6 +41,20 @@ for (const width of [360, 390, 1280]) {
           await page.keyboard.press('Escape');
           await expect(menu).toBeHidden();
           await expect(header.getByRole('button', { name: 'Acciones', exact: true })).toBeFocused();
+          await header.getByRole('button', { name: 'Ordenar', exact: true }).click();
+          const sorting = page.getByRole('dialog', { name: 'Ordenar', exact: true });
+          await expect(
+            sorting.getByRole('combobox', { name: 'Agrupar', exact: true }),
+          ).toBeVisible();
+          const preference = page.waitForRequest(
+            (request) => request.method() === 'PUT' && request.url().includes('/view-preferences/'),
+          );
+          await sorting
+            .getByRole('combobox', { name: 'Ordenar', exact: true })
+            .selectOption('title');
+          expect((await preference).postDataJSON()).toMatchObject({ sort: 'title' });
+          await page.keyboard.press('Escape');
+          await expect(header.getByRole('button', { name: 'Ordenar', exact: true })).toBeFocused();
           await header.getByRole('button', { name: 'Acciones', exact: true }).click();
           await menu.getByRole('menuitemradio', { name: 'Matriz', exact: true }).click();
           await expect(menu).toBeHidden();

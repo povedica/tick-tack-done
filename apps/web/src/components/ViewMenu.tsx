@@ -6,7 +6,6 @@ import {
   List,
   MoreHorizontal,
   Printer,
-  SlidersHorizontal,
   Timeline,
 } from 'lucide-react';
 import { useId, useRef, useState, type ReactNode } from 'react';
@@ -27,7 +26,6 @@ export function ViewMenu({
   hideCompleted,
   onHideCompleted,
   onPrint,
-  children,
 }: {
   readonly messages: Messages;
   readonly view?: BoardView | undefined;
@@ -40,10 +38,8 @@ export function ViewMenu({
   readonly hideCompleted: boolean;
   readonly onHideCompleted: (value: boolean) => void;
   readonly onPrint: () => void;
-  readonly children?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const [options, setOptions] = useState(false);
   const anchor = useRef<HTMLButtonElement>(null);
   const menuId = useId();
 
@@ -146,19 +142,6 @@ export function ViewMenu({
             <Eye size={16} aria-hidden="true" />
             {messages.showDetails}
           </button>
-          <button
-            type="button"
-            className="menu-item"
-            role="menuitem"
-            aria-expanded={options}
-            onClick={() => {
-              setOptions((current) => !current);
-            }}
-          >
-            <SlidersHorizontal size={16} aria-hidden="true" />
-            {messages.viewOptions}
-          </button>
-          {options ? <div className="menu-options">{children}</div> : null}
           <button
             type="button"
             className="menu-item"

@@ -5,6 +5,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { api } from '../../../api';
 import { completeBody } from '../../tasks/complete-body';
+import { SortMenu } from '../../../components/SortMenu';
 import { ViewMenu } from '../../../components/ViewMenu';
 import { useMessages, type Messages } from '../../../i18n';
 import { useAppLocale } from '../../../i18n/locale';
@@ -327,31 +328,7 @@ export function Board({
                     : messages.taskCount.replace('{count}', String(count));
                 })()}
           </span>
-          <ViewMenu
-            messages={messages}
-            view={view}
-            onView={chooseView}
-            matrixSelected={matrixLayout === 'matrix' && matrixScope !== undefined}
-            onMatrix={
-              flags.matrix && matrixScope !== undefined
-                ? () => {
-                    writeMatrixLayout(scopeKey, 'matrix');
-                    setMatrixLayout('matrix');
-                  }
-                : undefined
-            }
-            details={details}
-            onDetails={(value) => {
-              savePrefs({ showDetails: value });
-            }}
-            hideCompleted={hideCompleted}
-            onHideCompleted={(value) => {
-              savePrefs({ hideCompleted: value });
-            }}
-            onPrint={() => {
-              window.print();
-            }}
-          >
+          <SortMenu messages={messages}>
             <label>
               {messages.groupBy}
               <select
@@ -382,7 +359,32 @@ export function Board({
                 <option value="created">{messages.sortCreated}</option>
               </select>
             </label>
-          </ViewMenu>
+          </SortMenu>
+          <ViewMenu
+            messages={messages}
+            view={view}
+            onView={chooseView}
+            matrixSelected={matrixLayout === 'matrix' && matrixScope !== undefined}
+            onMatrix={
+              flags.matrix && matrixScope !== undefined
+                ? () => {
+                    writeMatrixLayout(scopeKey, 'matrix');
+                    setMatrixLayout('matrix');
+                  }
+                : undefined
+            }
+            details={details}
+            onDetails={(value) => {
+              savePrefs({ showDetails: value });
+            }}
+            hideCompleted={hideCompleted}
+            onHideCompleted={(value) => {
+              savePrefs({ hideCompleted: value });
+            }}
+            onPrint={() => {
+              window.print();
+            }}
+          />
         </div>
       </header>
       {notice !== undefined ? <p>{notice}</p> : null}

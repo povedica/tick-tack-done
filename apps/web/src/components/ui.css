@@ -1246,7 +1246,13 @@
   }
 
   .today-header .page-title h1 {
-    font-size: var(--fs-md);
+    font-size: 18px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .today-header {
+    align-items: center;
   }
 
   .today-header .ui-badge {
@@ -1256,8 +1262,33 @@
 
   .view-menu-popover :is(.menu-item, .menu-segment-btn) {
     min-height: var(--tap);
-    font-size: var(--fs-sm);
+    font-size: var(--fs-base);
   }
+}
+
+.sort-options {
+  display: grid;
+  gap: var(--sp-3);
+  padding: var(--sp-2);
+}
+
+.sort-options label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: var(--fs-base);
+}
+
+.sort-options select {
+  min-width: 0;
+  width: 100%;
+  min-height: var(--tap);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font: inherit;
 }
 
 .detail-head,
@@ -2724,8 +2755,14 @@ a.link:hover {
   min-width: 0;
   width: auto;
   text-align: left;
-  font-size: var(--fs-base);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--ink-faint);
   text-transform: none;
+}
+.nav-group-toggle svg {
+  color: var(--ink-faint);
+  flex: none;
 }
 .nav-group-actions {
   display: flex;
