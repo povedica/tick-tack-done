@@ -1,3 +1,4 @@
+import { captureSettings } from '@reflexionia/domain';
 import { runAction } from '../../components/run-action';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { GripVertical, MoreHorizontal, Plus, Link as LinkIcon } from 'lucide-react';
@@ -539,6 +540,7 @@ function Kanban({
   readonly onOpen: (id: string) => void;
   readonly onComplete: (row: RowModel) => void;
 }) {
+  const account = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
   const queryClient = useQueryClient();
   const [section, setSection] = useState('');
   const [boardError, setBoardError] = useState<string | null>(null);
@@ -547,7 +549,15 @@ function Kanban({
   const dateMode = columns.length === 0;
   const loose = rows.some((row) => row.columnId === null || row.columnId.length === 0);
   const cols = dateMode
-    ? dateKanbanColumns(messages)
+    ? (() => {
+        const columns = dateKanbanColumns(messages);
+        return captureSettings(account.data?.capture_settings).overdue_position === 'bottom'
+          ? [
+              ...columns.filter((column) => column.id !== 'overdue'),
+              ...columns.filter((column) => column.id === 'overdue'),
+            ]
+          : columns;
+      })()
     : [...columns, ...(loose ? [{ id: 'none', name: messages.noSection }] : [])];
   const now = useMemo(() => new Date(), []);
   async function moveCard(id: string, columnId: string): Promise<void> {

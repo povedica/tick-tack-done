@@ -101,6 +101,108 @@ const repeatFromSchema = {
  */
 const CATALOG: readonly McpTool[] = [
   {
+    name: 'get_capture_settings',
+    description:
+      'Read the owned defaults applied to task captures, including MCP quick_add and create_task. Explicit task fields override these defaults.',
+    scopes: ['profile:read'],
+    inputSchema: objectSchema({}, []),
+  },
+  {
+    name: 'update_capture_settings',
+    description:
+      'Configure owned task capture defaults. Read current settings first and submit the complete settings object. Uses PATCH /me with profile:write and owner checks.',
+    scopes: ['profile:write'],
+    inputSchema: objectSchema(
+      {
+        settings: {
+          type: 'object',
+          properties: {
+            recognize_dates: {
+              type: 'boolean',
+            },
+            remove_date_text: {
+              type: 'boolean',
+            },
+            recognize_tags: {
+              type: 'boolean',
+            },
+            remove_tag_text: {
+              type: 'boolean',
+            },
+            parse_url_title: {
+              type: 'boolean',
+            },
+            default_date: {
+              type: 'string',
+              enum: ['none', 'today', 'tomorrow'],
+            },
+            default_date_mode: {
+              type: 'string',
+              enum: ['date', 'date_time'],
+            },
+            default_time: {
+              type: 'string',
+              pattern: '^([01]\\d|2[0-3]):[0-5]\\d$',
+            },
+            default_duration_minutes: {
+              type: ['integer', 'null'],
+              minimum: 1,
+              maximum: 1440,
+            },
+            default_priority: {
+              type: 'string',
+              enum: ['none', 'low', 'medium', 'high'],
+            },
+            default_tag_id: {
+              type: ['string', 'null'],
+              format: 'uuid',
+            },
+            default_list_id: {
+              type: ['string', 'null'],
+              format: 'uuid',
+            },
+            timed_reminder: {
+              type: 'string',
+              enum: ['inherit', 'none', '-PT0M', '-PT5M', '-PT15M', '-PT30M', '-PT1H', '-P1D'],
+            },
+            all_day_reminder: {
+              type: 'string',
+              enum: ['inherit', 'none', '-PT0M', '-PT5M', '-PT15M', '-PT30M', '-PT1H', '-P1D'],
+            },
+            new_task_position: {
+              type: 'string',
+              enum: ['top', 'bottom'],
+            },
+            overdue_position: {
+              type: 'string',
+              enum: ['top', 'bottom'],
+            },
+          },
+          required: [
+            'recognize_dates',
+            'remove_date_text',
+            'recognize_tags',
+            'remove_tag_text',
+            'parse_url_title',
+            'default_date',
+            'default_date_mode',
+            'default_time',
+            'default_duration_minutes',
+            'default_priority',
+            'default_tag_id',
+            'default_list_id',
+            'timed_reminder',
+            'all_day_reminder',
+            'new_task_position',
+            'overdue_position',
+          ],
+          additionalProperties: false,
+        },
+      },
+      ['settings'],
+    ),
+  },
+  {
     name: 'api_catalog',
     description:
       'Discover every public API operation and its request schema. Filter by path or summary. Use api_request for operations without a dedicated tool.',
@@ -217,7 +319,7 @@ const CATALOG: readonly McpTool[] = [
         },
         is_all_day: { type: 'boolean' },
         duration_minutes: {
-          type: 'integer',
+          type: ['integer', 'null'],
           minimum: 0,
           maximum: 1440,
           description:

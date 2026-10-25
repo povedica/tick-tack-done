@@ -2,6 +2,20 @@ import { describe, expect, it } from 'vitest';
 import { MCP_TOOLS, visibleTools } from './mcp.catalog.js';
 
 describe('MCP tool catalog', () => {
+  it('RF-2001: capture defaults require profile scopes', () => {
+    const tasks = visibleTools(['tasks:write']).map((tool) => tool.name);
+    expect(tasks).not.toContain('get_capture_settings');
+    expect(tasks).not.toContain('update_capture_settings');
+    expect(visibleTools(['profile:read']).map((tool) => tool.name)).toContain(
+      'get_capture_settings',
+    );
+    expect(visibleTools(['profile:read']).map((tool) => tool.name)).not.toContain(
+      'update_capture_settings',
+    );
+    expect(visibleTools(['profile:write']).map((tool) => tool.name)).toContain(
+      'update_capture_settings',
+    );
+  });
   it('RF-2001: a tasks token cannot see tools outside its scopes', () => {
     const names = visibleTools(['tasks:read', 'tasks:write']).map((tool) => tool.name);
     expect(names).toEqual(

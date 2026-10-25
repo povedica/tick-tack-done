@@ -1,4 +1,5 @@
 import { fakeDrive } from './helpers/fake-drive.js';
+import { captureSettings } from '@reflexionia/domain';
 import { sealField } from '../src/security/field-cipher.js';
 import { rm } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
@@ -165,6 +166,87 @@ it('RF-2001: generic MCP API transport re-enters bearer scope checks', async () 
     await db.outboxEvent.deleteMany({ where: { ownerId: owner.id } });
     await db.attachment.deleteMany({ where: { ownerId: owner.id } });
     await db.driveFolder.deleteMany({ where: { userId: owner.id } });
+    await db.task.deleteMany({ where: { ownerId: owner.id } });
+    await db.project.deleteMany({ where: { ownerId: owner.id } });
+    await db.personalAccessToken.deleteMany({ where: { ownerId: owner.id } });
+    await db.user.delete({ where: { id: owner.id } });
+  }
+});
+
+it('RF-102/RF-2001: MCP reads, updates and applies owner capture defaults with scoped public transport', async () => {
+  const owner = await db.user.create({
+    data: { email: `mcp-capture-${randomUUID()}@reflexionia.test`, displayName: 'MCP capture' },
+  });
+  const inbox = await db.project.create({
+    data: { ownerId: owner.id, name: 'Bandeja', isInbox: true },
+  });
+  const list = await db.project.create({ data: { ownerId: owner.id, name: 'Capturas' } });
+  const secret = newPersonalAccessToken();
+  const reader = newPersonalAccessToken();
+  await db.personalAccessToken.create({
+    data: {
+      ownerId: owner.id,
+      name: 'capture writer',
+      tokenHash: secret.hash,
+      tokenPrefix: secret.prefix,
+      scopes: ['profile:read', 'profile:write', 'tasks:read', 'tasks:write'],
+    },
+  });
+  await db.personalAccessToken.create({
+    data: {
+      ownerId: owner.id,
+      name: 'capture reader',
+      tokenHash: reader.hash,
+      tokenPrefix: reader.prefix,
+      scopes: ['profile:read'],
+    },
+  });
+  const invoke = (name: string, args: Record<string, unknown>, token = secret.token) =>
+    request(app.getHttpServer() as Parameters<typeof request>[0])
+      .post('/api/v1/mcp')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } });
+  function data(response: request.Response) {
+    expect(response.body.result.isError, JSON.stringify(response.body.result)).toBe(false);
+    return JSON.parse(String(response.body.result.content[0].text)) as Record<string, unknown>;
+  }
+  try {
+    const settings = {
+      ...captureSettings(null),
+      default_list_id: list.id,
+      default_priority: 'high',
+      default_duration_minutes: 30,
+      new_task_position: 'top',
+    };
+    expect(data(await invoke('get_capture_settings', {}).expect(200))).toMatchObject({
+      default_priority: 'none',
+    });
+    const denied = await invoke('update_capture_settings', { settings }, reader.token).expect(200);
+    expect(denied.body.result.isError).toBe(true);
+    expect(data(await invoke('update_capture_settings', { settings }).expect(200))).toEqual(
+      settings,
+    );
+    expect(data(await invoke('get_capture_settings', {}, reader.token).expect(200))).toEqual(
+      settings,
+    );
+    const raw = data(await invoke('quick_add', { text: 'Captura MCP' }).expect(200));
+    expect(raw).toMatchObject({ project_id: list.id, priority: 'high', duration_minutes: 30 });
+    const plain = data(await invoke('create_task', { title: 'Creación MCP' }).expect(200));
+    expect(plain).toMatchObject({ project_id: list.id, priority: 'high', duration_minutes: 30 });
+    expect(BigInt(String(plain.sort_order))).toBeLessThan(BigInt(String(raw.sort_order)));
+    expect(
+      data(
+        await invoke('create_task', {
+          title: 'Explícita',
+          project_id: inbox.id,
+          priority: 'low',
+          duration_minutes: null,
+        }).expect(200),
+      ),
+    ).toMatchObject({ project_id: inbox.id, priority: 'low', duration_minutes: null });
+  } finally {
+    await db.activityLog.deleteMany({ where: { ownerId: owner.id } });
+    await db.outboxEvent.deleteMany({ where: { ownerId: owner.id } });
     await db.task.deleteMany({ where: { ownerId: owner.id } });
     await db.project.deleteMany({ where: { ownerId: owner.id } });
     await db.personalAccessToken.deleteMany({ where: { ownerId: owner.id } });

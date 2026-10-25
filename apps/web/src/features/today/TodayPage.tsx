@@ -1,5 +1,5 @@
 import { composerContextFor } from '../capture/context';
-import { calendarDragPatch } from '@reflexionia/domain';
+import { calendarDragPatch, captureSettings } from '@reflexionia/domain';
 import { runAction } from '../../components/run-action';
 import { displayTitle } from '../tasks/displayTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -554,7 +554,12 @@ export function TodayPage() {
       });
   }
 
-  const inbox = projects.data?.items.find((project) => project.is_inbox);
+  const captureList = projects.data?.items.find(
+    (project) =>
+      !project.closed &&
+      project.kind !== 'NOTE' &&
+      project.id === captureSettings(me.data?.capture_settings).default_list_id,
+  );
   const empty =
     !tasks.isPending && !tasks.isError && parts.overdue.length + parts.today.length === 0;
   const menuTask = (tasks.data ?? []).find((task) => task.id === menu?.id);
@@ -619,7 +624,7 @@ export function TodayPage() {
               openTaskComposer({
                 text: '',
                 slot: allDaySlot(calendarDay(new Date().toISOString(), zone), zone),
-                defaultProjectId: inbox?.id,
+                defaultProjectId: captureList?.id,
                 ...(group === 'priority' && ['high', 'medium', 'low', 'none'].includes(sectionId)
                   ? { priority: sectionId as 'high' | 'medium' | 'low' | 'none' }
                   : {}),
@@ -672,6 +677,20 @@ export function TodayPage() {
       onFocus: setFocusId,
     };
   }
+
+  const overdueContent = (
+    <>
+      {overdueBlock.length > 0 ? (
+        <div id="overdue">
+          {overdueBlock.map((section) => (
+            <TaskGroup key="overdue" {...groupProps(section.id, section.tasks, true)} />
+          ))}
+        </div>
+      ) : (
+        <div id="overdue" hidden />
+      )}
+    </>
+  );
 
   function chooseLayout(next: 'list' | 'kanban' | 'matrix'): void {
     syncPrefs({ view: next });
@@ -773,7 +792,7 @@ export function TodayPage() {
         </div>
       </header>
       {matrixLayout !== 'kanban' ? (
-        <TaskComposer inputRef={addRef} viewDay="today" defaultProjectId={inbox?.id} />
+        <TaskComposer inputRef={addRef} viewDay="today" defaultProjectId={captureList?.id} />
       ) : null}
       <TodayPlanStrip
         load={load.isSuccess ? load.data : undefined}
@@ -828,15 +847,9 @@ export function TodayPage() {
                   </button>
                 </div>
               ) : null}
-              {overdueBlock.length > 0 ? (
-                <div id="overdue">
-                  {overdueBlock.map((section) => (
-                    <TaskGroup key="overdue" {...groupProps(section.id, section.tasks, true)} />
-                  ))}
-                </div>
-              ) : (
-                <div id="overdue" hidden />
-              )}
+              {captureSettings(me.data?.capture_settings).overdue_position === 'top'
+                ? overdueContent
+                : null}
               {(matrixLayout === 'kanban' && group === 'priority'
                 ? ['high', 'medium', 'low', 'none'].map((id) => ({
                     id,
@@ -846,6 +859,9 @@ export function TodayPage() {
               ).map((section) => (
                 <TaskGroup key={section.id} {...groupProps(section.id, section.tasks)} />
               ))}
+              {captureSettings(me.data?.capture_settings).overdue_position === 'bottom'
+                ? overdueContent
+                : null}
               {showWhen && eveningTasks.length > 0 ? (
                 <section className="plan">
                   <h2>{messages.eveningTitle}</h2>

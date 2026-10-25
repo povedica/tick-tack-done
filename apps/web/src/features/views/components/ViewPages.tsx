@@ -1,3 +1,4 @@
+import { captureSettings } from '@reflexionia/domain';
 import { runAction } from '../../../components/run-action';
 import type { ViewPage } from '@reflexionia/sdk';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -209,6 +210,12 @@ export function Board({
     setMatrixLayout(readMatrixLayout(scopeKey));
   }, [scopeKey]);
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.listProjects() });
+  const account = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
+  const preferredList = projects.data?.items.find(
+    (project) =>
+      !project.closed &&
+      project.id === captureSettings(account.data?.capture_settings).default_list_id,
+  );
   const inboxId = projects.data?.items.find((project) => project.is_inbox)?.id;
   const view = parseView(params.get('view') ?? prefs.view);
   useEffect(() => {
@@ -403,7 +410,9 @@ export function Board({
           hideCompleted={hideCompleted}
           manualOrder={sort === 'manual'}
           trash={viewKey === 'smart:trash'}
-          createProjectId={canCapture ? (createProjectId ?? inboxId) : undefined}
+          createProjectId={
+            canCapture ? (createProjectId ?? preferredList?.id ?? inboxId) : undefined
+          }
           createViewDay={createViewDay}
           onComplete={(row) => {
             if (row.status === 'completed') {

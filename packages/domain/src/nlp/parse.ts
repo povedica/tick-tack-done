@@ -1397,7 +1397,7 @@ function dayPartFollows(text: string, index: number): boolean {
   return /^\s+de\s+la\s+(?:mañana|tarde|noche)(?![\p{L}\p{N}])/iu.test(text.slice(index));
 }
 
-function titleWithout(text: string, spans: readonly QuickAddSpan[]): string {
+export function titleWithout(text: string, spans: readonly QuickAddSpan[]): string {
   let cursor = 0;
   let out = '';
   for (const span of spans) {

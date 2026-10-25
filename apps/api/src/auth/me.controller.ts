@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
   Res,
+  ValidationPipe,
 } from '@nestjs/common';
 import { ApiHeader, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
@@ -76,7 +77,18 @@ export class MeController {
   @Scopes('profile:write')
   @ApiOperation({ summary: 'Update profile settings, including RF-206 completion policy' })
   @ApiOkResponse({ type: MeResponseDto })
-  updateMe(@CurrentUser() user: AuthUser, @Body() dto: UpdateMeDto): Promise<MeResponseDto> {
+  updateMe(
+    @CurrentUser() user: AuthUser,
+    @Body(
+      new ValidationPipe({
+        expectedType: UpdateMeDto,
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    )
+    dto: UpdateMeDto,
+  ): Promise<MeResponseDto> {
     return this.me.update(user, dto);
   }
 

@@ -1,4 +1,5 @@
 import { Popover } from '../../components/Popover';
+import { CaptureDefaults } from '../settings/CaptureDefaults';
 import { useWtAMessages } from '../calendar/i18n-wt-a';
 import { composerContextFor } from '../capture/context';
 import { useAgendaQuery } from '../calendar/use-agenda-query';
@@ -3180,6 +3181,7 @@ export function CaptureSettings() {
           <option value="en">{messages.languageEn}</option>
         </select>
       </section>
+      <CaptureDefaults />
       <InboundEmailCard />
     </section>
   );

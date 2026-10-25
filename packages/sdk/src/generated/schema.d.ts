@@ -3802,6 +3802,34 @@ export interface components {
             totp_code?: string;
             recovery_code?: string;
         };
+        CaptureSettingsDto: {
+            recognize_dates: boolean;
+            remove_date_text: boolean;
+            recognize_tags: boolean;
+            remove_tag_text: boolean;
+            parse_url_title: boolean;
+            /** @enum {string} */
+            default_date: "none" | "today" | "tomorrow";
+            /** @enum {string} */
+            default_date_mode: "date" | "date_time";
+            /** @example 09:00 */
+            default_time: string;
+            default_duration_minutes: number | null;
+            /** @enum {string} */
+            default_priority: "none" | "low" | "medium" | "high";
+            /** Format: uuid */
+            default_tag_id: string | null;
+            /** Format: uuid */
+            default_list_id: string | null;
+            /** @enum {string} */
+            timed_reminder: "inherit" | "none" | "-PT0M" | "-PT5M" | "-PT15M" | "-PT30M" | "-PT1H" | "-P1D";
+            /** @enum {string} */
+            all_day_reminder: "inherit" | "none" | "-PT0M" | "-PT5M" | "-PT15M" | "-PT30M" | "-PT1H" | "-P1D";
+            /** @enum {string} */
+            new_task_position: "top" | "bottom";
+            /** @enum {string} */
+            overdue_position: "top" | "bottom";
+        };
         FeatureFlagsDto: {
             navigation_order?: ("calendar" | "matrix" | "countdowns" | "focus" | "habits" | "ticky" | "statistics" | "dashboard" | "reports" | "review" | "search")[];
             countdowns?: boolean;
@@ -3813,6 +3841,7 @@ export interface components {
             day_replan?: boolean;
         };
         MeResponseDto: {
+            capture_settings: components["schemas"]["CaptureSettingsDto"];
             id: string;
             email: string;
             display_name: string;
@@ -3851,6 +3880,7 @@ export interface components {
             new_password: string;
         };
         UpdateMeDto: {
+            capture_settings?: components["schemas"]["CaptureSettingsDto"];
             display_name?: string;
             time_zone?: string;
             /** @enum {string} */

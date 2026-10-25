@@ -1,9 +1,11 @@
+import { captureSettings } from '@reflexionia/domain';
 import { randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import * as linkTitles from '../src/modules/tasks/link-title.js';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/configure-app.js';
 import { loadRootEnv } from '../src/load-env.js';
@@ -240,5 +242,127 @@ describe('capture API', () => {
     const api = authed();
     const missing = await api.post('/api/v1/tasks').send({ project_id: owner.inboxId }).expect(400);
     expect(missing.body.error.code).toBe('validation_failed');
+  });
+  it('RF-102: owner capture defaults persist, validate references and yield to explicit fields', async () => {
+    const api = authed();
+    const defaults = captureSettings(null);
+    const list = await api.post('/api/v1/projects').send({ name: 'Capturas' }).expect(201);
+    const tag = await api.post('/api/v1/tags').send({ name: 'capturada' }).expect(201);
+    const settings = {
+      ...defaults,
+      recognize_dates: false,
+      recognize_tags: false,
+      default_priority: 'high',
+      default_list_id: list.body.id,
+      default_tag_id: tag.body.id,
+      default_date: 'tomorrow',
+      default_date_mode: 'date_time',
+      default_time: '09:00',
+      default_duration_minutes: 60,
+      timed_reminder: '-PT5M',
+      new_task_position: 'top',
+    };
+    const patch = (body: object) =>
+      request(server).patch('/api/v1/me').set('X-Dev-User-Email', owner.email).send(body);
+    const other = await createOwner('other-capture');
+    try {
+      await patch({ capture_settings: { ...settings, default_time: '25:00' } }).expect(400);
+      await patch({ capture_settings: { ...settings, default_list_id: randomUUID() } }).expect(400);
+      await patch({ capture_settings: { ...settings, default_list_id: other.inboxId } }).expect(
+        400,
+      );
+      await patch({ capture_settings: settings }).expect(200);
+      expect((await api.get('/api/v1/me')).body.capture_settings).toEqual(settings);
+      const first = await api
+        .post('/api/v1/tasks')
+        .send({ raw_text: 'Revisar mañana #literal' })
+        .expect(201);
+      expect(first.body).toMatchObject({
+        title: 'Revisar mañana #literal',
+        project_id: list.body.id,
+        tag_ids: [tag.body.id],
+        priority: 'high',
+        duration_minutes: 60,
+        is_all_day: false,
+      });
+      expect(
+        new Intl.DateTimeFormat('en-GB', {
+          timeZone: 'Europe/Madrid',
+          hour: '2-digit',
+          minute: '2-digit',
+        }).format(new Date(String(first.body.due_date))),
+      ).toBe('09:00');
+      const reminders = await api.get(`/api/v1/tasks/${first.body.id}/reminders`).expect(200);
+      expect(reminders.body).toEqual([expect.objectContaining({ trigger: '-PT5M' })]);
+      const second = await api
+        .post('/api/v1/tasks')
+        .send({ title: 'Segunda', project_id: list.body.id })
+        .expect(201);
+      expect(BigInt(String(second.body.sort_order))).toBeLessThan(
+        BigInt(String(first.body.sort_order)),
+      );
+      const explicit = await api
+        .post('/api/v1/tasks')
+        .send({
+          raw_text: 'Otra mañana #literal',
+          title: 'Manual',
+          project_id: owner.inboxId,
+          tag_ids: [],
+          priority: 'none',
+          due_date: null,
+          duration_minutes: null,
+          reminder_trigger: null,
+          move_to_end: true,
+        })
+        .expect(201);
+      expect(explicit.body).toMatchObject({
+        title: 'Manual',
+        project_id: owner.inboxId,
+        tag_ids: [],
+        priority: 'none',
+        due_date: null,
+        duration_minutes: null,
+      });
+      expect(await prisma.tag.count({ where: { ownerId: owner.id, name: 'literal' } })).toBe(0);
+      expect(
+        await prisma.outboxEvent.count({
+          where: { ownerId: owner.id, type: 'capture.settings_updated@v1' },
+        }),
+      ).toBeGreaterThan(0);
+    } finally {
+      await prisma.user.update({ where: { id: owner.id }, data: { captureSettings: {} } });
+      await removeOwner(other.id);
+    }
+  });
+  it('RF-102: URL title lookup is opt-in and retains the original link', async () => {
+    const title = vi.spyOn(linkTitles, 'linkTitle').mockResolvedValue('Página de prueba');
+    const api = authed();
+    try {
+      const off = await api
+        .post('/api/v1/tasks')
+        .send({ raw_text: 'https://example.test/capture-off' })
+        .expect(201);
+      expect(off.body.title).toBe('https://example.test/capture-off');
+      expect(title).not.toHaveBeenCalled();
+      await prisma.user.update({
+        where: { id: owner.id },
+        data: { captureSettings: { ...captureSettings(null), parse_url_title: true } },
+      });
+      const on = await api
+        .post('/api/v1/tasks')
+        .send({ raw_text: 'https://example.test/capture-on' })
+        .expect(201);
+      expect(on.body.title).toBe('Página de prueba');
+      expect(on.body.content).toContain('https://example.test/capture-on');
+      expect(title).toHaveBeenCalledWith('https://example.test/capture-on');
+      expect(
+        await prisma.taskLink.count({
+          where: { taskId: String(on.body.id), url: 'https://example.test/capture-on' },
+        }),
+      ).toBe(1);
+    } finally {
+      title.mockRestore();
+      await prisma.user.update({ where: { id: owner.id }, data: { captureSettings: {} } });
+    }
   });
 });

@@ -520,7 +520,7 @@ describe('McpService recurrence mapping', () => {
     });
     expect(tasks.create).toHaveBeenCalledWith(
       user,
-      expect.objectContaining({ project_id: '55555555-5555-4555-8555-555555555555' }),
+      expect.objectContaining({ raw_text: 'Llamar ^grokbot' }),
       undefined,
       'mcp',
     );

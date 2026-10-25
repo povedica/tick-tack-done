@@ -1,17 +1,6 @@
-/** Strips #hashtags from a title so chips and aria-labels stay clean (TSK-4, TSK-6). */
-export function displayTitle(title: string, tagNames: readonly string[] = []): string {
-  let text = title;
-  for (const name of tagNames) {
-    const trimmed = name.trim();
-    if (trimmed.length === 0) {
-      continue;
-    }
-    const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    text = text.replace(new RegExp(`#${escaped}\\b`, 'gi'), ' ');
-  }
-  // Drop any remaining hashtag tokens (imported titles without linked tags).
-  text = text.replace(/(^|\s)#[\p{L}\p{N}_/-]+/gu, ' ');
-  return text.replace(/\s{2,}/g, ' ').trim();
+/** Capture settings decide which tokens are removed; render the persisted title faithfully. */
+export function displayTitle(title: string, _tagNames: readonly string[] = []): string {
+  return title.replace(/\s{2,}/g, ' ').trim();
 }
 
 /** True when a suggestion label looks like a raw UUID (EXT-9 guardrail). */

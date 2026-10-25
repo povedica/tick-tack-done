@@ -4,6 +4,7 @@ import type { ApiClientOptions, PageQuery, Task } from './client';
 
 export type Me = components['schemas']['MeResponseDto'];
 export interface UpdateMeBody {
+  readonly capture_settings?: components['schemas']['CaptureSettingsDto'];
   readonly telegram_enabled?: boolean;
   readonly display_name?: string;
   readonly time_zone?: string;

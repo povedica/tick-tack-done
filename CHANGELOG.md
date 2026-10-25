@@ -2,6 +2,23 @@
 
 ## Sin publicar — ajustes visuales PR77
 
+- Captura (RF-101/102/107, RF-802): reconocimiento de fechas y etiquetas,
+  conservación del texto, título de URL opcional y valores predeterminados de
+  fecha, hora, duración, recordatorios, prioridad, etiqueta y lista por usuario.
+  Se aplican en web, API y MCP: los campos explícitos tienen prioridad sobre el
+  texto reconocido, y éste sobre los valores predeterminados. Las listas o
+  etiquetas eliminadas no bloquean nuevas capturas. Se conserva el comportamiento
+  anterior hasta configurar preferencias.
+- Posición configurable de nuevas tareas en orden manual y del bloque de
+  vencidas en Hoy y Kanban por fecha (RF-1001).
+- API: `GET/PATCH /api/v1/me` publica `capture_settings`. MCP:
+  `get_capture_settings` (`profile:read`) y `update_capture_settings`
+  (`profile:write`), con validación y aislamiento de propietario (RF-2001/2002).
+  El segundo recibe la configuración completa; se debe consultar antes de editar.
+- Evento `capture.settings_updated@v1`, entidad `user`: nueva configuración y
+  configuración anterior, sin secretos, en la transacción de actualización.
+  Migración `20261025075715_add_capture_settings` con rollback verificado:
+  su `down.sql` elimina exclusivamente la columna de preferencias de captura.
 - Ajustes móvil: los formularios de Cuenta permanecen en el contenido, sin
   superponerse ni bloquear navegación; el panel móvil fijo se limita al editor
   de tokens. Los accesos de Cuenta y Más abren el índice de Ajustes.

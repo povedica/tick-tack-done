@@ -441,3 +441,6 @@ export {
   notificationQuietUntil,
 } from './reminders/preferences';
 export type { NotificationKind, NotificationChannel } from './reminders/preferences';
+
+export { DEFAULT_CAPTURE_SETTINGS, captureSettings, parseCapture } from './nlp/capture-settings';
+export type { CaptureSettings } from './nlp/capture-settings';

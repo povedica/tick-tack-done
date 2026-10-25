@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import type { FilterRules } from '@reflexionia/sdk';
-import { civilDateKey } from '@reflexionia/domain';
+import { civilDateKey, captureSettings } from '@reflexionia/domain';
 import { shiftDayKey, zonedWallTime } from '../today/groups';
 import type { CaptureDraft } from './notice';
 interface ContextOptions {
@@ -17,6 +17,11 @@ export function composerContextFor(
     options.timeZone ??
     options.cache?.getQueryData<{ time_zone: string }>(['me'])?.time_zone ??
     Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const settings = captureSettings(
+    options.cache?.getQueryData<{ capture_settings?: unknown }>(['me'])?.capture_settings,
+  );
+  const timed = settings.default_date_mode === 'date_time';
+  const [hour, minute] = settings.default_time.split(':').map(Number);
   const today = civilDateKey((options.now ?? new Date()).toISOString(), timeZone) ?? '';
   const params = new URLSearchParams(location.search);
   const parts = location.pathname.split('/').filter(Boolean);
@@ -31,7 +36,9 @@ export function composerContextFor(
           ? (params.get('date') ?? today)
           : null;
   const dueDate =
-    day && /^\d{4}-\d{2}-\d{2}$/.test(day) ? zonedWallTime(day, 0, 0, timeZone) : null;
+    day && /^\d{4}-\d{2}-\d{2}$/.test(day)
+      ? zonedWallTime(day, timed ? (hour ?? 9) : 0, timed ? (minute ?? 0) : 0, timeZone)
+      : null;
   const filter =
     section === 'filter'
       ? options.cache
@@ -68,7 +75,9 @@ export function composerContextFor(
       : undefined;
   const filterDay =
     dateRule?.op === 'today' ? today : dateRule?.op === 'tomorrow' ? shiftDayKey(today, 1) : null;
-  const filterDue = filterDay ? zonedWallTime(filterDay, 0, 0, timeZone) : null;
+  const filterDue = filterDay
+    ? zonedWallTime(filterDay, timed ? (hour ?? 9) : 0, timed ? (minute ?? 0) : 0, timeZone)
+    : null;
   const project =
     section === 'list' || section === 'lists' || section === 'projects' ? parts[1] : filterProject;
   const columns = project
@@ -80,8 +89,8 @@ export function composerContextFor(
       ? {
           date: {
             dueDate,
-            allDay: true,
-            durationMinutes: null,
+            allDay: !timed,
+            durationMinutes: settings.default_duration_minutes,
             reminder: null,
             reminderTouched: false,
             repeatRule: null,
@@ -92,8 +101,8 @@ export function composerContextFor(
       ? {
           date: {
             dueDate: filterDue,
-            allDay: true,
-            durationMinutes: null,
+            allDay: !timed,
+            durationMinutes: settings.default_duration_minutes,
             reminder: null,
             reminderTouched: false,
             repeatRule: null,

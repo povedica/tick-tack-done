@@ -11,6 +11,8 @@ import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { Prisma, type Task } from '@prisma/client';
 import {
   acceptsColumnDrop,
+  captureSettings,
+  parseCapture,
   allDayClockConflict,
   canonicalizeRepeatRule,
   decideParentCompletion,
@@ -1620,11 +1622,44 @@ export class TasksService {
       const key = `task-hierarchy:${user.id}`;
       await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtextextended(${key}, 0))`;
     }
-    const captured =
-      dto.raw_text === undefined
+    const preferences = captureSettings(
+      dto.kind === 'note'
         ? null
-        : await resolveQuickAdd(tx, user, dto, new Date().toISOString());
-    const projectId = captured?.projectId ?? dto.project_id;
+        : (await tx.user.findUnique({ where: { id: user.id }, select: { captureSettings: true } }))
+            ?.captureSettings,
+    );
+    const now = new Date().toISOString();
+    const defaults = parseCapture(
+      'task',
+      'es',
+      { now, timeZone: dto.time_zone ?? user.timeZone },
+      preferences,
+    );
+    const captured =
+      dto.raw_text === undefined ? null : await resolveQuickAdd(tx, user, dto, now, preferences);
+    const defaultList =
+      dto.project_id === undefined && captured === null
+        ? await tx.project.findFirst({
+            where: {
+              ownerId: user.id,
+              deletedAt: null,
+              closed: false,
+              kind: 'TASK',
+              ...(preferences.default_list_id
+                ? { id: preferences.default_list_id }
+                : { isInbox: true }),
+            },
+            select: { id: true },
+          })
+        : null;
+    const fallbackInbox =
+      captured === null && dto.project_id === undefined && defaultList === null
+        ? await tx.project.findFirst({
+            where: { ownerId: user.id, isInbox: true, deletedAt: null },
+            select: { id: true },
+          })
+        : null;
+    const projectId = captured?.projectId ?? dto.project_id ?? defaultList?.id ?? fallbackInbox?.id;
     if (projectId === undefined) {
       throw new DomainException(
         HttpStatus.BAD_REQUEST,
@@ -1656,16 +1691,37 @@ export class TasksService {
       const column = await this.requireColumn(tx, user.id, project.id, dto.column_id);
       await this.assertWip(tx, user.id, column, null);
     }
+    const defaultTag =
+      dto.tag_ids === undefined && preferences.default_tag_id
+        ? await tx.tag.findFirst({
+            where: { id: preferences.default_tag_id, ownerId: user.id, deletedAt: null },
+            select: { id: true },
+          })
+        : null;
     const tagIds =
       captured === null || dto.tag_ids !== undefined
-        ? await this.requireTags(tx, user.id, dto.tag_ids ?? [])
+        ? await this.requireTags(
+            tx,
+            user.id,
+            dto.tag_ids ?? (dto.kind !== 'note' && defaultTag ? [defaultTag.id] : []),
+          )
         : [...captured.tagIds];
     if (captured === null && dto.title === undefined) {
       throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'title is required');
     }
-    const title = captured === null ? this.title(dto.title ?? '') : captured.title;
+    let title = captured === null ? this.title(dto.title ?? '') : captured.title;
     const timeZone = dto.time_zone === undefined ? user.timeZone : this.zone(dto.time_zone);
     let content = dto.content ?? '';
+    if (preferences.parse_url_title && dto.raw_text !== undefined && dto.title === undefined) {
+      const url = normalizeTaskUrl(title);
+      if (url) {
+        const resolved = await linkTitle(url);
+        if (resolved) {
+          content = [content, url].filter(Boolean).join('\n');
+          title = resolved;
+        }
+      }
+    }
     const extracted = dto.extract_checklist === true ? extractMarkdownChecklist(content) : null;
     if (extracted !== null) {
       content = extracted.content;
@@ -1675,16 +1731,29 @@ export class TasksService {
     const startParsed = this.nextDate(null, someday ? null : capturedStart, 'start_date', timeZone);
     const dueParsed = this.nextDate(
       null,
-      dto.due_date !== undefined ? dto.due_date : captured?.dueDate,
+      dto.due_date !== undefined
+        ? dto.due_date
+        : captured !== null
+          ? captured.dueDate
+          : dto.start_date === undefined && !someday && dto.kind !== 'note'
+            ? defaults.due?.date
+            : null,
       'due_date',
       timeZone,
     );
     let start = startParsed.date;
     const inferredAllDay = startParsed.dateOnly || dueParsed.dateOnly;
-    const isAllDay = dto.is_all_day ?? captured?.isAllDay ?? (inferredAllDay ? true : false);
+    const isAllDay =
+      dto.is_all_day ??
+      captured?.isAllDay ??
+      (dto.due_date === undefined && dto.start_date === undefined
+        ? defaults.due?.isAllDay
+        : undefined) ??
+      (inferredAllDay ? true : false);
     const explicitDuration =
       dto.duration_minutes === undefined
-        ? (captured?.durationMinutes ?? null)
+        ? (captured?.durationMinutes ??
+          (dto.kind !== 'note' ? preferences.default_duration_minutes : null))
         : dto.duration_minutes;
     const inferredEnd =
       !isAllDay && dto.due_date === undefined && dueParsed.date === null
@@ -1701,7 +1770,11 @@ export class TasksService {
       project.id,
       parentId,
       null,
-      dto.before_id,
+      dto.before_id === undefined &&
+        dto.move_to_end === undefined &&
+        preferences.new_task_position === 'top'
+        ? null
+        : dto.before_id,
       dto.move_to_end,
     );
     const repeatRule = this.canonicalRule(
@@ -1722,7 +1795,10 @@ export class TasksService {
         title,
         content,
         kind: dto.kind ?? 'task',
-        priority: dto.priority ?? captured?.priority ?? 'none',
+        priority:
+          dto.priority ??
+          captured?.priority ??
+          (dto.kind !== 'note' ? preferences.default_priority : 'none'),
         isAllDay,
         startDate: start,
         dueDate: due,
@@ -1730,7 +1806,10 @@ export class TasksService {
         durationMinutes: this.duration(
           someday ? null : start,
           due,
-          dto.duration_minutes ?? captured?.durationMinutes ?? null,
+          dto.duration_minutes !== undefined
+            ? dto.duration_minutes
+            : (captured?.durationMinutes ??
+                (dto.kind !== 'note' ? preferences.default_duration_minutes : null)),
         ),
         isSomeday: someday,
         eveningOnly: dto.evening_only ?? captured?.eveningOnly ?? false,
@@ -1746,7 +1825,15 @@ export class TasksService {
     });
     await reconcileTaskLinks(tx, user.id, row.id, `${title}\n${content}`);
     await this.linkTags(tx, row.id, tagIds);
-    if (dto.reminder_trigger !== null) {
+    const reminderMode = isAllDay ? preferences.all_day_reminder : preferences.timed_reminder;
+    if (
+      dto.reminder_trigger !== null &&
+      !(
+        dto.reminder_trigger === undefined &&
+        captured?.reminderTrigger == null &&
+        reminderMode === 'none'
+      )
+    ) {
       await this.ensureDefaultReminder(
         tx,
         user.id,
@@ -1754,7 +1841,9 @@ export class TasksService {
         row.id,
         due,
         row.kind,
-        dto.reminder_trigger ?? captured?.reminderTrigger ?? null,
+        dto.reminder_trigger ??
+          captured?.reminderTrigger ??
+          (reminderMode === 'inherit' || reminderMode === 'none' ? null : reminderMode),
       );
     }
 

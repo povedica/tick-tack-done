@@ -203,7 +203,20 @@ export class McpService {
         next_cursor: start + limit < matches.length ? offsetCursor(start + limit) : null,
       };
     } else if (tool.name === 'api_request') data = await requestPublicApi(args, authorization);
-    else data = await this.run(user, tool.name, args, authorization);
+    else if (tool.name === 'get_capture_settings' || tool.name === 'update_capture_settings') {
+      const response = await requestPublicApi(
+        {
+          method: tool.name === 'get_capture_settings' ? 'GET' : 'PATCH',
+          path: '/api/v1/me',
+          ...(tool.name === 'update_capture_settings'
+            ? { body: { capture_settings: args.settings } }
+            : {}),
+        },
+        authorization,
+      );
+      const record = response as { data: { capture_settings: unknown } };
+      data = record.data.capture_settings;
+    } else data = await this.run(user, tool.name, args, authorization);
     if (tool.name.startsWith('list_')) data = listResult(data, args);
     if (args.include_activity !== 'full') data = summarizeActivity(data, tool.name === 'get_task');
     return { content: [{ type: 'text', text: JSON.stringify(data) }], isError: false };
@@ -296,16 +309,17 @@ export class McpService {
         const title = requiredString(args, 'title', 500);
         const parse = args.parse === true;
         const parsed = parse
-          ? parseQuickAdd(title, 'es', {
-              now: new Date().toISOString(),
-              timeZone: user.timeZone,
-            })
+          ? parseQuickAdd(title, 'es', { now: new Date().toISOString(), timeZone: user.timeZone })
           : null;
         const resolution =
           args.project_id === undefined && parsed?.listName
             ? await this.parsedList(user, parsed.listName)
             : null;
-        const projectId = resolution?.id ?? (await this.projectId(user, args));
+        const projectId =
+          resolution?.id ??
+          (args.project_id !== undefined || resolution?.warning
+            ? await this.projectId(user, args)
+            : undefined);
         const parentId = uuidOrEmpty(args.parent_id);
         const columnId = uuidOrEmpty(args.column_id);
         const created = enrichTask(
@@ -314,7 +328,7 @@ export class McpService {
               user,
               {
                 ...(parse ? { raw_text: title } : { title }),
-                project_id: projectId,
+                ...(projectId === undefined ? {} : { project_id: projectId }),
                 ...(typeof args.content === 'string' ? { content: args.content } : {}),
                 ...(tagIds === undefined ? {} : { tag_ids: tagIds }),
                 ...(parentId === undefined ? {} : { parent_id: parentId }),

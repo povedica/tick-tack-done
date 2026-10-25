@@ -246,6 +246,7 @@ model User {
   dateFormat            String                 @default("dd/MM/yyyy") @map("date_format")
   theme                 Theme                  @default(auto)
   nlpLanguage            String                 @default("es") @map("nlp_language")
+  captureSettings        Json                   @default("{}") @map("capture_settings")
   density                String                 @default("comfortable")
   accent                 String                 @default("indigo")
   defaultReminderTrigger String?                @map("default_reminder_trigger")

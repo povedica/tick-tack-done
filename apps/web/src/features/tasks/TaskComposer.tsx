@@ -1,3 +1,5 @@
+import { captureSettings } from '@reflexionia/domain';
+import { usePreferences } from '../../theme/preferences';
 import { useDriveConnection, rememberDriveReturn } from './use-drive-connection';
 import { uploadAttachmentToDrive } from './drive-upload';
 import { runAction } from '../../components/run-action';
@@ -72,7 +74,6 @@ export function TaskComposer({
 }) {
   const messages = useMessages();
   const driveConnection = useDriveConnection();
-  const defaultProjectId = initialDraft?.defaultProjectId ?? contextProjectId;
   const viewSlot = initialDraft?.slot;
   const locale = useAppLocale();
   const cache = useQueryClient();
@@ -124,6 +125,9 @@ export function TaskComposer({
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
   const account = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
+  const settings = useMemo(() => captureSettings(account.data?.capture_settings), [account.data]);
+  const parser = usePreferences((state) => state.parser);
+  const defaultProjectId = initialDraft?.defaultProjectId ?? contextProjectId;
   const zone =
     viewSlot?.timeZone ??
     account.data?.time_zone ??
@@ -146,14 +150,15 @@ export function TaskComposer({
     () =>
       quickAddRequest({
         text,
-        language: captureLanguage(locale),
+        settings,
+        language: captureLanguage(parser === 'auto' ? locale : parser),
         now: new Date().toISOString(),
         timeZone: zone,
         viewDay,
         viewSlot,
         defaultProjectId,
       }),
-    [text, locale, zone, viewDay, viewSlot, defaultProjectId],
+    [text, locale, zone, viewDay, viewSlot, defaultProjectId, settings, parser],
   );
   const dateValue = useMemo<DateDraft>(
     () =>
@@ -175,7 +180,7 @@ export function TaskComposer({
       },
     [date, request],
   );
-  const tagIds =
+  const recognizedTagIds =
     tags ??
     tagQuery.data?.items
       .filter((tag) =>
@@ -185,10 +190,16 @@ export function TaskComposer({
       )
       .map((tag) => tag.id) ??
     [];
+  const tagIds = tags ?? [
+    ...new Set([
+      ...recognizedTagIds,
+      ...(settings.default_tag_id ? [settings.default_tag_id] : []),
+    ]),
+  ];
   const chosenPriority = priority ?? request.parsed.priority ?? 'none';
   const lists = projects.data?.items ?? [];
   const chosenList =
-    lists.find((item) => item.id === (project ?? defaultProjectId)) ??
+    lists.find((item) => item.id === (project ?? defaultProjectId ?? settings.default_list_id)) ??
     lists.find((item) => item.is_inbox);
   const listLabel =
     project !== null
