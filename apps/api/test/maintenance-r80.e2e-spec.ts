@@ -24,6 +24,7 @@ it('TTD-AUD-81/85: actual scripts dry-run, backup, apply and second apply are id
       const url = new URL(process.env.DATABASE_URL ?? '');
       return (
         url.pathname === '/ttd_r80' ||
+        url.pathname === '/ttd_wt_f' ||
         (url.hostname === 'postgres' && url.pathname === '/todo_staging_release_check') ||
         (process.env.CI === 'true' &&
           url.pathname === '/reflexionia_test' &&
