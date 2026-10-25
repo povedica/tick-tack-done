@@ -165,3 +165,5 @@ export function useWtFMessages() {
   return useAppLocale().startsWith('en') ? en : es;
 }
 export type WtFMessages = typeof en;
+
+export const wtFMessages = { es, en };

@@ -49,11 +49,11 @@ export function WontDoPage() {
 
 const spanish = {
   wontDo: 'No haré',
-  wontDoLede: 'Tareas que has decidido no hacer.',
-  wontDoEmpty: 'No hay tareas aquí.',
+  wontDoLede: 'Estas tareas están canceladas. No cuentan como completadas.',
+  wontDoEmpty: 'No hay tareas canceladas.',
 };
 const english = {
-  wontDo: 'Won’t do',
-  wontDoLede: 'Tasks you decided not to do.',
-  wontDoEmpty: 'There are no tasks here.',
+  wontDo: 'I won’t do it',
+  wontDoLede: 'These tasks are cancelled. They do not count as completed.',
+  wontDoEmpty: 'There are no cancelled tasks.',
 };

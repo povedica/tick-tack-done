@@ -113,6 +113,15 @@ export function TriageFlow() {
       </section>
     );
   const count = session.decisions.filter((d) => d.action !== 'skip').length;
+  const noticeChoice = session.decisions.find((d) => d.task_id === state.notice);
+  const noticeDate = noticeChoice ? actionDate(noticeChoice, session.local_date) : null;
+  const destination = noticeDate
+    ? new Intl.DateTimeFormat(locale, { weekday: 'short', day: 'numeric', timeZone: 'UTC' }).format(
+        new Date(`${noticeDate}T12:00Z`),
+      ) + (noticeChoice?.time ? `, ${noticeChoice.time}` : '')
+    : noticeChoice
+      ? m[noticeChoice.action]
+      : '';
   const title = session.cards.find((c) => c.task_id === state.notice)?.title ?? '';
   return (
     <section className="sp-page plan-triage" aria-busy={busy}>
@@ -347,12 +356,8 @@ export function TriageFlow() {
       ) : null}
       <UndoToastStack
         durationMs={5000}
-        items={
-          state.notice
-            ? [{ id: state.notice, title: `${title} → ${chosen ? m[chosen.action] : m.review}` }]
-            : []
-        }
-        message="{0}"
+        items={state.notice ? [{ id: state.notice, title: `${title} → ${destination}` }] : []}
+        message="{name}"
         undoLabel={m.undo}
         onUndo={() => void state.undo()}
         onExpire={() => state.setNotice('')}
