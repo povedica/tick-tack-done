@@ -1,0 +1,125 @@
+import { formatMinutes, wallClock } from '@reflexionia/domain';
+import { useWtFMessages } from '../i18n-wt-f';
+import { useAppLocale } from '../../../i18n/locale';
+import type { LoadDay, LoadRange } from '../api';
+import { loadPhrase } from './projectPlan';
+export function clockMinutes(value: string) {
+  const [h, m] = value.split(':').map(Number);
+  return (h ?? 0) * 60 + (m ?? 0);
+}
+export function minuteClock(n: number) {
+  return `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
+}
+export function DayAgenda({
+  day,
+  range,
+  ghost,
+}: {
+  readonly day: LoadDay;
+  readonly range: LoadRange;
+  readonly ghost?: {
+    time: string;
+    duration: number;
+    title: string;
+    conflict: string | null;
+  } | null;
+}) {
+  const m = useWtFMessages(),
+    locale = useAppLocale();
+  const lower = clockMinutes(range.settings.work_day_start ?? '09:00'),
+    upper = clockMinutes(range.settings.work_day_end ?? '18:00');
+  const timed = day.tasks.filter((t) => !t.is_all_day && t.start_date);
+  const untimed = day.tasks.filter((t) => t.is_all_day || !t.start_date);
+  const blocks = [
+    ...day.events
+      .filter((e) => !e.is_all_day)
+      .map((e) => ({ id: e.id, title: e.title, start: e.starts_at, end: e.ends_at, event: true })),
+    ...timed.map((t) => ({
+      id: t.id,
+      title: t.title,
+      start: t.start_date!,
+      end: new Date(
+        Date.parse(t.start_date!) +
+          (t.duration_minutes ?? range.settings.default_task_duration) * 60000,
+      ).toISOString(),
+      event: false,
+    })),
+  ];
+  const position = (start: string, end: string) => {
+    const a = wallClock(start, range.time_zone),
+      b = wallClock(end, range.time_zone);
+    const from = a ? a.hour * 60 + a.minute : lower,
+      to = b ? b.hour * 60 + b.minute : upper;
+    return {
+      top: `calc(${(Math.max(lower, from) - lower) / 60} * var(--plan-hour))`,
+      height: `calc(${Math.max(15, Math.min(upper, to) - Math.max(lower, from)) / 60} * var(--plan-hour))`,
+    };
+  };
+  return (
+    <section className="sp-agenda" aria-label={m.agenda}>
+      <h2>
+        {new Intl.DateTimeFormat(locale, {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'short',
+          timeZone: 'UTC',
+        }).format(new Date(`${day.date}T12:00Z`))}
+      </h2>
+      <p className={`sp-load is-${day.status === 'overload' ? 'over' : day.status}`}>
+        <i />
+        {loadPhrase(day, m)}
+      </p>
+      <div
+        className="sp-tl"
+        data-plan-agenda={day.date}
+        data-plan-start={lower}
+        data-plan-end={upper}
+        style={{ height: `calc(${(upper - lower) / 60} * var(--plan-hour))` }}
+      >
+        {Array.from({ length: Math.ceil((upper - lower) / 60) + 1 }, (_, i) => (
+          <div key={i} className="sp-hr">
+            <span>{minuteClock(lower + i * 60)}</span>
+          </div>
+        ))}
+        {blocks.map((b) => (
+          <div
+            key={b.id}
+            className={`sp-blk is-${b.event ? 'event' : 'task'}`}
+            style={position(b.start, b.end)}
+          >
+            <em>
+              {new Intl.DateTimeFormat(locale, {
+                hour: '2-digit',
+                minute: '2-digit',
+                timeZone: range.time_zone,
+              }).format(new Date(b.start))}
+            </em>
+            <span>{b.title}</span>
+          </div>
+        ))}
+        {ghost ? (
+          <div
+            className={`sp-blk is-ghost ${ghost.conflict ? 'is-conflict' : ''}`}
+            style={{
+              top: `calc(${(clockMinutes(ghost.time) - lower) / 60} * var(--plan-hour))`,
+              height: `calc(${ghost.duration / 60} * var(--plan-hour))`,
+            }}
+          >
+            {ghost.conflict
+              ? `${m.overlap} ${ghost.conflict}`
+              : `${ghost.time} – ${minuteClock(clockMinutes(ghost.time) + ghost.duration)} · ${ghost.title}`}
+          </div>
+        ) : null}
+      </div>
+      <p className="sp-untimed">
+        {m.untimed} {untimed.length} {m.tasks} ·{' '}
+        {formatMinutes(
+          untimed.reduce(
+            (n, t) => n + (t.duration_minutes ?? range.settings.default_task_duration),
+            0,
+          ),
+        )}
+      </p>
+    </section>
+  );
+}

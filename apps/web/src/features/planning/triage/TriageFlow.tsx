@@ -1,3 +1,6 @@
+import { DayRail } from './DayRail';
+import { DayAgenda } from './DayAgenda';
+import { projectPlan } from './projectPlan';
 import { QueueList } from './QueueList';
 import { ShortcutFooter } from './ShortcutFooter';
 import { TriageHelp } from './TriageHelp';
@@ -113,7 +116,8 @@ export function TriageFlow() {
   useEffect(() => {
     if (session && !selected) setSelected(session.local_date);
   }, [session, selected]);
-  const day = load?.days.find((d) => d.date === selected);
+  const projected = load && session ? projectPlan(load, session) : load;
+  const day = projected?.days.find((d) => d.date === selected);
   const busyIntervals = [
     ...(day?.events ?? [])
       .filter((e) => !e.is_all_day)
@@ -364,6 +368,17 @@ export function TriageFlow() {
               </div>
             ) : null}
           </div>
+          <aside className="plan-day-sidebar">
+            <DayRail
+              days={projected?.days ?? []}
+              selected={selected}
+              onSelect={(date) => {
+                setSelected(date);
+                setTime('');
+              }}
+            />
+            {day && projected ? <DayAgenda day={day} range={projected} /> : null}
+          </aside>
         </div>
       )}
       {!state.review && card ? (
@@ -405,25 +420,14 @@ export function TriageFlow() {
           }}
           anchor={anchor}
           days={
-            <div className="plan-simple-days">
-              {load.days.map((d) => (
-                <button
-                  key={d.date}
-                  type="button"
-                  aria-pressed={selected === d.date}
-                  onClick={() => {
-                    setSelected(d.date);
-                    setTime('');
-                  }}
-                >
-                  {new Intl.DateTimeFormat(locale, {
-                    weekday: 'short',
-                    day: 'numeric',
-                    timeZone: 'UTC',
-                  }).format(new Date(`${d.date}T12:00Z`))}
-                </button>
-              ))}
-            </div>
+            <DayRail
+              days={projected?.days ?? []}
+              selected={selected}
+              onSelect={(date) => {
+                setSelected(date);
+                setTime('');
+              }}
+            />
           }
         />
       ) : null}
