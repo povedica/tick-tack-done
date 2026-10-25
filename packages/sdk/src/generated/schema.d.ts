@@ -2161,6 +2161,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/planning/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Count candidates without creating a session (F-AC-5) */
+        get: operations["PlanningController_candidates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/planning/sessions": {
         parameters: {
             query?: never;
@@ -2216,6 +2233,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/planning/operations/{id}/revert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Undo an applied day plan; idempotent, 409 if a task changed (F-AC-29) */
+        post: operations["PlanningController_revert"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/planning/sessions/{id}/apply": {
         parameters: {
             query?: never;
@@ -2246,6 +2280,23 @@ export interface paths {
          */
         get: operations["PlansController_day"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/planning/settings/work-days": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Configure working weekdays for day planning (RF-2640) */
+        put: operations["DayClosingController_workDays"];
         post?: never;
         delete?: never;
         options?: never;
@@ -5062,11 +5113,20 @@ export interface components {
         };
         DecisionDto: {
             /** @enum {string} */
-            decision: "done" | "plan_day" | "later" | "cancel" | "trash" | "skip" | "someday";
+            decision?: "done" | "plan_day" | "later" | "cancel" | "trash" | "skip" | "someday";
+            /** @enum {string} */
+            action?: "today" | "tomorrow" | "move" | "done" | "wont_do" | "someday" | "delete" | "skip";
+            date?: string;
+            time?: string;
+            duration?: number;
             target_date?: string | null;
         };
         ApplyPlanDto: {
             expected_revision: number;
+        };
+        WorkDaysDto: {
+            /** @description Working weekdays: Sunday=0 through Saturday=6; empty means no working days. */
+            work_days: number[];
         };
         SessionDateDto: {
             /** @description When false, suggestions remain informational; only explicit decisions are applied. Defaults to true for existing clients. */
@@ -9172,6 +9232,27 @@ export interface operations {
             };
         };
     };
+    PlanningController_candidates: {
+        parameters: {
+            query: {
+                date: string;
+                undated?: unknown;
+                inbox?: unknown;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     PlanningController_start: {
         parameters: {
             query?: never;
@@ -9256,6 +9337,25 @@ export interface operations {
             };
         };
     };
+    PlanningController_revert: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     PlanningController_apply: {
         parameters: {
             query?: never;
@@ -9299,11 +9399,35 @@ export interface operations {
             };
         };
     };
+    DayClosingController_workDays: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkDaysDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     DayClosingController_load: {
         parameters: {
-            query: {
-                date: string;
-                time_zone: string;
+            query?: {
+                date?: string;
+                /** @description Compatibility parameter; the profile time zone is authoritative. */
+                time_zone?: string;
+                days?: number;
+                from?: unknown;
             };
             header?: never;
             path?: never;

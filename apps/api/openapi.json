@@ -6616,6 +6616,47 @@
         ]
       }
     },
+    "/api/v1/planning/candidates": {
+      "get": {
+        "operationId": "PlanningController_candidates",
+        "parameters": [
+          {
+            "name": "date",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "undated",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "inbox",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Count candidates without creating a session (F-AC-5)",
+        "tags": [
+          "planning"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/planning/sessions": {
       "post": {
         "description": "Sources can restrict the session to today only. Today includes active start/deadline ranges, excluding overdue tasks when overdue=false. Cards expose start_date and recurring (null for legacy snapshots); clients disable bulk actions when recurrence safety is unknown or recurring=true.",
@@ -6758,6 +6799,35 @@
         ]
       }
     },
+    "/api/v1/planning/operations/{id}/revert": {
+      "post": {
+        "operationId": "PlanningController_revert",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Undo an applied day plan; idempotent, 409 if a task changed (F-AC-29)",
+        "tags": [
+          "planning"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/planning/sessions/{id}/apply": {
       "post": {
         "operationId": "PlanningController_apply",
@@ -6831,13 +6901,43 @@
         ]
       }
     },
+    "/api/v1/planning/settings/work-days": {
+      "put": {
+        "operationId": "DayClosingController_workDays",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkDaysDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Configure working weekdays for day planning (RF-2640)",
+        "tags": [
+          "planning"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/planning/load": {
       "get": {
         "operationId": "DayClosingController_load",
         "parameters": [
           {
             "name": "date",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -6845,11 +6945,26 @@
           },
           {
             "name": "time_zone",
-            "required": true,
+            "required": false,
             "in": "query",
+            "description": "Compatibility parameter; the profile time zone is authoritative.",
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "days",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {}
           }
         ],
         "responses": {
@@ -18981,14 +19096,35 @@
               "someday"
             ]
           },
+          "action": {
+            "type": "string",
+            "enum": [
+              "today",
+              "tomorrow",
+              "move",
+              "done",
+              "wont_do",
+              "someday",
+              "delete",
+              "skip"
+            ]
+          },
+          "date": {
+            "type": "string"
+          },
+          "time": {
+            "type": "string"
+          },
+          "duration": {
+            "type": "number",
+            "minimum": 5,
+            "maximum": 480
+          },
           "target_date": {
             "type": "string",
             "nullable": true
           }
-        },
-        "required": [
-          "decision"
-        ]
+        }
       },
       "ApplyPlanDto": {
         "type": "object",
@@ -18999,6 +19135,21 @@
         },
         "required": [
           "expected_revision"
+        ]
+      },
+      "WorkDaysDto": {
+        "type": "object",
+        "properties": {
+          "work_days": {
+            "description": "Working weekdays: Sunday=0 through Saturday=6; empty means no working days.",
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        },
+        "required": [
+          "work_days"
         ]
       },
       "SessionDateDto": {
