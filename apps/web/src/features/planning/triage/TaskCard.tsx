@@ -43,7 +43,12 @@ export function TaskCard({
     ? Math.max(0, Math.round((Date.parse(date) - Date.parse(dueKey)) / 86400000))
     : 0;
   return (
-    <article className="sp-task" role="group" aria-labelledby="plan-task-title">
+    <article
+      className="sp-task"
+      role="group"
+      aria-labelledby="plan-task-title"
+      onPointerDown={drag}
+    >
       <div className="sp-meta">
         <button type="button" className="sp-grip" onPointerDown={drag} aria-label={m.footer}>
           <GripVertical size={18} />

@@ -1,3 +1,4 @@
+import { useTriageDrag } from './useTriageDrag';
 import { DayRail } from './DayRail';
 import { DayAgenda } from './DayAgenda';
 import { projectPlan } from './projectPlan';
@@ -117,6 +118,23 @@ export function TriageFlow() {
     if (session && !selected) setSelected(session.local_date);
   }, [session, selected]);
   const projected = load && session ? projectPlan(load, session) : load;
+  const drag = useTriageDrag({
+    session,
+    range: projected,
+    duration,
+    onDrop: (date, time, id) => {
+      setSelected(date);
+      void state.decide(
+        {
+          action: 'move',
+          date,
+          ...(time ? { time } : {}),
+          ...(time || touched ? { duration } : {}),
+        },
+        id,
+      );
+    },
+  });
   const day = projected?.days.find((d) => d.date === selected);
   const busyIntervals = [
     ...(day?.events ?? [])
@@ -194,7 +212,7 @@ export function TriageFlow() {
       : '';
   const title = session.cards.find((c) => c.task_id === state.notice)?.title ?? '';
   return (
-    <section className="sp-page plan-triage" aria-busy={busy}>
+    <section className={`sp-page plan-triage ${drag.ghost ? 'is-dragging' : ''}`} aria-busy={busy}>
       <header className="sp-head plan-desktop-only">
         <div>
           <h1>{m.title}</h1>
@@ -296,7 +314,12 @@ export function TriageFlow() {
         />
       ) : (
         <div className="sp-cols">
-          <QueueList session={session} index={state.index} onSelect={state.setIndex} />
+          <QueueList
+            session={session}
+            index={state.index}
+            onSelect={state.setIndex}
+            onDrag={drag.start}
+          />
           <div
             className="plan-card-stage"
             onTouchStart={(e) => {
@@ -321,6 +344,7 @@ export function TriageFlow() {
               date={session.local_date}
               duration={duration}
               onDuration={() => setWhen(true)}
+              drag={drag.start(card.task_id)}
             >
               <MoreMenu onAction={action} busy={busy} />
               <div className="plan-desktop-controls">
@@ -339,7 +363,7 @@ export function TriageFlow() {
                     <Button
                       key={a}
                       disabled={busy}
-                      ref={a === 'move' ? anchor : undefined}
+                      {...(a === 'move' ? { ref: anchor } : {})}
                       onClick={() => action(a)}
                     >
                       <Icon size={17} />
@@ -377,7 +401,13 @@ export function TriageFlow() {
                 setTime('');
               }}
             />
-            {day && projected ? <DayAgenda day={day} range={projected} /> : null}
+            {day && projected ? (
+              <DayAgenda
+                day={day}
+                range={projected}
+                ghost={drag.ghost?.date === selected && drag.ghost.time ? drag.ghost : null}
+              />
+            ) : null}
           </aside>
         </div>
       )}

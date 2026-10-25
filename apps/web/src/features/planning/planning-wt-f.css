@@ -1174,3 +1174,21 @@
     display: none;
   }
 }
+
+.plan-triage.is-dragging .sp-task {
+  opacity: 0.55;
+}
+.plan-triage .sp-blk.is-ghost {
+  pointer-events: none;
+  box-shadow: var(--calendar-drag-lift-shadow);
+  border-color: var(--calendar-drag-ghost-border, var(--accent));
+  background: var(--calendar-drag-ghost-bg, var(--accent-soft));
+}
+.plan-triage .sp-blk.is-ghost.is-conflict {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+.plan-triage .sp-q {
+  touch-action: pan-y;
+}
