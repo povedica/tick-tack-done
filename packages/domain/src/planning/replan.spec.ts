@@ -66,3 +66,24 @@ describe('proposeReplan', () => {
     expect(suggestion[0]?.reason).toContain('no cabe');
   });
 });
+
+it('RF-2670 / F-AC-6: high priority gets capacity before a lexicographically smaller UUID', () => {
+  const result = proposeReplan({
+    today: '2026-10-26',
+    timeZone: 'Europe/Madrid',
+    settings: { workDayStart: '09:00', workDayEnd: '10:00', defaultTaskDuration: 60 },
+    occupancy: {},
+    candidates: ['low', 'high'].map((priority, i) => ({
+      id: i ? 'z' : 'a',
+      title: priority,
+      priority: priority as 'low' | 'high',
+      dueDate: null,
+      timeZone: 'Europe/Madrid',
+      durationMinutes: 60,
+      isAllDay: true,
+      eveningOnly: false,
+    })),
+  });
+  expect(result.find((r) => r.taskId === 'z')?.targetDate).toBe('2026-10-27');
+  expect(result.find((r) => r.taskId === 'a')?.targetDate).toBe('2026-10-28');
+});

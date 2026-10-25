@@ -92,14 +92,6 @@ export interface PlanPreview {
   readonly effects: readonly PlanEffect[];
 }
 
-const SECTION_RANK: Record<PlanSection, number> = {
-  today_timed: 0,
-  today: 1,
-  overdue: 2,
-  inbox: 3,
-  undated: 4,
-};
-
 const PRIORITY_RANK: Record<Priority, number> = {
   high: 0,
   medium: 1,
@@ -155,7 +147,9 @@ export function planQueue(
   const keptOverdue = room === null ? overdue : overdue.slice(0, room);
   const roomAfter = room === null ? null : room - keptOverdue.length;
   const keptRest = roomAfter === null ? rest : rest.slice(0, roomAfter);
-  const cards = [...today, ...keptOverdue, ...keptRest].map((card, rank) => toCard(card, rank));
+  const cards = [...today, ...keptOverdue, ...keptRest]
+    .sort(compareCards)
+    .map((card, rank) => toCard(card, rank));
   return {
     cards,
     hiddenOverdue:
@@ -209,7 +203,7 @@ function classify(
   const dueDay = task.dueDate === null ? null : civilDate(task.dueDate, zone);
   const startDay = task.startDate == null ? null : civilDate(task.startDate, zone);
   const from = startDay ?? dueDay;
-  const until = dueDay ?? from;
+  const until = dueDay !== null && from !== null && dueDay >= from ? dueDay : from;
   if (from !== null && until !== null && from <= localDate && localDate <= until) {
     if (!sources.today) return null;
     const scheduled = task.startDate != null;
@@ -229,6 +223,7 @@ function classify(
       dueDay,
     };
   }
+  if (startDay !== null && startDay > localDate) return null;
   if (dueDay !== null && dueDay < localDate) {
     if (!sources.overdue) {
       return null;
@@ -269,34 +264,12 @@ function classify(
 }
 
 function compareCards(left: Classified, right: Classified): number {
-  const section = SECTION_RANK[left.section] - SECTION_RANK[right.section];
-  if (section !== 0) {
-    return section;
-  }
-  if (left.section === 'today_timed') {
-    const due = (left.task.startDate ?? left.task.dueDate ?? '').localeCompare(
-      right.task.startDate ?? right.task.dueDate ?? '',
-    );
-    if (due !== 0) {
-      return due;
-    }
-  }
   const priority = PRIORITY_RANK[left.task.priority] - PRIORITY_RANK[right.task.priority];
-  if (priority !== 0) {
-    return priority;
-  }
-  if (left.section === 'overdue') {
-    const due = (left.task.dueDate ?? '').localeCompare(right.task.dueDate ?? '');
-    if (due !== 0) {
-      return due;
-    }
-  }
-  if (left.section === 'inbox' || left.section === 'undated') {
-    const created = left.task.createdAt.localeCompare(right.task.createdAt);
-    if (created !== 0) {
-      return created;
-    }
-  }
+  if (priority !== 0) return priority;
+  const due = (left.task.dueDate ?? '9999').localeCompare(right.task.dueDate ?? '9999');
+  if (due !== 0) return due;
+  const created = left.task.createdAt.localeCompare(right.task.createdAt);
+  if (created !== 0) return created;
   return left.task.id.localeCompare(right.task.id);
 }
 
