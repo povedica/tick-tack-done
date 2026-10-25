@@ -280,6 +280,11 @@
   background: var(--surface);
 }
 
+.settings-nav,
+.settings-main {
+  box-shadow: var(--shadow-md);
+}
+
 .settings-main fieldset,
 .theme-options {
   display: flex;
@@ -821,6 +826,20 @@
   background: var(--surface);
   color: var(--ink);
   font: inherit;
+}
+
+.settings-layout input:not([type='radio']):not([type='checkbox']):not([type='range']),
+.settings-layout select {
+  min-height: var(--sp-8);
+  padding: var(--sp-1) var(--sp-2);
+  border-radius: var(--radius-sm);
+}
+
+@media (pointer: coarse) {
+  .settings-layout input:not([type='radio']):not([type='checkbox']):not([type='range']),
+  .settings-layout select {
+    min-height: var(--tap);
+  }
 }
 
 .detail-title {

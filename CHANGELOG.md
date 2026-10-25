@@ -1,5 +1,11 @@
 # Historial de cambios
 
+## Sin publicar — ajustes visuales PR77
+
+- Ajustes: controles de una línea más compactos, con espacio vertical en las filas
+  de Foco y áreas táctiles conservadas. Sombra suave en el panel y la navegación
+  de Ajustes en ambos temas, sin cambios de comportamiento (RF-1201/1203/1205).
+
 ## Staging — Telegram por usuario y Resend (23 de octubre de 2026)
 
 - RF-2003: configuración cifrada de un bot exclusivo por usuario en Ajustes →
