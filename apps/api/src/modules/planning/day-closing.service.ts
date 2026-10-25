@@ -25,6 +25,7 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
 interface ClosingTask {
   readonly id: string;
   readonly title: string;
+  readonly projectId: string;
   readonly priority: 'none' | 'low' | 'medium' | 'high';
   readonly dueDate: Date | null;
   readonly startDate: Date | null;
@@ -61,6 +62,7 @@ export class DayClosingService {
 
   async load(user: AuthUser, date: string, timeZone: string): Promise<Record<string, unknown>> {
     this.assertDate(date);
+    timeZone = user.timeZone;
     this.assertZone(timeZone);
     const profile = await this.profile(user.id);
     const result = await this.compute(user.id, date, timeZone, profile);
@@ -73,6 +75,89 @@ export class DayClosingService {
       unestimated_task_ids: result.unestimatedTaskIds,
       ratio: result.ratio,
       status: result.status,
+    };
+  }
+
+  async configureWorkDays(user: AuthUser, workDays: readonly number[]) {
+    if (workDays.length > 7 || !workDays.every((d) => Number.isInteger(d) && d >= 0 && d <= 6))
+      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'Invalid work days');
+    await this.prisma.$transaction(async (tx) => {
+      await tx.viewPreference.upsert({
+        where: { ownerId_key: { ownerId: user.id, key: 'planning' } },
+        create: { ownerId: user.id, key: 'planning', preferences: { work_days: [...workDays] } },
+        update: { preferences: { work_days: [...workDays] } },
+      });
+      await this.events.record(tx, actorOf(user), {
+        type: DomainEvent.viewPreferenceUpdated,
+        entityType: 'view_preference',
+        entityId: user.id,
+        action: 'updated',
+        data: { key: 'planning', work_days: [...workDays] },
+        previous: null,
+      });
+    });
+    return { work_days: workDays };
+  }
+
+  async range(user: AuthUser, from: string, days: number): Promise<Record<string, unknown>> {
+    this.assertDate(from);
+    if (!Number.isInteger(days) || days < 1 || days > 14)
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'days must be between 1 and 14',
+      );
+    const timeZone = user.timeZone;
+    const profile = await this.profile(user.id);
+    const result = [];
+    for (let i = 0; i < days; i += 1) {
+      const date = shiftCivilDate(from, i);
+      const tasks = (await this.queue(user.id, date, timeZone)).filter(
+        (t) => user.listIds === null || user.listIds.includes(t.projectId),
+      );
+      const events = await this.eventsOn(user.id, date, timeZone);
+      const load = dayLoad({
+        date,
+        timeZone,
+        settings: profile,
+        tasks: tasks.map((t) => ({
+          ...t,
+          startDate: t.startDate?.toISOString() ?? null,
+          dueDate: t.dueDate?.toISOString() ?? null,
+        })),
+        events,
+      });
+      result.push({
+        ...this.loadJson(date, load),
+        unestimated_count: load.unestimatedCount,
+        tasks: tasks.map((t) => ({
+          id: t.id,
+          title: t.title,
+          start_date: t.startDate?.toISOString() ?? null,
+          due_date: t.dueDate?.toISOString() ?? null,
+          is_all_day: t.isAllDay,
+          duration_minutes: t.durationMinutes,
+          evening_only: t.eveningOnly,
+        })),
+        events: events.map((e) => ({
+          id: e.id,
+          title: e.title,
+          starts_at: e.startsAt,
+          ends_at: e.endsAt,
+          is_all_day: e.isAllDay,
+        })),
+      });
+    }
+    return {
+      time_zone: timeZone,
+      settings: {
+        work_day_start: profile.workDayStart,
+        work_day_end: profile.workDayEnd,
+        default_task_duration: profile.defaultTaskDuration,
+        evening_start: profile.eveningStart,
+        work_days: profile.workDays,
+      },
+      days: result,
     };
   }
 
@@ -579,7 +664,17 @@ export class DayClosingService {
       return rows.filter((row) => row.dueDate !== null && cutoff !== null && row.dueDate < cutoff);
     }
     const memberIds = new Set(await this.memberIds(ownerId, localDate, timeZone));
-    return rows.filter((row) => memberIds.has(row.id) || this.onDay(row, localDate, timeZone));
+    const today = civilDateKey(new Date().toISOString(), timeZone);
+    return rows.filter(
+      (row) =>
+        memberIds.has(row.id) ||
+        this.onDay(row, localDate, timeZone) ||
+        (localDate === today &&
+          row.dueDate !== null &&
+          (civilDateKey(row.dueDate.toISOString(), timeZone) ?? '') < localDate &&
+          (row.startDate === null ||
+            (civilDateKey(row.startDate.toISOString(), timeZone) ?? '') <= localDate)),
+    );
   }
 
   private onDay(
@@ -594,7 +689,7 @@ export class DayClosingService {
     if (start === null) {
       return false;
     }
-    const end = due ?? start;
+    const end = due !== null && due >= start ? due : start;
     return start <= localDate && localDate <= end;
   }
 
@@ -625,6 +720,8 @@ export class DayClosingService {
       tasks: tasks.map((task) => ({
         id: task.id,
         durationMinutes: task.durationMinutes,
+        startDate: task.startDate?.toISOString() ?? null,
+        dueDate: task.dueDate?.toISOString() ?? null,
         isAllDay: task.isAllDay,
         eveningOnly: task.eveningOnly,
         status: task.status,
@@ -648,7 +745,7 @@ export class DayClosingService {
         OR: [{ endsAt: null }, { endsAt: { gt: bounds.start } }],
         subscription: { deletedAt: null, visible: true },
       },
-      select: { id: true, startsAt: true, endsAt: true, isAllDay: true },
+      select: { id: true, title: true, startsAt: true, endsAt: true, isAllDay: true },
     });
     return rows.flatMap((row) =>
       row.endsAt === null
@@ -656,6 +753,7 @@ export class DayClosingService {
         : [
             {
               id: row.id,
+              title: row.title,
               startsAt: row.startsAt.toISOString(),
               endsAt: row.endsAt.toISOString(),
               isAllDay: row.isAllDay,
@@ -681,6 +779,8 @@ export class DayClosingService {
         tasks: tasks.map((task) => ({
           id: task.id,
           durationMinutes: task.durationMinutes,
+          startDate: task.startDate?.toISOString() ?? null,
+          dueDate: task.dueDate?.toISOString() ?? null,
           isAllDay: task.isAllDay,
           eveningOnly: task.eveningOnly,
           status: 'active',
@@ -822,7 +922,19 @@ export class DayClosingService {
         shutdownReminderTime: true,
       },
     });
+    const preference = await this.prisma.viewPreference.findUnique({
+      where: { ownerId_key: { ownerId, key: 'planning' } },
+    });
+    const config = preference?.preferences;
+    const days =
+      config && typeof config === 'object' && !Array.isArray(config) ? config.work_days : null;
+    const workDays =
+      Array.isArray(days) &&
+      days.every((d) => typeof d === 'number' && Number.isInteger(d) && d >= 0 && d <= 6)
+        ? (days as number[])
+        : [1, 2, 3, 4, 5];
     return {
+      workDays,
       workDayStart: row?.workDayStart ?? null,
       workDayEnd: row?.workDayEnd ?? null,
       defaultTaskDuration: row?.defaultTaskDuration ?? 30,

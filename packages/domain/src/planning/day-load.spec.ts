@@ -119,3 +119,50 @@ describe('dayLoad', () => {
     expect(formatMinutes(45)).toBe('45 min');
   });
 });
+
+describe('F-AC-1 multi-day load', () => {
+  it('RF-2640: clips each of seven days to the configured nine-hour workday in the profile zone', () => {
+    for (let d = 20; d <= 26; d += 1) {
+      const load = dayLoad({
+        date: `2026-10-${d}`,
+        timeZone: ZONE,
+        settings: {
+          workDayStart: '09:00',
+          workDayEnd: '18:00',
+          defaultTaskDuration: 30,
+          workDays: [0, 1, 2, 3, 4, 5, 6],
+        },
+        tasks: [
+          task({
+            id: 'week',
+            startDate: '2026-10-20T08:00:00Z',
+            dueDate: '2026-10-26T12:00:00Z',
+            durationMinutes: 8820,
+          }),
+        ],
+        events: [],
+      });
+      expect(load.taskMinutes).toBeLessThanOrEqual(540);
+      expect(load.taskMinutes).toBeGreaterThan(0);
+    }
+  });
+  it('RF-2640: all-day ranges use the default estimate; a configured day off has no work window', () => {
+    const input = {
+      date: '2026-10-24',
+      timeZone: ZONE,
+      settings: { workDayStart: '09:00', workDayEnd: '18:00', defaultTaskDuration: 30 },
+      tasks: [
+        task({
+          id: 'week',
+          isAllDay: true,
+          startDate: '2026-10-20T00:00:00Z',
+          dueDate: '2026-10-26T00:00:00Z',
+          durationMinutes: 8820,
+        }),
+      ],
+      events: [],
+    };
+    expect(dayLoad(input).taskMinutes).toBe(30);
+    expect(dayLoad(input).availableMinutes).toBeNull();
+  });
+});

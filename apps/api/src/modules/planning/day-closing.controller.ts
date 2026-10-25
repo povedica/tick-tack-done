@@ -21,7 +21,17 @@ import {
   ApiNoContentResponse,
 } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Matches, Min } from 'class-validator';
+import {
+  IsArray,
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Matches,
+  Max,
+  Min,
+} from 'class-validator';
 import type { Request, Response } from 'express';
 import type { PlanDecisionKind } from '@reflexionia/domain';
 import type { AuthUser } from '../../auth/auth-user.js';
@@ -75,24 +85,55 @@ class ApplyClosingDto {
   expected_revision!: number;
 }
 
+class WorkDaysDto {
+  @ApiProperty({
+    type: [Number],
+    description: 'Working weekdays: Sunday=0 through Saturday=6; empty means no working days.',
+  })
+  @IsArray()
+  @IsInt({ each: true })
+  @Min(0, { each: true })
+  @Max(6, { each: true })
+  work_days!: number[];
+}
+
 @ApiTags('planning')
 @Controller('planning')
 export class DayClosingController {
   constructor(@Inject(DayClosingService) private readonly closing: DayClosingService) {}
 
+  @Put('settings/work-days')
+  @Scopes('profile:write')
+  @ApiOperation({ summary: 'Configure working weekdays for day planning (RF-2640)' })
+  workDays(@CurrentUser() user: AuthUser, @Body() body: WorkDaysDto) {
+    return this.closing.configureWorkDays(user, body.work_days);
+  }
+
   @Get('load')
   @Scopes('tasks:read')
   @ApiOperation({ summary: 'Day load projection (RF-2641)' })
-  @ApiQuery({ name: 'date', required: true })
+  @ApiQuery({ name: 'date', required: false })
+  @ApiQuery({ name: 'from', required: false })
+  @ApiQuery({ name: 'days', required: false, type: Number })
   @ApiQuery({ name: 'time_zone', required: true })
   async load(
     @CurrentUser() user: AuthUser,
     @Query('date') date: string,
     @Query('time_zone') timeZone: string,
+    @Query('from') from: string | undefined,
+    @Query('days') days: string | undefined,
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
-    respondJson(req, res, 200, await this.closing.load(user, date, timeZone), false);
+    respondJson(
+      req,
+      res,
+      200,
+      from !== undefined || days !== undefined
+        ? await this.closing.range(user, from ?? date, Number(days ?? 1))
+        : await this.closing.load(user, date, timeZone),
+      false,
+    );
   }
 
   @Post('shutdown/sessions')

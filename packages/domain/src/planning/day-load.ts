@@ -5,6 +5,8 @@ export type DayLoadStatus = 'ok' | 'tight' | 'overload';
 export interface DayLoadTask {
   readonly id: string;
   readonly durationMinutes: number | null;
+  readonly startDate?: string | null;
+  readonly dueDate?: string | null;
   readonly isAllDay: boolean;
   readonly eveningOnly: boolean;
   readonly status: string;
@@ -23,6 +25,7 @@ export interface DayLoadSettings {
   readonly workDayStart: string | null;
   readonly workDayEnd: string | null;
   readonly defaultTaskDuration: number;
+  readonly workDays?: readonly number[];
 }
 
 export interface DayLoadResult {
@@ -49,7 +52,7 @@ export function dayLoad(input: {
   const counted = input.tasks.filter(countsTowardLoad);
   const unestimated = counted.filter((task) => task.durationMinutes === null);
   const taskMinutes = counted.reduce(
-    (sum, task) => sum + (task.durationMinutes ?? input.settings.defaultTaskDuration),
+    (sum, task) => sum + perDayMinutes(task, input.date, input.timeZone, input.settings),
     0,
   );
   const eventMinutes =
@@ -130,13 +133,16 @@ export function shiftCivilDate(date: string, days: number): string {
   return padDate(next.getUTCFullYear(), next.getUTCMonth() + 1, next.getUTCDate());
 }
 
-export function isBusinessDay(date: string): boolean {
+export function isBusinessDay(
+  date: string,
+  workDays: readonly number[] = [1, 2, 3, 4, 5],
+): boolean {
   const parts = date.split('-').map((part) => Number(part));
   const year = parts[0] ?? 1970;
   const month = parts[1] ?? 1;
   const day = parts[2] ?? 1;
   const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
-  return weekday !== 0 && weekday !== 6;
+  return workDays.includes(weekday);
 }
 
 function countsTowardLoad(task: DayLoadTask): boolean {
@@ -153,7 +159,11 @@ interface Window {
 }
 
 function workWindow(date: string, timeZone: string, settings: DayLoadSettings): Window | null {
-  if (settings.workDayStart === null || settings.workDayEnd === null) {
+  if (
+    !isBusinessDay(date, settings.workDays) ||
+    settings.workDayStart === null ||
+    settings.workDayEnd === null
+  ) {
     return null;
   }
   const start = clockMinutes(settings.workDayStart);
@@ -212,4 +222,29 @@ function clockMinutes(value: string): number | null {
 
 function padDate(year: number, month: number, day: number): string {
   return `${String(year)}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+/** F-AC-1 / RF-2640: a multi-day interval contributes only its overlap with this workday. */
+export function perDayMinutes(
+  task: DayLoadTask,
+  date: string,
+  timeZone: string,
+  settings: DayLoadSettings,
+): number {
+  if (
+    task.startDate &&
+    task.dueDate &&
+    civilDateKey(task.startDate, timeZone) !== civilDateKey(task.dueDate, timeZone) &&
+    Date.parse(task.dueDate) > Date.parse(task.startDate)
+  ) {
+    if (task.isAllDay) return settings.defaultTaskDuration;
+    const window = workWindow(date, timeZone, settings);
+    return window === null
+      ? 0
+      : overlapMinutes(
+          { id: task.id, startsAt: task.startDate, endsAt: task.dueDate, isAllDay: false },
+          window,
+        );
+  }
+  return task.durationMinutes ?? settings.defaultTaskDuration;
 }
