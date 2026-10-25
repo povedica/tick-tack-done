@@ -674,6 +674,15 @@ export function TodayPage() {
     };
   }
 
+  function chooseLayout(next: 'list' | 'kanban' | 'matrix'): void {
+    syncPrefs({ view: next });
+    writeMatrixLayout('today', next);
+    setMatrixLayout(next);
+    const query = new URLSearchParams(params);
+    query.set('view', next);
+    setParams(query, { replace: true });
+  }
+
   return (
     <section className="today" aria-labelledby="today-heading">
       <header className="today-header">
@@ -687,14 +696,7 @@ export function TodayPage() {
           <MatrixViewToggle
             showMatrix={flags.matrix}
             value={matrixLayout}
-            onChange={(next) => {
-              syncPrefs({ view: next });
-              writeMatrixLayout('today', next);
-              setMatrixLayout(next);
-              const query = new URLSearchParams(params);
-              query.set('view', next);
-              setParams(query, { replace: true });
-            }}
+            onChange={chooseLayout}
           />
           <div className="group-popover">
             <button
@@ -751,6 +753,19 @@ export function TodayPage() {
           </div>
           <ViewMenu
             messages={messages}
+            view={matrixLayout === 'kanban' ? 'kanban' : 'list'}
+            onView={(next) => {
+              if (next !== 'timeline') chooseLayout(next);
+            }}
+            showTimeline={false}
+            matrixSelected={matrixLayout === 'matrix'}
+            onMatrix={
+              flags.matrix
+                ? () => {
+                    chooseLayout('matrix');
+                  }
+                : undefined
+            }
             details={details}
             onDetails={(value) => {
               setDetails(value);

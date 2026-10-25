@@ -2,6 +2,10 @@
 
 ## Sin publicar — ajustes visuales PR77
 
+- Listas en móvil: selector de vista dentro del menú de acciones, con Matriz,
+  Kanban y Timeline según la vista. Cabecera y menú con texto más compacto;
+  desplegable flotante con altura ajustada a la pantalla para evitar recortes
+  en listas vacías como Mañana (RF-1001/1002/1003/1004).
 - Ajustes: controles de una línea más compactos, con espacio vertical en las filas
   de Foco y áreas táctiles conservadas. Sombra suave en el panel y la navegación
   de Ajustes en ambos temas, sin cambios de comportamiento (RF-1201/1203/1205).

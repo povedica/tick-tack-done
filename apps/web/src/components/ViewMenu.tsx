@@ -1,6 +1,7 @@
 import {
   Eye,
   EyeOff,
+  Grid2X2,
   Kanban,
   List,
   MoreHorizontal,
@@ -8,8 +9,9 @@ import {
   SlidersHorizontal,
   Timeline,
 } from 'lucide-react';
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useId, useRef, useState, type ReactNode } from 'react';
 import type { Messages } from '../i18n';
+import { Popover } from './Popover';
 
 export type BoardView = 'list' | 'kanban' | 'timeline';
 
@@ -17,6 +19,9 @@ export function ViewMenu({
   messages,
   view,
   onView,
+  onMatrix,
+  matrixSelected = false,
+  showTimeline = true,
   details,
   onDetails,
   hideCompleted,
@@ -27,6 +32,9 @@ export function ViewMenu({
   readonly messages: Messages;
   readonly view?: BoardView | undefined;
   readonly onView?: ((view: BoardView) => void) | undefined;
+  readonly onMatrix?: (() => void) | undefined;
+  readonly matrixSelected?: boolean;
+  readonly showTimeline?: boolean;
   readonly details: boolean;
   readonly onDetails: (value: boolean) => void;
   readonly hideCompleted: boolean;
@@ -36,34 +44,13 @@ export function ViewMenu({
 }) {
   const [open, setOpen] = useState(false);
   const [options, setOptions] = useState(false);
-  const root = useRef<HTMLDivElement>(null);
+  const anchor = useRef<HTMLButtonElement>(null);
   const menuId = useId();
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    function onKey(event: KeyboardEvent): void {
-      if (event.key === 'Escape') {
-        setOpen(false);
-      }
-    }
-    function onPointer(event: PointerEvent): void {
-      if (root.current !== null && !root.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-    window.addEventListener('keydown', onKey);
-    window.addEventListener('pointerdown', onPointer);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      window.removeEventListener('pointerdown', onPointer);
-    };
-  }, [open]);
-
   return (
-    <div className="view-menu" ref={root}>
+    <div className="view-menu">
       <button
+        ref={anchor}
         type="button"
         className="icon-button"
         aria-label={messages.menuLabel}
@@ -75,13 +62,22 @@ export function ViewMenu({
       >
         <MoreHorizontal size={20} aria-hidden="true" />
       </button>
-      {open ? (
-        <div className="menu-card" id={menuId} role="menu">
+      <Popover
+        open={open}
+        anchor={anchor}
+        label={messages.menuLabel}
+        onClose={() => {
+          setOpen(false);
+        }}
+        className="menu-card view-menu-popover"
+        width={260}
+      >
+        <div id={menuId} role="menu">
           {onView !== undefined ? (
             <div className="menu-segment" role="group" aria-label={messages.viewList}>
               <Segment
                 label={messages.viewList}
-                checked={view === 'list'}
+                checked={!matrixSelected && view === 'list'}
                 onClick={() => {
                   onView('list');
                   setOpen(false);
@@ -89,9 +85,21 @@ export function ViewMenu({
               >
                 <List size={16} aria-hidden="true" />
               </Segment>
+              {onMatrix ? (
+                <Segment
+                  label={messages.matrixTitle}
+                  checked={matrixSelected}
+                  onClick={() => {
+                    onMatrix();
+                    setOpen(false);
+                  }}
+                >
+                  <Grid2X2 size={16} aria-hidden="true" />
+                </Segment>
+              ) : null}
               <Segment
                 label={messages.viewKanban}
-                checked={view === 'kanban'}
+                checked={!matrixSelected && view === 'kanban'}
                 onClick={() => {
                   onView('kanban');
                   setOpen(false);
@@ -99,16 +107,18 @@ export function ViewMenu({
               >
                 <Kanban size={16} aria-hidden="true" />
               </Segment>
-              <Segment
-                label={messages.viewTimeline}
-                checked={view === 'timeline'}
-                onClick={() => {
-                  onView('timeline');
-                  setOpen(false);
-                }}
-              >
-                <Timeline size={16} aria-hidden="true" />
-              </Segment>
+              {showTimeline ? (
+                <Segment
+                  label={messages.viewTimeline}
+                  checked={!matrixSelected && view === 'timeline'}
+                  onClick={() => {
+                    onView('timeline');
+                    setOpen(false);
+                  }}
+                >
+                  <Timeline size={16} aria-hidden="true" />
+                </Segment>
+              ) : null}
             </div>
           ) : null}
           <button
@@ -162,7 +172,7 @@ export function ViewMenu({
             {messages.printView}
           </button>
         </div>
-      ) : null}
+      </Popover>
     </div>
   );
 }

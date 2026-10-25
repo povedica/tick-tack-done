@@ -331,6 +331,15 @@ export function Board({
             messages={messages}
             view={view}
             onView={chooseView}
+            matrixSelected={matrixLayout === 'matrix' && matrixScope !== undefined}
+            onMatrix={
+              flags.matrix && matrixScope !== undefined
+                ? () => {
+                    writeMatrixLayout(scopeKey, 'matrix');
+                    setMatrixLayout('matrix');
+                  }
+                : undefined
+            }
             details={details}
             onDetails={(value) => {
               savePrefs({ showDetails: value });

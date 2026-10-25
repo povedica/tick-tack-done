@@ -1149,7 +1149,8 @@
 
 .menu-segment {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
   gap: 4px;
   margin-bottom: 6px;
   padding: 4px;
@@ -1217,6 +1218,46 @@
 
 .menu-options button[aria-checked='true'] {
   color: var(--accent-active);
+}
+
+.view-menu-popover {
+  min-width: 0;
+  font-size: var(--fs-sm);
+}
+
+.view-menu-popover .menu-options label {
+  display: grid;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.view-menu-popover .menu-options select {
+  width: 100%;
+  min-height: var(--tap);
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+
+@media (max-width: 700px) {
+  .today-header .page-actions > .task-view-toggle {
+    display: none;
+  }
+
+  .today-header .page-title h1 {
+    font-size: var(--fs-md);
+  }
+
+  .today-header .ui-badge {
+    font-size: var(--fs-xs);
+    white-space: nowrap;
+  }
+
+  .view-menu-popover :is(.menu-item, .menu-segment-btn) {
+    min-height: var(--tap);
+    font-size: var(--fs-sm);
+  }
 }
 
 .detail-head,
