@@ -49,19 +49,28 @@ export function WhenSheet({
       mobileSheet
       anchor={anchor}
       width={390}
-      className="plan-when-popover"
+      className="popover plan-when-popover"
     >
       <h2>{m.when}</h2>
       <div className="plan-when">
         {days}
-        <Button variant="ghost" onClick={() => setCalendar(true)}>
+        <Button
+          variant="ghost"
+          onClick={() => {
+            setCalendar(true);
+          }}
+        >
           {m.chooseDate}
         </Button>
         <label>{m.time}</label>
         <TimeSelect value={time} slots={slots} onChange={onTime} />
         <label>{m.duration}</label>
         <DurationChips value={duration} onChange={onDuration} />
-        <Button variant="primary" onClick={onConfirm}>
+        <Button
+          variant="primary"
+          disabled={time !== '' && !slots.includes(time)}
+          onClick={onConfirm}
+        >
           {m.schedule} {label}
           {time ? ` ${m.at} ${time}` : ''}
         </Button>
@@ -79,7 +88,9 @@ export function WhenSheet({
           }}
           mode="date-only"
           timeZone="UTC"
-          onClose={() => setCalendar(false)}
+          onClose={() => {
+            setCalendar(false);
+          }}
           onApply={(draft) => {
             if (draft.dueDate) onDate(draft.dueDate.slice(0, 10));
             setCalendar(false);

@@ -7,6 +7,7 @@ describe('F-AC-2/3 actions', () => {
       is_all_day: true,
       time_zone: 'Europe/Madrid',
       someday: false,
+      evening_only: false,
     });
     expect(effectOf({ action: 'tomorrow' }, '2026-10-25', 'Europe/Madrid')?.start_date).toBe(
       '2026-10-26',
@@ -24,6 +25,7 @@ describe('F-AC-2/3 actions', () => {
       is_all_day: false,
       time_zone: 'Europe/Madrid',
       someday: false,
+      evening_only: false,
       duration_minutes: 45,
     });
     expect(

@@ -1,5 +1,11 @@
 import { useAppLocale } from '../../i18n/locale';
 const es = {
+  repeating: 'Recurrente',
+  habit: 'Hábito',
+  plannedAt: 'Planificado a las',
+  planAgain: 'Volver a planificar',
+  decidedOne: '{count} tarea decidida. Aún no se ha cambiado nada.',
+  decidedMany: '{count} tareas decididas. Aún no se ha cambiado nada.',
   title: 'Planifica tu día',
   undo: 'Deshacer',
   later: 'Terminar luego',
@@ -81,6 +87,12 @@ const es = {
   loadingFailed: 'No hemos podido preparar tu día',
 };
 const en: Record<keyof typeof es, string> = {
+  repeating: 'Repeating',
+  habit: 'Habit',
+  plannedAt: 'Planned at',
+  planAgain: 'Plan again',
+  decidedOne: '{count} task decided. Nothing has changed yet.',
+  decidedMany: '{count} tasks decided. Nothing has changed yet.',
   title: 'Plan your day',
   undo: 'Undo',
   later: 'Finish later',

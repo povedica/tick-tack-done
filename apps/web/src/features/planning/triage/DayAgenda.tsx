@@ -1,4 +1,4 @@
-import { formatMinutes, wallClock } from '@reflexionia/domain';
+import { civilDateKey, formatMinutes, wallClock } from '@reflexionia/domain';
 import { useWtFMessages } from '../i18n-wt-f';
 import { useAppLocale } from '../../../i18n/locale';
 import type { LoadDay, LoadRange } from '../api';
@@ -28,8 +28,14 @@ export function DayAgenda({
     locale = useAppLocale();
   const lower = clockMinutes(range.settings.work_day_start ?? '09:00'),
     upper = clockMinutes(range.settings.work_day_end ?? '18:00');
-  const timed = day.tasks.filter((t) => !t.is_all_day && t.start_date);
-  const untimed = day.tasks.filter((t) => t.is_all_day || !t.start_date);
+  const timed = day.tasks.filter(
+    (t) =>
+      !t.is_all_day &&
+      t.start_date &&
+      (civilDateKey(t.start_date, range.time_zone) === day.date ||
+        (t.duration_minutes ?? 0) > 1440),
+  );
+  const untimed = day.tasks.filter((t) => !timed.includes(t));
   const blocks = [
     ...day.events
       .filter((e) => !e.is_all_day)
@@ -37,9 +43,9 @@ export function DayAgenda({
     ...timed.map((t) => ({
       id: t.id,
       title: t.title,
-      start: t.start_date!,
+      start: t.start_date ?? '',
       end: new Date(
-        Date.parse(t.start_date!) +
+        Date.parse(t.start_date ?? '') +
           (t.duration_minutes ?? range.settings.default_task_duration) * 60000,
       ).toISOString(),
       event: false,
@@ -48,11 +54,21 @@ export function DayAgenda({
   const position = (start: string, end: string) => {
     const a = wallClock(start, range.time_zone),
       b = wallClock(end, range.time_zone);
-    const from = a ? a.hour * 60 + a.minute : lower,
-      to = b ? b.hour * 60 + b.minute : upper;
+    const from =
+        (civilDateKey(start, range.time_zone) ?? day.date) < day.date
+          ? lower
+          : a
+            ? a.hour * 60 + a.minute
+            : lower,
+      to =
+        (civilDateKey(end, range.time_zone) ?? day.date) > day.date
+          ? upper
+          : b
+            ? b.hour * 60 + b.minute
+            : upper;
     return {
-      top: `calc(${(Math.max(lower, from) - lower) / 60} * var(--plan-hour))`,
-      height: `calc(${Math.max(15, Math.min(upper, to) - Math.max(lower, from)) / 60} * var(--plan-hour))`,
+      top: `calc(${String((Math.max(lower, from) - lower) / 60)} * var(--plan-hour))`,
+      height: `calc(${String(Math.max(15, Math.min(upper, to) - Math.max(lower, from)) / 60)} * var(--plan-hour))`,
     };
   };
   return (
@@ -74,7 +90,7 @@ export function DayAgenda({
         data-plan-agenda={day.date}
         data-plan-start={lower}
         data-plan-end={upper}
-        style={{ height: `calc(${(upper - lower) / 60} * var(--plan-hour))` }}
+        style={{ height: `calc(${String((upper - lower) / 60)} * var(--plan-hour))` }}
       >
         {Array.from({ length: Math.ceil((upper - lower) / 60) + 1 }, (_, i) => (
           <div key={i} className="sp-hr">
@@ -101,8 +117,8 @@ export function DayAgenda({
           <div
             className={`sp-blk is-ghost ${ghost.conflict ? 'is-conflict' : ''}`}
             style={{
-              top: `calc(${(clockMinutes(ghost.time) - lower) / 60} * var(--plan-hour))`,
-              height: `calc(${ghost.duration / 60} * var(--plan-hour))`,
+              top: `calc(${String((clockMinutes(ghost.time) - lower) / 60)} * var(--plan-hour))`,
+              height: `calc(${String(ghost.duration / 60)} * var(--plan-hour))`,
             }}
           >
             {ghost.conflict

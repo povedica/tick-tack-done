@@ -109,12 +109,27 @@ export async function callPlanningTool(
         : `/api/v1/planning/load?from=${selected}&days=${String(typeof args.days === 'number' ? args.days : 1)}`,
     );
   if (name === 'start_day_plan' || name === 'replan_day') {
+    if (
+      name === 'replan_day' &&
+      (args.auto_apply === true || (Array.isArray(args.overrides) && args.overrides.length > 0))
+    )
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'Use record_plan_decision and apply_day_plan to confirm explicit actions',
+      );
     if (selected < today || selected > shiftCivilDate(today, 13))
       throw new DomainException(
         HttpStatus.BAD_REQUEST,
         'validation_failed',
         'date must be within the next fourteen days',
       );
+    if (name === 'replan_day') {
+      const candidates = (await ask('GET', `/api/v1/planning/candidates?date=${selected}`)) as {
+        count: number;
+      };
+      if (candidates.count === 0) return { session: null, reason: 'nothing_to_replan' };
+    }
     return ask('POST', '/api/v1/planning/sessions', {
       local_date: selected,
       time_zone: user.timeZone,

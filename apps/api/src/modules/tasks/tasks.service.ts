@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { allDayMidnight } from './all-day.js';
 import { defaultReminderChannel } from './reminder-channel.js';
 import { normalizeTaskUrl } from '@reflexionia/domain';
@@ -166,6 +167,18 @@ export class TasksService {
     @Inject(IdempotencyService) private readonly idempotency: IdempotencyService,
     @Inject(DriveAttachmentsService) private readonly drive: DriveAttachmentsService,
   ) {}
+
+  private readonly planningTx = new AsyncLocalStorage<Tx>();
+
+  /** Planning coordinates task changes and its operation record in one transaction. */
+  inPlanTransaction<T>(tx: Tx, work: () => Promise<T>): Promise<T> {
+    return this.planningTx.run(tx, work);
+  }
+
+  private transaction<T>(work: (tx: Tx) => Promise<T>): Promise<T> {
+    const current = this.planningTx.getStore();
+    return current ? work(current) : this.prisma.$transaction(work);
+  }
 
   async list(
     user: AuthUser,
@@ -482,7 +495,7 @@ export class TasksService {
     dto: UpdateTaskDto,
     source: 'api' | 'mcp' | 'web' | 'plan' = user.sessionId === null ? 'api' : 'web',
   ): Promise<TaskDetail> {
-    return this.prisma.$transaction(async (tx) => {
+    return this.transaction(async (tx) => {
       const current = await this.require(tx, user.id, id, false);
       if (current.seriesId !== null) await lockRecurrenceSeries(tx, user.id, current.seriesId);
       const receivedAt = new Date().toISOString();
@@ -703,6 +716,11 @@ export class TasksService {
       readonly repeatRule: string | null;
       readonly seriesId: string | null;
       readonly recurrenceOpen: boolean;
+      readonly checklist?: readonly {
+        id: string;
+        status: 'active' | 'completed';
+        completedAt: string | null;
+      }[];
     },
   ): Promise<void> {
     if (user.requestSource !== 'plan')
@@ -711,8 +729,10 @@ export class TasksService {
         'plan_context_required',
         'Internal planning context is required',
       );
-    await this.prisma.$transaction(async (tx) => {
-      const current = await this.require(tx, user.id, snapshot.id, true);
+    await this.transaction(async (tx) => {
+      const current = await tx.task.findFirst({ where: { id: snapshot.id, ownerId: user.id } });
+      if (!current)
+        throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
       if (
         await tx.seriesAdvance.count({
           where: { ownerId: user.id, sourceTaskId: snapshot.id, processedAt: { not: null } },
@@ -726,7 +746,7 @@ export class TasksService {
       await tx.seriesAdvance.deleteMany({
         where: { ownerId: user.id, sourceTaskId: snapshot.id, processedAt: null },
       });
-      const previous = await this.load(tx, user, snapshot.id, true);
+      const previous = await this.load(tx, user, snapshot.id, current.deletedAt !== null);
       await tx.task.update({
         where: { id: snapshot.id },
         data: {
@@ -745,6 +765,14 @@ export class TasksService {
           recurrenceOpen: snapshot.recurrenceOpen,
         },
       });
+      for (const item of snapshot.checklist ?? [])
+        await tx.checklistItem.updateMany({
+          where: { id: item.id, taskId: snapshot.id, ownerId: user.id, deletedAt: null },
+          data: {
+            status: item.status,
+            completedAt: item.completedAt === null ? null : new Date(item.completedAt),
+          },
+        });
       const detail = await this.load(tx, user, snapshot.id, snapshot.deletedAt !== null);
       await this.record(tx, user, {
         type: DomainEvent.taskUpdated,
@@ -758,7 +786,7 @@ export class TasksService {
   }
 
   async cancel(user: AuthUser, id: string): Promise<TaskDetail> {
-    return this.prisma.$transaction(async (tx) => {
+    return this.transaction(async (tx) => {
       const current = await this.require(tx, user.id, id, false);
       if (current.status === 'cancelled') {
         return this.load(tx, user, id, false);
@@ -797,7 +825,7 @@ export class TasksService {
   }
 
   async remove(user: AuthUser, id: string): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
+    await this.transaction(async (tx) => {
       await this.require(tx, user.id, id, false);
       const now = new Date();
       const existing = await this.require(tx, user.id, id, false);
@@ -840,6 +868,12 @@ export class TasksService {
     keyRaw: string | undefined,
   ): Promise<Saved> {
     const key = normalizeIdempotencyKey(keyRaw);
+    const planningTx = this.planningTx.getStore();
+    if (user.requestSource === 'plan' && planningTx)
+      return this.completeIn(planningTx, user, id, dto.complete_children ?? null, {
+        advance: dto.advance ?? 'one_period',
+        materializeNext: false,
+      }).then((body) => ({ statusCode: 200, body, replayed: false }));
     return this.idempotency.run({
       ownerId: user.id,
       key,
@@ -858,7 +892,7 @@ export class TasksService {
     id: string,
     source: 'api' | 'mcp' | 'web' | 'plan' = user.sessionId === null ? 'api' : 'web',
   ): Promise<TaskDetail> {
-    return this.prisma.$transaction(async (tx) => {
+    return this.transaction(async (tx) => {
       const current = await this.require(tx, user.id, id, false);
       if (current.status !== 'completed' && current.status !== 'cancelled') {
         throw new DomainException(
@@ -992,7 +1026,7 @@ export class TasksService {
     title: string | undefined,
     source: 'manual' | 'api' | 'mcp' = user.sessionId === null ? 'api' : 'manual',
   ): Promise<TaskDetail> {
-    return this.prisma.$transaction(async (tx) => {
+    return this.transaction(async (tx) => {
       const current = await this.require(tx, user.id, id, false);
       if (current.repeatRule === null || current.seriesId === null) {
         throw new DomainException(

@@ -25,7 +25,7 @@ export function DurationChips({
             onChange(n);
           }}
         >
-          {n === 60 ? '1 h' : `${n} min`}
+          {n === 60 ? '1 h' : `${String(n)} min`}
         </button>
       ))}
       <button
@@ -33,7 +33,9 @@ export function DurationChips({
         role="radio"
         aria-checked={custom}
         className={`sp-chip ${custom ? 'is-on' : ''}`}
-        onClick={() => setCustom(true)}
+        onClick={() => {
+          setCustom(true);
+        }}
       >
         {m.other}
       </button>

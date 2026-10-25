@@ -26,6 +26,7 @@ export function useTriageDrag(input: {
     touch: boolean;
     timer: ReturnType<typeof setTimeout> | null;
   } | null>(null);
+  const [active, setActive] = useState(false);
   const [ghost, setGhost] = useState<Ghost | null>(null);
   const target = useRef<Ghost | null>(null);
   const start =
@@ -48,7 +49,10 @@ export function useTriageDrag(input: {
       };
       if (event.pointerType === 'touch')
         pending.current.timer = setTimeout(() => {
-          if (pending.current) pending.current.active = true;
+          if (pending.current) {
+            pending.current.active = true;
+            setActive(true);
+          }
         }, 300);
     };
   useEffect(() => {
@@ -66,6 +70,7 @@ export function useTriageDrag(input: {
         }
         if (distance < 5) return;
         p.active = true;
+        setActive(true);
       }
       event.preventDefault();
       const { range, session, duration } = latest.current;
@@ -74,7 +79,7 @@ export function useTriageDrag(input: {
       const node = document.elementFromPoint(event.clientX, event.clientY);
       const chip = node?.closest<HTMLElement>('[data-plan-day]');
       const agenda = node?.closest<HTMLElement>('[data-plan-agenda]');
-      let date = chip?.dataset.planDay ?? agenda?.dataset.planAgenda;
+      const date = chip?.dataset.planDay ?? agenda?.dataset.planAgenda;
       if (!date) {
         target.current = null;
         setGhost(null);
@@ -103,9 +108,9 @@ export function useTriageDrag(input: {
             .filter((t) => t.id !== p.id && !t.is_all_day && t.start_date)
             .map((t) => ({
               id: t.id,
-              start: t.start_date!,
+              start: t.start_date ?? '',
               end: new Date(
-                Date.parse(t.start_date!) + (t.duration_minutes ?? 30) * 60000,
+                Date.parse(t.start_date ?? '') + (t.duration_minutes ?? 30) * 60000,
               ).toISOString(),
               title: t.title,
             })),
@@ -150,16 +155,21 @@ export function useTriageDrag(input: {
           e.stopImmediatePropagation();
         };
         window.addEventListener('click', stop, { capture: true, once: true });
+        setTimeout(() => {
+          window.removeEventListener('click', stop, true);
+        }, 0);
       }
       pending.current = null;
       target.current = null;
       setGhost(null);
+      setActive(false);
     };
     const cancel = () => {
       if (pending.current?.timer) clearTimeout(pending.current.timer);
       pending.current = null;
       target.current = null;
       setGhost(null);
+      setActive(false);
     };
     window.addEventListener('pointermove', move, { passive: false });
     window.addEventListener('pointerup', end);
@@ -171,5 +181,5 @@ export function useTriageDrag(input: {
       window.removeEventListener('pointercancel', cancel);
     };
   }, []);
-  return { start, ghost };
+  return { start, ghost, active };
 }

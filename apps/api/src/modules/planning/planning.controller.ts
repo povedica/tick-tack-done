@@ -74,7 +74,7 @@ class StartPlanDto {
 }
 
 class DecisionDto {
-  @ApiProperty({ enum: DECISIONS })
+  @ApiProperty({ required: false, enum: DECISIONS })
   @IsIn(DECISIONS)
   @IsOptional()
   decision?: PlanDecisionKind;
@@ -214,7 +214,7 @@ export class PlanningController {
         user,
         id,
         taskId,
-        choice === undefined ? body.decision! : storedDecision(choice.action),
+        choice === undefined ? (body.decision ?? 'skip') : storedDecision(choice.action),
         body.target_date ?? null,
         choice,
       ),

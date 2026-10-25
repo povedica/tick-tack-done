@@ -677,7 +677,7 @@ const CATALOG: readonly McpTool[] = [
   {
     name: 'get_day_load',
     description:
-      'Day load for a morning briefing. Counts active tasks (duration or the default estimate) plus external events overlapping the workday. Evening and Someday tasks do not count. All-day events count as zero. available_minutes is null when the workday is off.',
+      'Day load in the profile time zone. days=1..14 returns the day rail, agenda and free slots. Multi-day tasks count only their daily overlap; overdue work counts today. Evening and Someday tasks do not count.',
     scopes: ['tasks:read'],
     inputSchema: objectSchema({
       date: { type: 'string' },
@@ -738,7 +738,7 @@ const CATALOG: readonly McpTool[] = [
   {
     name: 'replan_day',
     description:
-      'Only today or past dates are allowed; candidates are overdue before today in the user time zone. Propose where leftover tasks should go. auto_apply defaults to false so a person can confirm before anything moves. Does not place calendar blocks.',
+      'Alias of start_day_plan: review pending tasks in the same triage. Nothing changes until apply_day_plan. Record explicit actions with record_plan_decision.',
     scopes: ['tasks:write'],
     inputSchema: objectSchema({
       date: { type: 'string' },

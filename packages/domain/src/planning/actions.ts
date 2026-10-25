@@ -25,6 +25,7 @@ export interface PlanningPatch {
   readonly time_zone?: string;
   readonly duration_minutes?: number;
   readonly someday?: boolean;
+  readonly evening_only?: boolean;
 }
 export function actionDate(choice: PlanningAction, localDate: string): string | null {
   return choice.action === 'today'
@@ -66,6 +67,7 @@ export function effectOf(
       is_all_day: true,
       time_zone: timeZone,
       someday: false,
+      evening_only: false,
       ...(choice.duration === undefined ? {} : { duration_minutes: choice.duration }),
     };
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(choice.time)) throw new Error('invalid_time');
@@ -80,6 +82,7 @@ export function effectOf(
     is_all_day: false,
     time_zone: timeZone,
     someday: false,
+    evening_only: false,
     duration_minutes: choice.duration ?? defaultDuration,
   };
 }

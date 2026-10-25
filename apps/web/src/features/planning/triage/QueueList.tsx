@@ -33,7 +33,9 @@ export function QueueList({
         aria-valuemax={session.cards.length}
       >
         <span
-          style={{ width: `${session.cards.length ? (count / session.cards.length) * 100 : 0}%` }}
+          style={{
+            width: `${String(session.cards.length ? (count / session.cards.length) * 100 : 0)}%`,
+          }}
         />
       </div>
       <ul>
@@ -47,7 +49,9 @@ export function QueueList({
                 title={card.title}
                 aria-current={i === index ? 'step' : undefined}
                 className={`sp-q ${i === index ? 'is-current' : ''} ${choice ? 'is-done' : ''}`}
-                onClick={() => onSelect(i)}
+                onClick={() => {
+                  onSelect(i);
+                }}
                 onPointerDown={onDrag?.(card.task_id)}
               >
                 {choice ? (

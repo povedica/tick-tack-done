@@ -63,7 +63,7 @@ export class DayClosingService {
     @Inject(EventRecorder) private readonly events: EventRecorder,
   ) {}
 
-  async load(user: AuthUser, date: string, timeZone: string): Promise<Record<string, unknown>> {
+  async load(user: AuthUser, date: string, _timeZone: string): Promise<Record<string, unknown>> {
     const range = await this.range(user, date, 1);
     const days = range.days as Record<string, unknown>[];
     return days[0] ?? {};
@@ -141,6 +141,7 @@ export class DayClosingService {
       result.push({
         ...this.loadJson(date, load),
         unestimated_count: load.unestimatedCount,
+        unestimated_task_ids: load.unestimatedTaskIds,
         slots: freeSlots({
           date,
           timeZone,
@@ -156,9 +157,9 @@ export class DayClosingService {
               .filter((t) => !t.isAllDay && t.startDate !== null)
               .map((t) => ({
                 id: t.id,
-                start: t.startDate!.toISOString(),
+                start: (t.startDate ?? new Date(0)).toISOString(),
                 end: new Date(
-                  t.startDate!.getTime() +
+                  (t.startDate?.getTime() ?? 0) +
                     (t.durationMinutes ?? profile.defaultTaskDuration) * 60000,
                 ).toISOString(),
               })),
@@ -420,7 +421,7 @@ export class DayClosingService {
   async discardReplan(user: AuthUser, id: string): Promise<{ discarded: true }> {
     return this.prisma.$transaction(async (tx) => {
       const session = await tx.planSession.findFirst({
-        where: { id, ownerId: user.id, kind: 'replan' },
+        where: { id, ownerId: user.id, kind: { in: ['plan', 'replan'] } },
       });
       if (session === null)
         throw new DomainException(
@@ -1174,7 +1175,12 @@ export class DayClosingService {
   }
 
   private assertDate(value: string): void {
-    if (!DATE.test(value)) {
+    const parsed = new Date(`${value}T12:00:00Z`);
+    if (
+      !DATE.test(value) ||
+      Number.isNaN(parsed.getTime()) ||
+      parsed.toISOString().slice(0, 10) !== value
+    ) {
       throw new DomainException(
         HttpStatus.BAD_REQUEST,
         'validation_failed',

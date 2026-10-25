@@ -230,7 +230,8 @@ export class McpService {
     authorization?: string,
   ): Promise<unknown> {
     const limit = limitOf(args);
-    if (isPlanningTool(name)) return callPlanningTool(name, args, user, authorization);
+    if (isPlanningTool(name) && (name !== 'replan_day' || authorization !== undefined))
+      return callPlanningTool(name, args, user, authorization);
     switch (name) {
       case 'list_tasks': {
         const projectId = uuidOrEmpty(args.project_id);

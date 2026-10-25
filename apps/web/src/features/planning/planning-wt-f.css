@@ -1192,3 +1192,220 @@
 .plan-triage .sp-q {
   touch-action: pan-y;
 }
+
+@media (min-width: 769px) {
+  .shell:has(.plan-triage) {
+    grid-template-columns: var(--sidebar-rail) 0 minmax(0, 1fr) 0;
+  }
+  .shell:has(.plan-triage) > .sidebar {
+    visibility: hidden;
+    overflow: hidden;
+  }
+  .plan-triage .sp-card {
+    position: relative;
+  }
+  .plan-desktop-controls {
+    display: grid;
+    gap: var(--sp-4);
+    border-top: 1px solid var(--border);
+    padding-top: var(--sp-4);
+  }
+  .plan-triage .sp-primary,
+  .plan-triage .sp-secondary {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+  }
+  .plan-triage .sp-primary .ui-button {
+    min-height: 2.75rem;
+    padding-inline: var(--sp-4);
+  }
+  .plan-triage .plan-time-controls {
+    flex-wrap: nowrap;
+    gap: var(--sp-2);
+  }
+  .plan-triage .sp-dur {
+    flex-wrap: nowrap;
+    gap: var(--sp-1);
+  }
+  .plan-triage .sp-chip {
+    padding-inline: var(--sp-2);
+    white-space: nowrap;
+  }
+  .plan-triage .sp-foot {
+    font-size: 11px;
+  }
+}
+.plan-triage .sp-untimed {
+  margin-top: var(--sp-3);
+}
+.plan-triage .sp-day-bar {
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .plan-summary-extra {
+    display: none !important;
+  }
+  .plan-triage .sp-sum-actions {
+    display: flex;
+    flex-direction: column-reverse;
+    gap: var(--sp-3);
+  }
+  .plan-triage .sp-sum-actions > .ui-button {
+    width: 100%;
+    min-height: var(--tap);
+  }
+}
+
+.plan-touch-destinations {
+  display: none;
+}
+@media (max-width: 768px) {
+  .plan-touch-destinations {
+    display: block;
+    position: fixed;
+    top: var(--sp-2);
+    left: var(--sp-3);
+    right: var(--sp-3);
+    padding: var(--sp-2);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: var(--radius-md);
+    box-shadow: var(--calendar-drag-lift-shadow);
+    z-index: 30;
+  }
+}
+
+.plan-triage .sp-desc a {
+  color: var(--accent-ink);
+}
+.plan-triage .plan-mobile-actions button:nth-child(2) {
+  color: var(--accent-ink);
+}
+
+.plan-triage .sp-foot > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.plan-prior-choice {
+  color: var(--ink-3);
+  font-size: var(--fs-sm);
+  margin: 0;
+}
+
+.plan-triage .sp-task {
+  overflow-wrap: anywhere;
+}
+.plan-triage .sp-file {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.plan-triage .sp-load.is-over {
+  color: var(--danger-ink);
+}
+.plan-triage .sp-load.is-tight {
+  color: var(--ink-2);
+}
+
+.plan-when-popover {
+  padding: var(--sp-5);
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+.plan-when-popover h2 {
+  margin: 0 0 var(--sp-4);
+  font-size: var(--fs-lg);
+}
+.plan-when-popover .sp-rail {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+.plan-when-popover .sp-days {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  flex: 1;
+  min-width: 0;
+}
+.plan-when-popover .sp-rail > button {
+  border: 0;
+  padding: var(--sp-1);
+  background: none;
+  color: var(--ink-3);
+}
+.plan-when-popover .sp-day i {
+  width: 60%;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--success);
+}
+.plan-when-popover .sp-day.is-tight i {
+  background: var(--warning);
+}
+.plan-when-popover .sp-day.is-over i {
+  background: var(--danger);
+}
+.plan-when-popover .sp-day.is-off i {
+  background: var(--border);
+}
+.plan-when-popover .sp-day.is-off {
+  color: var(--ink-3);
+}
+.plan-triage .sp-summary {
+  flex: 1;
+  min-height: 0;
+  padding: var(--sp-4) var(--sp-6);
+}
+.plan-triage .sp-summary > h1,
+.plan-triage .sp-summary > p {
+  text-align: center;
+}
+.plan-triage .sp-summary > p {
+  color: var(--ink-3);
+  font-size: var(--fs-sm);
+}
+.plan-triage .sp-sum-cols {
+  margin: var(--sp-6) auto;
+}
+.plan-triage .sp-sum-col h2 {
+  font-size: var(--fs-md);
+  margin: 0 0 var(--sp-3);
+}
+.plan-triage .sp-summary li {
+  padding: var(--sp-2) 0;
+}
+.plan-triage .sp-sum-actions {
+  display: flex;
+  justify-content: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4) 0;
+  position: sticky;
+  bottom: 0;
+  background: var(--surface);
+}
+@media (max-width: 768px) {
+  .plan-triage .sp-summary {
+    padding: var(--sp-3) 0;
+  }
+  .plan-triage .sp-sum-cols {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--sp-4);
+  }
+  .plan-triage .sp-sum-col {
+    padding: var(--sp-4);
+  }
+  .plan-when-popover.is-bottom-sheet {
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+  .plan-triage .sp-summary > h1,
+  .plan-triage .sp-summary > p {
+    text-align: start;
+  }
+}

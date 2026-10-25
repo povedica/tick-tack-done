@@ -23,6 +23,8 @@ export function useTriageKeys(handle: (event: KeyboardEvent) => boolean) {
       }
     };
     window.addEventListener('keydown', listener, true);
-    return () => window.removeEventListener('keydown', listener, true);
+    return () => {
+      window.removeEventListener('keydown', listener, true);
+    };
   }, []);
 }

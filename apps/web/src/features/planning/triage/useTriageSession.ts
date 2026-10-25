@@ -1,8 +1,9 @@
+import { runAction } from '../../../components/run-action';
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../../../api';
 import { planningRequest, type Choice, type PlanSession, type LoadRange } from '../api';
-import type { PlanningAction, PlanSources } from '@reflexionia/domain';
+import { shiftCivilDate, type PlanningAction, type PlanSources } from '@reflexionia/domain';
 export function useTriageSession() {
   const cache = useQueryClient();
   const [session, setSession] = useState<PlanSession | null>(null);
@@ -12,6 +13,9 @@ export function useTriageSession() {
   const [error, setError] = useState<string | null>(null);
   const [review, setReview] = useState(false);
   const [notice, setNotice] = useState('');
+  useEffect(() => {
+    if (review) setNotice('');
+  }, [review]);
   const [owner, setOwner] = useState('');
   const [sources, setSources] = useState<PlanSources>({
     today: true,
@@ -28,15 +32,17 @@ export function useTriageSession() {
     owner: string;
     sources: PlanSources;
   }> | null>(null);
+  const requestedDate = useRef<string | null>(null);
   async function prepare() {
     const me = await api.getMe();
     const zone = me.time_zone;
-    const date = new Intl.DateTimeFormat('en-CA', {
+    const today = new Intl.DateTimeFormat('en-CA', {
       timeZone: zone,
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
     }).format(new Date());
+    const date = requestedDate.current ?? today;
     let stored: Partial<PlanSources> = {};
     try {
       stored = JSON.parse(
@@ -66,31 +72,53 @@ export function useTriageSession() {
     initial.current = null;
     const promise = prepare();
     initial.current = promise;
-    void promise
-      .then((data) => {
-        setSession(data.session);
-        setLoad(data.load);
-        setOwner(data.owner);
-        setSources(data.sources);
-      })
-      .catch((reason: unknown) => setError(String(reason)));
+    runAction(
+      promise
+        .then((data) => {
+          setSession(data.session);
+          setIndex(
+            Math.max(
+              0,
+              data.session.cards.findIndex(
+                (card) => !data.session.decisions.some((d) => d.task_id === card.task_id),
+              ),
+            ),
+          );
+          setLoad(data.load);
+          setOwner(data.owner);
+          setSources(data.sources);
+        })
+        .catch((reason: unknown) => {
+          setError(String(reason));
+        }),
+    );
   }
   useEffect(() => {
     let mounted = true;
     const promise = initial.current ?? prepare();
     initial.current = promise;
-    void promise
-      .then((data) => {
-        if (mounted) {
-          setSession(data.session);
-          setLoad(data.load);
-          setOwner(data.owner);
-          setSources(data.sources);
-        }
-      })
-      .catch((reason: unknown) => {
-        if (mounted) setError(String(reason));
-      });
+    runAction(
+      promise
+        .then((data) => {
+          if (mounted) {
+            setSession(data.session);
+            setIndex(
+              Math.max(
+                0,
+                data.session.cards.findIndex(
+                  (card) => !data.session.decisions.some((d) => d.task_id === card.task_id),
+                ),
+              ),
+            );
+            setLoad(data.load);
+            setOwner(data.owner);
+            setSources(data.sources);
+          }
+        })
+        .catch((reason: unknown) => {
+          if (mounted) setError(String(reason));
+        }),
+    );
     return () => {
       mounted = false;
     };
@@ -103,6 +131,13 @@ export function useTriageSession() {
     setError(null);
     try {
       const previous = session.decisions.find((d) => d.task_id === taskId);
+      setSession({
+        ...session,
+        decisions: [
+          ...session.decisions.filter((d) => d.task_id !== taskId),
+          { task_id: taskId, ...choice },
+        ],
+      });
       const next = await planningRequest<PlanSession>(
         `/api/v1/planning/sessions/${session.id}/decisions/${taskId}`,
         'PUT',
@@ -120,6 +155,7 @@ export function useTriageSession() {
       if (nextIndex < 0) setReview(true);
       else setIndex(nextIndex);
     } catch (reason) {
+      setSession(session);
       setError(String(reason));
     } finally {
       setBusy(false);
@@ -193,7 +229,24 @@ export function useTriageSession() {
       await cache.invalidateQueries();
       return result.operation_id;
     } catch (reason) {
-      setError(String(reason));
+      const message = reason instanceof Error ? reason.message : String(reason);
+      try {
+        const body = JSON.parse(message) as {
+          error?: { code?: string; details?: { task_ids?: string[] } };
+        };
+        if (body.error?.code === 'plan_conflict') {
+          let next = session;
+          for (const id of body.error.details?.task_ids ?? [])
+            next = await planningRequest<PlanSession>(
+              `/api/v1/planning/sessions/${session.id}/decisions/${id}`,
+              'DELETE',
+            );
+          setSession(next);
+        }
+      } catch {
+        /* The original confirmation error remains visible. */
+      }
+      setError(message);
       return null;
     } finally {
       setBusy(false);
@@ -220,6 +273,16 @@ export function useTriageSession() {
     addSource,
     apply,
     retry,
+    planTomorrow: () => {
+      requestedDate.current = shiftCivilDate(
+        session?.local_date ?? new Date().toISOString().slice(0, 10),
+        1,
+      );
+      setSession(null);
+      setReview(false);
+      setIndex(0);
+      retry();
+    },
   };
 }
 export type TriageSession = ReturnType<typeof useTriageSession>;

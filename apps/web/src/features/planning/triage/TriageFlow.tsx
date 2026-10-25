@@ -1,3 +1,7 @@
+import { useActionToast } from '../../../components/action-toast';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { planningRequest, type LoadRange } from '../api';
+import { runAction } from '../../../components/run-action';
 import { useTriageDrag } from './useTriageDrag';
 import { DayRail } from './DayRail';
 import { DayAgenda } from './DayAgenda';
@@ -34,6 +38,7 @@ import { WhenSheet } from './WhenSheet';
 import { SummaryView } from './SummaryView';
 import '../planning-wt-f.css';
 export function TriageFlow() {
+  const cache = useQueryClient();
   const state = useTriageSession(),
     m = useWtFMessages(),
     locale = useAppLocale(),
@@ -46,11 +51,37 @@ export function TriageFlow() {
     [selected, setSelected] = useState('');
   const anchor = useRef<HTMLButtonElement>(null);
   const [help, setHelp] = useState(false);
+  const queuedReview = useRef(false);
+  useEffect(() => {
+    if (!busy && queuedReview.current) {
+      queuedReview.current = false;
+      if (session?.decisions.some((d) => d.action !== 'skip')) state.setReview(true);
+    }
+  }, [busy, session?.revision]);
   useTriageKeys((event) => {
-    if (busy) return false;
+    if (busy) {
+      if (event.key === 'Enter') queuedReview.current = true;
+      return [
+        'h',
+        'm',
+        'o',
+        'c',
+        'n',
+        'a',
+        'Delete',
+        ' ',
+        'Enter',
+        'ArrowLeft',
+        'ArrowRight',
+        '1',
+        '2',
+        '3',
+        '4',
+      ].includes(event.key);
+    }
     const key = event.key.toLowerCase();
     if ((event.ctrlKey || event.metaKey) && key === 'z') {
-      void state.undo();
+      runAction(state.undo());
       return true;
     }
     if (event.ctrlKey || event.metaKey || event.altKey) return false;
@@ -67,7 +98,7 @@ export function TriageFlow() {
     }
     if (help || when) return false;
     if (key === 'enter') {
-      if (state.review) void confirm();
+      if (state.review) runAction(confirm());
       else if (session?.decisions.some((d) => d.action !== 'skip')) state.setReview(true);
       return true;
     }
@@ -117,21 +148,33 @@ export function TriageFlow() {
   useEffect(() => {
     if (session && !selected) setSelected(session.local_date);
   }, [session, selected]);
-  const projected = load && session ? projectPlan(load, session) : load;
+  const customLoad = useQuery({
+    queryKey: ['planning-custom-load', selected, load?.time_zone],
+    enabled: load !== null && selected !== '' && !load.days.some((d) => d.date === selected),
+    queryFn: () =>
+      planningRequest<LoadRange>(`/api/v1/planning/load?from=${selected}&days=1`, 'GET'),
+  });
+  const range =
+    load && customLoad.data && !load.days.some((d) => d.date === selected)
+      ? { ...load, days: [...load.days, ...customLoad.data.days] }
+      : load;
+  const projected = range && session ? projectPlan(range, session) : range;
   const drag = useTriageDrag({
     session,
     range: projected,
     duration,
     onDrop: (date, time, id) => {
       setSelected(date);
-      void state.decide(
-        {
-          action: 'move',
-          date,
-          ...(time ? { time } : {}),
-          ...(time || touched ? { duration } : {}),
-        },
-        id,
+      runAction(
+        state.decide(
+          {
+            action: 'move',
+            date,
+            ...(time ? { time } : {}),
+            ...(time || touched ? { duration } : {}),
+          },
+          id,
+        ),
       );
     },
   });
@@ -144,8 +187,10 @@ export function TriageFlow() {
       .filter((t) => !t.is_all_day && t.start_date && t.id !== card?.task_id)
       .map((t) => ({
         id: t.id,
-        start: t.start_date!,
-        end: new Date(Date.parse(t.start_date!) + (t.duration_minutes ?? 30) * 60000).toISOString(),
+        start: t.start_date ?? '',
+        end: new Date(
+          Date.parse(t.start_date ?? '') + (t.duration_minutes ?? 30) * 60000,
+        ).toISOString(),
       })),
   ];
   const slots = load
@@ -168,25 +213,32 @@ export function TriageFlow() {
       setWhen(true);
       return;
     }
-    void state.decide({
-      action,
-      ...(time ? { time } : {}),
-      ...(touched || time ? { duration } : {}),
-    });
+    runAction(
+      state.decide({
+        action,
+        ...(time ? { time } : {}),
+        ...(touched || time ? { duration } : {}),
+      }),
+    );
   }
   async function confirm() {
     const operation = await state.apply();
-    if (operation)
-      navigate('/today', {
-        state: {
-          planUndo: {
-            id: operation,
-            count: session?.decisions.filter((d) => d.action !== 'skip').length ?? 0,
-          },
-        },
+    if (operation) {
+      const count = session?.decisions.filter((d) => d.action !== 'skip').length ?? 0;
+      useActionToast.getState().show(`${m.saved} · ${String(count)} ${m.changes}`, () => {
+        runAction(
+          planningRequest(`/api/v1/planning/operations/${operation}/revert`, 'POST').then(() =>
+            cache.invalidateQueries(),
+          ),
+        );
       });
+      await navigate('/today');
+    }
   }
-  const exit = () => navigate('/today');
+
+  const exit = () => {
+    runAction(Promise.resolve(navigate('/today')));
+  };
   if (!session || !load)
     return (
       <section className="screen-page plan-loading">
@@ -212,7 +264,7 @@ export function TriageFlow() {
       : '';
   const title = session.cards.find((c) => c.task_id === state.notice)?.title ?? '';
   return (
-    <section className={`sp-page plan-triage ${drag.ghost ? 'is-dragging' : ''}`} aria-busy={busy}>
+    <section className={`sp-page plan-triage ${drag.active ? 'is-dragging' : ''}`} aria-busy={busy}>
       <header className="sp-head plan-desktop-only">
         <div>
           <h1>{m.title}</h1>
@@ -226,7 +278,9 @@ export function TriageFlow() {
           <Button
             variant="ghost"
             disabled={!state.history.length || busy}
-            onClick={() => void state.undo()}
+            onClick={() => {
+              runAction(state.undo());
+            }}
           >
             <Undo2 size={16} />
             {m.undo}
@@ -245,14 +299,22 @@ export function TriageFlow() {
                     type="checkbox"
                     checked={state.sources[key]}
                     disabled={busy}
-                    onChange={() => void state.addSource(key)}
+                    onChange={() => {
+                      runAction(state.addSource(key));
+                    }}
                   />
                   {m[key]}
                 </label>
               ))}
             </div>
           </details>
-          <Button variant="primary" disabled={!count || busy} onClick={() => state.setReview(true)}>
+          <Button
+            variant="primary"
+            disabled={!count || busy}
+            onClick={() => {
+              state.setReview(true);
+            }}
+          >
             {m.review} ({count})
           </Button>
         </div>
@@ -264,7 +326,13 @@ export function TriageFlow() {
         <span>
           {state.index + 1} / {session.cards.length}
         </span>
-        <Button variant="ghost" disabled={state.index === 0} onClick={() => state.navigate(-1)}>
+        <Button
+          variant="ghost"
+          disabled={state.index === 0}
+          onClick={() => {
+            state.navigate(-1);
+          }}
+        >
           <ChevronLeft size={17} />
           {m.back}
         </Button>
@@ -272,7 +340,9 @@ export function TriageFlow() {
           variant="icon"
           aria-label={m.undo}
           disabled={!state.history.length || busy}
-          onClick={() => void state.undo()}
+          onClick={() => {
+            runAction(state.undo());
+          }}
         >
           <Undo2 size={19} />
         </Button>
@@ -280,22 +350,29 @@ export function TriageFlow() {
       {state.error ? (
         <ErrorState
           title={m.failed}
-          detail={m.kept}
+          detail={state.error.includes('plan_conflict') ? m.conflict : m.kept}
           retryLabel={m.retry}
-          onRetry={() => void confirm()}
+          onRetry={() => {
+            runAction(confirm());
+          }}
         />
       ) : null}
       <div className="plan-live" aria-live="polite">
         {card
-          ? `${m.current} ${state.index + 1} ${m.of} ${session.cards.length}: ${card.title}`
+          ? `${m.current} ${String(state.index + 1)} ${m.of} ${String(session.cards.length)}: ${card.title}`
           : ''}
       </div>
       {state.review ? (
         <SummaryView
           session={session}
-          onBack={() => state.setReview(false)}
-          onConfirm={() => void confirm()}
+          onBack={() => {
+            state.setReview(false);
+          }}
+          onConfirm={() => {
+            runAction(confirm());
+          }}
           busy={busy}
+          {...(projected?.days[0] ? { load: projected.days[0] } : {})}
         />
       ) : !card ? (
         <EmptyState
@@ -304,8 +381,7 @@ export function TriageFlow() {
           action={
             <Button
               onClick={() => {
-                setSelected(session.local_date);
-                setWhen(true);
+                state.planTomorrow();
               }}
             >
               {m.nextDay}
@@ -342,11 +418,23 @@ export function TriageFlow() {
             <TaskCard
               card={card}
               date={session.local_date}
+              zone={session.time_zone}
               duration={duration}
-              onDuration={() => setWhen(true)}
+              onDuration={() => {
+                setWhen(true);
+              }}
               drag={drag.start(card.task_id)}
             >
-              <MoreMenu onAction={action} busy={busy} />
+              {chosen ? (
+                <p className="plan-prior-choice">
+                  {m[chosen.action]}
+                  {chosen.date ? ` · ${chosen.date}` : ''}
+                  {chosen.time ? `, ${chosen.time}` : ''}
+                </p>
+              ) : null}
+              <div className="plan-mobile-only">
+                <MoreMenu onAction={action} busy={busy} />
+              </div>
               <div className="plan-desktop-controls">
                 <div className="plan-time-controls">
                   <DurationChips value={duration} onChange={changeDuration} />
@@ -364,7 +452,9 @@ export function TriageFlow() {
                       key={a}
                       disabled={busy}
                       {...(a === 'move' ? { ref: anchor } : {})}
-                      onClick={() => action(a)}
+                      onClick={() => {
+                        action(a);
+                      }}
                     >
                       <Icon size={17} />
                       {m[a]}
@@ -373,16 +463,29 @@ export function TriageFlow() {
                   ))}
                 </div>
                 <div className="sp-secondary">
-                  <Button variant="ghost" disabled={busy} onClick={() => action('done')}>
+                  <Button
+                    variant="ghost"
+                    disabled={busy}
+                    onClick={() => {
+                      action('done');
+                    }}
+                  >
                     <Check size={16} />
                     {m.done}
                     <Kbd>C</Kbd>
                   </Button>
-                  <Button variant="ghost" disabled={busy} onClick={() => action('wont_do')}>
+                  <Button
+                    variant="ghost"
+                    disabled={busy}
+                    onClick={() => {
+                      action('wont_do');
+                    }}
+                  >
                     <Ban size={16} />
                     {m.wont_do}
                     <Kbd>N</Kbd>
                   </Button>
+                  <MoreMenu onAction={action} busy={busy} />
                 </div>
               </div>
             </TaskCard>
@@ -394,7 +497,8 @@ export function TriageFlow() {
           </div>
           <aside className="plan-day-sidebar">
             <DayRail
-              days={projected?.days ?? []}
+              days={projected?.days.slice(0, 14) ?? []}
+              dropDate={drag.ghost?.date ?? null}
               selected={selected}
               onSelect={(date) => {
                 setSelected(date);
@@ -417,7 +521,9 @@ export function TriageFlow() {
           <Button
             className="plan-mobile-review"
             disabled={!count}
-            onClick={() => state.setReview(true)}
+            onClick={() => {
+              state.setReview(true);
+            }}
           >
             {m.review} ({count})
           </Button>
@@ -435,7 +541,9 @@ export function TriageFlow() {
           }}
           onTime={setTime}
           onDuration={changeDuration}
-          onClose={() => setWhen(false)}
+          onClose={() => {
+            setWhen(false);
+          }}
           onConfirm={() => {
             const choice = {
               action: 'move' as const,
@@ -446,12 +554,13 @@ export function TriageFlow() {
             const patch = effectOf(choice, session.local_date, session.time_zone);
             if (patch && time && !slots.includes(time)) return;
             setWhen(false);
-            void state.decide(choice);
+            runAction(state.decide(choice));
           }}
           anchor={anchor}
           days={
             <DayRail
-              days={projected?.days ?? []}
+              days={projected?.days.slice(0, 14) ?? []}
+              dropDate={drag.ghost?.date ?? null}
               selected={selected}
               onSelect={(date) => {
                 setSelected(date);
@@ -461,15 +570,35 @@ export function TriageFlow() {
           }
         />
       ) : null}
+      {drag.active ? (
+        <div className="plan-touch-destinations">
+          <DayRail
+            days={projected?.days.slice(0, 14) ?? []}
+            dropDate={drag.ghost?.date ?? null}
+            selected={selected}
+            onSelect={setSelected}
+          />
+        </div>
+      ) : null}
       {!state.review ? <ShortcutFooter /> : null}
-      {help ? <TriageHelp onClose={() => setHelp(false)} /> : null}
+      {help ? (
+        <TriageHelp
+          onClose={() => {
+            setHelp(false);
+          }}
+        />
+      ) : null}
       <UndoToastStack
         durationMs={5000}
         items={state.notice ? [{ id: state.notice, title: `${title} → ${destination}` }] : []}
         message="{name}"
         undoLabel={m.undo}
-        onUndo={() => void state.undo()}
-        onExpire={() => state.setNotice('')}
+        onUndo={() => {
+          runAction(state.undo());
+        }}
+        onExpire={() => {
+          state.setNotice('');
+        }}
       />
     </section>
   );

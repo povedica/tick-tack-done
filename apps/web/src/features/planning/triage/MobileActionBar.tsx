@@ -20,7 +20,14 @@ export function MobileActionBar({
           ['wont_do', Ban],
         ] as const
       ).map(([action, Icon]) => (
-        <button key={action} type="button" disabled={busy} onClick={() => onAction(action)}>
+        <button
+          key={action}
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            onAction(action);
+          }}
+        >
           <Icon size={20} />
           <span>{m[action]}</span>
         </button>

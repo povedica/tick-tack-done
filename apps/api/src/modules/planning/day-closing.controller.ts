@@ -115,7 +115,11 @@ export class DayClosingController {
   @ApiQuery({ name: 'date', required: false })
   @ApiQuery({ name: 'from', required: false })
   @ApiQuery({ name: 'days', required: false, type: Number })
-  @ApiQuery({ name: 'time_zone', required: true })
+  @ApiQuery({
+    name: 'time_zone',
+    required: false,
+    description: 'Compatibility parameter; the profile time zone is authoritative.',
+  })
   async load(
     @CurrentUser() user: AuthUser,
     @Query('date') date: string,

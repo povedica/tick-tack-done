@@ -15,10 +15,22 @@ export function MoreMenu({
         <MoreHorizontal size={18} />
       </summary>
       <div>
-        <button type="button" disabled={busy} onClick={() => onAction('someday')}>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            onAction('someday');
+          }}
+        >
           {m.someday}
         </button>
-        <button type="button" disabled={busy} onClick={() => onAction('delete')}>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            onAction('delete');
+          }}
+        >
           {m.delete}
         </button>
       </div>

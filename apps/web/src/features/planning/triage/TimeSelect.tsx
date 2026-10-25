@@ -39,7 +39,9 @@ export function TimeSelect({
           aria-label={m.otherTime}
           type="time"
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => {
+            onChange(e.target.value);
+          }}
         />
       ) : null}
     </div>
