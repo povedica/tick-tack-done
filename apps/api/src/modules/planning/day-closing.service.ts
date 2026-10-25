@@ -3,6 +3,7 @@ import { Prisma, type PlanDecision, type PlanSession } from '@prisma/client';
 import {
   civilDateKey,
   effectOf,
+  freeSlots,
   dayLoad,
   featureEnabled,
   formatDayLoadLine,
@@ -131,6 +132,29 @@ export class DayClosingService {
       result.push({
         ...this.loadJson(date, load),
         unestimated_count: load.unestimatedCount,
+        slots: freeSlots({
+          date,
+          timeZone,
+          duration: profile.defaultTaskDuration,
+          workDayStart: load.availableMinutes === null ? null : profile.workDayStart,
+          workDayEnd: profile.workDayEnd,
+          eveningStart: profile.eveningStart,
+          busy: [
+            ...events
+              .filter((e) => !e.isAllDay)
+              .map((e) => ({ id: e.id, start: e.startsAt, end: e.endsAt })),
+            ...tasks
+              .filter((t) => !t.isAllDay && t.startDate !== null)
+              .map((t) => ({
+                id: t.id,
+                start: t.startDate!.toISOString(),
+                end: new Date(
+                  t.startDate!.getTime() +
+                    (t.durationMinutes ?? profile.defaultTaskDuration) * 60000,
+                ).toISOString(),
+              })),
+          ],
+        }),
         tasks: tasks.map((t) => ({
           id: t.id,
           title: t.title,
