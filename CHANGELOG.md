@@ -5,6 +5,8 @@
 - Ajustes: controles de una línea más compactos, con espacio vertical en las filas
   de Foco y áreas táctiles conservadas. Sombra suave en el panel y la navegación
   de Ajustes en ambos temas, sin cambios de comportamiento (RF-1201/1203/1205).
+- Flechas de los selectores de Ajustes con margen derecho y espacio reservado
+  para que no se solapen con el texto; colores adaptados al tema.
 
 ## Staging — Telegram por usuario y Resend (23 de octubre de 2026)
 
