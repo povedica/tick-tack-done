@@ -65,6 +65,44 @@ describe('F day planning', () => {
       .expect(422)
       .expect((res) => expect(res.body.error.code).toBe('nothing_to_apply'));
   });
+  it('F-AC-29: reverts a plan idempotently and rejects edits made after confirmation', async () => {
+    const task = await makeTask();
+    const session = await start();
+    const chosen = await call()
+      .put(`/api/v1/planning/sessions/${session.body.id}/decisions/${task.id}`)
+      .set('X-Dev-User-Email', email)
+      .send({ action: 'today' })
+      .expect(200);
+    const applied = await call()
+      .post(`/api/v1/planning/sessions/${session.body.id}/apply`)
+      .set('X-Dev-User-Email', email)
+      .set('Idempotency-Key', randomUUID())
+      .send({ expected_revision: chosen.body.revision })
+      .expect(200);
+    for (let i = 0; i < 2; i += 1)
+      await call()
+        .post(`/api/v1/planning/operations/${applied.body.operation_id}/revert`)
+        .set('X-Dev-User-Email', email)
+        .expect(201);
+    expect((await prisma.task.findUniqueOrThrow({ where: { id: task.id } })).startDate).toBeNull();
+    const again = await start();
+    const changed = await call()
+      .put(`/api/v1/planning/sessions/${again.body.id}/decisions/${task.id}`)
+      .set('X-Dev-User-Email', email)
+      .send({ action: 'today' })
+      .expect(200);
+    const saved = await call()
+      .post(`/api/v1/planning/sessions/${again.body.id}/apply`)
+      .set('X-Dev-User-Email', email)
+      .set('Idempotency-Key', randomUUID())
+      .send({ expected_revision: changed.body.revision })
+      .expect(200);
+    await prisma.task.update({ where: { id: task.id }, data: { title: 'Changed externally' } });
+    await call()
+      .post(`/api/v1/planning/operations/${saved.body.operation_id}/revert`)
+      .set('X-Dev-User-Email', email)
+      .expect(409);
+  });
   it('F-AC-2/3/4: preserves deadline, writes only chosen duration and records plan activity', async () => {
     const task = await makeTask();
     const session = await start();

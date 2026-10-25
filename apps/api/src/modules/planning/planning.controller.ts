@@ -235,6 +235,15 @@ export class PlanningController {
     respondJson(req, res, 200, await this.planning.clear(user, id, taskId), false);
   }
 
+  @Post('operations/:id/revert')
+  @Scopes('tasks:write')
+  @ApiOperation({
+    summary: 'Undo an applied day plan; idempotent, 409 if a task changed (F-AC-29)',
+  })
+  async revert(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.planning.revert(user, id);
+  }
+
   @Post('sessions/:id/apply')
   @Scopes('tasks:write')
   @ApiOperation({

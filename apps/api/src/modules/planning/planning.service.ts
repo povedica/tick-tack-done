@@ -1,5 +1,5 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
-import { Prisma, type PlanDecision, type PlanSession } from '@prisma/client';
+import { Prisma, type Task, type PlanDecision, type PlanSession } from '@prisma/client';
 import {
   isIanaTimeZone,
   effectOf,
@@ -35,6 +35,8 @@ interface AppliedEffect {
   readonly task_id: string;
   readonly decision: PlanDecisionKind;
   readonly effect: string;
+  readonly before?: readonly TaskState[];
+  readonly after?: readonly TaskState[];
 }
 
 interface StoredResult {
@@ -298,13 +300,29 @@ export class PlanningService {
     });
     const applied = [...stored.applied];
     for (const decision of pending) {
+      const before = (
+        await this.prisma.task.findMany({
+          where: { ownerId: user.id, OR: [{ id: decision.taskId }, { parentId: decision.taskId }] },
+        })
+      ).map(taskState);
       const effect = await this.applyOne(
         user,
         session,
         decision,
         `${key.trim()}:${decision.taskId}`,
       );
-      applied.push({ task_id: decision.taskId, decision: decision.decision, effect });
+      const after = (
+        await this.prisma.task.findMany({
+          where: { ownerId: user.id, id: { in: before.map((t) => t.id) } },
+        })
+      ).map(taskState);
+      applied.push({
+        task_id: decision.taskId,
+        decision: decision.decision,
+        effect,
+        before,
+        after,
+      });
       await this.prisma.planOperation.update({
         where: { id: operation.id },
         data: { result: jsonValue({ applied }) },
@@ -333,6 +351,86 @@ export class PlanningService {
       }),
     );
     return this.appliedBody(operation.id, session, { applied });
+  }
+
+  async revert(user: AuthUser, operationId: string): Promise<Record<string, unknown>> {
+    return this.prisma.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${user.id}))`;
+        const operation = await this.prisma.planOperation.findFirst({
+          where: { id: operationId, ownerId: user.id },
+        });
+        if (!operation)
+          throw new DomainException(
+            HttpStatus.NOT_FOUND,
+            'operation_not_found',
+            'Plan operation was not found',
+          );
+        if (operation.status === 'reverted')
+          return { operation_id: operationId, reverted: true, replayed: true };
+        if (operation.status !== 'applied')
+          throw new DomainException(
+            HttpStatus.CONFLICT,
+            'operation_not_applied',
+            'Only an applied plan can be reverted',
+          );
+        const result = readResult(operation.result);
+        if (result.applied.some((e) => !e.before || !e.after))
+          throw new DomainException(
+            HttpStatus.CONFLICT,
+            'plan_not_revertible',
+            'This legacy operation has no revert snapshot',
+          );
+        const before = new Map(result.applied.flatMap((e) => e.before ?? []).map((t) => [t.id, t]));
+        const after = new Map(result.applied.flatMap((e) => e.after ?? []).map((t) => [t.id, t]));
+        const current = await this.prisma.task.findMany({
+          where: { ownerId: user.id, id: { in: [...after.keys()] } },
+        });
+        if (
+          current.length !== after.size ||
+          current.some(
+            (row) =>
+              row.version !== after.get(row.id)?.version ||
+              row.updatedAt.toISOString() !== after.get(row.id)?.updatedAt ||
+              (user.listIds !== null && !user.listIds.includes(row.projectId)),
+          )
+        )
+          throw new DomainException(
+            HttpStatus.CONFLICT,
+            'plan_revert_conflict',
+            'A task changed after confirmation; nothing has been reverted',
+          );
+        const context: AuthUser = { ...user, requestSource: 'plan' };
+        for (const saved of before.values()) {
+          const row = current.find((t) => t.id === saved.id);
+          if (!row) continue;
+          if (row.deletedAt !== null && saved.deletedAt === null)
+            await this.tasks.restore(context, row.id);
+          if (row.status !== saved.status && saved.status === 'active')
+            await this.tasks.uncomplete(context, row.id);
+          await this.tasks.update(context, row.id, {
+            start_date: saved.startDate,
+            time_zone: saved.timeZone,
+            is_all_day: saved.isAllDay,
+            duration_minutes: saved.durationMinutes,
+            someday: saved.isSomeday,
+            evening_only: saved.eveningOnly,
+          });
+          await this.clearMemberships(user.id, row.id);
+        }
+        await tx.planOperation.update({ where: { id: operationId }, data: { status: 'reverted' } });
+        await this.events.record(tx, actorOf(context), {
+          type: 'plan.reverted@v1',
+          entityType: 'plan_session',
+          entityId: operation.sessionId,
+          action: 'updated',
+          data: { operation_id: operationId, source: 'plan', task_ids: [...before.keys()] },
+          previous: null,
+        });
+        return { operation_id: operationId, reverted: true, replayed: false };
+      },
+      { timeout: 60000 },
+    );
   }
 
   async day(user: AuthUser, localDate: string, timeZone: string): Promise<Record<string, unknown>> {
@@ -783,7 +881,15 @@ function readResult(value: Prisma.JsonValue): StoredResult {
       if (!isDecision(item.decision)) {
         return [];
       }
-      return [{ task_id: item.task_id, decision: item.decision, effect: item.effect }];
+      return [
+        {
+          task_id: item.task_id,
+          decision: item.decision,
+          effect: item.effect,
+          ...(Array.isArray(item.before) ? { before: item.before as unknown as TaskState[] } : {}),
+          ...(Array.isArray(item.after) ? { after: item.after as unknown as TaskState[] } : {}),
+        },
+      ];
     }),
   };
 }
@@ -822,4 +928,35 @@ function readChoices(value: Prisma.JsonValue): Record<string, PlanningAction> {
   const choices = value.choices;
   if (choices === null || typeof choices !== 'object' || Array.isArray(choices)) return {};
   return choices as unknown as Record<string, PlanningAction>;
+}
+
+interface TaskState {
+  readonly id: string;
+  readonly version: number;
+  readonly updatedAt: string;
+  readonly startDate: string | null;
+  readonly dueDate: string | null;
+  readonly timeZone: string;
+  readonly isAllDay: boolean;
+  readonly durationMinutes: number | null;
+  readonly isSomeday: boolean;
+  readonly eveningOnly: boolean;
+  readonly status: string;
+  readonly deletedAt: string | null;
+}
+function taskState(row: Task): TaskState {
+  return {
+    id: row.id,
+    version: row.version,
+    updatedAt: row.updatedAt.toISOString(),
+    startDate: row.startDate?.toISOString() ?? null,
+    dueDate: row.dueDate?.toISOString() ?? null,
+    timeZone: row.timeZone,
+    isAllDay: row.isAllDay,
+    durationMinutes: row.durationMinutes,
+    isSomeday: row.isSomeday,
+    eveningOnly: row.eveningOnly,
+    status: row.status,
+    deletedAt: row.deletedAt?.toISOString() ?? null,
+  };
 }
