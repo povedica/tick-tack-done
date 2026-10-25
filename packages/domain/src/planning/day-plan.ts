@@ -35,6 +35,20 @@ export interface PlanTaskInput {
   readonly createdAt: string;
   readonly isSomeday?: boolean;
   readonly recurring?: boolean;
+  readonly content?: string;
+  readonly durationMinutes?: number | null;
+  readonly projectColor?: string | null;
+  readonly repeatRule?: string | null;
+  readonly tags?: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly color: string | null;
+  }[];
+  readonly attachments?: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly url: string;
+  }[];
 }
 
 export interface PlanCard {
@@ -53,6 +67,20 @@ export interface PlanCard {
   readonly updatedAt: string;
   readonly rank: number;
   readonly recurring?: boolean;
+  readonly content?: string;
+  readonly durationMinutes?: number | null;
+  readonly projectColor?: string | null;
+  readonly repeatRule?: string | null;
+  readonly tags?: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly color: string | null;
+  }[];
+  readonly attachments?: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly url: string;
+  }[];
 }
 
 export interface PlanQueue {
@@ -277,6 +305,12 @@ function toCard(card: Classified, rank: number): PlanCard {
   return {
     taskId: card.task.id,
     title: card.task.title,
+    content: card.task.content ?? '',
+    durationMinutes: card.task.durationMinutes ?? null,
+    projectColor: card.task.projectColor ?? null,
+    repeatRule: card.task.repeatRule ?? null,
+    tags: card.task.tags ?? [],
+    attachments: card.task.attachments ?? [],
     section: card.section,
     reason: card.reason,
     reasonText: card.reasonText,

@@ -119,6 +119,26 @@ class ApplyPlanDto {
 export class PlanningController {
   constructor(@Inject(PlanningService) private readonly planning: PlanningService) {}
 
+  @Get('candidates')
+  @Scopes('tasks:read')
+  @ApiOperation({ summary: 'Count candidates without creating a session (F-AC-5)' })
+  @ApiQuery({ name: 'date', required: true })
+  @ApiQuery({ name: 'inbox', required: false })
+  @ApiQuery({ name: 'undated', required: false })
+  async candidates(
+    @CurrentUser() user: AuthUser,
+    @Query('date') date: string,
+    @Query('inbox') inbox: string | undefined,
+    @Query('undated') undated: string | undefined,
+  ) {
+    return this.planning.candidates(user, {
+      localDate: date,
+      timeZone: user.timeZone,
+      sources: { today: true, overdue: true, inbox: inbox === 'true', undated: undated === 'true' },
+      limit: null,
+    });
+  }
+
   @Post('sessions')
   @Scopes('tasks:write')
   @ApiOperation({

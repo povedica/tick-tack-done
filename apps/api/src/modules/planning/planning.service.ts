@@ -54,15 +54,10 @@ export class PlanningService {
     @Inject(EventRecorder) private readonly events: EventRecorder,
   ) {}
 
-  async start(
+  private async candidateQueue(
     user: AuthUser,
-    input: {
-      readonly localDate: string;
-      readonly timeZone: string;
-      readonly sources: PlanSources;
-      readonly limit: number | null;
-    },
-  ): Promise<Record<string, unknown>> {
+    input: { localDate: string; timeZone: string; sources: PlanSources; limit: number | null },
+  ) {
     this.assertDate(input.localDate);
     this.assertZone(input.timeZone);
     const rows = await this.prisma.task.findMany({
@@ -74,12 +69,26 @@ export class PlanningService {
         kind: 'task',
         parentId: null,
       },
-      include: { project: { select: { name: true, isInbox: true } } },
+      include: {
+        project: { select: { name: true, isInbox: true, color: true } },
+        tags: { include: { tag: true } },
+        attachments: { where: { deletedAt: null } },
+      },
     });
-    const queue = planQueue(
+    return planQueue(
       rows.map((row) => ({
         id: row.id,
         title: row.title,
+        content: row.content,
+        durationMinutes: row.durationMinutes,
+        projectColor: row.project.color,
+        repeatRule: row.repeatRule,
+        tags: row.tags.map(({ tag }) => ({ id: tag.id, name: tag.name, color: tag.color })),
+        attachments: row.attachments.map((file) => ({
+          id: file.id,
+          name: file.fileName,
+          url: file.webViewLink,
+        })),
         priority: row.priority,
         dueDate: row.dueDate?.toISOString() ?? null,
         startDate: row.startDate?.toISOString() ?? null,
@@ -98,6 +107,27 @@ export class PlanningService {
       })),
       input,
     );
+  }
+
+  async candidates(
+    user: AuthUser,
+    input: { localDate: string; timeZone: string; sources: PlanSources; limit: number | null },
+  ) {
+    const queue = await this.candidateQueue(user, { ...input, timeZone: user.timeZone });
+    return { totals: queue.totals, count: queue.cards.length, hidden_overdue: queue.hiddenOverdue };
+  }
+
+  async start(
+    user: AuthUser,
+    input: {
+      readonly localDate: string;
+      readonly timeZone: string;
+      readonly sources: PlanSources;
+      readonly limit: number | null;
+    },
+  ): Promise<Record<string, unknown>> {
+    input = { ...input, timeZone: user.timeZone };
+    const queue = await this.candidateQueue(user, input);
     const plan = await this.prisma.dayPlan.upsert({
       where: {
         ownerId_localDate_timeZone: {
@@ -109,24 +139,53 @@ export class PlanningService {
       create: { ownerId: user.id, localDate: input.localDate, timeZone: input.timeZone },
       update: {},
     });
-    const session = await this.prisma.planSession.create({
-      data: {
-        planId: plan.id,
-        ownerId: user.id,
-        sources: jsonValue(input.sources),
-        snapshot: jsonValue({
-          cards: queue.cards,
-          hiddenOverdue: queue.hiddenOverdue,
-          totals: queue.totals,
-        }),
-      },
-      include: { decisions: true, plan: true },
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${user.id + ':start-plan'}))`;
+      const existing = await tx.planSession.findFirst({
+        where: { ownerId: user.id, planId: plan.id, state: 'draft', kind: 'plan' },
+        include: { decisions: true, plan: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (existing !== null) {
+        const old = this.snapshot(existing);
+        const merged = [
+          ...queue.cards,
+          ...old.cards.filter(
+            (c) =>
+              !queue.cards.some((n) => n.taskId === c.taskId) &&
+              existing.decisions.some((d) => d.taskId === c.taskId),
+          ),
+        ];
+        const refreshed = await tx.planSession.update({
+          where: { id: existing.id },
+          data: {
+            sources: jsonValue(input.sources),
+            snapshot: jsonValue({
+              ...(existing.snapshot as Prisma.JsonObject),
+              cards: merged,
+              totals: queue.totals,
+              hiddenOverdue: queue.hiddenOverdue,
+            }),
+          },
+          include: { decisions: true, plan: true },
+        });
+        return this.view(refreshed);
+      }
+      const session = await tx.planSession.create({
+        data: {
+          planId: plan.id,
+          ownerId: user.id,
+          sources: jsonValue(input.sources),
+          snapshot: jsonValue({
+            cards: queue.cards,
+            hiddenOverdue: queue.hiddenOverdue,
+            totals: queue.totals,
+          }),
+        },
+        include: { decisions: true, plan: true },
+      });
+      return this.view(session);
     });
-    await this.prisma.planSession.updateMany({
-      where: { ownerId: user.id, planId: plan.id, state: 'draft', id: { not: session.id } },
-      data: { state: 'discarded' },
-    });
-    return this.view(session);
   }
 
   async get(user: AuthUser, id: string): Promise<Record<string, unknown>> {
@@ -559,6 +618,12 @@ export class PlanningService {
       cards: snapshot.cards.map((card) => ({
         task_id: card.taskId,
         title: card.title,
+        content: card.content ?? '',
+        duration_minutes: card.durationMinutes ?? null,
+        project_color: card.projectColor ?? null,
+        repeat_rule: card.repeatRule ?? null,
+        tags: card.tags ?? [],
+        attachments: card.attachments ?? [],
         section: card.section,
         reason: card.reason,
         reason_text: card.reasonText,
