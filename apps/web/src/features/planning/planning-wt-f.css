@@ -1071,3 +1071,34 @@
     transition: none !important;
   }
 }
+
+.plan-triage .sp-q {
+  width: 100%;
+  border: 0;
+  text-align: start;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
+.plan-triage .sp-q.is-current {
+  background: var(--accent-soft);
+}
+.plan-triage .sp-foot {
+  margin-top: auto;
+  flex: none;
+  white-space: nowrap;
+  font-size: var(--fs-xs);
+  flex-wrap: nowrap;
+  gap: var(--sp-1);
+}
+@media (min-width: 769px) {
+  .plan-triage .sp-cols {
+    grid-template-columns: 15rem minmax(0, 1fr);
+  }
+}
+@media (max-width: 768px) {
+  .plan-triage .sp-queue,
+  .plan-triage .sp-foot {
+    display: none;
+  }
+}

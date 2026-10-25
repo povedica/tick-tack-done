@@ -1,6 +1,7 @@
-import { Modal, Button } from '../../../components/ui';
+import { Popover } from '../../../components/Popover';
+import { Button } from '../../../components/ui';
 import { DatePopover } from '../../../components/DatePopover';
-import { useState } from 'react';
+import { useState, type RefObject } from 'react';
 import { useWtFMessages } from '../i18n-wt-f';
 import { useAppLocale } from '../../../i18n/locale';
 import { DurationChips } from './DurationChips';
@@ -17,6 +18,7 @@ export function WhenSheet({
   onClose,
   onConfirm,
   days,
+  anchor,
 }: {
   readonly date: string;
   readonly time: string;
@@ -28,6 +30,7 @@ export function WhenSheet({
   readonly onClose: () => void;
   readonly onConfirm: () => void;
   readonly days: ReactNode;
+  readonly anchor?: RefObject<HTMLElement | null>;
 }) {
   const m = useWtFMessages(),
     locale = useAppLocale();
@@ -39,7 +42,16 @@ export function WhenSheet({
     month: 'long',
   }).format(new Date(`${date}T12:00:00Z`));
   return (
-    <Modal title={m.when} onClose={onClose}>
+    <Popover
+      open
+      label={m.when}
+      onClose={onClose}
+      mobileSheet
+      anchor={anchor}
+      width={390}
+      className="plan-when-popover"
+    >
+      <h2>{m.when}</h2>
       <div className="plan-when">
         {days}
         <Button variant="ghost" onClick={() => setCalendar(true)}>
@@ -74,6 +86,6 @@ export function WhenSheet({
           }}
         />
       ) : null}
-    </Modal>
+    </Popover>
   );
 }

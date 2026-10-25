@@ -1,3 +1,7 @@
+import { QueueList } from './QueueList';
+import { ShortcutFooter } from './ShortcutFooter';
+import { TriageHelp } from './TriageHelp';
+import { useTriageKeys } from './useTriageKeys';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
@@ -36,6 +40,68 @@ export function TriageFlow() {
     [time, setTime] = useState(''),
     [when, setWhen] = useState(false),
     [selected, setSelected] = useState('');
+  const anchor = useRef<HTMLButtonElement>(null);
+  const [help, setHelp] = useState(false);
+  useTriageKeys((event) => {
+    if (busy) return false;
+    const key = event.key.toLowerCase();
+    if ((event.ctrlKey || event.metaKey) && key === 'z') {
+      void state.undo();
+      return true;
+    }
+    if (event.ctrlKey || event.metaKey || event.altKey) return false;
+    if (key === 'escape') {
+      if (help) setHelp(false);
+      else if (when) setWhen(false);
+      else if (state.review) state.setReview(false);
+      else exit();
+      return true;
+    }
+    if (key === '?') {
+      setHelp(!help);
+      return true;
+    }
+    if (help || when) return false;
+    if (key === 'enter') {
+      if (state.review) void confirm();
+      else if (session?.decisions.some((d) => d.action !== 'skip')) state.setReview(true);
+      return true;
+    }
+    if (event.shiftKey && (key === 'arrowleft' || key === 'arrowright')) {
+      const i = load?.days.findIndex((d) => d.date === selected) ?? 0;
+      setSelected(
+        load?.days[Math.max(0, Math.min(13, i + (key === 'arrowright' ? 1 : -1)))]?.date ??
+          selected,
+      );
+      return true;
+    }
+    if (state.review) return false;
+    if (key === 'arrowleft' || key === 'arrowright') {
+      state.navigate(key === 'arrowleft' ? -1 : 1);
+      return true;
+    }
+    const values = [15, 30, 45, 60];
+    if (/^[1-4]$/.test(key)) {
+      changeDuration(values[Number(key) - 1] ?? 30);
+      return true;
+    }
+    const actions: Record<string, PlanAction> = {
+      h: 'today',
+      m: 'tomorrow',
+      o: 'move',
+      c: 'done',
+      ' ': 'done',
+      n: 'wont_do',
+      a: 'someday',
+      delete: 'delete',
+    };
+    const selectedAction = actions[key];
+    if (selectedAction) {
+      action(selectedAction);
+      return true;
+    }
+    return false;
+  });
   const touch = useRef<{ x: number; y: number } | null>(null);
   useEffect(() => {
     if (card) {
@@ -226,6 +292,7 @@ export function TriageFlow() {
         />
       ) : (
         <div className="sp-cols">
+          <QueueList session={session} index={state.index} onSelect={state.setIndex} />
           <div
             className="plan-card-stage"
             onTouchStart={(e) => {
@@ -265,7 +332,12 @@ export function TriageFlow() {
                       ['move', CalendarDays, 'O'],
                     ] as const
                   ).map(([a, Icon, key]) => (
-                    <Button key={a} disabled={busy} onClick={() => action(a)}>
+                    <Button
+                      key={a}
+                      disabled={busy}
+                      ref={a === 'move' ? anchor : undefined}
+                      onClick={() => action(a)}
+                    >
                       <Icon size={17} />
                       {m[a]}
                       <Kbd>{key}</Kbd>
@@ -331,6 +403,7 @@ export function TriageFlow() {
             setWhen(false);
             void state.decide(choice);
           }}
+          anchor={anchor}
           days={
             <div className="plan-simple-days">
               {load.days.map((d) => (
@@ -354,6 +427,8 @@ export function TriageFlow() {
           }
         />
       ) : null}
+      {!state.review ? <ShortcutFooter /> : null}
+      {help ? <TriageHelp onClose={() => setHelp(false)} /> : null}
       <UndoToastStack
         durationMs={5000}
         items={state.notice ? [{ id: state.notice, title: `${title} → ${destination}` }] : []}

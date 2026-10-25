@@ -456,4 +456,4 @@ export {
   type PlanningPatch,
 } from './planning/actions';
 
-export { freeSlots, snap15, type BusyInterval } from './planning/slots';
+export { freeSlots, snap15, type PlanBusyInterval } from './planning/slots';

@@ -1,5 +1,5 @@
 import { instantFromWall } from '../dates/zoned';
-export interface BusyInterval {
+export interface PlanBusyInterval {
   readonly id: string;
   readonly start: string;
   readonly end: string;
@@ -16,7 +16,7 @@ export function freeSlots(input: {
   readonly workDayEnd: string | null;
   readonly eveningStart?: string;
   readonly eveningOnly?: boolean;
-  readonly busy: readonly BusyInterval[];
+  readonly busy: readonly PlanBusyInterval[];
 }): readonly string[] {
   if (
     input.workDayStart === null ||
