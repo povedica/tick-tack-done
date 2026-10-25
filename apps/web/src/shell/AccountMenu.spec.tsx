@@ -38,6 +38,11 @@ function mount() {
   fireEvent.click(screen.getByRole('button', { name: 'Menú de cuenta' }));
 }
 describe('TTD-AUD-77 / RF-1602: avatar progress', () => {
+  it('opens the settings index so mobile users can choose a section', async () => {
+    mount();
+    const settings = await screen.findByRole('menuitem', { name: 'Ajustes' });
+    expect(settings.getAttribute('href')).toBe('/settings');
+  });
   it('shows progress inside an accessible menu and returns focus on Escape', async () => {
     mount();
     const menu = screen.getByRole('menu');

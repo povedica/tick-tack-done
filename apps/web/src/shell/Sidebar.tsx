@@ -729,7 +729,7 @@ export function Sidebar({
       </nav>
       {mobileSection === 'more' ? (
         <div className="sidebar-footer sidebar-more-footer">
-          <SideLink to="/settings/appearance" onNavigate={onNavigate}>
+          <SideLink to="/settings" onNavigate={onNavigate}>
             <Settings size={20} aria-hidden="true" />
             <span className="nav-label">{messages.navSettings}</span>
           </SideLink>

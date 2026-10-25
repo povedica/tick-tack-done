@@ -2,6 +2,9 @@
 
 ## Sin publicar — ajustes visuales PR77
 
+- Ajustes móvil: los formularios de Cuenta permanecen en el contenido, sin
+  superponerse ni bloquear navegación; el panel móvil fijo se limita al editor
+  de tokens. Los accesos de Cuenta y Más abren el índice de Ajustes.
 - Ordenación más discreta: icono fino de 16 px, valores a la derecha y
   selectores sin relleno destacado, con flechas espaciadas y más aire entre filas.
 - Cabecera móvil a 18 px y menús a 14 px. Ordenar y agrupar tienen su propio

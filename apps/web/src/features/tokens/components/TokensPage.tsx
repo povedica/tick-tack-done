@@ -365,7 +365,13 @@ export function TokensPage() {
   }
 
   return (
-    <section className={inSettings ? 'token-settings' : 'screen-page token-settings'}>
+    <section
+      className={
+        inSettings
+          ? 'token-settings token-management'
+          : 'screen-page token-settings token-management'
+      }
+    >
       <header className="page-header">
         <div>
           <h1>{inSettings ? messages.settingsTokens : messages.tokensTitle}</h1>

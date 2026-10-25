@@ -50,7 +50,7 @@
   width: auto;
 }
 @media (max-width: 1023px) {
-  .token-settings .token-form {
+  .token-management .token-form {
     position: fixed;
     inset: 4dvh 0;
     z-index: 150;
@@ -60,7 +60,7 @@
     padding-bottom: calc(var(--sp-4) + env(safe-area-inset-bottom));
     box-shadow: var(--shadow-lg);
   }
-  .token-settings .token-form > button[type='submit'] {
+  .token-management .token-form > button[type='submit'] {
     position: sticky;
     bottom: 0;
     min-height: var(--tap);
