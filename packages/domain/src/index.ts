@@ -457,3 +457,5 @@ export {
 } from './planning/actions';
 
 export { freeSlots, snap15, type PlanBusyInterval } from './planning/slots';
+
+export { wallClock } from './dates/zoned';

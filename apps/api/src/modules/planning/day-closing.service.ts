@@ -1,3 +1,4 @@
+import { habitCards } from './plan-habits.js';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { Prisma, type PlanDecision, type PlanSession } from '@prisma/client';
 import {
@@ -63,21 +64,9 @@ export class DayClosingService {
   ) {}
 
   async load(user: AuthUser, date: string, timeZone: string): Promise<Record<string, unknown>> {
-    this.assertDate(date);
-    timeZone = user.timeZone;
-    this.assertZone(timeZone);
-    const profile = await this.profile(user.id);
-    const result = await this.compute(user.id, date, timeZone, profile);
-    return {
-      date,
-      task_minutes: result.taskMinutes,
-      event_minutes: result.eventMinutes,
-      available_minutes: result.availableMinutes,
-      unestimated_count: result.unestimatedCount,
-      unestimated_task_ids: result.unestimatedTaskIds,
-      ratio: result.ratio,
-      status: result.status,
-    };
+    const range = await this.range(user, date, 1);
+    const days = range.days as Record<string, unknown>[];
+    return days[0] ?? {};
   }
 
   async configureWorkDays(user: AuthUser, workDays: readonly number[]) {
@@ -117,6 +106,26 @@ export class DayClosingService {
       const tasks = (await this.queue(user.id, date, timeZone)).filter(
         (t) => user.listIds === null || user.listIds.includes(t.projectId),
       );
+      const habits = await habitCards(this.prisma, user, date);
+      for (const habit of habits)
+        tasks.push({
+          id: habit.taskId,
+          title: habit.title,
+          projectId: '',
+          priority: 'none',
+          dueDate: null,
+          startDate: new Date(`${date}T12:00Z`),
+          isAllDay: true,
+          eveningOnly: false,
+          isSomeday: false,
+          durationMinutes: null,
+          timeZone,
+          status: 'active',
+          parentId: null,
+          updatedAt: new Date(habit.updatedAt),
+          deletedAt: null,
+          project: { name: '' },
+        });
       const events = await this.eventsOn(user.id, date, timeZone);
       const load = dayLoad({
         date,

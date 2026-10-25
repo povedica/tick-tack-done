@@ -35,6 +35,7 @@ export interface PlanTaskInput {
   readonly createdAt: string;
   readonly isSomeday?: boolean;
   readonly recurring?: boolean;
+  readonly habit?: boolean;
   readonly content?: string;
   readonly durationMinutes?: number | null;
   readonly projectColor?: string | null;
@@ -67,6 +68,7 @@ export interface PlanCard {
   readonly updatedAt: string;
   readonly rank: number;
   readonly recurring?: boolean;
+  readonly habit?: boolean;
   readonly content?: string;
   readonly durationMinutes?: number | null;
   readonly projectColor?: string | null;
@@ -324,6 +326,7 @@ function toCard(card: Classified, rank: number): PlanCard {
     updatedAt: card.task.updatedAt,
     rank,
     recurring: card.task.recurring ?? false,
+    habit: card.task.habit ?? false,
   };
 }
 

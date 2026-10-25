@@ -65,6 +65,31 @@ describe('F day planning', () => {
       .expect(422)
       .expect((res) => expect(res.body.error.code).toBe('nothing_to_apply'));
   });
+  it('F-AC-30: moving a repeating task detaches only its current occurrence', async () => {
+    const task = await makeTask(new Date('2026-10-25T23:00Z'));
+    await prisma.task.update({
+      where: { id: task.id },
+      data: { repeatRule: 'RRULE:FREQ=DAILY', seriesId: task.id, isAllDay: true },
+    });
+    const session = await start();
+    const choice = await call()
+      .put(`/api/v1/planning/sessions/${session.body.id}/decisions/${task.id}`)
+      .set('X-Dev-User-Email', email)
+      .send({ action: 'tomorrow' })
+      .expect(200);
+    await call()
+      .post(`/api/v1/planning/sessions/${session.body.id}/apply`)
+      .set('X-Dev-User-Email', email)
+      .set('Idempotency-Key', randomUUID())
+      .send({ expected_revision: choice.body.revision })
+      .expect(200);
+    const after = await prisma.task.findUniqueOrThrow({ where: { id: task.id } });
+    expect(after.repeatRule).toBeNull();
+    expect(after.startDate?.toISOString()).toBe('2026-10-26T23:00:00.000Z');
+    expect(
+      await prisma.seriesAdvance.count({ where: { sourceTaskId: task.id, processedAt: null } }),
+    ).toBe(1);
+  });
   it('F-AC-29: reverts a plan idempotently and rejects edits made after confirmation', async () => {
     const task = await makeTask();
     const session = await start();

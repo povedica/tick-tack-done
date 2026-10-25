@@ -1,3 +1,4 @@
+import { HabitsModule } from '../habits/habits.module.js';
 import { Module } from '@nestjs/common';
 import { TasksModule } from '../tasks/tasks.module.js';
 import { DayClosingController } from './day-closing.controller.js';
@@ -6,7 +7,7 @@ import { PlanningController, PlansController } from './planning.controller.js';
 import { PlanningService } from './planning.service.js';
 
 @Module({
-  imports: [TasksModule],
+  imports: [TasksModule, HabitsModule],
   controllers: [PlanningController, PlansController, DayClosingController],
   providers: [PlanningService, DayClosingService],
   exports: [DayClosingService],

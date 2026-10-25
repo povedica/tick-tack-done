@@ -569,7 +569,7 @@ export class TasksService {
         );
         if (end !== null) due = new Date(end);
       }
-      this.assertTimed(due, isAllDay, timeZone);
+      if (!planning) this.assertTimed(due, isAllDay, timeZone);
       this.assertTimed(start, isAllDay, timeZone);
       const duration = planning
         ? dto.duration_minutes === undefined
@@ -684,6 +684,76 @@ export class TasksService {
         previous: asJson(taskEventSnapshot(previous)),
       });
       return this.load(tx, user, id, false);
+    });
+  }
+
+  async restorePlanState(
+    user: AuthUser,
+    snapshot: {
+      readonly id: string;
+      readonly startDate: string | null;
+      readonly dueDate: string | null;
+      readonly timeZone: string;
+      readonly isAllDay: boolean;
+      readonly durationMinutes: number | null;
+      readonly isSomeday: boolean;
+      readonly eveningOnly: boolean;
+      readonly status: string;
+      readonly deletedAt: string | null;
+      readonly repeatRule: string | null;
+      readonly seriesId: string | null;
+      readonly recurrenceOpen: boolean;
+    },
+  ): Promise<void> {
+    if (user.requestSource !== 'plan')
+      throw new DomainException(
+        HttpStatus.FORBIDDEN,
+        'plan_context_required',
+        'Internal planning context is required',
+      );
+    await this.prisma.$transaction(async (tx) => {
+      const current = await this.require(tx, user.id, snapshot.id, true);
+      if (
+        await tx.seriesAdvance.count({
+          where: { ownerId: user.id, sourceTaskId: snapshot.id, processedAt: { not: null } },
+        })
+      )
+        throw new DomainException(
+          HttpStatus.CONFLICT,
+          'series_already_advanced',
+          'The occurrence has already advanced',
+        );
+      await tx.seriesAdvance.deleteMany({
+        where: { ownerId: user.id, sourceTaskId: snapshot.id, processedAt: null },
+      });
+      const previous = await this.load(tx, user, snapshot.id, true);
+      await tx.task.update({
+        where: { id: snapshot.id },
+        data: {
+          startDate: snapshot.startDate === null ? null : new Date(snapshot.startDate),
+          dueDate: snapshot.dueDate === null ? null : new Date(snapshot.dueDate),
+          timeZone: snapshot.timeZone,
+          isAllDay: snapshot.isAllDay,
+          durationMinutes: snapshot.durationMinutes,
+          isSomeday: snapshot.isSomeday,
+          eveningOnly: snapshot.eveningOnly,
+          status: snapshot.status === 'active' ? 'active' : current.status,
+          deletedAt: snapshot.deletedAt === null ? null : new Date(snapshot.deletedAt),
+          completedAt: snapshot.status === 'active' ? null : current.completedAt,
+          repeatRule: snapshot.repeatRule,
+          seriesId: snapshot.seriesId,
+          recurrenceOpen: snapshot.recurrenceOpen,
+        },
+      });
+      const detail = await this.load(tx, user, snapshot.id, snapshot.deletedAt !== null);
+      await this.record(tx, user, {
+        type: DomainEvent.taskUpdated,
+        entityType: 'task',
+        entityId: snapshot.id,
+        action: 'updated',
+        data: { task: asJson(taskEventSnapshot(detail)), source: 'plan', reverted: true },
+        previous: asJson(taskEventSnapshot(previous)),
+      });
     });
   }
 

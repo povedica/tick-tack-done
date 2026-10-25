@@ -13,6 +13,7 @@ export interface PlanCard {
   duration_minutes: number | null;
   is_all_day: boolean;
   recurring: boolean;
+  habit?: boolean;
   repeat_rule: string | null;
   tags: readonly { id: string; name: string; color: string | null }[];
   attachments: readonly { id: string; name: string; url: string }[];

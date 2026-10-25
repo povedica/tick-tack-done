@@ -1,3 +1,5 @@
+import { habitCards } from './plan-habits.js';
+import { HabitsService } from '../habits/habits.service.js';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { Prisma, type Task, type PlanDecision, type PlanSession } from '@prisma/client';
 import {
@@ -37,6 +39,8 @@ interface AppliedEffect {
   readonly effect: string;
   readonly before?: readonly TaskState[];
   readonly after?: readonly TaskState[];
+  readonly habitBefore?: number;
+  readonly habitAfter?: string | null;
 }
 
 interface StoredResult {
@@ -54,6 +58,7 @@ export class PlanningService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(TasksService) private readonly tasks: TasksService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
+    @Inject(HabitsService) private readonly habits: HabitsService,
   ) {}
 
   private async candidateQueue(
@@ -77,7 +82,7 @@ export class PlanningService {
         attachments: { where: { deletedAt: null } },
       },
     });
-    return planQueue(
+    const queue = planQueue(
       rows.map((row) => ({
         id: row.id,
         title: row.title,
@@ -109,6 +114,12 @@ export class PlanningService {
       })),
       input,
     );
+    const habits = input.sources.today ? await habitCards(this.prisma, user, input.localDate) : [];
+    return {
+      ...queue,
+      cards: [...queue.cards, ...habits].map((c, rank) => ({ ...c, rank })),
+      totals: { ...queue.totals, today: queue.totals.today + habits.length },
+    };
   }
 
   async candidates(
@@ -300,6 +311,19 @@ export class PlanningService {
     });
     const applied = [...stored.applied];
     for (const decision of pending) {
+      const habitCard = this.snapshot(session).cards.find(
+        (c) => c.taskId === decision.taskId,
+      )?.habit;
+      const oldHabit = habitCard
+        ? await this.prisma.habitLog.findUnique({
+            where: {
+              habitId_date: {
+                habitId: decision.taskId,
+                date: new Date(`${session.plan.localDate}T00:00Z`),
+              },
+            },
+          })
+        : null;
       const before = (
         await this.prisma.task.findMany({
           where: { ownerId: user.id, OR: [{ id: decision.taskId }, { parentId: decision.taskId }] },
@@ -322,6 +346,22 @@ export class PlanningService {
         effect,
         before,
         after,
+        ...(habitCard
+          ? {
+              habitBefore: oldHabit?.count ?? 0,
+              habitAfter:
+                (
+                  await this.prisma.habitLog.findUnique({
+                    where: {
+                      habitId_date: {
+                        habitId: decision.taskId,
+                        date: new Date(`${session.plan.localDate}T00:00Z`),
+                      },
+                    },
+                  })
+                )?.updatedAt.toISOString() ?? null,
+            }
+          : {}),
       });
       await this.prisma.planOperation.update({
         where: { id: operation.id },
@@ -400,22 +440,41 @@ export class PlanningService {
             'plan_revert_conflict',
             'A task changed after confirmation; nothing has been reverted',
           );
+        const planSession = await this.owned(user.id, operation.sessionId);
+        for (const effect of result.applied.filter((e) => e.habitBefore !== undefined)) {
+          if (!user.scopes.includes('habits:write'))
+            throw new DomainException(
+              HttpStatus.FORBIDDEN,
+              'scope_missing',
+              'habits:write is required',
+            );
+          const log = await this.prisma.habitLog.findUnique({
+            where: {
+              habitId_date: {
+                habitId: effect.task_id,
+                date: new Date(`${planSession.plan.localDate}T00:00Z`),
+              },
+            },
+          });
+          if ((log?.updatedAt.toISOString() ?? null) !== effect.habitAfter)
+            throw new DomainException(
+              HttpStatus.CONFLICT,
+              'plan_revert_conflict',
+              'Habit changed after confirmation',
+            );
+        }
+        for (const effect of result.applied.filter((e) => e.effect === 'habit_completed'))
+          await this.habits.checkIn(
+            user,
+            effect.task_id,
+            { date: planSession.plan.localDate, count: effect.habitBefore ?? 0 },
+            `plan-revert:${operationId}:${effect.task_id}`,
+          );
         const context: AuthUser = { ...user, requestSource: 'plan' };
         for (const saved of before.values()) {
           const row = current.find((t) => t.id === saved.id);
           if (!row) continue;
-          if (row.deletedAt !== null && saved.deletedAt === null)
-            await this.tasks.restore(context, row.id);
-          if (row.status !== saved.status && saved.status === 'active')
-            await this.tasks.uncomplete(context, row.id);
-          await this.tasks.update(context, row.id, {
-            start_date: saved.startDate,
-            time_zone: saved.timeZone,
-            is_all_day: saved.isAllDay,
-            duration_minutes: saved.durationMinutes,
-            someday: saved.isSomeday,
-            evening_only: saved.eveningOnly,
-          });
+          await this.tasks.restorePlanState(context, saved);
           await this.clearMemberships(user.id, row.id);
         }
         await tx.planOperation.update({ where: { id: operationId }, data: { status: 'reverted' } });
@@ -508,6 +567,43 @@ export class PlanningService {
   ): Promise<string> {
     const card = this.snapshot(session).cards.find((item) => item.taskId === decision.taskId);
     const rank = card?.rank ?? 0;
+    if (card?.habit) {
+      if (!user.scopes.includes('habits:write'))
+        throw new DomainException(
+          HttpStatus.FORBIDDEN,
+          'scope_missing',
+          'habits:write is required',
+        );
+      if (decision.decision === 'done')
+        await this.habits.checkIn(
+          user,
+          decision.taskId,
+          { date: session.plan.localDate, count: 1 },
+          key,
+        );
+      return decision.decision === 'done'
+        ? 'habit_completed'
+        : decision.decision === 'skip'
+          ? 'skipped'
+          : 'habit_scheduled';
+    }
+    const current = await this.prisma.task.findFirst({
+      where: { id: decision.taskId, ownerId: user.id, deletedAt: null },
+    });
+    if (
+      current?.repeatRule &&
+      current.seriesId &&
+      current.dueDate &&
+      decision.decision !== 'done' &&
+      decision.decision !== 'skip'
+    ) {
+      await this.tasks.detach(
+        { ...user, requestSource: 'plan' },
+        decision.taskId,
+        current.dueDate.toISOString(),
+        undefined,
+      );
+    }
     if (decision.decision === 'done') {
       await this.tasks.complete(
         { ...user, requestSource: 'plan' },
@@ -590,7 +686,9 @@ export class PlanningService {
     if (pending.length === 0) {
       return;
     }
-    const ids = pending.map((decision) => decision.taskId);
+    const ids = pending
+      .filter((d) => !this.snapshot(session).cards.find((c) => c.taskId === d.taskId)?.habit)
+      .map((decision) => decision.taskId);
     const current = await this.prisma.task.findMany({
       where: { ownerId, id: { in: ids } },
       select: { id: true, updatedAt: true, deletedAt: true },
@@ -741,6 +839,7 @@ export class PlanningService {
         updated_at: card.updatedAt,
         rank: card.rank,
         recurring: card.recurring ?? null,
+        habit: card.habit ?? false,
       })),
       decisions: decisions.map((decision) => ({
         ...(readChoices(session.snapshot)[decision.taskId] ??
@@ -886,6 +985,12 @@ function readResult(value: Prisma.JsonValue): StoredResult {
           task_id: item.task_id,
           decision: item.decision,
           effect: item.effect,
+          ...(typeof item.habitBefore === 'number'
+            ? {
+                habitBefore: item.habitBefore,
+                habitAfter: typeof item.habitAfter === 'string' ? item.habitAfter : null,
+              }
+            : {}),
           ...(Array.isArray(item.before) ? { before: item.before as unknown as TaskState[] } : {}),
           ...(Array.isArray(item.after) ? { after: item.after as unknown as TaskState[] } : {}),
         },
@@ -943,6 +1048,9 @@ interface TaskState {
   readonly eveningOnly: boolean;
   readonly status: string;
   readonly deletedAt: string | null;
+  readonly repeatRule: string | null;
+  readonly seriesId: string | null;
+  readonly recurrenceOpen: boolean;
 }
 function taskState(row: Task): TaskState {
   return {
@@ -958,5 +1066,8 @@ function taskState(row: Task): TaskState {
     eveningOnly: row.eveningOnly,
     status: row.status,
     deletedAt: row.deletedAt?.toISOString() ?? null,
+    repeatRule: row.repeatRule,
+    seriesId: row.seriesId,
+    recurrenceOpen: row.recurrenceOpen,
   };
 }
