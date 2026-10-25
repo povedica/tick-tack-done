@@ -2,6 +2,11 @@ import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { Prisma, type PlanDecision, type PlanSession } from '@prisma/client';
 import {
   isIanaTimeZone,
+  effectOf,
+  actionDate,
+  legacyAction,
+  storedDecision,
+  type PlanningAction,
   planQueue,
   previewPlan,
   staleTaskIds,
@@ -61,7 +66,14 @@ export class PlanningService {
     this.assertDate(input.localDate);
     this.assertZone(input.timeZone);
     const rows = await this.prisma.task.findMany({
-      where: { ownerId: user.id, deletedAt: null, status: 'active', kind: 'task', parentId: null },
+      where: {
+        ownerId: user.id,
+        ...(user.listIds === null ? {} : { projectId: { in: [...user.listIds] } }),
+        deletedAt: null,
+        status: 'active',
+        kind: 'task',
+        parentId: null,
+      },
       include: { project: { select: { name: true, isInbox: true } } },
     });
     const queue = planQueue(
@@ -127,6 +139,7 @@ export class PlanningService {
     taskId: string,
     decision: PlanDecisionKind,
     targetDate: string | null,
+    choice?: PlanningAction,
   ): Promise<Record<string, unknown>> {
     const session = await this.requireOpen(user.id, sessionId);
     if (!this.snapshot(session).cards.some((card) => card.taskId === taskId)) {
@@ -136,7 +149,31 @@ export class PlanningService {
         'Task is not in this plan',
       );
     }
-    const target = this.targetFor(session.plan.localDate, decision, targetDate);
+    const selected =
+      choice ??
+      legacyAction(
+        decision,
+        decision === 'later' ? (targetDate ?? nextCivil(session.plan.localDate)) : targetDate,
+      );
+    try {
+      effectOf(selected, session.plan.localDate, session.plan.timeZone);
+    } catch (error) {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        error instanceof Error ? error.message : 'Invalid choice',
+      );
+    }
+    const target = choice
+      ? actionDate(selected, session.plan.localDate)
+      : this.targetFor(session.plan.localDate, decision, targetDate);
+    decision = storedDecision(selected.action);
+    const snapshot = session.snapshot as Prisma.JsonObject;
+    const extras = readChoices(snapshot);
+    await this.prisma.planSession.update({
+      where: { id: sessionId },
+      data: { snapshot: jsonValue({ ...snapshot, choices: { ...extras, [taskId]: selected } }) },
+    });
     await this.prisma.planDecision.upsert({
       where: { sessionId_taskId: { sessionId, taskId } },
       create: { sessionId, taskId, decision, targetDate: target },
@@ -309,12 +346,17 @@ export class PlanningService {
     const card = this.snapshot(session).cards.find((item) => item.taskId === decision.taskId);
     const rank = card?.rank ?? 0;
     if (decision.decision === 'done') {
-      await this.tasks.complete(user, decision.taskId, { complete_children: 'complete' }, key);
+      await this.tasks.complete(
+        { ...user, requestSource: 'plan' },
+        decision.taskId,
+        { complete_children: 'complete' },
+        key,
+      );
       await this.clearMemberships(user.id, decision.taskId);
       return 'completed';
     }
     if (decision.decision === 'cancel') {
-      await this.tasks.cancel(user, decision.taskId);
+      await this.tasks.cancel({ ...user, requestSource: 'plan' }, decision.taskId);
       await this.clearMemberships(user.id, decision.taskId);
       return 'cancelled';
     }
@@ -324,58 +366,29 @@ export class PlanningService {
         select: { deletedAt: true },
       });
       if (row?.deletedAt === null) {
-        await this.tasks.remove(user, decision.taskId);
+        await this.tasks.remove({ ...user, requestSource: 'plan' }, decision.taskId);
       }
       await this.clearMemberships(user.id, decision.taskId);
       return 'trashed';
     }
-    if (decision.decision === 'plan_day') {
-      const existing = await this.prisma.planMember.findUnique({
-        where: { planId_taskId: { planId: session.planId, taskId: decision.taskId } },
-      });
-      if (existing !== null) return 'unchanged';
-      await this.place(
-        user.id,
-        session.plan.localDate,
-        session.plan.timeZone,
-        decision.taskId,
-        rank,
-        'plan_day',
-      );
-      return 'planned_today';
-    }
-    if (decision.decision === 'someday') {
-      await this.prisma.task.update({
-        where: { id: decision.taskId },
-        data: { isSomeday: true, startDate: null },
-      });
+    const choice =
+      readChoices(session.snapshot)[decision.taskId] ??
+      legacyAction(decision.decision, decision.targetDate);
+    const patch = effectOf(choice, session.plan.localDate, session.plan.timeZone);
+    if (patch !== null) {
+      await this.tasks.update({ ...user, requestSource: 'plan' }, decision.taskId, patch);
       await this.clearMemberships(user.id, decision.taskId);
-      return 'someday';
-    }
-    if (decision.decision === 'later') {
-      const target = decision.targetDate ?? nextCivil(session.plan.localDate);
-      const existing = await this.prisma.planMember.findFirst({
-        where: {
-          taskId: decision.taskId,
-          plan: { ownerId: user.id, localDate: target, timeZone: session.plan.timeZone },
-        },
-      });
-      const current = await this.prisma.planMember.findUnique({
-        where: { planId_taskId: { planId: session.planId, taskId: decision.taskId } },
-      });
-      if (existing !== null && current === null) return 'unchanged';
-      await this.prisma.planMember.deleteMany({
-        where: {
-          taskId: decision.taskId,
-          plan: {
-            ownerId: user.id,
-            localDate: session.plan.localDate,
-            timeZone: session.plan.timeZone,
-          },
-        },
-      });
-      await this.place(user.id, target, session.plan.timeZone, decision.taskId, rank, 'later');
-      return 'planned_later';
+      const date = actionDate(choice, session.plan.localDate);
+      if (date !== null)
+        await this.place(
+          user.id,
+          date,
+          session.plan.timeZone,
+          decision.taskId,
+          rank,
+          decision.decision,
+        );
+      return choice.action === 'someday' ? 'someday' : 'planned';
     }
     return 'skipped';
   }
@@ -561,6 +574,8 @@ export class PlanningService {
         recurring: card.recurring ?? null,
       })),
       decisions: decisions.map((decision) => ({
+        ...(readChoices(session.snapshot)[decision.taskId] ??
+          legacyAction(decision.decision, decision.targetDate)),
         task_id: decision.taskId,
         decision: decision.decision,
         target_date: decision.targetDate,
@@ -729,4 +744,11 @@ function isDecision(value: unknown): value is PlanDecisionKind {
 function numberField(value: object, key: string): number {
   const raw = (value as Record<string, unknown>)[key];
   return typeof raw === 'number' ? raw : 0;
+}
+
+function readChoices(value: Prisma.JsonValue): Record<string, PlanningAction> {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return {};
+  const choices = value.choices;
+  if (choices === null || typeof choices !== 'object' || Array.isArray(choices)) return {};
+  return choices as unknown as Record<string, PlanningAction>;
 }

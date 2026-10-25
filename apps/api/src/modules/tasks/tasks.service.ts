@@ -480,7 +480,7 @@ export class TasksService {
     user: AuthUser,
     id: string,
     dto: UpdateTaskDto,
-    source: 'api' | 'mcp' | 'web' = user.sessionId === null ? 'api' : 'web',
+    source: 'api' | 'mcp' | 'web' | 'plan' = user.sessionId === null ? 'api' : 'web',
   ): Promise<TaskDetail> {
     return this.prisma.$transaction(async (tx) => {
       const current = await this.require(tx, user.id, id, false);
@@ -551,11 +551,13 @@ export class TasksService {
         (dto.start_date !== undefined && startParsed.dateOnly) ||
         (dto.due_date !== undefined && dueParsed.dateOnly);
       const isAllDay = dto.is_all_day ?? (inferredAllDay ? true : current.isAllDay);
+      const planning = user.requestSource === 'plan';
       if (isAllDay) {
         start = allDayMidnight(start, timeZone);
-        due = allDayMidnight(due, timeZone);
+        if (!planning) due = allDayMidnight(due, timeZone);
       }
       if (
+        !planning &&
         due === null &&
         dto.due_date === undefined &&
         !isAllDay &&
@@ -569,11 +571,15 @@ export class TasksService {
       }
       this.assertTimed(due, isAllDay, timeZone);
       this.assertTimed(start, isAllDay, timeZone);
-      const duration = this.duration(
-        start,
-        due,
-        dto.duration_minutes === undefined ? current.durationMinutes : dto.duration_minutes,
-      );
+      const duration = planning
+        ? dto.duration_minutes === undefined
+          ? current.durationMinutes
+          : dto.duration_minutes
+        : this.duration(
+            start,
+            due,
+            dto.duration_minutes === undefined ? current.durationMinutes : dto.duration_minutes,
+          );
       let content = dto.content ?? current.content;
       const extracted = dto.extract_checklist === true ? extractMarkdownChecklist(content) : null;
       if (extracted !== null) {
@@ -780,7 +786,7 @@ export class TasksService {
   async uncomplete(
     user: AuthUser,
     id: string,
-    source: 'api' | 'mcp' | 'web' = user.sessionId === null ? 'api' : 'web',
+    source: 'api' | 'mcp' | 'web' | 'plan' = user.sessionId === null ? 'api' : 'web',
   ): Promise<TaskDetail> {
     return this.prisma.$transaction(async (tx) => {
       const current = await this.require(tx, user.id, id, false);
@@ -1203,7 +1209,7 @@ export class TasksService {
   async restore(
     user: AuthUser,
     id: string,
-    source: 'api' | 'mcp' | 'web' = user.sessionId === null ? 'api' : 'web',
+    source: 'api' | 'mcp' | 'web' | 'plan' = user.sessionId === null ? 'api' : 'web',
   ): Promise<TaskDetail> {
     return this.prisma.$transaction(async (tx) => {
       const current = await tx.task.findFirst({ where: { id, ownerId: user.id } });

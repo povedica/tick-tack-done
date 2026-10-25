@@ -2,6 +2,7 @@ import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { Prisma, type PlanDecision, type PlanSession } from '@prisma/client';
 import {
   civilDateKey,
+  effectOf,
   dayLoad,
   featureEnabled,
   formatDayLoadLine,
@@ -562,11 +563,16 @@ export class DayClosingService {
     });
     if (current === null) return 'unchanged';
     if (decision.decision === 'done') {
-      await this.tasks.complete(user, decision.taskId, { complete_children: 'complete' }, key);
+      await this.tasks.complete(
+        { ...user, requestSource: 'plan' },
+        decision.taskId,
+        { complete_children: 'complete' },
+        key,
+      );
       return 'completed';
     }
     if (decision.decision === 'cancel') {
-      await this.tasks.cancel(user, decision.taskId);
+      await this.tasks.cancel({ ...user, requestSource: 'plan' }, decision.taskId);
       return 'cancelled';
     }
     if (decision.decision === 'trash') {
@@ -575,17 +581,16 @@ export class DayClosingService {
         select: { deletedAt: true },
       });
       if (row?.deletedAt === null) {
-        await this.tasks.remove(user, decision.taskId);
+        await this.tasks.remove({ ...user, requestSource: 'plan' }, decision.taskId);
       }
       return 'trashed';
     }
     if (decision.decision === 'someday') {
       if (current.isSomeday && current.startDate === null) return 'unchanged';
-      await this.prisma.task.update({
-        where: { id: decision.taskId },
-        data: { isSomeday: true, startDate: null },
+      await this.tasks.update({ ...user, requestSource: 'plan' }, decision.taskId, {
+        someday: true,
+        start_date: null,
       });
-      await this.recordSomeday(user, decision.taskId, true);
       return 'someday';
     }
     if (decision.decision === 'plan_day' || decision.decision === 'later') {
@@ -610,14 +615,16 @@ export class DayClosingService {
       await this.prisma.planMember.deleteMany({
         where: { taskId: decision.taskId, planId: session.planId },
       });
-      await this.prisma.task.update({
-        where: { id: decision.taskId },
-        data: {
-          startDate: start,
-          isSomeday: false,
-          ...(decision.evening ? { eveningOnly: true } : {}),
-        },
-      });
+      const patch = effectOf(
+        { action: 'move', date: target },
+        session.plan.localDate,
+        session.plan.timeZone,
+      );
+      if (patch !== null)
+        await this.tasks.update({ ...user, requestSource: 'plan' }, decision.taskId, {
+          ...patch,
+          ...(decision.evening ? { evening_only: true } : {}),
+        });
       if (target === shiftCivilDate(session.plan.localDate, 1)) {
         const plan = await this.prisma.dayPlan.upsert({
           where: {

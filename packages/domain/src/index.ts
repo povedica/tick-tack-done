@@ -444,3 +444,14 @@ export type { NotificationKind, NotificationChannel } from './reminders/preferen
 
 export { DEFAULT_CAPTURE_SETTINGS, captureSettings, parseCapture } from './nlp/capture-settings';
 export type { CaptureSettings } from './nlp/capture-settings';
+
+export {
+  PLAN_ACTIONS,
+  actionDate,
+  effectOf,
+  storedDecision,
+  legacyAction,
+  type PlanAction,
+  type PlanningAction,
+  type PlanningPatch,
+} from './planning/actions';

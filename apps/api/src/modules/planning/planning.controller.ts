@@ -18,7 +18,14 @@ import { ApiOperation, ApiProperty, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
 import type { Request, Response } from 'express';
-import type { PlanDecisionKind, PlanSources } from '@reflexionia/domain';
+import {
+  PLAN_ACTIONS,
+  storedDecision,
+  type PlanningAction,
+  type PlanAction,
+  type PlanDecisionKind,
+  type PlanSources,
+} from '@reflexionia/domain';
 import type { AuthUser } from '../../auth/auth-user.js';
 import { CurrentUser } from '../../auth/current-user.decorator.js';
 import { Scopes } from '../../auth/scopes.decorator.js';
@@ -69,7 +76,30 @@ class StartPlanDto {
 class DecisionDto {
   @ApiProperty({ enum: DECISIONS })
   @IsIn(DECISIONS)
-  decision!: PlanDecisionKind;
+  @IsOptional()
+  decision?: PlanDecisionKind;
+
+  @ApiProperty({ required: false, enum: PLAN_ACTIONS })
+  @IsOptional()
+  @IsIn(PLAN_ACTIONS)
+  action?: PlanAction;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  date?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/)
+  time?: string;
+
+  @ApiProperty({ required: false, minimum: 5, maximum: 480 })
+  @IsOptional()
+  @IsInt()
+  @Min(5)
+  @Max(480)
+  duration?: number;
 
   @ApiProperty({ required: false, nullable: true, type: String })
   @IsOptional()
@@ -145,11 +175,29 @@ export class PlanningController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
+    if (body.action === undefined && body.decision === undefined)
+      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'action is required');
+    const choice: PlanningAction | undefined =
+      body.action === undefined
+        ? undefined
+        : {
+            action: body.action,
+            ...(body.date === undefined ? {} : { date: body.date }),
+            ...(body.time === undefined ? {} : { time: body.time }),
+            ...(body.duration === undefined ? {} : { duration: body.duration }),
+          };
     respondJson(
       req,
       res,
       200,
-      await this.planning.decide(user, id, taskId, body.decision, body.target_date ?? null),
+      await this.planning.decide(
+        user,
+        id,
+        taskId,
+        choice === undefined ? body.decision! : storedDecision(choice.action),
+        body.target_date ?? null,
+        choice,
+      ),
       false,
     );
   }
