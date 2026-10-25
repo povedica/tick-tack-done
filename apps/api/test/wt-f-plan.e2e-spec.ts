@@ -53,6 +53,18 @@ describe('F day planning', () => {
       .send({ local_date: '2026-10-26', time_zone: 'Europe/Madrid', inbox: true, undated: true })
       .expect(201);
   }
+  it('F-AC-5: reuses one draft and rejects confirmation without changes', async () => {
+    const first = await start(),
+      second = await start();
+    expect(second.body.id).toBe(first.body.id);
+    await call()
+      .post(`/api/v1/planning/sessions/${first.body.id}/apply`)
+      .set('X-Dev-User-Email', email)
+      .set('Idempotency-Key', randomUUID())
+      .send({ expected_revision: first.body.revision })
+      .expect(422)
+      .expect((res) => expect(res.body.error.code).toBe('nothing_to_apply'));
+  });
   it('F-AC-2/3/4: preserves deadline, writes only chosen duration and records plan activity', async () => {
     const task = await makeTask();
     const session = await start();

@@ -276,6 +276,12 @@ export class PlanningService {
       );
     }
     const session = await this.owned(user.id, sessionId);
+    if (!session.decisions.some((d) => d.decision !== 'skip'))
+      throw new DomainException(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        'nothing_to_apply',
+        'There are no changes to confirm',
+      );
     const operation = await this.begin(user.id, session, key.trim(), expectedRevision);
     if (operation.status === 'applied') {
       return this.appliedBody(operation.id, session, readResult(operation.result));

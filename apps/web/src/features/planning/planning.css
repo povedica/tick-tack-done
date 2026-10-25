@@ -10,9 +10,9 @@
   display: grid;
   gap: 0.75rem;
   padding: 0.9rem 1rem;
-  border: 1px solid var(--line, #d9d4cc);
+  border: 1px solid var(--border);
   border-radius: 12px;
-  background: var(--panel, #fff);
+  background: var(--surface);
 }
 
 .plan-choices {
@@ -35,7 +35,7 @@
 }
 
 .plan-error {
-  color: var(--danger, #9b2c2c);
+  color: var(--danger);
 }
 
 .plan-result ul {
