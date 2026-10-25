@@ -1,3 +1,4 @@
+import { isPlanningTool, callPlanningTool } from './tools/planning-tools.js';
 import { attachmentUpload } from './attachment-upload.js';
 import { buildVersion } from '../build-info.js';
 import apiOperations from './api-operations.json' with { type: 'json' };
@@ -229,6 +230,7 @@ export class McpService {
     authorization?: string,
   ): Promise<unknown> {
     const limit = limitOf(args);
+    if (isPlanningTool(name)) return callPlanningTool(name, args, user, authorization);
     switch (name) {
       case 'list_tasks': {
         const projectId = uuidOrEmpty(args.project_id);

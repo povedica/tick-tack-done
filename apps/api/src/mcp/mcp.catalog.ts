@@ -1,3 +1,4 @@
+import { planningTools } from './tools/planning-tools.js';
 import { missingScopes } from '../auth/scopes.js';
 
 export interface McpTool {
@@ -672,6 +673,7 @@ const CATALOG: readonly McpTool[] = [
       ['id', 'due_date'],
     ),
   },
+  ...planningTools,
   {
     name: 'get_day_load',
     description:
@@ -679,6 +681,7 @@ const CATALOG: readonly McpTool[] = [
     scopes: ['tasks:read'],
     inputSchema: objectSchema({
       date: { type: 'string' },
+      days: { type: 'integer', minimum: 1, maximum: 14 },
       time_zone: { type: 'string' },
     }),
   },
