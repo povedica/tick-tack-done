@@ -1,0 +1,65 @@
+.capture-defaults {
+  display: grid;
+  gap: var(--sp-5);
+}
+.capture-defaults > p {
+  color: var(--ink-3);
+  font-size: var(--fs-sm);
+}
+.settings-main .capture-defaults fieldset {
+  display: block;
+  margin: 0;
+  padding: var(--sp-4);
+}
+.capture-defaults legend {
+  font-weight: 600;
+}
+.capture-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  min-height: 56px;
+  padding-block: var(--sp-2);
+  font-size: var(--fs-sm);
+}
+.capture-setting-row + .capture-setting-row {
+  border-top: 1px solid var(--border);
+}
+.capture-setting-row > div {
+  min-width: 0;
+  flex: 1;
+}
+.capture-setting-row p {
+  margin: var(--sp-1) 0 0;
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+}
+.settings-layout .capture-defaults .capture-setting-row :is(select, input[type='time']) {
+  width: 45%;
+  max-width: 14rem;
+  flex: none;
+  min-width: 0;
+}
+.capture-setting-row input[type='checkbox'] {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: var(--sp-2);
+  accent-color: var(--accent);
+}
+.capture-defaults > button {
+  justify-self: start;
+}
+@media (max-width: 480px) {
+  .capture-setting-row:has(select, input[type='time']) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--sp-2);
+    padding-block: var(--sp-3);
+  }
+  .settings-layout .capture-defaults .capture-setting-row :is(select, input[type='time']) {
+    width: 100%;
+    max-width: none;
+  }
+}

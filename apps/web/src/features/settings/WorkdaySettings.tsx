@@ -2,7 +2,8 @@ import { runAction } from '../../components/run-action';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api } from '../../api';
-import { ErrorState, SkeletonRows } from '../../components/ui';
+import './settings-wt-e.css';
+import { Button, ErrorState, SkeletonRows } from '../../components/ui';
 import { fill, useMessages } from '../../i18n';
 
 interface WorkdayMe {
@@ -19,15 +20,22 @@ export function WorkdaySettings() {
   const queryClient = useQueryClient();
   const me = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
   const data = me.data as WorkdayMe | undefined;
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function save(patch: Record<string, unknown>): Promise<void> {
+    setBusy(true);
+    setSaved(false);
     setError(null);
     try {
       await api.updateMe(patch);
       await queryClient.invalidateQueries({ queryKey: ['me'] });
+      setSaved(true);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : messages.settingsFailed);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -55,12 +63,12 @@ export function WorkdaySettings() {
   }
 
   return (
-    <section>
+    <section className="token-settings workday-settings">
       <h1>{messages.workdayTitle}</h1>
-      <p>{messages.workdayHelp}</p>
+      <p className="lede">{messages.workdayHelp}</p>
       {data === undefined ? null : (
         <form
-          className="token-form"
+          className="workday-form"
           onSubmit={(event) => {
             event.preventDefault();
             const form = new FormData(event.currentTarget);
@@ -81,57 +89,74 @@ export function WorkdaySettings() {
             );
           }}
         >
-          <label>
-            {messages.workdayStart}
-            <input
-              name="work_day_start"
-              defaultValue={data.work_day_start ?? ''}
-              placeholder="09:00"
-            />
-          </label>
-          <p>{messages.workdayStartHelp}</p>
-          <label>
-            {messages.workdayEnd}
-            <input name="work_day_end" defaultValue={data.work_day_end ?? ''} placeholder="18:00" />
-          </label>
-          <p>{messages.workdayEndHelp}</p>
-          <label>
-            {messages.defaultDuration}
-            <input
-              name="default_task_duration_minutes"
-              type="number"
-              min={5}
-              max={240}
-              defaultValue={data.default_task_duration_minutes}
-            />
-          </label>
-          <p>{messages.defaultDurationHelp}</p>
-          <label>
-            {messages.deadlineSoon}
-            <input
-              name="deadline_soon_days"
-              type="number"
-              min={1}
-              max={14}
-              defaultValue={data.deadline_soon_days}
-            />
-          </label>
-          <p>{messages.deadlineSoonHelp}</p>
-          <label>
-            {messages.eveningStart}
-            <input name="evening_start" defaultValue={data.evening_start} />
-          </label>
-          <p>{messages.eveningStartHelp}</p>
-          <label>
-            {messages.shutdownTime}
-            <input
-              name="shutdown_reminder_time"
-              defaultValue={data.shutdown_reminder_time ?? ''}
-              placeholder="21:30"
-            />
-          </label>
-          <p>{messages.shutdownTimeHelp}</p>
-          <button type="submit">{messages.repeatSave}</button>
+          {[
+            [
+              'work_day_start',
+              messages.workdayStart,
+              messages.workdayStartHelp,
+              'time',
+              data.work_day_start ?? '',
+            ],
+            [
+              'work_day_end',
+              messages.workdayEnd,
+              messages.workdayEndHelp,
+              'time',
+              data.work_day_end ?? '',
+            ],
+            [
+              'default_task_duration_minutes',
+              messages.defaultDuration,
+              messages.defaultDurationHelp,
+              'number',
+              data.default_task_duration_minutes,
+            ],
+            [
+              'deadline_soon_days',
+              messages.deadlineSoon,
+              messages.deadlineSoonHelp,
+              'number',
+              data.deadline_soon_days,
+            ],
+            [
+              'evening_start',
+              messages.eveningStart,
+              messages.eveningStartHelp,
+              'time',
+              data.evening_start,
+            ],
+            [
+              'shutdown_reminder_time',
+              messages.shutdownTime,
+              messages.shutdownTimeHelp,
+              'time',
+              data.shutdown_reminder_time ?? '',
+            ],
+          ].map(([key, label, help, type, initial]) => (
+            <div className="workday-setting-row" key={key}>
+              <label htmlFor={`workday-${String(key)}`}>{label}</label>
+              <input
+                id={`workday-${String(key)}`}
+                name={String(key)}
+                type={type === 'time' ? 'text' : String(type)}
+                {...(type === 'time'
+                  ? { pattern: '([01][0-9]|2[0-3]):[0-5][0-9]', placeholder: 'HH:mm' }
+                  : {})}
+                defaultValue={initial}
+                aria-describedby={`workday-${String(key)}-help`}
+                {...(key === 'default_task_duration_minutes'
+                  ? { min: 5, max: 240, required: true }
+                  : key === 'deadline_soon_days'
+                    ? { min: 1, max: 14, required: true }
+                    : {})}
+              />
+              <p id={`workday-${String(key)}-help`}>{help}</p>
+            </div>
+          ))}
+          <Button variant="primary" type="submit" loading={busy}>
+            {messages.repeatSave}
+          </Button>
+          {saved ? <span role="status">{messages.saved}</span> : null}
         </form>
       )}
       {error !== null ? <p role="alert">{error}</p> : null}

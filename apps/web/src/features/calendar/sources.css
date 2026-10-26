@@ -26,17 +26,18 @@
 }
 .calendar-source-row input {
   appearance: none;
-  width: var(--calendar-source-check-size);
-  height: var(--calendar-source-check-size);
+  width: 18px;
+  height: 18px;
   border: 1px solid var(--ink-3);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-sm);
+  position: relative;
   flex: none;
 }
 .calendar-source-row input:checked {
   background: var(--accent);
-  box-shadow: inset 0 0 0 3px var(--surface);
+  border-color: var(--accent);
 }
-@media (min-width: 769px) {
+@media (min-width: 1024px) {
   .calendar-filter-menu {
     display: none;
   }
@@ -45,4 +46,57 @@
   .calendar-source-row {
     min-height: var(--calendar-source-mobile-h);
   }
+}
+
+.calendar-sidebar .calendar-mini {
+  flex: none;
+}
+.calendar-sidebar > .calendar-sources {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.calendar-sources summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 32px;
+  box-sizing: border-box;
+  list-style: none;
+}
+.calendar-sources summary::-webkit-details-marker {
+  display: none;
+}
+.calendar-sources summary > span {
+  flex: 1;
+}
+.calendar-sources summary small {
+  color: var(--ink-3);
+}
+.calendar-sources details[open] > summary > svg {
+  transform: rotate(90deg);
+}
+
+.calendar-source-row input:checked::after {
+  content: '';
+  display: block;
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 4px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.calendar-source-row input:indeterminate {
+  background: var(--accent);
+}
+.calendar-source-row input:indeterminate::after {
+  content: '';
+  position: absolute;
+  inset: 7px 3px;
+  background: white;
 }

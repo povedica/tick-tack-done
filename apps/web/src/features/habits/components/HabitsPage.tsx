@@ -1,50 +1,67 @@
-import { YearHeatmap } from '../../statistics/YearHeatmap';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Habit, CreateHabitBody } from '@reflexionia/sdk';
+import { ChevronLeft, ChevronRight, Plus, SlidersHorizontal, X } from 'lucide-react';
+import { Link } from 'react-router';
 import { api } from '../../../api';
-import { Button } from '../../../components/ui';
-import { useActionToast } from '../../../components/action-toast';
+import { Popover } from '../../../components/Popover';
+import { PeriodNavigator } from '../../../components/period/PeriodNavigator';
+import { Button, SkeletonRows } from '../../../components/ui';
 import { useMessages } from '../../../i18n';
 import { useAppLocale } from '../../../i18n/locale';
-import { HABIT_SUGGESTIONS, buildHabitBody } from '../suggestions';
 import { useHabitCopy } from '../copy';
+import { HabitActions } from './HabitActions';
 import { HabitEditor } from './HabitEditor';
 import { HabitCard } from './HabitCard';
+import { HabitConstancy } from './HabitConstancy';
 import '../habits.css';
-
 export function HabitsPage() {
-  const m = useMessages();
-  const t = useHabitCopy();
-  const locale = useAppLocale();
-  const cache = useQueryClient();
-  const toast = useActionToast((state) => state.show);
-  const habits = useQuery({ queryKey: ['habits'], queryFn: () => api.listHabits() });
-  const [editor, setEditor] = useState<Habit | 'new' | null>(null);
-  const [pendingDelete, setPendingDelete] = useState<Habit | null>(null);
-  const [error, setError] = useState(false);
-  const active = (habits.data?.items ?? []).filter((habit) => !habit.archived);
-  const archived = (habits.data?.items ?? []).filter((habit) => habit.archived);
-  const today =
-    active[0]?.today.date ??
-    new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(
-      new Date(),
-    );
-  const monday = new Date(`${today}T12:00:00`);
-  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
-  const week = Array.from({ length: 7 }, (_, i) => {
-    const day = new Date(monday);
-    day.setDate(day.getDate() + i);
-    return `${String(day.getFullYear())}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+  const m = useMessages(),
+    t = useHabitCopy(),
+    locale = useAppLocale(),
+    cache = useQueryClient();
+  const habits = useQuery({
+    queryKey: ['habits'],
+    queryFn: async () => {
+      const items: Habit[] = [];
+      let cursor: string | undefined;
+      do {
+        const page = await api.listHabits(cursor ? { cursor } : {});
+        items.push(...page.items);
+        cursor = page.next_cursor ?? undefined;
+      } while (cursor);
+      return { items };
+    },
   });
-  const aggregate = useQuery({
-    queryKey: ['habit-stats', active[0]?.id, Number(today.slice(0, 4))],
-    queryFn: () => api.habitStats(active[0]?.id ?? '', Number(today.slice(0, 4))),
-    enabled: active.length > 0,
+  const me = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
+  const [editor, setEditor] = useState<Habit | 'new' | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [manage, setManage] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const [error, setError] = useState(false);
+  const all = habits.data?.items ?? [],
+    active = all.filter((h) => !h.archived && !h.paused);
+  const today =
+    all[0]?.today.date ??
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: me.data?.time_zone ?? 'UTC',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+  const monday = new Date(`${today}T12:00Z`);
+  monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7) + offset * 7);
+  const week = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setUTCDate(d.getUTCDate() + i);
+    return d.toISOString().slice(0, 10);
   });
   const refresh = async () => {
-    for (const key of ['habits', 'habit-stats', 'stats', 'achievements', 'dashboard'])
-      await cache.invalidateQueries({ queryKey: [key] });
+    await Promise.all(
+      ['habits', 'habit', 'habit-stats', 'stats', 'achievements', 'dashboard'].map((key) =>
+        cache.invalidateQueries({ queryKey: [key] }),
+      ),
+    );
   };
   const mutation = useMutation({
     mutationFn: async (action: () => Promise<unknown>) => action(),
@@ -56,211 +73,241 @@ export function HabitsPage() {
       setError(true);
     },
   });
-  const archive = (habit: Habit) => {
-    mutation.mutate(async () => {
-      await api.updateHabit(habit.id, { archived: !habit.archived });
-      toast(habit.archived ? t.recovered : t.archived, () => {
-        mutation.mutate(() => api.updateHabit(habit.id, { archived: habit.archived }));
-      });
-    });
-  };
-  const remove = (habit: Habit) => {
-    setPendingDelete(habit);
-  };
   const save = (body: CreateHabitBody) => {
     mutation.mutate(async () => {
       if (editor && editor !== 'new') await api.updateHabit(editor.id, body);
       else await api.createHabit(body, crypto.randomUUID());
       setEditor(null);
+      setManage(false);
     });
   };
+  const formatWeekDate = (date: string) =>
+    new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(
+      new Date(`${date}T12:00Z`),
+    );
+  const weekLabel = `${formatWeekDate(week[0] ?? today)} – ${formatWeekDate(week[6] ?? today)}`;
   return (
-    <main className="screen-page habits-v2">
+    <main className="screen-page habits-v2 habits-redesign">
       <header className="habit-head">
         <h1>{m.habitsTitle}</h1>
-        <Button
-          variant="primary"
-          onClick={() => {
-            setEditor('new');
-          }}
-        >
-          {m.habitCreate}
-        </Button>
+        <div>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setDeleting(null);
+              setManage(!manage);
+            }}
+            aria-haspopup="dialog"
+            aria-expanded={manage}
+          >
+            <SlidersHorizontal size={16} aria-hidden="true" />
+            {t.manage}
+          </Button>
+          <Button
+            variant="primary"
+            className="habit-new-button"
+            aria-label={t.create}
+            onClick={() => {
+              setEditor('new');
+            }}
+          >
+            <Plus size={20} aria-hidden="true" />
+          </Button>
+        </div>
       </header>
       {error || habits.isError ? <p role="alert">{t.failed}</p> : null}
-      <ol className="habit-summary-week">
-        {week.map((date) => {
-          const cell = aggregate.data?.aggregate_heatmap.find((cell) => cell.date === date);
-          const done = cell?.met ?? 0;
-          const total = cell?.scheduled ?? 0;
-          return (
-            <li key={date} data-today={date === today}>
-              <span>
-                {new Date(`${date}T12:00:00`).toLocaleDateString(locale, { weekday: 'narrow' })}
-              </span>
-              <i
-                className={
-                  total && done === total ? 'is-done' : total && date < today ? 'is-missed' : ''
-                }
-                style={
-                  {
-                    '--habit-progress': `${String(total ? (done / total) * 100 : 0)}%`,
-                  } as React.CSSProperties
-                }
-                aria-label={`${date}: ${String(done)}/${String(total)}`}
-              >
-                {total && done === total ? '✓' : new Date(`${date}T12:00:00`).getDate()}
-              </i>
-            </li>
-          );
-        })}
-      </ol>
+      <nav className="habit-period-toolbar" aria-label={t.chooseWeek}>
+        <div className="habit-period-controls">
+          <Button
+            variant="ghost"
+            aria-label={t.previousWeek}
+            onClick={() => {
+              setOffset((n) => n - 1);
+            }}
+          >
+            <ChevronLeft size={18} aria-hidden="true" />
+          </Button>
+          <PeriodNavigator
+            title={t.chooseWeek}
+            label={t.chooseWeek}
+            displayLabel={weekLabel}
+            date={new Date(`${week[0] ?? today}T12:00:00`)}
+            onPick={(date) => {
+              const picked = new Date(
+                Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
+              );
+              picked.setUTCDate(picked.getUTCDate() - ((picked.getUTCDay() + 6) % 7));
+              const current = new Date(`${today}T00:00Z`);
+              current.setUTCDate(current.getUTCDate() - ((current.getUTCDay() + 6) % 7));
+              setOffset(
+                Math.min(0, Math.round((picked.getTime() - current.getTime()) / (7 * 86400000))),
+              );
+            }}
+          />
+          <Button
+            variant="ghost"
+            aria-label={t.nextWeek}
+            disabled={offset >= 0}
+            onClick={() => {
+              setOffset((n) => n + 1);
+            }}
+          >
+            <ChevronRight size={18} aria-hidden="true" />
+          </Button>
+        </div>
+        <Button
+          variant="secondary"
+          aria-label={t.currentWeek}
+          disabled={offset === 0}
+          onClick={() => {
+            setOffset(0);
+          }}
+        >
+          {t.todayLabel}
+        </Button>
+      </nav>
+      {habits.isPending ? <SkeletonRows /> : null}
+      {!habits.isPending && !all.length ? (
+        <section className="habit-empty-v2">
+          <p>{t.empty}</p>
+          <Button
+            variant="primary"
+            onClick={() => {
+              setEditor('new');
+            }}
+          >
+            {t.create}
+          </Button>
+        </section>
+      ) : null}
+      <>
+        <ul className="habit-cards-v2">
+          {active.map((h) => (
+            <HabitCard
+              key={h.id}
+              habit={h}
+              week={week}
+              busy={mutation.isPending}
+              onCheck={(date, count) => {
+                mutation.mutate(() => api.checkInHabit(h.id, { date, count }, crypto.randomUUID()));
+              }}
+            />
+          ))}
+        </ul>
+        {active.length ? <HabitConstancy habits={active} today={today} /> : null}
+        {all.length > 0 && !active.length ? <p className="habit-empty-v2">{t.emptyWeek}</p> : null}
+      </>
+      {manage ? (
+        <Popover
+          open
+          centered
+          mobileSheet
+          width={540}
+          label={t.manageTitle}
+          className="popover habit-management-dialog"
+          onClose={() => {
+            setManage(false);
+            setDeleting(null);
+          }}
+        >
+          <header className="habit-modal-heading">
+            <h2>{t.manageTitle}</h2>
+            <Button
+              variant="ghost"
+              aria-label={t.close}
+              onClick={() => {
+                setManage(false);
+              }}
+            >
+              <X size={18} aria-hidden="true" />
+            </Button>
+          </header>
+          <ul className="habit-management-list">
+            {all.map((h) => (
+              <li key={h.id}>
+                <div>
+                  <Link to={`/habits/${h.id}`}>{h.name}</Link>
+                  <small>
+                    {h.archived || h.paused
+                      ? t.paused
+                      : h.goal.period === 'week'
+                        ? `${String(h.goal.times_per_period)} / ${m.periodWeek}`
+                        : t.daily}
+                  </small>
+                </div>
+                <HabitActions
+                  label={h.name}
+                  paused={h.paused || h.archived}
+                  busy={mutation.isPending}
+                  onEdit={() => {
+                    setDeleting(null);
+                    setManage(false);
+                    setEditor(h);
+                  }}
+                  onPause={() => {
+                    mutation.mutate(() =>
+                      api.updateHabit(
+                        h.id,
+                        h.archived ? { archived: false, paused: false } : { paused: !h.paused },
+                      ),
+                    );
+                  }}
+                  onDelete={() => {
+                    setDeleting(h.id);
+                  }}
+                />
+                {deleting === h.id ? (
+                  <div
+                    className="habit-delete-confirm"
+                    role="alertdialog"
+                    aria-label={`${t.remove} · ${h.name}`}
+                  >
+                    <p>{t.confirmDelete}</p>
+                    <div className="habit-actions">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={mutation.isPending}
+                        onClick={() => {
+                          setDeleting(null);
+                        }}
+                      >
+                        {t.cancel}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        loading={mutation.isPending}
+                        onClick={() => {
+                          mutation.mutate(async () => {
+                            await api.deleteHabit(h.id);
+                            setDeleting(null);
+                          });
+                        }}
+                      >
+                        {t.remove}
+                      </Button>
+                    </div>
+                    {error ? <p role="alert">{t.failed}</p> : null}
+                  </div>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </Popover>
+      ) : null}
       {editor ? (
         <HabitEditor
           key={editor === 'new' ? 'new' : editor.id}
           {...(editor === 'new' ? {} : { habit: editor })}
           busy={mutation.isPending}
+          error={error ? t.failed : undefined}
           onSave={save}
           onCancel={() => {
             setEditor(null);
+            setManage(false);
           }}
         />
-      ) : null}
-      {habits.isPending ? <p role="status">{m.habitSaving}</p> : null}
-      {!active.length && !habits.isPending ? (
-        <section className="habit-empty-v2">
-          <p>{m.habitEmpty}</p>
-          <div className="habit-actions">
-            {HABIT_SUGGESTIONS.map((suggestion) => (
-              <Button
-                key={suggestion.id}
-                disabled={mutation.isPending}
-                onClick={() => {
-                  mutation.mutate(() =>
-                    api.createHabit(
-                      {
-                        ...buildHabitBody({ name: m[suggestion.label], ...suggestion }),
-                        icon:
-                          (
-                            { water: '💧', walk: '🚶', read: '📖', exercise: '🏃' } as Record<
-                              string,
-                              string
-                            >
-                          )[suggestion.id] ?? null,
-                      },
-                      crypto.randomUUID(),
-                    ),
-                  );
-                }}
-              >
-                {m[suggestion.label]}
-              </Button>
-            ))}
-          </div>
-        </section>
-      ) : null}
-      <ul className="habit-cards-v2">
-        {active.map((habit) => (
-          <HabitCard
-            key={habit.id}
-            habit={habit}
-            week={week}
-            busy={mutation.isPending}
-            onEdit={() => {
-              setEditor(habit);
-            }}
-            onArchive={() => {
-              archive(habit);
-            }}
-            onDelete={() => {
-              remove(habit);
-            }}
-            onCheck={(date, count, note) => {
-              mutation.mutate(() =>
-                api.checkInHabit(
-                  habit.id,
-                  { date, count, ...(note === undefined ? {} : { note }) },
-                  crypto.randomUUID(),
-                ),
-              );
-            }}
-          />
-        ))}
-      </ul>
-      {aggregate.data ? (
-        <details className="habit-existing-heatmap">
-          <summary>{m.aggregateHeat}</summary>
-          <YearHeatmap
-            cells={aggregate.data.aggregate_heatmap.map((cell) => ({
-              date: cell.date,
-              count: cell.met,
-              level: cell.scheduled === 0 ? 0 : Math.round((cell.met / cell.scheduled) * 4),
-            }))}
-          />
-        </details>
-      ) : null}
-      {archived.length ? (
-        <details className="habit-archived">
-          <summary>
-            {m.habitArchived} · {archived.length}
-          </summary>
-          <ul>
-            {archived.map((habit) => (
-              <li key={habit.id}>
-                <span>
-                  {habit.icon} {habit.name}
-                </span>
-                <Button
-                  size="sm"
-                  disabled={mutation.isPending}
-                  onClick={() => {
-                    archive(habit);
-                  }}
-                >
-                  {m.habitUnarchive}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={mutation.isPending}
-                  onClick={() => {
-                    remove(habit);
-                  }}
-                >
-                  {t.remove}
-                </Button>
-              </li>
-            ))}
-          </ul>
-        </details>
-      ) : null}
-      {pendingDelete !== null ? (
-        <div className="token-confirm" role="alertdialog">
-          <p>{t.confirmDelete}</p>
-          <span className="token-actions">
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => {
-                setPendingDelete(null);
-              }}
-            >
-              {m.cancel}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="danger"
-              onClick={() => {
-                const habit = pendingDelete;
-                setPendingDelete(null);
-                mutation.mutate(() => api.deleteHabit(habit.id));
-              }}
-            >
-              {t.remove}
-            </Button>
-          </span>
-        </div>
       ) : null}
     </main>
   );

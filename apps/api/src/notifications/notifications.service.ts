@@ -1,5 +1,5 @@
 import { setTelegramStatus } from '../integrations/telegram-status.js';
-import { telegramConfigured } from '../integrations/config.js';
+import { telegramState } from '../integrations/telegram-state.js';
 import { emailConfigured } from '../mail/send-email.js';
 import { isUUID } from 'class-validator';
 import { asJson } from '../http/json.js';
@@ -30,8 +30,8 @@ export class NotificationsService {
       include: { telegramLinks: { where: { deletedAt: null }, take: 1 } },
     });
     const saved = await this.prisma.notificationPreference.findMany({ where: { userId: user.id } });
-    const telegram = owner.telegramLinks[0];
-    const state = telegram as { status?: string; username?: string } | undefined;
+    const state = await telegramState(this.prisma, user.id);
+    const telegram = state.link;
     return {
       time_zone: owner.timeZone,
       preferences: NOTIFICATION_KINDS.flatMap((kind) =>
@@ -40,7 +40,7 @@ export class NotificationsService {
           channel,
           enabled:
             saved.find((pref) => pref.kind === kind && pref.channel === channel)?.enabled ??
-            notificationDefault(kind, channel, !!telegram),
+            notificationDefault(kind, channel, state.linked),
         })),
       ),
       quiet_hours: {
@@ -56,9 +56,11 @@ export class NotificationsService {
         },
         email: { address: owner.email, configured: emailConfigured() },
         telegram: {
-          linked: !!telegram,
-          status: state?.status ?? (telegram ? 'connected' : 'not_linked'),
-          username: state?.username ?? null,
+          state: state.state,
+          linked: state.linked,
+          status: state.status,
+          username: telegram?.username ?? null,
+          display_name: telegram?.displayName ?? null,
         },
       },
     };
@@ -119,10 +121,11 @@ export class NotificationsService {
       );
     if (channel === 'email' && !emailConfigured())
       throw new DomainException(503, 'email_not_configured', 'Email is not configured');
-    if (channel === 'telegram' && !owner.telegramLinks.length)
-      throw new DomainException(409, 'telegram_not_linked', 'Telegram is not linked');
-    if (channel === 'telegram' && !(await telegramConfigured(this.prisma, user.id)))
+    const telegram = await telegramState(this.prisma, user.id);
+    if (channel === 'telegram' && telegram.state === 'none')
       throw new DomainException(503, 'telegram_not_configured', 'Telegram is not configured');
+    if (channel === 'telegram' && !telegram.linked)
+      throw new DomainException(409, 'telegram_not_linked', 'Telegram is not linked');
     const result = await this.transport.deliver({
       ownerId: user.id,
       channel: channel === 'email' ? 'email' : 'push',
@@ -131,7 +134,7 @@ export class NotificationsService {
       allowTelegram: channel === 'telegram',
       email: owner.email,
       subscriptions: owner.pushSubscriptions,
-      telegramChatId: owner.telegramLinks[0]?.chatId ?? null,
+      telegramChatId: telegram.link?.chatId ?? null,
       title: 'tick-tack-done',
       body: 'Prueba de notificación',
     });

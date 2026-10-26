@@ -14,6 +14,7 @@ import {
   SquareX,
   Trash2,
   ChevronDown,
+  Folder,
   Inbox,
   Hourglass,
   ListTodo,
@@ -414,7 +415,11 @@ export function Sidebar({
                 }
                 return (
                   <details key={folder.id} className="nav-folder" open>
-                    <summary>{folder.name}</summary>
+                    <summary>
+                      <ChevronDown className="folder-chevron" size={12} aria-hidden="true" />
+                      <Folder size={18} aria-hidden="true" />
+                      {folder.name}
+                    </summary>
                     <ul className="nav-list">
                       {children.map((project) => (
                         <li key={project.id}>
@@ -494,8 +499,12 @@ export function Sidebar({
                 ))}
               </ul>
               {archivedProjects.length > 0 ? (
-                <details className="nav-folder">
-                  <summary>{messages.archivedLists}</summary>
+                <details className="nav-folder" open>
+                  <summary>
+                    <ChevronDown className="folder-chevron" size={12} aria-hidden="true" />
+                    <Folder size={18} aria-hidden="true" />
+                    {messages.archivedLists}
+                  </summary>
                   <ul className="nav-list">
                     {archivedProjects.map((project) => (
                       <li key={project.id}>
@@ -720,7 +729,7 @@ export function Sidebar({
       </nav>
       {mobileSection === 'more' ? (
         <div className="sidebar-footer sidebar-more-footer">
-          <SideLink to="/settings/appearance" onNavigate={onNavigate}>
+          <SideLink to="/settings" onNavigate={onNavigate}>
             <Settings size={20} aria-hidden="true" />
             <span className="nav-label">{messages.navSettings}</span>
           </SideLink>
@@ -976,10 +985,7 @@ function NavGroup({
   const [open, setOpen] = useState(() => {
     const saved = localStorage.getItem(storage);
     if (saved !== null) return saved !== 'closed';
-    return (
-      !window.matchMedia('(max-width: 1023px)').matches ||
-      !['lists', 'tags', 'filters'].includes(id)
-    );
+    return true;
   });
   return (
     <section className="nav-group">
@@ -993,7 +999,7 @@ function NavGroup({
             setOpen(!open);
           }}
         >
-          <ChevronDown size={14} aria-hidden="true" />
+          <ChevronDown size={12} strokeWidth={1.25} aria-hidden="true" />
           {title}
         </button>
         {actions ? (

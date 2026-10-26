@@ -52,6 +52,13 @@ describe('habits API', () => {
   let other: Owner;
 
   beforeAll(async () => {
+    const database = new URL(process.env.DATABASE_URL ?? '');
+    const isolatedCi =
+      process.env.CI === 'true' &&
+      database.pathname === '/reflexionia_test' &&
+      ['localhost', '127.0.0.1'].includes(database.hostname);
+    if (database.pathname !== '/ttd_wt_f' && !isolatedCi)
+      throw new Error('Habit tests require isolated ttd_wt_f');
     await prisma.$connect();
     owner = await createOwner('habits');
     other = await createOwner('habits-other');
@@ -79,6 +86,71 @@ describe('habits API', () => {
     };
   }
 
+  it('RF-1301: optional start, unit and pause round trip without changing old habits or logs', async () => {
+    const api = authed(owner.email);
+    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const old = await api
+      .post('/api/v1/habits')
+      .send({
+        name: 'Legacy synthetic',
+        goal: { period: 'day', times_per_period: 1, target_count: 1 },
+        frequency: days,
+      })
+      .expect(201);
+    expect(old.body).toMatchObject({ unit: null, start_date: null, paused: false });
+    const date = String(old.body.today.date);
+    const tomorrow = shiftDate(date, 1);
+    const next = await api
+      .post('/api/v1/habits')
+      .send({
+        name: 'Water synthetic',
+        unit: 'vasos',
+        start_date: tomorrow,
+        goal: { period: 'week', times_per_period: 3, target_count: 8 },
+        frequency: days,
+      })
+      .expect(201);
+    expect(next.body).toMatchObject({ unit: 'vasos', start_date: tomorrow, paused: false });
+    await api
+      .post(`/api/v1/habits/${String(next.body.id)}/checkins`)
+      .send({ date, count: 8 })
+      .expect(400);
+    await api
+      .patch(`/api/v1/habits/${String(next.body.id)}`)
+      .send({ start_date: date })
+      .expect(200);
+    await api
+      .post(`/api/v1/habits/${String(next.body.id)}/checkins`)
+      .send({ date, count: 5, note: 'Keep this note' })
+      .expect(200);
+    await api
+      .patch(`/api/v1/habits/${String(next.body.id)}`)
+      .send({ paused: true })
+      .expect(200);
+    await api
+      .post(`/api/v1/habits/${String(next.body.id)}/checkins`)
+      .send({ date, count: 8 })
+      .expect(409);
+    const paused = await api.get(`/api/v1/habits/${String(next.body.id)}`).expect(200);
+    expect(paused.body.paused).toBe(true);
+    expect(paused.body.today.count).toBe(5);
+    await api
+      .patch(`/api/v1/habits/${String(next.body.id)}`)
+      .send({ paused: false })
+      .expect(200);
+    await api
+      .post(`/api/v1/habits/${String(next.body.id)}/checkins`)
+      .send({ date, count: 8 })
+      .expect(200);
+    const stats = await api.get(`/api/v1/habits/${String(next.body.id)}/stats`).expect(200);
+    expect(stats.body.logs).toContainEqual({ date, count: 8, note: 'Keep this note' });
+    const unchanged = await api.get(`/api/v1/habits/${String(old.body.id)}`).expect(200);
+    expect(unchanged.body).toEqual(old.body);
+    await api
+      .patch(`/api/v1/habits/${String(next.body.id)}`)
+      .send({ start_date: '2026-02-31' })
+      .expect(400);
+  });
   it('RF-1301 RF-1304: creates, lists, updates and deletes a habit without creating a task', async () => {
     const api = authed(owner.email);
     const tasksBefore = await prisma.task.count({ where: { ownerId: owner.id } });
@@ -131,6 +203,7 @@ describe('habits API', () => {
       where: {
         ownerId: owner.id,
         type: { in: ['habit.created@v1', 'habit.updated@v1', 'habit.deleted@v1'] },
+        data: { path: ['habit', 'id'], equals: String(created.body.id) },
       },
     });
     expect(events.map((event) => event.type).sort()).toEqual([
@@ -299,6 +372,25 @@ describe('habits API', () => {
       where: { ownerId: owner.id, dedupeKey: { startsWith: `habit:${created.body.id}:` } },
     });
     expect(delivery).not.toBeNull();
+    await api
+      .patch(`/api/v1/habits/${String(created.body.id)}`)
+      .send({ paused: true })
+      .expect(200);
+    expect(
+      (await prisma.reminderDelivery.findUnique({ where: { id: delivery?.id ?? '' } }))?.status,
+    ).toBe('cancelled');
+    await scheduler.run(new Date(), false);
+    expect(
+      (await prisma.reminderDelivery.findUnique({ where: { id: delivery?.id ?? '' } }))?.status,
+    ).toBe('cancelled');
+    await api
+      .patch(`/api/v1/habits/${String(created.body.id)}`)
+      .send({ paused: false })
+      .expect(200);
+    await scheduler.run(new Date(), false);
+    expect(
+      (await prisma.reminderDelivery.findUnique({ where: { id: delivery?.id ?? '' } }))?.status,
+    ).toBe('scheduled');
 
     const breaks = await prisma.outboxEvent.findMany({
       where: {

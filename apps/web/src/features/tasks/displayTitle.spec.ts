@@ -2,16 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { displayTitle, looksLikeUuid } from './displayTitle';
 
 describe('displayTitle', () => {
-  it('TSK-4: drops a hashtag that is already a chip', () => {
-    expect(displayTitle('Llamar a Ana #casa mañana', ['casa'])).toBe('Llamar a Ana mañana');
+  it('RF-102: preserves a tag intentionally retained by capture settings', () => {
+    expect(displayTitle('Llamar a Ana #casa mañana', ['casa'])).toBe('Llamar a Ana #casa mañana');
   });
 
-  it('TSK-4: strips unknown hashtags from the visible title', () => {
-    expect(displayTitle('Revisar #borrador', ['casa'])).toBe('Revisar');
+  it('RF-102: leaves literal hashtags unchanged when recognition is disabled', () => {
+    expect(displayTitle('Revisar #borrador', ['casa'])).toBe('Revisar #borrador');
   });
 
-  it('TSK-4: strips several trailing tags', () => {
-    expect(displayTitle('Pagar asistenta #casa #personal #gestion', [])).toBe('Pagar asistenta');
+  it('RF-102: does not perform a second cleanup on a persisted title', () => {
+    expect(displayTitle('Pagar asistenta #casa #personal #gestion', [])).toBe(
+      'Pagar asistenta #casa #personal #gestion',
+    );
   });
 
   it('EXT-9: detects raw UUID labels', () => {

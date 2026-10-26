@@ -26,3 +26,4 @@ backups/
 docker-compose.worktree.local.yml
 
 /test-artifacts/
+.env-config/

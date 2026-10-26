@@ -272,44 +272,48 @@ export function FocusPage() {
               <small>{timerLabel}</small>
             </div>
           </div>
-          {!live && !stopwatch && editingDuration ? (
+          {!live && !stopwatch ? (
             <div className="focus-quick-duration">
               <div className="focus-presets">
-                {[15, 25, 45, 60].map((value) => (
-                  <button
-                    type="button"
-                    key={value}
-                    aria-pressed={planned === value}
-                    onClick={() => {
-                      setPreset(value);
-                      act(() =>
-                        api.updateFocusSettings({ pomodoro_minutes: value }).then((saved) => {
-                          cache.setQueryData(['focus-settings'], saved);
-                          setPreset(null);
-                        }),
-                      );
-                    }}
-                  >
-                    {value}
-                  </button>
-                ))}
+                {Array.from(new Set([15, 25, 45, 60, numeric(settings.data.pomodoroMinutes) || 25]))
+                  .sort((a, b) => a - b)
+                  .map((value) => (
+                    <button
+                      type="button"
+                      key={value}
+                      aria-pressed={planned === value}
+                      onClick={() => {
+                        setPreset(value);
+                        act(() =>
+                          api.updateFocusSettings({ pomodoro_minutes: value }).then((saved) => {
+                            cache.setQueryData(['focus-settings'], saved);
+                            setPreset(null);
+                          }),
+                        );
+                      }}
+                    >
+                      {value}
+                    </button>
+                  ))}
               </div>
-              <label>
-                {m.focusPomoDuration}
-                <input
-                  type="number"
-                  min={5}
-                  max={180}
-                  step={5}
-                  value={planned}
-                  onChange={(event) => {
-                    const value = Number(event.target.value);
-                    setPreset(value);
-                    if (event.target.validity.valid)
-                      act(() => api.updateFocusSettings({ pomodoro_minutes: value }));
-                  }}
-                />
-              </label>
+              {editingDuration ? (
+                <label>
+                  {m.focusPomoDuration}
+                  <input
+                    type="number"
+                    min={5}
+                    max={180}
+                    step={5}
+                    value={planned}
+                    onChange={(event) => {
+                      const value = Number(event.target.value);
+                      setPreset(value);
+                      if (event.target.validity.valid)
+                        act(() => api.updateFocusSettings({ pomodoro_minutes: value }));
+                    }}
+                  />
+                </label>
+              ) : null}
             </div>
           ) : null}
           <p className="focus-cycle-progress">

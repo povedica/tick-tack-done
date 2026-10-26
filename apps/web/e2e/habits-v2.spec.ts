@@ -109,16 +109,18 @@ for (const width of [1440, 390])
       const calls = await fixtures(page);
       await page.goto('/habits');
       await expect(page.getByRole('link', { name: 'Agua sintética' })).toBeVisible();
-      await page
-        .getByRole('button', { name: /Marcar.*20 oct|Check-in.*20 oct|Registrar.*20 oct/i })
-        .click();
+      await page.locator('.habit-card-v2 .habit-week-points .is-today').click();
       await expect
         .poll(() => calls.filter((call) => call.path.endsWith('/checkins')).length)
         .toBe(1);
-      expect(calls.at(-1)?.body).toMatchObject({ date: '2026-10-20', count: 3 });
-      await page.locator('.habit-card-title summary').click();
+      expect(calls.at(-1)?.body).toMatchObject({ date: '2026-10-20', count: 8 });
+      await page.getByRole('button', { name: 'Editar hábitos', exact: true }).click();
       await page.getByRole('button', { name: 'Editar', exact: true }).click();
-      await expect(page.getByLabel('Completar N días (opcional)')).toHaveValue('100');
+      await page.getByRole('dialog').getByRole('button', { name: 'Más', exact: true }).click();
+      await expect(page.getByRole('button', { name: '100 días', exact: true })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
       await expect(page.getByLabel('Nota de motivación')).toHaveValue('Conservar motivación');
       await page.getByRole('button', { name: 'Guardar', exact: true }).click();
       await page.getByRole('link', { name: 'Agua sintética' }).click();
@@ -150,7 +152,7 @@ for (const width of [1440, 390])
       await expect(clearForm.getByRole('button', { name: 'Cancelar', exact: true })).toBeVisible();
       await clearForm.getByRole('button', { name: 'Desmarcar', exact: true }).click();
       expect(calls.at(-1)?.body).toMatchObject({ date: '2026-10-19', count: 0, note: null });
-      await page.getByRole('button', { name: 'Archivar', exact: true }).click();
-      await expect(page.getByRole('button', { name: 'Recuperar', exact: true })).toBeVisible();
+      await page.getByRole('button', { name: 'Pausar', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'Reanudar', exact: true })).toBeVisible();
     });
   }

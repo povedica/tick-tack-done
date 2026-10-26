@@ -6,6 +6,7 @@ import { DomainException } from '../http/domain.exception.js';
 import { McpService } from './mcp.service.js';
 
 const user = {
+  requestSource: 'mcp' as const,
   id: '11111111-1111-4111-8111-111111111111',
   email: 'mcp@test',
   displayName: 'MCP',
@@ -38,6 +39,7 @@ describe('McpService recurrence mapping', () => {
     addLink: vi.fn(),
     removeLink: vi.fn(),
     listAttachments: vi.fn(),
+    streamAttachment: vi.fn(),
     linkDriveFile: vi.fn(),
     deleteAttachment: vi.fn(),
     occurrences: vi.fn(),
@@ -67,6 +69,7 @@ describe('McpService recurrence mapping', () => {
     $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(prisma)),
   };
 
+  const search = { search: vi.fn() };
   const closing = { replanTool: vi.fn(), discardReplan: vi.fn() };
   let service: McpService;
 
@@ -83,7 +86,7 @@ describe('McpService recurrence mapping', () => {
       {} as never,
       {} as never,
       {} as never,
-      {} as never,
+      search as never,
       prisma as never,
       {} as never,
     );
@@ -517,7 +520,7 @@ describe('McpService recurrence mapping', () => {
     });
     expect(tasks.create).toHaveBeenCalledWith(
       user,
-      expect.objectContaining({ project_id: '55555555-5555-4555-8555-555555555555' }),
+      expect.objectContaining({ raw_text: 'Llamar ^grokbot' }),
       undefined,
       'mcp',
     );
@@ -891,6 +894,76 @@ describe('McpService recurrence mapping', () => {
       },
     });
     expect(tasks.deleteAttachment).toHaveBeenCalledWith(user, id, id, true);
+  });
+  it.each(['completed', 'cancelled', 'archived'])(
+    'TTD-AUD-118: %s occurrences never expose a next occurrence',
+    async (status) => {
+      tasks.get.mockResolvedValue({
+        id: '33333333-3333-4333-8333-333333333333',
+        status,
+        repeat_rule: 'RRULE:FREQ=DAILY',
+        due_date: '2030-01-01T09:00:00Z',
+      });
+      const result = await service.handle(user, {
+        jsonrpc: '2.0',
+        id: 118,
+        method: 'tools/call',
+        params: { name: 'get_task', arguments: { id: '33333333-3333-4333-8333-333333333333' } },
+      });
+      expect(JSON.parse(toolText(result)).next_occurrence).toBeNull();
+    },
+  );
+  it('TTD-AUD-119: search task groups contain only ids and preserve list groups', async () => {
+    const item = { id: 'task', title: 'long task'.repeat(1000), type: 'task' };
+    const list = { id: 'list', name: 'List' };
+    const original = {
+      items: [item],
+      next_cursor: null,
+      groups: [
+        { type: 'task', items: [item] },
+        { type: 'list', items: [list] },
+      ],
+    };
+    search.search.mockResolvedValue(original);
+    const response = await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 119,
+      method: 'tools/call',
+      params: { name: 'search', arguments: { q: 'long task' } },
+    });
+    const result = JSON.parse(toolText(response));
+    expect(result.groups).toEqual([
+      { type: 'task', ids: ['task'], count: 1 },
+      { type: 'list', items: [list] },
+    ]);
+    expect(result.items).toEqual([item]);
+    expect(JSON.stringify(result).length).toBeLessThan(JSON.stringify(original).length * 0.55);
+  });
+  it('TTD-AUD-111: catalog exposes direct streaming upload with the authenticated owner', async () => {
+    const catalog = await service.handle(user, { jsonrpc: '2.0', id: 111, method: 'tools/list' });
+    expect(JSON.stringify(catalog)).toContain('upload_task_attachment');
+    tasks.streamAttachment.mockResolvedValue({ source: 'mcp', drive_state: 'ok' });
+    const result = await service.handle(user, {
+      jsonrpc: '2.0',
+      id: 111,
+      method: 'tools/call',
+      params: {
+        name: 'upload_task_attachment',
+        arguments: {
+          task_id: '33333333-3333-4333-8333-333333333333',
+          filename: 'note.txt',
+          base64: Buffer.from('hello').toString('base64'),
+        },
+      },
+    });
+    expect(JSON.parse(toolText(result))).toEqual({ source: 'mcp', drive_state: 'ok' });
+    expect(tasks.streamAttachment).toHaveBeenCalledWith(
+      user,
+      '33333333-3333-4333-8333-333333333333',
+      'note.txt',
+      expect.anything(),
+      'mcp',
+    );
   });
 });
 

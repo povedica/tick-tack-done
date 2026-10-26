@@ -3846,7 +3846,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TaskResponseDto"
+                  "$ref": "#/components/schemas/TaskDetailResponseDto"
                 }
               }
             }
@@ -3988,7 +3988,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "",
             "content": {
               "application/json": {
@@ -4037,7 +4037,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TaskResponseDto"
+                  "$ref": "#/components/schemas/TaskDetailResponseDto"
                 }
               }
             }
@@ -4089,7 +4089,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TaskResponseDto"
+                  "$ref": "#/components/schemas/TaskDetailResponseDto"
                 }
               }
             }
@@ -4356,7 +4356,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TaskResponseDto"
+                  "$ref": "#/components/schemas/TaskDetailResponseDto"
                 }
               }
             }
@@ -4410,7 +4410,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TaskResponseDto"
+                  "$ref": "#/components/schemas/TaskDetailResponseDto"
                 }
               }
             }
@@ -4646,7 +4646,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TaskResponseDto"
+                  "$ref": "#/components/schemas/TaskDetailResponseDto"
                 }
               }
             }
@@ -4690,7 +4690,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TaskResponseDto"
+                  "$ref": "#/components/schemas/TaskDetailResponseDto"
                 }
               }
             }
@@ -4734,7 +4734,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TaskResponseDto"
+                  "$ref": "#/components/schemas/TaskDetailResponseDto"
                 }
               }
             }
@@ -4788,7 +4788,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TaskResponseDto"
+                  "$ref": "#/components/schemas/TaskDetailResponseDto"
                 }
               }
             }
@@ -4827,12 +4827,12 @@
           }
         ],
         "responses": {
-          "200": {
+          "201": {
             "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TaskResponseDto"
+                  "$ref": "#/components/schemas/TaskDetailResponseDto"
                 }
               }
             }
@@ -6616,6 +6616,47 @@
         ]
       }
     },
+    "/api/v1/planning/candidates": {
+      "get": {
+        "operationId": "PlanningController_candidates",
+        "parameters": [
+          {
+            "name": "date",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "undated",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "inbox",
+            "required": false,
+            "in": "query",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Count candidates without creating a session (F-AC-5)",
+        "tags": [
+          "planning"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/planning/sessions": {
       "post": {
         "description": "Sources can restrict the session to today only. Today includes active start/deadline ranges, excluding overdue tasks when overdue=false. Cards expose start_date and recurring (null for legacy snapshots); clients disable bulk actions when recurrence safety is unknown or recurring=true.",
@@ -6758,6 +6799,83 @@
         ]
       }
     },
+    "/api/v1/planning/sessions/{id}/schedule/{taskId}": {
+      "post": {
+        "description": "Requires Idempotency-Key. Returns the updated draft session, committed_task_ids and operation_id for undo. Accepts action=move with date, optional time and duration. Free slots span 00:00–24:00, including weekends.",
+        "operationId": "PlanningController_schedule",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Schedule one configured task immediately; keep other decisions in draft",
+        "tags": [
+          "planning"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/planning/operations/{id}/revert": {
+      "post": {
+        "operationId": "PlanningController_revert",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Undo an applied day plan; idempotent, 409 if a task changed (F-AC-29)",
+        "tags": [
+          "planning"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/planning/sessions/{id}/apply": {
       "post": {
         "operationId": "PlanningController_apply",
@@ -6831,13 +6949,43 @@
         ]
       }
     },
+    "/api/v1/planning/settings/work-days": {
+      "put": {
+        "operationId": "DayClosingController_workDays",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkDaysDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Configure working weekdays for day planning (RF-2640)",
+        "tags": [
+          "planning"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/planning/load": {
       "get": {
         "operationId": "DayClosingController_load",
         "parameters": [
           {
             "name": "date",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -6845,11 +6993,26 @@
           },
           {
             "name": "time_zone",
-            "required": true,
+            "required": false,
             "in": "query",
+            "description": "Compatibility parameter; the profile time zone is authoritative.",
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "days",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {}
           }
         ],
         "responses": {
@@ -12129,7 +12292,7 @@
             }
           }
         },
-        "summary": "Save focus durations, auto-start, local sounds, volume and daily goal (TTD-AUD-101)",
+        "summary": "Merge focus settings; omitted fields remain unchanged (RF-1201, TTD-AUD-129)",
         "tags": [
           "focus"
         ],
@@ -12882,6 +13045,51 @@
           }
         },
         "summary": "Validar y guardar cifrado el bot propio del usuario (RF-2003).",
+        "tags": [
+          "integrations"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "IntegrationsController_removeTelegramBot",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "Quitar el bot propio y sus vínculos (RF-2003).",
+        "tags": [
+          "integrations"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/integrations/telegram/settings/retry": {
+      "post": {
+        "operationId": "IntegrationsController_retryTelegramWebhook",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramConfigurationDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Reintentar el registro del webhook propio (RF-2003).",
         "tags": [
           "integrations"
         ],
@@ -13766,6 +13974,128 @@
           "password"
         ]
       },
+      "CaptureSettingsDto": {
+        "type": "object",
+        "properties": {
+          "recognize_dates": {
+            "type": "boolean"
+          },
+          "remove_date_text": {
+            "type": "boolean"
+          },
+          "recognize_tags": {
+            "type": "boolean"
+          },
+          "remove_tag_text": {
+            "type": "boolean"
+          },
+          "parse_url_title": {
+            "type": "boolean"
+          },
+          "default_date": {
+            "type": "string",
+            "enum": [
+              "none",
+              "today",
+              "tomorrow"
+            ]
+          },
+          "default_date_mode": {
+            "type": "string",
+            "enum": [
+              "date",
+              "date_time"
+            ]
+          },
+          "default_time": {
+            "type": "string",
+            "example": "09:00"
+          },
+          "default_duration_minutes": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 1,
+            "maximum": 1440
+          },
+          "default_priority": {
+            "type": "string",
+            "enum": [
+              "none",
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "default_tag_id": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid"
+          },
+          "default_list_id": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid"
+          },
+          "timed_reminder": {
+            "type": "string",
+            "enum": [
+              "inherit",
+              "none",
+              "-PT0M",
+              "-PT5M",
+              "-PT15M",
+              "-PT30M",
+              "-PT1H",
+              "-P1D"
+            ]
+          },
+          "all_day_reminder": {
+            "type": "string",
+            "enum": [
+              "inherit",
+              "none",
+              "-PT0M",
+              "-PT5M",
+              "-PT15M",
+              "-PT30M",
+              "-PT1H",
+              "-P1D"
+            ]
+          },
+          "new_task_position": {
+            "type": "string",
+            "enum": [
+              "top",
+              "bottom"
+            ]
+          },
+          "overdue_position": {
+            "type": "string",
+            "enum": [
+              "top",
+              "bottom"
+            ]
+          }
+        },
+        "required": [
+          "recognize_dates",
+          "remove_date_text",
+          "recognize_tags",
+          "remove_tag_text",
+          "parse_url_title",
+          "default_date",
+          "default_date_mode",
+          "default_time",
+          "default_duration_minutes",
+          "default_priority",
+          "default_tag_id",
+          "default_list_id",
+          "timed_reminder",
+          "all_day_reminder",
+          "new_task_position",
+          "overdue_position"
+        ]
+      },
       "FeatureFlagsDto": {
         "type": "object",
         "properties": {
@@ -13814,6 +14144,9 @@
       "MeResponseDto": {
         "type": "object",
         "properties": {
+          "capture_settings": {
+            "$ref": "#/components/schemas/CaptureSettingsDto"
+          },
           "id": {
             "type": "string"
           },
@@ -13931,6 +14264,7 @@
           }
         },
         "required": [
+          "capture_settings",
           "id",
           "email",
           "display_name",
@@ -13978,6 +14312,9 @@
       "UpdateMeDto": {
         "type": "object",
         "properties": {
+          "capture_settings": {
+            "$ref": "#/components/schemas/CaptureSettingsDto"
+          },
           "display_name": {
             "type": "string",
             "maxLength": 200
@@ -15620,6 +15957,17 @@
       "HabitResponseDto": {
         "type": "object",
         "properties": {
+          "unit": {
+            "type": "string",
+            "nullable": true
+          },
+          "start_date": {
+            "type": "string",
+            "nullable": true
+          },
+          "paused": {
+            "type": "boolean"
+          },
           "challenge_days": {
             "type": "number",
             "nullable": true
@@ -15681,6 +16029,9 @@
           }
         },
         "required": [
+          "unit",
+          "start_date",
+          "paused",
           "challenge_days",
           "id",
           "name",
@@ -15719,6 +16070,19 @@
       "CreateHabitDto": {
         "type": "object",
         "properties": {
+          "unit": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 32
+          },
+          "start_date": {
+            "type": "string",
+            "nullable": true,
+            "example": "2026-10-26"
+          },
+          "paused": {
+            "type": "boolean"
+          },
           "challenge_days": {
             "type": "number",
             "nullable": true,
@@ -15969,6 +16333,19 @@
       "UpdateHabitDto": {
         "type": "object",
         "properties": {
+          "unit": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 32
+          },
+          "start_date": {
+            "type": "string",
+            "nullable": true,
+            "example": "2026-10-26"
+          },
+          "paused": {
+            "type": "boolean"
+          },
           "challenge_days": {
             "type": "number",
             "nullable": true,
@@ -17493,6 +17870,230 @@
           "next_cursor"
         ]
       },
+      "TaskActivityDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "changes": {
+            "type": "object",
+            "nullable": true,
+            "description": "Existing event changes payload."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "actor_id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "example": "task.completed",
+            "description": "Domain event type without its version suffix, when available."
+          },
+          "source": {
+            "type": "string",
+            "example": "mcp",
+            "description": "Source of this event request, independent of the task capture source (web, api, mcp or automation)."
+          }
+        },
+        "required": [
+          "id",
+          "action",
+          "changes",
+          "created_at",
+          "actor_id"
+        ]
+      },
+      "TaskDetailResponseDto": {
+        "type": "object",
+        "properties": {
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskLinkResponseDto"
+            }
+          },
+          "link_count": {
+            "type": "number"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CaptureWarningDto"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "parent_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "column_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "title": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "task",
+              "note"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "completed",
+              "archived",
+              "cancelled"
+            ]
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "none",
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "is_all_day": {
+            "type": "boolean"
+          },
+          "start_date": {
+            "type": "string",
+            "nullable": true
+          },
+          "due_date": {
+            "type": "string",
+            "nullable": true
+          },
+          "time_zone": {
+            "type": "string"
+          },
+          "duration_minutes": {
+            "type": "number",
+            "nullable": true
+          },
+          "version": {
+            "type": "number",
+            "description": "Monotonic CAS version (>=1). Additive for Ticky expected_version (APP-02a).",
+            "minimum": 1
+          },
+          "is_someday": {
+            "type": "boolean"
+          },
+          "evening_only": {
+            "type": "boolean"
+          },
+          "repeat_rule": {
+            "type": "string",
+            "nullable": true
+          },
+          "repeat_from": {
+            "type": "string",
+            "enum": [
+              "due_date",
+              "completion_date"
+            ]
+          },
+          "series_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "sort_order": {
+            "type": "string"
+          },
+          "tag_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "assignee_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "completed_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "source": {
+            "type": "string"
+          },
+          "checklist_progress": {
+            "$ref": "#/components/schemas/ChecklistProgressDto"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          },
+          "deleted_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "activity": {
+            "description": "Recent task activity when returning task detail; write responses include their own event.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskActivityDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "parent_id",
+          "column_id",
+          "title",
+          "content",
+          "kind",
+          "status",
+          "priority",
+          "is_all_day",
+          "start_date",
+          "due_date",
+          "time_zone",
+          "duration_minutes",
+          "version",
+          "is_someday",
+          "evening_only",
+          "repeat_rule",
+          "repeat_from",
+          "series_id",
+          "sort_order",
+          "tag_ids",
+          "assignee_id",
+          "created_by",
+          "completed_at",
+          "source",
+          "checklist_progress",
+          "created_at",
+          "updated_at",
+          "deleted_at"
+        ]
+      },
       "BatchTasksDto": {
         "type": "object",
         "properties": {
@@ -17814,6 +18415,13 @@
           "deleted_at": {
             "type": "string",
             "nullable": true
+          },
+          "activity": {
+            "description": "Recent task activity when returning task detail; write responses include their own event.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskActivityDto"
+            }
           }
         },
         "required": [
@@ -17945,7 +18553,8 @@
               "push",
               "email",
               "both"
-            ]
+            ],
+            "description": "Defaults to push when VAPID is configured, otherwise email when configured, otherwise push."
           },
           "constant": {
             "type": "boolean"
@@ -18575,14 +19184,35 @@
               "someday"
             ]
           },
+          "action": {
+            "type": "string",
+            "enum": [
+              "today",
+              "tomorrow",
+              "move",
+              "done",
+              "wont_do",
+              "someday",
+              "delete",
+              "skip"
+            ]
+          },
+          "date": {
+            "type": "string"
+          },
+          "time": {
+            "type": "string"
+          },
+          "duration": {
+            "type": "number",
+            "minimum": 5,
+            "maximum": 480
+          },
           "target_date": {
             "type": "string",
             "nullable": true
           }
-        },
-        "required": [
-          "decision"
-        ]
+        }
       },
       "ApplyPlanDto": {
         "type": "object",
@@ -18593,6 +19223,21 @@
         },
         "required": [
           "expected_revision"
+        ]
+      },
+      "WorkDaysDto": {
+        "type": "object",
+        "properties": {
+          "work_days": {
+            "description": "Working weekdays: Sunday=0 through Saturday=6; empty means no working days.",
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        },
+        "required": [
+          "work_days"
         ]
       },
       "SessionDateDto": {
@@ -19093,6 +19738,17 @@
       "TelegramStatusDto": {
         "type": "object",
         "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "none",
+              "token_saved",
+              "webhook_ok",
+              "linked",
+              "blocked",
+              "error"
+            ]
+          },
           "configured": {
             "type": "boolean"
           },
@@ -19118,7 +19774,8 @@
             "enum": [
               "unconfigured",
               "local_only",
-              "registered"
+              "registered",
+              "error"
             ]
           },
           "updated_at": {
@@ -19147,9 +19804,11 @@
           "status": {
             "type": "string",
             "enum": [
+              "not_configured",
               "not_linked",
               "connected",
-              "blocked"
+              "blocked",
+              "error"
             ]
           },
           "enabled": {
@@ -19163,6 +19822,7 @@
           }
         },
         "required": [
+          "state",
           "configured",
           "can_manage",
           "source",
@@ -19187,6 +19847,10 @@
           "token": {
             "type": "string",
             "writeOnly": true
+          },
+          "force": {
+            "type": "boolean",
+            "default": false
           }
         },
         "required": [
@@ -19196,6 +19860,17 @@
       "TelegramConfigurationDto": {
         "type": "object",
         "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "none",
+              "token_saved",
+              "webhook_ok",
+              "linked",
+              "blocked",
+              "error"
+            ]
+          },
           "configured": {
             "type": "boolean"
           },
@@ -19221,7 +19896,8 @@
             "enum": [
               "unconfigured",
               "local_only",
-              "registered"
+              "registered",
+              "error"
             ]
           },
           "updated_at": {
@@ -19234,6 +19910,7 @@
           }
         },
         "required": [
+          "state",
           "configured",
           "can_manage",
           "source",

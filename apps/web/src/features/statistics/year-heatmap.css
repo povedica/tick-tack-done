@@ -1,0 +1,79 @@
+/* Shared by statistics, the habits list and habit detail. */
+.year-heatmap.stats-heatmap-wrap {
+  background: none;
+  scroll-snap-type: none;
+  max-width: 100%;
+  overflow-x: hidden;
+  overscroll-behavior-x: contain;
+  padding: 4px 0 8px;
+}
+.stats-heatmap-wrap.is-habits {
+  width: 100%;
+  margin-inline: auto;
+  scrollbar-width: thin;
+}
+.stats-heatmap {
+  display: block;
+}
+.stats-heatmap rect {
+  cursor: pointer;
+}
+.stats-heatmap rect:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.stats-heatmap-legend {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink-3);
+  font-size: 11px;
+  margin: 8px 0 0;
+}
+.stats-heatmap-legend span {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  border: 1px solid var(--border);
+}
+.heatmap-selection {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--ink-2);
+  margin: 12px 0 0;
+}
+.heatmap-selection strong {
+  font-weight: 500;
+  color: var(--ink);
+}
+.heatmap-accessible-table {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+@media (max-width: 768px) {
+  .stats-heatmap-wrap.is-habits {
+    width: 100%;
+  }
+}
+
+.year-heatmap.stats-heatmap-wrap.is-months {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: none;
+  touch-action: pan-x pan-y;
+  scrollbar-width: thin;
+}
+.year-heatmap.is-months .stats-heatmap {
+  max-width: none;
+}

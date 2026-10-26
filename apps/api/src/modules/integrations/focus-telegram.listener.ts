@@ -3,7 +3,11 @@ import { DomainEvent } from '../../events/domain-events.js';
 import type { DomainBusEvent } from '../../events/event-bus.js';
 import { EventRouter } from '../../events/event-router.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { telegramConfiguration } from '../../integrations/telegram-configuration.js';
+import { telegramState } from '../../integrations/telegram-state.js';
+import {
+  telegramConfiguration,
+  telegramRevisionMatches,
+} from '../../integrations/telegram-configuration.js';
 import { TelegramApi } from './telegram-api.js';
 
 const FOCUS_TYPES = new Set<string>([
@@ -27,8 +31,14 @@ export class FocusTelegramListener implements OnModuleInit {
 
   private async onEvent(event: DomainBusEvent): Promise<void> {
     if (!FOCUS_TYPES.has(event.type)) return;
+    const state = await telegramState(this.prisma, event.ownerId);
+    if (!state.linked) return;
     const configuration = await telegramConfiguration(this.prisma, event.ownerId);
-    if (configuration.token.length === 0) return;
+    if (
+      configuration.token.length === 0 ||
+      !telegramRevisionMatches(state.configuration, configuration)
+    )
+      return;
     const user = await this.prisma.user.findFirst({
       where: { id: event.ownerId, deletedAt: null },
       select: {
@@ -36,7 +46,7 @@ export class FocusTelegramListener implements OnModuleInit {
         telegramLinks: { where: { deletedAt: null }, select: { chatId: true }, take: 1 },
       },
     });
-    const chatId = user?.telegramLinks[0]?.chatId;
+    const chatId = state.link?.chatId;
     if (user === null || !user.focusNotifications || chatId === undefined) {
       return;
     }

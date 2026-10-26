@@ -1,3 +1,4 @@
+import { CaptureSettingsDto } from './capture-settings.dto.js';
 import { ApiProperty } from '@nestjs/swagger';
 import { ACCOUNT_REMINDER_TRIGGERS, NAVIGATION_MODULES } from '@reflexionia/domain';
 import { Type } from 'class-transformer';
@@ -90,6 +91,12 @@ export class DeleteMeDto {
 }
 
 export class UpdateMeDto {
+  @ApiProperty({ required: false, type: CaptureSettingsDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CaptureSettingsDto)
+  capture_settings?: CaptureSettingsDto;
+
   @ApiProperty({ required: false, maxLength: 200 })
   @IsOptional()
   @IsString()
@@ -297,6 +304,9 @@ export class InboundEmailAddressDto {
 }
 
 export class MeResponseDto {
+  @ApiProperty({ type: CaptureSettingsDto })
+  capture_settings!: CaptureSettingsDto;
+
   @ApiProperty({ type: String })
   id!: string;
 

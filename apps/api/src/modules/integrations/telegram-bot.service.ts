@@ -1,3 +1,4 @@
+import { telegramState } from '../../integrations/telegram-state.js';
 import { setTelegramStatus } from '../../integrations/telegram-status.js';
 import { Readable } from 'node:stream';
 import { createHash, randomBytes } from 'node:crypto';
@@ -105,10 +106,10 @@ export class TelegramBotService {
     return telegramConfiguration(this.prisma, ownerId).then((config) => config.username ?? null);
   }
   async recheck(user: AuthUser) {
-    const link = await this.prisma.telegramLink.findFirst({
-      where: { ownerId: user.id, deletedAt: null },
-    });
-    if (!link) throw new DomainException(409, 'telegram_not_linked', 'Telegram is not linked');
+    const current = await telegramState(this.prisma, user.id);
+    const link = current.link;
+    if (!link || !['linked', 'blocked'].includes(current.state))
+      throw new DomainException(409, 'telegram_not_linked', 'Telegram is not linked');
     try {
       await this.telegram.call(
         'sendMessage',
@@ -191,13 +192,14 @@ export class TelegramBotService {
         ownerId,
         incoming.username ?? null,
         incoming.displayName ?? null,
+        botId,
       );
       if (paired !== null) {
         await this.send(ownerId, incoming.chatId, plain(paired));
         return { called_telegram: true, action: 'paired' };
       }
     }
-    const user = await this.userFor(incoming.chatId, ownerId);
+    const user = await this.userFor(incoming.chatId, ownerId, botId);
     if (user === null) {
       await this.send(
         ownerId,
@@ -267,6 +269,7 @@ export class TelegramBotService {
     ownerId: string,
     username: string | null,
     displayName: string | null,
+    botId: string,
   ): Promise<string | null> {
     const match = /^\/start(?:@\w+)?(?:\s+|_)([A-Za-z0-9_-]{16,})$/.exec(text.trim());
     if (match === null) {
@@ -286,6 +289,13 @@ export class TelegramBotService {
     }
     await this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`telegram-owner:${row.ownerId}`}, 0))`;
+      const configuration = await tx.telegramBotConfiguration.findUnique({ where: { ownerId } });
+      if (configuration?.botId !== botId)
+        throw new DomainException(
+          409,
+          'telegram_bot_changed',
+          'El bot ha cambiado. Genera otro código.',
+        );
       const claimed = await tx.telegramPairing.updateMany({
         where: { id: row.id, usedAt: null },
         data: { usedAt: new Date() },
@@ -295,9 +305,10 @@ export class TelegramBotService {
       }
       await tx.telegramLink.upsert({
         where: { ownerId_chatId: { ownerId: row.ownerId, chatId } },
-        create: { ownerId: row.ownerId, chatId, username, displayName, status: 'connected' },
+        create: { ownerId: row.ownerId, botId, chatId, username, displayName, status: 'connected' },
         update: {
           ownerId: row.ownerId,
+          botId,
           deletedAt: null,
           username,
           displayName,
@@ -902,10 +913,11 @@ export class TelegramBotService {
     return `t:${token}`;
   }
 
-  private async userFor(chatId: string, ownerId: string): Promise<AuthUser | null> {
+  private async userFor(chatId: string, ownerId: string, botId: string): Promise<AuthUser | null> {
     const link = await this.prisma.telegramLink.findFirst({
       where: {
         chatId,
+        botId,
         deletedAt: null,
         ownerId,
       },

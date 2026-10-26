@@ -1,8 +1,8 @@
+import { captureSettings } from '@reflexionia/domain';
 import { runAction } from '../../components/run-action';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { GripVertical, MoreHorizontal, Plus } from 'lucide-react';
-import { useMemo, useState } from 'react';
-import { ApiError } from '@reflexionia/sdk';
+import { GripVertical, MoreHorizontal, Plus, Link as LinkIcon } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { api } from '../../api';
 import { PriorityCheck } from '../../components/PriorityCheck';
@@ -21,6 +21,75 @@ import { openTaskComposer } from '../capture/notice';
 import { formatTaskRowDate } from './row-date';
 import { isOverdue, isSameDay, type RowModel } from './model';
 import { calendarDay } from '../today/groups';
+import './kanban-wt-b.css';
+import { KanbanTabs } from './KanbanTabs';
+import { linkCountLabel, useWtBMessages } from './i18n-wt-b';
+import { KanbanMoveSheet, kanbanMoveError } from './KanbanMoveSheet';
+import type { ListTasksQuery } from '@reflexionia/sdk';
+
+export type TaskListRow = RowModel & { readonly linkCount?: number };
+interface LinkCountTask {
+  readonly id: string;
+  readonly link_count?: number;
+}
+
+/** Read only pages needed for the currently displayed rows; cursors do not encode link edits. */
+export async function loadVisibleLinkCounts(
+  list: (
+    query: ListTasksQuery,
+  ) => Promise<{ readonly items: readonly LinkCountTask[]; readonly next_cursor: string | null }>,
+  projectId: string,
+  ids: readonly string[],
+  signal?: AbortSignal,
+  status: NonNullable<ListTasksQuery['status']> = 'active',
+): Promise<LinkCountTask[]> {
+  const pending = new Set(ids);
+  const found: LinkCountTask[] = [];
+  const seen = new Set<string>();
+  let cursor: string | undefined;
+  while (pending.size > 0) {
+    signal?.throwIfAborted();
+    const page = await list({
+      projectId,
+      status,
+      flat: true,
+      limit: 100,
+      sort: 'manual',
+      ...(cursor === undefined ? {} : { cursor }),
+    });
+    for (const task of page.items) if (pending.delete(task.id)) found.push(task);
+    if (page.next_cursor === null || pending.size === 0) break;
+    if (seen.has(page.next_cursor)) throw new Error('Repeated task cursor');
+    seen.add(page.next_cursor);
+    cursor = page.next_cursor;
+  }
+  return found;
+}
+
+/** RF-1001: retain the list payload's link count without changing shared row models. */
+export function withLinkCounts(
+  rows: readonly RowModel[],
+  tasks: readonly LinkCountTask[],
+): TaskListRow[] {
+  const counts = new Map(tasks.map((task) => [task.id, task.link_count ?? 0]));
+  return rows.map((row) => ({ ...row, linkCount: counts.get(row.id) ?? 0 }));
+}
+
+function TaskLinkCount({
+  count = 0,
+  locale,
+}: {
+  readonly count?: number | undefined;
+  readonly locale: string;
+}) {
+  if (count <= 0) return null;
+  const label = linkCountLabel(count, locale);
+  return (
+    <span className="task-link-count" title={label} aria-label={label}>
+      <LinkIcon size={12} aria-hidden="true" /> {count}
+    </span>
+  );
+}
 
 export function TaskList({
   messages,
@@ -39,7 +108,7 @@ export function TaskList({
   highlightQuery = '',
 }: {
   readonly messages: Messages;
-  readonly rows: readonly RowModel[];
+  readonly rows: readonly TaskListRow[];
   readonly locale: string;
   readonly onComplete: (row: RowModel) => void;
   readonly onCreated?: (() => void) | undefined;
@@ -244,7 +313,7 @@ function TaskRow({
   onSelect,
 }: {
   readonly messages: Messages;
-  readonly row: RowModel;
+  readonly row: TaskListRow;
   readonly locale: string;
   readonly now: Date;
   readonly manualOrder: boolean;
@@ -385,6 +454,7 @@ function TaskRow({
           </span>
         ) : null}
         {row.repeat ? <span title={messages.recurrence}>↻</span> : null}
+        <TaskLinkCount count={row.linkCount} locale={locale} />
         {row.checklist.total > 0 ? (
           <span>
             {row.checklist.completed}/{row.checklist.total}
@@ -459,7 +529,7 @@ function Kanban({
   onComplete,
 }: {
   readonly messages: Messages;
-  readonly rows: readonly RowModel[];
+  readonly rows: readonly TaskListRow[];
   readonly columns: readonly {
     readonly id: string;
     readonly name: string;
@@ -470,15 +540,34 @@ function Kanban({
   readonly onOpen: (id: string) => void;
   readonly onComplete: (row: RowModel) => void;
 }) {
+  const account = useQuery({ queryKey: ['me'], queryFn: () => api.getMe() });
   const queryClient = useQueryClient();
   const [section, setSection] = useState('');
   const [boardError, setBoardError] = useState<string | null>(null);
+  const boardMessages = useWtBMessages();
+  const boardRef = useRef<HTMLDivElement>(null);
   const dateMode = columns.length === 0;
   const loose = rows.some((row) => row.columnId === null || row.columnId.length === 0);
   const cols = dateMode
-    ? dateKanbanColumns(messages)
+    ? (() => {
+        const columns = dateKanbanColumns(messages);
+        return captureSettings(account.data?.capture_settings).overdue_position === 'bottom'
+          ? [
+              ...columns.filter((column) => column.id !== 'overdue'),
+              ...columns.filter((column) => column.id === 'overdue'),
+            ]
+          : columns;
+      })()
     : [...columns, ...(loose ? [{ id: 'none', name: messages.noSection }] : [])];
   const now = useMemo(() => new Date(), []);
+  async function moveCard(id: string, columnId: string): Promise<void> {
+    setBoardError(null);
+    await api.patchTask(
+      id,
+      kanbanMovePatch(columnId, dateMode, rows.find((row) => row.id === id) ?? null, now),
+    );
+    await refreshTaskSurfaces(queryClient);
+  }
   return (
     <div className="kanban-wrap">
       {boardError !== null ? (
@@ -486,7 +575,20 @@ function Kanban({
           {boardError}
         </p>
       ) : null}
-      <div className="kanban">
+      <KanbanTabs
+        board={boardRef}
+        columns={cols.map((column) => ({
+          ...column,
+          count: rows.filter((row) =>
+            dateMode
+              ? dateBucketOf(row, now) === column.id
+              : column.id === 'none'
+                ? !row.columnId
+                : row.columnId === column.id,
+          ).length,
+        }))}
+      />
+      <div className="kanban" ref={boardRef}>
         {cols.map((column) => {
           const items = rows.filter((row) =>
             dateMode
@@ -517,10 +619,9 @@ function Kanban({
           return (
             <section
               key={column.id}
+              id={`kanban-column-${column.id}`}
+              data-kanban-column={column.id}
               className="kanban-col"
-              onClick={(event) => {
-                if (event.target === event.currentTarget) createInColumn();
-              }}
               onDragOver={(event) => {
                 event.preventDefault();
                 event.dataTransfer.dropEffect = 'move';
@@ -539,20 +640,9 @@ function Kanban({
                 if (id.length === 0) {
                   return;
                 }
-                const row = rows.find((item) => item.id === id);
-                const body = dateMode
-                  ? dateBucketPatch(column.id, row ?? null, now)
-                  : { column_id: column.id === 'none' ? null : column.id };
-                void api
-                  .patchTask(id, body)
-                  .then(() => refreshTaskSurfaces(queryClient))
-                  .catch((error: unknown) => {
-                    if (error instanceof ApiError && error.code === 'wip_exceeded') {
-                      setBoardError(messages.wipExceeded);
-                      return;
-                    }
-                    setBoardError(messages.saveFailed);
-                  });
+                void moveCard(id, column.id).catch((error: unknown) => {
+                  setBoardError(kanbanMoveError(error, messages));
+                });
               }}
             >
               <h3>
@@ -580,7 +670,7 @@ function Kanban({
                   />
                 ) : null}
               </h3>
-              {items.length === 0 ? <p>{messages.kanbanEmpty}</p> : null}
+              {items.length === 0 ? <p>{boardMessages.kanbanEmpty}</p> : null}
               {items.map((row) => (
                 <article
                   key={row.id}
@@ -626,6 +716,7 @@ function Kanban({
                     </button>
                   </div>
                   <p className="kanban-card-meta">
+                    <TaskLinkCount count={row.linkCount} locale={locale} />
                     {row.tags.slice(0, 2).map((tag) => (
                       <TagChip key={tag.id} label={tag.name} color={tag.color} />
                     ))}
@@ -635,6 +726,23 @@ function Kanban({
                       </time>
                     ) : null}
                   </p>
+                  <KanbanMoveSheet
+                    columns={cols.map((destination) => ({
+                      ...destination,
+                      count: rows.filter((item) =>
+                        dateMode
+                          ? dateBucketOf(item, now) === destination.id
+                          : destination.id === 'none'
+                            ? !item.columnId
+                            : item.columnId === destination.id,
+                      ).length,
+                    }))}
+                    currentId={column.id}
+                    moreLabel={messages.moreActions}
+                    wipExceeded={messages.wipExceeded}
+                    saveFailed={messages.saveFailed}
+                    onMove={(destination) => moveCard(row.id, destination)}
+                  />
                 </article>
               ))}
               <div className="kanban-add-space">
@@ -1030,6 +1138,17 @@ function dateBucketOf(row: RowModel, now: Date): string {
     return 'next7';
   }
   return 'later';
+}
+
+export function kanbanMovePatch(
+  columnId: string,
+  dateMode: boolean,
+  row: RowModel | null,
+  now: Date,
+) {
+  return dateMode
+    ? dateBucketPatch(columnId, row, now)
+    : { column_id: columnId === 'none' ? null : columnId };
 }
 
 function dateBucketPatch(

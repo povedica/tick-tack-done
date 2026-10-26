@@ -1,14 +1,15 @@
 import { composerContextFor } from '../capture/context';
-import { calendarDragPatch } from '@reflexionia/domain';
+import { calendarDragPatch, captureSettings } from '@reflexionia/domain';
 import { runAction } from '../../components/run-action';
 import { displayTitle } from '../tasks/displayTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowUpDown, Sprout } from 'lucide-react';
+import { Sprout } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { api } from '../../api';
 import type { CreateTaskBody } from '@reflexionia/sdk';
 import { UndoToastStack } from '../../components/UndoToast';
+import { SortMenu } from '../../components/SortMenu';
 import { ViewMenu } from '../../components/ViewMenu';
 import { useActionToast } from '../../components/action-toast';
 import { useMessages, type Messages } from '../../i18n';
@@ -64,6 +65,7 @@ import { countdownLabel } from '../countdowns/presentation';
 import { MatrixBoard, MatrixViewToggle } from '../matrix/MatrixBoard';
 import { readMatrixLayout, writeMatrixLayout } from '../matrix/layout';
 import { useFeatures } from '../settings/feature-flags';
+import { KanbanTabs } from '../tasks/KanbanTabs';
 
 const GROUP_KEY = 'tick-tack-done.today.group';
 const SORT_KEY = 'tick-tack-done.today.sort';
@@ -82,6 +84,7 @@ export function TodayPage() {
   const clearNotice = useCaptureNotice((state) => state.clear);
   const showToast = useActionToast((state) => state.show);
   const addRef = useRef<HTMLInputElement>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
   const [params, setParams] = useSearchParams();
   const [storedGroup, setStoredGroup] = useState(() => readStored(GROUP_KEY));
   const group = groupFromLocation(params.get('group'), storedGroup);
@@ -91,7 +94,6 @@ export function TodayPage() {
     () => new Set(readList(COLLAPSE_KEY)),
   );
   const [pins, setPins] = useState<readonly string[]>(() => readPins(readStored(PIN_KEY)));
-  const [groupOpen, setGroupOpen] = useState(false);
   const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set());
   const [leaving, setLeaving] = useState<ReadonlySet<string>>(() => new Set());
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
@@ -346,6 +348,24 @@ export function TodayPage() {
   const sections = groupTasks(pinFirst(merged.grouped, pins), group, sort, sortDir);
   const overdueBlock =
     merged.overdue.length > 0 ? groupTasks(merged.overdue, 'none', sort, sortDir) : [];
+  const kanbanColumns = [
+    ...overdueBlock.map((section) => ({
+      id: 'overdue',
+      name: messages.overdueTitle,
+      count: section.tasks.length,
+    })),
+    ...(group === 'priority'
+      ? ['high', 'medium', 'low', 'none'].map((id) => ({
+          id,
+          tasks: sections.find((section) => section.id === id)?.tasks ?? [],
+        }))
+      : sections
+    ).map((section) => ({
+      id: section.id,
+      name: sectionLabel(group, section.id, messages, locale, projectNames, tagNames),
+      count: section.tasks.length,
+    })),
+  ];
 
   useEffect(() => {
     const want =
@@ -435,7 +455,6 @@ export function TodayPage() {
     const next = new URLSearchParams(params);
     next.set('group', value);
     setParams(next, { replace: true });
-    setGroupOpen(false);
   }
 
   function chooseSort(value: TaskSortKey): void {
@@ -535,10 +554,55 @@ export function TodayPage() {
       });
   }
 
-  const inbox = projects.data?.items.find((project) => project.is_inbox);
+  const captureList = projects.data?.items.find(
+    (project) =>
+      !project.closed &&
+      project.kind !== 'NOTE' &&
+      project.id === captureSettings(me.data?.capture_settings).default_list_id,
+  );
   const empty =
     !tasks.isPending && !tasks.isError && parts.overdue.length + parts.today.length === 0;
   const menuTask = (tasks.data ?? []).find((task) => task.id === menu?.id);
+
+  async function moveTodayCard(taskId: string, target: string): Promise<void> {
+    const task = tasks.data?.find((item) => item.id === taskId);
+    if (!task) return;
+    if (group === 'list' && projectNames.has(target)) {
+      await api.moveTask(taskId, target, null);
+    } else if (group === 'priority' && ['high', 'medium', 'low', 'none'].includes(target)) {
+      await api.patchTask(taskId, { priority: target as TodayTask['priority'] });
+    } else if (group === 'tag') {
+      await api.patchTask(taskId, {
+        tag_ids:
+          target === 'none'
+            ? []
+            : [target, ...task.tagIds.filter((id) => id !== target && id !== task.tagIds[0])],
+      });
+    } else if (group === 'due') {
+      if (target === 'none') await api.patchTask(taskId, { due_date: null, start_date: null });
+      else {
+        const day =
+          target === 'overdue'
+            ? shiftDayKey(calendarDay(new Date().toISOString(), task.timeZone), -1)
+            : target;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(day))
+          await api.patchTask(
+            taskId,
+            calendarDragPatch(
+              {
+                due_date: task.dueDate,
+                start_date: task.startDate ?? null,
+                duration_minutes: task.durationMinutes ?? null,
+                is_all_day: task.allDay,
+              },
+              { day, preserveClock: true },
+              task.timeZone,
+            ),
+          );
+      }
+    }
+    await refreshTaskSurfaces(queryClient);
+  }
 
   function groupProps(sectionId: string, rows: readonly TodayTask[], overdueLabel = false) {
     return {
@@ -560,7 +624,7 @@ export function TodayPage() {
               openTaskComposer({
                 text: '',
                 slot: allDaySlot(calendarDay(new Date().toISOString(), zone), zone),
-                defaultProjectId: inbox?.id,
+                defaultProjectId: captureList?.id,
                 ...(group === 'priority' && ['high', 'medium', 'low', 'none'].includes(sectionId)
                   ? { priority: sectionId as 'high' | 'medium' | 'low' | 'none' }
                   : {}),
@@ -597,57 +661,44 @@ export function TodayPage() {
       onMore: (task: TodayTask, x: number, y: number) => {
         setMenu({ id: task.id, x, y });
       },
+      moveColumns: matrixLayout === 'kanban' ? kanbanColumns : undefined,
+      onMove: moveTodayCard,
       onSelect: chooseSelect,
       onColumnDrop:
         matrixLayout === 'kanban' && group !== 'none' && group !== 'priority'
           ? (taskId: string) => {
-              const task = tasks.data?.find((task) => task.id === taskId);
-              if (!task) return;
-              if (group === 'list' && projectNames.has(sectionId))
-                runAction(
-                  api
-                    .moveTask(taskId, sectionId, null)
-                    .then(() => refreshTaskSurfaces(queryClient)),
-                );
-              if (group === 'tag')
-                patchTask(taskId, {
-                  tag_ids:
-                    sectionId === 'none'
-                      ? []
-                      : [
-                          sectionId,
-                          ...task.tagIds.filter((id) => id !== sectionId && id !== task.tagIds[0]),
-                        ],
-                });
-              if (group === 'due') {
-                if (sectionId === 'none') patchTask(taskId, { due_date: null, start_date: null });
-                else {
-                  const day = overdueLabel
-                    ? shiftDayKey(calendarDay(new Date().toISOString(), task.timeZone), -1)
-                    : sectionId;
-                  if (/^\d{4}-\d{2}-\d{2}$/.test(day))
-                    patchTask(
-                      taskId,
-                      calendarDragPatch(
-                        {
-                          due_date: task.dueDate,
-                          start_date: task.startDate ?? null,
-                          duration_minutes: task.durationMinutes ?? null,
-                          is_all_day: task.allDay,
-                        },
-                        { day, preserveClock: true },
-                        task.timeZone,
-                      ),
-                    );
-                }
-              }
+              runAction(moveTodayCard(taskId, overdueLabel ? 'overdue' : sectionId));
             }
           : undefined,
       onPriorityDrop: (taskId: string, priority: TodayTask['priority']) => {
-        patchTask(taskId, { priority });
+        if (matrixLayout === 'kanban') runAction(moveTodayCard(taskId, priority));
+        else patchTask(taskId, { priority });
       },
       onFocus: setFocusId,
     };
+  }
+
+  const overdueContent = (
+    <>
+      {overdueBlock.length > 0 ? (
+        <div id="overdue">
+          {overdueBlock.map((section) => (
+            <TaskGroup key="overdue" {...groupProps(section.id, section.tasks, true)} />
+          ))}
+        </div>
+      ) : (
+        <div id="overdue" hidden />
+      )}
+    </>
+  );
+
+  function chooseLayout(next: 'list' | 'kanban' | 'matrix'): void {
+    syncPrefs({ view: next });
+    writeMatrixLayout('today', next);
+    setMatrixLayout(next);
+    const query = new URLSearchParams(params);
+    query.set('view', next);
+    setParams(query, { replace: true });
   }
 
   return (
@@ -663,70 +714,67 @@ export function TodayPage() {
           <MatrixViewToggle
             showMatrix={flags.matrix}
             value={matrixLayout}
-            onChange={(next) => {
-              syncPrefs({ view: next });
-              writeMatrixLayout('today', next);
-              setMatrixLayout(next);
-              const query = new URLSearchParams(params);
-              query.set('view', next);
-              setParams(query, { replace: true });
-            }}
+            onChange={chooseLayout}
           />
-          <div className="group-popover">
-            <button
-              type="button"
-              className="icon-button"
-              aria-label={messages.groupLabel}
-              aria-expanded={groupOpen}
-              onClick={() => {
-                setGroupOpen((current) => !current);
-              }}
-            >
-              <ArrowUpDown size={20} aria-hidden="true" />
-            </button>
-            {groupOpen ? (
-              <div className="menu-card" role="menu" aria-label={messages.groupLabel}>
-                <p className="popover-label">{messages.groupBy}</p>
+          <SortMenu messages={messages}>
+            <label>
+              {messages.groupBy}
+              <select
+                value={group}
+                onChange={(event) => {
+                  chooseGroup(event.target.value as TaskGroupKey);
+                }}
+              >
                 {(['priority', 'due', 'tag', 'list', 'none'] as const).map((value) => (
-                  <GroupOption
-                    key={value}
-                    label={groupName(value, messages)}
-                    checked={group === value}
-                    onClick={() => {
-                      chooseGroup(value);
-                    }}
-                  />
+                  <option key={value} value={value}>
+                    {groupName(value, messages)}
+                  </option>
                 ))}
-                <p className="popover-label">{messages.sortBy}</p>
+              </select>
+            </label>
+            <label>
+              {messages.sortBy}
+              <select
+                value={sort}
+                onChange={(event) => {
+                  chooseSort(event.target.value as TaskSortKey);
+                }}
+              >
                 {(['due', 'priority', 'title'] as const).map((value) => (
-                  <GroupOption
-                    key={value}
-                    label={sortName(value, messages)}
-                    checked={sort === value}
-                    onClick={() => {
-                      chooseSort(value);
-                    }}
-                  />
+                  <option key={value} value={value}>
+                    {sortName(value, messages)}
+                  </option>
                 ))}
-                <GroupOption
-                  label={messages.sortOldest}
-                  checked={sortDir === 'asc'}
-                  onClick={() => {
-                    chooseDir('asc');
-                  }}
-                />
-                <GroupOption
-                  label={messages.sortNewest}
-                  checked={sortDir === 'desc'}
-                  onClick={() => {
-                    chooseDir('desc');
-                  }}
-                />
-              </div>
-            ) : null}
-          </div>
+              </select>
+            </label>
+            <label>
+              {messages.sortOrder}
+              <select
+                value={sortDir}
+                onChange={(event) => {
+                  chooseDir(event.target.value as TaskSortDir);
+                }}
+              >
+                <option value="asc">{messages.sortOldest}</option>
+                <option value="desc">{messages.sortNewest}</option>
+              </select>
+            </label>
+          </SortMenu>
           <ViewMenu
             messages={messages}
+            view={matrixLayout === 'kanban' ? 'kanban' : 'list'}
+            onView={(next) => {
+              if (next !== 'timeline') chooseLayout(next);
+            }}
+            showTimeline={false}
+            matrixSelected={matrixLayout === 'matrix'}
+            onMatrix={
+              flags.matrix
+                ? () => {
+                    chooseLayout('matrix');
+                  }
+                : undefined
+            }
             details={details}
             onDetails={(value) => {
               setDetails(value);
@@ -740,22 +788,11 @@ export function TodayPage() {
             onPrint={() => {
               window.print();
             }}
-          >
-            {(['priority', 'due', 'tag', 'list', 'none'] as const).map((value) => (
-              <GroupOption
-                key={value}
-                label={groupName(value, messages)}
-                checked={group === value}
-                onClick={() => {
-                  chooseGroup(value);
-                }}
-              />
-            ))}
-          </ViewMenu>
+          />
         </div>
       </header>
       {matrixLayout !== 'kanban' ? (
-        <TaskComposer inputRef={addRef} viewDay="today" defaultProjectId={inbox?.id} />
+        <TaskComposer inputRef={addRef} viewDay="today" defaultProjectId={captureList?.id} />
       ) : null}
       <TodayPlanStrip
         load={load.isSuccess ? load.data : undefined}
@@ -778,7 +815,11 @@ export function TodayPage() {
           {actionError}
         </p>
       ) : null}
-      <div className={matrixLayout === 'kanban' ? 'today-layout is-kanban' : 'today-layout'}>
+      {matrixLayout === 'kanban' ? <KanbanTabs board={boardRef} columns={kanbanColumns} /> : null}
+      <div
+        ref={boardRef}
+        className={matrixLayout === 'kanban' ? 'today-layout is-kanban' : 'today-layout'}
+      >
         <div className="today-task-groups">
           {flags.matrix && matrixLayout === 'matrix' ? (
             <MatrixBoard scope={{ kind: 'today' }} embedded />
@@ -806,15 +847,9 @@ export function TodayPage() {
                   </button>
                 </div>
               ) : null}
-              {overdueBlock.length > 0 ? (
-                <div id="overdue">
-                  {overdueBlock.map((section) => (
-                    <TaskGroup key="overdue" {...groupProps(section.id, section.tasks, true)} />
-                  ))}
-                </div>
-              ) : (
-                <div id="overdue" hidden />
-              )}
+              {captureSettings(me.data?.capture_settings).overdue_position === 'top'
+                ? overdueContent
+                : null}
               {(matrixLayout === 'kanban' && group === 'priority'
                 ? ['high', 'medium', 'low', 'none'].map((id) => ({
                     id,
@@ -824,6 +859,9 @@ export function TodayPage() {
               ).map((section) => (
                 <TaskGroup key={section.id} {...groupProps(section.id, section.tasks)} />
               ))}
+              {captureSettings(me.data?.capture_settings).overdue_position === 'bottom'
+                ? overdueContent
+                : null}
               {showWhen && eveningTasks.length > 0 ? (
                 <section className="plan">
                   <h2>{messages.eveningTitle}</h2>
@@ -1051,28 +1089,6 @@ export function TodayPage() {
         onExpire={expireToast}
       />
     </section>
-  );
-}
-
-function GroupOption({
-  label,
-  checked,
-  onClick,
-}: {
-  readonly label: string;
-  readonly checked: boolean;
-  readonly onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      className="menu-item"
-      role="menuitemradio"
-      aria-checked={checked}
-      onClick={onClick}
-    >
-      {label}
-    </button>
   );
 }
 

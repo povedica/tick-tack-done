@@ -150,8 +150,30 @@
 }
 
 .nav-folder summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  list-style: none;
   padding: 6px 12px;
+  min-height: var(--tap);
   cursor: pointer;
+}
+
+.nav-folder summary::-webkit-details-marker {
+  display: none;
+}
+
+.nav-folder summary .folder-chevron {
+  color: var(--ink-faint);
+  stroke-width: 1.25;
+}
+
+.nav-folder:not([open]) .folder-chevron {
+  transform: rotate(-90deg);
+}
+
+.nav-folder > .nav-list {
+  padding-left: var(--sp-8);
 }
 
 .brand {

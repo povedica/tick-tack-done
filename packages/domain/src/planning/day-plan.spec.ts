@@ -75,11 +75,11 @@ describe('planQueue', () => {
         limit: 1,
       },
     );
-    expect(queue.cards.map((card) => card.taskId)).toEqual(['early', 'late', 'day']);
+    expect(queue.cards.map((card) => card.taskId)).toEqual(['day', 'late', 'early']);
     expect(queue.hiddenOverdue).toBe(2);
     expect(queue.totals.today).toBe(3);
-    expect(queue.cards[0]?.reasonText).toContain('Vence hoy a las');
-    expect(queue.cards[2]?.reason).toBe('due_today');
+    expect(queue.cards.find((c) => c.taskId === 'early')?.reasonText).toContain('Vence hoy a las');
+    expect(queue.cards.find((c) => c.taskId === 'day')?.reason).toBe('due_today');
   });
 
   it('orders overdue by priority and keeps an explicit reason', () => {
@@ -144,8 +144,10 @@ describe('previewPlan', () => {
     expect(preview.cancel).toBe(1);
     expect(preview.complete).toBe(0);
     expect(preview.effects.every((effect) => !effect.changesDue)).toBe(true);
-    expect(preview.effects[0]?.summary).toContain('no cambia');
-    expect(preview.effects[1]?.summary).toContain('No cuenta como completada');
+    expect(preview.effects.find((e) => e.decision === 'plan_day')?.summary).toContain('no cambia');
+    expect(preview.effects.find((e) => e.decision === 'cancel')?.summary).toContain(
+      'No cuenta como completada',
+    );
   });
 });
 

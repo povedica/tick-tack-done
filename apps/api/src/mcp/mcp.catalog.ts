@@ -1,3 +1,4 @@
+import { planningTools } from './tools/planning-tools.js';
 import { missingScopes } from '../auth/scopes.js';
 
 export interface McpTool {
@@ -100,6 +101,108 @@ const repeatFromSchema = {
  * the same cursor string as API v1.
  */
 const CATALOG: readonly McpTool[] = [
+  {
+    name: 'get_capture_settings',
+    description:
+      'Read the owned defaults applied to task captures, including MCP quick_add and create_task. Explicit task fields override these defaults.',
+    scopes: ['profile:read'],
+    inputSchema: objectSchema({}, []),
+  },
+  {
+    name: 'update_capture_settings',
+    description:
+      'Configure owned task capture defaults. Read current settings first and submit the complete settings object. Uses PATCH /me with profile:write and owner checks.',
+    scopes: ['profile:write'],
+    inputSchema: objectSchema(
+      {
+        settings: {
+          type: 'object',
+          properties: {
+            recognize_dates: {
+              type: 'boolean',
+            },
+            remove_date_text: {
+              type: 'boolean',
+            },
+            recognize_tags: {
+              type: 'boolean',
+            },
+            remove_tag_text: {
+              type: 'boolean',
+            },
+            parse_url_title: {
+              type: 'boolean',
+            },
+            default_date: {
+              type: 'string',
+              enum: ['none', 'today', 'tomorrow'],
+            },
+            default_date_mode: {
+              type: 'string',
+              enum: ['date', 'date_time'],
+            },
+            default_time: {
+              type: 'string',
+              pattern: '^([01]\\d|2[0-3]):[0-5]\\d$',
+            },
+            default_duration_minutes: {
+              type: ['integer', 'null'],
+              minimum: 1,
+              maximum: 1440,
+            },
+            default_priority: {
+              type: 'string',
+              enum: ['none', 'low', 'medium', 'high'],
+            },
+            default_tag_id: {
+              type: ['string', 'null'],
+              format: 'uuid',
+            },
+            default_list_id: {
+              type: ['string', 'null'],
+              format: 'uuid',
+            },
+            timed_reminder: {
+              type: 'string',
+              enum: ['inherit', 'none', '-PT0M', '-PT5M', '-PT15M', '-PT30M', '-PT1H', '-P1D'],
+            },
+            all_day_reminder: {
+              type: 'string',
+              enum: ['inherit', 'none', '-PT0M', '-PT5M', '-PT15M', '-PT30M', '-PT1H', '-P1D'],
+            },
+            new_task_position: {
+              type: 'string',
+              enum: ['top', 'bottom'],
+            },
+            overdue_position: {
+              type: 'string',
+              enum: ['top', 'bottom'],
+            },
+          },
+          required: [
+            'recognize_dates',
+            'remove_date_text',
+            'recognize_tags',
+            'remove_tag_text',
+            'parse_url_title',
+            'default_date',
+            'default_date_mode',
+            'default_time',
+            'default_duration_minutes',
+            'default_priority',
+            'default_tag_id',
+            'default_list_id',
+            'timed_reminder',
+            'all_day_reminder',
+            'new_task_position',
+            'overdue_position',
+          ],
+          additionalProperties: false,
+        },
+      },
+      ['settings'],
+    ),
+  },
   {
     name: 'api_catalog',
     description:
@@ -217,7 +320,7 @@ const CATALOG: readonly McpTool[] = [
         },
         is_all_day: { type: 'boolean' },
         duration_minutes: {
-          type: 'integer',
+          type: ['integer', 'null'],
           minimum: 0,
           maximum: 1440,
           description:
@@ -353,6 +456,21 @@ const CATALOG: readonly McpTool[] = [
     inputSchema: objectSchema({ task_id: id }, ['task_id']),
   },
   {
+    name: 'upload_task_attachment',
+    description:
+      'Upload an attachment directly to the owner Drive without temporary disk files. Requires connected Drive; maximum 25 MiB, 50 attachments per task. MIME type is verified from bytes; HTML is rejected.',
+    scopes: ['tasks:write'],
+    inputSchema: objectSchema(
+      {
+        task_id: id,
+        filename: { type: 'string', minLength: 1, maxLength: 240 },
+        base64: { type: 'string' },
+        content_type: { type: 'string', maxLength: 200 },
+      },
+      ['task_id', 'filename', 'base64'],
+    ),
+  },
+  {
     name: 'link_drive_file',
     description:
       'Link an existing Google Picker-authorized file to a task without copying it. Requires Google Drive connected; ttd stores metadata only (50 attachments/task).',
@@ -439,7 +557,11 @@ const CATALOG: readonly McpTool[] = [
         trigger: { type: 'string', minLength: 1, maxLength: 200 },
         type: { type: 'string', enum: ['relative', 'absolute', 'location', 'daily_digest'] },
         absolute_at: { type: ['string', 'null'] },
-        channel: { type: 'string', enum: ['push', 'email', 'both'] },
+        channel: {
+          type: 'string',
+          enum: ['push', 'email', 'both'],
+          description: 'Defaults to configured push, otherwise configured email, otherwise push.',
+        },
       },
       ['task_id', 'trigger', 'type'],
     ),
@@ -551,13 +673,15 @@ const CATALOG: readonly McpTool[] = [
       ['id', 'due_date'],
     ),
   },
+  ...planningTools,
   {
     name: 'get_day_load',
     description:
-      'Day load for a morning briefing. Counts active tasks (duration or the default estimate) plus external events overlapping the workday. Evening and Someday tasks do not count. All-day events count as zero. available_minutes is null when the workday is off.',
+      'Day load in the profile time zone. days=1..14 returns the day rail, agenda and free slots. Multi-day tasks count only their daily overlap; overdue work counts today. Evening and Someday tasks do not count.',
     scopes: ['tasks:read'],
     inputSchema: objectSchema({
       date: { type: 'string' },
+      days: { type: 'integer', minimum: 1, maximum: 14 },
       time_zone: { type: 'string' },
     }),
   },
@@ -614,7 +738,7 @@ const CATALOG: readonly McpTool[] = [
   {
     name: 'replan_day',
     description:
-      'Propose where leftover tasks should go. auto_apply defaults to false so a person can confirm before anything moves. Does not place calendar blocks.',
+      'Alias of start_day_plan: review pending tasks in the same triage. Nothing changes until apply_day_plan. Record explicit actions with record_plan_decision.',
     scopes: ['tasks:write'],
     inputSchema: objectSchema({
       date: { type: 'string' },

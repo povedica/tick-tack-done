@@ -32,7 +32,9 @@
       "deepmerge-ts": "^8.0.0",
       "js-yaml": "^4.1.1",
       "nodemailer": "^10.0.6",
-      "ora": "5.4.1"
+      "ora": "5.4.1",
+      "body-parser": "2.4.0",
+      "multer": "2.5.0"
     }
   },
   "devDependencies": {

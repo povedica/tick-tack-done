@@ -1,3 +1,4 @@
+import { humanDate } from '../dates/presentation';
 import {
   civilDateKey,
   dayLoad,
@@ -61,7 +62,13 @@ export function proposeReplan(input: {
   }
   const placed = new Map<string, DayLoadTask[]>();
   const suggestions: ReplanSuggestion[] = [];
-  const ordered = [...moving].sort((left, right) => left.id.localeCompare(right.id));
+  const priority = { high: 0, medium: 1, low: 2, none: 3 };
+  const ordered = [...moving].sort(
+    (left, right) =>
+      priority[left.priority] - priority[right.priority] ||
+      (left.dueDate ?? '9999').localeCompare(right.dueDate ?? '9999') ||
+      left.id.localeCompare(right.id),
+  );
   for (const task of ordered) {
     const deadline = task.dueDate === null ? null : civilDateKey(task.dueDate, task.timeZone);
     const tomorrow = shiftCivilDate(input.today, 1);
@@ -87,17 +94,22 @@ function firstFit(
   tomorrow: string,
 ): ReplanSuggestion {
   const tomorrowLoad = projected(input, tomorrow, placed, task);
-  if (tomorrowLoad.status !== 'overload') {
+  if (isBusinessDay(tomorrow, input.settings.workDays) && tomorrowLoad.status !== 'overload') {
     return place(task, tomorrow, placed, 'Mañana todavía cabe.');
   }
   for (let offset = 2; offset <= 7; offset += 1) {
     const date = shiftCivilDate(input.today, offset);
-    if (!isBusinessDay(date)) {
+    if (!isBusinessDay(date, input.settings.workDays)) {
       continue;
     }
     const load = projected(input, date, placed, task);
     if (load.status !== 'overload') {
-      return place(task, date, placed, `Mañana no cabe. El primer hueco laborable es el ${date}.`);
+      return place(
+        task,
+        date,
+        placed,
+        `Mañana no cabe. El primer hueco laborable es el ${humanDate(date)}.`,
+      );
     }
   }
   const fallback = shiftCivilDate(input.today, 7);

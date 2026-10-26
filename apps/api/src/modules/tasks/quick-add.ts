@@ -3,7 +3,8 @@ import { Prisma } from '@prisma/client';
 import {
   normalizeTagName,
   normalizeTaskTitle,
-  parseQuickAdd,
+  parseCapture,
+  type CaptureSettings,
   tagNameKey,
   type Priority,
 } from '@reflexionia/domain';
@@ -53,6 +54,7 @@ export async function resolveQuickAdd(
   user: AuthUser,
   dto: CreateTaskDto,
   now: string,
+  settings: CaptureSettings,
 ): Promise<ResolvedCapture> {
   const text = dto.raw_text ?? '';
   const profile = await tx.user.findFirst({
@@ -61,12 +63,25 @@ export async function resolveQuickAdd(
   });
   const language = profile?.nlpLanguage === 'en' ? 'en' : 'es';
   const timeZone = dto.time_zone ?? user.timeZone;
-  const parsed = parseQuickAdd(text, language, { now, timeZone });
+  const parsed = parseCapture(text, language, { now, timeZone }, settings);
   const title = capturedTitle(dto.title, parsed.title);
 
   const warnings: CaptureWarning[] = [];
-  const projectId = dto.project_id ?? (await resolveList(tx, user, parsed.listName, warnings));
+  const projectId =
+    dto.project_id ??
+    (await resolveList(tx, user, parsed.listName, warnings, settings.default_list_id));
   const tagIds = dto.tag_ids ?? (await resolveTags(tx, user, parsed.tagNames, warnings));
+  if (
+    dto.tag_ids === undefined &&
+    settings.default_tag_id &&
+    !tagIds.includes(settings.default_tag_id)
+  ) {
+    const tag = await tx.tag.findFirst({
+      where: { id: settings.default_tag_id, ownerId: user.id, deletedAt: null },
+      select: { id: true },
+    });
+    if (tag) tagIds.push(tag.id);
+  }
   const dueDate = dto.due_date !== undefined ? dto.due_date : (parsed.due?.date ?? null);
   const isAllDay =
     dto.is_all_day ??
@@ -103,6 +118,7 @@ async function resolveList(
   user: AuthUser,
   listName: string | null,
   warnings: CaptureWarning[],
+  defaultListId: string | null,
 ): Promise<string> {
   const ownerId = user.id;
   if (listName !== null) {
@@ -123,6 +139,13 @@ async function resolveList(
       warnings.push({ code: 'list_created', name: created.name });
       return created.id;
     }
+  }
+  if (defaultListId) {
+    const chosen = await tx.project.findFirst({
+      where: { id: defaultListId, ownerId, deletedAt: null, closed: false, kind: 'TASK' },
+      select: { id: true },
+    });
+    if (chosen) return chosen.id;
   }
   const inbox = await tx.project.findFirst({
     where: { ownerId, isInbox: true, deletedAt: null },

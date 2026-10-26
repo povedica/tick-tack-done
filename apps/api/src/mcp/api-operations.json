@@ -62,6 +62,77 @@
           "schema": {
             "type": "object",
             "properties": {
+              "capture_settings": {
+                "type": "object",
+                "properties": {
+                  "recognize_dates": { "type": "boolean" },
+                  "remove_date_text": { "type": "boolean" },
+                  "recognize_tags": { "type": "boolean" },
+                  "remove_tag_text": { "type": "boolean" },
+                  "parse_url_title": { "type": "boolean" },
+                  "default_date": { "type": "string", "enum": ["none", "today", "tomorrow"] },
+                  "default_date_mode": { "type": "string", "enum": ["date", "date_time"] },
+                  "default_time": { "type": "string", "example": "09:00" },
+                  "default_duration_minutes": {
+                    "type": "number",
+                    "nullable": true,
+                    "minimum": 1,
+                    "maximum": 1440
+                  },
+                  "default_priority": {
+                    "type": "string",
+                    "enum": ["none", "low", "medium", "high"]
+                  },
+                  "default_tag_id": { "type": "string", "nullable": true, "format": "uuid" },
+                  "default_list_id": { "type": "string", "nullable": true, "format": "uuid" },
+                  "timed_reminder": {
+                    "type": "string",
+                    "enum": [
+                      "inherit",
+                      "none",
+                      "-PT0M",
+                      "-PT5M",
+                      "-PT15M",
+                      "-PT30M",
+                      "-PT1H",
+                      "-P1D"
+                    ]
+                  },
+                  "all_day_reminder": {
+                    "type": "string",
+                    "enum": [
+                      "inherit",
+                      "none",
+                      "-PT0M",
+                      "-PT5M",
+                      "-PT15M",
+                      "-PT30M",
+                      "-PT1H",
+                      "-P1D"
+                    ]
+                  },
+                  "new_task_position": { "type": "string", "enum": ["top", "bottom"] },
+                  "overdue_position": { "type": "string", "enum": ["top", "bottom"] }
+                },
+                "required": [
+                  "recognize_dates",
+                  "remove_date_text",
+                  "recognize_tags",
+                  "remove_tag_text",
+                  "parse_url_title",
+                  "default_date",
+                  "default_date_mode",
+                  "default_time",
+                  "default_duration_minutes",
+                  "default_priority",
+                  "default_tag_id",
+                  "default_list_id",
+                  "timed_reminder",
+                  "all_day_reminder",
+                  "new_task_position",
+                  "overdue_position"
+                ]
+              },
               "display_name": { "type": "string", "maxLength": 200 },
               "time_zone": { "type": "string" },
               "task_complete_children": { "type": "string", "enum": ["ask", "complete", "leave"] },
@@ -1151,6 +1222,9 @@
           "schema": {
             "type": "object",
             "properties": {
+              "unit": { "type": "string", "nullable": true, "maxLength": 32 },
+              "start_date": { "type": "string", "nullable": true, "example": "2026-10-26" },
+              "paused": { "type": "boolean" },
               "challenge_days": {
                 "type": "number",
                 "nullable": true,
@@ -1275,6 +1349,9 @@
           "schema": {
             "type": "object",
             "properties": {
+              "unit": { "type": "string", "nullable": true, "maxLength": 32 },
+              "start_date": { "type": "string", "nullable": true, "example": "2026-10-26" },
+              "paused": { "type": "boolean" },
               "challenge_days": {
                 "type": "number",
                 "nullable": true,
@@ -2720,7 +2797,11 @@
                 "enum": ["relative", "absolute", "location", "daily_digest"]
               },
               "absolute_at": { "type": "object", "nullable": true },
-              "channel": { "type": "string", "enum": ["push", "email", "both"] },
+              "channel": {
+                "type": "string",
+                "enum": ["push", "email", "both"],
+                "description": "Defaults to push when VAPID is configured, otherwise email when configured, otherwise push."
+              },
               "constant": { "type": "boolean" },
               "constant_interval_minutes": { "type": "object", "nullable": true },
               "location": { "type": "object", "nullable": true }
@@ -3684,6 +3765,17 @@
     }
   },
   {
+    "method": "GET",
+    "path": "/api/v1/planning/candidates",
+    "summary": "Count candidates without creating a session (F-AC-5)",
+    "parameters": [
+      { "name": "date", "required": true, "in": "query", "schema": { "type": "string" } },
+      { "name": "undated", "required": false, "in": "query", "schema": {} },
+      { "name": "inbox", "required": false, "in": "query", "schema": {} }
+    ],
+    "request_body": {}
+  },
+  {
     "method": "POST",
     "path": "/api/v1/planning/sessions",
     "summary": "Open a day-planning session. Nothing is changed yet.",
@@ -3737,9 +3829,24 @@
                 "type": "string",
                 "enum": ["done", "plan_day", "later", "cancel", "trash", "skip", "someday"]
               },
+              "action": {
+                "type": "string",
+                "enum": [
+                  "today",
+                  "tomorrow",
+                  "move",
+                  "done",
+                  "wont_do",
+                  "someday",
+                  "delete",
+                  "skip"
+                ]
+              },
+              "date": { "type": "string" },
+              "time": { "type": "string" },
+              "duration": { "type": "number", "minimum": 5, "maximum": 480 },
               "target_date": { "type": "string", "nullable": true }
-            },
-            "required": ["decision"]
+            }
           }
         }
       }
@@ -3752,6 +3859,57 @@
     "parameters": [
       { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } },
       { "name": "taskId", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/planning/sessions/{id}/schedule/{taskId}",
+    "summary": "Schedule one configured task immediately; keep other decisions in draft",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } },
+      { "name": "taskId", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "decision": {
+                "type": "string",
+                "enum": ["done", "plan_day", "later", "cancel", "trash", "skip", "someday"]
+              },
+              "action": {
+                "type": "string",
+                "enum": [
+                  "today",
+                  "tomorrow",
+                  "move",
+                  "done",
+                  "wont_do",
+                  "someday",
+                  "delete",
+                  "skip"
+                ]
+              },
+              "date": { "type": "string" },
+              "time": { "type": "string" },
+              "duration": { "type": "number", "minimum": 5, "maximum": 480 },
+              "target_date": { "type": "string", "nullable": true }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/planning/operations/{id}/revert",
+    "summary": "Undo an applied day plan; idempotent, 409 if a task changed (F-AC-29)",
+    "parameters": [
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
     ],
     "request_body": {}
   },
@@ -3786,12 +3944,44 @@
     "request_body": {}
   },
   {
+    "method": "PUT",
+    "path": "/api/v1/planning/settings/work-days",
+    "summary": "Configure working weekdays for day planning (RF-2640)",
+    "parameters": [],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "work_days": {
+                "description": "Working weekdays: Sunday=0 through Saturday=6; empty means no working days.",
+                "type": "array",
+                "items": { "type": "number" }
+              }
+            },
+            "required": ["work_days"]
+          }
+        }
+      }
+    }
+  },
+  {
     "method": "GET",
     "path": "/api/v1/planning/load",
     "summary": "Day load projection (RF-2641)",
     "parameters": [
-      { "name": "date", "required": true, "in": "query", "schema": { "type": "string" } },
-      { "name": "time_zone", "required": true, "in": "query", "schema": { "type": "string" } }
+      { "name": "date", "required": false, "in": "query", "schema": { "type": "string" } },
+      {
+        "name": "time_zone",
+        "required": false,
+        "in": "query",
+        "description": "Compatibility parameter; the profile time zone is authoritative.",
+        "schema": { "type": "string" }
+      },
+      { "name": "days", "required": false, "in": "query", "schema": { "type": "number" } },
+      { "name": "from", "required": false, "in": "query", "schema": {} }
     ],
     "request_body": {}
   },
@@ -4829,7 +5019,7 @@
   {
     "method": "PUT",
     "path": "/api/v1/focus/settings",
-    "summary": "Save focus durations, auto-start, local sounds, volume and daily goal (TTD-AUD-101)",
+    "summary": "Merge focus settings; omitted fields remain unchanged (RF-1201, TTD-AUD-129)",
     "parameters": [],
     "request_body": {
       "required": true,
@@ -5212,12 +5402,29 @@
         "application/json": {
           "schema": {
             "type": "object",
-            "properties": { "token": { "type": "string", "writeOnly": true } },
+            "properties": {
+              "token": { "type": "string", "writeOnly": true },
+              "force": { "type": "boolean", "default": false }
+            },
             "required": ["token"]
           }
         }
       }
     }
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/integrations/telegram/settings",
+    "summary": "Quitar el bot propio y sus vínculos (RF-2003).",
+    "parameters": [],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/integrations/telegram/settings/retry",
+    "summary": "Reintentar el registro del webhook propio (RF-2003).",
+    "parameters": [],
+    "request_body": {}
   },
   {
     "method": "POST",

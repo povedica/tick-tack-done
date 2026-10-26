@@ -1,0 +1,98 @@
+.wt-e-field-error {
+  color: var(--danger);
+  flex-basis: 100%;
+  margin: 0;
+}
+.focus-setting-row:has(.wt-e-field-error) {
+  flex-wrap: wrap;
+}
+.recurrence-anchor-warning {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  white-space: normal;
+}
+.recurrence-anchor-warning button {
+  min-height: 44px;
+}
+.wt-e-google-services {
+  display: grid;
+  gap: 16px;
+}
+.wt-e-google-service {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.wt-e-google-service p {
+  margin: 0;
+}
+.google-disconnect-dialog {
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+}
+
+.detail-menu .popover-row:disabled {
+  color: var(--ink-3);
+  background: var(--surface-2);
+  cursor: not-allowed;
+}
+.detail-menu .popover-row small {
+  display: block;
+  font-size: var(--fs-xs);
+  font-weight: normal;
+  white-space: normal;
+}
+
+.workday-form {
+  display: grid;
+  gap: 0;
+  max-width: 42rem;
+}
+.workday-setting-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 10rem;
+  gap: 6px 24px;
+  align-items: center;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+.workday-setting-row label {
+  font-size: var(--fs-sm);
+  color: var(--ink);
+}
+.settings-layout .workday-setting-row input {
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 6px 10px;
+  font: inherit;
+}
+.workday-setting-row p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+}
+.workday-form > .ui-button {
+  justify-self: start;
+  margin-top: 20px;
+}
+.workday-form > [role='status'] {
+  margin-top: 8px;
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+}
+@media (max-width: 480px) {
+  .workday-setting-row {
+    grid-template-columns: minmax(0, 1fr) 8rem;
+    column-gap: 12px;
+  }
+}

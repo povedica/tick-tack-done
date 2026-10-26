@@ -1,5 +1,73 @@
 # Historial de cambios
 
+## Refinamientos de Hábitos, Calendario y Planificación
+
+- RF-1301/1302/1303: editor único de hábitos, pausa y fecha de inicio compatibles
+  con el historial; tarjetas compactas, objetivo semanal, detalle y gestión
+  simplificados. Constancia usa el acento del tema, año natural y meses separados,
+  con navegación horizontal en móvil.
+- Planificación: agenda, arrastre, gestos, guardado y resumen refinados; se conserva
+  el deshacer de cuatro segundos. API pública y contratos SDK/MCP actualizados.
+- Calendario y ajustes: detalle de días, controles de fecha, navegación móvil,
+  duración de foco y horario laboral adaptados a la UI compartida.
+- PWA (RF-13010): dependencias y aplicación en archivos separados para conservar
+  el precache completo por debajo del límite de 2 MiB por recurso.
+- Seguridad: body-parser 2.4.0 y multer 2.5.0; retirada de Zod, dependencia
+  sin uso, para cerrar las alertas de auditoría de producción.
+- Validación de publicación: pruebas con datos sintéticos, compilación y contratos
+  regenerados. Las referencias visuales aportadas se conservan sin reformatear;
+  los perfiles y evidencias privados siguen excluidos de Git.
+
+## Desarrollo local — copia de tareas
+
+- RF-1703/1705: comando `scripts/refresh-local-task-data.py` para refrescar datos
+  de tareas desde una cuenta de producción hacia la cuenta demo local. Incluye
+  listas, etiquetas y relaciones, con lectura remota estricta, backup local
+  verificado, importación transaccional e identificadores locales estables.
+- Perfil privado fuera de Git y comprobaciones que rechazan bases de producción
+  y Docker remoto como destino. No copia cuentas, credenciales, integraciones,
+  hábitos, calendarios ni archivos binarios de adjuntos.
+
+## Sin publicar — ajustes visuales PR77
+
+- Captura (RF-101/102/107, RF-802): reconocimiento de fechas y etiquetas,
+  conservación del texto, título de URL opcional y valores predeterminados de
+  fecha, hora, duración, recordatorios, prioridad, etiqueta y lista por usuario.
+  Se aplican en web, API y MCP: los campos explícitos tienen prioridad sobre el
+  texto reconocido, y éste sobre los valores predeterminados. Las listas o
+  etiquetas eliminadas no bloquean nuevas capturas. Se conserva el comportamiento
+  anterior hasta configurar preferencias.
+- Posición configurable de nuevas tareas en orden manual y del bloque de
+  vencidas en Hoy y Kanban por fecha (RF-1001).
+- API: `GET/PATCH /api/v1/me` publica `capture_settings`. MCP:
+  `get_capture_settings` (`profile:read`) y `update_capture_settings`
+  (`profile:write`), con validación y aislamiento de propietario (RF-2001/2002).
+  El segundo recibe la configuración completa; se debe consultar antes de editar.
+- Evento `capture.settings_updated@v1`, entidad `user`: nueva configuración y
+  configuración anterior, sin secretos, en la transacción de actualización.
+  Migración `20261025075715_add_capture_settings` con rollback verificado:
+  su `down.sql` elimina exclusivamente la columna de preferencias de captura.
+- Ajustes móvil: los formularios de Cuenta permanecen en el contenido, sin
+  superponerse ni bloquear navegación; el panel móvil fijo se limita al editor
+  de tokens. Los accesos de Cuenta y Más abren el índice de Ajustes.
+- Ordenación más discreta: icono fino de 16 px, valores a la derecha y
+  selectores sin relleno destacado, con flechas espaciadas y más aire entre filas.
+- Cabecera móvil a 18 px y menús a 14 px. Ordenar y agrupar tienen su propio
+  control junto al menú de vistas, con preferencias y orden existentes
+  conservados (RF-1001).
+- Sidebar: grupos desplegados por defecto también en móvil, conservando el
+  plegado elegido por el usuario. Cabeceras más pequeñas y suaves, flechas
+  discretos e icono de carpeta con listas indentadas (RF-302).
+- Listas en móvil: selector de vista dentro del menú de acciones, con Matriz,
+  Kanban y Timeline según la vista. Cabecera y menú con texto más compacto;
+  desplegable flotante con altura ajustada a la pantalla para evitar recortes
+  en listas vacías como Mañana (RF-1001/1002/1003/1004).
+- Ajustes: controles de una línea más compactos, con espacio vertical en las filas
+  de Foco y áreas táctiles conservadas. Sombra suave en el panel y la navegación
+  de Ajustes en ambos temas, sin cambios de comportamiento (RF-1201/1203/1205).
+- Flechas de los selectores de Ajustes con margen derecho y espacio reservado
+  para que no se solapen con el texto; colores adaptados al tema.
+
 ## Staging — Telegram por usuario y Resend (23 de octubre de 2026)
 
 - RF-2003: configuración cifrada de un bot exclusivo por usuario en Ajustes →

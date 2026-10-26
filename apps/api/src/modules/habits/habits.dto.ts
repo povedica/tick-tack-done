@@ -40,6 +40,22 @@ export class HabitGoalDto {
 }
 
 export class CreateHabitDto {
+  @ApiProperty({ required: false, nullable: true, type: String, maxLength: 32 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  unit?: string | null;
+
+  @ApiProperty({ required: false, nullable: true, type: String, example: '2026-10-26' })
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  start_date?: string | null;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  paused?: boolean;
+
   @ApiProperty({ required: false, nullable: true, type: Number, minimum: 1, maximum: 10000 })
   @IsOptional()
   @IsInt()
@@ -98,6 +114,22 @@ export class CreateHabitDto {
 }
 
 export class UpdateHabitDto {
+  @ApiProperty({ required: false, nullable: true, type: String, maxLength: 32 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  unit?: string | null;
+
+  @ApiProperty({ required: false, nullable: true, type: String, example: '2026-10-26' })
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  start_date?: string | null;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  paused?: boolean;
+
   @ApiProperty({ required: false, nullable: true, type: Number, minimum: 1, maximum: 10000 })
   @IsOptional()
   @IsInt()
@@ -196,6 +228,10 @@ export class HabitTodayDto {
 }
 
 export class HabitResponseDto {
+  @ApiProperty({ nullable: true, type: String }) unit!: string | null;
+  @ApiProperty({ nullable: true, type: String }) start_date!: string | null;
+  @ApiProperty() paused!: boolean;
+
   @ApiProperty({ nullable: true, type: Number })
   challenge_days!: number | null;
 

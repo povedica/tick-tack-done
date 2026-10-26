@@ -30,7 +30,9 @@ function setup() {
   vi.stubEnv('SMTP_FROM', 'local@example.test');
   return key;
 }
-async function transport() {
+async function transport(telegramLinked = false) {
+  vi.stubEnv('PUBLIC_URL', 'https://todo.example.org');
+  const configurationUpdatedAt = new Date();
   const module = await Test.createTestingModule({
     providers: [
       ReminderTransport,
@@ -44,9 +46,27 @@ async function transport() {
                 webhookSecret: 'unit-secret',
                 botId: 'unit',
                 username: 'unit_bot',
+                webhookUrl:
+                  'https://todo.example.org/api/v1/integrations/telegram/webhook/test-owner',
+                updatedAt: configurationUpdatedAt,
               }),
           },
-          telegramLink: { findFirst: () => Promise.resolve({ id: 'unit-link' }) },
+          telegramLink: {
+            findFirst: () =>
+              Promise.resolve(
+                telegramLinked
+                  ? {
+                      id: 'unit-link',
+                      botId: 'unit',
+                      chatId: 'test-chat',
+                      status: 'connected',
+                      username: null,
+                      displayName: null,
+                      createdAt: new Date(),
+                    }
+                  : null,
+              ),
+          },
         },
       },
     ],
@@ -175,7 +195,7 @@ describe('RF-802 RF-808: shared transactional email', () => {
       body: message.text,
       deliveryId: 'rate-limit',
     };
-    const result = await (await transport()).deliver(request);
+    const result = await (await transport(true)).deliver(request);
     expect(result).toMatchObject({
       email: 'rate_limited',
       telegram: 'rate_limited',

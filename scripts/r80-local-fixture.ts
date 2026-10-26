@@ -1,7 +1,8 @@
 import { PrismaClient } from '../apps/api/node_modules/@prisma/client/index.js';
 async function main(): Promise<void> {
   const url = new URL(process.env.DATABASE_URL ?? '');
-  if (url.pathname !== '/ttd_r80') throw new Error('Only the isolated ttd_r80 database is allowed');
+  if (url.pathname !== '/ttd_r80' && url.pathname !== '/ttd_wt_f')
+    throw new Error('Only the isolated ttd_r80 database is allowed');
   const db = new PrismaClient();
   try {
     const email = 'r80-live@example.test';

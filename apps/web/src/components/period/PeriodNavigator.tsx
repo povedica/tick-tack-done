@@ -1,3 +1,5 @@
+import { formatPeriodDate } from './period-date';
+import { useAppLocale } from '../../i18n/locale';
 import { useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { DatePopover } from '../DatePopover';
@@ -11,13 +13,16 @@ export function PeriodNavigator({
   onPick,
   className = 'calendar-period',
   label,
+  displayLabel,
 }: {
   readonly title: string;
   readonly date: Date;
   readonly onPick: (date: Date) => void;
   readonly className?: string;
   readonly label?: string;
+  readonly displayLabel?: string;
 }) {
+  const locale = useAppLocale();
   const [open, setOpen] = useState(false);
   const anchor = useRef<HTMLButtonElement>(null);
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -26,17 +31,18 @@ export function PeriodNavigator({
       <button
         type="button"
         ref={anchor}
-        aria-label={label ?? title}
+        aria-label={`${label ?? title}, ${new Intl.DateTimeFormat(locale, { dateStyle: 'full' }).format(date)}`}
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => {
           setOpen(true);
         }}
       >
-        <span>{title}</span>
+        <span>{displayLabel ?? formatPeriodDate(date, locale)}</span>
         <ChevronDown size={14} aria-hidden="true" />
       </button>
       <DatePopover
+        mode="date-only"
         open={open}
         anchor={anchor}
         value={{

@@ -1,8 +1,11 @@
+import { telegramState } from '../integrations/telegram-state.js';
 import { setTelegramStatus } from '../integrations/telegram-status.js';
 import { createHash, randomBytes } from 'node:crypto';
 import type { Prisma, ReminderDeliveryKind } from '@prisma/client';
 import {
   NOTIFICATION_CHANNELS,
+  readStoredHabit,
+  calendarDate,
   notificationDefault,
   notificationQuietUntil,
   type NotificationChannel,
@@ -40,9 +43,30 @@ export async function deliverNotification(
       ? row.payload
       : {};
   const kind = typeof payload.habit_id === 'string' ? 'habit' : row.kind;
-  const link = owner.telegramLinks[0];
-  const linked = !!link;
-  const blocked = (link as { status?: string } | undefined)?.status === 'blocked';
+  if (kind === 'habit' && typeof payload.habit_id === 'string') {
+    const habit = await prisma.habit.findFirst({
+      where: { id: payload.habit_id, ownerId: row.ownerId, deletedAt: null },
+    });
+    const config = habit ? readStoredHabit(habit.goal, habit.frequency, habit.reminderTime) : null;
+    const date = calendarDate(now.toISOString(), owner.timeZone) ?? '';
+    if (
+      !habit ||
+      habit.archived ||
+      !config ||
+      config.paused ||
+      (config.startDate && date < config.startDate)
+    )
+      return {
+        email: 'skipped',
+        push: 'skipped',
+        telegram: 'skipped',
+        telegram_message_id: null,
+        retry_after_seconds: null,
+      };
+  }
+  const telegram = await telegramState(prisma, row.ownerId);
+  const link = telegram.link;
+  const linked = telegram.linked;
   const task =
     row.taskId === null
       ? null
@@ -71,8 +95,7 @@ export async function deliverNotification(
     const pref = owner.notificationPreferences.find(
       (item) => item.kind === kind && item.channel === channel,
     );
-    if (channel === 'telegram' && !linked) reasons.set(channel, 'not_linked');
-    else if (channel === 'telegram' && blocked) reasons.set(channel, 'blocked');
+    if (channel === 'telegram' && telegram.reason !== null) reasons.set(channel, telegram.reason);
     else if (
       !(pref?.enabled ?? notificationDefault(kind, channel, linked)) ||
       (channel === 'telegram' && !owner.telegramEnabled)
@@ -173,6 +196,7 @@ export async function deliverNotification(
                   : 'failed',
         reason:
           reason ??
+          (channel === 'telegram' ? result.telegram_reason : undefined) ??
           (outcome === 'sent' ? null : outcome === 'skipped' ? 'channel_unavailable' : outcome),
         scheduledAt: row.fireAt,
       },

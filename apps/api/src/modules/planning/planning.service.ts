@@ -1,7 +1,17 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { habitCards } from './plan-habits.js';
+import { HabitsService } from '../habits/habits.service.js';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
-import { Prisma, type PlanDecision, type PlanSession } from '@prisma/client';
+import { Prisma, type Task, type PlanDecision, type PlanSession } from '@prisma/client';
 import {
   isIanaTimeZone,
+  civilDateKey,
+  effectOf,
+  freeSlots,
+  actionDate,
+  legacyAction,
+  storedDecision,
+  type PlanningAction,
   planQueue,
   previewPlan,
   staleTaskIds,
@@ -30,6 +40,10 @@ interface AppliedEffect {
   readonly task_id: string;
   readonly decision: PlanDecisionKind;
   readonly effect: string;
+  readonly before?: readonly TaskState[];
+  readonly after?: readonly TaskState[];
+  readonly habitBefore?: number;
+  readonly habitAfter?: string | null;
 }
 
 interface StoredResult {
@@ -47,27 +61,62 @@ export class PlanningService {
     @Inject(PrismaService) private readonly prisma: PrismaService,
     @Inject(TasksService) private readonly tasks: TasksService,
     @Inject(EventRecorder) private readonly events: EventRecorder,
+    @Inject(HabitsService) private readonly habits: HabitsService,
   ) {}
 
-  async start(
+  private readonly transactionContext = new AsyncLocalStorage<Prisma.TransactionClient>();
+  private get db() {
+    return this.transactionContext.getStore() ?? this.prisma;
+  }
+  private transaction<T>(
+    work: (tx: Prisma.TransactionClient) => Promise<T>,
+    options?: { timeout: number },
+  ): Promise<T> {
+    const existing = this.transactionContext.getStore();
+    return existing
+      ? work(existing)
+      : this.prisma.$transaction(
+          (tx) =>
+            this.transactionContext.run(tx, () => this.tasks.inPlanTransaction(tx, () => work(tx))),
+          options,
+        );
+  }
+
+  private async candidateQueue(
     user: AuthUser,
-    input: {
-      readonly localDate: string;
-      readonly timeZone: string;
-      readonly sources: PlanSources;
-      readonly limit: number | null;
-    },
-  ): Promise<Record<string, unknown>> {
+    input: { localDate: string; timeZone: string; sources: PlanSources; limit: number | null },
+  ) {
     this.assertDate(input.localDate);
     this.assertZone(input.timeZone);
-    const rows = await this.prisma.task.findMany({
-      where: { ownerId: user.id, deletedAt: null, status: 'active', kind: 'task', parentId: null },
-      include: { project: { select: { name: true, isInbox: true } } },
+    const rows = await this.db.task.findMany({
+      where: {
+        ownerId: user.id,
+        ...(user.listIds === null ? {} : { projectId: { in: [...user.listIds] } }),
+        deletedAt: null,
+        status: 'active',
+        kind: 'task',
+        parentId: null,
+      },
+      include: {
+        project: { select: { name: true, isInbox: true, color: true } },
+        tags: { include: { tag: true } },
+        attachments: { where: { deletedAt: null } },
+      },
     });
     const queue = planQueue(
       rows.map((row) => ({
         id: row.id,
         title: row.title,
+        content: row.content,
+        durationMinutes: row.durationMinutes,
+        projectColor: row.project.color,
+        repeatRule: row.repeatRule,
+        tags: row.tags.map(({ tag }) => ({ id: tag.id, name: tag.name, color: tag.color })),
+        attachments: row.attachments.map((file) => ({
+          id: file.id,
+          name: file.fileName,
+          url: file.webViewLink,
+        })),
         priority: row.priority,
         dueDate: row.dueDate?.toISOString() ?? null,
         startDate: row.startDate?.toISOString() ?? null,
@@ -86,7 +135,34 @@ export class PlanningService {
       })),
       input,
     );
-    const plan = await this.prisma.dayPlan.upsert({
+    const habits = input.sources.today ? await habitCards(this.prisma, user, input.localDate) : [];
+    return {
+      ...queue,
+      cards: [...queue.cards, ...habits].map((c, rank) => ({ ...c, rank })),
+      totals: { ...queue.totals, today: queue.totals.today + habits.length },
+    };
+  }
+
+  async candidates(
+    user: AuthUser,
+    input: { localDate: string; timeZone: string; sources: PlanSources; limit: number | null },
+  ) {
+    const queue = await this.candidateQueue(user, { ...input, timeZone: user.timeZone });
+    return { totals: queue.totals, count: queue.cards.length, hidden_overdue: queue.hiddenOverdue };
+  }
+
+  async start(
+    user: AuthUser,
+    input: {
+      readonly localDate: string;
+      readonly timeZone: string;
+      readonly sources: PlanSources;
+      readonly limit: number | null;
+    },
+  ): Promise<Record<string, unknown>> {
+    input = { ...input, timeZone: user.timeZone };
+    const queue = await this.candidateQueue(user, input);
+    const plan = await this.db.dayPlan.upsert({
       where: {
         ownerId_localDate_timeZone: {
           ownerId: user.id,
@@ -97,28 +173,73 @@ export class PlanningService {
       create: { ownerId: user.id, localDate: input.localDate, timeZone: input.timeZone },
       update: {},
     });
-    const session = await this.prisma.planSession.create({
-      data: {
-        planId: plan.id,
-        ownerId: user.id,
-        sources: jsonValue(input.sources),
-        snapshot: jsonValue({
-          cards: queue.cards,
-          hiddenOverdue: queue.hiddenOverdue,
-          totals: queue.totals,
-        }),
-      },
-      include: { decisions: true, plan: true },
+    return this.transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${user.id}))`;
+      const existing = await tx.planSession.findFirst({
+        where: { ownerId: user.id, planId: plan.id, state: 'draft', kind: 'plan' },
+        include: { decisions: true, plan: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      await tx.planSession.updateMany({
+        where: {
+          ownerId: user.id,
+          state: 'draft',
+          kind: 'plan',
+          plan: { localDate: input.localDate },
+          ...(existing ? { id: { not: existing.id } } : {}),
+        },
+        data: { state: 'discarded' },
+      });
+      if (existing !== null) {
+        const old = this.snapshot(existing);
+        if (user.listIds !== null && old.cards.some((c) => !user.listIds?.includes(c.projectId)))
+          throw new DomainException(
+            HttpStatus.NOT_FOUND,
+            'plan_not_found',
+            'Plan session was not found',
+          );
+        const merged = [
+          ...queue.cards,
+          ...old.cards.filter(
+            (c) =>
+              !queue.cards.some((n) => n.taskId === c.taskId) &&
+              existing.decisions.some((d) => d.taskId === c.taskId),
+          ),
+        ];
+        const refreshed = await tx.planSession.update({
+          where: { id: existing.id },
+          data: {
+            sources: jsonValue(input.sources),
+            snapshot: jsonValue({
+              ...(existing.snapshot as Prisma.JsonObject),
+              cards: merged,
+              totals: queue.totals,
+              hiddenOverdue: queue.hiddenOverdue,
+            }),
+          },
+          include: { decisions: true, plan: true },
+        });
+        return this.view(refreshed);
+      }
+      const session = await tx.planSession.create({
+        data: {
+          planId: plan.id,
+          ownerId: user.id,
+          sources: jsonValue(input.sources),
+          snapshot: jsonValue({
+            cards: queue.cards,
+            hiddenOverdue: queue.hiddenOverdue,
+            totals: queue.totals,
+          }),
+        },
+        include: { decisions: true, plan: true },
+      });
+      return this.view(session);
     });
-    await this.prisma.planSession.updateMany({
-      where: { ownerId: user.id, planId: plan.id, state: 'draft', id: { not: session.id } },
-      data: { state: 'discarded' },
-    });
-    return this.view(session);
   }
 
   async get(user: AuthUser, id: string): Promise<Record<string, unknown>> {
-    return this.view(await this.owned(user.id, id));
+    return this.view(await this.owned(user.id, id, user.listIds));
   }
 
   async decide(
@@ -127,8 +248,86 @@ export class PlanningService {
     taskId: string,
     decision: PlanDecisionKind,
     targetDate: string | null,
+    choice?: PlanningAction,
   ): Promise<Record<string, unknown>> {
-    const session = await this.requireOpen(user.id, sessionId);
+    return this.transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${user.id}))`;
+      return this.decideLocked(user, sessionId, taskId, decision, targetDate, choice);
+    });
+  }
+
+  /** Commit only the explicitly configured card; the rest of the session stays a draft. */
+  async schedule(
+    user: AuthUser,
+    sessionId: string,
+    taskId: string,
+    choice: PlanningAction,
+    key: string | undefined,
+  ): Promise<Record<string, unknown>> {
+    if (!key?.trim())
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'idempotency_key_required',
+        'Idempotency-Key is required',
+      );
+    return this.transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${user.id}))`;
+        const session = await this.owned(user.id, sessionId, user.listIds);
+        const existing = await this.db.planOperation.findUnique({
+          where: { ownerId_idempotencyKey: { ownerId: user.id, idempotencyKey: key.trim() } },
+        });
+        if (existing) {
+          const result = existing.result as Prisma.JsonObject;
+          if (
+            existing.sessionId !== sessionId ||
+            result.immediate_task_id !== taskId ||
+            JSON.stringify(orderedChoice(result.choice)) !==
+              JSON.stringify(orderedChoice(choice)) ||
+            existing.status !== 'applied'
+          )
+            throw new DomainException(
+              HttpStatus.CONFLICT,
+              'idempotency_mismatch',
+              'This key belongs to another operation',
+            );
+          return { ...this.view(session), operation_id: existing.id };
+        }
+        if (choice.action !== 'move')
+          throw new DomainException(
+            HttpStatus.BAD_REQUEST,
+            'validation_failed',
+            'A configured date is required',
+          );
+        await this.decideLocked(
+          user,
+          sessionId,
+          taskId,
+          storedDecision(choice.action),
+          choice.date ?? null,
+          choice,
+        );
+        const updated = await this.owned(user.id, sessionId, user.listIds);
+        const result = await this.applyLocked(user, sessionId, updated.revision, key, taskId);
+        return {
+          ...this.view(await this.owned(user.id, sessionId, user.listIds)),
+          operation_id: result.operation_id,
+        };
+      },
+      { timeout: 60_000 },
+    );
+  }
+
+  private async decideLocked(
+    user: AuthUser,
+    sessionId: string,
+    taskId: string,
+    decision: PlanDecisionKind,
+    targetDate: string | null,
+    choice?: PlanningAction,
+  ): Promise<Record<string, unknown>> {
+    const session = await this.requireOpen(user.id, sessionId, user.listIds);
+    this.assertUncommitted(session, taskId);
     if (!this.snapshot(session).cards.some((card) => card.taskId === taskId)) {
       throw new DomainException(
         HttpStatus.NOT_FOUND,
@@ -136,8 +335,33 @@ export class PlanningService {
         'Task is not in this plan',
       );
     }
-    const target = this.targetFor(session.plan.localDate, decision, targetDate);
-    await this.prisma.planDecision.upsert({
+    const selected =
+      choice ??
+      legacyAction(
+        decision,
+        decision === 'later' ? (targetDate ?? nextCivil(session.plan.localDate)) : targetDate,
+      );
+    try {
+      effectOf(selected, session.plan.localDate, session.plan.timeZone);
+    } catch (error) {
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        error instanceof Error ? error.message : 'Invalid choice',
+      );
+    }
+    const target = choice
+      ? actionDate(selected, session.plan.localDate)
+      : this.targetFor(session.plan.localDate, decision, targetDate);
+    if (selected.time) await this.assertSlot(user, session, taskId, selected);
+    decision = storedDecision(selected.action);
+    const snapshot = session.snapshot as Prisma.JsonObject;
+    const extras = readChoices(snapshot);
+    await this.db.planSession.update({
+      where: { id: sessionId },
+      data: { snapshot: jsonValue({ ...snapshot, choices: { ...extras, [taskId]: selected } }) },
+    });
+    await this.db.planDecision.upsert({
       where: { sessionId_taskId: { sessionId, taskId } },
       create: { sessionId, taskId, decision, targetDate: target },
       update: { decision, targetDate: target },
@@ -145,10 +369,111 @@ export class PlanningService {
     return this.view(await this.bump(sessionId));
   }
 
+  private async assertSlot(
+    user: AuthUser,
+    session: SessionRow,
+    taskId: string,
+    choice: PlanningAction,
+  ): Promise<void> {
+    const date = actionDate(choice, session.plan.localDate);
+    if (!date || !choice.time) return;
+    const profile = await this.db.user.findUniqueOrThrow({ where: { id: user.id } });
+    const patch = effectOf(
+      choice,
+      session.plan.localDate,
+      user.timeZone,
+      profile.defaultTaskDuration,
+    );
+    const start = patch?.start_date;
+    if (!start) return;
+    const from = new Date(start),
+      until = new Date(from.getTime() + (choice.duration ?? profile.defaultTaskDuration) * 60000);
+    const changed = new Set([
+      taskId,
+      ...session.decisions.filter((d) => d.decision !== 'skip').map((d) => d.taskId),
+    ]);
+    const tasks = await this.db.task.findMany({
+      where: {
+        ownerId: user.id,
+        deletedAt: null,
+        status: 'active',
+        isAllDay: false,
+        startDate: { not: null },
+        parentId: null,
+        isSomeday: false,
+      },
+    });
+    const events = await this.db.externalEvent.findMany({
+      where: {
+        ownerId: user.id,
+        deletedAt: null,
+        isAllDay: false,
+        startsAt: { lt: until },
+        endsAt: { gt: from },
+        subscription: { deletedAt: null, visible: true },
+      },
+    });
+    const busy = [
+      ...tasks
+        .filter((t) => !changed.has(t.id) && t.startDate !== null)
+        .map((t) => ({
+          id: t.id,
+          start: (t.startDate ?? new Date(0)).toISOString(),
+          end: new Date(
+            (t.startDate?.getTime() ?? 0) +
+              (t.durationMinutes ?? profile.defaultTaskDuration) * 60000,
+          ).toISOString(),
+        })),
+      ...events.map((e) => ({
+        id: e.id,
+        start: e.startsAt.toISOString(),
+        end: (e.endsAt ?? e.startsAt).toISOString(),
+      })),
+    ];
+    for (const decision of session.decisions) {
+      if (decision.taskId === taskId) continue;
+      const pending = readChoices(session.snapshot)[decision.taskId];
+      if (!pending?.time || actionDate(pending, session.plan.localDate) !== date) continue;
+      const effect = effectOf(
+        pending,
+        session.plan.localDate,
+        user.timeZone,
+        profile.defaultTaskDuration,
+      );
+      if (effect?.start_date)
+        busy.push({
+          id: decision.taskId,
+          start: effect.start_date,
+          end: new Date(
+            Date.parse(effect.start_date) +
+              (pending.duration ?? profile.defaultTaskDuration) * 60000,
+          ).toISOString(),
+        });
+    }
+    const slots = freeSlots({
+      date,
+      timeZone: user.timeZone,
+      duration: choice.duration ?? profile.defaultTaskDuration,
+      workDayStart: '00:00',
+      workDayEnd: '24:00',
+      busy,
+    });
+    if (!slots.includes(choice.time))
+      throw new DomainException(
+        HttpStatus.CONFLICT,
+        'slot_unavailable',
+        'The chosen time is no longer free',
+      );
+  }
+
   async clear(user: AuthUser, sessionId: string, taskId: string): Promise<Record<string, unknown>> {
-    await this.requireOpen(user.id, sessionId);
-    await this.prisma.planDecision.deleteMany({ where: { sessionId, taskId } });
-    return this.view(await this.bump(sessionId));
+    return this.transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${user.id}))`;
+      const session = await this.requireOpen(user.id, sessionId, user.listIds);
+      this.assertUncommitted(session, taskId);
+      await this.db.planDecision.deleteMany({ where: { sessionId, taskId } });
+      return this.view(await this.bump(sessionId));
+    });
   }
 
   async apply(
@@ -157,7 +482,7 @@ export class PlanningService {
     expectedRevision: number,
     key: string | undefined,
   ): Promise<Record<string, unknown>> {
-    return this.prisma.$transaction(
+    return this.transaction(
       async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${user.id}))`;
         return this.applyLocked(user, sessionId, expectedRevision, key);
@@ -171,6 +496,7 @@ export class PlanningService {
     sessionId: string,
     expectedRevision: number,
     key: string | undefined,
+    onlyTaskId?: string,
   ): Promise<Record<string, unknown>> {
     if (key === undefined || key.trim() === '') {
       throw new DomainException(
@@ -179,7 +505,13 @@ export class PlanningService {
         'Idempotency-Key is required',
       );
     }
-    const session = await this.owned(user.id, sessionId);
+    const session = await this.owned(user.id, sessionId, user.listIds);
+    if (!session.decisions.some((d) => d.decision !== 'skip'))
+      throw new DomainException(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        'nothing_to_apply',
+        'There are no changes to confirm',
+      );
     const operation = await this.begin(user.id, session, key.trim(), expectedRevision);
     if (operation.status === 'applied') {
       return this.appliedBody(operation.id, session, readResult(operation.result));
@@ -187,36 +519,126 @@ export class PlanningService {
     const stored = readResult(operation.result);
     const done = new Set(stored.applied.map((item) => item.task_id));
     const pending = session.decisions.filter(
-      (decision) => decision.decision !== 'skip' && !done.has(decision.taskId),
+      (decision) =>
+        decision.decision !== 'skip' &&
+        !done.has(decision.taskId) &&
+        !readCommitted(session.snapshot)[decision.taskId] &&
+        (!onlyTaskId || decision.taskId === onlyTaskId),
     );
     await this.assertFresh(user.id, session, pending);
-    await this.prisma.planSession.update({
-      where: { id: session.id },
-      data: { state: 'applying' },
-    });
+    for (const decision of pending) {
+      const choice = readChoices(session.snapshot)[decision.taskId];
+      if (choice?.time) await this.assertSlot(user, session, decision.taskId, choice);
+    }
+    if (!onlyTaskId)
+      await this.db.planSession.update({
+        where: { id: session.id },
+        data: { state: 'applying' },
+      });
     const applied = [...stored.applied];
     for (const decision of pending) {
+      const habitCard = this.snapshot(session).cards.find(
+        (c) => c.taskId === decision.taskId,
+      )?.habit;
+      const oldHabit = habitCard
+        ? await this.db.habitLog.findUnique({
+            where: {
+              habitId_date: {
+                habitId: decision.taskId,
+                date: new Date(`${session.plan.localDate}T00:00Z`),
+              },
+            },
+          })
+        : null;
+      const before = (
+        await this.db.task.findMany({
+          where: { ownerId: user.id, OR: [{ id: decision.taskId }, { parentId: decision.taskId }] },
+          include: {
+            checklist: {
+              where: { deletedAt: null },
+              select: { id: true, status: true, completedAt: true, updatedAt: true },
+            },
+          },
+        })
+      ).map(taskState);
       const effect = await this.applyOne(
         user,
         session,
         decision,
         `${key.trim()}:${decision.taskId}`,
       );
-      applied.push({ task_id: decision.taskId, decision: decision.decision, effect });
-      await this.prisma.planOperation.update({
+      const after = (
+        await this.db.task.findMany({
+          where: { ownerId: user.id, id: { in: before.map((t) => t.id) } },
+          include: {
+            checklist: {
+              where: { deletedAt: null },
+              select: { id: true, status: true, completedAt: true, updatedAt: true },
+            },
+          },
+        })
+      ).map(taskState);
+      const written = new Set(
+        before
+          .filter(
+            (row) =>
+              JSON.stringify(row) !== JSON.stringify(after.find((item) => item.id === row.id)),
+          )
+          .map((row) => row.id),
+      );
+      applied.push({
+        task_id: decision.taskId,
+        decision: decision.decision,
+        effect,
+        before: before.filter((row) => written.has(row.id)),
+        after: after.filter((row) => written.has(row.id)),
+        ...(habitCard
+          ? {
+              habitBefore: oldHabit?.count ?? 0,
+              habitAfter:
+                (
+                  await this.db.habitLog.findUnique({
+                    where: {
+                      habitId_date: {
+                        habitId: decision.taskId,
+                        date: new Date(`${session.plan.localDate}T00:00Z`),
+                      },
+                    },
+                  })
+                )?.updatedAt.toISOString() ?? null,
+            }
+          : {}),
+      });
+      await this.db.planOperation.update({
         where: { id: operation.id },
         data: { result: jsonValue({ applied }) },
       });
     }
-    await this.prisma.planOperation.update({
+    await this.db.planOperation.update({
       where: { id: operation.id },
-      data: { status: 'applied', result: jsonValue({ applied }) },
+      data: {
+        status: 'applied',
+        result: jsonValue({
+          applied,
+          ...(onlyTaskId
+            ? { immediate_task_id: onlyTaskId, choice: readChoices(session.snapshot)[onlyTaskId] }
+            : {}),
+        }),
+      },
     });
-    await this.prisma.planSession.update({
+    await this.db.planSession.update({
       where: { id: session.id },
-      data: { state: 'applied' },
+      data: onlyTaskId
+        ? {
+            revision: { increment: 1 },
+            snapshot: jsonValue({
+              ...(session.snapshot as Prisma.JsonObject),
+              committed: { ...readCommitted(session.snapshot), [onlyTaskId]: operation.id },
+            }),
+          }
+        : { state: 'applied' },
     });
-    await this.prisma.$transaction((tx) =>
+    await this.transaction((tx) =>
       this.events.record(tx, actorOf(user), {
         type: DomainEvent.planApplied,
         entityType: 'plan_session',
@@ -233,10 +655,147 @@ export class PlanningService {
     return this.appliedBody(operation.id, session, { applied });
   }
 
+  async revert(user: AuthUser, operationId: string): Promise<Record<string, unknown>> {
+    return this.transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${user.id}))`;
+        const operation = await this.db.planOperation.findFirst({
+          where: { id: operationId, ownerId: user.id },
+        });
+        if (!operation)
+          throw new DomainException(
+            HttpStatus.NOT_FOUND,
+            'operation_not_found',
+            'Plan operation was not found',
+          );
+        if (operation.status === 'reverted')
+          return { operation_id: operationId, reverted: true, replayed: true };
+        if (operation.status !== 'applied')
+          throw new DomainException(
+            HttpStatus.CONFLICT,
+            'operation_not_applied',
+            'Only an applied plan can be reverted',
+          );
+        const result = readResult(operation.result);
+        if (result.applied.some((e) => !e.before || !e.after))
+          throw new DomainException(
+            HttpStatus.CONFLICT,
+            'plan_not_revertible',
+            'This legacy operation has no revert snapshot',
+          );
+        const before = new Map(result.applied.flatMap((e) => e.before ?? []).map((t) => [t.id, t]));
+        const after = new Map(result.applied.flatMap((e) => e.after ?? []).map((t) => [t.id, t]));
+        const current = await this.db.task.findMany({
+          where: { ownerId: user.id, id: { in: [...after.keys()] } },
+          include: {
+            checklist: {
+              where: { deletedAt: null },
+              select: { id: true, status: true, completedAt: true, updatedAt: true },
+            },
+          },
+        });
+        if (
+          current.length !== after.size ||
+          current.some(
+            (row) =>
+              row.version !== after.get(row.id)?.version ||
+              JSON.stringify(taskState(row).checklist ?? []) !==
+                JSON.stringify(after.get(row.id)?.checklist ?? []) ||
+              row.updatedAt.toISOString() !== after.get(row.id)?.updatedAt ||
+              (user.listIds !== null && !user.listIds.includes(row.projectId)),
+          )
+        )
+          throw new DomainException(
+            HttpStatus.CONFLICT,
+            'plan_revert_conflict',
+            'A task changed after confirmation; nothing has been reverted',
+          );
+        const planSession = await this.owned(user.id, operation.sessionId);
+        for (const effect of result.applied.filter((e) => e.habitBefore !== undefined)) {
+          if (!user.scopes.includes('habits:write'))
+            throw new DomainException(
+              HttpStatus.FORBIDDEN,
+              'scope_missing',
+              'habits:write is required',
+            );
+          const log = await this.db.habitLog.findUnique({
+            where: {
+              habitId_date: {
+                habitId: effect.task_id,
+                date: new Date(`${planSession.plan.localDate}T00:00Z`),
+              },
+            },
+          });
+          if ((log?.updatedAt.toISOString() ?? null) !== effect.habitAfter)
+            throw new DomainException(
+              HttpStatus.CONFLICT,
+              'plan_revert_conflict',
+              'Habit changed after confirmation',
+            );
+        }
+        for (const effect of result.applied.filter((e) => e.effect === 'habit_completed'))
+          await this.habits.checkIn(
+            user,
+            effect.task_id,
+            { date: planSession.plan.localDate, count: effect.habitBefore ?? 0 },
+            `plan-revert:${operationId}:${effect.task_id}`,
+          );
+        const context: AuthUser = { ...user, requestSource: 'plan' };
+        for (const saved of before.values()) {
+          const row = current.find((t) => t.id === saved.id);
+          if (!row) continue;
+          await this.tasks.restorePlanState(context, saved);
+          await this.clearMemberships(user.id, row.id);
+        }
+        const committed = readCommitted(planSession.snapshot);
+        const restoredIds = Object.keys(committed).filter((id) => committed[id] === operationId);
+        if (restoredIds.length) {
+          const remaining = Object.fromEntries(
+            Object.entries(committed).filter(([, id]) => id !== operationId),
+          );
+          const restored = await this.db.task.findMany({
+            where: { ownerId: user.id, id: { in: restoredIds } },
+            select: { id: true, updatedAt: true },
+          });
+          await this.db.planDecision.deleteMany({
+            where: { sessionId: planSession.id, taskId: { in: restoredIds } },
+          });
+          await this.db.planSession.update({
+            where: { id: planSession.id },
+            data: {
+              revision: { increment: 1 },
+              snapshot: jsonValue({
+                ...(planSession.snapshot as Prisma.JsonObject),
+                committed: remaining,
+                cards: this.snapshot(planSession).cards.map((card) => ({
+                  ...card,
+                  updatedAt:
+                    restored.find((row) => row.id === card.taskId)?.updatedAt.toISOString() ??
+                    card.updatedAt,
+                })),
+              }),
+            },
+          });
+        }
+        await tx.planOperation.update({ where: { id: operationId }, data: { status: 'reverted' } });
+        await this.events.record(tx, actorOf(context), {
+          type: 'plan.reverted@v1',
+          entityType: 'plan_session',
+          entityId: operation.sessionId,
+          action: 'updated',
+          data: { operation_id: operationId, source: 'plan', task_ids: [...before.keys()] },
+          previous: null,
+        });
+        return { operation_id: operationId, reverted: true, replayed: false };
+      },
+      { timeout: 60000 },
+    );
+  }
+
   async day(user: AuthUser, localDate: string, timeZone: string): Promise<Record<string, unknown>> {
     this.assertDate(localDate);
     this.assertZone(timeZone);
-    const plan = await this.prisma.dayPlan.findUnique({
+    const plan = await this.db.dayPlan.findUnique({
       where: {
         ownerId_localDate_timeZone: { ownerId: user.id, localDate, timeZone },
       },
@@ -246,6 +805,9 @@ export class PlanningService {
           include: { operations: { where: { status: 'applied' }, orderBy: { updatedAt: 'asc' } } },
         },
         members: {
+          ...(user.listIds === null
+            ? {}
+            : { where: { task: { projectId: { in: [...user.listIds] } } } }),
           orderBy: { rank: 'asc' },
           include: {
             task: {
@@ -308,74 +870,111 @@ export class PlanningService {
   ): Promise<string> {
     const card = this.snapshot(session).cards.find((item) => item.taskId === decision.taskId);
     const rank = card?.rank ?? 0;
+    if (card?.habit) {
+      if (!user.scopes.includes('habits:write'))
+        throw new DomainException(
+          HttpStatus.FORBIDDEN,
+          'scope_missing',
+          'habits:write is required',
+        );
+      if (decision.decision === 'done')
+        await this.habits.checkIn(
+          user,
+          decision.taskId,
+          { date: session.plan.localDate, count: 1 },
+          key,
+        );
+      return decision.decision === 'done'
+        ? 'habit_completed'
+        : decision.decision === 'skip'
+          ? 'skipped'
+          : 'habit_scheduled';
+    }
+    const current = await this.db.task.findFirst({
+      where: { id: decision.taskId, ownerId: user.id, deletedAt: null },
+    });
+    const choice =
+      readChoices(session.snapshot)[decision.taskId] ??
+      legacyAction(decision.decision, decision.targetDate);
+    const patch = effectOf(
+      choice,
+      session.plan.localDate,
+      session.plan.timeZone,
+      card?.durationMinutes ?? 30,
+    );
+    if (current && patch) {
+      const sameStart =
+        patch.start_date === null
+          ? current.startDate === null
+          : patch.is_all_day
+            ? current.startDate !== null &&
+              civilDateKey(current.startDate.toISOString(), session.plan.timeZone) ===
+                patch.start_date
+            : current.startDate?.toISOString() === patch.start_date;
+      if (
+        sameStart &&
+        (patch.is_all_day === undefined || current.isAllDay === patch.is_all_day) &&
+        (patch.duration_minutes === undefined ||
+          current.durationMinutes === patch.duration_minutes) &&
+        (patch.someday === undefined || current.isSomeday === patch.someday) &&
+        (patch.evening_only === undefined || current.eveningOnly === patch.evening_only)
+      )
+        return 'unchanged';
+    }
+    if (
+      current?.repeatRule &&
+      current.seriesId &&
+      current.dueDate &&
+      decision.decision !== 'done' &&
+      decision.decision !== 'skip'
+    ) {
+      await this.tasks.detach(
+        { ...user, requestSource: 'plan' },
+        decision.taskId,
+        current.dueDate.toISOString(),
+        undefined,
+      );
+    }
     if (decision.decision === 'done') {
-      await this.tasks.complete(user, decision.taskId, { complete_children: 'complete' }, key);
+      await this.tasks.complete(
+        { ...user, requestSource: 'plan' },
+        decision.taskId,
+        { complete_children: 'complete' },
+        key,
+      );
       await this.clearMemberships(user.id, decision.taskId);
       return 'completed';
     }
     if (decision.decision === 'cancel') {
-      await this.tasks.cancel(user, decision.taskId);
+      await this.tasks.cancel({ ...user, requestSource: 'plan' }, decision.taskId);
       await this.clearMemberships(user.id, decision.taskId);
       return 'cancelled';
     }
     if (decision.decision === 'trash') {
-      const row = await this.prisma.task.findFirst({
+      const row = await this.db.task.findFirst({
         where: { id: decision.taskId, ownerId: user.id },
         select: { deletedAt: true },
       });
       if (row?.deletedAt === null) {
-        await this.tasks.remove(user, decision.taskId);
+        await this.tasks.remove({ ...user, requestSource: 'plan' }, decision.taskId);
       }
       await this.clearMemberships(user.id, decision.taskId);
       return 'trashed';
     }
-    if (decision.decision === 'plan_day') {
-      const existing = await this.prisma.planMember.findUnique({
-        where: { planId_taskId: { planId: session.planId, taskId: decision.taskId } },
-      });
-      if (existing !== null) return 'unchanged';
-      await this.place(
-        user.id,
-        session.plan.localDate,
-        session.plan.timeZone,
-        decision.taskId,
-        rank,
-        'plan_day',
-      );
-      return 'planned_today';
-    }
-    if (decision.decision === 'someday') {
-      await this.prisma.task.update({
-        where: { id: decision.taskId },
-        data: { isSomeday: true, startDate: null },
-      });
+    if (patch !== null) {
+      await this.tasks.update({ ...user, requestSource: 'plan' }, decision.taskId, patch);
       await this.clearMemberships(user.id, decision.taskId);
-      return 'someday';
-    }
-    if (decision.decision === 'later') {
-      const target = decision.targetDate ?? nextCivil(session.plan.localDate);
-      const existing = await this.prisma.planMember.findFirst({
-        where: {
-          taskId: decision.taskId,
-          plan: { ownerId: user.id, localDate: target, timeZone: session.plan.timeZone },
-        },
-      });
-      const current = await this.prisma.planMember.findUnique({
-        where: { planId_taskId: { planId: session.planId, taskId: decision.taskId } },
-      });
-      if (existing !== null && current === null) return 'unchanged';
-      await this.prisma.planMember.deleteMany({
-        where: {
-          taskId: decision.taskId,
-          plan: {
-            ownerId: user.id,
-            localDate: session.plan.localDate,
-            timeZone: session.plan.timeZone,
-          },
-        },
-      });
-      await this.place(user.id, target, session.plan.timeZone, decision.taskId, rank, 'later');
-      return 'planned_later';
+      const date = actionDate(choice, session.plan.localDate);
+      if (date !== null)
+        await this.place(
+          user.id,
+          date,
+          session.plan.timeZone,
+          decision.taskId,
+          rank,
+          decision.decision,
+        );
+      return choice.action === 'someday' ? 'someday' : 'planned';
     }
     return 'skipped';
   }
@@ -388,12 +987,12 @@ export class PlanningService {
     rank: number,
     source: string,
   ): Promise<void> {
-    const plan = await this.prisma.dayPlan.upsert({
+    const plan = await this.db.dayPlan.upsert({
       where: { ownerId_localDate_timeZone: { ownerId, localDate, timeZone } },
       create: { ownerId, localDate, timeZone },
       update: {},
     });
-    await this.prisma.planMember.upsert({
+    await this.db.planMember.upsert({
       where: { planId_taskId: { planId: plan.id, taskId } },
       create: { planId: plan.id, taskId, rank, source },
       update: { rank, source },
@@ -401,7 +1000,7 @@ export class PlanningService {
   }
 
   private async clearMemberships(ownerId: string, taskId: string): Promise<void> {
-    await this.prisma.planMember.deleteMany({
+    await this.db.planMember.deleteMany({
       where: { taskId, plan: { ownerId } },
     });
   }
@@ -414,8 +1013,10 @@ export class PlanningService {
     if (pending.length === 0) {
       return;
     }
-    const ids = pending.map((decision) => decision.taskId);
-    const current = await this.prisma.task.findMany({
+    const ids = pending
+      .filter((d) => !this.snapshot(session).cards.find((c) => c.taskId === d.taskId)?.habit)
+      .map((decision) => decision.taskId);
+    const current = await this.db.task.findMany({
       where: { ownerId, id: { in: ids } },
       select: { id: true, updatedAt: true, deletedAt: true },
     });
@@ -442,7 +1043,7 @@ export class PlanningService {
     expectedRevision: number,
   ): Promise<{ id: string; status: string; result: Prisma.JsonValue }> {
     if (session.state === 'applied' || session.state === 'discarded') {
-      const closed = await this.prisma.planOperation.findUnique({
+      const closed = await this.db.planOperation.findUnique({
         where: { ownerId_idempotencyKey: { ownerId, idempotencyKey: key } },
       });
       if (closed?.sessionId === session.id && closed.status === 'applied') {
@@ -463,7 +1064,7 @@ export class PlanningService {
       );
     }
     try {
-      return await this.prisma.planOperation.create({
+      return await this.db.planOperation.create({
         data: {
           ownerId,
           sessionId: session.id,
@@ -477,7 +1078,7 @@ export class PlanningService {
       if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
         throw error;
       }
-      const existing = await this.prisma.planOperation.findUnique({
+      const existing = await this.db.planOperation.findUnique({
         where: { ownerId_idempotencyKey: { ownerId, idempotencyKey: key } },
       });
       if (existing?.sessionId !== session.id || existing.revision !== expectedRevision) {
@@ -491,8 +1092,12 @@ export class PlanningService {
     }
   }
 
-  private async owned(ownerId: string, id: string): Promise<SessionRow> {
-    const session = await this.prisma.planSession.findFirst({
+  private async owned(
+    ownerId: string,
+    id: string,
+    listIds: readonly string[] | null = null,
+  ): Promise<SessionRow> {
+    const session = await this.db.planSession.findFirst({
       where: { id, ownerId },
       include: { decisions: true, plan: true },
     });
@@ -503,11 +1108,24 @@ export class PlanningService {
         'Plan session was not found',
       );
     }
+    if (
+      listIds !== null &&
+      this.snapshot(session).cards.some((c) => !listIds.includes(c.projectId))
+    )
+      throw new DomainException(
+        HttpStatus.NOT_FOUND,
+        'plan_not_found',
+        'Plan session was not found',
+      );
     return session;
   }
 
-  private async requireOpen(ownerId: string, id: string): Promise<SessionRow> {
-    const session = await this.owned(ownerId, id);
+  private async requireOpen(
+    ownerId: string,
+    id: string,
+    listIds: readonly string[] | null = null,
+  ): Promise<SessionRow> {
+    const session = await this.owned(ownerId, id, listIds);
     if (session.state !== 'draft') {
       throw new DomainException(
         HttpStatus.CONFLICT,
@@ -518,8 +1136,17 @@ export class PlanningService {
     return session;
   }
 
+  private assertUncommitted(session: SessionRow, taskId: string): void {
+    if (readCommitted(session.snapshot)[taskId])
+      throw new DomainException(
+        HttpStatus.CONFLICT,
+        'task_already_planned',
+        'Undo the saved task before deciding again',
+      );
+  }
+
   private async bump(id: string): Promise<SessionRow> {
-    return this.prisma.planSession.update({
+    return this.db.planSession.update({
       where: { id },
       data: { revision: { increment: 1 } },
       include: { decisions: true, plan: true },
@@ -546,6 +1173,12 @@ export class PlanningService {
       cards: snapshot.cards.map((card) => ({
         task_id: card.taskId,
         title: card.title,
+        content: card.content ?? '',
+        duration_minutes: card.durationMinutes ?? null,
+        project_color: card.projectColor ?? null,
+        repeat_rule: card.repeatRule ?? null,
+        tags: card.tags ?? [],
+        attachments: card.attachments ?? [],
         section: card.section,
         reason: card.reason,
         reason_text: card.reasonText,
@@ -559,8 +1192,12 @@ export class PlanningService {
         updated_at: card.updatedAt,
         rank: card.rank,
         recurring: card.recurring ?? null,
+        habit: card.habit ?? false,
       })),
+      committed_task_ids: Object.keys(readCommitted(session.snapshot)),
       decisions: decisions.map((decision) => ({
+        ...(readChoices(session.snapshot)[decision.taskId] ??
+          legacyAction(decision.decision, decision.targetDate)),
         task_id: decision.taskId,
         decision: decision.decision,
         target_date: decision.targetDate,
@@ -651,7 +1288,12 @@ export class PlanningService {
   }
 
   private assertDate(value: string): void {
-    if (!DATE.test(value)) {
+    const parsed = new Date(`${value}T12:00:00Z`);
+    if (
+      !DATE.test(value) ||
+      Number.isNaN(parsed.getTime()) ||
+      parsed.toISOString().slice(0, 10) !== value
+    ) {
       throw new DomainException(
         HttpStatus.BAD_REQUEST,
         'validation_failed',
@@ -697,7 +1339,21 @@ function readResult(value: Prisma.JsonValue): StoredResult {
       if (!isDecision(item.decision)) {
         return [];
       }
-      return [{ task_id: item.task_id, decision: item.decision, effect: item.effect }];
+      return [
+        {
+          task_id: item.task_id,
+          decision: item.decision,
+          effect: item.effect,
+          ...(typeof item.habitBefore === 'number'
+            ? {
+                habitBefore: item.habitBefore,
+                habitAfter: typeof item.habitAfter === 'string' ? item.habitAfter : null,
+              }
+            : {}),
+          ...(Array.isArray(item.before) ? { before: item.before as unknown as TaskState[] } : {}),
+          ...(Array.isArray(item.after) ? { after: item.after as unknown as TaskState[] } : {}),
+        },
+      ];
     }),
   };
 }
@@ -729,4 +1385,86 @@ function isDecision(value: unknown): value is PlanDecisionKind {
 function numberField(value: object, key: string): number {
   const raw = (value as Record<string, unknown>)[key];
   return typeof raw === 'number' ? raw : 0;
+}
+
+function readChoices(value: Prisma.JsonValue): Record<string, PlanningAction> {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return {};
+  const choices = value.choices;
+  if (choices === null || typeof choices !== 'object' || Array.isArray(choices)) return {};
+  return choices as unknown as Record<string, PlanningAction>;
+}
+
+interface TaskState {
+  readonly id: string;
+  readonly version: number;
+  readonly updatedAt: string;
+  readonly startDate: string | null;
+  readonly dueDate: string | null;
+  readonly timeZone: string;
+  readonly isAllDay: boolean;
+  readonly durationMinutes: number | null;
+  readonly isSomeday: boolean;
+  readonly eveningOnly: boolean;
+  readonly status: string;
+  readonly deletedAt: string | null;
+  readonly repeatRule: string | null;
+  readonly seriesId: string | null;
+  readonly recurrenceOpen: boolean;
+  readonly checklist?: readonly {
+    id: string;
+    status: 'active' | 'completed';
+    completedAt: string | null;
+    updatedAt: string;
+  }[];
+}
+function taskState(
+  row: Task & {
+    checklist?: readonly {
+      id: string;
+      status: 'active' | 'completed';
+      completedAt: Date | null;
+      updatedAt: Date;
+    }[];
+  },
+): TaskState {
+  return {
+    id: row.id,
+    version: row.version,
+    updatedAt: row.updatedAt.toISOString(),
+    startDate: row.startDate?.toISOString() ?? null,
+    dueDate: row.dueDate?.toISOString() ?? null,
+    timeZone: row.timeZone,
+    isAllDay: row.isAllDay,
+    durationMinutes: row.durationMinutes,
+    isSomeday: row.isSomeday,
+    eveningOnly: row.eveningOnly,
+    status: row.status,
+    deletedAt: row.deletedAt?.toISOString() ?? null,
+    repeatRule: row.repeatRule,
+    seriesId: row.seriesId,
+    recurrenceOpen: row.recurrenceOpen,
+    checklist:
+      row.checklist?.map((item) => ({
+        id: item.id,
+        status: item.status,
+        completedAt: item.completedAt?.toISOString() ?? null,
+        updatedAt: item.updatedAt.toISOString(),
+      })) ?? [],
+  };
+}
+
+function readCommitted(value: Prisma.JsonValue): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const raw = value.committed;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  return Object.fromEntries(
+    Object.entries(raw).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+  );
+}
+
+function orderedChoice(value: unknown): unknown[] {
+  const choice = (
+    value && typeof value === 'object' && !Array.isArray(value) ? value : {}
+  ) as Record<string, unknown>;
+  return [choice.action, choice.date, choice.time, choice.duration];
 }

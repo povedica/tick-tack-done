@@ -45,3 +45,15 @@ it('TTD-AUD-86 warns about ignored production legacy credentials without printin
   expect(warn).toHaveBeenCalledWith('GOOGLE_REFRESH_TOKEN ignored in production');
   expect(JSON.stringify(warn.mock.calls)).not.toContain('synthetic-legacy-never-print');
 });
+
+it('RF-2003: warns about both ignored legacy Telegram credentials without exposing values', () => {
+  setup();
+  vi.stubEnv('TELEGRAM_BOT_TOKEN', 'synthetic-bot-credential');
+  vi.stubEnv('TELEGRAM_WEBHOOK_SECRET', 'synthetic-webhook-credential');
+  const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+  assertRuntimeConfig();
+  expect(warn).toHaveBeenCalledWith(
+    'Variables de Telegram heredadas ignoradas: Telegram es por usuario.',
+  );
+  expect(JSON.stringify(warn.mock.calls)).not.toContain('synthetic-');
+});

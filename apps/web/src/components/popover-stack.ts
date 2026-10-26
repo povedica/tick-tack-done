@@ -19,3 +19,7 @@ export function dismissPopover(): boolean {
   close();
   return true;
 }
+
+export function isTopPopover(close: () => void): boolean {
+  return closers.at(-1) === close;
+}

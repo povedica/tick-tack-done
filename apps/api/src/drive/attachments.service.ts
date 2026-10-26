@@ -285,7 +285,18 @@ export class DriveAttachmentsService {
   ): Promise<DriveAttachmentJson> {
     await this.ownedTask(user, taskId);
     return this.using(user, async (client) => {
-      const file = await client.file(fileId);
+      let file;
+      try {
+        file = await client.file(fileId);
+      } catch (error) {
+        if (error instanceof DomainException && error.getStatus() === 404)
+          throw new DomainException(
+            404,
+            'drive_file_not_accessible',
+            'El fichero no existe o ttd no tiene permiso: elígelo con el Picker',
+          );
+        throw error;
+      }
       if (file.trashed)
         throw new DomainException(404, 'drive_file_not_found', 'The file is no longer in Drive');
       return this.save(user, taskId, file, source, null);

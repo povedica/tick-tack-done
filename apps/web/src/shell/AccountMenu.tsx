@@ -191,7 +191,7 @@ export function AccountMenu() {
                 </Link>
               )}
               <div className="account-menu-links" role="presentation">
-                <Link role="menuitem" tabIndex={-1} to="/settings/account" onClick={close}>
+                <Link role="menuitem" tabIndex={-1} to="/settings" onClick={close}>
                   <Settings size={16} aria-hidden="true" />
                   {messages.navSettings}
                 </Link>

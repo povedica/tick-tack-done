@@ -1,7 +1,10 @@
+import { habitCards } from './plan-habits.js';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { Prisma, type PlanDecision, type PlanSession } from '@prisma/client';
 import {
   civilDateKey,
+  effectOf,
+  freeSlots,
   dayLoad,
   featureEnabled,
   formatDayLoadLine,
@@ -25,6 +28,7 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
 interface ClosingTask {
   readonly id: string;
   readonly title: string;
+  readonly projectId: string;
   readonly priority: 'none' | 'low' | 'medium' | 'high';
   readonly dueDate: Date | null;
   readonly startDate: Date | null;
@@ -59,20 +63,136 @@ export class DayClosingService {
     @Inject(EventRecorder) private readonly events: EventRecorder,
   ) {}
 
-  async load(user: AuthUser, date: string, timeZone: string): Promise<Record<string, unknown>> {
-    this.assertDate(date);
-    this.assertZone(timeZone);
+  async load(user: AuthUser, date: string, _timeZone: string): Promise<Record<string, unknown>> {
+    const range = await this.range(user, date, 1);
+    const days = range.days as Record<string, unknown>[];
+    return days[0] ?? {};
+  }
+
+  async configureWorkDays(user: AuthUser, workDays: readonly number[]) {
+    if (workDays.length > 7 || !workDays.every((d) => Number.isInteger(d) && d >= 0 && d <= 6))
+      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'Invalid work days');
+    await this.prisma.$transaction(async (tx) => {
+      await tx.viewPreference.upsert({
+        where: { ownerId_key: { ownerId: user.id, key: 'planning' } },
+        create: { ownerId: user.id, key: 'planning', preferences: { work_days: [...workDays] } },
+        update: { preferences: { work_days: [...workDays] } },
+      });
+      await this.events.record(tx, actorOf(user), {
+        type: DomainEvent.viewPreferenceUpdated,
+        entityType: 'view_preference',
+        entityId: user.id,
+        action: 'updated',
+        data: { key: 'planning', work_days: [...workDays] },
+        previous: null,
+      });
+    });
+    return { work_days: workDays };
+  }
+
+  async range(user: AuthUser, from: string, days: number): Promise<Record<string, unknown>> {
+    this.assertDate(from);
+    if (!Number.isInteger(days) || days < 1 || days > 14)
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'days must be between 1 and 14',
+      );
+    const timeZone = user.timeZone;
     const profile = await this.profile(user.id);
-    const result = await this.compute(user.id, date, timeZone, profile);
+    const result = [];
+    for (let i = 0; i < days; i += 1) {
+      const date = shiftCivilDate(from, i);
+      const tasks = (await this.queue(user.id, date, timeZone)).filter(
+        (t) => user.listIds === null || user.listIds.includes(t.projectId),
+      );
+      const habits = await habitCards(this.prisma, user, date);
+      for (const habit of habits)
+        tasks.push({
+          id: habit.taskId,
+          title: habit.title,
+          projectId: '',
+          priority: 'none',
+          dueDate: null,
+          startDate: new Date(`${date}T12:00Z`),
+          isAllDay: true,
+          eveningOnly: false,
+          isSomeday: false,
+          durationMinutes: null,
+          timeZone,
+          status: 'active',
+          parentId: null,
+          updatedAt: new Date(habit.updatedAt),
+          deletedAt: null,
+          project: { name: '' },
+        });
+      const events = await this.eventsOn(user.id, date, timeZone);
+      const load = dayLoad({
+        date,
+        timeZone,
+        settings: profile,
+        tasks: tasks.map((t) => ({
+          ...t,
+          startDate: t.startDate?.toISOString() ?? null,
+          dueDate: t.dueDate?.toISOString() ?? null,
+        })),
+        events,
+      });
+      result.push({
+        ...this.loadJson(date, load),
+        unestimated_count: load.unestimatedCount,
+        unestimated_task_ids: load.unestimatedTaskIds,
+        slots: freeSlots({
+          date,
+          timeZone,
+          duration: profile.defaultTaskDuration,
+          workDayStart: load.availableMinutes === null ? null : profile.workDayStart,
+          workDayEnd: profile.workDayEnd,
+          eveningStart: profile.eveningStart,
+          busy: [
+            ...events
+              .filter((e) => !e.isAllDay)
+              .map((e) => ({ id: e.id, start: e.startsAt, end: e.endsAt })),
+            ...tasks
+              .filter((t) => !t.isAllDay && t.startDate !== null)
+              .map((t) => ({
+                id: t.id,
+                start: (t.startDate ?? new Date(0)).toISOString(),
+                end: new Date(
+                  (t.startDate?.getTime() ?? 0) +
+                    (t.durationMinutes ?? profile.defaultTaskDuration) * 60000,
+                ).toISOString(),
+              })),
+          ],
+        }),
+        tasks: tasks.map((t) => ({
+          id: t.id,
+          title: t.title,
+          start_date: t.startDate?.toISOString() ?? null,
+          due_date: t.dueDate?.toISOString() ?? null,
+          is_all_day: t.isAllDay,
+          duration_minutes: t.durationMinutes,
+          evening_only: t.eveningOnly,
+        })),
+        events: events.map((e) => ({
+          id: e.id,
+          title: e.title,
+          starts_at: e.startsAt,
+          ends_at: e.endsAt,
+          is_all_day: e.isAllDay,
+        })),
+      });
+    }
     return {
-      date,
-      task_minutes: result.taskMinutes,
-      event_minutes: result.eventMinutes,
-      available_minutes: result.availableMinutes,
-      unestimated_count: result.unestimatedCount,
-      unestimated_task_ids: result.unestimatedTaskIds,
-      ratio: result.ratio,
-      status: result.status,
+      time_zone: timeZone,
+      settings: {
+        work_day_start: profile.workDayStart,
+        work_day_end: profile.workDayEnd,
+        default_task_duration: profile.defaultTaskDuration,
+        evening_start: profile.eveningStart,
+        work_days: profile.workDays,
+      },
+      days: result,
     };
   }
 
@@ -109,11 +229,29 @@ export class DayClosingService {
       session.kind === 'replan',
     );
     if (!queue.some((task) => task.id === taskId)) {
-      throw new DomainException(
-        HttpStatus.NOT_FOUND,
-        'task_not_in_plan',
-        'Task is not in this plan',
-      );
+      // Explicit choices may still adjust a task scheduled on this day. Automatic
+      // replan suggestions remain restricted to overdue tasks.
+      const explicit = await this.prisma.task.findFirst({
+        where: {
+          id: taskId,
+          ownerId: user.id,
+          deletedAt: null,
+          status: 'active',
+          kind: 'task',
+          parentId: null,
+          isSomeday: false,
+        },
+      });
+      if (
+        session.kind !== 'replan' ||
+        explicit === null ||
+        !this.onDay(explicit, session.plan.localDate, session.plan.timeZone)
+      )
+        throw new DomainException(
+          HttpStatus.NOT_FOUND,
+          'task_not_in_plan',
+          'Task is not in this plan',
+        );
     }
     const target = this.targetFor(session.plan.localDate, decision, targetDate);
     await this.prisma.planDecision.upsert({
@@ -246,7 +384,15 @@ export class DayClosingService {
     key: string | undefined,
   ): Promise<Record<string, unknown>> {
     const zone = user.timeZone;
-    const local = date ?? civilDateKey(new Date().toISOString(), zone) ?? '';
+    const today = civilDateKey(new Date().toISOString(), zone) ?? '';
+    const local = date ?? today;
+    this.assertDate(local);
+    if (local > today)
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'replan solo para hoy o días pasados',
+      );
     if ((await this.queue(user.id, local, zone, true)).length === 0)
       return { session: null, reason: 'nothing_to_replan' };
     const session = await this.startReplan(user, local, zone);
@@ -275,7 +421,7 @@ export class DayClosingService {
   async discardReplan(user: AuthUser, id: string): Promise<{ discarded: true }> {
     return this.prisma.$transaction(async (tx) => {
       const session = await tx.planSession.findFirst({
-        where: { id, ownerId: user.id, kind: 'replan' },
+        where: { id, ownerId: user.id, kind: { in: ['plan', 'replan'] } },
       });
       if (session === null)
         throw new DomainException(
@@ -451,11 +597,16 @@ export class DayClosingService {
     });
     if (current === null) return 'unchanged';
     if (decision.decision === 'done') {
-      await this.tasks.complete(user, decision.taskId, { complete_children: 'complete' }, key);
+      await this.tasks.complete(
+        { ...user, requestSource: 'plan' },
+        decision.taskId,
+        { complete_children: 'complete' },
+        key,
+      );
       return 'completed';
     }
     if (decision.decision === 'cancel') {
-      await this.tasks.cancel(user, decision.taskId);
+      await this.tasks.cancel({ ...user, requestSource: 'plan' }, decision.taskId);
       return 'cancelled';
     }
     if (decision.decision === 'trash') {
@@ -464,17 +615,16 @@ export class DayClosingService {
         select: { deletedAt: true },
       });
       if (row?.deletedAt === null) {
-        await this.tasks.remove(user, decision.taskId);
+        await this.tasks.remove({ ...user, requestSource: 'plan' }, decision.taskId);
       }
       return 'trashed';
     }
     if (decision.decision === 'someday') {
       if (current.isSomeday && current.startDate === null) return 'unchanged';
-      await this.prisma.task.update({
-        where: { id: decision.taskId },
-        data: { isSomeday: true, startDate: null },
+      await this.tasks.update({ ...user, requestSource: 'plan' }, decision.taskId, {
+        someday: true,
+        start_date: null,
       });
-      await this.recordSomeday(user, decision.taskId, true);
       return 'someday';
     }
     if (decision.decision === 'plan_day' || decision.decision === 'later') {
@@ -499,14 +649,16 @@ export class DayClosingService {
       await this.prisma.planMember.deleteMany({
         where: { taskId: decision.taskId, planId: session.planId },
       });
-      await this.prisma.task.update({
-        where: { id: decision.taskId },
-        data: {
-          startDate: start,
-          isSomeday: false,
-          ...(decision.evening ? { eveningOnly: true } : {}),
-        },
-      });
+      const patch = effectOf(
+        { action: 'move', date: target },
+        session.plan.localDate,
+        session.plan.timeZone,
+      );
+      if (patch !== null)
+        await this.tasks.update({ ...user, requestSource: 'plan' }, decision.taskId, {
+          ...patch,
+          ...(decision.evening ? { evening_only: true } : {}),
+        });
       if (target === shiftCivilDate(session.plan.localDate, 1)) {
         const plan = await this.prisma.dayPlan.upsert({
           where: {
@@ -547,15 +699,22 @@ export class DayClosingService {
       },
       include: { project: { select: { name: true } } },
     });
+    if (includeOverdue) {
+      const today = civilDateKey(new Date().toISOString(), timeZone) ?? '';
+      const cutoff = this.wallStart(today, timeZone);
+      return rows.filter((row) => row.dueDate !== null && cutoff !== null && row.dueDate < cutoff);
+    }
     const memberIds = new Set(await this.memberIds(ownerId, localDate, timeZone));
+    const today = civilDateKey(new Date().toISOString(), timeZone);
     return rows.filter(
       (row) =>
         memberIds.has(row.id) ||
         this.onDay(row, localDate, timeZone) ||
-        (includeOverdue &&
+        (localDate === today &&
           row.dueDate !== null &&
-          (civilDateKey(row.dueDate.toISOString(), row.timeZone || timeZone) ?? localDate) <
-            localDate),
+          (civilDateKey(row.dueDate.toISOString(), timeZone) ?? '') < localDate &&
+          (row.startDate === null ||
+            (civilDateKey(row.startDate.toISOString(), timeZone) ?? '') <= localDate)),
     );
   }
 
@@ -571,7 +730,7 @@ export class DayClosingService {
     if (start === null) {
       return false;
     }
-    const end = due ?? start;
+    const end = due !== null && due >= start ? due : start;
     return start <= localDate && localDate <= end;
   }
 
@@ -602,6 +761,8 @@ export class DayClosingService {
       tasks: tasks.map((task) => ({
         id: task.id,
         durationMinutes: task.durationMinutes,
+        startDate: task.startDate?.toISOString() ?? null,
+        dueDate: task.dueDate?.toISOString() ?? null,
         isAllDay: task.isAllDay,
         eveningOnly: task.eveningOnly,
         status: task.status,
@@ -625,7 +786,7 @@ export class DayClosingService {
         OR: [{ endsAt: null }, { endsAt: { gt: bounds.start } }],
         subscription: { deletedAt: null, visible: true },
       },
-      select: { id: true, startsAt: true, endsAt: true, isAllDay: true },
+      select: { id: true, title: true, startsAt: true, endsAt: true, isAllDay: true },
     });
     return rows.flatMap((row) =>
       row.endsAt === null
@@ -633,6 +794,7 @@ export class DayClosingService {
         : [
             {
               id: row.id,
+              title: row.title,
               startsAt: row.startsAt.toISOString(),
               endsAt: row.endsAt.toISOString(),
               isAllDay: row.isAllDay,
@@ -658,6 +820,8 @@ export class DayClosingService {
         tasks: tasks.map((task) => ({
           id: task.id,
           durationMinutes: task.durationMinutes,
+          startDate: task.startDate?.toISOString() ?? null,
+          dueDate: task.dueDate?.toISOString() ?? null,
           isAllDay: task.isAllDay,
           eveningOnly: task.eveningOnly,
           status: 'active',
@@ -799,7 +963,19 @@ export class DayClosingService {
         shutdownReminderTime: true,
       },
     });
+    const preference = await this.prisma.viewPreference.findUnique({
+      where: { ownerId_key: { ownerId, key: 'planning' } },
+    });
+    const config = preference?.preferences;
+    const days =
+      config && typeof config === 'object' && !Array.isArray(config) ? config.work_days : null;
+    const workDays =
+      Array.isArray(days) &&
+      days.every((d) => typeof d === 'number' && Number.isInteger(d) && d >= 0 && d <= 6)
+        ? (days as number[])
+        : [1, 2, 3, 4, 5];
     return {
+      workDays,
       workDayStart: row?.workDayStart ?? null,
       workDayEnd: row?.workDayEnd ?? null,
       defaultTaskDuration: row?.defaultTaskDuration ?? 30,
@@ -999,7 +1175,12 @@ export class DayClosingService {
   }
 
   private assertDate(value: string): void {
-    if (!DATE.test(value)) {
+    const parsed = new Date(`${value}T12:00:00Z`);
+    if (
+      !DATE.test(value) ||
+      Number.isNaN(parsed.getTime()) ||
+      parsed.toISOString().slice(0, 10) !== value
+    ) {
       throw new DomainException(
         HttpStatus.BAD_REQUEST,
         'validation_failed',

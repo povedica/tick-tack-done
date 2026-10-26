@@ -13,6 +13,7 @@ import { Button, ErrorState, SkeletonRows } from '../../components/ui';
 import { useMessages } from '../../i18n';
 import { useAppLocale } from '../../i18n/locale';
 import { runAction } from '../../components/run-action';
+import { telegramUiState, useWtCMessages } from './i18n-wt-c';
 import { LegacyNotificationSettings } from './LegacyNotificationSettings';
 import './notifications.css';
 function object(value: unknown): Record<string, unknown> {
@@ -31,6 +32,7 @@ function permission() {
 }
 export function NotificationsPage() {
   const m = useMessages();
+  const wt = useWtCMessages();
   const locale = useAppLocale();
   const cache = useQueryClient();
   const query = useQuery({
@@ -56,6 +58,12 @@ export function NotificationsPage() {
   } | null>(null);
   const telegram = object(object(query.data?.channels).telegram);
   const email = object(object(query.data?.channels).email);
+  const pushConfigured = object(object(query.data?.channels).push).configured === true;
+  const telegramState = telegramUiState(telegram);
+  const unavailable = (channel: NotificationChannel) =>
+    channel === 'push' ? !pushConfigured : channel === 'telegram' && telegramState !== 'linked';
+  const unavailableReason = (channel: NotificationChannel) =>
+    channel === 'push' ? wt.pushUnavailable : wt[telegramState];
   const activatePush = async () => {
     try {
       const next = await Notification.requestPermission();
@@ -149,6 +157,7 @@ export function NotificationsPage() {
     quiet_hours: m.notificationQuietReason,
     disabled_by_user: m.notificationDisabledReason,
     not_linked: m.notificationNotLinked,
+    not_configured: wt.none,
     blocked: m.notificationBlocked,
     channel_unavailable: m.notificationUnavailable,
   };
@@ -176,33 +185,44 @@ export function NotificationsPage() {
                   <span>{channels[channel]}</span>
                   <small
                     className="notification-channel-state"
+                    data-state={
+                      channel === 'telegram'
+                        ? telegramState
+                        : channel === 'push'
+                          ? !pushConfigured
+                            ? 'none'
+                            : push === 'granted'
+                              ? 'linked'
+                              : push === 'denied'
+                                ? 'blocked'
+                                : 'token_saved'
+                          : undefined
+                    }
                     title={channel === 'email' ? text(email.address) : undefined}
                   >
                     {channel === 'push'
-                      ? push === 'granted'
-                        ? m.notificationPushGranted
-                        : push === 'denied'
-                          ? m.notificationPushDenied
-                          : push === 'default'
-                            ? m.notificationPushDefault
-                            : m.notificationPushMissing
+                      ? !pushConfigured
+                        ? wt.pushUnavailable
+                        : push === 'granted'
+                          ? m.notificationPushGranted
+                          : push === 'denied'
+                            ? m.notificationPushDenied
+                            : push === 'default'
+                              ? m.notificationPushDefault
+                              : m.notificationPushMissing
                       : channel === 'email'
                         ? text(email.address)
-                        : telegram.status === 'blocked'
-                          ? m.notificationBlocked
-                          : telegram.linked === true
+                        : telegramState === 'linked'
+                          ? text(telegram.username)
                             ? `@${text(telegram.username)}`
-                            : m.notificationNotLinked}
+                            : text(telegram.display_name) || wt.linked
+                          : wt[telegramState]}
                   </small>
                   <Button
                     size="sm"
                     variant="ghost"
-                    disabled={channel === 'telegram' && telegram.linked !== true}
-                    title={
-                      channel === 'telegram' && telegram.linked !== true
-                        ? m.notificationNotLinked
-                        : undefined
-                    }
+                    disabled={unavailable(channel)}
+                    title={unavailable(channel) ? unavailableReason(channel) : undefined}
                     onClick={() => {
                       runAction(test(channel));
                     }}
@@ -226,6 +246,8 @@ export function NotificationsPage() {
                       role="switch"
                       aria-label={`${labels[kind]} · ${channels[channel]}`}
                       aria-checked={enabled(kind, channel) === true}
+                      disabled={unavailable(channel)}
+                      title={unavailable(channel) ? unavailableReason(channel) : undefined}
                       onClick={() => {
                         runAction(
                           save({
@@ -246,7 +268,7 @@ export function NotificationsPage() {
         </table>
       </div>
       {telegram.status === 'blocked' ? <p role="alert">{m.notificationBlockedHelp}</p> : null}
-      {push !== 'missing' && push !== 'denied' ? (
+      {pushConfigured && push !== 'missing' && push !== 'denied' ? (
         <Button
           size="sm"
           variant="ghost"
@@ -257,7 +279,7 @@ export function NotificationsPage() {
           {m.notificationEnablePush}
         </Button>
       ) : null}
-      {push === 'denied' ? (
+      {pushConfigured && push === 'denied' ? (
         <details className="notification-guides">
           <summary>{m.notificationGuides}</summary>
           {[

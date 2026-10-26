@@ -3,3 +3,7 @@ apps/api/openapi.json
 packages/sdk/src/generated/**
 pnpm-lock.yaml
 test-artifacts/
+
+# Local private inputs and user-supplied reference assets are preserved verbatim.
+docs/private/
+docs/spec/

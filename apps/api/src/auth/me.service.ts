@@ -1,9 +1,12 @@
+import { EventRecorder } from '../events/event-recorder.js';
+import { DomainEvent } from '../events/domain-events.js';
+import { asJson } from '../http/json.js';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
-import { isIanaTimeZone } from '@reflexionia/domain';
+import { isIanaTimeZone, captureSettings } from '@reflexionia/domain';
 import { hashInboundToken, inboundAddress, newInboundToken } from '../inbound/email-address.js';
 import { DomainException } from '../http/domain.exception.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import type { AuthUser } from './auth-user.js';
+import { actorOf, type AuthUser } from './auth-user.js';
 import { featureFlags } from './feature-flags.js';
 import type {
   InboundEmailAddressDto,
@@ -16,7 +19,10 @@ import type {
 
 @Injectable()
 export class MeService {
-  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(EventRecorder) private readonly events: EventRecorder,
+  ) {}
 
   async get(user: AuthUser): Promise<MeResponseDto> {
     const row = await this.require(user.id);
@@ -31,60 +37,105 @@ export class MeService {
         'time_zone is not a valid IANA name',
       );
     }
-    const row = await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        ...(dto.display_name !== undefined ? { displayName: dto.display_name.trim() } : {}),
-        ...(dto.time_zone !== undefined ? { timeZone: dto.time_zone } : {}),
-        ...(dto.task_complete_children !== undefined
-          ? { taskCompleteChildren: dto.task_complete_children }
-          : {}),
-        ...(dto.daily_reminder_time !== undefined
-          ? { dailyReminderTime: this.dailyTime(dto.daily_reminder_time) }
-          : {}),
-        ...(dto.locale !== undefined ? { locale: dto.locale } : {}),
-        ...(dto.week_start !== undefined ? { weekStart: dto.week_start } : {}),
-        ...(dto.theme !== undefined ? { theme: dto.theme } : {}),
-        ...(dto.nlp_language !== undefined ? { nlpLanguage: dto.nlp_language } : {}),
-        ...(dto.density !== undefined ? { density: dto.density } : {}),
-        ...(dto.accent !== undefined ? { accent: dto.accent } : {}),
-        ...(dto.default_reminder_trigger !== undefined
-          ? { defaultReminderTrigger: dto.default_reminder_trigger }
-          : {}),
-        ...(dto.quiet_hours_start !== undefined
-          ? { quietHoursStart: this.clock(dto.quiet_hours_start) }
-          : {}),
-        ...(dto.quiet_hours_end !== undefined
-          ? { quietHoursEnd: this.clock(dto.quiet_hours_end) }
-          : {}),
-        ...(dto.telegram_enabled !== undefined ? { telegramEnabled: dto.telegram_enabled } : {}),
-        ...(dto.focus_notifications !== undefined
-          ? { focusNotifications: dto.focus_notifications }
-          : {}),
-        ...(dto.shutdown_reminder_time !== undefined
-          ? { shutdownReminderTime: this.clock(dto.shutdown_reminder_time) }
-          : {}),
-        ...(dto.work_day_start !== undefined
-          ? { workDayStart: this.clock(dto.work_day_start) }
-          : {}),
-        ...(dto.work_day_end !== undefined ? { workDayEnd: this.clock(dto.work_day_end) } : {}),
-        ...(dto.default_task_duration_minutes !== undefined
-          ? { defaultTaskDuration: dto.default_task_duration_minutes }
-          : {}),
-        ...(dto.deadline_soon_days !== undefined
-          ? { deadlineSoonDays: dto.deadline_soon_days }
-          : {}),
-        ...(dto.evening_start !== undefined
-          ? { eveningStart: this.clock(dto.evening_start) ?? '18:00' }
-          : {}),
-        ...(dto.features !== undefined
-          ? {
-              featureFlags: await this.mergeFeatures(user.id, dto.features),
-            }
-          : {}),
-      },
+    return this.prisma.$transaction(async (tx) => {
+      if (dto.capture_settings?.default_list_id) {
+        const list = await tx.project.findFirst({
+          where: {
+            id: dto.capture_settings.default_list_id,
+            ownerId: user.id,
+            deletedAt: null,
+            closed: false,
+            kind: 'TASK',
+          },
+        });
+        if (!list)
+          throw new DomainException(
+            HttpStatus.BAD_REQUEST,
+            'validation_failed',
+            'Invalid default list',
+          );
+      }
+      if (dto.capture_settings?.default_tag_id) {
+        const tag = await tx.tag.findFirst({
+          where: { id: dto.capture_settings.default_tag_id, ownerId: user.id, deletedAt: null },
+        });
+        if (!tag)
+          throw new DomainException(
+            HttpStatus.BAD_REQUEST,
+            'validation_failed',
+            'Invalid default tag',
+          );
+      }
+      const previous = dto.capture_settings
+        ? await tx.user.findUnique({ where: { id: user.id }, select: { captureSettings: true } })
+        : null;
+      const row = await tx.user.update({
+        where: { id: user.id },
+        data: {
+          ...(dto.capture_settings
+            ? { captureSettings: asJson(captureSettings(dto.capture_settings)) }
+            : {}),
+          ...(dto.display_name !== undefined ? { displayName: dto.display_name.trim() } : {}),
+          ...(dto.time_zone !== undefined ? { timeZone: dto.time_zone } : {}),
+          ...(dto.task_complete_children !== undefined
+            ? { taskCompleteChildren: dto.task_complete_children }
+            : {}),
+          ...(dto.daily_reminder_time !== undefined
+            ? { dailyReminderTime: this.dailyTime(dto.daily_reminder_time) }
+            : {}),
+          ...(dto.locale !== undefined ? { locale: dto.locale } : {}),
+          ...(dto.week_start !== undefined ? { weekStart: dto.week_start } : {}),
+          ...(dto.theme !== undefined ? { theme: dto.theme } : {}),
+          ...(dto.nlp_language !== undefined ? { nlpLanguage: dto.nlp_language } : {}),
+          ...(dto.density !== undefined ? { density: dto.density } : {}),
+          ...(dto.accent !== undefined ? { accent: dto.accent } : {}),
+          ...(dto.default_reminder_trigger !== undefined
+            ? { defaultReminderTrigger: dto.default_reminder_trigger }
+            : {}),
+          ...(dto.quiet_hours_start !== undefined
+            ? { quietHoursStart: this.clock(dto.quiet_hours_start) }
+            : {}),
+          ...(dto.quiet_hours_end !== undefined
+            ? { quietHoursEnd: this.clock(dto.quiet_hours_end) }
+            : {}),
+          ...(dto.telegram_enabled !== undefined ? { telegramEnabled: dto.telegram_enabled } : {}),
+          ...(dto.focus_notifications !== undefined
+            ? { focusNotifications: dto.focus_notifications }
+            : {}),
+          ...(dto.shutdown_reminder_time !== undefined
+            ? { shutdownReminderTime: this.clock(dto.shutdown_reminder_time) }
+            : {}),
+          ...(dto.work_day_start !== undefined
+            ? { workDayStart: this.clock(dto.work_day_start) }
+            : {}),
+          ...(dto.work_day_end !== undefined ? { workDayEnd: this.clock(dto.work_day_end) } : {}),
+          ...(dto.default_task_duration_minutes !== undefined
+            ? { defaultTaskDuration: dto.default_task_duration_minutes }
+            : {}),
+          ...(dto.deadline_soon_days !== undefined
+            ? { deadlineSoonDays: dto.deadline_soon_days }
+            : {}),
+          ...(dto.evening_start !== undefined
+            ? { eveningStart: this.clock(dto.evening_start) ?? '18:00' }
+            : {}),
+          ...(dto.features !== undefined
+            ? {
+                featureFlags: await this.mergeFeatures(user.id, dto.features),
+              }
+            : {}),
+        },
+      });
+      if (dto.capture_settings)
+        await this.events.record(tx, actorOf(user), {
+          type: DomainEvent.captureSettingsUpdated,
+          entityType: 'user',
+          entityId: user.id,
+          action: 'updated',
+          data: asJson({ capture_settings: captureSettings(row.captureSettings) }),
+          previous: asJson({ capture_settings: captureSettings(previous?.captureSettings) }),
+        });
+      return this.toJson(row);
     });
-    return this.toJson(row);
   }
 
   private async mergeFeatures(
@@ -147,6 +198,7 @@ export class MeService {
     deadlineSoonDays: number;
     eveningStart: string;
     featureFlags: unknown;
+    captureSettings: unknown;
   }> {
     const row = await this.prisma.user.findFirst({
       where: { id, deletedAt: null },
@@ -175,6 +227,7 @@ export class MeService {
         deadlineSoonDays: true,
         eveningStart: true,
         featureFlags: true,
+        captureSettings: true,
       },
     });
     if (row === null) {
@@ -208,8 +261,10 @@ export class MeService {
     deadlineSoonDays: number;
     eveningStart: string;
     featureFlags: unknown;
+    captureSettings: unknown;
   }): MeResponseDto {
     return {
+      capture_settings: captureSettings(row.captureSettings),
       id: row.id,
       email: row.email,
       display_name: row.displayName,

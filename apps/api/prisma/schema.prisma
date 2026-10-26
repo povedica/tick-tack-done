@@ -246,6 +246,7 @@ model User {
   dateFormat            String                 @default("dd/MM/yyyy") @map("date_format")
   theme                 Theme                  @default(auto)
   nlpLanguage            String                 @default("es") @map("nlp_language")
+  captureSettings        Json                   @default("{}") @map("capture_settings")
   density                String                 @default("comfortable")
   accent                 String                 @default("indigo")
   defaultReminderTrigger String?                @map("default_reminder_trigger")
@@ -1296,6 +1297,7 @@ model TelegramBotConfiguration {
 }
 
 model TelegramLink {
+  botId String? @map("bot_id")
   username String?
   displayName String? @map("display_name")
   status String @default("connected")
@@ -1308,6 +1310,7 @@ model TelegramLink {
 
   @@unique([ownerId, chatId])
   @@index([ownerId])
+  @@index([ownerId, botId])
   @@map("telegram_links")
 }
 

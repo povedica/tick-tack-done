@@ -1,3 +1,6 @@
+import { DayDetails } from '../calendar/DayDetails';
+import { CaptureDefaults } from '../settings/CaptureDefaults';
+import { useWtAMessages } from '../calendar/i18n-wt-a';
 import { composerContextFor } from '../capture/context';
 import { useAgendaQuery } from '../calendar/use-agenda-query';
 import { agendaPageRange } from '../calendar/agenda-range';
@@ -31,7 +34,6 @@ import {
   List,
   Check,
   ListFilter,
-  X,
 } from 'lucide-react';
 import { CalendarTaskMark } from '../calendar/CalendarTaskMark';
 import { openTaskComposer } from '../capture/notice';
@@ -608,6 +610,7 @@ export function CalendarPage() {
   });
   const [openEvent, setOpenEvent] = useState<ExternalEventView | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
+  const pickedAnchor = useRef<HTMLElement | null>(null);
   const external = (Array.isArray(externalQuery.data?.external) ? externalQuery.data.external : [])
     .filter(isExternalEvent)
     .filter((event, index, all) => all.findIndex((other) => other.id === event.id) === index)
@@ -997,7 +1000,10 @@ export function CalendarPage() {
           ) : current === 'day' || current === 'week' || current === 'multi-day' ? (
             <HourGrid
               onTaskChange={taskChange.change}
-              onOpenDay={setPicked}
+              onOpenDay={(key, element) => {
+                pickedAnchor.current = element ?? null;
+                setPicked(key);
+              }}
               days={cells}
               tasks={dated}
               events={external}
@@ -1015,6 +1021,7 @@ export function CalendarPage() {
                 onTaskChange={taskChange.change}
                 days={current === 'month' ? monthCells(startOfMonth(cursor), weekStart) : cells}
                 columns={7}
+                monthView={current === 'month'}
                 tasks={dated}
                 events={external}
                 colors={colors}
@@ -1023,7 +1030,10 @@ export function CalendarPage() {
                 cursor={cursor}
                 outsideMonth
                 onNavigate={current === 'month' ? move : undefined}
-                onPick={setPicked}
+                onPick={(key, element) => {
+                  pickedAnchor.current = element ?? null;
+                  setPicked(key);
+                }}
                 onCreateAt={createAt}
                 draftingDay={draft ? calendarDay(draft.slot.start, timeZone) : null}
                 timeZone={timeZone}
@@ -1034,12 +1044,14 @@ export function CalendarPage() {
       ) : null}
       {taskChange.feedback}
       {picked !== null ? (
-        <DaySheet
+        <DayDetails
           dayKey={picked}
-          tasks={dated}
-          events={external}
-          messages={messages}
-          colors={colors}
+          anchor={pickedAnchor}
+          tasks={tasksOnCell(dated, dayFromParam(picked) ?? cursor)}
+          events={eventsOnDay(external, dayFromParam(picked) ?? cursor)}
+          projects={projects.data?.items ?? []}
+          defaultProjectId={contextProject}
+          timeZone={timeZone}
           onOpenEvent={setOpenEvent}
           onClose={() => {
             setPicked(null);
@@ -1136,6 +1148,7 @@ function DayGrid({
   onNavigate,
   onPick,
   dots = false,
+  monthView = false,
   onCreateAt,
   draftingDay,
   timeZone = 'Europe/Madrid',
@@ -1154,11 +1167,26 @@ function DayGrid({
   readonly cursor: Date;
   readonly outsideMonth: boolean;
   readonly onNavigate?: ((delta: number) => void) | undefined;
-  readonly onPick?: (dayKey: string) => void;
+  readonly onPick?: (dayKey: string, anchor?: HTMLElement) => void;
   readonly dots?: boolean;
+  readonly monthView?: boolean;
 }) {
+  const [narrow, setNarrow] = useState(() => window.matchMedia('(max-width: 768px)').matches);
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 768px)');
+    const update = () => {
+      setNarrow(media.matches);
+    };
+    media.addEventListener('change', update);
+    return () => {
+      media.removeEventListener('change', update);
+    };
+  }, []);
+  const compact = dots || (monthView && narrow);
+  const dotLimit = monthView ? 3 : 4;
   const location = useLocation();
   const locale = useAppLocale();
+  const own = useWtAMessages();
   const verticalNavigation = useVerticalCalendarNavigation(onNavigate);
   const grid = useRef<HTMLDivElement>(null);
   const drag = useCalendarDrag(grid, timeZone, onTaskChange);
@@ -1171,18 +1199,37 @@ function DayGrid({
       const counts: Record<string, number> = {};
       const barSpace = new Map<number, number>();
       const hiddenBars = new Map<string, number>();
+      const visibleBars = new Map<string, number>();
       for (const bar of node.querySelectorAll<HTMLElement>('.calendar-month-span')) {
         const week = Number(bar.dataset.week);
         const cell = node.querySelector<HTMLElement>(`[data-week="${String(week)}"].cal-cell`);
         const offset = barSpace.get(week) ?? 0;
         const height = bar.getBoundingClientRect().height;
-        const visible = !!cell && offset + height <= cell.clientHeight * 0.5;
+        const covered = [
+          ...node.querySelectorAll<HTMLElement>(`.cal-cell[data-week="${String(week)}"]`),
+        ].filter((cell) => {
+          const col = Number(cell.dataset.column);
+          return (
+            col >= Number(bar.dataset.column) &&
+            col < Number(bar.dataset.column) + Number(bar.dataset.span)
+          );
+        });
+        const visible =
+          !!cell &&
+          offset + height <= cell.clientHeight * 0.5 &&
+          (!monthView ||
+            covered.every((cell) => (visibleBars.get(cell.dataset.day ?? '') ?? 0) < 3));
         bar.style.marginTop = `${String(32 + offset)}px`;
         bar.style.visibility = visible ? 'visible' : 'hidden';
         bar.inert = !visible;
         bar.setAttribute('aria-hidden', String(!visible));
-        if (visible) barSpace.set(week, offset + height + 3);
-        else
+        if (visible) {
+          barSpace.set(week, offset + height + 3);
+          for (const cell of covered) {
+            const key = cell.dataset.day ?? '';
+            visibleBars.set(key, (visibleBars.get(key) ?? 0) + 1);
+          }
+        } else
           for (const cell of node.querySelectorAll<HTMLElement>(
             `.cal-cell[data-week="${String(week)}"]`,
           )) {
@@ -1206,7 +1253,11 @@ function DayGrid({
         const room = cell.clientHeight - list.offsetTop - 4;
         const heights = children.map((child) => child.offsetHeight + 3);
         const total = heights.reduce((sum, height) => sum + height, 0);
-        const maxItems = node.closest('.calendar-two-weeks') ? 5 : Number.POSITIVE_INFINITY;
+        const maxItems = monthView
+          ? Math.max(0, 3 - (visibleBars.get(key) ?? 0))
+          : node.closest('.calendar-two-weeks')
+            ? 5
+            : Number.POSITIVE_INFINITY;
         const reserve = total > room || children.length > maxItems || hiddenBars.has(key) ? 26 : 0;
         let used = 0;
         let hidden = hiddenBars.get(key) ?? 0;
@@ -1240,7 +1291,7 @@ function DayGrid({
       cancelAnimationFrame(frame);
       observer.disconnect();
     };
-  }, [days, tasks, events]);
+  }, [days, tasks, events, monthView]);
   const todayKey = useCalendarToday();
   const weekday = new Intl.DateTimeFormat(locale, { weekday: 'short' });
   const heads = Array.from({ length: columns }, (_, index) =>
@@ -1263,9 +1314,9 @@ function DayGrid({
     <div
       ref={grid}
       {...verticalNavigation}
-      className={dots ? 'cal-month is-dots' : 'cal-month'}
+      className={compact ? 'cal-month is-dots' : 'cal-month'}
       style={{
-        gridTemplateColumns: `${dots ? '' : '2rem '}repeat(${String(columns)}, minmax(0, 1fr))`,
+        gridTemplateColumns: `${compact ? '' : '2rem '}repeat(${String(columns)}, minmax(0, 1fr))`,
       }}
     >
       <span id={drag.helpId} className="sr-only">
@@ -1274,9 +1325,13 @@ function DayGrid({
       <span role="status" aria-live="polite" className="sr-only">
         {drag.announcement}
       </span>
-      {!dots ? (
-        <div className="cal-head" aria-label={messages.calWeekNumber}>
-          S
+      {!compact ? (
+        <div
+          className="cal-head"
+          aria-label={messages.calWeekNumber}
+          title={messages.calWeekNumber}
+        >
+          {own.calWeekShort}
         </div>
       ) : null}
       {heads.map((label, index) => (
@@ -1303,7 +1358,7 @@ function DayGrid({
           .join(' ');
         return (
           <Fragment key={key}>
-            {!dots && index % columns === 0 ? (
+            {!compact && index % columns === 0 ? (
               <span
                 className="cal-week-number"
                 style={{ gridColumn: 1, gridRow: Math.floor(index / columns) + 2 }}
@@ -1351,11 +1406,11 @@ function DayGrid({
               data-week={Math.floor(index / columns)}
               data-column={(index % columns) + 2}
               style={{
-                gridColumn: (index % columns) + (dots ? 1 : 2),
+                gridColumn: (index % columns) + (compact ? 1 : 2),
                 gridRow: Math.floor(index / columns) + 2,
               }}
               title={
-                dots
+                compact
                   ? chips
                       .map((chip) => (chip.kind === 'task' ? chip.task.title : chip.event.title))
                       .join(' · ')
@@ -1368,8 +1423,8 @@ function DayGrid({
                     type="button"
                     aria-label={`${day.toLocaleDateString(locale, { dateStyle: 'full' })}, ${String(chips.length)} ${chips.length === 1 ? messages.calendarItem : messages.calendarItems}`}
                     aria-current={key === todayKey ? 'date' : undefined}
-                    onClick={() => {
-                      onPick(key);
+                    onClick={(event) => {
+                      onPick(key, event.currentTarget);
                     }}
                   >
                     <TodayMark today={key === todayKey}>{day.getDate()}</TodayMark>
@@ -1381,7 +1436,7 @@ function DayGrid({
                 )}
               </strong>
               <span className="cal-dots" aria-hidden="true">
-                {chips.map((chip) => (
+                {(compact ? chips.slice(0, dotLimit) : chips).map((chip) => (
                   <i
                     key={chip.kind === 'task' ? chip.task.id : chip.event.id}
                     style={{
@@ -1394,7 +1449,7 @@ function DayGrid({
                 ))}
               </span>
               <div className="calendar-cell-items">
-                {dots
+                {compact
                   ? null
                   : chips
                       .filter(
@@ -1467,9 +1522,16 @@ function DayGrid({
                         ),
                       )}
               </div>
-              {(overflow[key] ?? 0) > 0 ? (
-                <button type="button" className="calendar-overflow" onClick={() => onPick?.(key)}>
-                  +{overflow[key]} {messages.calendarMoreViews.toLocaleLowerCase(locale)}
+              {(compact ? chips.length - dotLimit : (overflow[key] ?? 0)) > 0 ? (
+                <button
+                  type="button"
+                  className="calendar-overflow"
+                  onClick={(event) => onPick?.(key, event.currentTarget)}
+                >
+                  +{compact ? chips.length - dotLimit : overflow[key]}{' '}
+                  {compact && !monthView
+                    ? null
+                    : messages.calendarMoreViews.toLocaleLowerCase(locale)}
                 </button>
               ) : null}
             </div>
@@ -1484,12 +1546,14 @@ function DayGrid({
                 {...drag.external}
                 type="button"
                 className="cal-pill calendar-month-span calendar-chip"
+                aria-label={bar.event.title}
+                title={bar.event.title}
                 data-week={bar.weekIndex}
                 data-column={bar.position.column}
                 data-span={bar.position.span}
                 style={{
                   ...chipStyle(bar.event.color),
-                  gridColumn: `${String(bar.position.column)} / span ${String(bar.position.span)}`,
+                  gridColumn: `${String(bar.position.column - (compact ? 1 : 0))} / span ${String(bar.position.span)}`,
                   gridRow: bar.weekIndex + 2,
                 }}
                 onClick={() => {
@@ -2097,68 +2161,6 @@ function Agenda({
         );
       })}
     </div>
-  );
-}
-
-function DaySheet({
-  dayKey,
-  onClose,
-  tasks,
-  events,
-  messages,
-  colors,
-  onOpenEvent,
-}: {
-  readonly dayKey: string;
-  readonly onClose: () => void;
-  readonly tasks: readonly Task[];
-  readonly events: readonly ExternalEventView[];
-  readonly messages: Messages;
-  readonly colors: ReadonlyMap<string, string>;
-  readonly onOpenEvent: (event: ExternalEventView) => void;
-}) {
-  const locale = useAppLocale();
-  const day = dayFromParam(dayKey);
-  const dialog = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    const node = dialog.current;
-    if (node && !node.open) node.showModal();
-    return () => {
-      node?.close();
-    };
-  }, []);
-  if (day === null) {
-    return null;
-  }
-  return (
-    <dialog
-      ref={dialog}
-      className="calendar-day-sheet"
-      aria-label={dayKey}
-      onCancel={(event) => {
-        event.preventDefault();
-        onClose();
-      }}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <Button className="calendar-day-sheet-close" onClick={onClose} aria-label={messages.close}>
-        <X aria-hidden="true" />
-      </Button>
-      <Agenda
-        days={[day]}
-        tasks={tasksOnCell(tasks, day)}
-        events={eventsOnDay(events, day)}
-        locale={locale}
-        messages={messages}
-        colors={colors}
-        onOpenEvent={(event) => {
-          onClose();
-          onOpenEvent(event);
-        }}
-      />
-    </dialog>
   );
 }
 
@@ -3134,6 +3136,7 @@ export function CaptureSettings() {
           <option value="en">{messages.languageEn}</option>
         </select>
       </section>
+      <CaptureDefaults />
       <InboundEmailCard />
     </section>
   );

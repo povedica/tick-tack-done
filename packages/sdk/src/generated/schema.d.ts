@@ -2161,6 +2161,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/planning/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Count candidates without creating a session (F-AC-5) */
+        get: operations["PlanningController_candidates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/planning/sessions": {
         parameters: {
             query?: never;
@@ -2216,6 +2233,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/planning/sessions/{id}/schedule/{taskId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Schedule one configured task immediately; keep other decisions in draft
+         * @description Requires Idempotency-Key. Returns the updated draft session, committed_task_ids and operation_id for undo. Accepts action=move with date, optional time and duration. Free slots span 00:00–24:00, including weekends.
+         */
+        post: operations["PlanningController_schedule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/planning/operations/{id}/revert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Undo an applied day plan; idempotent, 409 if a task changed (F-AC-29) */
+        post: operations["PlanningController_revert"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/planning/sessions/{id}/apply": {
         parameters: {
             query?: never;
@@ -2246,6 +2300,23 @@ export interface paths {
          */
         get: operations["PlansController_day"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/planning/settings/work-days": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Configure working weekdays for day planning (RF-2640) */
+        put: operations["DayClosingController_workDays"];
         post?: never;
         delete?: never;
         options?: never;
@@ -3122,7 +3193,7 @@ export interface paths {
         };
         /** Focus settings (RF-1201) */
         get: operations["FocusController_getSettings"];
-        /** Save focus durations, auto-start, local sounds, volume and daily goal (TTD-AUD-101) */
+        /** Merge focus settings; omitted fields remain unchanged (RF-1201, TTD-AUD-129) */
         put: operations["FocusController_putSettings"];
         post?: never;
         delete?: never;
@@ -3455,6 +3526,24 @@ export interface paths {
         /** Validar y guardar cifrado el bot propio del usuario (RF-2003). */
         put: operations["IntegrationsController_saveTelegram"];
         post?: never;
+        /** Quitar el bot propio y sus vínculos (RF-2003). */
+        delete: operations["IntegrationsController_removeTelegramBot"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/integrations/telegram/settings/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reintentar el registro del webhook propio (RF-2003). */
+        post: operations["IntegrationsController_retryTelegramWebhook"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3784,6 +3873,34 @@ export interface components {
             totp_code?: string;
             recovery_code?: string;
         };
+        CaptureSettingsDto: {
+            recognize_dates: boolean;
+            remove_date_text: boolean;
+            recognize_tags: boolean;
+            remove_tag_text: boolean;
+            parse_url_title: boolean;
+            /** @enum {string} */
+            default_date: "none" | "today" | "tomorrow";
+            /** @enum {string} */
+            default_date_mode: "date" | "date_time";
+            /** @example 09:00 */
+            default_time: string;
+            default_duration_minutes: number | null;
+            /** @enum {string} */
+            default_priority: "none" | "low" | "medium" | "high";
+            /** Format: uuid */
+            default_tag_id: string | null;
+            /** Format: uuid */
+            default_list_id: string | null;
+            /** @enum {string} */
+            timed_reminder: "inherit" | "none" | "-PT0M" | "-PT5M" | "-PT15M" | "-PT30M" | "-PT1H" | "-P1D";
+            /** @enum {string} */
+            all_day_reminder: "inherit" | "none" | "-PT0M" | "-PT5M" | "-PT15M" | "-PT30M" | "-PT1H" | "-P1D";
+            /** @enum {string} */
+            new_task_position: "top" | "bottom";
+            /** @enum {string} */
+            overdue_position: "top" | "bottom";
+        };
         FeatureFlagsDto: {
             navigation_order?: ("calendar" | "matrix" | "countdowns" | "focus" | "habits" | "ticky" | "statistics" | "dashboard" | "reports" | "review" | "search")[];
             countdowns?: boolean;
@@ -3795,6 +3912,7 @@ export interface components {
             day_replan?: boolean;
         };
         MeResponseDto: {
+            capture_settings: components["schemas"]["CaptureSettingsDto"];
             id: string;
             email: string;
             display_name: string;
@@ -3833,6 +3951,7 @@ export interface components {
             new_password: string;
         };
         UpdateMeDto: {
+            capture_settings?: components["schemas"]["CaptureSettingsDto"];
             display_name?: string;
             time_zone?: string;
             /** @enum {string} */
@@ -4225,6 +4344,9 @@ export interface components {
             met: boolean;
         };
         HabitResponseDto: {
+            unit: string | null;
+            start_date: string | null;
+            paused: boolean;
             challenge_days: number | null;
             id: string;
             name: string;
@@ -4245,6 +4367,10 @@ export interface components {
             next_cursor: string | null;
         };
         CreateHabitDto: {
+            unit?: string | null;
+            /** @example 2026-10-26 */
+            start_date?: string | null;
+            paused?: boolean;
             challenge_days?: number | null;
             name: string;
             icon?: string | null;
@@ -4304,6 +4430,10 @@ export interface components {
             streak_broken: boolean;
         };
         UpdateHabitDto: {
+            unit?: string | null;
+            /** @example 2026-10-26 */
+            start_date?: string | null;
+            paused?: boolean;
             challenge_days?: number | null;
             name?: string;
             icon?: string | null;
@@ -4662,6 +4792,67 @@ export interface components {
             items: components["schemas"]["TaskResponseDto"][];
             next_cursor: string | null;
         };
+        TaskActivityDto: {
+            id: string;
+            action: string;
+            /** @description Existing event changes payload. */
+            changes: Record<string, never> | null;
+            /** Format: date-time */
+            created_at: string;
+            actor_id: string;
+            /**
+             * @description Domain event type without its version suffix, when available.
+             * @example task.completed
+             */
+            type?: string;
+            /**
+             * @description Source of this event request, independent of the task capture source (web, api, mcp or automation).
+             * @example mcp
+             */
+            source?: string;
+        };
+        TaskDetailResponseDto: {
+            links?: components["schemas"]["TaskLinkResponseDto"][];
+            link_count?: number;
+            warnings?: components["schemas"]["CaptureWarningDto"][];
+            id: string;
+            project_id: string;
+            parent_id: string | null;
+            column_id: string | null;
+            title: string;
+            content: string;
+            /** @enum {string} */
+            kind: "task" | "note";
+            /** @enum {string} */
+            status: "active" | "completed" | "archived" | "cancelled";
+            /** @enum {string} */
+            priority: "none" | "low" | "medium" | "high";
+            is_all_day: boolean;
+            start_date: string | null;
+            due_date: string | null;
+            time_zone: string;
+            duration_minutes: number | null;
+            /** @description Monotonic CAS version (>=1). Additive for Ticky expected_version (APP-02a). */
+            version: number;
+            is_someday: boolean;
+            evening_only: boolean;
+            repeat_rule: string | null;
+            /** @enum {string} */
+            repeat_from: "due_date" | "completion_date";
+            series_id: string | null;
+            sort_order: string;
+            tag_ids: string[];
+            assignee_id: string | null;
+            created_by: string;
+            completed_at: string | null;
+            source: string;
+            checklist_progress: components["schemas"]["ChecklistProgressDto"];
+            created_at: string;
+            updated_at: string;
+            deleted_at: string | null;
+            /** @description Recent task activity when returning task detail; write responses include their own event. */
+            activity?: components["schemas"]["TaskActivityDto"][];
+        };
         BatchTasksDto: {
             /** @enum {string} */
             action: "complete" | "move" | "tag" | "priority" | "due" | "delete";
@@ -4751,6 +4942,8 @@ export interface components {
             created_at: string;
             updated_at: string;
             deleted_at: string | null;
+            /** @description Recent task activity when returning task detail; write responses include their own event. */
+            activity?: components["schemas"]["TaskActivityDto"][];
         };
         TaskLinkPageDto: {
             items: components["schemas"]["TaskLinkResponseDto"][];
@@ -4775,7 +4968,10 @@ export interface components {
             /** @enum {string} */
             type: "relative" | "absolute" | "location" | "daily_digest";
             absolute_at?: Record<string, never> | null;
-            /** @enum {string} */
+            /**
+             * @description Defaults to push when VAPID is configured, otherwise email when configured, otherwise push.
+             * @enum {string}
+             */
             channel?: "push" | "email" | "both";
             constant?: boolean;
             constant_interval_minutes?: Record<string, never> | null;
@@ -4948,11 +5144,20 @@ export interface components {
         };
         DecisionDto: {
             /** @enum {string} */
-            decision: "done" | "plan_day" | "later" | "cancel" | "trash" | "skip" | "someday";
+            decision?: "done" | "plan_day" | "later" | "cancel" | "trash" | "skip" | "someday";
+            /** @enum {string} */
+            action?: "today" | "tomorrow" | "move" | "done" | "wont_do" | "someday" | "delete" | "skip";
+            date?: string;
+            time?: string;
+            duration?: number;
             target_date?: string | null;
         };
         ApplyPlanDto: {
             expected_revision: number;
+        };
+        WorkDaysDto: {
+            /** @description Working weekdays: Sunday=0 through Saturday=6; empty means no working days. */
+            work_days: number[];
         };
         SessionDateDto: {
             /** @description When false, suggestions remain informational; only explicit decisions are applied. Defaults to true for existing clients. */
@@ -5105,6 +5310,8 @@ export interface components {
             project_id?: string;
         };
         TelegramStatusDto: {
+            /** @enum {string} */
+            state: "none" | "token_saved" | "webhook_ok" | "linked" | "blocked" | "error";
             configured: boolean;
             can_manage: boolean;
             /** @enum {string} */
@@ -5112,7 +5319,7 @@ export interface components {
             webhook_registered: boolean;
             webhook_url: string | null;
             /** @enum {string} */
-            webhook_state: "unconfigured" | "local_only" | "registered";
+            webhook_state: "unconfigured" | "local_only" | "registered" | "error";
             updated_at: string | null;
             username: string | null;
             linked: boolean;
@@ -5120,15 +5327,19 @@ export interface components {
             display_name: string | null;
             linked_at: string | null;
             /** @enum {string} */
-            status: "not_linked" | "connected" | "blocked";
+            status: "not_configured" | "not_linked" | "connected" | "blocked" | "error";
             enabled: boolean;
             voice: boolean;
             photo: boolean;
         };
         TelegramSettingsDto: {
             token: string;
+            /** @default false */
+            force: boolean;
         };
         TelegramConfigurationDto: {
+            /** @enum {string} */
+            state: "none" | "token_saved" | "webhook_ok" | "linked" | "blocked" | "error";
             configured: boolean;
             can_manage: boolean;
             /** @enum {string} */
@@ -5136,7 +5347,7 @@ export interface components {
             webhook_registered: boolean;
             webhook_url: string | null;
             /** @enum {string} */
-            webhook_state: "unconfigured" | "local_only" | "registered";
+            webhook_state: "unconfigured" | "local_only" | "registered" | "error";
             updated_at: string | null;
             username: string | null;
         };
@@ -7486,7 +7697,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TaskResponseDto"];
+                    "application/json": components["schemas"]["TaskDetailResponseDto"];
                 };
             };
         };
@@ -7557,7 +7768,7 @@ export interface operations {
             };
         };
         responses: {
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7585,7 +7796,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TaskResponseDto"];
+                    "application/json": components["schemas"]["TaskDetailResponseDto"];
                 };
             };
         };
@@ -7633,7 +7844,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TaskResponseDto"];
+                    "application/json": components["schemas"]["TaskDetailResponseDto"];
                 };
             };
         };
@@ -7753,7 +7964,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TaskResponseDto"];
+                    "application/json": components["schemas"]["TaskDetailResponseDto"];
                 };
             };
         };
@@ -7780,7 +7991,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TaskResponseDto"];
+                    "application/json": components["schemas"]["TaskDetailResponseDto"];
                 };
             };
         };
@@ -7901,7 +8112,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TaskResponseDto"];
+                    "application/json": components["schemas"]["TaskDetailResponseDto"];
                 };
             };
         };
@@ -7924,7 +8135,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TaskResponseDto"];
+                    "application/json": components["schemas"]["TaskDetailResponseDto"];
                 };
             };
         };
@@ -7947,7 +8158,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TaskResponseDto"];
+                    "application/json": components["schemas"]["TaskDetailResponseDto"];
                 };
             };
         };
@@ -7974,7 +8185,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TaskResponseDto"];
+                    "application/json": components["schemas"]["TaskDetailResponseDto"];
                 };
             };
         };
@@ -7992,12 +8203,12 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TaskResponseDto"];
+                    "application/json": components["schemas"]["TaskDetailResponseDto"];
                 };
             };
         };
@@ -9052,6 +9263,27 @@ export interface operations {
             };
         };
     };
+    PlanningController_candidates: {
+        parameters: {
+            query: {
+                date: string;
+                undated?: unknown;
+                inbox?: unknown;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     PlanningController_start: {
         parameters: {
             query?: never;
@@ -9136,6 +9368,49 @@ export interface operations {
             };
         };
     };
+    PlanningController_schedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PlanningController_revert: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     PlanningController_apply: {
         parameters: {
             query?: never;
@@ -9179,11 +9454,35 @@ export interface operations {
             };
         };
     };
+    DayClosingController_workDays: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkDaysDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     DayClosingController_load: {
         parameters: {
-            query: {
-                date: string;
-                time_zone: string;
+            query?: {
+                date?: string;
+                /** @description Compatibility parameter; the profile time zone is authoritative. */
+                time_zone?: string;
+                days?: number;
+                from?: unknown;
             };
             header?: never;
             path?: never;
@@ -11736,6 +12035,42 @@ export interface operations {
                 "application/json": components["schemas"]["TelegramSettingsDto"];
             };
         };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelegramConfigurationDto"];
+                };
+            };
+        };
+    };
+    IntegrationsController_removeTelegramBot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    IntegrationsController_retryTelegramWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             200: {
                 headers: {

@@ -31,20 +31,27 @@
   color: var(--ink-2);
   font-variant-numeric: tabular-nums;
 }
-.today-plan-warning {
+.today-plan-load {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 3px 7px;
-  border-radius: var(--radius-sm);
-  background: var(--warning-soft);
-  color: var(--ink);
-  font-size: 12px;
-  max-width: 100%;
+  gap: var(--sp-2);
 }
-.today-plan-warning svg {
-  color: var(--ink-2);
+.today-plan-load::before {
+  content: '';
+  width: 6px;
+  height: 6px;
   flex: none;
+  border-radius: 50%;
+  background: var(--success);
+}
+.today-plan-load.is-tight::before {
+  background: var(--warning);
+}
+.today-plan-load.is-overload::before {
+  background: var(--danger);
+}
+.today-plan-saved {
+  color: var(--ink-2);
 }
 .today-plan-actions {
   display: flex;

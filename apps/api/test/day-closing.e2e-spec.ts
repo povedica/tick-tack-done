@@ -248,10 +248,25 @@ describe('day closing, load and someday', () => {
   it('RF-2671: persisted plan history counts real applications and concurrent replay once', async () => {
     const date = '2026-10-20';
     const url = `/api/v1/plans?date=${date}&time_zone=${encodeURIComponent(ZONE)}`;
+    const initialTask = await api()
+      .post('/api/v1/tasks')
+      .set('Idempotency-Key', randomUUID())
+      .send({
+        project_id: owner.inboxId,
+        title: 'Initial synthetic plan',
+        due_date: DAY,
+        is_all_day: true,
+        time_zone: ZONE,
+      })
+      .expect(201);
     const started = await api()
       .post('/api/v1/planning/sessions')
       .send({ local_date: date, time_zone: ZONE, today: true, overdue: false })
       .expect(201);
+    const initialChoice = await api()
+      .put(`/api/v1/planning/sessions/${started.body.id}/decisions/${initialTask.body.id}`)
+      .send({ action: 'today' })
+      .expect(200);
     const applyUrl = `/api/v1/planning/sessions/${started.body.id}/apply`;
     const key = randomUUID();
     const results = await Promise.all(
@@ -259,7 +274,7 @@ describe('day closing, load and someday', () => {
         api()
           .post(applyUrl)
           .set('Idempotency-Key', key)
-          .send({ expected_revision: started.body.revision }),
+          .send({ expected_revision: initialChoice.body.revision }),
       ),
     );
     expect(results.map((result) => result.status)).toEqual([200, 200]);
@@ -306,11 +321,11 @@ describe('day closing, load and someday', () => {
       .post(`/api/v1/planning/sessions/${empty.body.id}/apply`)
       .set('Idempotency-Key', randomUUID())
       .send({ expected_revision: empty.body.revision })
-      .expect(200);
+      .expect(422);
     const unchanged = await api().get(url).expect(200);
     expect(unchanged.body.adjustment_count).toBe(1);
     expect(unchanged.body.last_applied_at).toBe(saved.body.last_applied_at);
-    // A later membership already present is also a real no-op, even with a new session/key.
+    // Repeating the same actual start date is a no-op, even with a new session/key.
     const laterTask = await api()
       .post('/api/v1/tasks')
       .set('Idempotency-Key', randomUUID())
@@ -329,7 +344,7 @@ describe('day closing, load and someday', () => {
         .expect(201);
       const choice = await api()
         .put(`/api/v1/planning/sessions/${opened.body.id}/decisions/${laterTask.body.id}`)
-        .send({ decision: 'later', target_date: '2026-10-21' })
+        .send({ action: 'today' })
         .expect(200);
       await api()
         .post(`/api/v1/planning/sessions/${opened.body.id}/apply`)

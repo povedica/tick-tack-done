@@ -18,7 +18,14 @@ import { ApiOperation, ApiProperty, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
 import type { Request, Response } from 'express';
-import type { PlanDecisionKind, PlanSources } from '@reflexionia/domain';
+import {
+  PLAN_ACTIONS,
+  storedDecision,
+  type PlanningAction,
+  type PlanAction,
+  type PlanDecisionKind,
+  type PlanSources,
+} from '@reflexionia/domain';
 import type { AuthUser } from '../../auth/auth-user.js';
 import { CurrentUser } from '../../auth/current-user.decorator.js';
 import { Scopes } from '../../auth/scopes.decorator.js';
@@ -67,9 +74,32 @@ class StartPlanDto {
 }
 
 class DecisionDto {
-  @ApiProperty({ enum: DECISIONS })
+  @ApiProperty({ required: false, enum: DECISIONS })
   @IsIn(DECISIONS)
-  decision!: PlanDecisionKind;
+  @IsOptional()
+  decision?: PlanDecisionKind;
+
+  @ApiProperty({ required: false, enum: PLAN_ACTIONS })
+  @IsOptional()
+  @IsIn(PLAN_ACTIONS)
+  action?: PlanAction;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  date?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/)
+  time?: string;
+
+  @ApiProperty({ required: false, minimum: 5, maximum: 480 })
+  @IsOptional()
+  @IsInt()
+  @Min(5)
+  @Max(480)
+  duration?: number;
 
   @ApiProperty({ required: false, nullable: true, type: String })
   @IsOptional()
@@ -88,6 +118,26 @@ class ApplyPlanDto {
 @Controller('planning')
 export class PlanningController {
   constructor(@Inject(PlanningService) private readonly planning: PlanningService) {}
+
+  @Get('candidates')
+  @Scopes('tasks:read')
+  @ApiOperation({ summary: 'Count candidates without creating a session (F-AC-5)' })
+  @ApiQuery({ name: 'date', required: true })
+  @ApiQuery({ name: 'inbox', required: false })
+  @ApiQuery({ name: 'undated', required: false })
+  async candidates(
+    @CurrentUser() user: AuthUser,
+    @Query('date') date: string,
+    @Query('inbox') inbox: string | undefined,
+    @Query('undated') undated: string | undefined,
+  ) {
+    return this.planning.candidates(user, {
+      localDate: date,
+      timeZone: user.timeZone,
+      sources: { today: true, overdue: true, inbox: inbox === 'true', undated: undated === 'true' },
+      limit: null,
+    });
+  }
 
   @Post('sessions')
   @Scopes('tasks:write')
@@ -145,11 +195,71 @@ export class PlanningController {
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
+    if (body.action === undefined && body.decision === undefined)
+      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'action is required');
+    const choice: PlanningAction | undefined =
+      body.action === undefined
+        ? undefined
+        : {
+            action: body.action,
+            ...(body.date === undefined ? {} : { date: body.date }),
+            ...(body.time === undefined ? {} : { time: body.time }),
+            ...(body.duration === undefined ? {} : { duration: body.duration }),
+          };
     respondJson(
       req,
       res,
       200,
-      await this.planning.decide(user, id, taskId, body.decision, body.target_date ?? null),
+      await this.planning.decide(
+        user,
+        id,
+        taskId,
+        choice === undefined ? (body.decision ?? 'skip') : storedDecision(choice.action),
+        body.target_date ?? null,
+        choice,
+      ),
+      false,
+    );
+  }
+
+  @Post('sessions/:id/schedule/:taskId')
+  @Scopes('tasks:write')
+  @ApiOperation({
+    summary: 'Schedule one configured task immediately; keep other decisions in draft',
+    description:
+      'Requires Idempotency-Key. Returns the updated draft session, committed_task_ids and operation_id for undo. Accepts action=move with date, optional time and duration. Free slots span 00:00–24:00, including weekends.',
+  })
+  async schedule(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('taskId', ParseUUIDPipe) taskId: string,
+    @Body() body: DecisionDto,
+    @Headers('idempotency-key') key: string | undefined,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    if (body.action !== 'move' || !body.date)
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'action=move and date are required',
+      );
+    respondJson(
+      req,
+      res,
+      200,
+      await this.planning.schedule(
+        user,
+        id,
+        taskId,
+        {
+          action: 'move',
+          date: body.date,
+          ...(body.time === undefined ? {} : { time: body.time }),
+          ...(body.duration === undefined ? {} : { duration: body.duration }),
+        },
+        key,
+      ),
       false,
     );
   }
@@ -165,6 +275,15 @@ export class PlanningController {
     @Res() res: Response,
   ): Promise<void> {
     respondJson(req, res, 200, await this.planning.clear(user, id, taskId), false);
+  }
+
+  @Post('operations/:id/revert')
+  @Scopes('tasks:write')
+  @ApiOperation({
+    summary: 'Undo an applied day plan; idempotent, 409 if a task changed (F-AC-29)',
+  })
+  async revert(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.planning.revert(user, id);
   }
 
   @Post('sessions/:id/apply')

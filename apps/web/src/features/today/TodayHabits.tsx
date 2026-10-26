@@ -33,7 +33,12 @@ export function TodayHabits({
   const queryClient = useQueryClient();
   const [pending, setPending] = useState<ReadonlySet<string>>(new Set());
   const [error, setError] = useState(false);
-  const active = habits.filter((habit) => !habit.archived);
+  const active = habits.filter(
+    (habit) =>
+      !habit.archived &&
+      !habit.paused &&
+      (!habit.start_date || habit.today.date >= habit.start_date),
+  );
   const scheduled = active.filter((habit) => {
     const day = new Date(`${habit.today.date}T12:00:00Z`).getUTCDay();
     const weekday = WEEK[day];

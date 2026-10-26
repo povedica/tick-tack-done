@@ -1,3 +1,4 @@
+import { Sprout } from 'lucide-react';
 import type { HabitSuggestion } from '../suggestions';
 import { HABIT_SUGGESTIONS, buildHabitBody } from '../suggestions';
 import { useMessages, type Messages } from '../../../i18n';
@@ -18,7 +19,7 @@ export function HabitsEmpty({
   return (
     <section className="habits-empty">
       <span className="habits-empty-icon" aria-hidden="true">
-        🌱
+        <Sprout size={24} />
       </span>
       <h2>{messages.habitsEmptyTitle}</h2>
       <p>{messages.habitsEmptyBody}</p>

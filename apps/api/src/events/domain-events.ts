@@ -1,4 +1,5 @@
 export const DomainEvent = {
+  captureSettingsUpdated: 'capture.settings_updated@v1',
   googlePermissionsUpdated: 'google.permissions_updated@v1',
   googleServiceUpdated: 'google.service_updated@v1',
   telegramStatusChanged: 'telegram.status_changed@v1',
@@ -109,6 +110,7 @@ export const DomainEvent = {
   googleReauthRequired: 'integration.google.reauth_required@v1',
   telegramLinked: 'telegram.linked@v1',
   telegramBotConfigured: 'telegram.bot_configured@v1',
+  telegramLegacyUnlinked: 'telegram.legacy_unlinked@v1',
   telegramUnlinked: 'telegram.unlinked@v1',
   googleDisconnected: 'google.disconnected@v1',
   reportGenerated: 'report.generated@v1',

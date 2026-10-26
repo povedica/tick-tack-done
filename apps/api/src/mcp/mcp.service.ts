@@ -1,3 +1,5 @@
+import { isPlanningTool, callPlanningTool } from './tools/planning-tools.js';
+import { attachmentUpload } from './attachment-upload.js';
 import { buildVersion } from '../build-info.js';
 import apiOperations from './api-operations.json' with { type: 'json' };
 import { requestPublicApi } from './mcp-api.js';
@@ -91,7 +93,12 @@ export class McpService {
       return null;
     }
     try {
-      const result = await this.dispatch(user, body.method, body.params, authorization);
+      const result = await this.dispatch(
+        { ...user, requestSource: 'mcp' },
+        body.method,
+        body.params,
+        authorization,
+      );
       return { jsonrpc: '2.0', id, result };
     } catch (error) {
       if (error instanceof DomainException) {
@@ -197,7 +204,20 @@ export class McpService {
         next_cursor: start + limit < matches.length ? offsetCursor(start + limit) : null,
       };
     } else if (tool.name === 'api_request') data = await requestPublicApi(args, authorization);
-    else data = await this.run(user, tool.name, args, authorization);
+    else if (tool.name === 'get_capture_settings' || tool.name === 'update_capture_settings') {
+      const response = await requestPublicApi(
+        {
+          method: tool.name === 'get_capture_settings' ? 'GET' : 'PATCH',
+          path: '/api/v1/me',
+          ...(tool.name === 'update_capture_settings'
+            ? { body: { capture_settings: args.settings } }
+            : {}),
+        },
+        authorization,
+      );
+      const record = response as { data: { capture_settings: unknown } };
+      data = record.data.capture_settings;
+    } else data = await this.run(user, tool.name, args, authorization);
     if (tool.name.startsWith('list_')) data = listResult(data, args);
     if (args.include_activity !== 'full') data = summarizeActivity(data, tool.name === 'get_task');
     return { content: [{ type: 'text', text: JSON.stringify(data) }], isError: false };
@@ -210,6 +230,8 @@ export class McpService {
     authorization?: string,
   ): Promise<unknown> {
     const limit = limitOf(args);
+    if (isPlanningTool(name) && (name !== 'replan_day' || authorization !== undefined))
+      return callPlanningTool(name, args, user, authorization);
     switch (name) {
       case 'list_tasks': {
         const projectId = uuidOrEmpty(args.project_id);
@@ -290,16 +312,17 @@ export class McpService {
         const title = requiredString(args, 'title', 500);
         const parse = args.parse === true;
         const parsed = parse
-          ? parseQuickAdd(title, 'es', {
-              now: new Date().toISOString(),
-              timeZone: user.timeZone,
-            })
+          ? parseQuickAdd(title, 'es', { now: new Date().toISOString(), timeZone: user.timeZone })
           : null;
         const resolution =
           args.project_id === undefined && parsed?.listName
             ? await this.parsedList(user, parsed.listName)
             : null;
-        const projectId = resolution?.id ?? (await this.projectId(user, args));
+        const projectId =
+          resolution?.id ??
+          (args.project_id !== undefined || resolution?.warning
+            ? await this.projectId(user, args)
+            : undefined);
         const parentId = uuidOrEmpty(args.parent_id);
         const columnId = uuidOrEmpty(args.column_id);
         const created = enrichTask(
@@ -308,7 +331,7 @@ export class McpService {
               user,
               {
                 ...(parse ? { raw_text: title } : { title }),
-                project_id: projectId,
+                ...(projectId === undefined ? {} : { project_id: projectId }),
                 ...(typeof args.content === 'string' ? { content: args.content } : {}),
                 ...(tagIds === undefined ? {} : { tag_ids: tagIds }),
                 ...(parentId === undefined ? {} : { parent_id: parentId }),
@@ -449,6 +472,14 @@ export class McpService {
           requiredUuid(args, 'link_id'),
         );
         return { removed: true };
+      case 'upload_task_attachment':
+        return this.tasks.streamAttachment(
+          user,
+          requiredUuid(args, 'task_id'),
+          requiredString(args, 'filename', 240),
+          attachmentUpload(typeof args.base64 === 'string' ? args.base64 : ''),
+          'mcp',
+        );
       case 'list_task_attachments':
         return {
           items: await this.tasks.listAttachments(user, requiredUuid(args, 'task_id')),
@@ -814,10 +845,30 @@ export class McpService {
         return this.countdowns.archive(user, requiredUuid(args, 'id'), false);
       case 'search': {
         const cursor = cursorOf(args);
-        return this.search.search(user, requiredString(args, 'q', 200), undefined, {
+        const result = await this.search.search(user, requiredString(args, 'q', 200), undefined, {
           limit,
           ...(cursor === undefined ? {} : { cursor }),
         });
+        return {
+          items: result.items,
+          next_cursor: result.next_cursor,
+          text: result.text,
+          list: result.list,
+          tags: result.tags,
+          priority: result.priority,
+          done: result.done,
+          groups: result.groups.map((group) =>
+            group.type === 'task' || group.type === 'note'
+              ? {
+                  type: group.type,
+                  ids: group.items.flatMap((item) =>
+                    isRecord(item) && typeof item.id === 'string' ? [item.id] : [],
+                  ),
+                  count: group.items.length,
+                }
+              : group,
+          ),
+        };
       }
       case 'list_notes':
         return this.prisma.task.findMany({
@@ -1194,11 +1245,9 @@ function summarizeActivity(value: unknown, includeActor: boolean): unknown {
       const source =
         typeof payload.source === 'string'
           ? payload.source
-          : typeof task.source === 'string'
-            ? task.source
-            : entry.actor_kind === 'user'
-              ? 'web'
-              : 'api';
+          : entry.actor_kind === 'user'
+            ? 'web'
+            : 'api';
       return {
         at: entry.created_at ?? null,
         type,
@@ -1240,6 +1289,7 @@ function listResult(value: unknown, args: Record<string, unknown>): unknown {
 
 function enrichTask<
   T extends {
+    status?: string;
     repeat_rule?: string | null;
     time_zone?: string;
     due_date?: string | null;
@@ -1267,9 +1317,11 @@ function enrichTask<
     repeat_label: describeRepeatRule(rule),
     next_occurrence: task.series
       ? task.series.next_due_date
-      : next.ok
-        ? (next.occurrence?.dueDate ?? null)
-        : null,
+      : task.status !== undefined && task.status !== 'active'
+        ? null
+        : next.ok
+          ? (next.occurrence?.dueDate ?? null)
+          : null,
   };
 }
 

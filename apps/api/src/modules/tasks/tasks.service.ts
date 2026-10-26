@@ -1,3 +1,6 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { allDayMidnight } from './all-day.js';
+import { defaultReminderChannel } from './reminder-channel.js';
 import { normalizeTaskUrl } from '@reflexionia/domain';
 import { linkTitle } from './link-title.js';
 import type { AddTaskLinkDto } from './task-links.dto.js';
@@ -9,6 +12,8 @@ import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { Prisma, type Task } from '@prisma/client';
 import {
   acceptsColumnDrop,
+  captureSettings,
+  parseCapture,
   allDayClockConflict,
   canonicalizeRepeatRule,
   decideParentCompletion,
@@ -38,10 +43,10 @@ import {
   type Priority,
   type ReminderSnoozePreset,
 } from '@reflexionia/domain';
-import { actorOf, type AuthUser } from '../../auth/auth-user.js';
+import { actorOf, requestSourceOf, type AuthUser } from '../../auth/auth-user.js';
 import { hashInboundToken, inboundLocalPart } from '../../inbound/email-address.js';
 import { DomainEvent } from '../../events/domain-events.js';
-import { EventRecorder } from '../../events/event-recorder.js';
+import { EventRecorder, type RecordedEvent } from '../../events/event-recorder.js';
 import { DomainException } from '../../http/domain.exception.js';
 import { asJson } from '../../http/json.js';
 import { readClocks, selectPatch, stampTerminal } from './field-clocks.js';
@@ -74,6 +79,7 @@ import type {
 } from './tasks.dto.js';
 
 const taskInclude = {
+  _count: { select: { links: true } },
   links: true,
   tags: { where: { tag: { deletedAt: null } }, select: { tagId: true } },
   checklist: {
@@ -105,6 +111,8 @@ export interface TaskDetail extends TaskSummaryJson {
   activity: {
     id: string;
     action: string;
+    type: string;
+    source: string;
     changes: Prisma.JsonValue;
     created_at: string;
     actor_id: string;
@@ -159,6 +167,18 @@ export class TasksService {
     @Inject(IdempotencyService) private readonly idempotency: IdempotencyService,
     @Inject(DriveAttachmentsService) private readonly drive: DriveAttachmentsService,
   ) {}
+
+  private readonly planningTx = new AsyncLocalStorage<Tx>();
+
+  /** Planning coordinates task changes and its operation record in one transaction. */
+  inPlanTransaction<T>(tx: Tx, work: () => Promise<T>): Promise<T> {
+    return this.planningTx.run(tx, work);
+  }
+
+  private transaction<T>(work: (tx: Tx) => Promise<T>): Promise<T> {
+    const current = this.planningTx.getStore();
+    return current ? work(current) : this.prisma.$transaction(work);
+  }
 
   async list(
     user: AuthUser,
@@ -434,7 +454,7 @@ export class TasksService {
         create: { ownerId: user.id, taskId, url, title, source: 'manual' },
         update: { title, source: 'manual' },
       });
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.taskLinkAdded,
         entityType: 'task',
         entityId: taskId,
@@ -454,7 +474,7 @@ export class TasksService {
       });
       if (!removed.count)
         throw new DomainException(404, 'task_link_not_found', 'Task link was not found');
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.taskLinkRemoved,
         entityType: 'task',
         entityId: taskId,
@@ -473,9 +493,9 @@ export class TasksService {
     user: AuthUser,
     id: string,
     dto: UpdateTaskDto,
-    source: 'api' | 'mcp' | 'web' = user.sessionId === null ? 'api' : 'web',
+    source: 'api' | 'mcp' | 'web' | 'plan' = user.sessionId === null ? 'api' : 'web',
   ): Promise<TaskDetail> {
-    return this.prisma.$transaction(async (tx) => {
+    return this.transaction(async (tx) => {
       const current = await this.require(tx, user.id, id, false);
       if (current.seriesId !== null) await lockRecurrenceSeries(tx, user.id, current.seriesId);
       const receivedAt = new Date().toISOString();
@@ -538,13 +558,19 @@ export class TasksService {
         ? { date: null as Date | null, dateOnly: false }
         : this.nextDate(current.startDate, dto.start_date, 'start_date', timeZone);
       const dueParsed = this.nextDate(current.dueDate, dto.due_date, 'due_date', timeZone);
-      const start = startParsed.date;
+      let start = startParsed.date;
       let due = dueParsed.date;
       const inferredAllDay =
         (dto.start_date !== undefined && startParsed.dateOnly) ||
         (dto.due_date !== undefined && dueParsed.dateOnly);
       const isAllDay = dto.is_all_day ?? (inferredAllDay ? true : current.isAllDay);
+      const planning = user.requestSource === 'plan';
+      if (isAllDay) {
+        start = allDayMidnight(start, timeZone);
+        if (!planning) due = allDayMidnight(due, timeZone);
+      }
       if (
+        !planning &&
         due === null &&
         dto.due_date === undefined &&
         !isAllDay &&
@@ -556,13 +582,17 @@ export class TasksService {
         );
         if (end !== null) due = new Date(end);
       }
-      this.assertTimed(due, isAllDay, timeZone);
+      if (!planning) this.assertTimed(due, isAllDay, timeZone);
       this.assertTimed(start, isAllDay, timeZone);
-      const duration = this.duration(
-        start,
-        due,
-        dto.duration_minutes === undefined ? current.durationMinutes : dto.duration_minutes,
-      );
+      const duration = planning
+        ? dto.duration_minutes === undefined
+          ? current.durationMinutes
+          : dto.duration_minutes
+        : this.duration(
+            start,
+            due,
+            dto.duration_minutes === undefined ? current.durationMinutes : dto.duration_minutes,
+          );
       let content = dto.content ?? current.content;
       const extracted = dto.extract_checklist === true ? extractMarkdownChecklist(content) : null;
       if (extracted !== null) {
@@ -601,7 +631,7 @@ export class TasksService {
           where: { ownerId: user.id, seriesId: current.seriesId, processedAt: null },
           data: { processedAt: new Date() },
         });
-        await this.events.record(tx, actorOf(user), {
+        await this.record(tx, user, {
           type: DomainEvent.seriesClosed,
           entityType: 'task',
           entityId: id,
@@ -658,7 +688,7 @@ export class TasksService {
         await this.cancelDeliveries(tx, [id]);
       }
       const detail = await this.load(tx, user, id, false);
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: this.updateEvent(previous.kind, detail.kind),
         entityType: detail.kind === 'note' ? 'note' : 'task',
         entityId: id,
@@ -670,8 +700,93 @@ export class TasksService {
     });
   }
 
+  async restorePlanState(
+    user: AuthUser,
+    snapshot: {
+      readonly id: string;
+      readonly startDate: string | null;
+      readonly dueDate: string | null;
+      readonly timeZone: string;
+      readonly isAllDay: boolean;
+      readonly durationMinutes: number | null;
+      readonly isSomeday: boolean;
+      readonly eveningOnly: boolean;
+      readonly status: string;
+      readonly deletedAt: string | null;
+      readonly repeatRule: string | null;
+      readonly seriesId: string | null;
+      readonly recurrenceOpen: boolean;
+      readonly checklist?: readonly {
+        id: string;
+        status: 'active' | 'completed';
+        completedAt: string | null;
+      }[];
+    },
+  ): Promise<void> {
+    if (user.requestSource !== 'plan')
+      throw new DomainException(
+        HttpStatus.FORBIDDEN,
+        'plan_context_required',
+        'Internal planning context is required',
+      );
+    await this.transaction(async (tx) => {
+      const current = await tx.task.findFirst({ where: { id: snapshot.id, ownerId: user.id } });
+      if (!current)
+        throw new DomainException(HttpStatus.NOT_FOUND, 'task_not_found', 'Task was not found');
+      if (
+        await tx.seriesAdvance.count({
+          where: { ownerId: user.id, sourceTaskId: snapshot.id, processedAt: { not: null } },
+        })
+      )
+        throw new DomainException(
+          HttpStatus.CONFLICT,
+          'series_already_advanced',
+          'The occurrence has already advanced',
+        );
+      await tx.seriesAdvance.deleteMany({
+        where: { ownerId: user.id, sourceTaskId: snapshot.id, processedAt: null },
+      });
+      const previous = await this.load(tx, user, snapshot.id, current.deletedAt !== null);
+      await tx.task.update({
+        where: { id: snapshot.id },
+        data: {
+          startDate: snapshot.startDate === null ? null : new Date(snapshot.startDate),
+          dueDate: snapshot.dueDate === null ? null : new Date(snapshot.dueDate),
+          timeZone: snapshot.timeZone,
+          isAllDay: snapshot.isAllDay,
+          durationMinutes: snapshot.durationMinutes,
+          isSomeday: snapshot.isSomeday,
+          eveningOnly: snapshot.eveningOnly,
+          status: snapshot.status === 'active' ? 'active' : current.status,
+          deletedAt: snapshot.deletedAt === null ? null : new Date(snapshot.deletedAt),
+          completedAt: snapshot.status === 'active' ? null : current.completedAt,
+          repeatRule: snapshot.repeatRule,
+          seriesId: snapshot.seriesId,
+          recurrenceOpen: snapshot.recurrenceOpen,
+        },
+      });
+      for (const item of snapshot.checklist ?? [])
+        await tx.checklistItem.updateMany({
+          where: { id: item.id, taskId: snapshot.id, ownerId: user.id, deletedAt: null },
+          data: {
+            status: item.status,
+            completedAt: item.completedAt === null ? null : new Date(item.completedAt),
+          },
+        });
+      const detail = await this.load(tx, user, snapshot.id, snapshot.deletedAt !== null);
+      await this.record(tx, user, {
+        type: DomainEvent.taskUpdated,
+        entityType: 'task',
+        entityId: snapshot.id,
+        action: 'updated',
+        data: { task: asJson(taskEventSnapshot(detail)), source: 'plan', reverted: true },
+        previous: asJson(taskEventSnapshot(previous)),
+      });
+    });
+  }
+
   async cancel(user: AuthUser, id: string): Promise<TaskDetail> {
-    return this.prisma.$transaction(async (tx) => {
+    return this.transaction(async (tx) => {
       const current = await this.require(tx, user.id, id, false);
       if (current.status === 'cancelled') {
         return this.load(tx, user, id, false);
@@ -687,7 +802,7 @@ export class TasksService {
         data: { status: 'cancelled' },
       });
       for (const child of children) {
-        await this.events.record(tx, actorOf(user), {
+        await this.record(tx, user, {
           type: DomainEvent.taskCancelled,
           entityType: 'task',
           entityId: child.id,
@@ -697,7 +812,7 @@ export class TasksService {
         });
       }
       const detail = await this.load(tx, user, id, false);
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.taskCancelled,
         entityType: 'task',
         entityId: id,
@@ -705,12 +820,12 @@ export class TasksService {
         data: { task: asJson(taskEventSnapshot(detail)) },
         previous: { status: current.status },
       });
-      return detail;
+      return this.load(tx, user, id, false);
     });
   }
 
   async remove(user: AuthUser, id: string): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
+    await this.transaction(async (tx) => {
       await this.require(tx, user.id, id, false);
       const now = new Date();
       const existing = await this.require(tx, user.id, id, false);
@@ -735,7 +850,7 @@ export class TasksService {
         },
       });
       const detail = await this.load(tx, user, id, true);
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.taskDeleted,
         entityType: 'task',
         entityId: id,
@@ -753,6 +868,12 @@ export class TasksService {
     keyRaw: string | undefined,
   ): Promise<Saved> {
     const key = normalizeIdempotencyKey(keyRaw);
+    const planningTx = this.planningTx.getStore();
+    if (user.requestSource === 'plan' && planningTx)
+      return this.completeIn(planningTx, user, id, dto.complete_children ?? null, {
+        advance: dto.advance ?? 'one_period',
+        materializeNext: false,
+      }).then((body) => ({ statusCode: 200, body, replayed: false }));
     return this.idempotency.run({
       ownerId: user.id,
       key,
@@ -769,9 +890,9 @@ export class TasksService {
   async uncomplete(
     user: AuthUser,
     id: string,
-    source: 'api' | 'mcp' | 'web' = user.sessionId === null ? 'api' : 'web',
+    source: 'api' | 'mcp' | 'web' | 'plan' = user.sessionId === null ? 'api' : 'web',
   ): Promise<TaskDetail> {
-    return this.prisma.$transaction(async (tx) => {
+    return this.transaction(async (tx) => {
       const current = await this.require(tx, user.id, id, false);
       if (current.status !== 'completed' && current.status !== 'cancelled') {
         throw new DomainException(
@@ -803,7 +924,7 @@ export class TasksService {
         data: { status: 'active', completedAt: null, recurrenceOpen: current.repeatRule !== null },
       });
       const detail = await this.load(tx, user, id, false);
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.taskReopened,
         entityType: 'task',
         entityId: id,
@@ -811,7 +932,7 @@ export class TasksService {
         data: { task: asJson(taskEventSnapshot(detail)), source },
         previous: { status: current.status },
       });
-      return detail;
+      return this.load(tx, user, id, false);
     });
   }
 
@@ -850,7 +971,7 @@ export class TasksService {
         },
       });
       const detail = await this.load(tx, user, id, false);
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.taskUpdated,
         entityType: 'task',
         entityId: id,
@@ -858,7 +979,7 @@ export class TasksService {
         data: { task: asJson(taskEventSnapshot(detail)), snoozed_to: preset },
         previous: { due_date: current.dueDate?.toISOString() ?? null },
       });
-      return detail;
+      return this.load(tx, user, id, false);
     });
   }
 
@@ -905,7 +1026,7 @@ export class TasksService {
     title: string | undefined,
     source: 'manual' | 'api' | 'mcp' = user.sessionId === null ? 'api' : 'manual',
   ): Promise<TaskDetail> {
-    return this.prisma.$transaction(async (tx) => {
+    return this.transaction(async (tx) => {
       const current = await this.require(tx, user.id, id, false);
       if (current.repeatRule === null || current.seriesId === null) {
         throw new DomainException(
@@ -950,7 +1071,7 @@ export class TasksService {
           },
         });
         const detail = await this.load(tx, user, id, false);
-        await this.events.record(tx, actorOf(user), {
+        await this.record(tx, user, {
           type: DomainEvent.occurrenceDetached,
           entityType: 'task',
           entityId: id,
@@ -958,7 +1079,7 @@ export class TasksService {
           data: { task: asJson(taskEventSnapshot(detail)), detached: true, source },
           previous: { repeat_rule: current.repeatRule },
         });
-        return detail;
+        return this.load(tx, user, id, false);
       }
       await tx.task.update({ where: { id }, data: { repeatRule: excluded.rule } });
       const copyId = randomUUID();
@@ -993,7 +1114,7 @@ export class TasksService {
         ),
       });
       const created = await this.load(tx, user, copyId, false);
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.taskUpdated,
         entityType: 'task',
         entityId: id,
@@ -1001,7 +1122,7 @@ export class TasksService {
         data: { task: { id, repeat_rule: excluded.rule }, detached_due: dueDate },
         previous: { repeat_rule: current.repeatRule },
       });
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.occurrenceDetached,
         entityType: created.kind === 'note' ? 'note' : 'task',
         entityId: copyId,
@@ -1064,7 +1185,7 @@ export class TasksService {
         });
       }
       const detail = await this.load(tx, user, id, false);
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.taskMoved,
         entityType: 'task',
         entityId: id,
@@ -1072,7 +1193,7 @@ export class TasksService {
         data: { task: asJson(taskEventSnapshot(detail)) },
         previous: { project_id: current.projectId, column_id: current.columnId },
       });
-      return detail;
+      return this.load(tx, user, id, false);
     }
   }
 
@@ -1175,7 +1296,7 @@ export class TasksService {
           data: { deletedAt: now },
         });
         for (const id of dto.ids) {
-          await this.events.record(tx, actorOf(user), {
+          await this.record(tx, user, {
             type: DomainEvent.taskDeleted,
             entityType: 'task',
             entityId: id,
@@ -1192,7 +1313,7 @@ export class TasksService {
   async restore(
     user: AuthUser,
     id: string,
-    source: 'api' | 'mcp' | 'web' = user.sessionId === null ? 'api' : 'web',
+    source: 'api' | 'mcp' | 'web' | 'plan' = user.sessionId === null ? 'api' : 'web',
   ): Promise<TaskDetail> {
     return this.prisma.$transaction(async (tx) => {
       const current = await tx.task.findFirst({ where: { id, ownerId: user.id } });
@@ -1231,7 +1352,7 @@ export class TasksService {
       }
       await tx.task.update({ where: { id }, data: { deletedAt: null, parentId } });
       const detail = await this.load(tx, user, id, false);
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.taskRestored,
         entityType: 'task',
         entityId: id,
@@ -1239,7 +1360,7 @@ export class TasksService {
         data: { task: asJson(taskEventSnapshot(detail)), source },
         previous: { deleted_at: current.deletedAt.toISOString() },
       });
-      return detail;
+      return this.load(tx, user, id, false);
     });
   }
 
@@ -1253,7 +1374,7 @@ export class TasksService {
           'Trashed task was not found',
         );
       }
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.taskDeleted,
         entityType: 'task',
         entityId: id,
@@ -1320,7 +1441,7 @@ export class TasksService {
           },
         });
         const body = toChecklistJson(taskId, row);
-        await this.events.record(tx, actorOf(user), {
+        await this.record(tx, user, {
           type: DomainEvent.checklistItemCreated,
           entityType: 'checklist_item',
           entityId: row.id,
@@ -1381,7 +1502,7 @@ export class TasksService {
         },
       });
       const body = toChecklistJson(taskId, row);
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.checklistItemUpdated,
         entityType: 'checklist_item',
         entityId: itemId,
@@ -1400,7 +1521,7 @@ export class TasksService {
         where: { id: itemId },
         data: { deletedAt: new Date() },
       });
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type: DomainEvent.checklistItemDeleted,
         entityType: 'checklist_item',
         entityId: itemId,
@@ -1501,7 +1622,7 @@ export class TasksService {
               dto.absolute_at === undefined || dto.absolute_at === null
                 ? null
                 : this.instant(dto.absolute_at, 'absolute_at', task.timeZone).date,
-            channel: dto.channel ?? 'push',
+            channel: dto.channel ?? defaultReminderChannel(),
             constant: dto.constant ?? false,
             constantIntervalMinutes:
               dto.constant === true ? (dto.constant_interval_minutes ?? 15) : null,
@@ -1611,11 +1732,44 @@ export class TasksService {
       const key = `task-hierarchy:${user.id}`;
       await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtextextended(${key}, 0))`;
     }
-    const captured =
-      dto.raw_text === undefined
+    const preferences = captureSettings(
+      dto.kind === 'note'
         ? null
-        : await resolveQuickAdd(tx, user, dto, new Date().toISOString());
-    const projectId = captured?.projectId ?? dto.project_id;
+        : (await tx.user.findUnique({ where: { id: user.id }, select: { captureSettings: true } }))
+            ?.captureSettings,
+    );
+    const now = new Date().toISOString();
+    const defaults = parseCapture(
+      'task',
+      'es',
+      { now, timeZone: dto.time_zone ?? user.timeZone },
+      preferences,
+    );
+    const captured =
+      dto.raw_text === undefined ? null : await resolveQuickAdd(tx, user, dto, now, preferences);
+    const defaultList =
+      dto.project_id === undefined && captured === null
+        ? await tx.project.findFirst({
+            where: {
+              ownerId: user.id,
+              deletedAt: null,
+              closed: false,
+              kind: 'TASK',
+              ...(preferences.default_list_id
+                ? { id: preferences.default_list_id }
+                : { isInbox: true }),
+            },
+            select: { id: true },
+          })
+        : null;
+    const fallbackInbox =
+      captured === null && dto.project_id === undefined && defaultList === null
+        ? await tx.project.findFirst({
+            where: { ownerId: user.id, isInbox: true, deletedAt: null },
+            select: { id: true },
+          })
+        : null;
+    const projectId = captured?.projectId ?? dto.project_id ?? defaultList?.id ?? fallbackInbox?.id;
     if (projectId === undefined) {
       throw new DomainException(
         HttpStatus.BAD_REQUEST,
@@ -1647,16 +1801,37 @@ export class TasksService {
       const column = await this.requireColumn(tx, user.id, project.id, dto.column_id);
       await this.assertWip(tx, user.id, column, null);
     }
+    const defaultTag =
+      dto.tag_ids === undefined && preferences.default_tag_id
+        ? await tx.tag.findFirst({
+            where: { id: preferences.default_tag_id, ownerId: user.id, deletedAt: null },
+            select: { id: true },
+          })
+        : null;
     const tagIds =
       captured === null || dto.tag_ids !== undefined
-        ? await this.requireTags(tx, user.id, dto.tag_ids ?? [])
+        ? await this.requireTags(
+            tx,
+            user.id,
+            dto.tag_ids ?? (dto.kind !== 'note' && defaultTag ? [defaultTag.id] : []),
+          )
         : [...captured.tagIds];
     if (captured === null && dto.title === undefined) {
       throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'title is required');
     }
-    const title = captured === null ? this.title(dto.title ?? '') : captured.title;
+    let title = captured === null ? this.title(dto.title ?? '') : captured.title;
     const timeZone = dto.time_zone === undefined ? user.timeZone : this.zone(dto.time_zone);
     let content = dto.content ?? '';
+    if (preferences.parse_url_title && dto.raw_text !== undefined && dto.title === undefined) {
+      const url = normalizeTaskUrl(title);
+      if (url) {
+        const resolved = await linkTitle(url);
+        if (resolved) {
+          content = [content, url].filter(Boolean).join('\n');
+          title = resolved;
+        }
+      }
+    }
     const extracted = dto.extract_checklist === true ? extractMarkdownChecklist(content) : null;
     if (extracted !== null) {
       content = extracted.content;
@@ -1666,29 +1841,50 @@ export class TasksService {
     const startParsed = this.nextDate(null, someday ? null : capturedStart, 'start_date', timeZone);
     const dueParsed = this.nextDate(
       null,
-      dto.due_date !== undefined ? dto.due_date : captured?.dueDate,
+      dto.due_date !== undefined
+        ? dto.due_date
+        : captured !== null
+          ? captured.dueDate
+          : dto.start_date === undefined && !someday && dto.kind !== 'note'
+            ? defaults.due?.date
+            : null,
       'due_date',
       timeZone,
     );
-    const start = startParsed.date;
+    let start = startParsed.date;
     const inferredAllDay = startParsed.dateOnly || dueParsed.dateOnly;
-    const isAllDay = dto.is_all_day ?? captured?.isAllDay ?? (inferredAllDay ? true : false);
+    const isAllDay =
+      dto.is_all_day ??
+      captured?.isAllDay ??
+      (dto.due_date === undefined && dto.start_date === undefined
+        ? defaults.due?.isAllDay
+        : undefined) ??
+      (inferredAllDay ? true : false);
     const explicitDuration =
       dto.duration_minutes === undefined
-        ? (captured?.durationMinutes ?? null)
+        ? (captured?.durationMinutes ??
+          (dto.kind !== 'note' ? preferences.default_duration_minutes : null))
         : dto.duration_minutes;
     const inferredEnd =
       !isAllDay && dto.due_date === undefined && dueParsed.date === null
         ? endFromDuration(start?.toISOString() ?? null, explicitDuration)
         : null;
-    const due = dueParsed.date ?? (inferredEnd === null ? null : new Date(inferredEnd));
+    let due = dueParsed.date ?? (inferredEnd === null ? null : new Date(inferredEnd));
+    if (isAllDay) {
+      start = allDayMidnight(start, timeZone);
+      due = allDayMidnight(due, timeZone);
+    }
     const sortOrder = await this.planTaskSort(
       tx,
       user.id,
       project.id,
       parentId,
       null,
-      dto.before_id,
+      dto.before_id === undefined &&
+        dto.move_to_end === undefined &&
+        preferences.new_task_position === 'top'
+        ? null
+        : dto.before_id,
       dto.move_to_end,
     );
     const repeatRule = this.canonicalRule(
@@ -1709,7 +1905,10 @@ export class TasksService {
         title,
         content,
         kind: dto.kind ?? 'task',
-        priority: dto.priority ?? captured?.priority ?? 'none',
+        priority:
+          dto.priority ??
+          captured?.priority ??
+          (dto.kind !== 'note' ? preferences.default_priority : 'none'),
         isAllDay,
         startDate: start,
         dueDate: due,
@@ -1717,7 +1916,10 @@ export class TasksService {
         durationMinutes: this.duration(
           someday ? null : start,
           due,
-          dto.duration_minutes ?? captured?.durationMinutes ?? null,
+          dto.duration_minutes !== undefined
+            ? dto.duration_minutes
+            : (captured?.durationMinutes ??
+                (dto.kind !== 'note' ? preferences.default_duration_minutes : null)),
         ),
         isSomeday: someday,
         eveningOnly: dto.evening_only ?? captured?.eveningOnly ?? false,
@@ -1733,7 +1935,15 @@ export class TasksService {
     });
     await reconcileTaskLinks(tx, user.id, row.id, `${title}\n${content}`);
     await this.linkTags(tx, row.id, tagIds);
-    if (dto.reminder_trigger !== null) {
+    const reminderMode = isAllDay ? preferences.all_day_reminder : preferences.timed_reminder;
+    if (
+      dto.reminder_trigger !== null &&
+      !(
+        dto.reminder_trigger === undefined &&
+        captured?.reminderTrigger == null &&
+        reminderMode === 'none'
+      )
+    ) {
       await this.ensureDefaultReminder(
         tx,
         user.id,
@@ -1741,7 +1951,9 @@ export class TasksService {
         row.id,
         due,
         row.kind,
-        dto.reminder_trigger ?? captured?.reminderTrigger ?? null,
+        dto.reminder_trigger ??
+          captured?.reminderTrigger ??
+          (reminderMode === 'inherit' || reminderMode === 'none' ? null : reminderMode),
       );
     }
 
@@ -1749,7 +1961,7 @@ export class TasksService {
       await this.materializeExtract(tx, user, row, extracted.items, dto.extract_as ?? 'checklist');
     }
     const detail = await this.load(tx, user, row.id, false);
-    await this.events.record(tx, actorOf(user), {
+    await this.record(tx, user, {
       type: detail.kind === 'note' ? DomainEvent.noteCreated : DomainEvent.taskCreated,
       entityType: detail.kind === 'note' ? 'note' : 'task',
       entityId: row.id,
@@ -1815,7 +2027,7 @@ export class TasksService {
         data: { status: 'completed', completedAt: now },
       });
       for (const item of items) {
-        await this.events.record(tx, actorOf(user), {
+        await this.record(tx, user, {
           type: DomainEvent.checklistItemCompleted,
           entityType: 'checklist_item',
           entityId: item.id,
@@ -1842,7 +2054,7 @@ export class TasksService {
       });
       completedChildIds = children.map((child) => child.id);
       for (const child of children) {
-        await this.events.record(tx, actorOf(user), {
+        await this.record(tx, user, {
           type: DomainEvent.taskCompleted,
           entityType: 'task',
           entityId: child.id,
@@ -1875,7 +2087,7 @@ export class TasksService {
       },
     });
     const detail = await this.load(tx, user, id, false);
-    await this.events.record(tx, actorOf(user), {
+    await this.record(tx, user, {
       type: DomainEvent.taskCompleted,
       entityType: 'task',
       entityId: id,
@@ -1885,7 +2097,7 @@ export class TasksService {
     });
 
     if (current.repeatRule === null || current.seriesId === null) {
-      return detail;
+      return this.load(tx, user, id, false);
     }
 
     const source = await tx.task.findFirstOrThrow({
@@ -2014,7 +2226,10 @@ export class TasksService {
         recurrenceOpen: true,
         sortOrder: source.sortOrder,
         createdById: source.createdById,
-        source: 'automation',
+        source:
+          requestSourceOf(user) === 'web'
+            ? 'manual'
+            : (requestSourceOf(user) as 'api' | 'mcp' | 'automation'),
       },
     });
     let itemOrder = 0n;
@@ -2055,7 +2270,7 @@ export class TasksService {
       source.tags.map((tag) => tag.tagId),
     );
     const detail = await this.load(tx, user, id, false);
-    await this.events.record(tx, actorOf(user), {
+    await this.record(tx, user, {
       type: source.kind === 'note' ? DomainEvent.noteCreated : DomainEvent.taskCreated,
       entityType: source.kind === 'note' ? 'note' : 'task',
       entityId: id,
@@ -2149,7 +2364,7 @@ export class TasksService {
       }
     }
     const detail = await this.load(tx, user, copy.id, false);
-    await this.events.record(tx, actorOf(user), {
+    await this.record(tx, user, {
       type: DomainEvent.taskCreated,
       entityType: 'task',
       entityId: copy.id,
@@ -2221,7 +2436,7 @@ export class TasksService {
         data: { status, completedAt: status === 'completed' ? new Date() : null },
       });
       const body = toChecklistJson(taskId, row);
-      await this.events.record(tx, actorOf(user), {
+      await this.record(tx, user, {
         type:
           status === 'completed'
             ? DomainEvent.checklistItemCompleted
@@ -2236,9 +2451,43 @@ export class TasksService {
     });
   }
 
+  private activityType(changes: Prisma.JsonValue, action: string): string {
+    const body =
+      changes !== null && typeof changes === 'object' && !Array.isArray(changes) ? changes : {};
+    return typeof body._event_type === 'string'
+      ? body._event_type.replace(/@v[0-9]+$/, '')
+      : `task.${action}`;
+  }
+
+  private activitySource(changes: Prisma.JsonValue, tokenId: string | null): string {
+    const body =
+      changes !== null && typeof changes === 'object' && !Array.isArray(changes) ? changes : {};
+    const data =
+      body.data !== null && typeof body.data === 'object' && !Array.isArray(body.data)
+        ? body.data
+        : body;
+    return typeof data.source === 'string' ? data.source : tokenId === null ? 'web' : 'api';
+  }
+
+  private record(tx: Tx, user: AuthUser, event: RecordedEvent): Promise<void> {
+    const data =
+      typeof event.data === 'object' && !Array.isArray(event.data)
+        ? (event.data as Prisma.InputJsonObject)
+        : {};
+    return this.events.record(tx, actorOf(user), {
+      ...event,
+      data: {
+        ...data,
+        source:
+          user.requestSource ??
+          (typeof data.source === 'string' ? data.source : requestSourceOf(user)),
+      },
+    });
+  }
+
   private async emitUpdated(tx: Tx, user: AuthUser, id: string): Promise<void> {
     const detail = await this.load(tx, user, id, false);
-    await this.events.record(tx, actorOf(user), {
+    await this.record(tx, user, {
       type: DomainEvent.taskUpdated,
       entityType: 'task',
       entityId: id,
@@ -2263,6 +2512,7 @@ export class TasksService {
         children: {
           where: { deletedAt: null },
           include: {
+            _count: { select: { links: true } },
             tags: { where: { tag: { deletedAt: null } }, select: { tagId: true } },
             checklist: { where: { deletedAt: null }, select: { status: true } },
           },
@@ -2293,6 +2543,8 @@ export class TasksService {
       activity: activity.map((entry) => ({
         id: entry.id,
         action: entry.action,
+        type: this.activityType(entry.changes, entry.action),
+        source: this.activitySource(entry.changes, entry.tokenId),
         changes: entry.changes,
         created_at: entry.createdAt.toISOString(),
         actor_id: entry.actorId,
@@ -2313,6 +2565,8 @@ export class TasksService {
     beforeId: string | null | undefined,
     moveToEnd: boolean | undefined,
   ): Promise<bigint> {
+    const key = `task-order:${projectId}`;
+    await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtextextended(${key}, 0))`;
     const rows = await tx.task.findMany({
       where: { ownerId, projectId, parentId, deletedAt: null },
       select: { id: true, sortOrder: true },
@@ -2528,7 +2782,7 @@ export class TasksService {
           taskId,
           trigger: normalizeReminderTrigger(explicit) ?? explicit,
           type: 'relative',
-          channel: 'push',
+          channel: defaultReminderChannel(),
         },
       });
       return;
@@ -2562,7 +2816,7 @@ export class TasksService {
         taskId,
         trigger,
         type: 'relative',
-        channel: 'push',
+        channel: defaultReminderChannel(),
       },
     });
   }
