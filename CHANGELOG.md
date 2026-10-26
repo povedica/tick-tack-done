@@ -12,6 +12,8 @@
   duración de foco y horario laboral adaptados a la UI compartida.
 - PWA (RF-13010): dependencias y aplicación en archivos separados para conservar
   el precache completo por debajo del límite de 2 MiB por recurso.
+- Seguridad: body-parser 2.4.0 y multer 2.5.0; retirada de Zod, dependencia
+  sin uso, para cerrar las alertas de auditoría de producción.
 - Validación de publicación: pruebas con datos sintéticos, compilación y contratos
   regenerados. Las referencias visuales aportadas se conservan sin reformatear;
   los perfiles y evidencias privados siguen excluidos de Git.

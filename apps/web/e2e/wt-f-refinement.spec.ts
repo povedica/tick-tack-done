@@ -427,8 +427,11 @@ test('Refinement: ordinary and zero-duration recurring drops are saved and stay 
       'aria-checked',
       'true',
     );
-    await page.locator('.plan-agenda-scroll').evaluate((node) => {
+    await page.locator('.plan-agenda-scroll').evaluate(async (node) => {
       node.scrollTop = node.scrollHeight;
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      node.scrollTop = node.scrollHeight;
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     });
     const grid = (await page.locator('[data-plan-agenda]').boundingBox())!;
     const grip = (await page.locator('.sp-grip').boundingBox())!;

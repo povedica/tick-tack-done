@@ -18,7 +18,12 @@ describe('F day planning', () => {
   const previousPort = process.env.PORT;
   const email = `wt-f-${randomUUID()}@example.test`;
   beforeAll(async () => {
-    if (!process.env.DATABASE_URL?.endsWith('/ttd_wt_f'))
+    const database = new URL(process.env.DATABASE_URL ?? '');
+    const isolatedCi =
+      process.env.CI === 'true' &&
+      database.pathname === '/reflexionia_test' &&
+      ['localhost', '127.0.0.1'].includes(database.hostname);
+    if (database.pathname !== '/ttd_wt_f' && !isolatedCi)
       throw new Error('F integration tests require the isolated ttd_wt_f database');
     const owner = await prisma.user.create({
       data: { email, displayName: 'F test', timeZone: 'Europe/Madrid' },

@@ -52,7 +52,12 @@ describe('habits API', () => {
   let other: Owner;
 
   beforeAll(async () => {
-    if (!process.env.DATABASE_URL?.endsWith('/ttd_wt_f'))
+    const database = new URL(process.env.DATABASE_URL ?? '');
+    const isolatedCi =
+      process.env.CI === 'true' &&
+      database.pathname === '/reflexionia_test' &&
+      ['localhost', '127.0.0.1'].includes(database.hostname);
+    if (database.pathname !== '/ttd_wt_f' && !isolatedCi)
       throw new Error('Habit tests require isolated ttd_wt_f');
     await prisma.$connect();
     owner = await createOwner('habits');

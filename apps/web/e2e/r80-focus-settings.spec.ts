@@ -41,7 +41,7 @@ test('TTD-AUD-101 quick presets and Settings update the stopped clock and reject
   await expect(page.getByRole('timer')).toHaveText('60:00', { timeout: 5000 });
   await page.getByRole('link', { name: 'Tiempo de Foco', exact: true }).click();
   await page.getByLabel('Duración del pomo', { exact: true }).fill('200');
-  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Guardar', exact: true })).toBeDisabled();
   expect(
     await page
       .getByLabel('Duración del pomo', { exact: true })
