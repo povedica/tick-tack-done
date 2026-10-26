@@ -1,5 +1,15 @@
 # Historial de cambios
 
+## Desarrollo local — copia de tareas
+
+- RF-1703/1705: comando `scripts/refresh-local-task-data.py` para refrescar datos
+  de tareas desde una cuenta de producción hacia la cuenta demo local. Incluye
+  listas, etiquetas y relaciones, con lectura remota estricta, backup local
+  verificado, importación transaccional e identificadores locales estables.
+- Perfil privado fuera de Git y comprobaciones que rechazan bases de producción
+  y Docker remoto como destino. No copia cuentas, credenciales, integraciones,
+  hábitos, calendarios ni archivos binarios de adjuntos.
+
 ## Sin publicar — ajustes visuales PR77
 
 - Captura (RF-101/102/107, RF-802): reconocimiento de fechas y etiquetas,
