@@ -4,6 +4,7 @@ import { closingRequest } from '../closing/api';
 import { PlanDayPage } from './PlanDayPage';
 
 export interface PlanStatus {
+  readonly time_zone?: string;
   readonly initial_applied_at: string | null;
   readonly last_applied_at: string | null;
   readonly adjustment_count: number;
