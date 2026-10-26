@@ -19,7 +19,11 @@ export function WhenSheet({
   onConfirm,
   days,
   anchor,
+  busy = false,
+  error,
 }: {
+  readonly busy?: boolean;
+  readonly error?: string | null;
   readonly date: string;
   readonly time: string;
   readonly duration: number;
@@ -45,13 +49,13 @@ export function WhenSheet({
     <Popover
       open
       label={m.when}
+      closeLabel={m.close}
       onClose={onClose}
       mobileSheet
       anchor={anchor}
       width={390}
       className="popover plan-when-popover"
     >
-      <h2>{m.when}</h2>
       <div className="plan-when">
         {days}
         <Button
@@ -62,13 +66,12 @@ export function WhenSheet({
         >
           {m.chooseDate}
         </Button>
-        <label>{m.time}</label>
         <TimeSelect value={time} slots={slots} onChange={onTime} />
-        <label>{m.duration}</label>
         <DurationChips value={duration} onChange={onDuration} />
+        {error ? <p role="alert">{error}</p> : null}
         <Button
           variant="primary"
-          disabled={time !== '' && !slots.includes(time)}
+          disabled={busy || (time !== '' && !slots.includes(time))}
           onClick={onConfirm}
         >
           {m.schedule} {label}
@@ -87,6 +90,7 @@ export function WhenSheet({
             repeatRule: null,
           }}
           mode="date-only"
+          closeLabel={m.close}
           timeZone="UTC"
           onClose={() => {
             setCalendar(false);

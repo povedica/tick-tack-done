@@ -6799,6 +6799,54 @@
         ]
       }
     },
+    "/api/v1/planning/sessions/{id}/schedule/{taskId}": {
+      "post": {
+        "description": "Requires Idempotency-Key. Returns the updated draft session, committed_task_ids and operation_id for undo. Accepts action=move with date, optional time and duration. Free slots span 00:00–24:00, including weekends.",
+        "operationId": "PlanningController_schedule",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Schedule one configured task immediately; keep other decisions in draft",
+        "tags": [
+          "planning"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/planning/operations/{id}/revert": {
       "post": {
         "operationId": "PlanningController_revert",
@@ -15909,6 +15957,17 @@
       "HabitResponseDto": {
         "type": "object",
         "properties": {
+          "unit": {
+            "type": "string",
+            "nullable": true
+          },
+          "start_date": {
+            "type": "string",
+            "nullable": true
+          },
+          "paused": {
+            "type": "boolean"
+          },
           "challenge_days": {
             "type": "number",
             "nullable": true
@@ -15970,6 +16029,9 @@
           }
         },
         "required": [
+          "unit",
+          "start_date",
+          "paused",
           "challenge_days",
           "id",
           "name",
@@ -16008,6 +16070,19 @@
       "CreateHabitDto": {
         "type": "object",
         "properties": {
+          "unit": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 32
+          },
+          "start_date": {
+            "type": "string",
+            "nullable": true,
+            "example": "2026-10-26"
+          },
+          "paused": {
+            "type": "boolean"
+          },
           "challenge_days": {
             "type": "number",
             "nullable": true,
@@ -16258,6 +16333,19 @@
       "UpdateHabitDto": {
         "type": "object",
         "properties": {
+          "unit": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 32
+          },
+          "start_date": {
+            "type": "string",
+            "nullable": true,
+            "example": "2026-10-26"
+          },
+          "paused": {
+            "type": "boolean"
+          },
           "challenge_days": {
             "type": "number",
             "nullable": true,

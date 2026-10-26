@@ -418,3 +418,21 @@ Reglas clave:
 - En la PR, recorre cada criterio de aceptación con ✅/❌ y evidencia.
 - KISS. No inventes datos: lo que no reproduzcas, anótalo como «a verificar» con evidencia.
 ```
+
+## Refinamiento local · Modal del día centrado · 26/10/2026
+
+Pablo sustituye expresamente la posición anclada prevista en TTD-AUD-130 por una ventana centrada en escritorio al abrir una celda o «+N más». Se mantiene la hoja inferior en móvil. Mes y año («Octubre 2026») comparten una única cabecera con el cierre circular; el día y la semana siguen identificados en el contenido, sin repetir el mes. Anchura de hasta 640 px y altura limitada al viewport, cierre por Escape o fondo y devolución del foco al disparador. Se reutiliza `Popover` con una opción `centered` que no altera sus otros usos. Referencia RF-1101 y TTD-AUD-130. Verificación con fixture sintética en escritorio y móvil, claro y oscuro; sin cambios de API ni datos.
+
+### Refinamiento del detalle diario del mes — 26/10/2026
+
+Petición de Pablo, exclusivamente UI web, referencias RF-1101 y TTD-AUD-130/107. `DayDetails` sustituye la agenda reutilizada en el popup por una composición propia, sin modificar la vista Agenda ni los datos persistidos: cabecera en una línea («jueves 29 octubre»), cierre discreto de 32 px, Escape y devolución del foco. Superficie neutra con borde/sombra, sin el fondo tintado anterior. Se mantiene centrado en escritorio y hoja inferior en móvil.
+
+Dos grupos: «Todo el día» y «Con hora». Checkbox alineado al mismo eje en ambos; columna de hora fija solo en el segundo, orden cronológico. Las tareas conservan el indicador de prioridad estándar `CalendarTaskMark`. Título principal y metadatos secundarios con lista pequeña y `TagChip` gris reducido. Los hashtags del título se extraen únicamente al renderizar y se deduplican con las etiquetas asociadas; no se reescriben los títulos ni se crean etiquetas. Los eventos externos usan icono de calendario y no muestran checkbox; los de medianoche aparecen sin «00:00» en Todo el día.
+
+Cabecera y pie fijos; scroll exclusivamente en el listado. El pie «Añadir tarea a este día» crea con Enter mediante el endpoint público existente, lista contextual o bandeja de entrada, fecha seleccionada y zona del perfil; conserva el texto ante un error e idempotencia por intento. No usa IA ni envía `raw_text`. El mes admite como máximo tres chips visibles por celda, incluyendo barras de eventos, y muestra el resto mediante «+N más»; los puntos de móvil se limitan también a tres.
+
+Pruebas visuales sintéticas nuevas con 1, 6 y 20 elementos: cabecera, limpieza de hashtags, tags reales, prioridad, orden, distinción de eventos, alineación, scroll interno, Enter y cierre con Escape. Capturas `test-artifacts/audit/evidencias/wt-a/day_detail_{1,6,20}_wt-a-*.png` en 360 claro, 390 oscuro, 768 claro y 1280 claro, revisadas visualmente. La prueba de overflow sustituye su antigua exigencia de fondo tintado por el borde de separación, conforme a la petición actual. Tipos/lint web y 256 unitarios correctos. No se modifica la API ni se realizan pruebas sobre los datos de trabajo.
+
+Validación final ampliada: capturas también en 1280 oscuro; límite de tres chips comprobado tras la carga de datos. Lint y tipos del monorepo correctos; 890 unitarios correctos (dominio 341, SDK 11, API 282, web 256). Medianoche se detecta con la hora numérica de la zona del perfil, independiente del idioma.
+
+Refinamiento posterior de Pablo: se recupera la composición visual de Agenda dentro del popup, con número de día/semana en un lateral, hora antes del checkbox, tipografía de fila normal y marca vertical con el color de la lista. Se mantienen tags, grupos, pie para añadir y scroll interno. Verificación con 1/6/20 elementos en escritorio claro y móvil oscuro. Esta petición actual sustituye la composición anterior de tarjeta con título destacado en cada fila.

@@ -1,11 +1,20 @@
+import { useActionToast } from '../../../components/action-toast';
+import { useWtFMessages } from '../i18n-wt-f';
 import { runAction } from '../../../components/run-action';
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../../../api';
-import { planningRequest, type Choice, type PlanSession, type LoadRange } from '../api';
+import {
+  planningRequest,
+  type Choice,
+  type PlanSession,
+  type LoadRange,
+  type PlanCard,
+} from '../api';
 import { shiftCivilDate, type PlanningAction, type PlanSources } from '@reflexionia/domain';
 export function useTriageSession() {
   const cache = useQueryClient();
+  const m = useWtFMessages();
   const [session, setSession] = useState<PlanSession | null>(null);
   const [load, setLoad] = useState<LoadRange | null>(null);
   const [index, setIndex] = useState(0);
@@ -24,7 +33,7 @@ export function useTriageSession() {
     undated: false,
   });
   const [history, setHistory] = useState<
-    { taskId: string; previous: Choice | undefined; index: number }[]
+    { taskId: string; previous: Choice | undefined; index: number; operationId?: string }[]
   >([]);
   const initial = useRef<Promise<{
     session: PlanSession;
@@ -125,8 +134,30 @@ export function useTriageSession() {
   }, []);
   const card = session?.cards[index];
   const chosen = session?.decisions.find((d) => d.task_id === card?.task_id);
-  async function decide(choice: PlanningAction, taskId = card?.task_id) {
-    if (!session || !taskId || busy) return;
+  function keepOrder(next: PlanSession): PlanSession {
+    if (!session) return next;
+    const previousIds = new Set(session.cards.map((c) => c.task_id));
+    return {
+      ...next,
+      cards: [
+        ...session.cards.flatMap((old) => {
+          const fresh = next.cards.find((c) => c.task_id === old.task_id);
+          return fresh ? [fresh] : [];
+        }),
+        ...next.cards.filter((c) => !previousIds.has(c.task_id)),
+      ],
+    };
+  }
+  const scheduleKeys = useRef(new Map<string, string>());
+  async function decide(choice: PlanningAction, taskId = card?.task_id, immediately = false) {
+    if (
+      !session ||
+      !taskId ||
+      busy ||
+      session.decisions.some((d) => d.task_id === taskId && d.action === 'done') ||
+      session.committed_task_ids?.includes(taskId)
+    )
+      return false;
     setBusy(true);
     setError(null);
     try {
@@ -138,25 +169,46 @@ export function useTriageSession() {
           { task_id: taskId, ...choice },
         ],
       });
-      const next = await planningRequest<PlanSession>(
-        `/api/v1/planning/sessions/${session.id}/decisions/${taskId}`,
-        'PUT',
-        choice,
+      const requestId = `${session.id}:${taskId}:${JSON.stringify(choice)}`;
+      let key = scheduleKeys.current.get(requestId);
+      if (immediately && !key) {
+        key = crypto.randomUUID();
+        scheduleKeys.current.set(requestId, key);
+      }
+      const next = keepOrder(
+        await planningRequest<PlanSession>(
+          `/api/v1/planning/sessions/${session.id}/${immediately ? 'schedule' : 'decisions'}/${taskId}`,
+          immediately ? 'POST' : 'PUT',
+          choice,
+          immediately ? key : undefined,
+        ),
       );
+      if (immediately) await cache.invalidateQueries();
       setHistory((h) => [
         ...h,
-        { taskId, previous, index: session.cards.findIndex((c) => c.task_id === taskId) },
+        {
+          taskId,
+          previous,
+          index: session.cards.findIndex((c) => c.task_id === taskId),
+          ...(next.operation_id ? { operationId: next.operation_id } : {}),
+        },
       ]);
       setSession(next);
       setNotice(taskId);
-      const nextIndex = session.cards.findIndex(
+      let nextIndex = session.cards.findIndex(
         (c, i) => i > index && !next.decisions.some((d) => d.task_id === c.task_id),
       );
+      if (nextIndex < 0)
+        nextIndex = session.cards.findIndex(
+          (c) => !next.decisions.some((d) => d.task_id === c.task_id),
+        );
       if (nextIndex < 0) setReview(true);
       else setIndex(nextIndex);
+      return true;
     } catch (reason) {
       setSession(session);
       setError(String(reason));
+      return false;
     } finally {
       setBusy(false);
     }
@@ -166,17 +218,26 @@ export function useTriageSession() {
     if (!last || !session || busy) return;
     setBusy(true);
     try {
-      const next = await planningRequest<PlanSession>(
-        `/api/v1/planning/sessions/${session.id}/decisions/${last.taskId}`,
-        last.previous ? 'PUT' : 'DELETE',
-        last.previous
-          ? {
-              action: last.previous.action,
-              ...(last.previous.date ? { date: last.previous.date } : {}),
-              ...(last.previous.time ? { time: last.previous.time } : {}),
-              ...(last.previous.duration ? { duration: last.previous.duration } : {}),
-            }
-          : undefined,
+      if (last.operationId) {
+        await planningRequest(`/api/v1/planning/operations/${last.operationId}/revert`, 'POST');
+        scheduleKeys.current.clear();
+        await cache.invalidateQueries();
+      }
+      const next = keepOrder(
+        last.operationId
+          ? await planningRequest<PlanSession>(`/api/v1/planning/sessions/${session.id}`, 'GET')
+          : await planningRequest<PlanSession>(
+              `/api/v1/planning/sessions/${session.id}/decisions/${last.taskId}`,
+              last.previous ? 'PUT' : 'DELETE',
+              last.previous
+                ? {
+                    action: last.previous.action,
+                    ...(last.previous.date ? { date: last.previous.date } : {}),
+                    ...(last.previous.time ? { time: last.previous.time } : {}),
+                    ...(last.previous.duration ? { duration: last.previous.duration } : {}),
+                  }
+                : undefined,
+            ),
       );
       setSession(next);
       setHistory((h) => h.slice(0, -1));
@@ -190,10 +251,25 @@ export function useTriageSession() {
       setBusy(false);
     }
   }
-  function navigate(delta: number) {
-    if (!session) return;
+  function navigationIndex(delta: number, pendingOnly = false) {
+    if (!session) return -1;
+    for (let i = index + delta; i >= 0 && i < session.cards.length; i += delta) {
+      const choice = session.decisions.find((d) => d.task_id === session.cards[i]?.task_id);
+      if (
+        !session.committed_task_ids?.includes(session.cards[i]?.task_id ?? '') &&
+        (!choice || choice.action === 'skip') &&
+        (!pendingOnly || !choice)
+      )
+        return i;
+    }
+    return -1;
+  }
+  function navigate(delta: number, pendingOnly = false) {
+    if (busy) return;
+    const next = navigationIndex(delta, pendingOnly);
+    if (next < 0) return;
     setReview(false);
-    setIndex((i) => Math.max(0, Math.min(session.cards.length - 1, i + delta)));
+    setIndex(next);
   }
   async function addSource(key: 'inbox' | 'undated') {
     if (!session || busy) return;
@@ -208,6 +284,35 @@ export function useTriageSession() {
       setSession(next);
       setSources(nextSources);
       localStorage.setItem(`ttd.planDefaults.${owner}`, JSON.stringify(nextSources));
+    } catch (reason) {
+      setError(String(reason));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function editCard(
+    taskId: string,
+    change: { priority?: PlanCard['priority']; projectId?: string; repeatRule?: string | null },
+  ) {
+    if (!session || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      if (change.projectId) await api.moveTask(taskId, change.projectId);
+      else
+        await api.patchTask(taskId, {
+          ...(change.priority !== undefined ? { priority: change.priority } : {}),
+          ...(change.repeatRule !== undefined ? { repeat_rule: change.repeatRule } : {}),
+        });
+      // Refresh server snapshots too, so a deliberate edit does not become a plan conflict.
+      const next = await planningRequest<PlanSession>('/api/v1/planning/sessions', 'POST', {
+        local_date: session.local_date,
+        time_zone: session.time_zone,
+        ...sources,
+      });
+      setSession(keepOrder(next));
+      useActionToast.getState().show(m.metadataSaved);
+      await cache.invalidateQueries();
     } catch (reason) {
       setError(String(reason));
     } finally {
@@ -267,8 +372,11 @@ export function useTriageSession() {
     sources,
     history,
     decide,
+    editCard,
     undo,
     navigate,
+    previousPending: navigationIndex(-1, true),
+    nextPending: navigationIndex(1, true),
     setIndex,
     addSource,
     apply,

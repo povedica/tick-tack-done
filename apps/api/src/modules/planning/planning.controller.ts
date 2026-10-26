@@ -222,6 +222,48 @@ export class PlanningController {
     );
   }
 
+  @Post('sessions/:id/schedule/:taskId')
+  @Scopes('tasks:write')
+  @ApiOperation({
+    summary: 'Schedule one configured task immediately; keep other decisions in draft',
+    description:
+      'Requires Idempotency-Key. Returns the updated draft session, committed_task_ids and operation_id for undo. Accepts action=move with date, optional time and duration. Free slots span 00:00–24:00, including weekends.',
+  })
+  async schedule(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('taskId', ParseUUIDPipe) taskId: string,
+    @Body() body: DecisionDto,
+    @Headers('idempotency-key') key: string | undefined,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    if (body.action !== 'move' || !body.date)
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'validation_failed',
+        'action=move and date are required',
+      );
+    respondJson(
+      req,
+      res,
+      200,
+      await this.planning.schedule(
+        user,
+        id,
+        taskId,
+        {
+          action: 'move',
+          date: body.date,
+          ...(body.time === undefined ? {} : { time: body.time }),
+          ...(body.duration === undefined ? {} : { duration: body.duration }),
+        },
+        key,
+      ),
+      false,
+    );
+  }
+
   @Delete('sessions/:id/decisions/:taskId')
   @Scopes('tasks:write')
   @ApiOperation({ summary: 'Remove one planning decision' })

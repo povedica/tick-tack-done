@@ -13,12 +13,14 @@ export function PeriodNavigator({
   onPick,
   className = 'calendar-period',
   label,
+  displayLabel,
 }: {
   readonly title: string;
   readonly date: Date;
   readonly onPick: (date: Date) => void;
   readonly className?: string;
   readonly label?: string;
+  readonly displayLabel?: string;
 }) {
   const locale = useAppLocale();
   const [open, setOpen] = useState(false);
@@ -36,7 +38,7 @@ export function PeriodNavigator({
           setOpen(true);
         }}
       >
-        <span>{formatPeriodDate(date, locale)}</span>
+        <span>{displayLabel ?? formatPeriodDate(date, locale)}</span>
         <ChevronDown size={14} aria-hidden="true" />
       </button>
       <DatePopover

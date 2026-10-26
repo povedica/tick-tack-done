@@ -4,6 +4,8 @@ import { createHash, randomBytes } from 'node:crypto';
 import type { Prisma, ReminderDeliveryKind } from '@prisma/client';
 import {
   NOTIFICATION_CHANNELS,
+  readStoredHabit,
+  calendarDate,
   notificationDefault,
   notificationQuietUntil,
   type NotificationChannel,
@@ -41,6 +43,27 @@ export async function deliverNotification(
       ? row.payload
       : {};
   const kind = typeof payload.habit_id === 'string' ? 'habit' : row.kind;
+  if (kind === 'habit' && typeof payload.habit_id === 'string') {
+    const habit = await prisma.habit.findFirst({
+      where: { id: payload.habit_id, ownerId: row.ownerId, deletedAt: null },
+    });
+    const config = habit ? readStoredHabit(habit.goal, habit.frequency, habit.reminderTime) : null;
+    const date = calendarDate(now.toISOString(), owner.timeZone) ?? '';
+    if (
+      !habit ||
+      habit.archived ||
+      !config ||
+      config.paused ||
+      (config.startDate && date < config.startDate)
+    )
+      return {
+        email: 'skipped',
+        push: 'skipped',
+        telegram: 'skipped',
+        telegram_message_id: null,
+        retry_after_seconds: null,
+      };
+  }
   const telegram = await telegramState(prisma, row.ownerId);
   const link = telegram.link;
   const linked = telegram.linked;

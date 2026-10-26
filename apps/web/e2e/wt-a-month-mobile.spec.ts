@@ -20,9 +20,9 @@ test('RF-1101 TTD-AUD-107: compact month uses dots and opens complete day titles
   await expect(bar).toBeVisible();
   expect((await bar.boundingBox())!.height).toBe(3);
   expect(await bar.evaluate((e) => getComputedStyle(e).fontSize)).toBe('0px');
-  await expect(page.locator('[data-day="2026-10-29"] .cal-dots i')).toHaveCount(4);
+  await expect(page.locator('[data-day="2026-10-29"] .cal-dots i')).toHaveCount(3);
   await page.locator('[data-day="2026-10-27"] > strong button').click();
-  await expect(page.locator('.calendar-day-popover .agenda-card')).toHaveCount(3);
+  await expect(page.locator('.calendar-day-popover .calendar-day-event')).toHaveCount(3);
   await page.keyboard.press('Escape');
   await page.locator('[data-day="2026-10-29"] > strong button').click();
   await expect(page.locator('.calendar-day-popover a.agenda-card')).toHaveCount(6);

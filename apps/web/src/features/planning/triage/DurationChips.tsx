@@ -9,11 +9,13 @@ export function DurationChips({
   readonly onChange: (n: number) => void;
 }) {
   const m = useWtFMessages();
-  const [custom, setCustom] = useState(![15, 30, 45, 60].includes(value));
+  const [custom, setCustom] = useState(false);
+  const isCustom = custom || ![15, 30, 60].includes(value);
   return (
     <div className="sp-dur" role="radiogroup" aria-label={m.duration}>
       <Clock size={15} />
-      {[15, 30, 45, 60].map((n) => (
+      <span className="plan-duration-label">{m.duration}:</span>
+      {[15, 30, 60].map((n) => (
         <button
           type="button"
           role="radio"
@@ -31,15 +33,15 @@ export function DurationChips({
       <button
         type="button"
         role="radio"
-        aria-checked={custom}
-        className={`sp-chip ${custom ? 'is-on' : ''}`}
+        aria-checked={isCustom}
+        className={`sp-chip ${isCustom ? 'is-on' : ''}`}
         onClick={() => {
           setCustom(true);
         }}
       >
         {m.other}
       </button>
-      {custom ? (
+      {isCustom ? (
         <input
           aria-label={m.customDuration}
           type="number"

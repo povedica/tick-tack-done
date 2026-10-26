@@ -14,7 +14,8 @@ export function TimeSelect({
   const [custom, setCustom] = useState(false);
   return (
     <div className="sp-time">
-      <Clock size={15} />
+      <Clock size={15} aria-hidden="true" />
+      <span className="plan-time-label">{m.timeLabel}:</span>
       <select
         aria-label={m.time}
         className="sp-chip"
@@ -27,7 +28,7 @@ export function TimeSelect({
           }
         }}
       >
-        <option value="">{m.noTime} ▾</option>
+        <option value="">{m.noTime}</option>
         {slots.map((s) => (
           <option key={s}>{s}</option>
         ))}

@@ -4,6 +4,7 @@ import {
   assessCheckIn,
   calendarDate,
   habitStats,
+  habitAvailabilityHistory,
   nextHabitReminder,
   normalizeHabitDraft,
   readStoredHabit,
@@ -470,5 +471,109 @@ describe('RF-1303 historical schedules', () => {
       scheduled: 1,
       met: 1,
     });
+  });
+});
+
+describe('habit availability', () => {
+  const goal = { timesPerPeriod: 1, period: 'day' as const, targetCount: 1 };
+  it('keeps days before the chosen start inactive and refuses an invalid date', () => {
+    const history = habitAvailabilityHistory({
+      history: [],
+      goal,
+      days: WEEK,
+      from: '2026-10-17',
+      startDate: '2026-10-17',
+      paused: false,
+    });
+    const stats = habitStats({
+      goal,
+      days: WEEK,
+      history,
+      logs: [],
+      timeZone: MADRID,
+      now: NOW,
+      year: 2026,
+    });
+    expect(stats?.heatmap.find((c) => c.date === '2026-10-16')?.scheduled).toBe(false);
+    expect(stats?.heatmap.find((c) => c.date === '2026-10-17')?.scheduled).toBe(true);
+    expect(() =>
+      habitAvailabilityHistory({
+        history: [],
+        goal,
+        days: WEEK,
+        from: '2026-10-17',
+        startDate: '2026-02-31',
+        paused: false,
+      }),
+    ).toThrow('invalid_start_date');
+  });
+  it('skips paused days and preserves a streak when resuming', () => {
+    let history = habitAvailabilityHistory({
+      history: [],
+      goal,
+      days: WEEK,
+      from: '2026-10-14',
+      startDate: '2026-10-14',
+      paused: false,
+    });
+    history = habitAvailabilityHistory({
+      history,
+      goal,
+      days: WEEK,
+      from: '2026-10-16',
+      startDate: '2026-10-14',
+      paused: true,
+    });
+    history = habitAvailabilityHistory({
+      history,
+      goal,
+      days: WEEK,
+      from: '2026-10-17',
+      startDate: '2026-10-14',
+      paused: false,
+    });
+    const stats = habitStats({
+      goal,
+      days: WEEK,
+      history,
+      logs: [
+        { date: '2026-10-14', count: 1 },
+        { date: '2026-10-15', count: 1 },
+        { date: '2026-10-17', count: 1 },
+      ],
+      timeZone: MADRID,
+      now: NOW,
+      year: 2026,
+    });
+    expect(stats?.streakCurrent).toBe(3);
+    expect(stats?.heatmap.find((c) => c.date === '2026-10-16')?.scheduled).toBe(false);
+  });
+  it('reads inactive history and new optional fields without altering legacy goals', () => {
+    const history = habitAvailabilityHistory({
+      history: [],
+      goal,
+      days: WEEK,
+      from: '2026-10-17',
+      startDate: '2026-10-17',
+      paused: false,
+    });
+    const stored = readStoredHabit(
+      {
+        period: 'day',
+        times_per_period: 1,
+        target_count: 1,
+        unit: 'vasos',
+        start_date: '2026-10-17',
+        paused: false,
+        schedule_history: history,
+      },
+      WEEK,
+      null,
+    );
+    expect(stored?.history?.[1]?.days).toEqual([]);
+    expect(stored).toMatchObject({ unit: 'vasos', startDate: '2026-10-17', paused: false });
+    expect(
+      readStoredHabit({ period: 'day', times_per_period: 1, target_count: 1 }, WEEK, null)?.goal,
+    ).toEqual(goal);
   });
 });

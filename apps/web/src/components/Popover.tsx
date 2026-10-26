@@ -7,8 +7,9 @@ import {
   type RefObject,
   type CSSProperties,
 } from 'react';
+import { X } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { bindPopover, dismissPopover } from './popover-stack';
+import { bindPopover, dismissPopover, isTopPopover } from './popover-stack';
 
 export function Popover({
   open,
@@ -24,7 +25,11 @@ export function Popover({
   mobileSheetMaxWidth = 768,
   sheetHeader,
   sheetFooter,
+  closeLabel,
+  centered = false,
+  initialFocus,
 }: {
+  readonly initialFocus?: RefObject<HTMLElement | null>;
   readonly open: boolean;
   readonly label: string;
   readonly onClose: () => void;
@@ -39,6 +44,8 @@ export function Popover({
   readonly mobileSheetMaxWidth?: number;
   readonly sheetHeader?: ReactNode;
   readonly sheetFooter?: ReactNode;
+  readonly closeLabel?: string | undefined;
+  readonly centered?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const touchStart = useRef<number | null>(null);
@@ -49,7 +56,7 @@ export function Popover({
       setPosition(null);
       return;
     }
-    if (!anchor && !mobileSheet) return;
+    if (!anchor && !mobileSheet && !centered) return;
     function place() {
       const target = anchor?.current;
       const node = ref.current;
@@ -72,10 +79,23 @@ export function Popover({
           maxWidth: viewWidth,
           maxHeight: `min(var(--sheet-max-h-mobile), ${String(viewHeight)}px)`,
           zIndex: 2000,
-          overflow: sheetHeader || sheetFooter ? 'hidden' : 'auto',
-          ...(sheetHeader || sheetFooter
+          overflow: sheetHeader || sheetFooter || closeLabel ? 'hidden' : 'auto',
+          ...(sheetHeader || sheetFooter || closeLabel
             ? { display: 'flex', flexDirection: 'column' as const }
             : {}),
+        });
+        return;
+      }
+      if (centered) {
+        setPosition({
+          position: 'fixed',
+          top: viewTop + viewHeight / 2,
+          left: viewLeft + viewWidth / 2,
+          transform: 'translate(-50%, -50%)',
+          width: Math.min(widthProp ?? 640, viewWidth - 32),
+          maxHeight: `min(${String(viewHeight - 32)}px, var(--popover-height-limit, 80dvh))`,
+          zIndex: 2000,
+          overflow: 'auto',
         });
         return;
       }
@@ -140,22 +160,26 @@ export function Popover({
     mobileSheetMaxWidth,
     sheetHeader,
     sheetFooter,
+    closeLabel,
+    centered,
   ]);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+  const closeSelf = useRef(() => {
+    closeRef.current();
+  });
   useEffect(() => {
     if (!open) {
       return;
     }
-    return bindPopover(() => {
-      closeRef.current();
-    });
+    return bindPopover(closeSelf.current);
   }, [open]);
   useEffect(() => {
     if (!open) {
       return;
     }
     function onKey(event: KeyboardEvent): void {
+      if (!isTopPopover(closeSelf.current)) return;
       const node = ref.current;
       if (
         node?.contains(document.activeElement) &&
@@ -215,6 +239,7 @@ export function Popover({
       dismissPopover();
     }
     function onPointer(event: MouseEvent): void {
+      if (!isTopPopover(closeSelf.current)) return;
       const node = ref.current;
       if (
         node === null ||
@@ -233,18 +258,19 @@ export function Popover({
       document.removeEventListener('mousedown', onPointer);
     };
   }, [onClose, open, anchor]);
+  const focusReady = initialFocus === undefined || position !== null;
   useEffect(() => {
-    if (!open || ref.current === null) return;
+    if (!open || ref.current === null || !focusReady) return;
     const previous = document.activeElement;
     const first = ref.current.querySelector<HTMLElement>(
       'button:not(:disabled), input:not(:disabled), [tabindex="0"]',
     );
-    (first ?? ref.current).focus();
+    (initialFocus?.current ?? first ?? ref.current).focus();
     return () => {
       if (anchor?.current?.isConnected) anchor.current.focus();
       else if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
     };
-  }, [open, anchor]);
+  }, [open, anchor, initialFocus, focusReady]);
   useEffect(() => {
     const node = ref.current;
     if (!open || node === null) {
@@ -267,7 +293,7 @@ export function Popover({
   const content = (
     <div
       style={
-        anchor || sheet
+        anchor || sheet || centered
           ? (position ?? {
               position: 'fixed',
               top: 0,
@@ -305,7 +331,15 @@ export function Popover({
           }}
         />
       ) : null}
-      {sheet && (sheetHeader || sheetFooter) ? (
+      {closeLabel ? (
+        <div className="popover-heading">
+          <h2>{label}</h2>
+          <button type="button" className="popover-close" aria-label={closeLabel} onClick={onClose}>
+            <X size={18} aria-hidden="true" />
+          </button>
+        </div>
+      ) : null}
+      {sheet && (sheetHeader || sheetFooter || closeLabel) ? (
         <>
           {sheetHeader ? <div className="sheet-header">{sheetHeader}</div> : null}
           <div className="sheet-body">{children}</div>
@@ -319,13 +353,14 @@ export function Popover({
       )}
     </div>
   );
-  const result = sheet ? (
-    <>
-      <div className="date-sheet-backdrop" aria-hidden="true" onClick={onClose} />
-      {content}
-    </>
-  ) : (
-    content
-  );
-  return anchor || sheet ? createPortal(result, document.body) : result;
+  const result =
+    sheet || centered ? (
+      <>
+        <div className="date-sheet-backdrop" aria-hidden="true" onClick={onClose} />
+        {content}
+      </>
+    ) : (
+      content
+    );
+  return anchor || sheet || centered ? createPortal(result, document.body) : result;
 }

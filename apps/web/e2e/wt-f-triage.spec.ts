@@ -43,9 +43,10 @@ test('F-AC-8/9/23: date sheet offers free quarter-hour slots and chosen duration
   await page.keyboard.press('o');
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
-  await dialog.getByRole('tab', { name: /Mañana/ }).click();
+  await dialog.getByRole('tab', { name: /mar 27/ }).click();
   await dialog.getByRole('combobox', { name: 'Hora (opcional)' }).selectOption('09:30');
-  await dialog.getByRole('radio', { name: '45 min', exact: true }).click();
+  await dialog.getByRole('radio', { name: 'Otra', exact: true }).click();
+  await dialog.getByRole('spinbutton').fill('45');
   await page.screenshot({
     path: `../../test-artifacts/audit/evidencias/wt-f/M7_cuando_despues_${info.project.name}.png`,
     fullPage: true,
@@ -93,7 +94,7 @@ test('F-AC-15: dragging to tomorrow at 09:30 records the same move action', asyn
   await expect(page.locator('#plan-task-title')).toBeVisible();
   await page
     .locator('.plan-day-sidebar')
-    .getByRole('tab', { name: /Mañana/ })
+    .getByRole('tab', { name: /mar 27/ })
     .click();
   const handle = await page.locator('.sp-grip').boundingBox(),
     agenda = await page.locator('[data-plan-agenda]').boundingBox();
@@ -101,7 +102,7 @@ test('F-AC-15: dragging to tomorrow at 09:30 records the same move action', asyn
   expect(agenda).not.toBeNull();
   await page.mouse.move(handle!.x + 8, handle!.y + 8);
   await page.mouse.down();
-  await page.mouse.move(agenda!.x + 50, agenda!.y + agenda!.height / 18, { steps: 12 });
+  await page.mouse.move(agenda!.x + 50, agenda!.y + (agenda!.height * 9.5) / 24, { steps: 12 });
   await expect(page.locator('.sp-blk.is-ghost')).toContainText('09:30');
   await page.screenshot({
     path: `../../test-artifacts/audit/evidencias/wt-f/M13_arrastre_despues_${info.project.name}.png`,
@@ -180,7 +181,7 @@ test('F-AC-27: axe has no serious or critical WCAG violations in triage', async 
   expect(violations).toEqual([]);
 });
 
-test('F-AC-7/17/18: all closure shortcuts, editable previous card and global navigation survive', async ({
+test('F-AC-7/17/18: all closure shortcuts, decided cards stay locked and global navigation survive', async ({
   page,
 }, info) => {
   const fixture = await wtFFixture(page);
@@ -198,7 +199,9 @@ test('F-AC-7/17/18: all closure shortcuts, editable previous card and global nav
   }
   await expect(page.locator('#plan-task-title')).toHaveText(fixture.cards[5]!.title);
   await page.keyboard.press('ArrowLeft');
-  await expect(page.locator('.plan-prior-choice')).toContainText('Hecha');
+  await expect(page.locator('#plan-task-title')).toHaveText(fixture.cards[5]!.title);
+  await page.keyboard.press('Control+z');
+  await expect(page.locator('#plan-task-title')).toHaveText(fixture.cards[4]!.title);
   await page.keyboard.press('h');
   await expect
     .poll(() => fixture.decisions.find((d) => d.task_id === fixture.cards[4]!.task_id)?.action)
@@ -249,7 +252,7 @@ test('F-AC-24: a mobile swipe navigates without deciding and long press exposes 
   await expect(page.locator('.plan-touch-destinations')).toBeVisible();
   const chip = await page
     .locator('.plan-touch-destinations')
-    .getByRole('tab', { name: /Mañana/ })
+    .getByRole('tab', { name: /mar 27/ })
     .boundingBox();
   expect(chip).not.toBeNull();
   await page.evaluate((box) => {
@@ -336,7 +339,7 @@ test('F-AC-15: queue drag rejects an overlapping event and can move to a day chi
     agenda = await page.locator('[data-plan-agenda]').boundingBox();
   await page.mouse.move(box!.x + 30, box!.y + 10);
   await page.mouse.down();
-  await page.mouse.move(agenda!.x + 70, agenda!.y + 5, { steps: 12 });
+  await page.mouse.move(agenda!.x + 70, agenda!.y + (agenda!.height * 9) / 24 + 2, { steps: 12 });
   await expect(page.locator('.sp-blk.is-ghost')).toContainText('Daily del equipo');
   await page.mouse.up();
   expect(fixture.decisions).toHaveLength(0);

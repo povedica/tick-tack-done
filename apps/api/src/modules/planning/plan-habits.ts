@@ -43,6 +43,8 @@ export async function habitCards(
     const config = readStoredHabit(habit.goal, habit.frequency, habit.reminderTime);
     if (
       !config ||
+      config.paused ||
+      (config.startDate != null && date < config.startDate) ||
       !weekday ||
       !config.days.includes(weekday) ||
       removed.has(habit.id) ||

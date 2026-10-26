@@ -32,14 +32,14 @@ test('TTD-AUD-101 quick presets and Settings update the stopped clock and reject
   expect(Math.abs((await preset.boundingBox())!.height - 28)).toBeLessThanOrEqual(1);
   await preset.click();
   await expect(page.getByRole('timer')).toHaveText('15:00');
-  await page.getByRole('link', { name: 'Ajustes de Foco', exact: true }).click();
+  await page.getByRole('link', { name: 'Tiempo de Foco', exact: true }).click();
   await page.getByLabel('Duración del pomo', { exact: true }).fill('45');
   await page.getByRole('button', { name: 'Guardar', exact: true }).click();
   await page.goto('/focus');
   await expect(page.getByRole('timer')).toHaveText('45:00');
   settings = { ...settings, pomodoroMinutes: 60 };
   await expect(page.getByRole('timer')).toHaveText('60:00', { timeout: 5000 });
-  await page.getByRole('link', { name: 'Ajustes de Foco', exact: true }).click();
+  await page.getByRole('link', { name: 'Tiempo de Foco', exact: true }).click();
   await page.getByLabel('Duración del pomo', { exact: true }).fill('200');
   await page.getByRole('button', { name: 'Guardar', exact: true }).click();
   expect(

@@ -59,6 +59,9 @@ export interface HabitHistory {
   readonly days: readonly HabitWeekday[];
 }
 export interface NormalizedHabit {
+  readonly startDate?: string | null;
+  readonly unit?: string | null;
+  readonly paused?: boolean;
   readonly history?: readonly HabitHistory[];
 
   readonly goal: HabitGoal;
@@ -79,7 +82,7 @@ interface Model {
   readonly today: string;
 }
 
-type WeekState = 'met' | 'open' | 'missed';
+type WeekState = 'met' | 'open' | 'missed' | 'inactive';
 
 /** Local calendar date (`YYYY-MM-DD`) for an instant in an IANA zone. */
 export function calendarDate(now: string, timeZone: string): string | null {
@@ -180,9 +183,10 @@ export function readStoredHabit(
           typeof row.goal !== 'object'
         )
           return [];
-        const days = normalizeDays(
-          row.days.filter((day): day is string => typeof day === 'string'),
-        );
+        const days =
+          row.days.length === 0
+            ? []
+            : normalizeDays(row.days.filter((day): day is string => typeof day === 'string'));
         const values = row.goal as {
           timesPerPeriod?: unknown;
           period?: unknown;
@@ -209,7 +213,14 @@ export function readStoredHabit(
         ];
       })
     : [];
-  return { ...parsed.habit, history };
+  const extra = goal as { start_date?: unknown; unit?: unknown; paused?: unknown };
+  return {
+    ...parsed.habit,
+    history,
+    ...(typeof extra.start_date === 'string' ? { startDate: extra.start_date } : {}),
+    ...(typeof extra.unit === 'string' ? { unit: extra.unit } : {}),
+    ...(typeof extra.paused === 'boolean' ? { paused: extra.paused } : {}),
+  };
 }
 
 /** RF-1302 and RF-1305. A goal is met only when this check-in crosses the threshold. */
@@ -476,11 +487,15 @@ function currentWeekStreak(model: Model): number {
   if (current === 'missed') {
     return 0;
   }
-  if (current === 'open') {
+  if (current === 'open' || current === 'inactive') {
     monday = addDays(monday, -7);
   }
   let streak = 0;
   for (let guard = 0; guard < 520; guard += 1) {
+    if (classifyWeek(monday, model) === 'inactive') {
+      monday = addDays(monday, -7);
+      continue;
+    }
     if (classifyWeek(monday, model) !== 'met') {
       break;
     }
@@ -568,11 +583,13 @@ function periodMet(model: Model, date: string): boolean {
 function classifyWeek(monday: string, model: Model): WeekState {
   let met = 0;
   let remaining = 0;
+  let scheduled = 0;
   for (let offset = 0; offset < 7; offset += 1) {
     const date = addDays(monday, offset);
     if (!isScheduled(model, date)) {
       continue;
     }
+    scheduled += 1;
     if (metOn(model, date)) {
       met += 1;
       continue;
@@ -581,6 +598,7 @@ function classifyWeek(monday: string, model: Model): WeekState {
       remaining += 1;
     }
   }
+  if (scheduled === 0) return 'inactive';
   if (
     met >= effectiveHabit(model.goal, [...model.days], model.history, monday).goal.timesPerPeriod
   ) {
@@ -795,4 +813,29 @@ function effectiveHabit(
     .reverse()
     .find((item) => item.from <= date && (item.to === undefined || item.to >= date));
   return match ?? { goal, days };
+}
+
+/** Add availability periods without rewriting dated log snapshots (RF-1301/1303). */
+export function habitAvailabilityHistory(input: {
+  readonly history: readonly HabitHistory[];
+  readonly goal: HabitGoal;
+  readonly days: readonly HabitWeekday[];
+  readonly from: string;
+  readonly startDate: string | null;
+  readonly paused: boolean;
+}): readonly HabitHistory[] {
+  if (input.startDate !== null && parseIsoDate(input.startDate) === null)
+    throw new Error('invalid_start_date');
+  const periods = input.history.filter((h) => h.to === undefined && h.from !== input.from);
+  const snapshots = input.history.filter(
+    (h) => h.to !== undefined && !(h.from === '1970-01-01' && h.days.length === 0),
+  );
+  return [
+    ...periods,
+    { from: input.from, goal: input.goal, days: input.paused ? [] : input.days },
+    ...(input.startDate
+      ? [{ from: '1970-01-01', to: addDays(input.startDate, -1), goal: input.goal, days: [] }]
+      : []),
+    ...snapshots,
+  ];
 }

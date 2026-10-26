@@ -9,6 +9,7 @@ export async function wtFFixture(
     delay?: number;
     conflict?: boolean;
     reviewed?: boolean;
+    zeroRecurring?: boolean;
   } = {},
 ) {
   await r80Fixture(page);
@@ -41,7 +42,7 @@ export async function wtFFixture(
         project_color: 'var(--accent)',
         due_date: '2026-10-23T12:00Z',
         start_date: null,
-        duration_minutes: null,
+        duration_minutes: options.zeroRecurring && i === 1 ? 0 : null,
         is_all_day: true,
         recurring: i === 1,
         repeat_rule: i === 1 ? 'Cada domingo' : null,
@@ -80,7 +81,9 @@ export async function wtFFixture(
       : [];
   let decisions: Choice[] = seeded,
     revision = 1;
-  const counts = { sessions: 0, applied: 0, reverted: 0 };
+  const counts = { sessions: 0, applied: 0, reverted: 0, scheduled: 0 };
+  let committed: string[] = [];
+  const scheduled = new Map<string, string>();
   const session = (): PlanSession => ({
     id: '10000000-0000-4000-8000-000000000001',
     revision,
@@ -88,6 +91,7 @@ export async function wtFFixture(
     time_zone: 'Europe/Madrid',
     cards,
     decisions,
+    committed_task_ids: committed,
   });
   await page.route('**/api/v1/planning/**', async (route) => {
     const url = new URL(route.request().url()),
@@ -164,6 +168,20 @@ export async function wtFFixture(
         decisions.push({ ...(route.request().postDataJSON() as Choice), task_id });
       revision++;
     }
+    if (path.includes('/schedule/')) {
+      const task_id = path.split('/').at(-1)!;
+      decisions = [
+        ...decisions.filter((d) => d.task_id !== task_id),
+        { ...(route.request().postDataJSON() as Choice), task_id },
+      ];
+      revision++;
+      counts.scheduled++;
+      committed.push(task_id);
+      const operation_id = `20000000-0000-4000-8000-${String(counts.scheduled).padStart(12, '0')}`;
+      scheduled.set(operation_id, task_id);
+      await route.fulfill({ json: { ...session(), operation_id } });
+      return;
+    }
     if (path.endsWith('/apply')) {
       if (options.conflict) {
         await route.fulfill({
@@ -180,6 +198,12 @@ export async function wtFFixture(
     }
     if (path.endsWith('/revert')) {
       counts.reverted++;
+      const operation = path.split('/').at(-2)!;
+      const task = scheduled.get(operation);
+      if (task) {
+        committed = committed.filter((id) => id !== task);
+        decisions = decisions.filter((d) => d.task_id !== task);
+      }
       await route.fulfill({ json: { reverted: true } });
       return;
     }

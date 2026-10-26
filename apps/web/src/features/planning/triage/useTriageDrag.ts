@@ -26,13 +26,18 @@ export function useTriageDrag(input: {
     touch: boolean;
     timer: ReturnType<typeof setTimeout> | null;
   } | null>(null);
+  const [preview, setPreview] = useState<{ x: number; y: number; title: string } | null>(null);
   const [active, setActive] = useState(false);
   const [ghost, setGhost] = useState<Ghost | null>(null);
   const target = useRef<Ghost | null>(null);
   const start =
     (id: string): PointerEventHandler<HTMLElement> =>
     (event) => {
-      if (event.button !== 0) return;
+      if (
+        event.button !== 0 ||
+        latest.current.session?.decisions.some((d) => d.task_id === id && d.action !== 'skip')
+      )
+        return;
       if (
         (event.target as HTMLElement).closest(
           'a,input,select,textarea,button:not(.sp-grip):not(.sp-q)',
@@ -76,6 +81,15 @@ export function useTriageDrag(input: {
       const { range, session, duration } = latest.current;
       const card = session?.cards.find((c) => c.task_id === p.id);
       if (!range || !card) return;
+      setPreview({ x: event.clientX, y: event.clientY, title: card.title });
+      const sidebar = document.querySelector('.plan-agenda-scroll');
+      if (sidebar) {
+        const box = sidebar.getBoundingClientRect();
+        if (event.clientX >= box.left) {
+          if (event.clientY > box.bottom - 20) sidebar.scrollTop += 14;
+          else if (event.clientY < box.top + 20) sidebar.scrollTop -= 14;
+        }
+      }
       const node = document.elementFromPoint(event.clientX, event.clientY);
       const chip = node?.closest<HTMLElement>('[data-plan-day]');
       const agenda = node?.closest<HTMLElement>('[data-plan-agenda]');
@@ -119,8 +133,8 @@ export function useTriageDrag(input: {
           date,
           timeZone: range.time_zone,
           duration,
-          workDayStart: day.available_minutes === null ? null : range.settings.work_day_start,
-          workDayEnd: range.settings.work_day_end,
+          workDayStart: '00:00',
+          workDayEnd: '24:00',
           busy,
         });
         if (!slots.includes(time))
@@ -163,6 +177,7 @@ export function useTriageDrag(input: {
       target.current = null;
       setGhost(null);
       setActive(false);
+      setPreview(null);
     };
     const cancel = () => {
       if (pending.current?.timer) clearTimeout(pending.current.timer);
@@ -170,6 +185,7 @@ export function useTriageDrag(input: {
       target.current = null;
       setGhost(null);
       setActive(false);
+      setPreview(null);
     };
     window.addEventListener('pointermove', move, { passive: false });
     window.addEventListener('pointerup', end);
@@ -181,5 +197,5 @@ export function useTriageDrag(input: {
       window.removeEventListener('pointercancel', cancel);
     };
   }, []);
-  return { start, ghost, active };
+  return { start, ghost, active, preview };
 }

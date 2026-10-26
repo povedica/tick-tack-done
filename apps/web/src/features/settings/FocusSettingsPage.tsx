@@ -251,7 +251,7 @@ export function FocusSettingsPage() {
           <Link to="/settings/notifications">{m.settingsNotifications}</Link>
         </div>
         {error ? <p role="alert">{error}</p> : null}
-        <Button type="submit" disabled={busy || invalid}>
+        <Button variant="primary" type="submit" disabled={busy || invalid}>
           {m.saveChanges}
         </Button>
       </form>

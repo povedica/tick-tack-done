@@ -1,5 +1,21 @@
 # Historial de cambios
 
+## Refinamientos de Hábitos, Calendario y Planificación
+
+- RF-1301/1302/1303: editor único de hábitos, pausa y fecha de inicio compatibles
+  con el historial; tarjetas compactas, objetivo semanal, detalle y gestión
+  simplificados. Constancia usa el acento del tema, año natural y meses separados,
+  con navegación horizontal en móvil.
+- Planificación: agenda, arrastre, gestos, guardado y resumen refinados; se conserva
+  el deshacer de cuatro segundos. API pública y contratos SDK/MCP actualizados.
+- Calendario y ajustes: detalle de días, controles de fecha, navegación móvil,
+  duración de foco y horario laboral adaptados a la UI compartida.
+- PWA (RF-13010): dependencias y aplicación en archivos separados para conservar
+  el precache completo por debajo del límite de 2 MiB por recurso.
+- Validación de publicación: pruebas con datos sintéticos, compilación y contratos
+  regenerados. Las referencias visuales aportadas se conservan sin reformatear;
+  los perfiles y evidencias privados siguen excluidos de Git.
+
 ## Desarrollo local — copia de tareas
 
 - RF-1703/1705: comando `scripts/refresh-local-task-data.py` para refrescar datos

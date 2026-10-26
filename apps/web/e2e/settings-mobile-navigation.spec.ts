@@ -21,9 +21,9 @@ for (const width of [390, 768, 1280])
         await navigation.getByRole('link', { name: 'Captura', exact: true }).click();
         await expect(page.getByRole('heading', { name: 'Captura', exact: true })).toBeVisible();
         if (width <= 800) await page.getByRole('link', { name: '‹ Ajustes', exact: true }).click();
-        await navigation.getByRole('link', { name: 'Ajustes de Foco', exact: true }).click();
+        await navigation.getByRole('link', { name: 'Tiempo de Foco', exact: true }).click();
         await expect(
-          page.getByRole('heading', { name: 'Ajustes de Foco', exact: true }),
+          page.getByRole('heading', { name: 'Tiempo de Foco', exact: true }),
         ).toBeVisible();
         if (width < 640) {
           await page.locator('.bottom-bar').getByRole('link', { name: 'Hoy', exact: true }).click();

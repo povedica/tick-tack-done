@@ -1,0 +1,20 @@
+Trabaja en el repo povedica/tick-tack-done.
+Crea un worktree propio desde main actualizado (318fbd9 o posterior):
+  git worktree add ../ttd-wt-d -b codex/wt-d-api-mcp main
+Copia en el repo docs/audit/ttd-wt-d-api-mcp.md (este documento). Si docs/ no existe, usa test-artifacts/audit/.
+Léelo entero: es autónomo y es la única fuente de requisitos.
+
+Objetivo: API/MCP backend (link_count, replan, canal de recordatorio, source, respuestas, sort_order, all-day y subida de adjuntos por MCP).
+Puntos: TTD-AUD-112, 113, 115, 116, 117, 118, 119, 122, 123, 111.
+
+Reglas clave:
+- Este paquete se desarrolla EN PARALELO con otros 4 paquetes (A–E) en otros worktrees.
+- Modifica SOLO los ficheros de «Ficheros que PUEDE tocar».
+- NO edites los de «NO debe tocar», ni i18n/es.ts, en.ts o extra.ts, ni styles/tokens.css, package.json, pnpm-lock.yaml, CHANGELOG.md o .github/.
+- Este paquete no toca apps/web: sin i18n, CSS ni Playwright web. Sin migraciones Prisma ni eventos nuevos.
+- OpenAPI/SDK solo regenerados, en un commit aparte.
+- Una PR «fix(wt-d): API/MCP backend (link_count, replan, canal de recordatorio, source, respuestas, sort_order, all-day y subida de adjuntos por MCP)», con un commit por punto en el orden de la sección 3.
+- Tests unitarios y de integración según el documento (BD propia ttd_wt_d).
+- pnpm format:check, lint, typecheck, test y test:integration, todo en verde.
+- En la PR, recorre cada criterio de aceptación con ✅/❌ y evidencia.
+- KISS. No inventes datos: lo que no reproduzcas, anótalo como «a verificar» con evidencia.

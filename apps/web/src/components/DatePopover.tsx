@@ -39,8 +39,10 @@ export function DatePopover({
   onSomeday,
   anchor,
   mode = 'task',
+  closeLabel,
 }: {
-  readonly mode?: 'task' | 'date-only';
+  readonly closeLabel?: string;
+  readonly mode?: 'task' | 'date-only' | 'repeat-only';
   readonly anchor?: RefObject<HTMLElement | null> | undefined;
   readonly open: boolean;
   readonly value: DateDraft;
@@ -69,9 +71,9 @@ export function DatePopover({
     }
     setDraft({ ...value, reminderTouched: false });
     setCursor(monthOf(value.dueDate, timeZone));
-    setSub(null);
+    setSub(mode === 'repeat-only' ? 'repeat' : null);
     setTab('date');
-  }, [open, timeZone, value]);
+  }, [open, timeZone, value, mode]);
 
   const dayKey = draft.dueDate === null ? '' : calendarDay(draft.dueDate, timeZone);
   const time =
@@ -173,12 +175,13 @@ export function DatePopover({
       open={open}
       mobileSheet
       sheetFooter={actions}
+      closeLabel={closeLabel}
       anchor={anchor}
       offsetX={16}
       offsetY={-16}
-      label={messages.dateSet}
+      label={mode === 'repeat-only' ? messages.repeatRow : messages.dateSet}
       onClose={onClose}
-      className="popover date-popover"
+      className={`popover date-popover ${mode === 'repeat-only' ? 'is-repeat-editor' : ''}`}
     >
       {mode === 'task' ? (
         <div className="popover-tabs" role="tablist">
@@ -255,190 +258,200 @@ export function DatePopover({
         </label>
       ) : (
         <>
-          {mode === 'task' ? (
-            <div className="date-shortcuts">
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  pickDay(todayKey);
-                }}
-              >
-                {messages.dateToday}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  pickDay(shiftDayKey(todayKey, 1));
-                }}
-              >
-                {messages.dateTomorrow}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  pickDay(shiftDayKey(todayKey, 7));
-                }}
-              >
-                {messages.dateIn7}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  setDraft((current) => ({ ...current, dueDate: null, allDay: true }));
-                }}
-              >
-                {messages.noDate}
-              </Button>
-            </div>
-          ) : null}
-          <div className="cal-toolbar">
-            <button
-              type="button"
-              aria-label={messages.calPrev}
-              onClick={() => {
-                setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1));
-              }}
-            >
-              <ChevronLeft size={16} aria-hidden="true" />
-            </button>
-            <strong>
-              {new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(cursor)}
-            </strong>
-            <button
-              type="button"
-              aria-label={messages.calNext}
-              onClick={() => {
-                setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1));
-              }}
-            >
-              <ChevronRight size={16} aria-hidden="true" />
-            </button>
-          </div>
-          <div className="cal-grid">
-            {heads.map((head, index) => (
-              <span key={index} className="cal-head">
-                {head}
-              </span>
-            ))}
-            {cells.map((date) => {
-              const key = localKey(date);
-              const selected = key === dayKey;
-              const today = key === todayKey;
-              return (
+          {mode !== 'repeat-only' ? (
+            <>
+              {mode === 'task' ? (
+                <div className="date-shortcuts">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      pickDay(todayKey);
+                    }}
+                  >
+                    {messages.dateToday}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      pickDay(shiftDayKey(todayKey, 1));
+                    }}
+                  >
+                    {messages.dateTomorrow}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      pickDay(shiftDayKey(todayKey, 7));
+                    }}
+                  >
+                    {messages.dateIn7}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setDraft((current) => ({ ...current, dueDate: null, allDay: true }));
+                    }}
+                  >
+                    {messages.noDate}
+                  </Button>
+                </div>
+              ) : null}
+              <div className="cal-toolbar">
                 <button
-                  key={key}
                   type="button"
-                  data-date={key}
-                  aria-label={date.toLocaleDateString(locale, {
-                    weekday: 'long',
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                  })}
-                  aria-pressed={selected}
-                  className={[
-                    'cal-day',
-                    date.getMonth() !== cursor.getMonth() ? 'is-outside' : '',
-                    selected ? 'is-selected' : '',
-                    today ? 'is-today' : '',
-                  ]
-                    .filter((item) => item.length > 0)
-                    .join(' ')}
+                  aria-label={messages.calPrev}
                   onClick={() => {
-                    if (mode === 'date-only')
-                      commit({
-                        ...draft,
-                        dueDate: zonedWallTime(key, 0, 0, timeZone),
-                        allDay: true,
-                      });
-                    else pickDay(key);
+                    setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1));
                   }}
                 >
-                  {date.getDate()}
+                  <ChevronLeft size={16} aria-hidden="true" />
                 </button>
-              );
-            })}
-          </div>
-          {mode === 'task' ? (
+                <strong>
+                  {new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(
+                    cursor,
+                  )}
+                </strong>
+                <button
+                  type="button"
+                  aria-label={messages.calNext}
+                  onClick={() => {
+                    setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1));
+                  }}
+                >
+                  <ChevronRight size={16} aria-hidden="true" />
+                </button>
+              </div>
+              <div className="cal-grid">
+                {heads.map((head, index) => (
+                  <span key={index} className="cal-head">
+                    {head}
+                  </span>
+                ))}
+                {cells.map((date) => {
+                  const key = localKey(date);
+                  const selected = key === dayKey;
+                  const today = key === todayKey;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      data-date={key}
+                      aria-label={date.toLocaleDateString(locale, {
+                        weekday: 'long',
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                      })}
+                      aria-pressed={selected}
+                      className={[
+                        'cal-day',
+                        date.getMonth() !== cursor.getMonth() ? 'is-outside' : '',
+                        selected ? 'is-selected' : '',
+                        today ? 'is-today' : '',
+                      ]
+                        .filter((item) => item.length > 0)
+                        .join(' ')}
+                      onClick={() => {
+                        if (mode === 'date-only')
+                          commit({
+                            ...draft,
+                            dueDate: zonedWallTime(key, 0, 0, timeZone),
+                            allDay: true,
+                          });
+                        else pickDay(key);
+                      }}
+                    >
+                      {date.getDate()}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          ) : null}
+          {mode === 'task' || mode === 'repeat-only' ? (
             <>
-              <InlineTime
-                label={messages.dueTime}
-                emptyLabel={messages.noTime}
-                value={draft.allDay || draft.dueDate === null ? '' : time}
-                onClear={() => {
-                  if (dayKey) setDay(dayKey, true);
-                  setDraft((current) => ({ ...current, durationMinutes: null, allDay: true }));
-                }}
-                onChange={(clock) => {
-                  setDay(dayKey || todayKey, false, clock);
-                  setDraft((current) => ({
-                    ...current,
-                    durationMinutes: current.durationMinutes ?? 30,
-                  }));
-                }}
-              />
-              {draft.dueDate !== null && !draft.allDay ? (
-                <InlineTime
-                  label={messages.endTime}
-                  emptyLabel={messages.noTime}
-                  value={endTime}
-                  onClear={() => {
-                    setDraft((current) => ({ ...current, durationMinutes: null }));
-                  }}
-                  onChange={(clock) => {
-                    const [startH, startM] = time.split(':').map(Number);
-                    const [endH, endM] = clock.split(':').map(Number);
-                    const startMin = (startH ?? 0) * 60 + (startM ?? 0);
-                    let endMin = (endH ?? 0) * 60 + (endM ?? 0);
-                    if (endMin <= startMin) endMin = startMin + 15;
-                    setDraft((current) => ({
-                      ...current,
-                      durationMinutes: endMin - startMin,
-                      allDay: false,
-                    }));
-                  }}
-                />
+              {mode === 'task' ? (
+                <>
+                  <InlineTime
+                    label={messages.dueTime}
+                    emptyLabel={messages.noTime}
+                    value={draft.allDay || draft.dueDate === null ? '' : time}
+                    onClear={() => {
+                      if (dayKey) setDay(dayKey, true);
+                      setDraft((current) => ({ ...current, durationMinutes: null, allDay: true }));
+                    }}
+                    onChange={(clock) => {
+                      setDay(dayKey || todayKey, false, clock);
+                      setDraft((current) => ({
+                        ...current,
+                        durationMinutes: current.durationMinutes ?? 30,
+                      }));
+                    }}
+                  />
+                  {draft.dueDate !== null && !draft.allDay ? (
+                    <InlineTime
+                      label={messages.endTime}
+                      emptyLabel={messages.noTime}
+                      value={endTime}
+                      onClear={() => {
+                        setDraft((current) => ({ ...current, durationMinutes: null }));
+                      }}
+                      onChange={(clock) => {
+                        const [startH, startM] = time.split(':').map(Number);
+                        const [endH, endM] = clock.split(':').map(Number);
+                        const startMin = (startH ?? 0) * 60 + (startM ?? 0);
+                        let endMin = (endH ?? 0) * 60 + (endM ?? 0);
+                        if (endMin <= startMin) endMin = startMin + 15;
+                        setDraft((current) => ({
+                          ...current,
+                          durationMinutes: endMin - startMin,
+                          allDay: false,
+                        }));
+                      }}
+                    />
+                  ) : null}
+                  <button
+                    type="button"
+                    className="popover-row"
+                    onClick={() => {
+                      setSub(sub === 'reminder' ? null : 'reminder');
+                    }}
+                  >
+                    <span>{messages.reminderRow}</span>
+                    <span>{reminderLabel(draft.reminder, messages)}</span>
+                  </button>
+                  {sub === 'reminder'
+                    ? REMINDERS.map(([trigger, key]) => (
+                        <button
+                          key={trigger.length === 0 ? 'none' : trigger}
+                          type="button"
+                          className="popover-row"
+                          onClick={() => {
+                            setDraft((current) => ({
+                              ...current,
+                              reminder: trigger.length === 0 ? null : trigger,
+                              reminderTouched: true,
+                            }));
+                            setSub(null);
+                          }}
+                        >
+                          {reminderChoice(key, messages)}
+                        </button>
+                      ))
+                    : null}
+                </>
               ) : null}
               <button
                 type="button"
-                className="popover-row"
-                onClick={() => {
-                  setSub(sub === 'reminder' ? null : 'reminder');
-                }}
-              >
-                <span>{messages.reminderRow}</span>
-                <span>{reminderLabel(draft.reminder, messages)}</span>
-              </button>
-              {sub === 'reminder'
-                ? REMINDERS.map(([trigger, key]) => (
-                    <button
-                      key={trigger.length === 0 ? 'none' : trigger}
-                      type="button"
-                      className="popover-row"
-                      onClick={() => {
-                        setDraft((current) => ({
-                          ...current,
-                          reminder: trigger.length === 0 ? null : trigger,
-                          reminderTouched: true,
-                        }));
-                        setSub(null);
-                      }}
-                    >
-                      {reminderChoice(key, messages)}
-                    </button>
-                  ))
-                : null}
-              <button
-                type="button"
-                className="popover-row"
+                className="popover-row repeat-current"
                 onClick={() => {
                   setSub(sub === 'repeat' ? null : 'repeat');
                 }}
@@ -448,63 +461,73 @@ export function DatePopover({
               </button>
               {sub === 'repeat' ? (
                 <>
-                  <button
-                    type="button"
-                    className="popover-row"
-                    onClick={() => {
-                      setDraft((current) => ({ ...current, repeatRule: null }));
-                      setSub(null);
-                    }}
-                  >
-                    {messages.noRecurrence}
-                  </button>
-                  <button
-                    type="button"
-                    className="popover-row"
-                    onClick={() => {
-                      applyRepeat('RRULE:FREQ=DAILY');
-                    }}
-                  >
-                    {messages.repeatDaily}
-                  </button>
-                  <button
-                    type="button"
-                    className="popover-row"
-                    onClick={() => {
-                      applyRepeat('RRULE:FREQ=WEEKLY');
-                    }}
-                  >
-                    {messages.repeatWeekly}
-                  </button>
-                  <button
-                    type="button"
-                    className="popover-row"
-                    onClick={() => {
-                      applyRepeat('RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR');
-                    }}
-                  >
-                    {messages.repeatWeekdays}
-                  </button>
-                  <button
-                    type="button"
-                    className="popover-row"
-                    onClick={() => {
-                      applyRepeat('RRULE:FREQ=MONTHLY');
-                    }}
-                  >
-                    {messages.repeatMonthly}
-                  </button>
-                  <button
-                    type="button"
-                    className="popover-row"
-                    onClick={() => {
-                      applyRepeat('RRULE:FREQ=YEARLY');
-                    }}
-                  >
-                    {messages.repeatYearly}
-                  </button>
-                  <label className="popover-field">
-                    {messages.repeatEveryDays.replace('{name}', '')}
+                  <div className="repeat-presets">
+                    <button
+                      type="button"
+                      className="popover-row"
+                      aria-pressed={draft.repeatRule === null}
+                      onClick={() => {
+                        setDraft((current) => ({ ...current, repeatRule: null }));
+                        setSub(null);
+                      }}
+                    >
+                      {messages.noRecurrence}
+                    </button>
+                    <button
+                      type="button"
+                      className="popover-row"
+                      aria-pressed={draft.repeatRule === 'RRULE:FREQ=DAILY'}
+                      onClick={() => {
+                        applyRepeat('RRULE:FREQ=DAILY');
+                      }}
+                    >
+                      {messages.repeatDaily}
+                    </button>
+                    <button
+                      type="button"
+                      className="popover-row"
+                      aria-pressed={draft.repeatRule === 'RRULE:FREQ=WEEKLY'}
+                      onClick={() => {
+                        applyRepeat('RRULE:FREQ=WEEKLY');
+                      }}
+                    >
+                      {messages.repeatWeekly}
+                    </button>
+                    <button
+                      type="button"
+                      className="popover-row"
+                      aria-pressed={draft.repeatRule === 'RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR'}
+                      onClick={() => {
+                        applyRepeat('RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR');
+                      }}
+                    >
+                      {messages.repeatWeekdays}
+                    </button>
+                    <button
+                      type="button"
+                      className="popover-row"
+                      aria-pressed={draft.repeatRule === 'RRULE:FREQ=MONTHLY'}
+                      onClick={() => {
+                        applyRepeat('RRULE:FREQ=MONTHLY');
+                      }}
+                    >
+                      {messages.repeatMonthly}
+                    </button>
+                    <button
+                      type="button"
+                      className="popover-row"
+                      aria-pressed={draft.repeatRule === 'RRULE:FREQ=YEARLY'}
+                      onClick={() => {
+                        applyRepeat('RRULE:FREQ=YEARLY');
+                      }}
+                    >
+                      {messages.repeatYearly}
+                    </button>
+                  </div>
+                  <label className="popover-field repeat-interval">
+                    <span className="repeat-interval-label">
+                      {messages.repeatEveryDays.replace('{name}', '…')}
+                    </span>
                     <input
                       type="number"
                       min={2}
@@ -523,7 +546,10 @@ export function DatePopover({
                       {fill(messages.repeatEveryDays, String(everyDays))}
                     </button>
                   </label>
-                  <label className="popover-field">
+                  <label className="popover-field repeat-interval">
+                    <span className="repeat-interval-label">
+                      {messages.repeatEveryWeeks.replace('{name}', '…')}
+                    </span>
                     <input
                       type="number"
                       min={2}

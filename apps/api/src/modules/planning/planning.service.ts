@@ -256,6 +256,68 @@ export class PlanningService {
     });
   }
 
+  /** Commit only the explicitly configured card; the rest of the session stays a draft. */
+  async schedule(
+    user: AuthUser,
+    sessionId: string,
+    taskId: string,
+    choice: PlanningAction,
+    key: string | undefined,
+  ): Promise<Record<string, unknown>> {
+    if (!key?.trim())
+      throw new DomainException(
+        HttpStatus.BAD_REQUEST,
+        'idempotency_key_required',
+        'Idempotency-Key is required',
+      );
+    return this.transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${user.id}))`;
+        const session = await this.owned(user.id, sessionId, user.listIds);
+        const existing = await this.db.planOperation.findUnique({
+          where: { ownerId_idempotencyKey: { ownerId: user.id, idempotencyKey: key.trim() } },
+        });
+        if (existing) {
+          const result = existing.result as Prisma.JsonObject;
+          if (
+            existing.sessionId !== sessionId ||
+            result.immediate_task_id !== taskId ||
+            JSON.stringify(orderedChoice(result.choice)) !==
+              JSON.stringify(orderedChoice(choice)) ||
+            existing.status !== 'applied'
+          )
+            throw new DomainException(
+              HttpStatus.CONFLICT,
+              'idempotency_mismatch',
+              'This key belongs to another operation',
+            );
+          return { ...this.view(session), operation_id: existing.id };
+        }
+        if (choice.action !== 'move')
+          throw new DomainException(
+            HttpStatus.BAD_REQUEST,
+            'validation_failed',
+            'A configured date is required',
+          );
+        await this.decideLocked(
+          user,
+          sessionId,
+          taskId,
+          storedDecision(choice.action),
+          choice.date ?? null,
+          choice,
+        );
+        const updated = await this.owned(user.id, sessionId, user.listIds);
+        const result = await this.applyLocked(user, sessionId, updated.revision, key, taskId);
+        return {
+          ...this.view(await this.owned(user.id, sessionId, user.listIds)),
+          operation_id: result.operation_id,
+        };
+      },
+      { timeout: 60_000 },
+    );
+  }
+
   private async decideLocked(
     user: AuthUser,
     sessionId: string,
@@ -265,6 +327,7 @@ export class PlanningService {
     choice?: PlanningAction,
   ): Promise<Record<string, unknown>> {
     const session = await this.requireOpen(user.id, sessionId, user.listIds);
+    this.assertUncommitted(session, taskId);
     if (!this.snapshot(session).cards.some((card) => card.taskId === taskId)) {
       throw new DomainException(
         HttpStatus.NOT_FOUND,
@@ -391,9 +454,8 @@ export class PlanningService {
       date,
       timeZone: user.timeZone,
       duration: choice.duration ?? profile.defaultTaskDuration,
-      workDayStart: profile.workDayStart,
-      workDayEnd: profile.workDayEnd,
-      eveningStart: profile.eveningStart,
+      workDayStart: '00:00',
+      workDayEnd: '24:00',
       busy,
     });
     if (!slots.includes(choice.time))
@@ -407,7 +469,8 @@ export class PlanningService {
   async clear(user: AuthUser, sessionId: string, taskId: string): Promise<Record<string, unknown>> {
     return this.transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${user.id}))`;
-      await this.requireOpen(user.id, sessionId, user.listIds);
+      const session = await this.requireOpen(user.id, sessionId, user.listIds);
+      this.assertUncommitted(session, taskId);
       await this.db.planDecision.deleteMany({ where: { sessionId, taskId } });
       return this.view(await this.bump(sessionId));
     });
@@ -433,6 +496,7 @@ export class PlanningService {
     sessionId: string,
     expectedRevision: number,
     key: string | undefined,
+    onlyTaskId?: string,
   ): Promise<Record<string, unknown>> {
     if (key === undefined || key.trim() === '') {
       throw new DomainException(
@@ -455,17 +519,22 @@ export class PlanningService {
     const stored = readResult(operation.result);
     const done = new Set(stored.applied.map((item) => item.task_id));
     const pending = session.decisions.filter(
-      (decision) => decision.decision !== 'skip' && !done.has(decision.taskId),
+      (decision) =>
+        decision.decision !== 'skip' &&
+        !done.has(decision.taskId) &&
+        !readCommitted(session.snapshot)[decision.taskId] &&
+        (!onlyTaskId || decision.taskId === onlyTaskId),
     );
     await this.assertFresh(user.id, session, pending);
     for (const decision of pending) {
       const choice = readChoices(session.snapshot)[decision.taskId];
       if (choice?.time) await this.assertSlot(user, session, decision.taskId, choice);
     }
-    await this.db.planSession.update({
-      where: { id: session.id },
-      data: { state: 'applying' },
-    });
+    if (!onlyTaskId)
+      await this.db.planSession.update({
+        where: { id: session.id },
+        data: { state: 'applying' },
+      });
     const applied = [...stored.applied];
     for (const decision of pending) {
       const habitCard = this.snapshot(session).cards.find(
@@ -547,11 +616,27 @@ export class PlanningService {
     }
     await this.db.planOperation.update({
       where: { id: operation.id },
-      data: { status: 'applied', result: jsonValue({ applied }) },
+      data: {
+        status: 'applied',
+        result: jsonValue({
+          applied,
+          ...(onlyTaskId
+            ? { immediate_task_id: onlyTaskId, choice: readChoices(session.snapshot)[onlyTaskId] }
+            : {}),
+        }),
+      },
     });
     await this.db.planSession.update({
       where: { id: session.id },
-      data: { state: 'applied' },
+      data: onlyTaskId
+        ? {
+            revision: { increment: 1 },
+            snapshot: jsonValue({
+              ...(session.snapshot as Prisma.JsonObject),
+              committed: { ...readCommitted(session.snapshot), [onlyTaskId]: operation.id },
+            }),
+          }
+        : { state: 'applied' },
     });
     await this.transaction((tx) =>
       this.events.record(tx, actorOf(user), {
@@ -661,6 +746,36 @@ export class PlanningService {
           if (!row) continue;
           await this.tasks.restorePlanState(context, saved);
           await this.clearMemberships(user.id, row.id);
+        }
+        const committed = readCommitted(planSession.snapshot);
+        const restoredIds = Object.keys(committed).filter((id) => committed[id] === operationId);
+        if (restoredIds.length) {
+          const remaining = Object.fromEntries(
+            Object.entries(committed).filter(([, id]) => id !== operationId),
+          );
+          const restored = await this.db.task.findMany({
+            where: { ownerId: user.id, id: { in: restoredIds } },
+            select: { id: true, updatedAt: true },
+          });
+          await this.db.planDecision.deleteMany({
+            where: { sessionId: planSession.id, taskId: { in: restoredIds } },
+          });
+          await this.db.planSession.update({
+            where: { id: planSession.id },
+            data: {
+              revision: { increment: 1 },
+              snapshot: jsonValue({
+                ...(planSession.snapshot as Prisma.JsonObject),
+                committed: remaining,
+                cards: this.snapshot(planSession).cards.map((card) => ({
+                  ...card,
+                  updatedAt:
+                    restored.find((row) => row.id === card.taskId)?.updatedAt.toISOString() ??
+                    card.updatedAt,
+                })),
+              }),
+            },
+          });
         }
         await tx.planOperation.update({ where: { id: operationId }, data: { status: 'reverted' } });
         await this.events.record(tx, actorOf(context), {
@@ -1021,6 +1136,15 @@ export class PlanningService {
     return session;
   }
 
+  private assertUncommitted(session: SessionRow, taskId: string): void {
+    if (readCommitted(session.snapshot)[taskId])
+      throw new DomainException(
+        HttpStatus.CONFLICT,
+        'task_already_planned',
+        'Undo the saved task before deciding again',
+      );
+  }
+
   private async bump(id: string): Promise<SessionRow> {
     return this.db.planSession.update({
       where: { id },
@@ -1070,6 +1194,7 @@ export class PlanningService {
         recurring: card.recurring ?? null,
         habit: card.habit ?? false,
       })),
+      committed_task_ids: Object.keys(readCommitted(session.snapshot)),
       decisions: decisions.map((decision) => ({
         ...(readChoices(session.snapshot)[decision.taskId] ??
           legacyAction(decision.decision, decision.targetDate)),
@@ -1326,4 +1451,20 @@ function taskState(
         updatedAt: item.updatedAt.toISOString(),
       })) ?? [],
   };
+}
+
+function readCommitted(value: Prisma.JsonValue): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const raw = value.committed;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  return Object.fromEntries(
+    Object.entries(raw).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+  );
+}
+
+function orderedChoice(value: unknown): unknown[] {
+  const choice = (
+    value && typeof value === 'object' && !Array.isArray(value) ? value : {}
+  ) as Record<string, unknown>;
+  return [choice.action, choice.date, choice.time, choice.duration];
 }

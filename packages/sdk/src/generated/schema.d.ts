@@ -2233,6 +2233,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/planning/sessions/{id}/schedule/{taskId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Schedule one configured task immediately; keep other decisions in draft
+         * @description Requires Idempotency-Key. Returns the updated draft session, committed_task_ids and operation_id for undo. Accepts action=move with date, optional time and duration. Free slots span 00:00–24:00, including weekends.
+         */
+        post: operations["PlanningController_schedule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/planning/operations/{id}/revert": {
         parameters: {
             query?: never;
@@ -4324,6 +4344,9 @@ export interface components {
             met: boolean;
         };
         HabitResponseDto: {
+            unit: string | null;
+            start_date: string | null;
+            paused: boolean;
             challenge_days: number | null;
             id: string;
             name: string;
@@ -4344,6 +4367,10 @@ export interface components {
             next_cursor: string | null;
         };
         CreateHabitDto: {
+            unit?: string | null;
+            /** @example 2026-10-26 */
+            start_date?: string | null;
+            paused?: boolean;
             challenge_days?: number | null;
             name: string;
             icon?: string | null;
@@ -4403,6 +4430,10 @@ export interface components {
             streak_broken: boolean;
         };
         UpdateHabitDto: {
+            unit?: string | null;
+            /** @example 2026-10-26 */
+            start_date?: string | null;
+            paused?: boolean;
             challenge_days?: number | null;
             name?: string;
             icon?: string | null;
@@ -9330,6 +9361,30 @@ export interface operations {
         requestBody?: never;
         responses: {
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PlanningController_schedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                taskId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionDto"];
+            };
+        };
+        responses: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };

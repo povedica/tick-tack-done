@@ -8,6 +8,9 @@ function habit(id: string, name: string, target: number, count: number, frequenc
     icon: null,
     color: null,
     archived: false,
+    paused: false,
+    start_date: null as string | null,
+    unit: null,
     frequency,
     reminder_time: '09:30',
     sort_order: '1',
@@ -92,11 +95,11 @@ for (const width of [1280, 390])
       await page.goto('/today?group=priority');
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
       const plan = page.getByRole('region', { name: 'Plan del día', exact: true });
-      await expect(plan.getByText('2 h 30 min de 6 h 30 min')).toBeVisible();
-      await expect(plan.getByText('3 tareas sin duración')).toBeVisible();
+      await expect(plan.getByText('Cabe · 4 h libres')).toBeVisible();
+      await expect(plan.getByText('3 tareas sin duración')).toHaveCount(0);
       await expect(page.locator('.today-plan-card')).toHaveCount(0);
       await expect(
-        plan.getByRole('link', { name: 'Planificar mi día', exact: true }),
+        plan.getByRole('link', { name: 'Planifica tu día', exact: true }),
       ).toHaveAttribute('href', '/plan/day');
       await expect(plan.getByRole('link', { name: 'Replanificar', exact: true })).toHaveCount(0);
       await expect(plan.getByRole('link', { name: 'Cerrar el día', exact: true })).toHaveCount(0);
@@ -184,7 +187,7 @@ test('RF-2642: neutral loading/error and real alternate capacity without unknown
   state.minutes = 45;
   state.unestimated = 0;
   release();
-  await expect(plan.getByText('45 min de 4 h')).toBeVisible();
+  await expect(plan.getByText('Cabe · 3 h 15 min libres')).toBeVisible();
   await expect(plan.locator('.today-plan-warning')).toHaveCount(0);
   state.load = 'error';
   await page.reload();
@@ -192,5 +195,20 @@ test('RF-2642: neutral loading/error and real alternate capacity without unknown
   await expect(plan.getByRole('status')).toHaveCount(0);
   await expect(plan.locator('.today-plan-load')).toHaveCount(0);
   await expect(plan.locator('.today-plan-warning')).toHaveCount(0);
-  await expect(plan.getByRole('link', { name: 'Planificar mi día' })).toBeVisible();
+  await expect(plan.getByRole('link', { name: 'Planifica tu día' })).toBeVisible();
+});
+
+test('Paused and future habits do not appear in Today', async ({ page }) => {
+  const { state } = await setup(page);
+  state.habits = [
+    { ...habit('pause', 'En pausa', 1, 0), paused: true },
+    { ...habit('future', 'Empieza mañana', 1, 0), start_date: '2026-10-21' },
+    habit('active', 'Leer hoy', 1, 0),
+  ];
+  await page.goto('/today');
+  const group = page.locator('.today-habits');
+  await expect(group.getByRole('link', { name: 'Leer hoy', exact: true })).toBeVisible();
+  await expect(group.getByRole('link', { name: 'En pausa', exact: true })).toHaveCount(0);
+  await expect(group.getByRole('link', { name: 'Empieza mañana', exact: true })).toHaveCount(0);
+  await expect(group.locator('summary')).toContainText('0/1 hoy');
 });

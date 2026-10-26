@@ -1,3 +1,4 @@
+import type { RefObject } from 'react';
 import { Check, Flag } from 'lucide-react';
 import { useMessages } from '../i18n';
 import { Popover } from './Popover';
@@ -10,7 +11,11 @@ export function PriorityMenu({
   value,
   onClose,
   onChange,
+  anchor,
+  closeLabel,
 }: {
+  readonly anchor?: RefObject<HTMLElement | null>;
+  readonly closeLabel?: string;
   readonly open: boolean;
   readonly value: PriorityValue;
   readonly onClose: () => void;
@@ -26,13 +31,16 @@ export function PriorityMenu({
   return (
     <Popover
       open={open}
+      anchor={anchor}
+      closeLabel={closeLabel}
+      mobileSheet={Boolean(closeLabel)}
       label={messages.prioritySet}
       onClose={onClose}
       className="popover popover-menu"
     >
-      <ul className="popover-list">
+      <ul className="popover-list" role="menu">
         {ORDER.map((priority) => (
-          <li key={priority}>
+          <li key={priority} role="none">
             <button
               type="button"
               className="popover-row"

@@ -1,0 +1,30 @@
+.number-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  width: fit-content;
+  max-width: 100%;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+.number-stepper > .ui-button {
+  flex: none;
+  width: 32px;
+  min-height: 32px;
+  padding: 0;
+}
+.number-stepper > input {
+  width: 52px;
+  min-width: 0;
+  text-align: center;
+  appearance: textfield;
+}
+.number-stepper > input::-webkit-inner-spin-button {
+  appearance: none;
+}
+.number-stepper :is(button, input):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

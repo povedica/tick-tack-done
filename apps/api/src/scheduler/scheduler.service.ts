@@ -510,7 +510,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         continue;
       }
       const stored = readStoredHabit(habit.goal, habit.frequency, habit.reminderTime);
-      if (stored === null) {
+      if (stored === null || stored.paused) {
         continue;
       }
       if (stored.reminderTime === null) {
@@ -522,7 +522,11 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
         timeZone: habit.owner.timeZone,
         now: now.toISOString(),
       });
-      if (!next.ok) {
+      if (
+        !next.ok ||
+        (stored.startDate &&
+          (calendarDate(next.fireAt, habit.owner.timeZone) ?? '') < stored.startDate)
+      ) {
         continue;
       }
       await this.queue({
@@ -719,7 +723,7 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     });
     for (const habit of habits) {
       const stored = readStoredHabit(habit.goal, habit.frequency, habit.reminderTime);
-      if (stored === null) {
+      if (stored === null || stored.paused) {
         continue;
       }
       const broken = streakBreakOn({
@@ -859,9 +863,15 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     }
     const existing = await this.prisma.reminderDelivery.findUnique({
       where: { dedupeKey: input.dedupeKey },
-      select: { id: true },
+      select: { id: true, status: true },
     });
     if (existing !== null) {
+      if (input.kind === 'habit' && existing.status === 'cancelled' && at > input.now.getTime()) {
+        await this.prisma.reminderDelivery.update({
+          where: { id: existing.id },
+          data: { status: 'scheduled', attempts: 0, nextRetryAt: null, payload: input.payload },
+        });
+      }
       return;
     }
     await this.prisma.reminderDelivery.create({

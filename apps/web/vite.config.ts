@@ -95,6 +95,16 @@ export default defineConfig(({ mode }) => {
         },
       }),
     ],
+    // Keep each precached asset below Workbox's 2 MiB limit as features grow.
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) return 'vendor';
+          },
+        },
+      },
+    },
     resolve: {
       alias: {
         // The package entry is CJS. Rollup skips it because the workspace link

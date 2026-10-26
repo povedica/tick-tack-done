@@ -26,6 +26,8 @@ export interface PlanSession {
   time_zone: string;
   cards: readonly PlanCard[];
   decisions: readonly Choice[];
+  committed_task_ids?: readonly string[];
+  operation_id?: string;
 }
 export interface AgendaTask {
   id: string;

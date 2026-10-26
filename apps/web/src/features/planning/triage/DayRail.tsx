@@ -49,11 +49,9 @@ export function DayRail({
           const name =
             i === 0
               ? m.today
-              : i === 1
-                ? m.tomorrow
-                : new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' }).format(
-                    new Date(`${day.date}T12:00Z`),
-                  );
+              : new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' }).format(
+                  new Date(`${day.date}T12:00Z`),
+                );
           return (
             <button
               type="button"

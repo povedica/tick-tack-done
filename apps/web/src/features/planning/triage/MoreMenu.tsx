@@ -1,4 +1,6 @@
+import { useRef, useState } from 'react';
 import { MoreHorizontal } from 'lucide-react';
+import { Popover } from '../../../components/Popover';
 import { useWtFMessages } from '../i18n-wt-f';
 import type { PlanAction } from '@reflexionia/domain';
 export function MoreMenu({
@@ -9,31 +11,49 @@ export function MoreMenu({
   readonly busy: boolean;
 }) {
   const m = useWtFMessages();
+  const [open, setOpen] = useState(false);
+  const anchor = useRef<HTMLButtonElement>(null);
   return (
-    <details className="plan-more">
-      <summary aria-label={m.actions}>
+    <div className="plan-more">
+      <button
+        ref={anchor}
+        className="plan-more-trigger"
+        type="button"
+        aria-label={m.actions}
+        aria-expanded={open}
+        disabled={busy}
+        onClick={() => {
+          setOpen(!open);
+        }}
+      >
         <MoreHorizontal size={18} />
-      </summary>
-      <div>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => {
-            onAction('someday');
-          }}
-        >
-          {m.someday}
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => {
-            onAction('delete');
-          }}
-        >
-          {m.delete}
-        </button>
-      </div>
-    </details>
+      </button>
+      <Popover
+        open={open}
+        anchor={anchor}
+        mobileSheet
+        label={m.actions}
+        closeLabel={m.close}
+        onClose={() => {
+          setOpen(false);
+        }}
+        className="popover popover-menu"
+      >
+        {(['someday', 'delete'] as const).map((action) => (
+          <button
+            key={action}
+            type="button"
+            className="popover-row"
+            disabled={busy}
+            onClick={() => {
+              setOpen(false);
+              onAction(action);
+            }}
+          >
+            {m[action]}
+          </button>
+        ))}
+      </Popover>
+    </div>
   );
 }

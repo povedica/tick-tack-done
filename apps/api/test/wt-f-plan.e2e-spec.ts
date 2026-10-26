@@ -75,6 +75,138 @@ describe('F day planning', () => {
       .send({ local_date: '2026-10-26', time_zone: 'Europe/Madrid', inbox: true, undated: true })
       .expect(201);
   }
+  it('schedules only the configured card immediately, after work and on weekends, with idempotency and undo', async () => {
+    const task = await makeTask();
+    const draft = await makeTask();
+    const session = await start();
+    const id = String(session.body.id);
+    await call()
+      .put(`/api/v1/planning/sessions/${id}/decisions/${draft.id}`)
+      .set('X-Dev-User-Email', email)
+      .send({ action: 'today' })
+      .expect(200);
+    const key = randomUUID();
+    const choice = { action: 'move', date: '2026-10-31', time: '23:30', duration: 30 };
+    const schedule = () =>
+      call()
+        .post(`/api/v1/planning/sessions/${id}/schedule/${task.id}`)
+        .set('X-Dev-User-Email', email)
+        .set('Idempotency-Key', key)
+        .send(choice);
+    const saved = await schedule().expect(200);
+    expect(saved.body.state).toBe('draft');
+    expect(saved.body.committed_task_ids).toEqual([task.id]);
+    expect(
+      (await prisma.task.findUniqueOrThrow({ where: { id: task.id } })).startDate?.toISOString(),
+    ).toBe('2026-10-31T22:30:00.000Z');
+    expect((await prisma.task.findUniqueOrThrow({ where: { id: draft.id } })).startDate).toBeNull();
+    expect((await schedule().expect(200)).body.operation_id).toBe(saved.body.operation_id);
+    await call()
+      .put(`/api/v1/planning/sessions/${id}/decisions/${task.id}`)
+      .set('X-Dev-User-Email', email)
+      .send({ action: 'today' })
+      .expect(409);
+    await call()
+      .delete(`/api/v1/planning/sessions/${id}/decisions/${task.id}`)
+      .set('X-Dev-User-Email', email)
+      .expect(409);
+    await call()
+      .post(`/api/v1/planning/operations/${String(saved.body.operation_id)}/revert`)
+      .set('X-Dev-User-Email', email)
+      .expect(201);
+    const restored = await call()
+      .get(`/api/v1/planning/sessions/${id}`)
+      .set('X-Dev-User-Email', email)
+      .expect(200);
+    expect(restored.body.committed_task_ids).toEqual([]);
+    expect(restored.body.decisions.map((d: { task_id: string }) => d.task_id)).toEqual([draft.id]);
+    expect((await prisma.task.findUniqueOrThrow({ where: { id: task.id } })).startDate).toBeNull();
+    const resaved = await call()
+      .post(`/api/v1/planning/sessions/${id}/schedule/${task.id}`)
+      .set('X-Dev-User-Email', email)
+      .set('Idempotency-Key', randomUUID())
+      .send({ action: 'move', date: '2026-10-29', time: '18:00', duration: 60 })
+      .expect(200);
+    const apply = await call()
+      .post(`/api/v1/planning/sessions/${id}/apply`)
+      .set('X-Dev-User-Email', email)
+      .set('Idempotency-Key', randomUUID())
+      .send({ expected_revision: resaved.body.revision })
+      .expect(200);
+    expect(apply.body.applied.map((d: { task_id: string }) => d.task_id)).toEqual([draft.id]);
+    expect(
+      (await prisma.task.findUniqueOrThrow({ where: { id: task.id } })).startDate?.toISOString(),
+    ).toBe('2026-10-29T17:00:00.000Z');
+  });
+  it('rolls back an immediate schedule when a slot collides or the snapshot is stale', async () => {
+    const task = await makeTask();
+    const occupied = await makeTask();
+    await prisma.task.update({
+      where: { id: occupied.id },
+      data: {
+        startDate: new Date('2026-11-01T22:30Z'),
+        isAllDay: false,
+        durationMinutes: 30,
+      },
+    });
+    const session = await start();
+    const id = String(session.body.id);
+    const schedule = (time: string) =>
+      call()
+        .post(`/api/v1/planning/sessions/${id}/schedule/${task.id}`)
+        .set('X-Dev-User-Email', email)
+        .set('Idempotency-Key', randomUUID())
+        .send({ action: 'move', date: '2026-11-01', time, duration: 30 });
+    await schedule('23:30').expect(409);
+    expect(
+      await prisma.planDecision.findMany({ where: { sessionId: id, taskId: task.id } }),
+    ).toHaveLength(0);
+    await prisma.task.update({ where: { id: task.id }, data: { title: 'Changed after preview' } });
+    await schedule('18:00').expect(409);
+    expect(
+      await prisma.planDecision.findMany({ where: { sessionId: id, taskId: task.id } }),
+    ).toHaveLength(0);
+    expect((await prisma.task.findUniqueOrThrow({ where: { id: task.id } })).startDate).toBeNull();
+  });
+  it('persists an immediate timed plan for an imported zero-duration recurrence across session refresh', async () => {
+    const task = await makeTask(new Date('2026-10-26T08:00Z'));
+    await prisma.task.update({
+      where: { id: task.id },
+      data: {
+        startDate: new Date('2026-10-26T08:00Z'),
+        durationMinutes: 0,
+        isAllDay: false,
+        repeatRule: 'RRULE:FREQ=WEEKLY;BYDAY=MO',
+        seriesId: task.id,
+      },
+    });
+    const session = await start();
+    const response = await call()
+      .post(`/api/v1/planning/sessions/${String(session.body.id)}/schedule/${task.id}`)
+      .set('X-Dev-User-Email', email)
+      .set('Idempotency-Key', randomUUID())
+      .send({ action: 'move', date: '2026-10-29', time: '22:00', duration: 30 })
+      .expect(200);
+    expect(response.body.committed_task_ids).toContain(task.id);
+    const refreshed = await start();
+    expect(refreshed.body.id).toBe(session.body.id);
+    expect(refreshed.body.committed_task_ids).toContain(task.id);
+    expect(refreshed.body.decisions.some((d: { task_id: string }) => d.task_id === task.id)).toBe(
+      true,
+    );
+    const row = await prisma.task.findUniqueOrThrow({ where: { id: task.id } });
+    expect(row.startDate?.toISOString()).toBe('2026-10-29T21:00:00.000Z');
+    expect(row.durationMinutes).toBe(30);
+    expect(row.status).toBe('active');
+    expect(row.repeatRule).toBeNull();
+    expect(await prisma.seriesAdvance.count({ where: { sourceTaskId: task.id } })).toBe(1);
+    await call()
+      .post(`/api/v1/planning/sessions/${String(session.body.id)}/apply`)
+      .set('X-Dev-User-Email', email)
+      .set('Idempotency-Key', randomUUID())
+      .send({ expected_revision: refreshed.body.revision })
+      .expect(200);
+  });
   it('F-AC-29 / RF-2001: MCP starts, records, previews, applies and reverts through public guards', async () => {
     const secret = newPersonalAccessToken();
     await prisma.personalAccessToken.create({

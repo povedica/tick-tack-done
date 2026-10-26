@@ -69,7 +69,7 @@ export const extraEs = {
   notificationUnavailable: 'Canal no disponible',
   notificationEnablePush: 'Activar push en este navegador',
 
-  focusSettingsTitle: 'Ajustes de Foco',
+  focusSettingsTitle: 'Tiempo de Foco',
   focusPomoDuration: 'Duración del pomo',
   focusAutoBreak: 'Empezar el descanso automáticamente',
   focusAutoFocus: 'Empezar el siguiente pomo automáticamente',
@@ -229,7 +229,7 @@ export const extraEs = {
   focusRecord: 'Registro de foco',
   focusRecordEmpty: 'Aún no hay registros de foco',
   focusNoTask: 'Sin tarea',
-  focusSettings: 'Ajustes de foco',
+  focusSettings: 'Tiempo de Foco',
   focusAbortConfirm: '¿Abandonar la sesión? No contará como pomodoro.',
   focusStartBreak: 'Empezar descanso',
   focusSkipBreak: 'Saltar descanso',
@@ -1361,7 +1361,7 @@ export const extraEn = {
   notificationUnavailable: 'Channel unavailable',
   notificationEnablePush: 'Enable push in this browser',
 
-  focusSettingsTitle: 'Focus settings',
+  focusSettingsTitle: 'Focus time',
   focusPomoDuration: 'Pomo duration',
   focusAutoBreak: 'Start breaks automatically',
   focusAutoFocus: 'Start the next pomo automatically',
@@ -1508,7 +1508,7 @@ export const extraEn = {
   mcpOAuthStep2: 'Sign in to ttd when prompted',
   mcpOAuthStep3: 'The app will appear in Connected apps',
 
-  focusSettings: 'Focus settings',
+  focusSettings: 'Focus time',
   focusModePomo: 'Pomo',
   focusModeStopwatch: 'Stopwatch',
   focusResume: 'Resume',

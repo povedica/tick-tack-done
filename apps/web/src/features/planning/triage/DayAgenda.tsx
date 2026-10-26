@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { civilDateKey, formatMinutes, wallClock } from '@reflexionia/domain';
 import { useWtFMessages } from '../i18n-wt-f';
 import { useAppLocale } from '../../../i18n/locale';
@@ -26,8 +27,19 @@ export function DayAgenda({
 }) {
   const m = useWtFMessages(),
     locale = useAppLocale();
-  const lower = clockMinutes(range.settings.work_day_start ?? '09:00'),
-    upper = clockMinutes(range.settings.work_day_end ?? '18:00');
+  const lower = 0,
+    upper = 1440;
+  const weekday = new Date(`${day.date}T12:00Z`).getUTCDay();
+  const working =
+    range.settings.work_days.includes(weekday) &&
+    range.settings.work_day_start &&
+    range.settings.work_day_end;
+  const scroll = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const node = scroll.current;
+    const timeline = node?.firstElementChild;
+    if (node && timeline) node.scrollTop = (timeline.getBoundingClientRect().height * 8) / 24;
+  }, [day.date]);
   const timed = day.tasks.filter(
     (t) =>
       !t.is_all_day &&
@@ -85,47 +97,76 @@ export function DayAgenda({
         <i />
         {loadPhrase(day, m)}
       </p>
+      {working ? (
+        <p className="plan-work-legend">
+          <i />
+          {m.workHours} · {range.settings.work_day_start}–{range.settings.work_day_end}
+        </p>
+      ) : null}
       <div
-        className="sp-tl"
-        data-plan-agenda={day.date}
-        data-plan-start={lower}
-        data-plan-end={upper}
-        style={{ height: `calc(${String((upper - lower) / 60)} * var(--plan-hour))` }}
+        className="plan-agenda-scroll"
+        ref={scroll}
+        tabIndex={0}
+        role="region"
+        aria-label={m.agenda}
       >
-        {Array.from({ length: Math.ceil((upper - lower) / 60) + 1 }, (_, i) => (
-          <div key={i} className="sp-hr">
-            <span>{minuteClock(lower + i * 60)}</span>
-          </div>
-        ))}
-        {blocks.map((b) => (
-          <div
-            key={b.id}
-            className={`sp-blk is-${b.event ? 'event' : 'task'}`}
-            style={position(b.start, b.end)}
-          >
-            <em>
-              {new Intl.DateTimeFormat(locale, {
-                hour: '2-digit',
-                minute: '2-digit',
-                timeZone: range.time_zone,
-              }).format(new Date(b.start))}
-            </em>
-            <span>{b.title}</span>
-          </div>
-        ))}
-        {ghost ? (
-          <div
-            className={`sp-blk is-ghost ${ghost.conflict ? 'is-conflict' : ''}`}
-            style={{
-              top: `calc(${String((clockMinutes(ghost.time) - lower) / 60)} * var(--plan-hour))`,
-              height: `calc(${String(ghost.duration / 60)} * var(--plan-hour))`,
-            }}
-          >
-            {ghost.conflict
-              ? `${m.overlap} ${ghost.conflict}`
-              : `${ghost.time} – ${minuteClock(clockMinutes(ghost.time) + ghost.duration)} · ${ghost.title}`}
-          </div>
-        ) : null}
+        <div
+          className="sp-tl"
+          data-plan-agenda={day.date}
+          data-plan-start={lower}
+          data-plan-end={upper}
+          style={{ height: `calc(${String((upper - lower) / 60)} * var(--plan-hour))` }}
+        >
+          {Array.from({ length: Math.ceil((upper - lower) / 60) + 1 }, (_, i) => (
+            <div key={i} className="sp-hr">
+              <span>{i === 24 ? '00:00' : minuteClock(lower + i * 60)}</span>
+            </div>
+          ))}
+          {working ? (
+            <div
+              className="plan-work-hours"
+              aria-hidden="true"
+              style={{
+                top: `calc(${String(clockMinutes(range.settings.work_day_start ?? '09:00') / 60)} * var(--plan-hour))`,
+                height: `calc(${String((clockMinutes(range.settings.work_day_end ?? '18:00') - clockMinutes(range.settings.work_day_start ?? '09:00')) / 60)} * var(--plan-hour))`,
+              }}
+            />
+          ) : null}
+          {blocks
+            .filter(
+              (b) =>
+                b.start < b.end && (civilDateKey(b.end, range.time_zone) ?? day.date) >= day.date,
+            )
+            .map((b) => (
+              <div
+                key={b.id}
+                className={`sp-blk is-${b.event ? 'event' : 'task'}`}
+                style={position(b.start, b.end)}
+              >
+                <em>
+                  {new Intl.DateTimeFormat(locale, {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    timeZone: range.time_zone,
+                  }).format(new Date(b.start))}
+                </em>
+                <span>{b.title}</span>
+              </div>
+            ))}
+          {ghost ? (
+            <div
+              className={`sp-blk is-ghost ${ghost.conflict ? 'is-conflict' : ''}`}
+              style={{
+                top: `calc(${String((clockMinutes(ghost.time) - lower) / 60)} * var(--plan-hour))`,
+                height: `calc(${String(ghost.duration / 60)} * var(--plan-hour))`,
+              }}
+            >
+              {ghost.conflict
+                ? `${m.overlap} ${ghost.conflict}`
+                : `${ghost.time} – ${minuteClock(clockMinutes(ghost.time) + ghost.duration)} · ${ghost.title}`}
+            </div>
+          ) : null}
+        </div>
       </div>
       <p className="sp-untimed">
         {m.untimed} {untimed.length} {m.tasks} ·{' '}

@@ -42,7 +42,9 @@ export function SummaryView({
     <section className="sp-summary">
       <h1 className="plan-desktop-only">{m.summary}</h1>
       <h1 className="plan-mobile-only">{m.mobileSummary}</h1>
-      <p className="plan-desktop-only">{m.unchanged}</p>
+      <p className="plan-desktop-only">
+        {session.committed_task_ids?.length ? m.partlySaved : m.unchanged}
+      </p>
       <p className="plan-mobile-only">
         {pluralMessage(locale, count, { one: m.decidedOne, other: m.decidedMany })}
       </p>
@@ -120,7 +122,11 @@ export function SummaryView({
           disabled={busy || !session.decisions.some((d) => d.action !== 'skip')}
           onClick={onConfirm}
         >
-          {m.confirm}
+          {session.decisions.some(
+            (d) => d.action !== 'skip' && !session.committed_task_ids?.includes(d.task_id),
+          )
+            ? m.confirm
+            : m.finish}
           <Kbd>↵</Kbd>
         </Button>
       </div>

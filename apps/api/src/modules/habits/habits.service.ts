@@ -5,6 +5,7 @@ import {
   assessCheckIn,
   calendarDate,
   habitStats,
+  habitAvailabilityHistory,
   readStoredHabit,
   normalizeHabitDraft,
   type HabitLogEntry,
@@ -109,11 +110,20 @@ export class HabitsService {
       if (!draft.ok) {
         throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', draft.reason);
       }
+      const startDate = dto.start_date === undefined ? (stored.startDate ?? null) : dto.start_date;
+      const paused = dto.paused ?? stored.paused ?? false;
       let history = [...(stored.history ?? [])];
-      if (dto.goal !== undefined || dto.frequency !== undefined) {
+      if (
+        dto.goal !== undefined ||
+        dto.frequency !== undefined ||
+        dto.paused !== undefined ||
+        dto.start_date !== undefined
+      ) {
         const changed =
           JSON.stringify(stored.goal) !== JSON.stringify(draft.habit.goal) ||
-          JSON.stringify(stored.days) !== JSON.stringify(draft.habit.days);
+          JSON.stringify(stored.days) !== JSON.stringify(draft.habit.days) ||
+          paused !== (stored.paused ?? false) ||
+          startDate !== (stored.startDate ?? null);
         if (changed) {
           const today = this.today(user);
           const logs = await tx.habitLog.findMany({
@@ -143,6 +153,31 @@ export class HabitsService {
           ];
         }
       }
+      if (
+        dto.start_date !== undefined ||
+        dto.paused !== undefined ||
+        dto.goal !== undefined ||
+        dto.frequency !== undefined
+      ) {
+        try {
+          history = [
+            ...habitAvailabilityHistory({
+              history,
+              goal: draft.habit.goal,
+              days: draft.habit.days,
+              from: this.today(user),
+              startDate,
+              paused,
+            }),
+          ];
+        } catch {
+          throw new DomainException(
+            HttpStatus.BAD_REQUEST,
+            'validation_failed',
+            'invalid_start_date',
+          );
+        }
+      }
       const reorder = dto.before_id !== undefined || dto.move_to_end === true;
       const rows = await tx.habit.findMany({
         where: { ownerId: user.id, deletedAt: null },
@@ -160,27 +195,26 @@ export class HabitsService {
       const row = await tx.habit.update({
         where: { id },
         data: {
-          ...(dto.challenge_days !== undefined &&
-          dto.goal === undefined &&
-          dto.frequency === undefined
-            ? { goal: { ...goalObject(current.goal), challenge_days: dto.challenge_days } }
-            : {}),
-          ...(dto.name !== undefined ? { name: this.cleanName(dto.name) } : {}),
-          ...(dto.icon !== undefined ? { icon: blankToNull(dto.icon) } : {}),
-          ...(dto.color !== undefined ? { color: dto.color } : {}),
-          ...(dto.goal !== undefined || dto.frequency !== undefined
+          ...(['goal', 'frequency', 'unit', 'start_date', 'paused', 'challenge_days'].some(
+            (key) => (dto as unknown as Record<string, unknown>)[key] !== undefined,
+          )
             ? {
                 goal: {
                   ...goalObject(current.goal),
                   ...goalJson(draft.habit),
                   schedule_history: asJson(history),
-                  ...(dto.challenge_days === undefined
-                    ? {}
-                    : { challenge_days: dto.challenge_days }),
+                  start_date: startDate,
+                  paused,
+                  ...(dto.unit !== undefined ? { unit: blankToNull(dto.unit) } : {}),
+                  ...(dto.challenge_days !== undefined
+                    ? { challenge_days: dto.challenge_days }
+                    : {}),
                 },
-                frequency: [...draft.habit.days],
               }
             : {}),
+          ...(dto.name !== undefined ? { name: this.cleanName(dto.name) } : {}),
+          ...(dto.icon !== undefined ? { icon: blankToNull(dto.icon) } : {}),
+          ...(dto.color !== undefined ? { color: dto.color } : {}),
           ...(dto.reminder_time !== undefined ? { reminderTime: draft.habit.reminderTime } : {}),
           ...(dto.motivation_note !== undefined
             ? { motivationNote: blankToNull(dto.motivation_note) }
@@ -189,6 +223,22 @@ export class HabitsService {
           ...(plan !== null ? { sortOrder: plan.movingSortOrder } : {}),
         },
       });
+      if (
+        paused ||
+        dto.archived === true ||
+        dto.reminder_time !== undefined ||
+        dto.start_date !== undefined
+      ) {
+        await tx.reminderDelivery.updateMany({
+          where: {
+            ownerId: user.id,
+            kind: 'habit',
+            status: { in: ['scheduled', 'failed'] },
+            payload: { path: ['habit_id'], equals: id },
+          },
+          data: { status: 'cancelled' },
+        });
+      }
       const today = this.today(user);
       const logs = await this.logsFor([id], today, tx);
       const body = this.toJson(row, logs.get(id) ?? null, today);
@@ -320,6 +370,19 @@ export class HabitsService {
     if (!draft.ok) {
       throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', draft.reason);
     }
+    let history;
+    try {
+      history = habitAvailabilityHistory({
+        history: [],
+        goal: draft.habit.goal,
+        days: draft.habit.days,
+        from: dto.start_date ?? this.today(user),
+        startDate: dto.start_date ?? null,
+        paused: dto.paused ?? false,
+      });
+    } catch {
+      throw new DomainException(HttpStatus.BAD_REQUEST, 'validation_failed', 'invalid_start_date');
+    }
     const rows = await tx.habit.findMany({
       where: { ownerId: user.id, deletedAt: null },
       select: { id: true, sortOrder: true },
@@ -334,7 +397,14 @@ export class HabitsService {
         name: this.cleanName(dto.name),
         icon: blankToNull(dto.icon),
         color: dto.color ?? null,
-        goal: { ...goalJson(draft.habit), challenge_days: dto.challenge_days ?? null },
+        goal: {
+          ...goalJson(draft.habit),
+          challenge_days: dto.challenge_days ?? null,
+          unit: blankToNull(dto.unit),
+          start_date: dto.start_date ?? null,
+          paused: dto.paused ?? false,
+          schedule_history: asJson(history),
+        },
         frequency: [...draft.habit.days],
         reminderTime: draft.habit.reminderTime,
         motivationNote: blankToNull(dto.motivation_note),
@@ -361,6 +431,12 @@ export class HabitsService {
   ): Promise<CheckInResponseDto> {
     const habit = await this.require(tx, user.id, id);
     const stored = this.stored(habit);
+    if (stored.paused || habit.archived)
+      throw new DomainException(
+        HttpStatus.CONFLICT,
+        'habit_paused',
+        'Resume the habit before checking in',
+      );
     const existingLogs = await tx.habitLog.findMany({
       where: { habitId: id, deletedAt: null },
       select: { date: true, count: true },
@@ -483,8 +559,17 @@ export class HabitsService {
   private toJson(row: Habit, log: HabitLog | null, today: string): HabitResponseDto {
     const stored = this.stored(row);
     const count = log === null ? 0 : log.count;
-    const scheduled = stored.days.includes(weekdayName(today));
+    const effective = [...(stored.history ?? [])]
+      .reverse()
+      .find((h) => h.from <= today && (!h.to || today <= h.to));
+    const scheduled =
+      !stored.paused &&
+      (stored.startDate == null || today >= stored.startDate) &&
+      (effective?.days ?? stored.days).includes(weekdayName(today));
     return {
+      unit: stored.unit ?? null,
+      start_date: stored.startDate ?? null,
+      paused: stored.paused ?? false,
       challenge_days:
         typeof goalObject(row.goal).challenge_days === 'number'
           ? Number(goalObject(row.goal).challenge_days)

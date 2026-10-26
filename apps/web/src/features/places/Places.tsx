@@ -1,4 +1,4 @@
-import { Popover } from '../../components/Popover';
+import { DayDetails } from '../calendar/DayDetails';
 import { CaptureDefaults } from '../settings/CaptureDefaults';
 import { useWtAMessages } from '../calendar/i18n-wt-a';
 import { composerContextFor } from '../capture/context';
@@ -34,7 +34,6 @@ import {
   List,
   Check,
   ListFilter,
-  X,
 } from 'lucide-react';
 import { CalendarTaskMark } from '../calendar/CalendarTaskMark';
 import { openTaskComposer } from '../capture/notice';
@@ -1045,13 +1044,14 @@ export function CalendarPage() {
       ) : null}
       {taskChange.feedback}
       {picked !== null ? (
-        <DaySheet
+        <DayDetails
           dayKey={picked}
           anchor={pickedAnchor}
-          tasks={dated}
-          events={external}
-          messages={messages}
-          colors={colors}
+          tasks={tasksOnCell(dated, dayFromParam(picked) ?? cursor)}
+          events={eventsOnDay(external, dayFromParam(picked) ?? cursor)}
+          projects={projects.data?.items ?? []}
+          defaultProjectId={contextProject}
+          timeZone={timeZone}
           onOpenEvent={setOpenEvent}
           onClose={() => {
             setPicked(null);
@@ -1183,6 +1183,7 @@ function DayGrid({
     };
   }, []);
   const compact = dots || (monthView && narrow);
+  const dotLimit = monthView ? 3 : 4;
   const location = useLocation();
   const locale = useAppLocale();
   const own = useWtAMessages();
@@ -1198,18 +1199,37 @@ function DayGrid({
       const counts: Record<string, number> = {};
       const barSpace = new Map<number, number>();
       const hiddenBars = new Map<string, number>();
+      const visibleBars = new Map<string, number>();
       for (const bar of node.querySelectorAll<HTMLElement>('.calendar-month-span')) {
         const week = Number(bar.dataset.week);
         const cell = node.querySelector<HTMLElement>(`[data-week="${String(week)}"].cal-cell`);
         const offset = barSpace.get(week) ?? 0;
         const height = bar.getBoundingClientRect().height;
-        const visible = !!cell && offset + height <= cell.clientHeight * 0.5;
+        const covered = [
+          ...node.querySelectorAll<HTMLElement>(`.cal-cell[data-week="${String(week)}"]`),
+        ].filter((cell) => {
+          const col = Number(cell.dataset.column);
+          return (
+            col >= Number(bar.dataset.column) &&
+            col < Number(bar.dataset.column) + Number(bar.dataset.span)
+          );
+        });
+        const visible =
+          !!cell &&
+          offset + height <= cell.clientHeight * 0.5 &&
+          (!monthView ||
+            covered.every((cell) => (visibleBars.get(cell.dataset.day ?? '') ?? 0) < 3));
         bar.style.marginTop = `${String(32 + offset)}px`;
         bar.style.visibility = visible ? 'visible' : 'hidden';
         bar.inert = !visible;
         bar.setAttribute('aria-hidden', String(!visible));
-        if (visible) barSpace.set(week, offset + height + 3);
-        else
+        if (visible) {
+          barSpace.set(week, offset + height + 3);
+          for (const cell of covered) {
+            const key = cell.dataset.day ?? '';
+            visibleBars.set(key, (visibleBars.get(key) ?? 0) + 1);
+          }
+        } else
           for (const cell of node.querySelectorAll<HTMLElement>(
             `.cal-cell[data-week="${String(week)}"]`,
           )) {
@@ -1233,7 +1253,11 @@ function DayGrid({
         const room = cell.clientHeight - list.offsetTop - 4;
         const heights = children.map((child) => child.offsetHeight + 3);
         const total = heights.reduce((sum, height) => sum + height, 0);
-        const maxItems = node.closest('.calendar-two-weeks') ? 5 : Number.POSITIVE_INFINITY;
+        const maxItems = monthView
+          ? Math.max(0, 3 - (visibleBars.get(key) ?? 0))
+          : node.closest('.calendar-two-weeks')
+            ? 5
+            : Number.POSITIVE_INFINITY;
         const reserve = total > room || children.length > maxItems || hiddenBars.has(key) ? 26 : 0;
         let used = 0;
         let hidden = hiddenBars.get(key) ?? 0;
@@ -1267,7 +1291,7 @@ function DayGrid({
       cancelAnimationFrame(frame);
       observer.disconnect();
     };
-  }, [days, tasks, events]);
+  }, [days, tasks, events, monthView]);
   const todayKey = useCalendarToday();
   const weekday = new Intl.DateTimeFormat(locale, { weekday: 'short' });
   const heads = Array.from({ length: columns }, (_, index) =>
@@ -1412,7 +1436,7 @@ function DayGrid({
                 )}
               </strong>
               <span className="cal-dots" aria-hidden="true">
-                {(compact ? chips.slice(0, 4) : chips).map((chip) => (
+                {(compact ? chips.slice(0, dotLimit) : chips).map((chip) => (
                   <i
                     key={chip.kind === 'task' ? chip.task.id : chip.event.id}
                     style={{
@@ -1498,14 +1522,16 @@ function DayGrid({
                         ),
                       )}
               </div>
-              {(compact ? chips.length - 4 : (overflow[key] ?? 0)) > 0 ? (
+              {(compact ? chips.length - dotLimit : (overflow[key] ?? 0)) > 0 ? (
                 <button
                   type="button"
                   className="calendar-overflow"
                   onClick={(event) => onPick?.(key, event.currentTarget)}
                 >
-                  +{compact ? chips.length - 4 : overflow[key]}{' '}
-                  {compact ? null : messages.calendarMoreViews.toLocaleLowerCase(locale)}
+                  +{compact ? chips.length - dotLimit : overflow[key]}{' '}
+                  {compact && !monthView
+                    ? null
+                    : messages.calendarMoreViews.toLocaleLowerCase(locale)}
                 </button>
               ) : null}
             </div>
@@ -2135,77 +2161,6 @@ function Agenda({
         );
       })}
     </div>
-  );
-}
-
-function DaySheet({
-  dayKey,
-  anchor,
-  onClose,
-  tasks,
-  events,
-  messages,
-  colors,
-  onOpenEvent,
-}: {
-  readonly dayKey: string;
-  readonly anchor: { current: HTMLElement | null };
-  readonly onClose: () => void;
-  readonly tasks: readonly Task[];
-  readonly events: readonly ExternalEventView[];
-  readonly messages: Messages;
-  readonly colors: ReadonlyMap<string, string>;
-  readonly onOpenEvent: (event: ExternalEventView) => void;
-}) {
-  const locale = useAppLocale();
-  const day = dayFromParam(dayKey);
-  if (day === null) return null;
-  const heading = (
-    <div className="calendar-day-popover-header">
-      <strong>
-        {new Intl.DateTimeFormat(locale, {
-          weekday: 'short',
-          day: 'numeric',
-          month: 'short',
-        }).format(day)}
-      </strong>
-      <Button onClick={onClose} aria-label={messages.close}>
-        <X aria-hidden="true" />
-      </Button>
-    </div>
-  );
-  return (
-    <Popover
-      open
-      anchor={anchor}
-      width={320}
-      mobileSheet
-      mobileSheetMaxWidth={767}
-      sheetHeader={heading}
-      label={day.toLocaleDateString(locale, { dateStyle: 'full' })}
-      className="popover calendar-day-popover"
-      onClose={onClose}
-    >
-      <div className="calendar-day-desktop-heading">{heading}</div>
-      <div
-        onClick={(event) => {
-          if (event.target instanceof Element && event.target.closest('a')) onClose();
-        }}
-      >
-        <Agenda
-          days={[day]}
-          tasks={tasksOnCell(tasks, day)}
-          events={eventsOnDay(events, day)}
-          locale={locale}
-          messages={messages}
-          colors={colors}
-          onOpenEvent={(event) => {
-            onClose();
-            onOpenEvent(event);
-          }}
-        />
-      </div>
-    </Popover>
   );
 }
 

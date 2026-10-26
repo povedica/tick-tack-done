@@ -394,3 +394,74 @@ Las actualizaciones de tareas emiten los eventos existentes desde TasksService c
 - **Decisión de Pablo (26/10/2026):** mantener los 4 s del toast global posterior a confirmar, frente a los 10 s previstos en M10. Diferencia aceptada; no se aplica el parche de duración opcional ni se modifican `action-toast.ts` o `AppShell.tsx`.
 - **Trabajo local:** commits realizados en la rama F, integrados en main local y rama nueva de refinamiento desde el mismo estado. No se fusionan ni publican PR remotas ni se despliega. Las comprobaciones usan exclusivamente datos sintéticos en `ttd_wt_f`.
 - La revisión humana del producto con datos reales corresponde a la nueva rama de pruebas. No quedan puntos de implementación F pendientes.
+
+## Refinamiento local de UI · 26/10/2026
+
+Trabajo solicitado por Pablo en `codex/local-tests-refinement`, sobre `6ed658a`, sin nueva rama ni worktree. Referencias: RF-204 (mover de lista), RF-501/502 (prioridad y bandera coloreada), RF-602 (duración), RF-701/702 (editor de recurrencia), y M6/M7/M13/M19 de F. Las observaciones actuales sustituyen las decisiones visuales anteriores sobre dos filas de acciones, «Mañana» en el carrusel y horario limitado a la jornada laboral.
+
+- Paneles y tarjeta diferenciados por fondo, borde y sombra; cola con margen interior junto al scroll, ocultación desde cabecera, agrupación por lista o prioridad y lista/etiquetas bajo cada tarea.
+- Lista editable desde el icono de tres líneas; prioridad desde la bandera coloreada; recurrencia en azul abre el configurador habitual. `DatePopover` añade exclusivamente un modo opcional `repeat-only` para reutilizar ese configurador sin exponer controles de fecha, hora o recordatorios; los modos anteriores conservan su comportamiento. Es la única ampliación del componente compartido necesaria para esta petición.
+- Las ediciones de lista, prioridad y recurrencia se guardan con los endpoints existentes y muestran «Cambio guardado». Se refresca el snapshot de sesión para evitar conflictos artificiales al confirmar, conservando el orden visible de las tarjetas. Las decisiones de planificación continúan siendo borrador hasta confirmar.
+- «Duración:» junto al reloj; una sola flecha en el selector de hora; acciones en una fila y menú flotante fuera del área de scroll para que no quede recortado.
+- Agenda redimensionable con puntero y teclado, borde izquierdo visible, carrusel con nombre de día salvo Hoy, horario completo 00:00–00:00 y zona laboral sombreada discretamente. La vista comienza en las 08:00, con scroll hacia cualquier hora. Los huecos y el arrastre permiten también tardes, noches y fines de semana.
+- Arrastre con tarjeta de origen atenuada, previsualización junto al puntero dentro del viewport, hueco con ajuste de 15 minutos, rechazo de solapamientos y scroll en los bordes. La agenda es accesible con teclado y las horas/eventos mantienen contraste AA.
+
+Verificación local: lint y typecheck del monorepo; unitarios de dominio (341, cobertura de líneas 89,68 %), SDK (11), API (282) y web (256); OpenAPI regenerado sin diff. El contenedor Alpine no incluye bash: los comandos raíz se ejecutaron mediante sus comandos equivalentes de pnpm. En los unitarios de API se fijó `GIT_COMMIT=unknown`, porque el test de salud requiere ese valor y el contenedor heredaba un commit de compilación.
+
+E2E con fixtures, sin acceso a la BD de trabajo: matriz 360/390/768/1280, claro y oscuro; selectores, cola, resumen, deshacer, horarios nocturnos y fin de semana, menú compacto y arrastre a las 23:30. Axe sin incidencias graves o críticas en las ocho variantes. Una ejecución concurrente de Playwright eliminó las trazas temporales de otra; los casos afectados se repitieron con directorios de salida independientes. El test nocturno espera además a la colocación inicial de la agenda antes de desplazarse hasta medianoche.
+
+Capturas sintéticas en `test-artifacts/audit/evidencias/wt-f/`: `M6_triaje_despues_*`, `refinement_*` y `refinement_drag_*`. No se modificó API, modelo, producción, importación de datos ni la duración de cuatro segundos del toast de confirmación. No se ejecutó integración contra `ttd_r80_r105`, ni se publicaron o fusionaron cambios.
+
+### Ajuste de cola y franja laboral · 26/10/2026
+
+Segunda observación de Pablo: control de plegado trasladado a la cabecera de la cola y reapertura desde el mismo lateral; tamaño de título de las filas reducido. Las etiquetas reutilizan `TagChip` sin prefijo `#`; la lista muestra tres barras con su color. El indicador circular es decorativo: únicamente la decisión `done` muestra el check, mientras mover o planificar conserva el círculo vacío gris. Pulsar cualquier parte de la fila, incluido el círculo, selecciona la tarea sin completarla. El sombreado laboral comienza en el borde izquierdo del grid horario y ocupa todo su ancho. Referencias RF-201/204/401 y criterios de F sobre navegación de la cola. Cambios exclusivos de UI, sin nuevas escrituras ni cambios en API.
+
+### Maquetación móvil · 26/10/2026
+
+Tercera observación de Pablo: pie móvil con cinco acciones en botones circulares, contenedor redondeado y acceso a «Revisar plan» junto a «Decide qué haces con cada tarea». El contenido y los avisos reservan espacio para la barra y el área segura. La lista baja a una segunda fila junto a las etiquetas, antes del título; la recurrencia queda arriba junto a fecha y prioridad. Los selectores mantienen su comportamiento y el escritorio conserva su distribución. Referencias M3/M6 y criterios F-AC-23/26/27.
+
+### Tarjeta móvil sin scroll y navegación pendiente · 26/10/2026
+
+Nueva decisión de Pablo: la pantalla de triaje móvil debe caber entera, sin desplazamiento vertical. Cabecera, tarjeta flexible y acciones inferiores se distribuyen dentro de `100dvh`; título de hasta tres líneas, descripción con vista previa ajustada al espacio y acceso compacto a adjuntos. «Ver más» abre una hoja de detalle con descripción y adjuntos completos. La adaptación incluye 320×568, además de 360/390 y los temas claro/oscuro.
+
+El gesto horizontal sigue el dedo, vuelve al origen si no se supera el umbral y anima salida/entrada al cambiar de tarea; respeta movimiento reducido y no intercepta botones o selectores. Flecha Anterior, deslizamiento y flechas de teclado en móvil recorren únicamente tareas sin decisión de la sesión local actual. Las decididas se recuperan mediante Deshacer; la cola de escritorio conserva la revisión explícita por clic. Al decidir la última tarjeta visible, se vuelve a una pendiente anterior si todavía queda alguna, evitando mostrar el resumen antes de tiempo. Las previsualizaciones laterales también corresponden solo a pendientes. Referencias M3/M6/M13 y F-AC-18/24/26/27. Sin cambios de API ni escrituras fuera de las acciones existentes.
+
+### Carrusel móvil con tarjetas vecinas · 26/10/2026
+
+Referencia adicional de Pablo: sustituir las franjas superpuestas por caras de tarjetas reales separadas por un hueco. La tarjeta activa deja espacio lateral para que asomen la anterior y la siguiente pendientes, con fecha, lista, etiquetas, título y descripción. Las vistas previas son inertes y no duplican controles o peticiones. Todas forman una única pista que sigue el dedo; la distancia de asentamiento corresponde al ancho real de tarjeta más el hueco de 12 px, de modo que la vecina ocupa el centro al soltar sin una segunda animación de entrada. Anterior usa la misma transición. Se conserva la navegación solo entre pendientes y el encaje sin scroll. Capturas `refinement_carousel_*` y `refinement_carousel_drag_*` en las evidencias de F. Referencias M3/M6 y F-AC-24/26/27.
+
+### Sidebar de escritorio sin globo · 26/10/2026
+
+Pablo solicita más anchura para la cola, manteniendo el cuerpo central: ancho adaptable de 15–21 rem (24vw), fondo integrado y únicamente borde derecho separador, sin contorno redondeado ni sombra. Metadatos de cada fila en una sola línea: lista con su icono y un máximo de dos etiquetas, tipografía de 10 px; si la segunda no cabe, queda fuera de la fila visible. La tarjeta central conserva todas las etiquetas. Referencias M6 y F-AC-26/27.
+
+### Estilo de overlays y cierre · 26/10/2026
+
+Pablo solicita un acabado consistente para todos los menús de planificación, especialmente frecuencia. Los estilos de filas y formularios dependían de la carga de `today.css`; planificación incorpora estilos propios, acotados a su pantalla incluso cuando el menú se monta mediante portal. Lista, prioridad, acciones, fecha, recurrencia y detalle tienen cabecera y cierre circular accesible; se separan cuerpo y pie en las hojas móviles, se mantienen foco y Escape, y la prioridad usa una hoja anclada en lugar de quedar dentro del carrusel transformado. `Popover` recibe una cabecera/cierre opcional y `PriorityMenu` un anclaje opcional, conservando el comportamiento por defecto de sus otros usos. Frecuencia agrupa sus seis opciones en dos columnas, resalta la elegida y alinea número y acción en intervalos personalizados. Verificación de menús en 360 claro, 390 oscuro y escritorio, incluidos selectores, cierre y accesibilidad del editor abierto. Referencias RF-701/702 y F-AC-23/26/27. Sin cambios en la API.
+
+### Completadas atenuadas y bloqueadas · 26/10/2026
+
+Las tareas con decisión `done` se muestran con una capa visual más clara y título tachado; la fila queda deshabilitada, sin arrastre ni selección. La navegación de escritorio también las omite y la acción de decidir rechaza sobrescribir esa decisión, hasta recuperarla explícitamente con Deshacer. Los títulos del resto de tareas usan `--ink` (negro en claro, blanco en oscuro), incluso si tienen una decisión de fecha. Se mantiene la distinción entre completar y planificar para otro día. Referencias M6 y F-AC-18/26/27.
+
+### Refinamiento del CTA «Otro día» — 26/10/2026
+
+Por petición expresa de Pablo, se retira el chip de 45 min para que «Otra» comparta fila con 15 min, 30 min y 1 h. Los 45 min siguen disponibles mediante «Otra» y el atajo existente. Referencia RF-602 y F-AC-8.
+
+El CTA azul «Planificar el…» guarda únicamente la tarea configurada y avanza a la siguiente, sin segunda confirmación. Esta petición sustituye para ese CTA la regla anterior de mantener todas las decisiones en borrador hasta confirmar el plan. Las otras decisiones conservan su borrador. Nuevo endpoint público `POST /planning/sessions/:id/schedule/:taskId`, con clave de idempotencia, transacción, control de propietario, revisión de frescura y conflictos de horario; reutiliza los efectos y eventos de planificación y el mecanismo de deshacer. Las tareas guardadas no pueden volver a decidirse sin deshacer y la confirmación del resto del plan no las vuelve a aplicar. El resumen distingue las tareas ya guardadas. Referencias RF-2651/2670/2671 y F-AC-23/29/30.
+
+La validación de huecos de la API se alinea con la UI personal: 00:00–24:00, también en fines de semana, manteniendo la detección de colisiones. La jornada laboral permanece como referencia visual y de carga, sin impedir planificar a las 18:00 o 23:30.
+
+Integración ejecutada exclusivamente contra la nueva BD sintética `ttd_wt_f`; sin importar de nuevo tareas ni ejecutar pruebas contra `ttd_r80_r105`.
+
+Validación del refinamiento: lint sin errores (aviso previo de `console` en la prueba D), tipos correctos en los cuatro paquetes, unitarios de web (256), dominio (341), SDK (11) y API (282; el único timeout de correo pasó al repetirlo con concurrencia limitada). Integración F: 12/12 en `ttd_wt_f`. Playwright: 52 casos correctos y 13 omisiones por dispositivo; el único timeout al cargar la pantalla vacía pasó en su repetición. El caso específico del CTA pasa en 360 claro, 390 oscuro y 1280 claro, incluido guardado de una sola tarea, fila de duraciones y deshacer. OpenAPI y catálogo regenerados; compilación de API correcta. Capturas sintéticas `schedule_cta_wt-f-*.png` revisadas visualmente.
+
+Refinamiento visual posterior (RF-602 / F-AC-9): el selector horario pasa a una fila propia debajo de la duración en la tarjeta de escritorio, con «Hora:» junto a su reloj. La hoja «Otro día» reutiliza esa etiqueta sin duplicarla. Sin cambios en horarios, decisiones o API.
+
+### Planificadas y arrastre recurrente — 26/10/2026
+
+Pablo detecta que «Otro día» no muestra check al guardar o recargar y que arrastrar una recurrente no hace nada. Reproducción solo lectura del caso local: «Repaso semanal de la casa» tiene inicio y vencimiento iguales y duración importada de 0 min. `freeSlots` rechaza duraciones inferiores a 5 min; la UI usaba 0 en vez del valor por defecto. Se usa una duración válida del perfil al preparar esa tarjeta, sin reimportar datos ni reparar de forma masiva las tareas.
+
+El arrastre guarda inmediatamente mediante el mismo endpoint idempotente que el CTA de Otro día. Cualquier decisión no omitida muestra check de planificación, aspecto atenuado y queda bloqueada en la cola; no equivale a completar la tarea real. Las decididas quedan al final de cada grupo y los controles anterior/siguiente no vuelven a decidirlas. Deshacer sigue permitiendo volver a una tarea pendiente. Prueba UI nueva: arrastrar una ordinaria y una recurrente con 0 min, guardar ambas, recargar y comprobar check/bloqueo. Integración en `ttd_wt_f`: planificar la recurrencia equivalente, comprobar 30 min, conservar estado activo, separar solo la ocurrencia actual y mantener decisión/committed_task_ids al reabrir la sesión. Referencias RF-602, RF-701/702 y F-AC-15/18/29/30. Sin cambios de API de ejecución.
+
+Validación final de esta revisión: lint sin errores (aviso previo de console en prueba D), tipos del monorepo y 890 unitarios correctos. Integración F 13/13 en BD sintética. Regresión funcional de planificación, incluido guardar/recargar una ordinaria y una recurrente de 0 min, correcta; la prueba anterior que permitía volver a decidir se adaptó al bloqueo solicitado y pasa. Ajustes y popup verificados con capturas en escritorio claro y móvil oscuro. Sin cambios de API de ejecución ni escrituras sobre las tareas de trabajo durante las pruebas.
+
+Refinamiento visual del sidebar izquierdo (F-AC-26/27): por petición de Pablo se recupera el borde completo y el radio suave de la agenda derecha, manteniendo fondo blanco. La columna pasa a `clamp(15rem, 26vw, 22rem)` y se reduce el padding interior y junto al scroll para ganar espacio útil para títulos, lista y tags. Sin cambios de navegación, estado o API.

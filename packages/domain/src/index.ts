@@ -187,6 +187,7 @@ export {
   calendarDate,
   HABIT_WEEKDAYS,
   habitStats,
+  habitAvailabilityHistory,
   habitRangeSummary,
   nextHabitReminder,
   normalizeHabitDraft,

@@ -1,0 +1,848 @@
+diff --git a/apps/web/src/features/habits/components/HabitEditor.tsx b/apps/web/src/features/habits/components/HabitEditor.tsx
+--- a/apps/web/src/features/habits/components/HabitEditor.tsx
++++ b/apps/web/src/features/habits/components/HabitEditor.tsx
+@@ -1,187 +1,415 @@
+-import { useState } from 'react';
++import { useEffect, useRef, useState } from 'react';
+ import type { Habit, CreateHabitBody } from '@reflexionia/sdk';
+ import { HABIT_WEEKDAYS, type HabitWeekday } from '@reflexionia/domain';
++import { ChevronLeft, Minus, Plus, X } from 'lucide-react';
++import { PeriodNavigator } from '../../../components/period/PeriodNavigator';
++import { Popover } from '../../../components/Popover';
+ import { Button } from '../../../components/ui';
+-import { useMessages } from '../../../i18n';
++import { useAppLocale } from '../../../i18n/locale';
+ import { useHabitCopy } from '../copy';
+ 
++export function HabitStepper({
++  value,
++  min = 1,
++  max,
++  label,
++  onChange,
++}: {
++  readonly value: number;
++  readonly min?: number;
++  readonly max: number;
++  readonly label: string;
++  readonly onChange: (value: number) => void;
++}) {
++  return (
++    <div className="habit-stepper" role="group" aria-label={label}>
++      <Button
++        variant="ghost"
++        type="button"
++        aria-label={`− ${label}`}
++        disabled={value <= min}
++        onClick={() => {
++          onChange(Math.max(min, value - 1));
++        }}
++      >
++        <Minus size={16} aria-hidden="true" />
++      </Button>
++      <input
++        type="number"
++        min={min}
++        max={max}
++        aria-label={label}
++        value={value}
++        onChange={(e) => {
++          const n = Number(e.target.value);
++          if (Number.isInteger(n) && n >= min && n <= max) onChange(n);
++        }}
++      />
++      <Button
++        variant="ghost"
++        type="button"
++        aria-label={`+ ${label}`}
++        disabled={value >= max}
++        onClick={() => {
++          onChange(Math.min(max, value + 1));
++        }}
++      >
++        <Plus size={16} aria-hidden="true" />
++      </Button>
++    </div>
++  );
++}
+ export function HabitEditor({
+   habit,
+   onSave,
+   onCancel,
+   busy,
++  error,
+ }: {
+   habit?: Habit;
+   onSave: (body: CreateHabitBody) => void;
+   onCancel: () => void;
+   busy: boolean;
++  error?: string | undefined;
+ }) {
+-  const m = useMessages();
+-  const t = useHabitCopy();
++  const t = useHabitCopy(),
++    locale = useAppLocale();
+   const [name, setName] = useState(habit?.name ?? '');
+-  const [icon, setIcon] = useState(habit?.icon ?? '');
++  const [mode, setMode] = useState<'daily' | 'specific' | 'weekly'>(
++    habit?.goal.period === 'week'
++      ? 'weekly'
++      : habit?.frequency.length === 7 || !habit
++        ? 'daily'
++        : 'specific',
++  );
+   const [days, setDays] = useState<readonly HabitWeekday[]>(habit?.frequency ?? HABIT_WEEKDAYS);
+-  const [target, setTarget] = useState(habit?.goal.target_count ?? 1);
+-  const [times, setTimes] = useState(habit?.goal.times_per_period ?? 1);
+-  const [period, setPeriod] = useState(habit?.goal.period ?? 'day');
++  const [quantity, setQuantity] = useState((habit?.goal.target_count ?? 1) > 1);
++  const [target, setTarget] = useState(habit?.goal.target_count ?? 8);
++  const [times, setTimes] = useState(habit?.goal.times_per_period ?? 3);
++  const [unit, setUnit] = useState(habit?.unit ?? '');
+   const [reminder, setReminder] = useState(habit?.reminder_time ?? '');
++  const [showTime, setShowTime] = useState(!!habit?.reminder_time);
++  const [advanced, setAdvanced] = useState(false);
++  const [start, setStart] = useState(
++    habit?.start_date ??
++      habit?.created_at.slice(0, 10) ??
++      new Intl.DateTimeFormat('en-CA', {
++        year: 'numeric',
++        month: '2-digit',
++        day: '2-digit',
++      }).format(new Date()),
++  );
++  const [challenge, setChallenge] = useState(habit?.challenge_days ?? null);
+   const [motivation, setMotivation] = useState(habit?.motivation_note ?? '');
+-  const [challenge, setChallenge] = useState<string>(
+-    habit?.challenge_days == null ? '' : String(habit.challenge_days),
++  const [invalid, setInvalid] = useState(false);
++  const nameInput = useRef<HTMLInputElement>(null);
++  useEffect(() => {
++    nameInput.current?.focus();
++  }, []);
++  const labels = locale.startsWith('en')
++    ? ['M', 'T', 'W', 'T', 'F', 'S', 'S']
++    : ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
++  const footer = (
++    <div className="habit-editor-footer">
++      {error ? (
++        <p className="habit-field-error" role="alert">
++          {error}
++        </p>
++      ) : null}
++      <div>
++        <Button type="button" variant="ghost" onClick={onCancel} disabled={busy}>
++          {t.cancel}
++        </Button>
++        <Button type="submit" form="habit-editor-form" variant="primary" loading={busy}>
++          {t.save}
++        </Button>
++      </div>
++      <small>{t.shortcuts}</small>
++    </div>
+   );
+-  const labels = [
+-    m.dayMonday,
+-    m.dayTuesday,
+-    m.dayWednesday,
+-    m.dayThursday,
+-    m.dayFriday,
+-    m.daySaturday,
+-    m.daySunday,
+-  ];
+   return (
+-    <form
+-      className="habit-editor"
+-      onSubmit={(event) => {
+-        event.preventDefault();
+-        onSave({
+-          name: name.trim(),
+-          icon: icon.trim() || null,
+-          goal: {
+-            period,
+-            target_count: target,
+-            times_per_period: period === 'day' ? target : times,
+-          },
+-          frequency: [...days],
+-          reminder_time: reminder || null,
+-          motivation_note: motivation || null,
+-          challenge_days: challenge === '' ? null : Number(challenge),
+-        });
++    <Popover
++      open
++      initialFocus={nameInput}
++      centered
++      mobileSheet
++      width={440}
++      label={habit ? t.edit : t.create}
++      className="popover habit-editor-dialog"
++      onClose={() => {
++        if (!busy) onCancel();
+       }}
+     >
+-      <div className="habit-name-fields">
+-        <label>
+-          {m.habitName}
+-          <input
+-            required
+-            maxLength={200}
+-            value={name}
+-            onChange={(e) => {
+-              setName(e.target.value);
+-            }}
+-          />
+-        </label>
+-        <label>
+-          {t.emoji}
+-          <input
+-            maxLength={40}
+-            value={icon}
+-            onChange={(e) => {
+-              setIcon(e.target.value);
+-            }}
+-          />
+-        </label>
+-      </div>
+-      <fieldset>
+-        <legend>{m.habitDays}</legend>
+-        <div className="habit-day-picker">
+-          {HABIT_WEEKDAYS.map((day, index) => (
+-            <label key={day}>
+-              <input
+-                type="checkbox"
+-                checked={days.includes(day)}
+-                onChange={() => {
+-                  setDays((old) =>
+-                    old.includes(day) ? old.filter((item) => item !== day) : [...old, day],
+-                  );
++      <form
++        id="habit-editor-form"
++        className="habit-editor"
++        noValidate
++        onSubmit={(e) => {
++          e.preventDefault();
++          if (busy) return;
++          if (!name.trim()) {
++            setInvalid(true);
++            setAdvanced(false);
++            requestAnimationFrame(() => nameInput.current?.focus());
++            return;
++          }
++          // Ticky could complement this form with optional suggestions later; saving is entirely deterministic.
++          const goal = quantity ? target : 1;
++          onSave({
++            name: name.trim(),
++            goal: {
++              period: mode === 'weekly' ? 'week' : 'day',
++              target_count: goal,
++              times_per_period: mode === 'weekly' ? times : goal,
++            },
++            frequency: [...(mode === 'specific' ? days : HABIT_WEEKDAYS)],
++            reminder_time: showTime ? reminder || null : null,
++            motivation_note: motivation.trim() || null,
++            challenge_days: challenge,
++            unit: quantity ? unit.trim() || null : null,
++            start_date: start || null,
++          });
++        }}
++      >
++        <header className="habit-editor-heading">
++          <h2>{advanced ? t.advanced : habit ? t.edit : t.create}</h2>
++          <Button
++            variant="ghost"
++            type="button"
++            aria-label={t.close}
++            disabled={busy}
++            onClick={onCancel}
++          >
++            <X size={18} aria-hidden="true" />
++          </Button>
++        </header>
++        <div className="habit-editor-fields">
++          {!advanced ? (
++            <>
++              <label className="habit-field">
++                {t.name}
++                <input
++                  autoFocus
++                  required
++                  ref={nameInput}
++                  name="name"
++                  value={name}
++                  placeholder={t.placeholder}
++                  aria-invalid={invalid}
++                  aria-describedby={invalid ? 'habit-name-error' : undefined}
++                  maxLength={200}
++                  onChange={(e) => {
++                    setName(e.target.value);
++                    setInvalid(false);
++                  }}
++                />
++              </label>
++              {invalid ? (
++                <small className="habit-field-error" id="habit-name-error" role="alert">
++                  {t.nameRequired}
++                </small>
++              ) : null}
++              <fieldset>
++                <legend>{t.frequency}</legend>
++                <div className="segmented habit-segments" role="group" aria-label={t.frequency}>
++                  {(['daily', 'specific', 'weekly'] as const).map((key) => (
++                    <Button
++                      variant="ghost"
++                      key={key}
++                      type="button"
++                      aria-pressed={mode === key}
++                      onClick={() => {
++                        setMode(key);
++                      }}
++                    >
++                      {t[key]}
++                    </Button>
++                  ))}
++                </div>
++                {mode === 'specific' ? (
++                  <div className="habit-day-picker">
++                    {HABIT_WEEKDAYS.map((day, i) => (
++                      <Button
++                        variant="ghost"
++                        type="button"
++                        key={day}
++                        aria-label={new Intl.DateTimeFormat(locale, { weekday: 'long' }).format(
++                          new Date(2026, 0, 5 + i),
++                        )}
++                        aria-pressed={days.includes(day)}
++                        onClick={() => {
++                          setDays((old) =>
++                            old.includes(day)
++                              ? old.length === 1
++                                ? old
++                                : old.filter((d) => d !== day)
++                              : [...old, day],
++                          );
++                        }}
++                      >
++                        {labels[i]}
++                      </Button>
++                    ))}
++                  </div>
++                ) : null}
++                {mode === 'weekly' ? (
++                  <HabitStepper value={times} max={7} label={t.weekly} onChange={setTimes} />
++                ) : null}
++              </fieldset>
++              <fieldset>
++                <legend>{t.dailyGoal}</legend>
++                <div className="segmented habit-segments" role="group" aria-label={t.dailyGoal}>
++                  <Button
++                    variant="ghost"
++                    type="button"
++                    aria-pressed={!quantity}
++                    onClick={() => {
++                      setQuantity(false);
++                    }}
++                  >
++                    {t.binary}
++                  </Button>
++                  <Button
++                    variant="ghost"
++                    type="button"
++                    aria-pressed={quantity}
++                    onClick={() => {
++                      setQuantity(true);
++                      if (target === 1) setTarget(8);
++                    }}
++                  >
++                    {t.quantity}
++                  </Button>
++                </div>
++                {quantity ? (
++                  <div className="habit-quantity-fields">
++                    <HabitStepper value={target} max={1000} label={t.count} onChange={setTarget} />
++                    <input
++                      aria-label={t.unit}
++                      placeholder={t.unitPlaceholder}
++                      maxLength={32}
++                      value={unit}
++                      onChange={(e) => {
++                        setUnit(e.target.value);
++                      }}
++                    />
++                  </div>
++                ) : null}
++              </fieldset>
++              {showTime ? (
++                <div className="habit-reminder">
++                  <label>
++                    {t.reminder}
++                    <input
++                      type="time"
++                      lang="es-ES"
++                      pattern="([01][0-9]|2[0-3]):[0-5][0-9]"
++                      aria-label={t.reminder}
++                      value={reminder}
++                      onChange={(e) => {
++                        setReminder(e.target.value);
++                      }}
++                    />
++                  </label>
++                  <Button
++                    variant="ghost"
++                    type="button"
++                    aria-label={t.removeTime}
++                    onClick={() => {
++                      setShowTime(false);
++                      setReminder('');
++                    }}
++                  >
++                    <X size={16} aria-hidden="true" />
++                  </Button>
++                </div>
++              ) : (
++                <Button
++                  variant="ghost"
++                  type="button"
++                  className="habit-add-time"
++                  onClick={() => {
++                    setShowTime(true);
++                    setReminder('09:00');
++                  }}
++                >
++                  {t.addTime}
++                </Button>
++              )}
++              <Button
++                variant="ghost"
++                type="button"
++                className="habit-more"
++                aria-expanded={false}
++                onClick={() => {
++                  setAdvanced(true);
+                 }}
+-              />
+-              {labels[index]}
+-            </label>
+-          ))}
++              >
++                {t.more} <span aria-hidden="true">›</span>
++              </Button>
++            </>
++          ) : (
++            <>
++              <Button
++                variant="ghost"
++                className="habit-more"
++                type="button"
++                aria-expanded
++                onClick={() => {
++                  setAdvanced(false);
++                }}
++              >
++                <ChevronLeft size={16} aria-hidden="true" />
++                {t.back}
++              </Button>
++              <div className="habit-field">
++                <span>{t.start}</span>
++                <PeriodNavigator
++                  className="habit-start-date"
++                  title={t.start}
++                  label={t.start}
++                  date={new Date(`${start || '2026-01-01'}T12:00:00`)}
++                  onPick={(date) => {
++                    setStart(
++                      `${String(date.getFullYear())}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`,
++                    );
++                  }}
++                />
++              </div>
++              <fieldset>
++                <legend>{t.duration}</legend>
++                <div className="habit-challenge-chips">
++                  {[null, 21, 30, 100].map((n) => (
++                    <Button
++                      variant="ghost"
++                      type="button"
++                      key={String(n)}
++                      aria-pressed={challenge === n}
++                      onClick={() => {
++                        setChallenge(n);
++                      }}
++                    >
++                      {n === null ? t.forever : `${String(n)} ${t.days}`}
++                    </Button>
++                  ))}
++                </div>
++              </fieldset>
++              <label className="habit-field">
++                {t.motivation}
++                <textarea
++                  rows={2}
++                  value={motivation}
++                  maxLength={500}
++                  onChange={(e) => {
++                    setMotivation(e.target.value);
++                  }}
++                />
++              </label>
++            </>
++          )}
+         </div>
+-      </fieldset>
+-      <label>
+-        {m.habitPeriod}
+-        <select
+-          value={period}
+-          onChange={(event) => {
+-            setPeriod(event.target.value === 'week' ? 'week' : 'day');
+-          }}
+-        >
+-          <option value="day">{m.periodDay}</option>
+-          <option value="week">{m.periodWeek}</option>
+-        </select>
+-      </label>
+-      <label>
+-        {m.habitTimes}
+-        <input
+-          type="number"
+-          min={1}
+-          max={1000}
+-          required
+-          value={target}
+-          onChange={(e) => {
+-            setTarget(Number(e.target.value));
+-          }}
+-        />
+-      </label>
+-      {period === 'week' ? (
+-        <label>
+-          {m.periodWeek}
+-          <input
+-            type="number"
+-            min={1}
+-            max={days.length}
+-            required
+-            value={times}
+-            onChange={(e) => {
+-              setTimes(Number(e.target.value));
+-            }}
+-          />
+-        </label>
+-      ) : null}
+-      <label>
+-        {t.challenge}
+-        <input
+-          type="number"
+-          min={1}
+-          max={10000}
+-          placeholder="21 / 30 / 100"
+-          value={challenge}
+-          onChange={(e) => {
+-            setChallenge(e.target.value);
+-          }}
+-        />
+-      </label>
+-      <label>
+-        {m.habitReminder}
+-        <input
+-          type="time"
+-          value={reminder}
+-          onChange={(e) => {
+-            setReminder(e.target.value);
+-          }}
+-        />
+-      </label>
+-      <label>
+-        {t.motivation}
+-        <textarea
+-          maxLength={500}
+-          value={motivation}
+-          onChange={(e) => {
+-            setMotivation(e.target.value);
+-          }}
+-        />
+-      </label>
+-      {habit ? <small className="ui-muted">{t.frequencyChange}</small> : null}
+-      <div className="habit-actions">
+-        <Button type="submit" variant="primary" disabled={busy || !name.trim() || !days.length}>
+-          {t.save}
+-        </Button>
+-        <Button type="button" variant="ghost" onClick={onCancel}>
+-          {t.cancel}
+-        </Button>
+-      </div>
+-    </form>
++        {footer}
++      </form>
++    </Popover>
+   );
+ }
+diff --git a/apps/web/src/features/habits/copy.ts b/apps/web/src/features/habits/copy.ts
+--- a/apps/web/src/features/habits/copy.ts
++++ b/apps/web/src/features/habits/copy.ts
+@@ -1,5 +1,74 @@
+ import { useAppLocale } from '../../i18n/locale';
+ const es = {
++  name: 'Nombre',
++  weeks: 'semanas',
++  create: 'Nuevo hábito',
++  placeholder: 'Beber agua',
++  frequency: 'Frecuencia',
++  daily: 'Cada día',
++  specific: 'Días concretos',
++  weekly: 'X por semana',
++  dailyGoal: 'Objetivo diario',
++  binary: 'Hecho / no hecho',
++  quantity: 'Alcanzar una cantidad',
++  unit: 'Unidad',
++  unitPlaceholder: 'vasos (opcional)',
++  addTime: '+ Añadir hora',
++  reminder: 'Recordatorio',
++  removeTime: 'Quitar hora',
++  more: 'Más',
++  advanced: 'Más opciones',
++  back: 'Volver',
++  start: 'Fecha de inicio',
++  forever: 'Para siempre',
++  duration: 'Duración del reto',
++  manage: 'Editar hábitos',
++  manageTitle: 'Tus hábitos',
++  manageHelp: 'Edita, pausa o archiva cada hábito.',
++  markCaption: 'Marcar hoy',
++  completeCaption: 'Completar',
++  doneCaption: 'Hecho',
++  addAmount: 'Añadir',
++  subtractAmount: 'Restar',
++  todayLabel: 'Hoy',
++  streakCaption: 'de racha',
++  totalCaption: 'cumplidos',
++  viewMonth: 'Ver mes',
++  hideMonth: 'Ocultar mes',
++  chooseWeek: 'Elegir semana',
++  consistency: 'Constancia',
++  chooseHabit: 'Hábito',
++  allHabits: 'Todos los hábitos',
++  previousMonth: 'Mes anterior',
++  nextMonth: 'Mes siguiente',
++  monthView: 'Calendario de cumplimiento',
++  monthCompleted: 'días cumplidos',
++  monthCompletedSingle: 'día cumplido',
++  monthPending: 'Pendiente',
++  futureDay: 'Próximamente',
++  monthInactive: 'Sin programar',
++  loading: 'Cargando…',
++  loadFailed: 'No se pudo cargar el historial.',
++  list: 'Esta semana',
++  previousWeek: 'Semana anterior',
++  nextWeek: 'Semana siguiente',
++  currentWeek: 'Semana actual',
++  streak: 'Racha',
++  days: 'días',
++  singleDay: 'día',
++  singleWeek: 'semana',
++  inTotal: 'días en total',
++  mark: 'Marcar hoy',
++  unmarkToday: 'Desmarcar hoy',
++  increase: 'Aumentar cantidad',
++  decrease: 'Reducir cantidad',
++  pause: 'Pausar',
++  resume: 'Reanudar',
++  paused: 'En pausa',
++  empty: 'Un pequeño hábito puede cambiar tu día.',
++  emptyWeek: 'No hay hábitos activos esta semana.',
++  nameRequired: 'Escribe un nombre.',
++  shortcuts: 'Enter guardar · Esc cerrar',
+   edit: 'Editar',
+   save: 'Guardar',
+   cancel: 'Cancelar',
+@@ -27,6 +96,75 @@
+   frequencyChange: 'Los cambios de frecuencia y objetivo conservan los registros anteriores.',
+ };
+ const en: typeof es = {
++  name: 'Name',
++  weeks: 'weeks',
++  create: 'New habit',
++  placeholder: 'Drink water',
++  frequency: 'Frequency',
++  daily: 'Every day',
++  specific: 'Specific days',
++  weekly: 'X per week',
++  dailyGoal: 'Daily goal',
++  binary: 'Done / not done',
++  quantity: 'Reach an amount',
++  unit: 'Unit',
++  unitPlaceholder: 'glasses (optional)',
++  addTime: '+ Add time',
++  reminder: 'Reminder',
++  removeTime: 'Remove time',
++  more: 'More',
++  advanced: 'More options',
++  back: 'Back',
++  start: 'Start date',
++  forever: 'Forever',
++  duration: 'Challenge length',
++  manage: 'Edit habits',
++  manageTitle: 'Your habits',
++  manageHelp: 'Edit, pause or archive each habit.',
++  markCaption: 'Mark today',
++  completeCaption: 'Complete',
++  doneCaption: 'Done',
++  addAmount: 'Add',
++  subtractAmount: 'Subtract',
++  todayLabel: 'Today',
++  streakCaption: 'streak',
++  totalCaption: 'completed',
++  viewMonth: 'View month',
++  hideMonth: 'Hide month',
++  chooseWeek: 'Choose week',
++  consistency: 'Consistency',
++  chooseHabit: 'Habit',
++  allHabits: 'All habits',
++  previousMonth: 'Previous month',
++  nextMonth: 'Next month',
++  monthView: 'Completion calendar',
++  monthCompleted: 'days completed',
++  monthCompletedSingle: 'day completed',
++  monthPending: 'Pending',
++  futureDay: 'Upcoming',
++  monthInactive: 'Not scheduled',
++  loading: 'Loading…',
++  loadFailed: 'Could not load history.',
++  list: 'This week',
++  previousWeek: 'Previous week',
++  nextWeek: 'Next week',
++  currentWeek: 'Current week',
++  streak: 'Streak',
++  days: 'days',
++  singleDay: 'day',
++  singleWeek: 'week',
++  inTotal: 'days in total',
++  mark: 'Mark today',
++  unmarkToday: 'Unmark today',
++  increase: 'Increase amount',
++  decrease: 'Decrease amount',
++  pause: 'Pause',
++  resume: 'Resume',
++  paused: 'Paused',
++  empty: 'A small habit can change your day.',
++  emptyWeek: 'No active habits this week.',
++  nameRequired: 'Enter a name.',
++  shortcuts: 'Enter save · Esc close',
+   edit: 'Edit',
+   save: 'Save',
+   cancel: 'Cancel',
+diff --git a/apps/web/src/components/Popover.tsx b/apps/web/src/components/Popover.tsx
+--- a/apps/web/src/components/Popover.tsx
++++ b/apps/web/src/components/Popover.tsx
+@@ -9,7 +9,7 @@
+ } from 'react';
+ import { X } from 'lucide-react';
+ import { createPortal } from 'react-dom';
+-import { bindPopover, dismissPopover } from './popover-stack';
++import { bindPopover, dismissPopover, isTopPopover } from './popover-stack';
+ 
+ export function Popover({
+   open,
+@@ -27,7 +27,9 @@
+   sheetFooter,
+   closeLabel,
+   centered = false,
++  initialFocus,
+ }: {
++  readonly initialFocus?: RefObject<HTMLElement | null>;
+   readonly open: boolean;
+   readonly label: string;
+   readonly onClose: () => void;
+@@ -163,19 +165,21 @@
+   ]);
+   const closeRef = useRef(onClose);
+   closeRef.current = onClose;
++  const closeSelf = useRef(() => {
++    closeRef.current();
++  });
+   useEffect(() => {
+     if (!open) {
+       return;
+     }
+-    return bindPopover(() => {
+-      closeRef.current();
+-    });
++    return bindPopover(closeSelf.current);
+   }, [open]);
+   useEffect(() => {
+     if (!open) {
+       return;
+     }
+     function onKey(event: KeyboardEvent): void {
++      if (!isTopPopover(closeSelf.current)) return;
+       const node = ref.current;
+       if (
+         node?.contains(document.activeElement) &&
+@@ -235,6 +239,7 @@
+       dismissPopover();
+     }
+     function onPointer(event: MouseEvent): void {
++      if (!isTopPopover(closeSelf.current)) return;
+       const node = ref.current;
+       if (
+         node === null ||
+@@ -253,18 +258,19 @@
+       document.removeEventListener('mousedown', onPointer);
+     };
+   }, [onClose, open, anchor]);
++  const focusReady = initialFocus === undefined || position !== null;
+   useEffect(() => {
+-    if (!open || ref.current === null) return;
++    if (!open || ref.current === null || !focusReady) return;
+     const previous = document.activeElement;
+     const first = ref.current.querySelector<HTMLElement>(
+       'button:not(:disabled), input:not(:disabled), [tabindex="0"]',
+     );
+-    (first ?? ref.current).focus();
++    (initialFocus?.current ?? first ?? ref.current).focus();
+     return () => {
+       if (anchor?.current?.isConnected) anchor.current.focus();
+       else if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
+     };
+-  }, [open, anchor]);
++  }, [open, anchor, initialFocus, focusReady]);
+   useEffect(() => {
+     const node = ref.current;
+     if (!open || node === null) {
+diff --git a/apps/web/src/components/popover-stack.ts b/apps/web/src/components/popover-stack.ts
+--- a/apps/web/src/components/popover-stack.ts
++++ b/apps/web/src/components/popover-stack.ts
+@@ -19,3 +19,7 @@
+   close();
+   return true;
+ }
++
++export function isTopPopover(close: () => void): boolean {
++  return closers.at(-1) === close;
++}
+diff --git a/apps/web/src/components/period/PeriodNavigator.tsx b/apps/web/src/components/period/PeriodNavigator.tsx
+--- a/apps/web/src/components/period/PeriodNavigator.tsx
++++ b/apps/web/src/components/period/PeriodNavigator.tsx
+@@ -13,12 +13,14 @@
+   onPick,
+   className = 'calendar-period',
+   label,
++  displayLabel,
+ }: {
+   readonly title: string;
+   readonly date: Date;
+   readonly onPick: (date: Date) => void;
+   readonly className?: string;
+   readonly label?: string;
++  readonly displayLabel?: string;
+ }) {
+   const locale = useAppLocale();
+   const [open, setOpen] = useState(false);
+@@ -36,7 +38,7 @@
+           setOpen(true);
+         }}
+       >
+-        <span>{formatPeriodDate(date, locale)}</span>
++        <span>{displayLabel ?? formatPeriodDate(date, locale)}</span>
+         <ChevronDown size={14} aria-hidden="true" />
+       </button>
+       <DatePopover
