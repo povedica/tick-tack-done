@@ -304,13 +304,13 @@ Reglas clave:
 - KISS. No inventes datos: lo que no reproduzcas, anótalo como «a verificar». No toques datos reales de Pablo: en producción, solo tareas de prueba en la lista grokbot-ticktackdone.
 ```
 
-## 12. Estado de ejecución F · 25/10/2026
+## 12. Estado de ejecución F · cierre local 26/10/2026
 
 ### Implementación y base
 
-M2, M8, M1, M7, M3, M4, M5+M20, M6, M19, M13, M10, M9 y M11 implementados en ese orden, con un commit por punto. La entrada abre directamente la primera tarjeta pendiente; las decisiones son un borrador y solo la confirmación escribe tareas. La UI usa el diseño simple v3, sin ruta de mock ni dependencias nuevas. Referencias RF-2651, RF-2670, RF-2671 y RF-2001.
+M2, M8, M1, M7, M3, M4, M5+M20, M6, M19, M13, M10, M9, M11 y M12 implementados en ese orden, con un commit por punto. M12 se completó el 26/10 tras integrar B en main local, con autorización de Pablo para cerrar e integrar todo localmente. La entrada abre directamente la primera tarjeta pendiente; las decisiones son un borrador y solo la confirmación escribe tareas. La UI usa el diseño simple v3, sin ruta de mock ni dependencias nuevas. Referencias RF-2651, RF-2670, RF-2671 y RF-2001.
 
-Rama `codex/wt-f-plan-del-dia`, worktree aislado `wt-f-plan-del-dia/todo`, desde `97d7da3` de la rama actual `feat/r80-r105`, como pidió el mensaje adjunto. Los extremos locales A–E son antecesores de esa base. La integración A–E sigue pendiente en PR #77; `origin/main` permanece en `318fbd9`. PR F #78 en borrador. No se ha publicado ni fusionado main. **M12: pendiente de B en main**, conforme a §2.1.
+Rama `codex/wt-f-plan-del-dia`, worktree aislado `wt-f-plan-del-dia/todo`, desde `97d7da3` de la rama `feat/r80-r105`. Se comprobó que los cinco extremos A–E y main eran antecesores de esa base. Por instrucción de Pablo (26/10), A–E se integran primero mediante avance rápido en **main local** y F se integra después. La nueva rama de pruebas y refinamiento es `codex/local-tests-refinement`, creada desde ese main local en `/Users/pablo.poveda/CodeProjects/todo`. Los documentos no versionados de `docs/spec/` se conservan. No se hace push ni se cambian las PR remotas #77/#78 con esta orden local; `origin/main` permanece en `318fbd9`.
 
 ### Ampliaciones expresamente autorizadas por Pablo
 
@@ -322,61 +322,61 @@ Rama `codex/wt-f-plan-del-dia`, worktree aislado `wt-f-plan-del-dia/todo`, desde
 
 Node 26 en contenedor temporal, PostgreSQL/Redis locales y BD exclusiva `ttd_wt_f`; usuarios y tareas sintéticos. La copia Linux `/validation` contiene los mismos fuentes para evitar latencia del volumen de macOS. `pg_dump` se instaló únicamente en el contenedor para la prueba existente de backups.
 
-| Comprobación                              | Resultado                                                                                                              |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `pnpm format:check`                       | Correcto en el repositorio completo                                                                                    |
-| `pnpm lint`                               | Correcto; un aviso previo de `console` en `wt-d-allday.e2e-spec.ts`                                                    |
-| `pnpm typecheck`                          | Correcto                                                                                                               |
-| `pnpm test`                               | 890 correctas: dominio 341, SDK 11, API 282 y web 256                                                                  |
-| Cobertura de dominio                      | 89,68 % líneas/sentencias; 83,44 % ramas                                                                               |
-| `pnpm test:integration`                   | 228 correctas y 2 omitidas de Ticky cross; 49 archivos correctos y 1 omitido                                           |
-| API F ampliada                            | 10 correctas, incluidos concordancia de carga y fallo sintético de segunda escritura con rollback completo             |
-| Playwright F, puerto 4196                 | 84 correctas y 20 omisiones por dispositivo: arrastre de ratón solo en escritorio y gesto táctil solo en móvil/tableta |
-| Axe                                       | Cero violaciones serias o críticas en los ocho proyectos de triaje                                                     |
-| OpenAPI y SDK                             | Regenerados; segunda generación idéntica por SHA-256                                                                   |
-| Escrituras directas de tareas en planning | Cero coincidencias de `prisma.task.update`                                                                             |
-| CSS                                       | Cero colores hexadecimales, `--line` o `--panel` en CSS de planificación                                               |
+| Comprobación                              | Resultado                                                                                                               |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `pnpm format:check`                       | Correcto en el repositorio completo                                                                                     |
+| `pnpm lint`                               | Correcto; un aviso previo de `console` en `wt-d-allday.e2e-spec.ts`                                                     |
+| `pnpm typecheck`                          | Correcto                                                                                                                |
+| `pnpm test`                               | 890 correctas: dominio 341, SDK 11, API 282 y web 256                                                                   |
+| Cobertura de dominio                      | 89,68 % líneas/sentencias; 83,44 % ramas                                                                                |
+| `pnpm test:integration`                   | 230 correctas y 2 omitidas de Ticky cross; 49 archivos correctos y 1 omitido                                            |
+| API F ampliada                            | 10 correctas, incluidos concordancia de carga y fallo sintético de segunda escritura con rollback completo              |
+| Playwright F, puerto 4196                 | 116 correctas y 20 omisiones por dispositivo: arrastre de ratón solo en escritorio y gesto táctil solo en móvil/tableta |
+| Axe                                       | Cero violaciones serias o críticas en los ocho proyectos de triaje                                                      |
+| OpenAPI y SDK                             | Regenerados; segunda generación idéntica por SHA-256                                                                    |
+| Escrituras directas de tareas en planning | Cero coincidencias de `prisma.task.update`                                                                              |
+| CSS                                       | Cero colores hexadecimales, `--line` o `--panel` en CSS de planificación                                                |
 
 Los primeros intentos detectaron y corrigieron una expectativa antigua de confirmar vacío, un parseo MCP sin tipo y la compatibilidad de replan. Hubo un timeout de correo y dos cierres de Chromium que agotaron el tiempo bajo carga; unitarios y Playwright completos posteriores pasaron. No se modificaron esas pruebas ajenas para ocultar los fallos.
 
-Las capturas finales están en `ttd-wt-f-assets/evidencias/` (390/1280, claro/oscuro) y se comparan con las aprobadas en la PR. La revisión de imágenes detectó y corrigió la hoja en portal sin estilos y el resumen sin clases de maquetación; se repitieron los 80 casos después y se amplió la suite a 104 casos con conflicto, latencia y solape de fila.
+Las capturas finales están en `ttd-wt-f-assets/evidencias/` (390/1280, claro/oscuro) y se comparan con las aprobadas en la PR. La revisión de imágenes detectó y corrigió la hoja en portal sin estilos y el resumen sin clases de maquetación; se repitieron los 80 casos después y se amplió la suite a 104 casos con conflicto, latencia y solape de fila. M12 añade 32 casos de carga (incluidos eventos) y estado guardado: 136 casos en total.
 
 ### Criterios F-AC-1…30
 
 ✅ significa comportamiento reproducido mediante pruebas o inspección concreta. ❌ identifica comprobaciones pendientes, incluso si el comportamiento está implementado; no se presentan como verificadas.
 
-| Criterio | Estado | Evidencia / límite                                                                                                                                              |
-| -------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| F-AC-1   | ✅     | Dominio y API: rango de siete días ≤540 min/día, vencidas y zona del perfil                                                                                     |
-| F-AC-2   | ✅     | API: inicio, versión y actividad plan; límite intacto incluso vencido                                                                                           |
-| F-AC-3   | ✅     | Dominio/API/MCP: hora y duración explícitas; sin elección no se estima duración                                                                                 |
-| F-AC-4   | ✅     | Todas las mutaciones por TasksService; prueba de rollback; cero escritura directa                                                                               |
-| F-AC-5   | ✅     | Reutilización de borrador, primera pendiente y 422 vacío; sin AdjustmentPage                                                                                    |
-| F-AC-6   | ✅     | Unitarios de cola/replan por prioridad y vencimiento                                                                                                            |
-| F-AC-7   | ✅     | Atajos y capturas: tres acciones principales, dos discretas y menú                                                                                              |
-| F-AC-8   | ✅     | Chips, teclado y elección de 45 min en hoja; límites validados                                                                                                  |
-| F-AC-9   | ✅     | Slots del dominio y API; selector y confirmación de hora libre                                                                                                  |
-| F-AC-10  | ✅     | Cola y destinos revisados en capturas 1280 claro/oscuro                                                                                                         |
-| F-AC-11  | ✅     | Capturas con contrato completo, markdown, etiquetas y adjuntos                                                                                                  |
-| F-AC-12  | ✅     | Carrusel de catorce días, cinco visibles y navegación por teclado                                                                                               |
-| F-AC-13  | ✅     | Cambio de carga <100 ms con respuesta retrasada 300 ms en ambos temas de escritorio; API: incremento persistido exactamente 45 min                              |
-| F-AC-14  | ✅     | Agenda de eventos, tareas y borrador; cambio de día independiente de cola                                                                                       |
-| F-AC-15  | ✅     | Ratón a 09:30, pulsación larga, fila a un chip sin hora y rechazo de solape con Daily del equipo                                                                |
-| F-AC-16  | ✅     | O abre popover anclado; DatePopover existente y fecha destino seleccionada                                                                                      |
-| F-AC-17  | ✅     | Footer a 1280, ayuda y atajos locales; N y [ comprobados fuera; archivos globales intactos                                                                      |
-| F-AC-18  | ✅     | Deshacer, Ctrl+Z, anterior y edición de decisión en e2e                                                                                                         |
-| F-AC-19  | ✅     | Entrada directa, fuentes por defecto y preferencias locales por owner                                                                                           |
-| F-AC-20  | ✅     | Resumen, doce decisiones sin mutar, confirmar y deshacer posterior                                                                                              |
-| F-AC-21  | ✅     | Capturas y e2e móvil con siguiente tarjeta, markdown y Ver más                                                                                                  |
-| F-AC-22  | ✅     | Cinco acciones fijas y barra global oculta; tamaños 360/390/768                                                                                                 |
-| F-AC-23  | ✅     | Hoja con día, hora opcional, duración y confirmación en palabras                                                                                                |
-| F-AC-24  | ✅     | Swipe navega sin decidir; decisión previa editable y toast de 5 s                                                                                               |
-| F-AC-25  | ✅     | Resumen móvil con +N más, Lo demás y confirmación visible                                                                                                       |
-| F-AC-26  | ✅     | Revisión de capturas y grep de tokens; sin avisos ni sugerencias v2                                                                                             |
-| F-AC-27  | ✅     | Vacío, error/reintento, foco, axe y conflicto 409 reproducidos; se retira la decisión obsoleta y no se aplica el plan                                           |
-| F-AC-28  | ✅     | Diccionarios es/en con prueba de paridad y copia local                                                                                                          |
-| F-AC-29  | ✅     | MCP real: empezar/decidir/previsualizar/aplicar/leer carga/revertir; PAT de lectura rechazado; revert idempotente y 409                                         |
-| F-AC-30  | ❌     | Suites en verde y ocurrencias aisladas; M12 pendiente de B. Gate literal de propiedad contra main pendiente de integrar A–E y registrar excepciones autorizadas |
+| Criterio | Estado | Evidencia / límite                                                                                                                                                                |
+| -------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F-AC-1   | ✅     | Dominio y API: rango de siete días ≤540 min/día, vencidas y zona del perfil                                                                                                       |
+| F-AC-2   | ✅     | API: inicio, versión y actividad plan; límite intacto incluso vencido                                                                                                             |
+| F-AC-3   | ✅     | Dominio/API/MCP: hora y duración explícitas; sin elección no se estima duración                                                                                                   |
+| F-AC-4   | ✅     | Todas las mutaciones por TasksService; prueba de rollback; cero escritura directa                                                                                                 |
+| F-AC-5   | ✅     | Reutilización de borrador, primera pendiente y 422 vacío; sin AdjustmentPage                                                                                                      |
+| F-AC-6   | ✅     | Unitarios de cola/replan por prioridad y vencimiento                                                                                                                              |
+| F-AC-7   | ✅     | Atajos y capturas: tres acciones principales, dos discretas y menú                                                                                                                |
+| F-AC-8   | ✅     | Chips, teclado y elección de 45 min en hoja; límites validados                                                                                                                    |
+| F-AC-9   | ✅     | Slots del dominio y API; selector y confirmación de hora libre                                                                                                                    |
+| F-AC-10  | ✅     | Cola y destinos revisados en capturas 1280 claro/oscuro                                                                                                                           |
+| F-AC-11  | ✅     | Capturas con contrato completo, markdown, etiquetas y adjuntos                                                                                                                    |
+| F-AC-12  | ✅     | Carrusel de catorce días, cinco visibles y navegación por teclado                                                                                                                 |
+| F-AC-13  | ✅     | Cambio de carga <100 ms con respuesta retrasada 300 ms en ambos temas de escritorio; API: incremento persistido exactamente 45 min                                                |
+| F-AC-14  | ✅     | Agenda de eventos, tareas y borrador; cambio de día independiente de cola                                                                                                         |
+| F-AC-15  | ✅     | Ratón a 09:30, pulsación larga, fila a un chip sin hora y rechazo de solape con Daily del equipo                                                                                  |
+| F-AC-16  | ✅     | O abre popover anclado; DatePopover existente y fecha destino seleccionada                                                                                                        |
+| F-AC-17  | ✅     | Footer a 1280, ayuda y atajos locales; N y [ comprobados fuera; archivos globales intactos                                                                                        |
+| F-AC-18  | ✅     | Deshacer, Ctrl+Z, anterior y edición de decisión en e2e                                                                                                                           |
+| F-AC-19  | ✅     | Entrada directa, fuentes por defecto y preferencias locales por owner                                                                                                             |
+| F-AC-20  | ✅     | Resumen, doce decisiones sin mutar, confirmar y deshacer posterior                                                                                                                |
+| F-AC-21  | ✅     | Capturas y e2e móvil con siguiente tarjeta, markdown y Ver más                                                                                                                    |
+| F-AC-22  | ✅     | Cinco acciones fijas y barra global oculta; tamaños 360/390/768                                                                                                                   |
+| F-AC-23  | ✅     | Hoja con día, hora opcional, duración y confirmación en palabras                                                                                                                  |
+| F-AC-24  | ✅     | Swipe navega sin decidir; decisión previa editable y toast de 5 s                                                                                                                 |
+| F-AC-25  | ✅     | Resumen móvil con +N más, Lo demás y confirmación visible                                                                                                                         |
+| F-AC-26  | ✅     | Revisión de capturas y grep de tokens; sin avisos ni sugerencias v2                                                                                                               |
+| F-AC-27  | ✅     | Vacío, error/reintento, foco, axe y conflicto 409 reproducidos; se retira la decisión obsoleta y no se aplica el plan                                                             |
+| F-AC-28  | ✅     | Diccionarios es/en con prueba de paridad y copia local                                                                                                                            |
+| F-AC-29  | ✅     | MCP real: empezar/decidir/previsualizar/aplicar/leer carga/revertir; PAT de lectura rechazado; revert idempotente y 409                                                           |
+| F-AC-30  | ✅     | Suites en verde, ocurrencias aisladas y M12 completo tras B en main local; `bash scripts/check-ownership.sh f . 97d7da3` devuelve código 0 con excepciones autorizadas explícitas |
 
 ### Catálogo de eventos añadido
 
@@ -386,9 +386,11 @@ Las capturas finales están en `ttd-wt-f-assets/evidencias/` (390/1280, claro/os
 
 Las actualizaciones de tareas emiten los eventos existentes desde TasksService con origen `plan`. El cambio de días laborables usa el evento existente de preferencias. No se modificó el modelo Prisma ni se necesitó migración; los snapshots de M10 usan `PlanOperation.result`.
 
-### Pendientes de integración y revisión
+### Cierre local y revisión del producto
 
-- M12 depende de B en main. La PR sigue en borrador y debe rebasarse/regenerar contratos tras #77, sin force push autorizado.
-- El verificador literal del orquestador aún no contempla las excepciones autorizadas ni los generados de F que §2.8 exige. Se informa su salida sin cambiar el script del repositorio. La revisión de propiedad se hace desde `97d7da3` para separar los cambios heredados A–E. La copia temporal del verificador que admite exactamente las seis excepciones autorizadas y los tres generados exigidos por §2.8 devuelve código 0 (`OK (75 ficheros)` antes de añadir evidencias); no sustituye el fallo del script literal ni modifica ningún archivo del repositorio.
-- Decisión de Pablo (26/10/2026): mantener los 4 s del toast global posterior a confirmar, frente a los 10 s previstos en M10, y documentar la diferencia. No se aplica el parche de duración opcional ni se amplía el alcance a `action-toast.ts` o `AppShell.tsx`. Esta diferencia queda aceptada; no requiere autorización adicional.
-- La revisión humana de fidelidad visual y el comportamiento con datos reales siguen abiertos al revisar el borrador. Todas las pruebas usaron datos sintéticos; no se han tocado datos de producción ni del checkout original.
+- **M12 completo:** Hoy muestra la frase de carga compartida, incluyendo eventos, y «Planifica tu día». Tras guardar, muestra «Planificado a las …» en la zona del perfil y «Volver a planificar». Se revisaron capturas 390/1280 en claro/oscuro, además de los 32 casos e2e en los ocho proyectos.
+- **Gate resuelto:** `scripts/check-ownership.sh` incorpora la lógica del orquestador, admite los generados que F exige y enumera exactamente las seis ampliaciones autorizadas por Pablo. Conserva las prohibiciones para los demás archivos. Usa main local por defecto y no hace fetch. Para reproducir la revisión no vacía de F tras integrarlo: `bash scripts/check-ownership.sh f . 97d7da3`. La revisión manual de los archivos señalados está realizada: catálogo MCP solo planificación, exportaciones de dominio de planificación, compatibilidad de cierre y los dos archivos de Hoy para M12.
+- **Contratos:** se regeneran OpenAPI y SDK sobre el conjunto integrado y se comparan sin diferencias. No se crea un commit artificial si los generados no cambian.
+- **Decisión de Pablo (26/10/2026):** mantener los 4 s del toast global posterior a confirmar, frente a los 10 s previstos en M10. Diferencia aceptada; no se aplica el parche de duración opcional ni se modifican `action-toast.ts` o `AppShell.tsx`.
+- **Trabajo local:** commits realizados en la rama F, integrados en main local y rama nueva de refinamiento desde el mismo estado. No se fusionan ni publican PR remotas ni se despliega. Las comprobaciones usan exclusivamente datos sintéticos en `ttd_wt_f`.
+- La revisión humana del producto con datos reales corresponde a la nueva rama de pruebas. No quedan puntos de implementación F pendientes.
