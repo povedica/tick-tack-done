@@ -48,15 +48,14 @@ function actionSort(item: ProjectOverviewItem, now: string, timeZone: string) {
     return null;
   }
   const actionAt = item.next_action.start_date ?? item.next_action.due_date;
-  const overdue =
-    actionAt !== null &&
-    isOverdue({
-      status: 'active',
-      dueDate: actionAt,
-      isAllDay: item.next_action.is_all_day,
-      timeZone,
-      now,
-    });
+  const overdue = isOverdue({
+    status: 'active',
+    dueDate: item.next_action.due_date,
+    startDate: item.next_action.start_date,
+    isAllDay: item.next_action.is_all_day,
+    timeZone,
+    now,
+  });
   return { overdue, actionAt };
 }
 

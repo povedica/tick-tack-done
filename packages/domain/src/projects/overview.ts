@@ -146,15 +146,14 @@ export function nextAction(tasks: readonly ProjectTask[], now: string): NextActi
     )
     .map((task) => {
       const actionAt = task.startDate ?? task.dueDate ?? null;
-      const overdue =
-        actionAt !== null &&
-        isOverdue({
-          status: 'active',
-          dueDate: actionAt,
-          isAllDay: task.isAllDay === true,
-          timeZone: task.timeZone ?? 'UTC',
-          now,
-        });
+      const overdue = isOverdue({
+        status: 'active',
+        dueDate: task.dueDate ?? null,
+        startDate: task.startDate,
+        isAllDay: task.isAllDay === true,
+        timeZone: task.timeZone ?? 'UTC',
+        now,
+      });
       const bucket = actionAt === null ? 2 : overdue ? 0 : 1;
       const time = actionAt === null ? 0 : Date.parse(actionAt);
       return { task, actionAt, overdue, bucket, time: Number.isNaN(time) ? 0 : time };
@@ -275,7 +274,8 @@ export function actionDateChip(
   }
   const overdue = isOverdue({
     status: 'active',
-    dueDate: actionAt,
+    dueDate: task.dueDate,
+    startDate: task.startDate,
     isAllDay: task.isAllDay,
     timeZone: task.timeZone,
     now,

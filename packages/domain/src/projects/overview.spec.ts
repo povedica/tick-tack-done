@@ -102,6 +102,37 @@ describe('nextAction', () => {
       actionAt: '2026-10-28T00:00:00.000Z',
       overdue: false,
     });
+    const started = nextAction(
+      [
+        task({
+          id: 'started',
+          title: 'Empezó',
+          startDate: '2026-10-24T00:00:00.000Z',
+          dueDate: '2026-11-05T00:00:00.000Z',
+          isAllDay: true,
+        }),
+      ],
+      now,
+    );
+    expect(started).toMatchObject({
+      taskId: 'started',
+      actionAt: '2026-10-24T00:00:00.000Z',
+      overdue: false,
+    });
+    expect(
+      nextAction(
+        [
+          task({
+            id: 'late-both',
+            title: 'Las dos pasadas',
+            startDate: '2026-10-24T00:00:00.000Z',
+            dueDate: '2026-10-26T00:00:00.000Z',
+            isAllDay: true,
+          }),
+        ],
+        now,
+      )?.overdue,
+    ).toBe(true);
     expect(nextAction([], now)).toBeNull();
     expect(nextAction([task({ id: 'x', title: 'x', status: 'cancelled' })], now)).toBeNull();
   });
@@ -212,6 +243,28 @@ describe('activity labels', () => {
     expect(
       actionDateChip({ startDate: null, dueDate: null, isAllDay: true, timeZone: 'UTC' }, now),
     ).toBeNull();
+    expect(
+      actionDateChip(
+        {
+          startDate: '2026-10-24T00:00:00.000Z',
+          dueDate: '2026-11-05T00:00:00.000Z',
+          isAllDay: true,
+          timeZone: 'UTC',
+        },
+        now,
+      )?.tone,
+    ).toBe('later');
+    expect(
+      actionDateChip(
+        {
+          startDate: '2026-10-29T00:00:00.000Z',
+          dueDate: '2026-10-25T00:00:00.000Z',
+          isAllDay: true,
+          timeZone: 'UTC',
+        },
+        now,
+      )?.tone,
+    ).toBe('later');
   });
 });
 
