@@ -308,7 +308,11 @@ export interface ResourceClient {
   createProject(body: NamedWrite, idempotencyKey: string): Promise<Project>;
   updateProject(
     id: string,
-    body: Partial<NamedWrite> & { default_reminder_trigger?: string | null },
+    body: Partial<NamedWrite> & {
+      default_reminder_trigger?: string | null;
+      before_id?: string | null;
+      move_to_end?: boolean;
+    },
   ): Promise<Project>;
   deleteProject(id: string, options?: { readonly expectedTaskCount?: number }): Promise<void>;
   setProjectState(
