@@ -10,10 +10,33 @@ export interface SnoozedDates {
   readonly startDate: string | null;
 }
 
+const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/**
+ * True when the task's start falls on a civil day after `now`.
+ * A later start means the task is planned, not overdue.
+ */
+export function plannedForLater(
+  task: { readonly startDate?: string | null | undefined; readonly timeZone: string },
+  now: string | Date,
+): boolean {
+  if (task.startDate == null || task.startDate.length === 0) {
+    return false;
+  }
+  const nowIso = now instanceof Date ? now.toISOString() : now;
+  const startDay = civilDayKey(task.startDate, task.timeZone);
+  const today = civilDayKey(nowIso, task.timeZone);
+  if (startDay === null || today === null) {
+    return false;
+  }
+  return startDay > today;
+}
+
 /** RF-603. An all-day task is overdue only once its local date has passed. */
 export function isOverdue(input: {
   readonly status: 'active' | 'completed' | 'archived' | 'cancelled';
   readonly dueDate: string | null;
+  readonly startDate?: string | null | undefined;
   readonly isAllDay: boolean;
   readonly timeZone: string;
   readonly now: string;
@@ -22,6 +45,9 @@ export function isOverdue(input: {
     return false;
   }
   if (!isIanaTimeZone(input.timeZone)) {
+    return false;
+  }
+  if (plannedForLater({ startDate: input.startDate, timeZone: input.timeZone }, input.now)) {
     return false;
   }
   const due = new Date(input.dueDate);
@@ -114,4 +140,20 @@ function atMidnight(wall: WallClock): WallClock {
 
 function localDayNumber(wall: WallClock): number {
   return Math.floor(Date.UTC(wall.year, wall.month - 1, wall.day) / 86_400_000);
+}
+
+/** `YYYY-MM-DD` is already a civil day. Instants are read in the capture zone. */
+function civilDayKey(value: string, timeZone: string): string | null {
+  if (DATE_ONLY.test(value)) {
+    return value;
+  }
+  const wall = wallClock(value, timeZone);
+  if (wall === null) {
+    return null;
+  }
+  return `${pad(wall.year, 4)}-${pad(wall.month, 2)}-${pad(wall.day, 2)}`;
+}
+
+function pad(value: number, width: number): string {
+  return String(value).padStart(width, '0');
 }

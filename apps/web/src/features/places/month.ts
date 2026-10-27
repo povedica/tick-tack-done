@@ -1,5 +1,5 @@
+import { calendarDateKey, plannedForLater } from '@reflexionia/domain';
 import { displayTitle } from '../tasks/displayTitle';
-import { calendarDateKey } from '@reflexionia/domain';
 
 export interface DatedTask {
   readonly id: string;
@@ -147,8 +147,16 @@ export function tasksOnCell<
   });
 }
 
-/** A task is overdue only when its local day is before today. Today stays neutral. */
-export function isCalendarOverdue(due: string | null, timeZone: string, now: Date): boolean {
+/** A task is overdue only when its local day is before today and it is not planned later. */
+export function isCalendarOverdue(
+  due: string | null,
+  timeZone: string,
+  now: Date,
+  start?: string | null,
+): boolean {
+  if (plannedForLater({ startDate: start, timeZone }, now)) {
+    return false;
+  }
   if (due === null || due.length === 0) {
     return false;
   }

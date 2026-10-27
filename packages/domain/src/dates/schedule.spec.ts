@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isOverdue, snoozeDue } from './schedule';
+import { isOverdue, plannedForLater, snoozeDue } from './schedule';
 import { wallClock } from './zoned';
 
 const MADRID = 'Europe/Madrid';
@@ -138,5 +138,84 @@ describe('dates', () => {
         preset: 'tomorrow',
       }),
     ).toEqual({ ok: false, reason: 'invalid_date' });
+  });
+
+  it('RF-603: a start on a later civil day is planned, not overdue', () => {
+    const viewed = '2026-10-27T11:00:00.000Z';
+    const pastDue = '2026-10-24T22:00:00.000Z';
+    const laterStart = '2026-10-28T23:00:00.000Z';
+    const todayStart = '2026-10-26T23:00:00.000Z';
+    expect(
+      isOverdue({
+        status: 'active',
+        dueDate: pastDue,
+        startDate: laterStart,
+        isAllDay: true,
+        timeZone: MADRID,
+        now: viewed,
+      }),
+    ).toBe(false);
+    expect(plannedForLater({ startDate: laterStart, timeZone: MADRID }, viewed)).toBe(true);
+    expect(
+      isOverdue({
+        status: 'active',
+        dueDate: pastDue,
+        startDate: todayStart,
+        isAllDay: true,
+        timeZone: MADRID,
+        now: viewed,
+      }),
+    ).toBe(true);
+    expect(
+      isOverdue({
+        status: 'active',
+        dueDate: pastDue,
+        isAllDay: true,
+        timeZone: MADRID,
+        now: viewed,
+      }),
+    ).toBe(true);
+    expect(
+      isOverdue({
+        status: 'active',
+        dueDate: pastDue,
+        startDate: laterStart,
+        isAllDay: true,
+        timeZone: MADRID,
+        now: '2026-10-29T11:00:00.000Z',
+      }),
+    ).toBe(true);
+  });
+
+  it('RF-604: the 25 October clock change keeps the civil day', () => {
+    const afterFallback = '2026-10-25T01:30:00.000Z';
+    expect(
+      isOverdue({
+        status: 'active',
+        dueDate: '2026-10-23T22:00:00.000Z',
+        isAllDay: true,
+        timeZone: MADRID,
+        now: afterFallback,
+      }),
+    ).toBe(true);
+    expect(
+      isOverdue({
+        status: 'active',
+        dueDate: '2026-10-24T22:00:00.000Z',
+        isAllDay: true,
+        timeZone: MADRID,
+        now: afterFallback,
+      }),
+    ).toBe(false);
+    expect(
+      isOverdue({
+        status: 'active',
+        dueDate: '2026-10-23T22:00:00.000Z',
+        startDate: '2026-10-25T23:00:00.000Z',
+        isAllDay: true,
+        timeZone: MADRID,
+        now: afterFallback,
+      }),
+    ).toBe(false);
   });
 });

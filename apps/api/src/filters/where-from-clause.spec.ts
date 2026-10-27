@@ -46,9 +46,16 @@ describe('whereFromClause', () => {
     expect(whereFromClause({ op: 'overdue' }, clock)).toEqual({
       status: 'active',
       dueDate: { not: null },
-      OR: [
-        { isAllDay: false, dueDate: { lt: new Date(clock.now) } },
-        { isAllDay: true, dueDate: { lt: new Date('2026-10-16T22:00:00.000Z') } },
+      AND: [
+        {
+          OR: [
+            { isAllDay: false, dueDate: { lt: new Date(clock.now) } },
+            { isAllDay: true, dueDate: { lt: new Date('2026-10-16T22:00:00.000Z') } },
+          ],
+        },
+        {
+          OR: [{ startDate: null }, { startDate: { lt: new Date('2026-10-17T22:00:00.000Z') } }],
+        },
       ],
     });
   });

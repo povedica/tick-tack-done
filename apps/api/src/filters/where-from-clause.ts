@@ -93,10 +93,19 @@ function overdueWhere(clock: FilterClock | undefined): Prisma.TaskWhereInput {
     return { status: 'active', dueDate: { not: null } };
   }
   const start = shiftLocalDays(clock.now, clock.timeZone, 0);
+  const tomorrow = shiftLocalDays(clock.now, clock.timeZone, 1);
   const timed = { isAllDay: false, dueDate: { lt: new Date(clock.now) } };
   const allDay =
     start === null
       ? { isAllDay: true, dueDate: { lt: new Date(clock.now) } }
       : { isAllDay: true, dueDate: { lt: new Date(start) } };
-  return { status: 'active', dueDate: { not: null }, OR: [timed, allDay] };
+  const notPlannedLater: Prisma.TaskWhereInput =
+    tomorrow === null
+      ? {}
+      : { OR: [{ startDate: null }, { startDate: { lt: new Date(tomorrow) } }] };
+  return {
+    status: 'active',
+    dueDate: { not: null },
+    AND: [{ OR: [timed, allDay] }, notPlannedLater],
+  };
 }

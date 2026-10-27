@@ -329,7 +329,12 @@ export function HourGrid({
                       title={task.title}
                       aria-label={task.title}
                       className={
-                        isCalendarOverdue(task.due_date, task.time_zone, new Date())
+                        isCalendarOverdue(
+                          task.due_date,
+                          task.time_zone,
+                          new Date(),
+                          task.start_date,
+                        )
                           ? 'cal-pill is-overdue'
                           : 'cal-pill'
                       }
@@ -696,7 +701,12 @@ export function HourGrid({
                         title={`${task.title} · ${task.due_date ? new Intl.DateTimeFormat(locale, { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(task.start_date ?? task.due_date)) : ''}`}
                         aria-label={`${task.title} · ${task.due_date ? new Intl.DateTimeFormat(locale, { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(task.start_date ?? task.due_date)) : ''}`}
                         className={
-                          isCalendarOverdue(task.due_date, task.time_zone, new Date())
+                          isCalendarOverdue(
+                            task.due_date,
+                            task.time_zone,
+                            new Date(),
+                            task.start_date,
+                          )
                             ? 'is-overdue'
                             : undefined
                         }

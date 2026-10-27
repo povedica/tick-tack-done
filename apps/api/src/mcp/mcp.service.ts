@@ -343,7 +343,7 @@ export class McpService {
           flat: false,
           sort: 'manual',
           deleted: false,
-          overdue: false,
+          overdue: args.overdue === true,
           someday: args.someday === true,
           ...(args.context === 'work' || args.context === 'personal'
             ? { context: args.context }

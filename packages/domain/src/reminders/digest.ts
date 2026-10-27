@@ -4,6 +4,7 @@ import { wallClock } from '../dates/zoned';
 export interface DigestTask {
   readonly title: string;
   readonly dueDate: string;
+  readonly startDate?: string | null | undefined;
   readonly isAllDay: boolean;
   readonly timeZone: string;
 }
@@ -23,6 +24,7 @@ export function formatDailyDigest(input: {
     const late = isOverdue({
       status: 'active',
       dueDate: task.dueDate,
+      startDate: task.startDate,
       isAllDay: task.isAllDay,
       timeZone: task.timeZone,
       now: input.now,
