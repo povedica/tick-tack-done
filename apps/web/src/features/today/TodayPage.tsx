@@ -66,6 +66,7 @@ import { MatrixBoard, MatrixViewToggle } from '../matrix/MatrixBoard';
 import { readMatrixLayout, writeMatrixLayout } from '../matrix/layout';
 import { useFeatures } from '../settings/feature-flags';
 import { KanbanTabs } from '../tasks/KanbanTabs';
+import { WorkHoursLine } from '../settings/WorkHoursLine';
 
 const GROUP_KEY = 'tick-tack-done.today.group';
 const SORT_KEY = 'tick-tack-done.today.sort';
@@ -710,6 +711,7 @@ export function TodayPage() {
             <h1 id="today-heading">{messages.todayTitle}</h1>
           </div>
         </div>
+        <WorkHoursLine />
         <div className="page-actions">
           <MatrixViewToggle
             showMatrix={flags.matrix}

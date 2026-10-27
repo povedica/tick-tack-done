@@ -56,7 +56,11 @@ export async function collectTasksByTag(tagId: string): Promise<Task[]> {
 
 export async function collectSmartList(
   key: string,
-  options: { groupBy?: ViewPage['group_by']; sort?: ViewPage['sort'] },
+  options: {
+    groupBy?: ViewPage['group_by'];
+    sort?: ViewPage['sort'];
+    context?: 'all' | 'work' | 'personal' | 'auto';
+  },
 ): Promise<ViewPage> {
   return collectView((cursor) =>
     api.smartListTasks(key, {

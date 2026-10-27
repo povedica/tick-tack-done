@@ -96,3 +96,202 @@
     column-gap: 12px;
   }
 }
+
+.workday-form h2 {
+  margin: 20px 0 8px;
+  font-size: var(--fs-md);
+}
+
+.workday-form h2 small {
+  margin-left: 8px;
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+}
+
+.work-hours,
+.work-days,
+.work-membership-row {
+  display: grid;
+  grid-template-columns: 9rem minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+}
+
+.work-hours-fields,
+.work-estimate {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.work-hours-fields input,
+.work-estimate input {
+  width: 5.5rem;
+  min-height: 36px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 6px 10px;
+  font: inherit;
+}
+
+.work-days button {
+  width: 32px;
+  height: 32px;
+  margin-right: 6px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--surface-3);
+  color: var(--ink-2);
+  font: inherit;
+  cursor: pointer;
+}
+
+.work-days button.is-on {
+  background: var(--accent);
+  color: white;
+}
+
+.work-membership {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.work-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.work-chip,
+.work-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  border-radius: var(--radius-full);
+  padding: 4px 10px;
+}
+
+.work-chip {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.work-chip button,
+.work-add {
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.work-count {
+  color: var(--ink-3);
+  font-size: var(--fs-sm);
+}
+
+.work-hide {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+
+.work-hide small {
+  display: block;
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  line-height: 1.4;
+}
+
+.work-hide button[role='switch'] {
+  flex: none;
+  width: 44px;
+  height: 26px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--surface-3);
+  position: relative;
+  cursor: pointer;
+}
+
+.work-hide button[role='switch'] span {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  background: white;
+}
+
+.work-hide button[role='switch'][aria-checked='true'] {
+  background: var(--accent);
+}
+
+.work-hide button[role='switch'][aria-checked='true'] span {
+  left: 21px;
+}
+
+.work-picker {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  width: 260px;
+}
+
+.work-picker input {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font: inherit;
+}
+
+.work-picker ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.work-picker button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 8px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.work-picker small {
+  margin-left: auto;
+  color: var(--ink-3);
+}
+
+@media (max-width: 700px) {
+  .work-hours,
+  .work-days,
+  .work-membership-row {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .work-hide {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

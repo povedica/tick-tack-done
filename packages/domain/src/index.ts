@@ -460,6 +460,11 @@ export {
   notificationDefault,
   notificationQuietUntil,
 } from './reminders/preferences';
+
+export { isWorkTask, isWorkTime, nextWorkStart, workHiddenNow } from './work/context';
+export type { WorkHideProfile, WorkMembership, WorkSchedule, WorkTaskRef } from './work/context';
+export { WEEKDAY_CODES, weekdayCodes, weekdayNumbers } from './work/weekdays';
+export type { WeekdayCode } from './work/weekdays';
 export type { NotificationKind, NotificationChannel } from './reminders/preferences';
 
 export { DEFAULT_CAPTURE_SETTINGS, captureSettings, parseCapture } from './nlp/capture-settings';

@@ -158,6 +158,26 @@
               "shutdown_reminder_time": { "type": "object", "nullable": true, "example": "21:30" },
               "work_day_start": { "type": "object", "nullable": true, "example": "09:00" },
               "work_day_end": { "type": "object", "nullable": true, "example": "18:00" },
+              "work_days": {
+                "example": ["MO", "TU", "WE", "TH", "FR"],
+                "description": "Working weekdays. Same codes as recurrence.weekdays. Sunday is SU.",
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "work_folder_ids": {
+                "type": "array",
+                "items": { "type": "string", "format": "uuid" }
+              },
+              "work_project_ids": {
+                "type": "array",
+                "items": { "type": "string", "format": "uuid" }
+              },
+              "work_tag_ids": { "type": "array", "items": { "type": "string", "format": "uuid" } },
+              "hide_work_outside_hours": { "type": "boolean" },
+              "show_work": {
+                "type": "boolean",
+                "description": "true shows work until the next work start; false clears that override."
+              },
               "default_task_duration_minutes": { "type": "number", "example": 30 },
               "deadline_soon_days": { "type": "number", "example": 2 },
               "evening_start": { "type": "string", "example": "18:00" },
@@ -221,6 +241,58 @@
               "new_password": { "type": "string", "minLength": 10, "maxLength": 200 }
             },
             "required": ["current_password", "new_password"]
+          }
+        }
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/me/work-context",
+    "summary": "Work hours, work membership and whether work is hidden right now",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/me/work-context",
+    "summary": "Replace work membership or toggle outside-hours hiding",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "work_days": {
+                "example": ["MO", "TU", "WE", "TH", "FR"],
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "work_folder_ids": { "type": "array", "items": { "type": "string" } },
+              "work_project_ids": { "type": "array", "items": { "type": "string" } },
+              "work_tag_ids": { "type": "array", "items": { "type": "string" } },
+              "hide_work_outside_hours": { "type": "boolean" },
+              "show_work": {
+                "type": "boolean",
+                "description": "true keeps work visible until the next work start. false clears it."
+              }
+            }
           }
         }
       }
@@ -617,6 +689,7 @@
                     "automations:manage",
                     "profile:read",
                     "profile:write",
+                    "workday:write",
                     "backup:read",
                     "stats:read"
                   ]
@@ -2258,6 +2331,13 @@
         "in": "header",
         "required": false,
         "schema": { "type": "string" }
+      },
+      {
+        "name": "context",
+        "required": false,
+        "in": "query",
+        "description": "Default all. auto hides work outside the configured hours.",
+        "schema": { "enum": ["all", "work", "personal", "auto"], "type": "string" }
       }
     ],
     "request_body": {}
@@ -2325,7 +2405,13 @@
         "required": false,
         "schema": { "type": "string" }
       },
-      { "name": "key", "required": true, "in": "path", "schema": { "type": "string" } }
+      { "name": "key", "required": true, "in": "path", "schema": { "type": "string" } },
+      {
+        "name": "context",
+        "required": false,
+        "in": "query",
+        "schema": { "enum": ["all", "work", "personal", "auto"], "type": "string" }
+      }
     ],
     "request_body": {}
   },
@@ -2593,6 +2679,13 @@
         "in": "header",
         "required": false,
         "schema": { "type": "string" }
+      },
+      {
+        "name": "context",
+        "required": false,
+        "in": "query",
+        "description": "Default all. auto hides work outside the configured hours.",
+        "schema": { "enum": ["all", "work", "personal", "auto"], "type": "string" }
       },
       {
         "name": "range_field",
@@ -4128,6 +4221,13 @@
         "description": "Compatibility parameter; the profile time zone is authoritative.",
         "schema": { "type": "string" }
       },
+      {
+        "name": "context",
+        "required": false,
+        "in": "query",
+        "description": "Default all. auto hides work outside the configured hours.",
+        "schema": { "enum": ["all", "work", "personal", "auto"], "type": "string" }
+      },
       { "name": "days", "required": false, "in": "query", "schema": { "type": "number" } },
       { "name": "from", "required": false, "in": "query", "schema": {} }
     ],
@@ -4304,7 +4404,14 @@
     "summary": "Tasks with a date plus external events (RF-1101, RF-2520)",
     "parameters": [
       { "name": "from", "required": true, "in": "query", "schema": { "type": "string" } },
-      { "name": "to", "required": true, "in": "query", "schema": { "type": "string" } }
+      { "name": "to", "required": true, "in": "query", "schema": { "type": "string" } },
+      {
+        "name": "context",
+        "required": false,
+        "in": "query",
+        "description": "Filters tasks only. External events stay visible. Default all.",
+        "schema": { "enum": ["all", "work", "personal", "auto"], "type": "string" }
+      }
     ],
     "request_body": {}
   },

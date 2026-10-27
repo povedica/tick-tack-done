@@ -9,6 +9,14 @@
 - Carpetas con totales, mover listas entre carpetas, y herramientas MCP de
   carpetas y de estado. El borrado de listas sigue siendo lógico.
 
+## Contexto laboral
+
+- Ajustes › Jornada guarda días laborables, carpetas, listas y etiquetas de
+  trabajo, y puede ocultar lo laboral fuera de horario. «Mostrar trabajo» dura
+  hasta el próximo inicio de jornada en todos los dispositivos. Los avisos
+  laborales se retrasan hasta ese inicio (`work_hours`). El scope nuevo
+  `workday:write` obliga a reautorizar los conectores que ya existían.
+
 ## Algún día en la hoja «¿Cuándo?»
 
 - Al planificar, la hoja «¿Cuándo?» ofrece «Algún día» en la cabecera, a la

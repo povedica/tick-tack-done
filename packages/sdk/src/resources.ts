@@ -23,6 +23,12 @@ export interface UpdateMeBody {
   readonly default_task_duration_minutes?: number;
   readonly deadline_soon_days?: number;
   readonly evening_start?: string;
+  readonly work_days?: readonly string[];
+  readonly work_folder_ids?: readonly string[];
+  readonly work_project_ids?: readonly string[];
+  readonly work_tag_ids?: readonly string[];
+  readonly hide_work_outside_hours?: boolean;
+  readonly show_work?: boolean;
   readonly features?: {
     readonly navigation_order?: readonly string[];
     readonly countdowns?: boolean;
@@ -251,8 +257,36 @@ interface Http {
 
 export type JsonObject = Readonly<Record<string, unknown>>;
 
+export type WorkDayCode = 'MO' | 'TU' | 'WE' | 'TH' | 'FR' | 'SA' | 'SU';
+
+export interface WorkContext {
+  readonly work_day_start: string | null;
+  readonly work_day_end: string | null;
+  readonly work_days: readonly WorkDayCode[];
+  readonly work_folder_ids: readonly string[];
+  readonly work_project_ids: readonly string[];
+  readonly work_tag_ids: readonly string[];
+  readonly hide_work_outside_hours: boolean;
+  readonly show_work_until: string | null;
+  readonly is_work_time_now: boolean;
+  readonly work_hidden_now: boolean;
+  readonly next_work_start: string | null;
+  readonly counts: { readonly lists: number; readonly tags: number; readonly active_tasks: number };
+}
+
+export interface UpdateWorkContextBody {
+  readonly work_days?: readonly WorkDayCode[];
+  readonly work_folder_ids?: readonly string[];
+  readonly work_project_ids?: readonly string[];
+  readonly work_tag_ids?: readonly string[];
+  readonly hide_work_outside_hours?: boolean;
+  readonly show_work?: boolean;
+}
+
 export interface ResourceClient {
   getMe(): Promise<Me>;
+  getWorkContext(): Promise<WorkContext>;
+  updateWorkContext(body: UpdateWorkContextBody): Promise<WorkContext>;
   notificationHealth(): Promise<JsonObject>;
   updateMe(body: UpdateMeBody): Promise<Me>;
   inboundEmail(): Promise<InboundEmailStatus>;
@@ -351,7 +385,11 @@ export interface ResourceClient {
   clearPlanDecision(id: string, taskId: string): Promise<JsonObject>;
   applyPlan(id: string, body: JsonObject, idempotencyKey: string): Promise<JsonObject>;
   dayPlan(date: string, timeZone: string): Promise<JsonObject>;
-  calendarEvents(from: string, to: string): Promise<JsonObject>;
+  calendarEvents(
+    from: string,
+    to: string,
+    context?: 'all' | 'work' | 'personal' | 'auto',
+  ): Promise<JsonObject>;
   listGoogleCalendars(): Promise<readonly JsonObject[]>;
   listCalendarSubscriptions(): Promise<JsonObject>;
   createCalendarSubscription(body: JsonObject): Promise<JsonObject>;
@@ -462,6 +500,10 @@ export function resourceMethods(http: Http): ResourceClient {
     notificationHealth: () =>
       ask('GET', '/api/v1/me/notifications/health', undefined, undefined, isJsonObject),
     updateMe: (body) => ask('PATCH', '/api/v1/me', body, undefined, isMe),
+    getWorkContext: () =>
+      ask('GET', '/api/v1/me/work-context', undefined, undefined, isWorkContext),
+    updateWorkContext: (body) =>
+      ask('PATCH', '/api/v1/me/work-context', body, undefined, isWorkContext),
     inboundEmail: () =>
       ask('GET', '/api/v1/me/inbound-email', undefined, undefined, isInboundStatus),
     rotateInboundEmail: () =>
@@ -681,10 +723,10 @@ export function resourceMethods(http: Http): ResourceClient {
         undefined,
         isJsonObject,
       ),
-    calendarEvents: (from, to) =>
+    calendarEvents: (from, to, context) =>
       ask(
         'GET',
-        `/api/v1/calendar/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+        `/api/v1/calendar/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}${context === undefined ? '' : `&context=${encodeURIComponent(context)}`}`,
         undefined,
         undefined,
         isJsonObject,
@@ -942,6 +984,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isMe(value: unknown): value is Me {
   return isRecord(value) && typeof value.id === 'string' && typeof value.email === 'string';
+}
+
+function isWorkContext(value: unknown): value is WorkContext {
+  return (
+    isRecord(value) &&
+    Array.isArray(value.work_days) &&
+    typeof value.hide_work_outside_hours === 'boolean' &&
+    typeof value.work_hidden_now === 'boolean'
+  );
 }
 
 function isInboundStatus(value: unknown): value is InboundEmailStatus {

@@ -16,6 +16,32 @@ describe('MCP tool catalog', () => {
       'update_capture_settings',
     );
   });
+
+  it('work context uses profile:read and workday:write, and listings accept context', () => {
+    expect(visibleTools(['profile:read']).map((tool) => tool.name)).toContain('get_work_context');
+    expect(visibleTools(['profile:read']).map((tool) => tool.name)).not.toContain(
+      'update_work_context',
+    );
+    expect(visibleTools(['profile:write']).map((tool) => tool.name)).not.toContain(
+      'update_work_context',
+    );
+    expect(visibleTools(['workday:write']).map((tool) => tool.name)).toContain(
+      'update_work_context',
+    );
+    const update = MCP_TOOLS.find((tool) => tool.name === 'update_work_context');
+    expect(update?.description).toContain('arrays replace the whole set');
+    expect(update?.scopes).toEqual(['workday:write']);
+    for (const name of [
+      'list_tasks',
+      'list_smart_list_tasks',
+      'get_day_load',
+      'list_calendar_events',
+      'get_day_plan',
+    ]) {
+      const tool = MCP_TOOLS.find((item) => item.name === name);
+      expect(tool?.inputSchema.properties).toHaveProperty('context');
+    }
+  });
   it('RF-2001: a tasks token cannot see tools outside its scopes', () => {
     const names = visibleTools(['tasks:read', 'tasks:write']).map((tool) => tool.name);
     expect(names).toEqual(

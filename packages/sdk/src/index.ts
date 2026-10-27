@@ -72,6 +72,8 @@ export type {
   TaskDetail,
   TaskPatch,
   UpdateMeBody,
+  UpdateWorkContextBody,
+  WorkContext,
 } from './resources';
 
 export type { TaskLink, TaskLinkPage } from './resources';

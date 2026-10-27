@@ -2,6 +2,7 @@ import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { Prisma, type Tag } from '@prisma/client';
 import { createsTagCycle, normalizeTagName } from '@reflexionia/domain';
 import { actorOf, type AuthUser } from '../../auth/auth-user.js';
+import { detachWorkReference } from '../../work/work-context.js';
 import { DomainEvent } from '../../events/domain-events.js';
 import { EventRecorder } from '../../events/event-recorder.js';
 import { decodeCursor, slicePage, type Page } from '../../http/cursor.js';
@@ -137,6 +138,7 @@ export class TagsService {
         where: { id },
         data: { deletedAt: new Date(), name: id },
       });
+      await detachWorkReference(tx, user.id, 'workTagIds', id);
       await this.events.record(tx, actorOf(user), {
         type: DomainEvent.tagDeleted,
         entityType: 'tag',

@@ -268,6 +268,12 @@ model User {
   shutdownReminderTime  String?                @map("shutdown_reminder_time")
   workDayStart          String?                @default("09:00") @map("work_day_start")
   workDayEnd            String?                @default("18:00") @map("work_day_end")
+  workDays              Int[]                  @default([1, 2, 3, 4, 5]) @map("work_days")
+  workFolderIds         String[]               @default([]) @map("work_folder_ids") @db.Uuid
+  workProjectIds        String[]               @default([]) @map("work_project_ids") @db.Uuid
+  workTagIds            String[]               @default([]) @map("work_tag_ids") @db.Uuid
+  hideWorkOutsideHours  Boolean                @default(false) @map("hide_work_outside_hours")
+  showWorkUntil         DateTime?              @map("show_work_until") @db.Timestamptz(6)
   defaultTaskDuration   Int                    @default(30) @map("default_task_duration")
   deadlineSoonDays      Int                    @default(2) @map("deadline_soon_days")
   eveningStart          String                 @default("18:00") @map("evening_start")

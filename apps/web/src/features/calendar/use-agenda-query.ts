@@ -12,7 +12,7 @@ export interface AgendaPage {
 }
 export function useAgendaQuery(origin: string, timeZone: string, enabled: boolean) {
   return useInfiniteQuery({
-    queryKey: ['calendar-agenda', origin, timeZone],
+    queryKey: ['calendar-agenda', 'auto', origin, timeZone],
     enabled,
     initialPageParam: 0,
     staleTime: 60_000,
@@ -26,8 +26,9 @@ export function useAgendaQuery(origin: string, timeZone: string, enabled: boolea
           sort: 'due',
           dueAfter: new Date(Date.parse(range.from) - 1).toISOString(),
           dueBefore: range.to,
+          context: 'auto',
         }),
-        api.calendarEvents(range.from, range.to),
+        api.calendarEvents(range.from, range.to, 'auto'),
       ]);
       signal.throwIfAborted();
       return { page: pageParam, range, tasks, events };

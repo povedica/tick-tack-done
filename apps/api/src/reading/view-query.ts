@@ -20,8 +20,9 @@ export async function countViewTasks(
   ownerId: string,
   clause: FilterClause,
   clock: FilterClock,
+  extra?: Prisma.TaskWhereInput,
 ): Promise<number> {
-  return db.task.count({ where: viewWhere(ownerId, clause, clock) });
+  return db.task.count({ where: viewWhere(ownerId, clause, clock, extra) });
 }
 
 /** Applies the clause in SQL, then hydrates tags and checklist only for the page. */
@@ -36,9 +37,10 @@ export async function pageViewTasks(
     readonly limit: number;
     readonly cursor: { index: number; id: string } | null;
     readonly ranking?: 'completed';
+    readonly extra?: Prisma.TaskWhereInput;
   },
 ): Promise<ViewPageJson> {
-  const where = viewWhere(input.ownerId, input.clause, input.clock);
+  const where = viewWhere(input.ownerId, input.clause, input.clock, input.extra);
   const skip = input.cursor === null ? 0 : input.cursor.index + 1;
   const [count, ids] = await Promise.all([
     db.task.count({ where }),
@@ -75,8 +77,16 @@ function viewWhere(
   ownerId: string,
   clause: FilterClause,
   clock: FilterClock,
+  extra?: Prisma.TaskWhereInput,
 ): Prisma.TaskWhereInput {
-  return { AND: [{ ownerId }, { parentId: null }, clauseWhere(clause, clock)] };
+  return {
+    AND: [
+      { ownerId },
+      { parentId: null },
+      clauseWhere(clause, clock),
+      ...(extra === undefined ? [] : [extra]),
+    ],
+  };
 }
 
 function orderByFor(
