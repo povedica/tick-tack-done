@@ -123,7 +123,11 @@ describe('planned tasks are not overdue', () => {
   }
 
   it('moves a past deadline onto a later plan and keeps a deadline that is still ahead', async () => {
-    const allDay = await createTask('Plan all day', { due_date: past, is_all_day: true });
+    const allDay = await createTask('Plan all day', {
+      due_date: past,
+      is_all_day: true,
+      duration_minutes: 45,
+    });
     const timed = await createTask('Plan timed', { due_date: past, is_all_day: true });
     const keep = await createTask('Keep deadline', {
       start_date: today,
@@ -155,6 +159,7 @@ describe('planned tasks are not overdue', () => {
     expect(moved.body.start_date).toBe(wall(later));
     expect(moved.body.due_date).toBe(wall(later));
     expect(moved.body.is_all_day).toBe(true);
+    expect(moved.body.duration_minutes).toBe(45);
 
     const clocked = await api()
       .get(`/api/v1/tasks/${String(timed.body.id)}`)

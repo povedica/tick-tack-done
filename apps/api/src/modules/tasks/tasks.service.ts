@@ -613,7 +613,7 @@ export class TasksService {
       if (!planning) this.assertTimed(due, isAllDay, timeZone);
       this.assertTimed(start, isAllDay, timeZone);
       const duration = planning
-        ? this.plannedDuration(start, due, explicitDuration, alignedDue !== undefined)
+        ? this.plannedDuration(start, due, explicitDuration)
         : this.duration(start, due, explicitDuration);
       let content = dto.content ?? current.content;
       const extracted = dto.extract_checklist === true ? extractMarkdownChecklist(content) : null;
@@ -2930,14 +2930,14 @@ export class TasksService {
 
   /**
    * Planning used to skip the deadline check. After aligning a later start,
-   * `due < start` is still 422. A collapsed all-day span cannot keep an effort
-   * estimate that disagrees with the two midnights.
+   * `due < start` is still 422. An all-day plan puts start and due on the same
+   * midnight, which does not match an effort estimate: keep that estimate so
+   * the day load still counts it.
    */
   private plannedDuration(
     start: Date | null,
     due: Date | null,
     explicit: number | null,
-    aligned: boolean,
   ): number | null {
     const derived = deriveDurationMinutes({
       startDate: start === null ? null : start.toISOString(),
@@ -2958,7 +2958,6 @@ export class TasksService {
         'start_date or due_date is not a valid date',
       );
     }
-    if (!derived.ok && aligned) return 0;
     return explicit;
   }
 
