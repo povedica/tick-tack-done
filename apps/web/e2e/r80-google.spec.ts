@@ -1,6 +1,17 @@
 import path from 'node:path';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { r80Fixture } from './r80.fixture';
+
+async function clickGoogleAction(page: Page, name: string) {
+  const row = page.getByRole('article', { name: 'Google', exact: true });
+  const direct = row.getByRole('button', { name, exact: true });
+  if ((await direct.count()) > 0 && (await direct.first().isVisible())) {
+    await direct.first().click();
+    return;
+  }
+  await row.getByRole('button', { name: 'Más acciones', exact: true }).click();
+  await page.getByRole('button', { name, exact: true }).click();
+}
 test('TTD-AUD-97: one Google card shows granted permission and local activation separately; disconnect affects both', async ({
   page,
 }, info) => {
@@ -51,21 +62,20 @@ test('TTD-AUD-97: one Google card shows granted permission and local activation 
   await page.goto('/settings/integrations');
   const calendar = page.getByRole('group', { name: 'Google Calendar', exact: true });
   const drive = page.getByRole('group', { name: 'Google Drive', exact: true });
-  await expect(
-    page.getByRole('heading', { name: 'Google (Calendar y Drive)', exact: true }),
-  ).toHaveCount(1);
-  await expect(calendar).toContainText('Autorizado · Activo');
-  await expect(drive).toContainText('Autorizado · Activo');
-  await expect(drive).toContainText('sin guardar los ficheros en su servidor');
-  await expect(drive.getByRole('switch', { name: 'Google Drive', exact: true })).toBeChecked();
-  await drive.getByRole('switch', { name: 'Google Drive', exact: true }).click();
-  await expect(drive.getByRole('switch', { name: 'Google Drive', exact: true })).not.toBeChecked();
-  await expect(drive).toContainText('Autorizado · Desactivado');
-  await expect(calendar).toContainText('Autorizado · Activo');
+  const calendarSwitch = calendar.getByRole('switch', { name: /Google Calendar/ });
+  const driveSwitch = drive.getByRole('switch', { name: /Google Drive/ });
+  await expect(page.getByRole('heading', { name: 'Google', exact: true })).toHaveCount(1);
+  await expect(calendarSwitch).toBeChecked();
+  await expect(driveSwitch).toBeChecked();
+  await drive.getByRole('button', { name: /Tratamiento de datos/ }).click();
+  await expect(page.getByRole('dialog')).toContainText('sin guardar los ficheros en su servidor');
+  await page.keyboard.press('Escape');
+  await driveSwitch.click();
+  await expect(driveSwitch).not.toBeChecked();
+  await expect(calendarSwitch).toBeChecked();
   expect(removals).toBe(0);
-  await drive.getByRole('switch', { name: 'Google Drive', exact: true }).click();
-  await expect(drive.getByRole('switch', { name: 'Google Drive', exact: true })).toBeChecked();
-  await expect(drive).toContainText('Autorizado · Activo');
+  await driveSwitch.click();
+  await expect(driveSwitch).toBeChecked();
   const theme = info.project.name.endsWith('dark') ? 'dark' : 'light';
   await page.evaluate((theme) => (document.documentElement.dataset.theme = theme), theme);
   const phase = process.env.R80_PHASE ?? 'antes';
@@ -78,7 +88,7 @@ test('TTD-AUD-97: one Google card shows granted permission and local activation 
       animations: 'disabled',
     });
   await capture('google');
-  await page.getByRole('button', { name: 'Desconectar', exact: true }).click();
+  await clickGoogleAction(page, 'Desconectar Google');
   const dialog = page.getByRole('alertdialog', { name: 'Desconectar' });
   await expect(dialog).toContainText('Los calendarios dejan de sincronizarse');
   await expect(dialog).toContainText('Los adjuntos siguen en tu Drive como enlaces');
@@ -86,7 +96,7 @@ test('TTD-AUD-97: one Google card shows granted permission and local activation 
   await capture('confirmacion');
   await dialog.getByRole('button', { name: 'Cancelar', exact: true }).click();
   expect(removals).toBe(0);
-  await page.getByRole('button', { name: 'Desconectar', exact: true }).click();
+  await clickGoogleAction(page, 'Desconectar Google');
   await dialog.getByRole('button', { name: 'Desconectar', exact: true }).click();
   await expect(calendar).toContainText('Desconectado');
   await expect(drive).toContainText('Desconectado');
@@ -137,9 +147,9 @@ test('TTD-AUD-97: a missing Drive permission offers incremental authorization th
   await page.goto('/settings/integrations');
   const drive = page.getByRole('group', { name: 'Google Drive', exact: true });
   await expect(drive).toContainText('Sin permiso');
-  await expect(page.getByRole('group', { name: 'Google Calendar', exact: true })).toContainText(
-    'Autorizado · Activo',
-  );
+  await expect(
+    page.getByRole('group', { name: 'Google Calendar', exact: true }).getByRole('switch'),
+  ).toBeChecked();
   await drive.getByRole('button', { name: 'Autorizar Google Drive', exact: true }).click();
   await expect.poll(() => requested).toBe('drive');
   await expect(page).toHaveURL(/^https:\/\/accounts\.google\.com\//);
@@ -193,12 +203,12 @@ test('TTD-AUD-97: changing permissions confirms shared revocation before new Goo
     route.fulfill({ body: 'Synthetic consent', contentType: 'text/html' }),
   );
   await page.goto('/settings/integrations');
-  await page.getByRole('button', { name: 'Cambiar permisos', exact: true }).click();
+  await clickGoogleAction(page, 'Cambiar permisos');
   const dialog = page.getByRole('alertdialog', { name: 'Cambiar permisos' });
   await expect(dialog).toContainText('Ambos servicios se interrumpen');
   await dialog.getByRole('button', { name: 'Cancelar', exact: true }).click();
   expect(steps).toEqual([]);
-  await page.getByRole('button', { name: 'Cambiar permisos', exact: true }).click();
+  await clickGoogleAction(page, 'Cambiar permisos');
   await dialog.getByRole('button', { name: 'Revocar y elegir permisos', exact: true }).click();
   await expect(page).toHaveURL(/^https:\/\/accounts\.google\.com\//);
   expect(steps).toEqual(['revoke', 'authorize:all']);

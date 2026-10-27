@@ -30,12 +30,15 @@ test('TTD-AUD-127 RF-2004/2005: one card and explicit disconnect effects', async
   await expect(page.getByRole('heading', { name: /Google/ })).toHaveCount(1);
   await expect(page.getByText('synthetic@example.test')).toBeVisible();
   await expect(page.getByRole('switch', { name: /Google/ })).toHaveCount(2);
-  await page.getByRole('button', { name: 'Desconectar', exact: true }).click();
+  const google = page.getByRole('article', { name: 'Google', exact: true });
+  await google.getByRole('button', { name: 'Más acciones', exact: true }).click();
+  await page.getByRole('button', { name: 'Desconectar Google', exact: true }).click();
   await expect(page.getByRole('alertdialog')).toContainText('Los adjuntos siguen en tu Drive');
   await evidence(page, info, '127_google');
   await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
   expect(bodies).toEqual([]);
-  await page.getByRole('button', { name: 'Desconectar', exact: true }).click();
+  await google.getByRole('button', { name: 'Más acciones', exact: true }).click();
+  await page.getByRole('button', { name: 'Desconectar Google', exact: true }).click();
   await page
     .getByRole('alertdialog')
     .getByRole('button', { name: 'Desconectar', exact: true })

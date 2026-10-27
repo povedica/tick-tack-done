@@ -1,9 +1,17 @@
 import { runAction } from '../../components/run-action';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { RefreshCw, Unlink } from 'lucide-react';
 import { api } from '../../api';
 import { Button, SkeletonRows } from '../../components/ui';
 import { useMessages } from '../../i18n';
+import {
+  InfoTip,
+  ServiceActions,
+  ServiceMark,
+  StatusChip,
+  type ServiceAction,
+} from './integration-ui';
 
 const INBOUND_DOMAIN = 'in.todo.reflexionia.com';
 
@@ -16,57 +24,96 @@ export function InboundEmailCard() {
   const [confirmRotate, setConfirmRotate] = useState(false);
   const active = inbound.data?.active === true;
   const shown = address ?? (active ? `••••@${INBOUND_DOMAIN}` : null);
+  const hasAddress = shown !== null;
+  const actions: ServiceAction[] = hasAddress
+    ? [
+        {
+          id: 'rotate',
+          label: messages.regenerate,
+          icon: RefreshCw,
+          menu: true,
+          onSelect: () => {
+            setConfirmRotate(true);
+            setConfirmMail(false);
+          },
+        },
+        ...(active
+          ? [
+              {
+                id: 'revoke',
+                label: messages.revoke,
+                icon: Unlink,
+                tone: 'danger' as const,
+                onSelect: () => {
+                  setConfirmMail(true);
+                  setConfirmRotate(false);
+                },
+              } satisfies ServiceAction,
+            ]
+          : []),
+      ]
+    : [];
+  const generateLabel = hasAddress ? messages.regenerate : messages.inboundGenerate;
   return (
-    <section className="token-panel" aria-labelledby="inbound-title">
-      <div className="token-panel-head">
-        <div>
-          <h2 id="inbound-title">{messages.inbound}</h2>
-          <p>{messages.inboundHint}</p>
+    <article className="integration-row" aria-labelledby="inbound-title">
+      <div className="integration-head">
+        <div className="integration-id">
+          <ServiceMark name="mail" />
+          <div className="integration-copy">
+            <div className="integration-name">
+              <h2 id="inbound-title">{messages.inbound}</h2>
+              {inbound.isFetched ? (
+                <StatusChip on={active}>
+                  {active ? messages.inboundActive : messages.inboundStopped}
+                </StatusChip>
+              ) : null}
+            </div>
+            <p className="integration-meta">{messages.inboundHint}</p>
+          </div>
         </div>
-        {inbound.isFetched ? (
-          <span className={active ? 'token-pill' : 'token-pill is-revoked'}>
-            {messages.stateLabel}: {active ? messages.inboundActive : messages.inboundStopped}
-          </span>
-        ) : null}
+        <ServiceActions
+          actions={actions}
+          label={messages.inbound}
+          sheetHeader={
+            <div className="integration-sheet-intro">
+              <ServiceMark name="mail" />
+              <div>
+                <strong>{messages.inbound}</strong>
+                <p>{messages.inboundOnce}</p>
+              </div>
+            </div>
+          }
+        />
       </div>
       {inbound.isPending ? <SkeletonRows /> : null}
       {inbound.isFetched && shown !== null ? (
-        <p className="token-url">
+        <p className="token-url integration-follow">
           <code>{shown}</code>
         </p>
       ) : null}
-      {inbound.isFetched && address === null ? (
-        <p className="token-meta">{active ? messages.inboundMasked : messages.inboundMissing}</p>
+      {inbound.isFetched && address === null && active ? (
+        <p className="token-meta integration-follow">{messages.inboundMasked}</p>
       ) : null}
-      {inbound.isFetched ? (
-        <div className="token-actions">
+      {inbound.isFetched && !hasAddress ? (
+        <div className="integration-generate-row integration-follow">
           <Button
             type="button"
             size="sm"
+            variant="primary"
+            className="integration-generate"
             onClick={() => {
               setConfirmRotate(true);
               setConfirmMail(false);
             }}
           >
-            {messages.regenerate}
+            {messages.inboundGenerate}
           </Button>
-          {active ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                setConfirmMail(true);
-                setConfirmRotate(false);
-              }}
-            >
-              {messages.revoke}
-            </Button>
-          ) : null}
+          <InfoTip label={messages.inboundOnce} text={messages.inboundOnce} />
         </div>
       ) : null}
+      <p className="integration-foot integration-follow">{messages.inboundOnce}</p>
       {confirmRotate ? (
-        <div className="token-confirm">
+        <div className="token-confirm integration-follow">
           <p>{messages.inboundRegenerateBody}</p>
           <span className="token-actions">
             <Button
@@ -93,13 +140,13 @@ export function InboundEmailCard() {
                 );
               }}
             >
-              {messages.regenerate}
+              {generateLabel}
             </Button>
           </span>
         </div>
       ) : null}
       {confirmMail ? (
-        <div className="token-confirm">
+        <div className="token-confirm integration-follow">
           <p>{messages.inboundRevokeBody}</p>
           <span className="token-actions">
             <Button
@@ -131,6 +178,6 @@ export function InboundEmailCard() {
           </span>
         </div>
       ) : null}
-    </section>
+    </article>
   );
 }

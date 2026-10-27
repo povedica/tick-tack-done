@@ -1,8 +1,18 @@
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 import { wtCFixture, type State } from './wt-c.fixture';
 const before = process.env.WT_C_CAPTURE_BEFORE === '1';
+
+async function clickTelegramAction(card: Locator, name: string) {
+  const direct = card.getByRole('button', { name, exact: true });
+  if ((await direct.count()) > 0 && (await direct.first().isVisible())) {
+    await direct.first().click();
+    return;
+  }
+  await card.getByRole('button', { name: 'Más acciones', exact: true }).click();
+  await card.page().getByRole('button', { name, exact: true }).click();
+}
 for (const state of ['none', 'token_saved', 'webhook_ok', 'linked', 'error'] as State[]) {
   test(`TTD-AUD-125: screenshot ${state}`, async ({ page }, info) => {
     test.skip(!info.project.name.startsWith('wt-c-'));
@@ -39,12 +49,12 @@ test('TTD-AUD-125: connect, link, test, replace and remove with a fake Telegram'
   fixture.setState('linked');
   await page.clock.runFor(2200);
   await expect(card.locator('.telegram-status')).toHaveText('Conectado');
-  await card.getByRole('button', { name: 'Probar', exact: true }).click();
+  await clickTelegramAction(card, 'Probar');
   await expect(card.getByRole('status').filter({ hasText: 'Enviado' })).toBeVisible();
-  await card.getByRole('button', { name: 'Reemplazar token', exact: true }).click();
+  await clickTelegramAction(card, 'Reemplazar token');
   await card.getByLabel('Token de BotFather').fill('synthetic-replacement');
   await card.getByRole('button', { name: 'Reemplazar token', exact: true }).last().click();
   await expect(card.locator('.telegram-status')).toHaveText('Pendiente de vincular');
-  await card.getByRole('button', { name: 'Quitar bot', exact: true }).click();
+  await clickTelegramAction(card, 'Quitar bot');
   await expect(card.locator('.telegram-status')).toHaveText('Sin configurar');
 });
