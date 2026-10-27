@@ -2353,6 +2353,50 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "include_closed",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "active",
+                "paused",
+                "archived"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "is_project",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "true",
+                "false"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "folder_id",
+            "required": false,
+            "in": "query",
+            "description": "Folder UUID, or none.",
+            "schema": {}
           }
         ],
         "responses": {
@@ -2535,6 +2579,13 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "expected_task_count",
+            "required": false,
+            "in": "query",
+            "description": "When set, delete only if it matches the current task count.",
+            "schema": {}
           }
         ],
         "responses": {
@@ -2580,6 +2631,104 @@
           }
         },
         "summary": "List plus its sections and active tasks",
+        "tags": [
+          "lists"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/deletion-impact": {
+      "get": {
+        "operationId": "ListsController_deletionImpact",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionImpactDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Count tasks that deleting the list would move to the trash",
+        "tags": [
+          "lists"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/state": {
+      "post": {
+        "operationId": "ListsController_setProjectState",
+        "parameters": [
+          {
+            "name": "X-Dev-User-Email",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetProjectStateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Move a project between active, paused and archived in one call",
         "tags": [
           "lists"
         ],
@@ -16415,6 +16564,14 @@
           "sort_order": {
             "type": "string"
           },
+          "project_count": {
+            "type": "number",
+            "description": "Lists in the folder that are not deleted, archived, or the inbox."
+          },
+          "active_task_count": {
+            "type": "number",
+            "description": "Active root tasks in those lists (status active, no parent, not deleted)."
+          },
           "created_at": {
             "type": "string"
           },
@@ -16426,6 +16583,8 @@
           "id",
           "name",
           "sort_order",
+          "project_count",
+          "active_task_count",
           "created_at",
           "updated_at"
         ]
@@ -16521,8 +16680,44 @@
           "closed": {
             "type": "boolean"
           },
+          "closed_at": {
+            "type": "string",
+            "nullable": true
+          },
           "is_inbox": {
             "type": "boolean"
+          },
+          "is_project": {
+            "type": "boolean"
+          },
+          "project_status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "paused"
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "paused",
+              "archived"
+            ],
+            "description": "Derived by projectState: archived when closed, otherwise project_status."
+          },
+          "outcome": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 200
+          },
+          "project_status_changed_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "project_reviewed_at": {
+            "type": "string",
+            "nullable": true
           },
           "default_reminder_trigger": {
             "type": "string",
@@ -16549,7 +16744,14 @@
           "view_mode",
           "kind",
           "closed",
+          "closed_at",
           "is_inbox",
+          "is_project",
+          "project_status",
+          "state",
+          "outcome",
+          "project_status_changed_at",
+          "project_reviewed_at",
           "default_reminder_trigger",
           "sort_order",
           "active_task_count",
@@ -16613,6 +16815,21 @@
           },
           "move_to_end": {
             "type": "boolean"
+          },
+          "is_project": {
+            "type": "boolean"
+          },
+          "project_status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "paused"
+            ]
+          },
+          "outcome": {
+            "type": "object",
+            "nullable": true,
+            "maxLength": 200
           }
         },
         "required": [
@@ -16661,8 +16878,82 @@
             "type": "object",
             "nullable": true,
             "description": "Null inherits the account reminder. 'off' stays quiet."
+          },
+          "is_project": {
+            "type": "boolean"
+          },
+          "project_status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "paused"
+            ]
+          },
+          "outcome": {
+            "type": "object",
+            "nullable": true,
+            "maxLength": 200
           }
         }
+      },
+      "DeletionImpactDto": {
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "is_project": {
+            "type": "boolean"
+          },
+          "closed": {
+            "type": "boolean"
+          },
+          "task_count": {
+            "type": "number",
+            "description": "Every non-deleted task, including subtasks and cancelled tasks."
+          },
+          "completed_count": {
+            "type": "number",
+            "description": "Tasks with status 'completed'."
+          },
+          "open_count": {
+            "type": "number",
+            "description": "Tasks with status 'active', including active subtasks."
+          },
+          "subtask_count": {
+            "type": "number",
+            "description": "Non-deleted tasks that have a parent."
+          }
+        },
+        "required": [
+          "project_id",
+          "name",
+          "is_project",
+          "closed",
+          "task_count",
+          "completed_count",
+          "open_count",
+          "subtask_count"
+        ]
+      },
+      "SetProjectStateDto": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "paused",
+              "archived"
+            ]
+          }
+        },
+        "required": [
+          "state"
+        ]
       },
       "ColumnResponseDto": {
         "type": "object",

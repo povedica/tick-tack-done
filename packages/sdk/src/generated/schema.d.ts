@@ -908,6 +908,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}/deletion-impact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Count tasks that deleting the list would move to the trash */
+        get: operations["ListsController_deletionImpact"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Move a project between active, paused and archived in one call */
+        post: operations["ListsController_setProjectState"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}/archive": {
         parameters: {
             query?: never;
@@ -4450,6 +4484,10 @@ export interface components {
             id: string;
             name: string;
             sort_order: string;
+            /** @description Lists in the folder that are not deleted, archived, or the inbox. */
+            project_count: number;
+            /** @description Active root tasks in those lists (status active, no parent, not deleted). */
+            active_task_count: number;
             created_at: string;
             updated_at: string;
         };
@@ -4477,7 +4515,19 @@ export interface components {
             /** @enum {string} */
             kind: "TASK" | "NOTE";
             closed: boolean;
+            closed_at: string | null;
             is_inbox: boolean;
+            is_project: boolean;
+            /** @enum {string} */
+            project_status: "active" | "paused";
+            /**
+             * @description Derived by projectState: archived when closed, otherwise project_status.
+             * @enum {string}
+             */
+            state: "active" | "paused" | "archived";
+            outcome: string | null;
+            project_status_changed_at: string | null;
+            project_reviewed_at: string | null;
             default_reminder_trigger: string | null;
             sort_order: string;
             active_task_count: number;
@@ -4498,6 +4548,10 @@ export interface components {
             kind?: "TASK" | "NOTE";
             before_id?: Record<string, never> | null;
             move_to_end?: boolean;
+            is_project?: boolean;
+            /** @enum {string} */
+            project_status?: "active" | "paused";
+            outcome?: Record<string, never> | null;
         };
         UpdateProjectDto: {
             name?: string;
@@ -4511,6 +4565,28 @@ export interface components {
             move_to_end?: boolean;
             /** @description Null inherits the account reminder. 'off' stays quiet. */
             default_reminder_trigger?: Record<string, never> | null;
+            is_project?: boolean;
+            /** @enum {string} */
+            project_status?: "active" | "paused";
+            outcome?: Record<string, never> | null;
+        };
+        DeletionImpactDto: {
+            project_id: string;
+            name: string;
+            is_project: boolean;
+            closed: boolean;
+            /** @description Every non-deleted task, including subtasks and cancelled tasks. */
+            task_count: number;
+            /** @description Tasks with status 'completed'. */
+            completed_count: number;
+            /** @description Tasks with status 'active', including active subtasks. */
+            open_count: number;
+            /** @description Non-deleted tasks that have a parent. */
+            subtask_count: number;
+        };
+        SetProjectStateDto: {
+            /** @enum {string} */
+            state: "active" | "paused" | "archived";
         };
         ColumnResponseDto: {
             id: string;
@@ -6859,7 +6935,13 @@ export interface operations {
     };
     ListsController_listProjects: {
         parameters: {
-            query?: never;
+            query?: {
+                include_closed?: "true" | "false";
+                state?: "active" | "paused" | "archived";
+                is_project?: "true" | "false";
+                /** @description Folder UUID, or none. */
+                folder_id?: unknown;
+            };
             header?: {
                 "X-Dev-User-Email"?: string;
             };
@@ -6928,7 +7010,10 @@ export interface operations {
     };
     ListsController_deleteProject: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description When set, delete only if it matches the current task count. */
+                expected_task_count?: unknown;
+            };
             header?: {
                 "X-Dev-User-Email"?: string;
             };
@@ -6992,6 +7077,56 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    ListsController_deletionImpact: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionImpactDto"];
+                };
+            };
+        };
+    };
+    ListsController_setProjectState: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Dev-User-Email"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetProjectStateDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectResponseDto"];
+                };
             };
         };
     };

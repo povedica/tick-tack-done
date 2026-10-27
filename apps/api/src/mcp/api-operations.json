@@ -1523,6 +1523,31 @@
         "in": "header",
         "required": false,
         "schema": { "type": "string" }
+      },
+      {
+        "name": "include_closed",
+        "required": false,
+        "in": "query",
+        "schema": { "enum": ["true", "false"], "type": "string" }
+      },
+      {
+        "name": "state",
+        "required": false,
+        "in": "query",
+        "schema": { "enum": ["active", "paused", "archived"], "type": "string" }
+      },
+      {
+        "name": "is_project",
+        "required": false,
+        "in": "query",
+        "schema": { "enum": ["true", "false"], "type": "string" }
+      },
+      {
+        "name": "folder_id",
+        "required": false,
+        "in": "query",
+        "description": "Folder UUID, or none.",
+        "schema": {}
       }
     ],
     "request_body": {}
@@ -1552,7 +1577,10 @@
               "view_mode": { "type": "string", "enum": ["list", "kanban", "timeline"] },
               "kind": { "type": "string", "enum": ["TASK", "NOTE"] },
               "before_id": { "type": "object", "nullable": true },
-              "move_to_end": { "type": "boolean" }
+              "move_to_end": { "type": "boolean" },
+              "is_project": { "type": "boolean" },
+              "project_status": { "type": "string", "enum": ["active", "paused"] },
+              "outcome": { "type": "object", "nullable": true, "maxLength": 200 }
             },
             "required": ["name"]
           }
@@ -1606,7 +1634,10 @@
                 "type": "object",
                 "nullable": true,
                 "description": "Null inherits the account reminder. 'off' stays quiet."
-              }
+              },
+              "is_project": { "type": "boolean" },
+              "project_status": { "type": "string", "enum": ["active", "paused"] },
+              "outcome": { "type": "object", "nullable": true, "maxLength": 200 }
             }
           }
         }
@@ -1624,7 +1655,14 @@
         "required": false,
         "schema": { "type": "string" }
       },
-      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } },
+      {
+        "name": "expected_task_count",
+        "required": false,
+        "in": "query",
+        "description": "When set, delete only if it matches the current task count.",
+        "schema": {}
+      }
     ],
     "request_body": {}
   },
@@ -1642,6 +1680,49 @@
       { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
     ],
     "request_body": {}
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/projects/{id}/deletion-impact",
+    "summary": "Count tasks that deleting the list would move to the trash",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {}
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/projects/{id}/state",
+    "summary": "Move a project between active, paused and archived in one call",
+    "parameters": [
+      {
+        "name": "X-Dev-User-Email",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string" }
+      },
+      { "name": "id", "required": true, "in": "path", "schema": { "type": "string" } }
+    ],
+    "request_body": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "state": { "type": "string", "enum": ["active", "paused", "archived"] }
+            },
+            "required": ["state"]
+          }
+        }
+      }
+    }
   },
   {
     "method": "POST",
