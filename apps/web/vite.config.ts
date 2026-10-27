@@ -28,6 +28,13 @@ export default defineConfig(({ mode }) => {
   }
   return {
     define: {
+      // Production artifacts must always bootstrap cookie sessions and send CSRF tokens,
+      // including builds prepared outside the production Dockerfile.
+      'import.meta.env.VITE_AUTH_MODE': JSON.stringify(
+        mode === 'production'
+          ? 'session'
+          : (process.env.VITE_AUTH_MODE ?? env.VITE_AUTH_MODE ?? 'dev'),
+      ),
       __APP_COMMIT__: JSON.stringify(/^[a-f0-9]{7,40}$/i.test(commit) ? commit : 'unknown'),
       __BUILD_TIME__: JSON.stringify(
         process.env.BUILD_TIME || env.BUILD_TIME || new Date().toISOString(),
